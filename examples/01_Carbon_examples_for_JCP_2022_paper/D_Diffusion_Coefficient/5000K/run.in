@@ -1,0 +1,16 @@
+potential       ../../../../potentials/nep/C_2022_NEP3.txt
+
+time_step       1.0
+
+velocity        9000    
+ensemble        nvt_lan 9000 9000 100
+run             30000  
+
+ensemble        nvt_lan 5000 5000 100
+run             30000 
+
+time_step 		0.5
+
+ensemble 		nvt_nhc 5000 5000 100
+compute_sdc 	1 1000
+run 			10000

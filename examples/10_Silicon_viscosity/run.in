@@ -1,0 +1,20 @@
+potential   ../../potentials/nep/Si_2022_NEP2.txt
+velocity    2500
+
+time_step   2
+
+ensemble    npt_scr 2500 2500 100 0 50 1000
+dump_exyz   10000 0 0
+dump_thermo 100
+run         10000
+
+ensemble    npt_scr 1600 1600 100 0 50 1000
+dump_exyz   10000 0 0
+dump_thermo 100
+run         10000
+
+ensemble          nve
+dump_thermo       100
+dump_exyz         50000 0 0
+compute_viscosity 1 1000
+run               50000

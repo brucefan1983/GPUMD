@@ -1,78 +1,141 @@
+<div align="left">
+<img src="./logo/logo-main-arctic.png" width = "25%" />
+</div>
+
 # `GPUMD`
-
-## Manual
-* We only maintain the online manual now: https://gpumd.zheyongfan.org
-
-## Warnings in the beginning:
-
-* Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to ask questions in the mailing list.
-  * You can use the following link to subscribe and unsubscribe the mailing list:
-https://www.freelists.org/list/gpumd
-  * To post a question, you can send an email to gpumd(at)freelists.org
-  * Here is the archive (public): https://www.freelists.org/archive/gpumd/
-
-* There are no functionalities for building simulation models. Users of `GPUMD` are supposed to be able to build simulation models by their own. 
-  * One of the developers, Alexander J. Gabourie, has written some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
-  * A graduate student, Ke Xu, is also publishing some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/Kick-H/For_gpumd
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). This code is highly efficient. For details, see Ref. [1].
-
-* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in `GPUMD`:
-   * The EAM-type potential with some analytical forms
-   * The general Tersoff potential with an arbitrary number of atom types
-   * The REBO potential for Mo-S systems (2009)
-   * The Stillinger-Weber (1985) potential with up to three atom types
-   * The Vashishta (2007) potential
-   
-* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of `GPUMD` can calculate the following quantities related to heat transport:
-   * It can calculate the phonon density of states (DOS) from the velocity autocorrelation (VAC).
-   * It can calculate the equilibrium heat current autocorrelation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. `GPUMD` also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is useful for 2D materials.
-   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using nonequilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. [3] has also been implemented.
-   * It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) method as detailed in Ref. [4].
-     
-* `GPUMD` was firstly used for heat transport simulations only but we are now making it more and more general. However, the functionalities in `GPUMD` are still very limited. We are working on implementing (1) more potential models, (2) more integrators (including external conditions), and (3) more measurements.
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs). It enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials (NEPs). See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
 
 ## Prerequisites
 
-* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit which supports your GPU card installed.
-* We have only tested the code in linux operating system, although I know that some users also managed to compile and run the code in Windows operating system with mininal modifications (I don't know exactly what they are) of the code. 
-* We will try our best to keep `GPUMD` as a standalone code. So far, it does not depend on any other program other than the standard `C`, `C++`, and `CUDA` libraries.
+* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit no older than `CUDA` 9.0.
+* Works for both Linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
-* Now one can build two executables: `gpumd` and `phonon`.
-* To build `gpumd`, one just needs to go to the `src` directory and type `make`. When the compilation finishes, an executable named `gpumd` will be generated in the `src` directory. 
-* To build `phonon`, one just needs to go to the `src` directory and type `make -f makefile.phonon`. When the compilation finishes, an executable named `phonon` will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* Go to the directory where you can see `src`.
-* Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
-* Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
-* Please read the manual (https://gpumd.zheyongfan.org) to study the examples. These examples should get you started. 
+* Go to the directory of an example and type one of the following commands:
+  * `path/to/gpumd`
+  * `path/to/nep`
+
+## Colab tutorial
+* We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine. You can also check other offline tutorials in the examples.
+
+## Manual
+* https://gpumd.org/
+
+## Mailing list:
+* You can use the following link to subscribe and unsubscribe the mailing list:
+https://www.freelists.org/list/gpumd
+
+* To post a question, you can send an email to gpumd(at)freelists.org
+
+* Here is the archive (public): https://www.freelists.org/archive/gpumd/
+
+## Python interfaces:
+
+| Package               | link                           |
+| --------------------- | --------------------------------- |
+| `calorine`            | https://gitlab.com/materials-modeling/calorine  |
+| `gpyumd`              |https://github.com/AlexGabourie/gpyumd   |
+| `pynep`               | https://github.com/bigd4/PyNEP   |
+| `somd`                | https://github.com/initqp/somd  |
+
   
 ## Authors:
 
-* Zheyong Fan (Bohai University and Aalto University; Active developer)
-  * brucenju(at)gmail.com
-  * zheyong.fan(at)aalto.fi
-  * zheyongfan(at)163.com
-* Alexander J. Gabourie (Stanford University; Active developer)
-  * gabourie(at)stanford.edu
-* Ville Vierimaa (Aalto University; Not an active developer any more)
-* Mikko Ervasti (Aalto University; Not an active developer any more)
-* Ari Harju (Aalto University; Not an active developer any more)
+* Before the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
+* Below is the full list of contributors starting from the first release.
+
+| Name                  | contact                           |
+| --------------------- | --------------------------------- |
+| Zheyong Fan           | https://github.com/brucefan1983   |
+| Alexander J. Gabourie | https://github.com/AlexGabourie   |
+| Ke Xu                 | https://github.com/Kick-H         |
+| Ting Liang            | https://github.com/Tingliangstu   |
+| Jiahui Liu            | https://github.com/Jonsnow-willow |
+| Penghua Ying          | https://github.com/hityingph      |
+| Real Name ?           | https://github.com/Lazemare       |
+| Real Name ?           | https://github.com/initqp         |
+| Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
+| Rui Zhao              | https://github.com/grtheaory      |
+| Eric Lindgren         | https://github.com/elindgren      |
+| Junjie Wang           | https://github.com/bigd4          |
+| Yong Wang             | https://github.com/AmbroseWong    |
+| Zhixin Liang          | https://github.com/liangzhixin-202169    |
+| Paul Erhart           | https://materialsmodeling.org/ |
+| Nan Xu                | https://github.com/tamaswells | 
+| Shunda Chen           | https://github.com/shdchen |
+| Jiuyang Shi           | https://github.com/XIX-YANG |
+| Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
+| Shuning Pan           | https://github.com/psn417 |
 
 ## Citations
 
-If you use `GPUMD` in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in `GPUMD`:
-* [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications **218**, 10 (2017). https://doi.org/10.1016/j.cpc.2017.05.003
+| Reference             | cite for what?                    |
+| --------------------- | --------------------------------- |
+| [1]                   | for any work that used `GPUMD`   |
+| [2-3]                 | virial and heat current formulation   |
+| [4]                   | in-out decomposition and related spectral decomposition  |
+| [5,3]                 | HNEMD and related spectral decomposition   |
+| [6]                   | force constant potential (FCP) |
+| [7]                   | neuroevolution potential (NEP) and specifically NEP1 |
+| [8]                   | NEP2 |
+| [9]                   | NEP3 |
+| [10]                  | NEP + ZBL |
+| [11]                  | NEP + D3 dispersion correction |
+| [12]                  | MSST integrator for shock wave simulation |
+| [13]                  | linear-scaling quantum transport |
+| [14]                  | NEP4 |
+| [15]                  | TNEP (tensoral NEP models of dipole and polarizability) |
 
-If your work involves using heat current and virial stress formulas as implemented in `GPUMD`, the following paper can be cited:
-* [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B **92**, 094301, (2015). https://doi.org/10.1103/PhysRevB.92.094301
+## References
 
-You can cite the following paper if you use `GPUMD` to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
-* [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B **95**, 144309, (2017). https://doi.org/10.1103/PhysRevB.95.144309 
+[1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. [Efficient molecular dynamics simulations with many-body potentials on graphics processing units](https://doi.org/10.1016/j.cpc.2017.05.003), Computer Physics Communications **218**, 10 (2017). 
 
-You can cite the following paper if you use `GPUMD` to study heat transport using the HNEMD method and the associated spectral decomposition method:
-* [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B **99**, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
+[2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. [Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations](https://doi.org/10.1103/PhysRevB.92.094301), Phys. Rev. B **92**, 094301, (2015). 
+
+[3] Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
+[Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://doi.org/10.1103/PhysRevB.103.205421),
+Phys. Rev. B **103**, 205421 (2021).
+
+[4] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. [Thermal conductivity decomposition in two-dimensional materials: Application to graphene](https://doi.org/10.1103/PhysRevB.95.144309), Phys. Rev. B **95**, 144309, (2017).  
+
+[5] Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, [Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials](https://doi.org/10.1103/PhysRevB.99.064308), Phys. Rev. B **99**, 064308 (2019). 
+
+[6] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, [Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy]( https://doi.org/10.1002/adts.202100217), Advanced Theory and Simulations **4**, 2100217 (2021). 
+
+[7] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Keke Song, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, [Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport](https://doi.org/10.1103/PhysRevB.104.104309), Phys. Rev. B. **104**, 104309 (2021).
+
+[8] Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter **34** 125902 (2022).
+
+[9] Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
+[GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
+
+[10] Jiahui Liu, Jesper Byggmästar, Zheyong Fan, Ping Qian, and Yanjing Su,
+[Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten](https://doi.org/10.1103/PhysRevB.108.054312),
+Phys. Rev. B **108**, 054312 (2023).
+
+[11] Penghua Ying and Zheyong Fan,
+[Combining the D3 dispersion correction with the neuroevolution machine-learned potential](https://doi.org/10.1088/1361-648X/ad1278),
+J. Phys.: Condens. Matter **36** 125901 (2024).
+
+[12] Jiuyang Shi, Zhixing Liang, Junjie Wang, Shuning Pan, Chi Ding, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
+[Double-Shock Compression Pathways from Diamond to BC8 Carbon](https://doi.org/10.1103/PhysRevLett.131.146101),
+Phys. Rev. Lett. **131**, 146101 (2023).
+
+[13] Zheyong Fan, Yang Xiao, Yanzhou Wang, Penghua Ying, Shunda Chen, and Haikuan Dong,
+[Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://doi.org/10.48550/arXiv.2310.15314),
+arXiv:2310.15314 [cond-mat.mtrl-sci].
+
+[14] Keke Song, Rui Zhao, Jiahui Liu, Yanzhou Wang, Eric Lindgren, Yong Wang, Shunda Chen, Ke Xu, Ting Liang, Penghua Ying, Nan Xu, Zhiqiang Zhao, Jiuyang Shi, Junjie Wang, Shuang Lyu, Zezhu Zeng, Shirong Liang, Haikuan Dong, Ligang Sun, Yue Chen, Zhuhua Zhang, Wanlin Guo, Ping Qian, Jian Sun, Paul Erhart, Tapio Ala-Nissila, Yanjing Su, Zheyong Fan,
+[General-purpose machine-learned potential for 16 elemental metals and their alloys](https://doi.org/10.48550/arXiv.2311.04732)
+arXiv:2311.04732 [cond-mat.mtrl-sci]
+
+[15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
+[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.48550/arXiv.2312.05233)
+arXiv:2312.05233 [cond-mat.mes-hall]
+

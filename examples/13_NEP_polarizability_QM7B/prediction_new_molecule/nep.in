@@ -1,0 +1,13 @@
+type       	6 H C N O S Cl	
+model_type  2
+cutoff      6 4
+n_max       6 6
+basis_size  10 10
+l_max       4 2 1
+neuron      10
+population  80
+batch       10000
+generation  200000
+lambda_1    0.03
+lambda_2    0.03
+prediction  1

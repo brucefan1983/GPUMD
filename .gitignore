@@ -1,14 +1,23 @@
-
 \.cproject
-
 \.project
-
 core
 
-*.o
+src/.vscode/*
+src/*/*.obj
+src/*/*.o
+src/gpumd*
+src/nep*
 
-src/gpumd
+.history
+.vscode
+*~
+local
+public
+public.*
+\#*
 
-src/phonon
+/nep
+/gpumd*
 
-doc/gpumd.synctex.gz
+__pycache__/
+*/__pycache__/

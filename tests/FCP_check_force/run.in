@@ -1,0 +1,10 @@
+# This run.in file is used to get the initial forces in a system
+# described by the FCP potential
+
+potential ../../potentials/fcp/Al/fcp.txt
+velocity 1
+
+ensemble nve
+time_step 0 # do not move the system
+dump_force 1 # only one frame of forces
+run 1

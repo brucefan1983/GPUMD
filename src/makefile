@@ -1,48 +1,142 @@
+###########################################################
+# Note: 
+# 1) You can modify -arch=sm_60 according to 
+#    your GPU architecture.
+# 2) For Windows systems, if you get errors like 
+#    c1xx : fatal error C1083: Cannot open source file: ...
+#    You can consider removing -Xcompiler "/wd 4819"
+# 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
+#    and remove it otherwise.
+# 4) Add -DUSE_TABLE to speed up MD simulations with NEP
+#    using pre-computed radial functions in the descriptors
+###########################################################
+
+
+###########################################################
+# some flags
+###########################################################
 CC = nvcc
-CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
-
-INC =
+ifdef OS # For Windows with the cl.exe compiler
+CFLAGS = -O3 -arch=sm_60 -Xcompiler "/wd 4819"
+else # For linux
+CFLAGS = -std=c++14 -O3 -arch=sm_60
+endif
+INC = -I./
 LDFLAGS = 
-LIBS = 
+LIBS = -lcublas -lcusolver
 
-SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
-	mic.cu atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
-	force.cu potential.cu ri.cu lj.cu eam.cu sw.cu vashishta.cu fcp.cu \
-	tersoff1988.cu tersoff1989.cu tersoff_modc.cu rebo_mos2.cu tersoff_mini.cu \
-	integrate.cu ensemble.cu ensemble_nve.cu ensemble_ber.cu \
-	ensemble_nhc.cu ensemble_lan.cu ensemble_bdp.cu \
-	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu \
-	dos.cu sdc.cu dump_netcdf.cu dump_xyz.cu gkma.cu hnema.cu
 
-_OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
-	mic.o atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
-	force.o potential.o ri.o lj.o eam.o sw.o vashishta.o fcp.o \
-	tersoff1988.o tersoff1989.o tersoff_modc.o rebo_mos2.o tersoff_mini.o \
-	integrate.o ensemble.o ensemble_nve.o ensemble_ber.o \
-	ensemble_nhc.o ensemble_lan.o ensemble_bdp.o \
-	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o \
-	dos.o sdc.o dump_netcdf.o dump_xyz.o gkma.o hnema.o
+###########################################################
+# source files
+###########################################################
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.cu)   \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard phonon/*.cu)       \
+	$(wildcard integrate/*.cu)    \
+	$(wildcard mc/*.cu)           \
+	$(wildcard force/*.cu)        \
+	$(wildcard measure/*.cu)      \
+	$(wildcard model/*.cu)        \
+	$(wildcard utilities/*.cu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.cu)     \
+	$(wildcard utilities/*.cu)
 
-HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
-	mic.cuh common.cuh atom.cuh \
-	force.cuh potential.cuh ri.cuh lj.cuh eam.cuh sw.cuh vashishta.cuh fcp.cuh \
-	tersoff1988.cuh tersoff1989.cuh tersoff_modc.cuh rebo_mos2.cuh tersoff_mini.cuh \
-	integrate.cuh ensemble.cuh ensemble_nve.cuh ensemble_ber.cuh \
-	ensemble_nhc.cuh ensemble_lan.cuh ensemble_bdp.cuh \
-	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh \
-	dos.cuh sdc.cuh dump_pos.cuh dump_netcdf.cuh dump_xyz.cuh gkma.cuh hnema.cuh
 
-ODIR = obj
-OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+###########################################################
+# object files
+###########################################################
+ifdef OS # For Windows with the cl.exe compiler
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
+OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+else
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
+OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+endif
 
-all: gpumd
 
-$(ODIR)/%.o: %.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+###########################################################
+# headers
+###########################################################
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard phonon/*.cuh)      \
+	$(wildcard main_nep/*.cuh)
 
-gpumd: $(OBJ)
+
+###########################################################
+# executables
+###########################################################
+all: gpumd nep
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
+
+###########################################################
+# rules for building object files
+###########################################################
+ifdef OS # for Windows
+integrate/%.obj: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.obj: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.obj: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.obj: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.obj: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.obj: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.obj: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.obj: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else # for Linux
+integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.o: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
+
+
+###########################################################
+# clean up
+###########################################################
 clean:
-	rm $(ODIR)/*o gpumd
+ifdef OS
+	del /s *.obj *.exp *.lib *.exe
+else
+	rm -f */*.o gpumd nep
+endif
 
