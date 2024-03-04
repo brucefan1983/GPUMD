@@ -3,12 +3,12 @@
 
 Publications
 ************
-
-Preprints
-=========
+   
+2024
+====
 .. bibliography::
    :list: enumerated
-   :filter: year % "preprint"
+   :filter: year % "2024"
 
 2023
 ====
