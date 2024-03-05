@@ -233,6 +233,9 @@ void Fitness::output(
         fprintf(fid, "%g ", reference[n * dataset.Nc + nc]);
       }
     }
+
+    if (!is_stress) return;
+    
     // columns 13-24: stress in units of GPa
     for (int n = 0; n < num_components; ++n) {
       int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
