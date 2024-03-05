@@ -209,9 +209,15 @@ void Fitness::compute(
 }
 
 void Fitness::output(
-  int num_components, FILE* fid, float* prediction, float* reference, Dataset& dataset)
+  bool is_stress,
+  int num_components, 
+  FILE* fid, 
+  float* prediction, 
+  float* reference, 
+  Dataset& dataset)
 {
   for (int nc = 0; nc < dataset.Nc; ++nc) {
+    // columns 1-12: virial in units of eV/atom
     for (int n = 0; n < num_components; ++n) {
       int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
       float data_nc = 0.0f;
@@ -225,6 +231,24 @@ void Fitness::output(
         fprintf(fid, "%g\n", reference[n * dataset.Nc + nc]);
       } else {
         fprintf(fid, "%g ", reference[n * dataset.Nc + nc]);
+      }
+    }
+    // columns 13-24: stress in units of GPa
+    for (int n = 0; n < num_components; ++n) {
+      int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
+      float data_nc = 0.0f;
+      for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+        data_nc += prediction[offset + m];
+      }
+      fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+    }
+    for (int n = 0; n < num_components; ++n) {
+      float ref_value = reference[n * dataset.Nc + nc];
+      ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+      if (n == num_components - 1) {
+        fprintf(fid, "%g\n", ref_value);
+      } else {
+        fprintf(fid, "%g ", ref_value);
       }
     }
   }
@@ -487,20 +511,20 @@ void Fitness::update_energy_force_virial(
     }
   }
 
-  output(1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
-  output(6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
+  output(true, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
 
 void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
 
 void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
 
 void Fitness::predict(Parameters& para, float* elite)
