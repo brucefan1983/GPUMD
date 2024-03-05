@@ -32,6 +32,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].energy = structures_input[n_input].energy;
     structures[n].has_temperature = structures_input[n_input].has_temperature;
     structures[n].temperature = structures_input[n_input].temperature;
+    structures[n].volume = structures_input[n_input].volume;
     for (int k = 0; k < 6; ++k) {
       structures[n].virial[k] = structures_input[n_input].virial[k];
     }
