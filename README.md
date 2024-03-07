@@ -72,6 +72,7 @@ https://www.freelists.org/list/gpumd
 | Jiuyang Shi           | https://github.com/XIX-YANG |
 | Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
 | Shuning Pan           | https://github.com/psn417 |
+| Haikuan Dong          | https://github.com/hailan2005 |
 
 ## Citations
 
