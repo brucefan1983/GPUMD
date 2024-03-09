@@ -47,9 +47,16 @@ protected:
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
-  void output(int num_components, FILE* fid, float* prediction, float* reference, Dataset& dataset);
+  void output(
+    bool is_stress, 
+    int num_components, 
+    FILE* fid, 
+    float* prediction, 
+    float* reference, 
+    Dataset& dataset);
   void
-  update_energy_force_virial(FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset);
+  update_energy_force_virial(
+    FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
   void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
   void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
