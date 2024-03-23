@@ -168,6 +168,12 @@ void Parameters::calculate_parameters()
     dim += 1; // concatenate temeprature with descriptors
   }
   q_scaler_cpu.resize(dim, 1.0e10f);
+#ifdef USE_FIXED_SCALER
+  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+    q_scaler_cpu[n] = 0.01f;
+  }
+#endif
+
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
