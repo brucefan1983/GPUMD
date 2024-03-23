@@ -132,12 +132,20 @@ void Fitness::compute(
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
-
     std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
-      potential->find_force(para, dummy_solution.data(), train_set[n], true, true, deviceCount);
+      potential->find_force(
+        para, 
+        dummy_solution.data(), 
+        train_set[n], 
+#ifdef USE_FIXED_SCALER
+        false, 
+#else
+        true,
+#endif
+        true, 
+        deviceCount);
     }
-
   } else {
     int batch_id = generation % num_batches;
     bool calculate_neighbor = (num_batches > 1) || (generation % 100 == 0);
