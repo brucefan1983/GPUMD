@@ -103,6 +103,10 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
+#ifdef USE_FIXED_SCALER
+    mu[para.number_of_variables_ann - 1] = 0.0f;
+    sigma[para.number_of_variables_ann - 1] = 0.0f;
+#endif
   cudaSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
