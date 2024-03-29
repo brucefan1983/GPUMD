@@ -192,7 +192,7 @@ void Parameters::calculate_parameters()
   }
 
   if (!is_lambda_1_set) {
-    lambda_1 = 0.0f;
+    lambda_1 = sqrt(number_of_variables * 1.0e-6f);
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f);
