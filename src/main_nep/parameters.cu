@@ -191,12 +191,21 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
+#ifdef USE_FIXED_SCALER
+  if (!is_lambda_1_set) {
+    lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
+  }
+  if (!is_lambda_2_set) {
+    lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
+  }
+#else
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f);
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f);
   }
+#endif
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
