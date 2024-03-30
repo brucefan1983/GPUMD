@@ -77,8 +77,8 @@ void Parameters::set_default_parameters()
   version = 4;                 // NEP4 is the best
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
-  basis_size_radial = 12;      // large enough in most cases
-  basis_size_angular = 12;     // large enough in most cases
+  basis_size_radial = 8;       // large enough in most cases
+  basis_size_angular = 8;      // large enough in most cases
   n_max_radial = 4;            // a relatively small value to achieve high speed
   n_max_angular = 4;           // a relatively small value to achieve high speed
   L_max = 4;                   // the only supported value
