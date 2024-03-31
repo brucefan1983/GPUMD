@@ -241,7 +241,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       sort_population(para);
 
       int best_index = index[para.num_types * population_size];
-      float fitness_total = fitness[best_index + (6 * para.num_types + 0) * population_size];
+      float fitness_total = fitness[0 + (6 * para.num_types + 0) * population_size];
       float fitness_L1 = fitness[best_index + (6 * para.num_types + 1) * population_size];
       float fitness_L2 = fitness[best_index + (6 * para.num_types + 2) * population_size];
       fitness_function->report_error(
