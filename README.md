@@ -91,7 +91,7 @@ https://www.freelists.org/list/gpumd
 | [12]                  | MSST integrator for shock wave simulation |
 | [13]                  | linear-scaling quantum transport |
 | [14]                  | NEP4 |
-| [15]                  | TNEP (tensoral NEP models of dipole and polarizability) |
+| [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 
 ## References
 
