@@ -63,7 +63,7 @@ Units
 * Length and position are expected in units of Ångstrom.
 * The energy is expected  in units of eV.
 * Forces are expected in units of eV/Å.
-* Virials are expected in units of eV (such that th virial divided by the volume yields the stress).
+* Virials are expected in units of eV (such that the virial divided by the volume yields the stress).
 * Dipole and polarizability can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
 
 Tips
