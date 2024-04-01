@@ -26,7 +26,7 @@ All the characters are case-insensitive.
 Here, the different values are separated by spaces and spaces after the left ``"`` and before the right ``"`` are allowed.
 For example, one can write ``keyword=" value_1 value_2 value_3 "``.
 
-Essentially any keyword is allowd, but we only read the following ones:
+Essentially any keyword is allowed, but we only read the following ones:
 
 * :attr:`lattice="ax ay az bx by bz cx cy cz"` is mandatory and gives the cell vectors:
 
@@ -62,9 +62,9 @@ Units
 -----
 * Length and position are expected in units of Ångstrom.
 * The energy is expected  in units of eV.
-* Forces are exepected is in units of eV/Å.
+* Forces are expected in units of eV/Å.
 * Virials are expected in units of eV (such that th virial divided by the volume yields the stress).
-* Dipole and polarizalibity can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
+* Dipole and polarizability can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
 
 Tips
 ----
