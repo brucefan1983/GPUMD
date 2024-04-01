@@ -14,4 +14,6 @@ There are 12 columns.
 The first 6 columns give the :math:`xx`, :math:`yy`, :math:`zz`, :math:`xy`, :math:`yz`, and :math:`zx` stress components calculated using the :term:`NEP` model.
 The last 6 columns give the corresponding target stress components.
 
+For a structure without target virial or stress, a target value of -1e-6 weill be output to remind the user about this.
+
 The stress values are in units of GPa.
