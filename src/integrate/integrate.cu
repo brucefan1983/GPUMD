@@ -21,6 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
+#include "ensemble_mirror.cuh"
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
@@ -121,6 +122,8 @@ void Integrate::initialize(
     case -3: // mttk
       break;
     case -4: // piston
+      break;
+    case -7: // mirror
       break;
     case -5: // nphug
       break;
@@ -403,6 +406,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "piston") == 0) {
     type = -4;
     ensemble.reset(new Ensemble_piston(param, num_param));
+  } else if (strcmp(param[1], "mirror") == 0) {
+    type = -7;
+    ensemble.reset(new Ensemble_mirror(param, num_param));
   } else if (strcmp(param[1], "nphug") == 0) {
     type = -5;
     ensemble.reset(new Ensemble_NPHug(param, num_param));
@@ -837,6 +843,8 @@ void Integrate::parse_ensemble(
     case -5:
       break;
     case -6:
+      break;
+    case -7:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
