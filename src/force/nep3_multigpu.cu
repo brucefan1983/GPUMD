@@ -417,6 +417,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   nep_temp_data.cell_contents.resize(num_atoms);
 
   allocate_memory();
+
+  initialize_dftd3();
 }
 
 void NEP3_MULTIGPU::allocate_memory()
