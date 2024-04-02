@@ -57,7 +57,7 @@ protected:
   int t_equil = -1, t_switch = -1;
   double pe, espring;
   // spring constants
-  std::map<std::string, int> spring_map;
+  std::map<std::string, double> spring_map;
   GPU_Vector<double> gpu_k;
   std::vector<double> cpu_k;
   GPU_Vector<double> gpu_espring;
