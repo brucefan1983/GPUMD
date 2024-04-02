@@ -21,6 +21,7 @@ Calculate the heat current autocorrelation (HAC) function.
 #include "hac.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <vector>
 
 #define NUM_OF_HEAT_COMPONENTS 5

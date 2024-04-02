@@ -14,6 +14,7 @@
 */
 
 #include "dump_piston.cuh"
+#include <cstring>
 
 namespace
 {
