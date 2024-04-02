@@ -160,4 +160,5 @@ private:
 
   void allocate_memory();
   void update_potential(float* parameters, ANN& ann);
+  void initialize_dftd3();
 };
