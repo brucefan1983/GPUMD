@@ -237,7 +237,12 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      regularize(para);
+      if (para.version == 4) {
+        regularize_NEP4(para);
+      } else {
+        regularize(para);
+      }
+
       sort_population(para);
 
       int best_index = index[para.num_types * population_size];
@@ -322,9 +327,7 @@ void SNES::create_population(Parameters& para)
   gpu_population.copy_to_host(population.data());
 }
 
-#ifdef USE_FIXED_SCALER
-
-static __global__ void gpu_find_L1_L2(
+static __global__ void gpu_find_L1_L2_NEP4(
   const int number_of_variables,
   const int g_num_types,
   const int g_type,
@@ -370,14 +373,17 @@ static __global__ void gpu_find_L1_L2(
   }
 }
 
-void SNES::regularize(Parameters& para)
+void SNES::regularize_NEP4(Parameters& para)
 {
   cudaSetDevice(0); // normally use GPU-0
 
-  const int num_variables_one_type = para.number_of_variables / para.num_types;
-
   for (int t = 0; t <= para.num_types; ++t) {
-    gpu_find_L1_L2<<<population_size, 1024>>>(
+    float num_variables = float(para.number_of_variables) / para.num_types;
+    if (t == para.num_types) {
+      num_variables = para.number_of_variables;
+    }
+    
+    gpu_find_L1_L2_NEP4<<<population_size, 1024>>>(
       number_of_variables, 
       para.num_types,
       t, 
@@ -391,8 +397,8 @@ void SNES::regularize(Parameters& para)
     gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
 
     for (int p = 0; p < population_size; ++p) {
-      float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables_one_type;
-      float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables_one_type);
+      float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
+      float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
       fitness[p + (6 * t + 0) * population_size] =
         cost_L1 + cost_L2 + fitness[p + (6 * t + 3) * population_size] +
         fitness[p + (6 * t + 4) * population_size] + fitness[p + (6 * t + 5) * population_size];
@@ -401,8 +407,6 @@ void SNES::regularize(Parameters& para)
     }
   }
 }
-
-#else
 
 static __global__ void gpu_find_L1_L2(
   const int number_of_variables,
@@ -467,8 +471,6 @@ void SNES::regularize(Parameters& para)
     }
   }
 }
-
-#endif
 
 static void insertion_sort(float array[], int index[], int n)
 {
