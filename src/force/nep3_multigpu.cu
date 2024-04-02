@@ -2474,6 +2474,11 @@ void NEP3_MULTIGPU::compute(
     }
   }
 
+  for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+    CHECK(cudaSetDevice(gpu));
+    CHECK(cudaDeviceSynchronize());
+  }
+
   CHECK(cudaSetDevice(0));
 
   // serial
