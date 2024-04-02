@@ -14,20 +14,18 @@
 */
 
 #pragma once
-#include "ensemble_lan.cuh"
-#include "langevin_utilities.cuh"
+#include "ensemble.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include <map>
 #include <math.h>
 
-class Ensemble_TI_Spring : public Ensemble_LAN
+class Ensemble_mirror : public Ensemble
 {
 public:
-  Ensemble_TI_Spring(const char** params, int num_params);
-  virtual ~Ensemble_TI_Spring(void);
+  Ensemble_mirror(const char** params, int num_params);
+  virtual ~Ensemble_mirror(void);
 
   virtual void compute1(
     const double time_step,
@@ -43,24 +41,12 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo);
 
-  void find_thermo();
-  double get_espring_sum();
-  void add_spring_force();
   void init();
-  void find_lambda();
-  double switch_func(double t);
-  double dswitch_func(double t);
 
 protected:
-  FILE* output_file;
-  double lambda = 0, dlambda = 0;
-  int t_equil = -1, t_switch = -1;
-  double pe, espring;
-  // spring constants
-  std::map<std::string, double> spring_map;
-  GPU_Vector<double> gpu_k;
-  std::vector<double> cpu_k;
-  GPU_Vector<double> gpu_espring;
-  GPU_Vector<double> position_0;
+  double thickness = 20;
+  double mirror_pos = 0;
+  double vp;
+  GPU_Vector<bool> gpu_right_wall_list;
   std::vector<double> thermo_cpu;
 };
