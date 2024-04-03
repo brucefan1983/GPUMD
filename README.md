@@ -6,7 +6,9 @@
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs). It enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials (NEPs). See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics.
+* `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs).
+* `GPUMD` enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials (NEPs). See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
 
 ## Prerequisites
 
@@ -14,7 +16,8 @@
 * Works for both Linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
-* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`.
+* When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * Go to the directory of an example and type one of the following commands:
@@ -22,10 +25,12 @@
   * `path/to/nep`
 
 ## Colab tutorial
-* We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine. You can also check other offline tutorials in the examples.
+* We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine.
+* You can also check other offline tutorials in the examples.
 
 ## Manual
-* https://gpumd.org/
+* Latest released version: https://gpumd.org/
+* Development version: https://gpumd.org/dev/
 
 ## Mailing list:
 * You can use the following link to subscribe and unsubscribe the mailing list:
