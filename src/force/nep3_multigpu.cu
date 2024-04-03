@@ -42,6 +42,27 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
+void NEP3_MULTIGPU::initialize_dftd3()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "dftd3") {
+        input_run.close();
+        PRINT_INPUT_ERROR("dftd3 has not been implemented for multi-GPU version.");
+      }
+    }
+  }
+
+  input_run.close();
+}
+
 NEP3_MULTIGPU::NEP3_MULTIGPU(
   const int num_gpus,
   const char* file_potential,
@@ -396,6 +417,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   nep_temp_data.cell_contents.resize(num_atoms);
 
   allocate_memory();
+
+  initialize_dftd3();
 }
 
 void NEP3_MULTIGPU::allocate_memory()
