@@ -61,6 +61,7 @@ protected:
   void compute(Parameters&, Fitness*);
   void create_population(Parameters&);
   void regularize(Parameters&);
+  void regularize_NEP4(Parameters& para);
   void sort_population(Parameters& para);
   void update_mu_and_sigma();
   void output_mu_and_sigma(Parameters& para);
