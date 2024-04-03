@@ -99,8 +99,8 @@ Ensemble_mirror::Ensemble_mirror(const char** params, int num_params)
     }
   }
   printf("Piston velocity: %f km/s.\n", vp);
-  printf("The thickness of fixed wall: %f Ang.\n", thickness);
-  vp /= 100 * TIME_UNIT_CONVERSION;
+  printf("The thickness of fixed wall on the right side: %f Ang.\n", thickness);
+  vp = vp / 100 * TIME_UNIT_CONVERSION;
 }
 
 void Ensemble_mirror::init()
