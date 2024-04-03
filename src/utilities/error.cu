@@ -14,6 +14,7 @@
 */
 
 #include "error.cuh"
+#include <cstring>
 #include <errno.h>
 #include <fstream>
 #include <iostream>

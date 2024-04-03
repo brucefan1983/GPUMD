@@ -18,6 +18,7 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"
+#include <cstring>
 
 namespace
 {

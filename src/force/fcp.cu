@@ -19,6 +19,7 @@ The force constant potential (FCP)
 
 #include "fcp.cuh"
 #include "utilities/error.cuh"
+#include <cstring>
 #include <vector>
 
 FCP::FCP(FILE* fid, const int num_types, const int N, const Box& box)

@@ -31,6 +31,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "modal_analysis.cuh"
 #include "utilities/error.cuh"
+#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128

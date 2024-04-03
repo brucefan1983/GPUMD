@@ -24,6 +24,7 @@ Dump velocity data to a file at a given interval.
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <vector>
 
 void Dump_Velocity::parse(const char** param, int num_param, const std::vector<Group>& groups)

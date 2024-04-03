@@ -18,6 +18,7 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {

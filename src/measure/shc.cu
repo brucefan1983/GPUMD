@@ -26,6 +26,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 const int BLOCK_SIZE_SHC = 128;
 

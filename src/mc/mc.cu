@@ -23,6 +23,7 @@ The driver class for the various MC ensembles.
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void MC::initialize(void)
 {
