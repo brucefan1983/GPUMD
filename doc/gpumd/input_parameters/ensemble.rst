@@ -15,6 +15,7 @@ There are different categories of methods accessible via this keyword, which are
 * :ref:`MSST integrator for simulating compressive shock wave <kw_ensemble_msst>`
 * :ref:`NPHug integrator for simulating compressive shock wave <kw_ensemble_nphug>`
 * :ref:`piston integrator for simulating compressive shock wave <kw_ensemble_piston>`
+* :ref:`momentum mirror integrator for simulating compressive shock wave <kw_ensemble_mirror>`
 
 
 .. _choice_of_parameters:

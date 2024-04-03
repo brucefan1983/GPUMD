@@ -26,6 +26,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_ti_spring
    ensemble_ti
    ensemble_piston
+   ensemble_mirror
    ensemble_msst
    ensemble_nphug
    fix
