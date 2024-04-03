@@ -29,5 +29,5 @@ Example
 
     ensemble piston direction x vp 5 thickness 30
 
-This command makes the piston moving at 5 km/s in x direction. The thick ness of the wall is 30. 
+This command makes the piston moving at 5 km/s in x direction. The thickness of the wall is 30. 
 
