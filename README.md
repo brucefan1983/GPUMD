@@ -142,6 +142,6 @@ Journal of Physics: Condensed Matter **36**, 245901 (2024).
 arXiv:2311.04732 [cond-mat.mtrl-sci]
 
 [15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
-[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.48550/arXiv.2312.05233)
-arXiv:2312.05233 [cond-mat.mes-hall]
+[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343)
+J. Chem. Theory Comput. (2024).
 
