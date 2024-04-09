@@ -30,5 +30,5 @@ public:
 
   void get_target_temp();
   void get_thermo();
-  void init();
+  void init_mttk();
 };

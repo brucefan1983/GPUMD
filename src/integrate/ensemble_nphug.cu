@@ -151,7 +151,7 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
   }
 }
 
-void Ensemble_NPHug::init()
+void Ensemble_NPHug::init_mttk()
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
