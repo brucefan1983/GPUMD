@@ -169,8 +169,27 @@ void Ensemble_TI_Spring::find_thermo()
 
 Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
 {
+  double kT = K_B * temperature;
+  int N = atom->number_of_atoms;
+  for (int i = 0; i < N; i++) {
+    cpu_k[i] = pow(cpu_k[i] / atom->cpu_mass[i], 0.5);
+    cpu_k[i] = log(cpu_k[i] * HBAR / kT);
+    E_Ein += cpu_k[i];
+  }
+  E_Ein = 3 * kT * E_Ein / N;
+
+  FILE* yaml_file = my_fopen("ti_spring.yaml", "w");
+  fprintf(yaml_file, "E_Einstein: %f\n", E_Ein);
+  fprintf(yaml_file, "E_diff: %f\n", E_diff);
+  fprintf(yaml_file, "F: %f\n", E_Ein + E_diff);
+
   printf("Closing ti_spring output file...\n");
   fclose(output_file);
+  fclose(yaml_file);
+
+  printf("Free energy of reference system (Einstein crystal): %f eV/atom.\n", E_Ein);
+  printf("Free energy difference: %f eV/atom.\n", E_diff);
+  printf("Free energy of the system of interest: %f eV/atom.\n", E_Ein + E_diff);
 }
 
 void Ensemble_TI_Spring::add_spring_force()
@@ -240,6 +259,7 @@ void Ensemble_TI_Spring::find_lambda()
       dlambda,
       pe / atom->number_of_atoms,
       espring / atom->number_of_atoms);
+    E_diff += 0.5 * (pe - espring) * abs(dlambda) / atom->number_of_atoms;
   }
 }
 
