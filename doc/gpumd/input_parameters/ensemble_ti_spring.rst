@@ -18,7 +18,7 @@ The parameters can be specified as follows::
 - :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1.
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
 
-Please note that the spring constants should be placed at the end of the command.
+Please note that the spring constants should be placed at the end of the command. If there are no ``spring`` keyword, the spring constants will be computed automatically through the MSD of atoms.
 
 Example
 -------
@@ -29,7 +29,17 @@ Example
 
 This command switch lambda for 4000 timesteps, and equilibrate for 1000 timesteps. The spring constant is 6 eV/A^2 for Si and 5 eV/A^2 for O.
 
+.. code-block:: rst
+
+    ensemble ti_spring temp 300 tequil 1000 tswitch 4000
+
+This command calculate spring constants automatically.
+
 Output file
 -----------
 
 This command will produce a csv file. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
+
+This command will also produce a yaml file, which contains Gibbs free energy and other information.
+
+Additionally, important information will be displayed on the screen during the simulation process, so it is recommended to carefully review and take note of these details.
