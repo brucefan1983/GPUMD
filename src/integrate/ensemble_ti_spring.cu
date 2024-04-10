@@ -164,7 +164,7 @@ void Ensemble_TI_Spring::find_thermo()
     *thermo);
   thermo->copy_to_host(thermo_cpu.data());
   pe = thermo_cpu[1];
-  espring = get_espring_sum();
+  pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
 Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
@@ -177,19 +177,32 @@ Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
     E_Ein += cpu_k[i];
   }
   E_Ein = 3 * kT * E_Ein / N;
+  V = box->get_volume() / N;
 
   FILE* yaml_file = my_fopen("ti_spring.yaml", "w");
   fprintf(yaml_file, "E_Einstein: %f\n", E_Ein);
   fprintf(yaml_file, "E_diff: %f\n", E_diff);
   fprintf(yaml_file, "F: %f\n", E_Ein + E_diff);
+  fprintf(yaml_file, "T: %f\n", temperature);
+  fprintf(yaml_file, "V: %f\n", V);
+  fprintf(yaml_file, "P: %f\n", avg_pressure);
+  fprintf(yaml_file, "G: %f\n", E_Ein + E_diff + avg_pressure * V);
 
   printf("Closing ti_spring output file...\n");
   fclose(output_file);
   fclose(yaml_file);
 
+  printf("\n");
+  printf("-----------------------------------------------------------------------\n");
   printf("Free energy of reference system (Einstein crystal): %f eV/atom.\n", E_Ein);
   printf("Free energy difference: %f eV/atom.\n", E_diff);
-  printf("Free energy of the system of interest: %f eV/atom.\n", E_Ein + E_diff);
+  printf("Pressure: %f eV/A^3 = %f GPa.\n", avg_pressure, avg_pressure * PRESSURE_UNIT_CONVERSION);
+  printf("Volume: %f A^3.\n", V);
+  printf("Helmholtz free energy of the system of interest: %f eV/atom.\n", E_Ein + E_diff);
+  printf(
+    "Gibbs free energy of the system of interest: %f eV/atom.\n",
+    E_Ein + E_diff + avg_pressure * V);
+  printf("-----------------------------------------------------------------------\n");
 }
 
 void Ensemble_TI_Spring::add_spring_force()
@@ -234,7 +247,8 @@ void Ensemble_TI_Spring::compute1(
 
 void Ensemble_TI_Spring::find_lambda()
 {
-  bool need_lambda = false;
+  find_thermo();
+  bool need_output = false;
   if (*current_step < t_equil)
     return;
   const int t = *current_step - t_equil;
@@ -243,15 +257,18 @@ void Ensemble_TI_Spring::find_lambda()
   if ((t >= 0) && (t <= t_switch)) {
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
-    need_lambda = true;
+    need_output = true;
   } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
-    need_lambda = true;
+    need_output = true;
   }
 
-  if (need_lambda) {
-    find_thermo();
+  if (t < t_equil)
+    avg_pressure += pressure / t_equil;
+
+  if (need_output) {
+    espring = get_espring_sum();
     fprintf(
       output_file,
       "%e,%e,%e,%e\n",

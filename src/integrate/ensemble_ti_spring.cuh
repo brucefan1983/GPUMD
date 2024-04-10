@@ -56,6 +56,7 @@ protected:
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
   double pe, espring;
+  double pressure, avg_pressure = 0, V;
   double E_diff = 0, E_Ein = 0;
   // spring constants
   std::map<std::string, double> spring_map;
