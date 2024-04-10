@@ -47,6 +47,28 @@ static __global__ void gpu_add_spring_force(
   }
 }
 
+static __global__ void gpu_add_msd(
+  int number_of_atoms,
+  Box box,
+  double* k,
+  double* x,
+  double* y,
+  double* z,
+  double* x0,
+  double* y0,
+  double* z0)
+{
+  double dx, dy, dz;
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    dx = x[i] - x0[i];
+    dy = y[i] - y0[i];
+    dz = z[i] - z0[i];
+    apply_mic(box, dx, dy, dz);
+    k[i] += dx * dx + dy * dy + dz * dz;
+  }
+}
+
 static __global__ void gpu_get_espring_sum(const int N, double* espring)
 {
   //<<<1, 1024>>>
@@ -96,6 +118,7 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       i += 2;
     } else if (strcmp(params[i], "spring") == 0) {
       i++;
+      auto_k = false;
       double _k;
       while (i < num_params) {
         if (!is_valid_real(params[i + 1], &_k))
@@ -133,15 +156,8 @@ void Ensemble_TI_Spring::init()
   CUDA_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
-  gpu_k.resize(N);
-  cpu_k.resize(N);
-  for (int i = 0; i < N; i++) {
-    std::string ele = atom->cpu_atom_symbol[i];
-    if (spring_map.find(ele) == spring_map.end())
-      PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
-    cpu_k[i] = spring_map[ele];
-  }
-  gpu_k.copy_from_host(cpu_k.data());
+  gpu_k.resize(N, 0);
+  cpu_k.resize(N, 0);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
   CHECK(cudaMemcpy(
@@ -149,6 +165,16 @@ void Ensemble_TI_Spring::init()
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
     cudaMemcpyDeviceToDevice));
+
+  if (!auto_k) {
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      if (spring_map.find(ele) == spring_map.end())
+        PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
+      cpu_k[i] = spring_map[ele];
+    }
+    gpu_k.copy_from_host(cpu_k.data());
+  }
 }
 
 void Ensemble_TI_Spring::find_thermo()
@@ -202,6 +228,7 @@ Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
   printf(
     "Gibbs free energy of the system of interest: %f eV/atom.\n",
     E_Ein + E_diff + avg_pressure * V);
+  printf("These values are stored in ti_spring.yaml.\n");
   printf("-----------------------------------------------------------------------\n");
 }
 
@@ -248,9 +275,49 @@ void Ensemble_TI_Spring::compute1(
 void Ensemble_TI_Spring::find_lambda()
 {
   find_thermo();
+  int N = atom->number_of_atoms;
   bool need_output = false;
-  if (*current_step < t_equil)
-    return;
+
+  if (*current_step < t_equil) {
+    avg_pressure += pressure / t_equil;
+    if (auto_k)
+      gpu_add_msd<<<(N - 1) / 128 + 1, 128>>>(
+        N,
+        *box,
+        gpu_k.data(),
+        atom->position_per_atom.data(),
+        atom->position_per_atom.data() + N,
+        atom->position_per_atom.data() + 2 * N,
+        position_0.data(),
+        position_0.data() + N,
+        position_0.data() + 2 * N);
+  }
+
+  // calculate MSD and spring constants
+  if ((*current_step == t_equil - 1) && auto_k) {
+    gpu_k.copy_to_host(cpu_k.data());
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      if (spring_map.find(ele) == spring_map.end())
+        spring_map[ele] = 0;
+      spring_map[ele] += cpu_k[i];
+    }
+    printf("---------------------------------------\n");
+    printf("Estimating spring constants from MSD...\n");
+    for (const auto& myPair : spring_map) {
+      std::string ele = myPair.first;
+      spring_map[ele] /= atom->number_of_type(ele) * t_equil;
+      spring_map[ele] = 3 * K_B * temperature / spring_map[ele];
+      printf("  %s --- %f eV/A^2\n", myPair.first, myPair.second);
+    }
+    printf("---------------------------------------\n");
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      cpu_k[i] = spring_map[ele];
+    }
+    gpu_k.copy_from_host(cpu_k.data());
+  }
+
   const int t = *current_step - t_equil;
   const double r_switch = 1.0 / t_switch;
 
@@ -263,9 +330,6 @@ void Ensemble_TI_Spring::find_lambda()
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     need_output = true;
   }
-
-  if (t < t_equil)
-    avg_pressure += pressure / t_equil;
 
   if (need_output) {
     espring = get_espring_sum();

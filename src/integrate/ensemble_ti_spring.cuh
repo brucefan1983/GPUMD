@@ -58,6 +58,7 @@ protected:
   double pe, espring;
   double pressure, avg_pressure = 0, V;
   double E_diff = 0, E_Ein = 0;
+  bool auto_k = true;
   // spring constants
   std::map<std::string, double> spring_map;
   GPU_Vector<double> gpu_k;

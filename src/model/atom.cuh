@@ -45,4 +45,7 @@ public:
   std::vector<GPU_Vector<double>> force_beads;
   std::vector<GPU_Vector<double>> potential_beads;
   std::vector<GPU_Vector<double>> virial_beads;
+
+  int number_of_type(std::string symbol);
+  int number_of_type(int atomic_number);
 };
