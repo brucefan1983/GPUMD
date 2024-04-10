@@ -21,6 +21,7 @@ Compute block (space) averages of various per-atom quantities.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <vector>
 
 #define DIM 3

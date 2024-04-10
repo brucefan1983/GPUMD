@@ -21,6 +21,7 @@
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 /*----------------------------------------------------------------------------80
     This file implements the linear-scaling quantum transport (LSQT) method

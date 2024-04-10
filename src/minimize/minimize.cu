@@ -23,6 +23,7 @@ The driver class for minimizers.
 #include "minimizer_sd.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <memory>
 
 void Minimize::parse_minimize(

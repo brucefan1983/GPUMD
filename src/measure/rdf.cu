@@ -27,6 +27,7 @@ Calculate:
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 namespace
 {

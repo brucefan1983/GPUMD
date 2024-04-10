@@ -20,6 +20,7 @@ A function parsing the "group" option in some keywords
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void parse_group(
   const char** param,

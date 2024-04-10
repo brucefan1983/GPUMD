@@ -18,6 +18,7 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
@@ -174,7 +175,6 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
   if (version == 2) {
@@ -191,11 +191,20 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (!is_lambda_1_set) {
-    lambda_1 = sqrt(number_of_variables * 1.0e-6f);
-  }
-  if (!is_lambda_2_set) {
-    lambda_2 = sqrt(number_of_variables * 1.0e-6f);
+  if (version == 4) {
+    if (!is_lambda_1_set) {
+      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
+    }
+    if (!is_lambda_2_set) {
+      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
+    }
+  } else {
+    if (!is_lambda_1_set) {
+      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
+    }
+    if (!is_lambda_2_set) {
+      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
+    }
   }
 
   int deviceCount;
