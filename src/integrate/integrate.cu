@@ -31,6 +31,7 @@ The driver class for the various integrators.
 #include "ensemble_pimd.cuh"
 #include "ensemble_piston.cuh"
 #include "ensemble_ti.cuh"
+#include "ensemble_ti_as.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
 #include "integrate.cuh"
@@ -418,6 +419,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "ti_rs") == 0) {
     type = -8;
     ensemble.reset(new Ensemble_TI_RS(param, num_param));
+  } else if (strcmp(param[1], "ti_as") == 0) {
+    type = -9;
+    ensemble.reset(new Ensemble_TI_AS(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -853,6 +857,8 @@ void Integrate::parse_ensemble(
     case -7:
       break;
     case -8:
+      break;
+    case -9:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

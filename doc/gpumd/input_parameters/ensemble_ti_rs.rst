@@ -3,7 +3,7 @@
 :attr:`ensemble` (TI_RS)
 ============================
 
-This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Reversible Scaling (RS) path. Please check [Koning2001]_ and [Freitas2016]_ for more details.
+This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Reversible Scaling (RS) path. It calculates Gibbs free energy along an isobaric path. Please check [Koning2001]_ and [Freitas2016]_ for more details.
 
 Syntax
 ------

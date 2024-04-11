@@ -261,3 +261,9 @@ Bibliography
    | J. Chem. Phys. **115**, 11025–11035 (2001)
    | DOI: `10.1063/1.1420486 <https://doi.org/10.1063/1.1420486>`_
 
+.. [Cajahuaringa2022]
+   | Samuel Cajahuaringa, and Alex Antonelli
+   | *Non-equilibrium free-energy calculation ofphase-boundaries using LAMMPS*
+   | Computational Materials Science **207**, 111275 (2022)
+   | DOI: `10.1016/j.commatsci.2022.111275 <https://doi.org/10.1016/j.commatsci.2022.111275>`_
+

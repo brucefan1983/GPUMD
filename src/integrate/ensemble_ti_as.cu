@@ -13,40 +13,9 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "ensemble_ti_rs.cuh"
+#include "ensemble_ti_as.cuh"
 
-namespace
-{
-static __global__ void gpu_scale_force(
-  int number_of_atoms,
-  double lambda,
-  double* fx,
-  double* fy,
-  double* fz,
-  double* sxx,
-  double* syy,
-  double* szz,
-  double* sxy,
-  double* sxz,
-  double* syz)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_atoms) {
-    fx[i] *= lambda;
-    fy[i] *= lambda;
-    fz[i] *= lambda;
-    sxx[i] *= lambda;
-    syy[i] *= lambda;
-    szz[i] *= lambda;
-    sxy[i] *= lambda;
-    sxz[i] *= lambda;
-    syz[i] *= lambda;
-  }
-}
-
-} // namespace
-
-Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
+Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -80,18 +49,19 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       use_thermostat = true;
       if (!is_valid_real(params[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
-      if (!is_valid_real(params[i + 2], &t_max))
-        PRINT_INPUT_ERROR("Wrong inputs for t_max keyword.");
       t_stop = t_start;
       t_target = t_start;
-      i += 3;
+      i += 2;
     } else if (
       strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
       strcmp(params[i], "tri") == 0) {
       use_barostat = true;
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(params[i + 1], &p_min))
         PRINT_INPUT_ERROR("Wrong inputs for pressure keyword.");
-      p_stop[1][1] = p_stop[2][2] = p_stop[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0];
+      if (!is_valid_real(params[i + 2], &p_max))
+        PRINT_INPUT_ERROR("Wrong inputs for pressure keyword.");
+      p_stop[1][1] = p_stop[2][2] = p_stop[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0] =
+        p_min;
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
       if (strcmp(params[i], "iso") == 0)
@@ -110,7 +80,7 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
           }
         }
       }
-      i += 2;
+      i += 3;
     } else if (strcmp(params[i], "tswitch") == 0) {
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
@@ -146,23 +116,23 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
         printf("%s will not be changed.\n", stress_components[i][j]);
     }
   }
-  lambda_f = t_start / t_max;
   printf("Nonequilibrium thermodynamic integration:\n");
   printf("    t_switch is %d timestep.\n", t_switch);
-  printf("    temp_start is %f K.\n", t_start);
-  printf("    temp_max is %f K.\n", t_max);
-  printf("    final lambda value is %f.\n", lambda_f);
+  printf("    p_min is %f GPa.\n", p_min);
+  printf("    p_max is %f GPa.\n", p_max);
+  p_min /= PRESSURE_UNIT_CONVERSION;
+  p_max /= PRESSURE_UNIT_CONVERSION;
 }
 
-void Ensemble_TI_RS::init()
+void Ensemble_TI_AS::init()
 {
   thermo_cpu.resize(thermo->size());
   printf("The number of steps should be set to %d!\n", 2 * (t_switch));
-  output_file = my_fopen("ti_rs.csv", "w");
-  fprintf(output_file, "lambda,dlambda,enthalpy\n");
+  output_file = my_fopen("ti_as.csv", "w");
+  fprintf(output_file, "p,V\n");
 }
 
-void Ensemble_TI_RS::find_thermo()
+void Ensemble_TI_AS::find_thermo()
 {
   Ensemble::find_thermo(
     false,
@@ -174,33 +144,16 @@ void Ensemble_TI_RS::find_thermo()
     atom->virial_per_atom,
     *thermo);
   thermo->copy_to_host(thermo_cpu.data());
-  pe = thermo_cpu[1];
+  pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
-Ensemble_TI_RS::~Ensemble_TI_RS(void)
+Ensemble_TI_AS::~Ensemble_TI_AS(void)
 {
-  printf("Closing ti_rs output file...\n");
+  printf("Closing ti_as output file...\n");
   fclose(output_file);
 }
 
-void Ensemble_TI_RS::scale_force()
-{
-  int N = atom->number_of_atoms;
-  gpu_scale_force<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    lambda,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + N,
-    atom->force_per_atom.data() + 2 * N,
-    atom->virial_per_atom.data(),
-    atom->virial_per_atom.data() + N,
-    atom->virial_per_atom.data() + N * 2,
-    atom->virial_per_atom.data() + N * 3,
-    atom->virial_per_atom.data() + N * 4,
-    atom->virial_per_atom.data() + N * 5);
-}
-
-void Ensemble_TI_RS::compute1(
+void Ensemble_TI_AS::compute1(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
@@ -212,55 +165,37 @@ void Ensemble_TI_RS::compute1(
   Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
 }
 
-void Ensemble_TI_RS::compute2(
+void Ensemble_TI_AS::compute2(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  find_lambda();
-  scale_force();
-
   Ensemble_MTTK::compute2(time_step, group, box, atoms, thermo);
 }
 
-void Ensemble_TI_RS::find_lambda()
+void Ensemble_TI_AS::get_target_pressure()
 {
   const int t = *current_step;
   const double r_switch = 1.0 / t_switch;
+  double pp;
+  double delta_p = p_max - p_min;
 
   if ((t >= 0) && (t <= t_switch)) {
-    lambda = switch_func(t * r_switch);
-    dlambda = dswitch_func(t * r_switch);
+    pp = (t * r_switch) * delta_p + p_min;
   } else if ((t >= t_switch) && (t <= 2 * t_switch)) {
-    lambda = switch_func(1.0 - (t - t_switch) * r_switch);
-    dlambda = -dswitch_func(1.0 - (t - t_switch) * r_switch);
+    pp = p_max - (t - t_switch) * r_switch * delta_p;
   }
 
-  find_thermo();
-  fprintf(
-    output_file,
-    "%e,%e,%e\n",
-    lambda,
-    dlambda,
-    (pe + p_start[0][0] * box->get_volume()) / atom->number_of_atoms);
-}
-
-void Ensemble_TI_RS::get_target_pressure()
-{
   for (int ii = 0; ii < 3; ii++) {
-    p_target[ii][ii] = p_start[ii][ii] * lambda;
+    p_target[ii][ii] = pp;
   }
+
   get_p_hydro();
   if (non_hydrostatic)
     get_sigma();
-}
 
-double Ensemble_TI_RS::switch_func(double t) { return 1 / (1 + t * (1 / lambda_f - 1)); }
-
-double Ensemble_TI_RS::dswitch_func(double t)
-{
-  double a = 1 / lambda_f - 1;
-  return -(a / pow((1 + a * t), 2)) / t_switch;
+  find_thermo();
+  fprintf(output_file, "%e,%e\n", pp, box->get_volume() / atom->number_of_atoms);
 }
