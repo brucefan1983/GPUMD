@@ -50,4 +50,5 @@ protected:
   int t_switch = -1;
   double p_min, p_max, pressure;
   std::vector<double> thermo_cpu;
+  bool auto_switch = true;
 };

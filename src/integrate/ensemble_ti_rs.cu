@@ -112,6 +112,7 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       }
       i += 2;
     } else if (strcmp(params[i], "tswitch") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
@@ -148,7 +149,6 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
   }
   lambda_f = t_start / t_max;
   printf("Nonequilibrium thermodynamic integration:\n");
-  printf("    t_switch is %d timestep.\n", t_switch);
   printf("    temp_start is %f K.\n", t_start);
   printf("    temp_max is %f K.\n", t_max);
   printf("    final lambda value is %f.\n", lambda_f);
@@ -156,8 +156,12 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
 
 void Ensemble_TI_RS::init()
 {
+  if (auto_switch) {
+    t_switch = *total_steps / 2;
+  } else
+    printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
+  printf("    t_switch is %d timestep.\n", t_switch);
   thermo_cpu.resize(thermo->size());
-  printf("The number of steps should be set to %d!\n", 2 * (t_switch));
   output_file = my_fopen("ti_rs.csv", "w");
   fprintf(output_file, "lambda,dlambda,enthalpy\n");
 }

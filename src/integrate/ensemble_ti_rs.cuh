@@ -57,4 +57,5 @@ protected:
   double t_max;
   double pe;
   std::vector<double> thermo_cpu;
+  bool auto_switch = true;
 };

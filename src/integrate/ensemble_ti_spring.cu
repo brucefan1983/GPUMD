@@ -101,10 +101,12 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "tswitch") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
     } else if (strcmp(params[i], "tequil") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
@@ -134,10 +136,6 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
     temperature,
     temperature_coupling);
-  printf(
-    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
-    t_switch,
-    t_equil);
   type = 3;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
@@ -145,7 +143,15 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 
 void Ensemble_TI_Spring::init()
 {
-  printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
+  if (auto_switch) {
+    t_switch = (int)(*total_steps * 0.4);
+    t_equil = (int)(*total_steps * 0.1);
+  } else
+    printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
+    t_switch,
+    t_equil);
   output_file = my_fopen("ti_spring.csv", "w");
   fprintf(output_file, "lambda,dlambda,pe,espring\n");
   int N = atom->number_of_atoms;
@@ -308,7 +314,7 @@ void Ensemble_TI_Spring::find_lambda()
       std::string ele = myPair.first;
       spring_map[ele] /= atom->number_of_type(ele) * t_equil;
       spring_map[ele] = 3 * K_B * temperature / spring_map[ele];
-      printf("  %s --- %f eV/A^2\n", myPair.first, myPair.second);
+      printf("  %s --- %f eV/A^2\n", myPair.first.c_str(), myPair.second);
     }
     printf("---------------------------------------\n");
     for (int i = 0; i < N; i++) {

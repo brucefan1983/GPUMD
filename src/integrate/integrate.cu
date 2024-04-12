@@ -133,6 +133,8 @@ void Integrate::initialize(
       break;
     case -8: // ti_rs
       break;
+    case -9: // ti_as
+      break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
         type,

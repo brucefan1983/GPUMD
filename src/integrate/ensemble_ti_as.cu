@@ -82,6 +82,7 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
       }
       i += 3;
     } else if (strcmp(params[i], "tswitch") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
@@ -117,7 +118,6 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
     }
   }
   printf("Nonequilibrium thermodynamic integration:\n");
-  printf("    t_switch is %d timestep.\n", t_switch);
   printf("    p_min is %f GPa.\n", p_min);
   printf("    p_max is %f GPa.\n", p_max);
   p_min /= PRESSURE_UNIT_CONVERSION;
@@ -126,8 +126,12 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 
 void Ensemble_TI_AS::init()
 {
+  if (auto_switch) {
+    t_switch = *total_steps / 2;
+  } else
+    printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
+  printf("    t_switch is %d timestep.\n", t_switch);
   thermo_cpu.resize(thermo->size());
-  printf("The number of steps should be set to %d!\n", 2 * (t_switch));
   output_file = my_fopen("ti_as.csv", "w");
   fprintf(output_file, "p,V\n");
 }
