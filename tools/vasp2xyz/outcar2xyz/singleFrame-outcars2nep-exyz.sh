@@ -29,9 +29,9 @@ do
              if [[ $viri_logi -eq 1 ]]
              then
                    viri=$(grep -A 20 "FORCE on cell =-STRESS" $i | grep "Total " | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
-                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
+                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
              else
-                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
+                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
              fi
              ion_numb_arra=($(grep "ions per type"  $i | tail -n 1 | awk -F"=" '{print $2}'))
              ion_symb_arra=($(grep "POTCAR:" $i  | awk '{print $3}' | awk -F"_" '{print $1}' | awk '!seen[$0]++'))
