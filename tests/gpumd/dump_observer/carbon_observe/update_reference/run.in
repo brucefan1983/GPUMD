@@ -1,0 +1,9 @@
+potential        ../C_2022_NEP3.txt
+velocity        300
+
+time_step       1.0
+
+ensemble        nve
+dump_exyz	1 1 1 
+run             4
+
