@@ -18,7 +18,7 @@ def _copy_files(files: List[str], test_folder: str, tmp_path: str):
 
 def _load_observer_files(path: str, mode: str):
     n_output_files = 1 if mode == 'average' else 2
-    n_reference_files = 2 if mode == 'average' else 1
+    n_reference_files = 2 if mode == 'average' else 2
     data = []
     if n_output_files == 1:
         bundles = (read(f'{path}/observer.xyz', ':'), np.loadtxt(f'{path}/observer.out'))
@@ -42,15 +42,16 @@ def _load_observer_files(path: str, mode: str):
         data.append(data_bundle)
     df = pd.DataFrame.from_dict(data)
     
-    ref_data = {}
-    for i in range(n_reference_files):
-        ref = read(f'{path}/reference_observer{i}.xyz', ':')[0]
-        ref_data[f'energy_ref{i}']= ref.get_potential_energy()
-        ref_data[f'forces_ref{i}']= ref.get_forces().flatten()
-        forces_ref0 = ref.get_forces().flatten()
-        ref_data['energy_ref0']
+    ref_structures = [read(f'{path}/reference_observer{i}.xyz', ':') for i in range(n_reference_files)]
+    ref_data = []
+    for refs in zip(*ref_structures):
+        frame_data = {}
+        for i, ref in enumerate(refs):
+            frame_data[f'energy_ref{i}']= ref.get_potential_energy()
+            frame_data[f'forces_ref{i}']= ref.get_forces().flatten()
+        ref_data.append(frame_data)
 
-    ref_df = pd.DataFrame.from_dict([ref_data])
+    ref_df = pd.DataFrame.from_dict(ref_data)
     return df, ref_df
 
 
@@ -61,6 +62,7 @@ def test_observe_single_species(tmp_path):
         'C_2022_NEP3_MODIFIED.txt',
         'model.xyz',
         'reference_observer0.xyz',
+        'reference_observer1.xyz',
         'run.in'
     ]
     _copy_files(files, test_folder, tmp_path)
@@ -106,18 +108,35 @@ def test_observe_single_species(tmp_path):
     # Compare to reference
     atol = 1e-4  # should be close to reference
     rtol = 1e-3
-    assert np.all(np.isclose(
-        a=df['energy0_exyz'][0],
-        b=ref_df['energy_ref0'],
-        atol=atol,
-        rtol=rtol
-    )), 'Energies should match reference; did you compile with DDEBUG?'
-    assert np.all(np.isclose(
-        a=df['forces0_exyz'][0],
-        b=ref_df['forces_ref0'][0],
-        atol=atol,
-        rtol=rtol
-    )), 'Forces should match reference; did you compile with DDEBUG'
+    print("Energy")
+    for f in range(4):
+        print(f"Step {f}")
+        print("\tPred1=Ref1".ljust(16), df['energy0_exyz'][f], '?=', ref_df['energy_ref0'][f])
+        print("\tPred2=Ref2".ljust(16), df['energy1_exyz'][f], '?=', ref_df['energy_ref1'][f])
+        assert np.all(np.isclose(
+            a=df['energy0_exyz'][f],
+            b=ref_df['energy_ref0'][f],
+            atol=atol,
+            rtol=rtol
+        )), 'Energies should match reference0; did you compile with DDEBUG?'
+        assert np.all(np.isclose(
+            a=df['energy1_exyz'][f],
+            b=ref_df['energy_ref1'][f],
+            atol=atol,
+            rtol=rtol
+        )), 'Energies should match reference1; did you compile with DDEBUG?'
+        assert np.all(np.isclose(
+            a=df['forces0_exyz'][f],
+            b=ref_df['forces_ref0'][f],
+            atol=atol,
+            rtol=rtol
+        )), 'Forces should match reference0; did you compile with DDEBUG'
+        assert np.all(np.isclose(
+            a=df['forces1_exyz'][f],
+            b=ref_df['forces_ref1'][f],
+            atol=atol,
+            rtol=rtol
+        )), 'Forces should match reference1; did you compile with DDEBUG'
 
 
 def test_average_single_species(tmp_path):
@@ -133,8 +152,6 @@ def test_average_single_species(tmp_path):
     _copy_files(files, test_folder, tmp_path)
     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
     df, ref_df = _load_observer_files(tmp_path, mode='average')
-    print(df)
-    print(ref_df)
     atol = 1e-8  # Anything smaller is considered ~0
     rtol = 1e-7
     assert np.all(np.isclose(
@@ -148,27 +165,25 @@ def test_average_single_species(tmp_path):
 
     energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)
     forces = np.vstack([ref_df['forces_ref0'], ref_df['forces_ref1']]).mean(axis=0)
-    print("Energy")
-    print(energy, ref_df['energy_ref0'][0], ref_df['energy_ref1'][0])
-    print(df['energy0_thermo'][0],df['energy0_exyz'][0])
-    print("Force")
-    print(forces[0][0], ref_df['forces_ref0'][0][0], ref_df['forces_ref1'][0][0])
-    print(df['forces0_exyz'][0][0], df['forces0_exyz'][1][0])
-    energy = energy[0]
     atol = 1e-4  # should be close to reference
     rtol = 1e-3
-    assert np.all(np.isclose(
-        a=df['energy0_exyz'][0],
-        b=energy,
-        atol=atol,
-        rtol=rtol
-    )), 'Energies should match reference; did you compile with DDEBUG?'
-    assert np.all(np.isclose(
-        a=df['forces0_exyz'][0],
-        b=forces[0],
-        atol=atol,
-        rtol=rtol
-    )), 'Forces should match reference; did you compile with DDEBUG?'
+    print("Energy")
+    for f in range(4):
+        print(f"Step {f}")
+        print("\tPred=Ref".ljust(16), df['energy0_exyz'][f], '?=', energy[f])
+        print("\tPred1, pred2".ljust(16), ref_df['energy_ref0'][f], ', ', ref_df['energy_ref1'][f])
+        assert np.all(np.isclose(
+            a=df['energy0_exyz'][f],
+            b=energy[f],
+            atol=atol,
+            rtol=rtol
+        )), 'Energies should match reference; did you compile with DDEBUG?'
+        assert np.all(np.isclose(
+            a=df['forces0_exyz'][f],
+            b=forces[f],
+            atol=atol,
+            rtol=rtol
+        )), 'Forces should match reference; did you compile with DDEBUG?'
 
 
 def test_species_order(tmp_path):
