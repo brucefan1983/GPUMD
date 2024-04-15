@@ -114,6 +114,11 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       if (!is_valid_real(params[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
+    } else if (strcmp(params[i], "press") == 0) {
+      if (!is_valid_real(params[i + 1], &target_pressure))
+        PRINT_INPUT_ERROR("Wrong inputs for press keyword.");
+      target_pressure /= PRESSURE_UNIT_CONVERSION;
+      i += 2;
     } else if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
@@ -217,8 +222,8 @@ Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
   fprintf(yaml_file, "F: %f\n", E_Ein + E_diff);
   fprintf(yaml_file, "T: %f\n", temperature);
   fprintf(yaml_file, "V: %f\n", V);
-  fprintf(yaml_file, "P: %f\n", avg_pressure);
-  fprintf(yaml_file, "G: %f\n", E_Ein + E_diff + avg_pressure * V);
+  fprintf(yaml_file, "P: %f\n", target_pressure);
+  fprintf(yaml_file, "G: %f\n", E_Ein + E_diff + target_pressure * V);
 
   printf("Closing ti_spring output file...\n");
   fclose(output_file);
@@ -228,12 +233,13 @@ Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
   printf("-----------------------------------------------------------------------\n");
   printf("Free energy of reference system (Einstein crystal): %f eV/atom.\n", E_Ein);
   printf("Free energy difference: %f eV/atom.\n", E_diff);
-  printf("Pressure: %f eV/A^3 = %f GPa.\n", avg_pressure, avg_pressure * PRESSURE_UNIT_CONVERSION);
+  printf(
+    "Pressure: %f eV/A^3 = %f GPa.\n", target_pressure, target_pressure * PRESSURE_UNIT_CONVERSION);
   printf("Volume: %f A^3.\n", V);
   printf("Helmholtz free energy of the system of interest: %f eV/atom.\n", E_Ein + E_diff);
   printf(
     "Gibbs free energy of the system of interest: %f eV/atom.\n",
-    E_Ein + E_diff + avg_pressure * V);
+    E_Ein + E_diff + target_pressure * V);
   printf("These values are stored in ti_spring.yaml.\n");
   printf("-----------------------------------------------------------------------\n");
 }
