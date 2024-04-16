@@ -231,10 +231,10 @@ void Ensemble_TI_RS::compute2(
 
 void Ensemble_TI_RS::find_lambda()
 {
-  const int t = *current_step;
-  const double r_switch = 1.0 / t_switch;
+  const double t = (int)*current_step;
+  const double r_switch = 1.0 / (t_switch - 1);
 
-  if ((t >= 0) && (t <= t_switch)) {
+  if ((t >= 0) && (t < t_switch)) {
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
   } else if ((t >= t_switch) && (t <= 2 * t_switch)) {
