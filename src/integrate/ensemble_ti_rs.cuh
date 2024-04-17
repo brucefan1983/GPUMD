@@ -53,7 +53,7 @@ protected:
   FILE* output_file;
   double lambda_f;
   double lambda = 1, dlambda = 0;
-  int t_switch = -1;
+  int t_switch = -1, t_equil = -1;
   double t_max;
   double pe;
   std::vector<double> thermo_cpu;

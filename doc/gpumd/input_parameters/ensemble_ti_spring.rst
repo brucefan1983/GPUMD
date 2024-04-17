@@ -10,13 +10,14 @@ Syntax
 
 The parameters can be specified as follows::
 
-    ensemble ti_spring temp <temperature> tperiod <tau_temperature> tequil <equilibrium_time> tswitch <switch_time> spring <element_name> <spring_constant>
+    ensemble ti_spring temp <temperature> tperiod <tau_temperature> tequil <equilibrium_time> tswitch <switch_time> spring <element_name> <spring_constant> press <pressure>
 
 - :attr:`<temperature>`: The temperature of the simulation.
 - :attr:`<tau_temperature>`: This parameter is optional, and defaults to ``100``. It determines the period of the thermostat in units of the timestep. It determines how strongly the system is coupled to the thermostat.
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1.
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
+- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simlation process.
 
 Please note that the spring constants should be placed at the end of the command. If there are no ``spring`` keyword, the spring constants will be computed automatically through the MSD of atoms.
 

@@ -116,7 +116,16 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
-    } else {
+    }
+
+    else if (strcmp(params[i], "tequil") == 0) {
+      auto_switch = false;
+      if (!is_valid_int(params[i + 1], &t_equil))
+        PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
+      i += 2;
+    }
+
+    else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
@@ -157,10 +166,14 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
 void Ensemble_TI_RS::init()
 {
   if (auto_switch) {
-    t_switch = *total_steps / 2;
+    t_switch = (int)(*total_steps * 0.4);
+    t_equil = (int)(*total_steps * 0.1);
   } else
     printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
-  printf("    t_switch is %d timestep.\n", t_switch);
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
+    t_switch,
+    t_equil);
   thermo_cpu.resize(thermo->size());
   output_file = my_fopen("ti_rs.csv", "w");
   fprintf(output_file, "lambda,dlambda,enthalpy\n");
@@ -231,24 +244,29 @@ void Ensemble_TI_RS::compute2(
 
 void Ensemble_TI_RS::find_lambda()
 {
-  const double t = (int)*current_step;
+  bool need_output = false;
+  const double t = *current_step - t_equil;
   const double r_switch = 1.0 / (t_switch - 1);
 
   if ((t >= 0) && (t < t_switch)) {
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
-  } else if ((t >= t_switch) && (t <= 2 * t_switch)) {
-    lambda = switch_func(1.0 - (t - t_switch) * r_switch);
-    dlambda = -dswitch_func(1.0 - (t - t_switch) * r_switch);
+    need_output = true;
+  } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
+    lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
+    dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
+    need_output = true;
   }
 
-  find_thermo();
-  fprintf(
-    output_file,
-    "%e,%e,%e\n",
-    lambda,
-    dlambda,
-    (pe + p_start[0][0] * box->get_volume()) / atom->number_of_atoms);
+  if (need_output) {
+    find_thermo();
+    fprintf(
+      output_file,
+      "%e,%e,%e\n",
+      lambda,
+      dlambda,
+      (pe + p_start[0][0] * box->get_volume()) / atom->number_of_atoms);
+  }
 }
 
 void Ensemble_TI_RS::get_target_pressure()
