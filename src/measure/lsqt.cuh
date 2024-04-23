@@ -18,7 +18,7 @@ class Atom;
 class Box;
 
 // choose between the two models
-// #define USE_GRAPHENE_TB
+#define USE_GRAPHENE_TB
 #ifdef USE_GRAPHENE_TB
 #define number_of_orbitals_per_atom 1
 #else
