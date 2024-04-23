@@ -146,7 +146,6 @@ arXiv:2311.04732 [cond-mat.mtrl-sci]
 [Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343)
 J. Chem. Theory Comput. (2024).
 
-[16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian,   
-[Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694)
+[16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694)
 arXiv:2404.13694 [cond-mat.mtrl-sci]
 
