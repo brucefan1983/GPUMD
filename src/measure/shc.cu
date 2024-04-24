@@ -39,6 +39,7 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   num_time_origins = 0;
   if (-1 == group_method) {
     group_size = N;
+    group_num = 1;
   } else {
     if (group_method == 0 && group_id == -1) {
       group_size = N;
