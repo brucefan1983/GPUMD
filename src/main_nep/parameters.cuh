@@ -47,6 +47,8 @@ public:
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
+  float mu0;
+  float sigma0;
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
@@ -76,6 +78,8 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
+  bool is_mu0_set;
+  bool is_sigma0_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -122,6 +126,8 @@ private:
   void parse_lambda_v(const char** param, int num_param);
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
+  void parse_mu0(const char** param, int num_param);
+  void parse_sigma0(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);

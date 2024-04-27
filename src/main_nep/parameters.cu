@@ -72,6 +72,8 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
+  is_mu0_set = false;
+  is_sigma0_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -91,6 +93,8 @@ void Parameters::set_default_parameters()
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
+  mu0 = 1.0f;
+  sigma0 = 0.01f;
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
@@ -370,6 +374,18 @@ void Parameters::report_inputs()
     printf("    (default) force_delta = %g.\n", force_delta);
   }
 
+  if (is_mu0_set) {
+    printf("    (input)   mu0 = %g.\n", mu0);
+  } else {
+    printf("    (default) mu0 = %g.\n", mu0);
+  }
+
+  if (is_sigma0_set) {
+    printf("    (input)   sigma0 = %g.\n", sigma0);
+  } else {
+    printf("    (default) sigma0 = %g.\n", sigma0);
+  }
+
   if (is_batch_set) {
     printf("    (input)   batch size = %d.\n", batch_size);
     if (use_full_batch) {
@@ -454,6 +470,10 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
+  } else if (strcmp(param[0], "mu0") == 0) {
+    parse_mu0(param, num_param);
+  } else if (strcmp(param[0], "sigma0") == 0) {
+    parse_sigma0(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -845,6 +865,45 @@ void Parameters::parse_lambda_shear(const char** param, int num_param)
     PRINT_INPUT_ERROR("Shear virial weight should >= 0.");
   }
 }
+
+void Parameters::parse_sigma0(const char** param, int num_param)
+{
+  is_sigma0_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma0 should have 1 parameter.\n");
+  }
+
+  double sigma0_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma0_tmp)) {
+    PRINT_INPUT_ERROR("sigma0 should be a number.\n");
+  }
+  sigma0 = sigma0_tmp;
+
+  if (sigma0 <= 0.0f) {
+    PRINT_INPUT_ERROR("sigma0 should > 0.");
+  }
+}
+
+void Parameters::parse_mu0(const char** param, int num_param)
+{
+  is_mu0_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("mu0 should have 1 parameter.\n");
+  }
+
+  double mu0_tmp = 0.0;
+  if (!is_valid_real(param[1], &mu0_tmp)) {
+    PRINT_INPUT_ERROR("mu0 should be a number.\n");
+  }
+  mu0 = mu0_tmp;
+
+  if (mu0 <= 0.0f) {
+    PRINT_INPUT_ERROR("mu0 should > 0.");
+  }
+}
+
 
 void Parameters::parse_batch(const char** param, int num_param)
 {
