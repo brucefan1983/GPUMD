@@ -1,7 +1,7 @@
 .. _kw_ensemble_ti_as:
 
 :attr:`ensemble` (TI_AS)
-============================
+========================
 
 This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Adiabatic switching (AS) path. It calculates Gibbs free energy along an isothermal path. Please check [Cajahuaringa2022]_ for more details.
 

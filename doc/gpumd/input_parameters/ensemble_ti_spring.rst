@@ -35,7 +35,7 @@ This command switch lambda for 4000 timesteps, and equilibrate for 1000 timestep
 
     ensemble ti_spring temp 300 tequil 1000 tswitch 4000
 
-This command calculate spring constants automatically.
+This command calculates spring constants automatically.
 
 Output file
 -----------

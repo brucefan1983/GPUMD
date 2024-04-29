@@ -21,21 +21,11 @@ The class defining the simulation box.
 #include "utilities/error.cuh"
 #include <cmath>
 
-int Atom::number_of_type(std::string symbol)
+int Atom::number_of_type(std::string& symbol)
 {
   int sum = 0;
   for (int i = 0; i < number_of_atoms; i++) {
     if (cpu_atom_symbol[i] == symbol)
-      sum++;
-  }
-  return sum;
-}
-
-int Atom::number_of_type(int atomic_number)
-{
-  int sum = 0;
-  for (int i = 0; i < number_of_atoms; i++) {
-    if (type[i] == atomic_number)
       sum++;
   }
   return sum;
