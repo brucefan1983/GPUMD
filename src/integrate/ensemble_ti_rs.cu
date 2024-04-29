@@ -116,16 +116,12 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
-    }
-
-    else if (strcmp(params[i], "tequil") == 0) {
+    } else if (strcmp(params[i], "tequil") == 0) {
       auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
-    }
-
-    else {
+    } else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }

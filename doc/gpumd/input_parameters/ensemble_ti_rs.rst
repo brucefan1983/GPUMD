@@ -18,6 +18,8 @@ The parameters can be specified as follows::
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary lambda.
 
+If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
+
 Example
 -------
 

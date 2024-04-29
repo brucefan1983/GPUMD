@@ -10,7 +10,7 @@ Syntax
 
 The parameters can be specified as follows::
 
-    ensemble ti_spring lambda <lambda> temp <temperature> tperiod <tau_temperature> spring <element_name> <spring_constant>
+    ensemble ti lambda <lambda> temp <temperature> tperiod <tau_temperature> spring <element_name> <spring_constant>
 
 - :attr:`<temperature>`: The temperature of the simulation.
 - :attr:`<tau_temperature>`: This parameter is optional, and defaults to ``100``. It determines the period of the thermostat in units of the timestep. It determines how strongly the system is coupled to the thermostat.

@@ -47,7 +47,7 @@ public:
 
 protected:
   FILE* output_file;
-  int t_switch = -1;
+  int t_switch = -1, t_equil = -1;
   double p_min, p_max, pressure;
   std::vector<double> thermo_cpu;
   bool auto_switch = true;

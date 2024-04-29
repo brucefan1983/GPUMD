@@ -10,13 +10,16 @@ Syntax
 
 The parameters can be specified as follows::
 
-    ensemble ti_rs temp <temperature> tperiod <tau_temperature> <pressure_control> <pmin> <pmax> pperiod <tau_pressure> tswitch <switch_time>
+    ensemble ti_rs temp <temperature> tperiod <tau_temperature> <pressure_control> <pmin> <pmax> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
 - :attr:`<temperature>`: The temperature of the AS simulation.
 - :attr:`<pmin>` and :attr:`<pmax>`: The pressure range of the AS simulation.
 - :attr:`<pressure_control>`: Please refer to MTTK ensemble for more information.
 - :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. Please refer to MTTK ensemble for more information.
+- :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary pressure.
+
+If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
 
 Example
 -------

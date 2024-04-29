@@ -86,6 +86,11 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
+    } else if (strcmp(params[i], "tequil") == 0) {
+      auto_switch = false;
+      if (!is_valid_int(params[i + 1], &t_equil))
+        PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
+      i += 2;
     } else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
@@ -127,10 +132,14 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 void Ensemble_TI_AS::init()
 {
   if (auto_switch) {
-    t_switch = *total_steps / 2;
+    t_switch = (int)(*total_steps * 0.4);
+    t_equil = (int)(*total_steps * 0.1);
   } else
     printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
-  printf("    t_switch is %d timestep.\n", t_switch);
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
+    t_switch,
+    t_equil);
   thermo_cpu.resize(thermo->size());
   output_file = my_fopen("ti_as.csv", "w");
   fprintf(output_file, "p,V\n");
@@ -181,25 +190,30 @@ void Ensemble_TI_AS::compute2(
 
 void Ensemble_TI_AS::get_target_pressure()
 {
+  bool need_output = false;
   const int t = *current_step;
-  const double r_switch = 1.0 / t_switch;
+  const double r_switch = 1.0 / (t_switch - 1);
   double pp;
   double delta_p = p_max - p_min;
 
-  if ((t >= 0) && (t <= t_switch)) {
+  if ((t >= 0) && (t < t_switch)) {
     pp = (t * r_switch) * delta_p + p_min;
-  } else if ((t >= t_switch) && (t <= 2 * t_switch)) {
+    for (int ii = 0; ii < 3; ii++)
+      p_target[ii][ii] = pp;
+    need_output = true;
+  } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
     pp = p_max - (t - t_switch) * r_switch * delta_p;
-  }
-
-  for (int ii = 0; ii < 3; ii++) {
-    p_target[ii][ii] = pp;
+    for (int ii = 0; ii < 3; ii++)
+      p_target[ii][ii] = pp;
+    need_output = true;
   }
 
   get_p_hydro();
   if (non_hydrostatic)
     get_sigma();
 
-  find_thermo();
-  fprintf(output_file, "%e,%e\n", pp, box->get_volume() / atom->number_of_atoms);
+  if (need_output) {
+    find_thermo();
+    fprintf(output_file, "%e,%e\n", pp, box->get_volume() / atom->number_of_atoms);
+  }
 }
