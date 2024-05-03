@@ -293,8 +293,9 @@ Ensemble_MTTK::~Ensemble_MTTK(void)
   delete[] Q, eta_dot, eta_dotdot, Q_p, eta_p_dot, eta_p_dotdot;
 }
 
-void Ensemble_MTTK::init()
+void Ensemble_MTTK::init_mttk()
 {
+  printf("MTTK initializing...\n");
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
   matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
@@ -863,7 +864,7 @@ void Ensemble_MTTK::compute1(
   GPU_Vector<double>& thermo)
 {
   if (*current_step == 0) {
-    init();
+    init_mttk();
   }
 
   if (use_barostat)

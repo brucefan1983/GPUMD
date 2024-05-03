@@ -62,7 +62,7 @@ If not constrained, the cell shape may undergo extreme changes since liquids hav
 
 .. code-block:: rst
 
-    ensemble nvt_mttk temp 300 1000 iso 100 100
+    ensemble npt_mttk temp 300 1000 iso 100 100
 
 This command ramps the temperature from 300 K to 1000 K, while keeping the pressure at 100 GPa.
 

@@ -14,20 +14,18 @@
 */
 
 #pragma once
-#include "ensemble_lan.cuh"
-#include "langevin_utilities.cuh"
+#include "ensemble_mttk.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include <map>
 #include <math.h>
 
-class Ensemble_TI_Spring : public Ensemble_LAN
+class Ensemble_TI_RS : public Ensemble_MTTK
 {
 public:
-  Ensemble_TI_Spring(const char** params, int num_params);
-  virtual ~Ensemble_TI_Spring(void);
+  Ensemble_TI_RS(const char** params, int num_params);
+  virtual ~Ensemble_TI_RS(void);
 
   virtual void compute1(
     const double time_step,
@@ -43,31 +41,21 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo);
 
-  void find_thermo();
-  double get_espring_sum();
-  void add_spring_force();
   void init();
+  void find_thermo();
+  void scale_force();
   void find_lambda();
   double switch_func(double t);
   double dswitch_func(double t);
+  void get_target_pressure();
 
 protected:
   FILE* output_file;
-  double lambda = 0, dlambda = 0;
-  int t_equil = -1, t_switch = -1;
-  double pe, espring;
-  // this is the actual pressure, which may cause problems due to its fluctuation
-  double pressure, avg_pressure = 0, V;
-  // so I use the input pressure.
-  double target_pressure;
-  double E_diff = 0, E_Ein = 0;
-  bool auto_k = true;
-  bool auto_switch = true;
-  // spring constants
-  std::map<std::string, double> spring_map;
-  GPU_Vector<double> gpu_k;
-  std::vector<double> cpu_k;
-  GPU_Vector<double> gpu_espring;
-  GPU_Vector<double> position_0;
+  double lambda_f;
+  double lambda = 1, dlambda = 0;
+  int t_switch = -1, t_equil = -1;
+  double t_max;
+  double pe;
   std::vector<double> thermo_cpu;
+  bool auto_switch = true;
 };

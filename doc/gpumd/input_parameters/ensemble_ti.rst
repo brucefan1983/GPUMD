@@ -1,7 +1,7 @@
 .. _kw_ensemble_ti:
 
 :attr:`ensemble` (TI)
-============================
+=====================
 
 This keyword is used to set up a equilibrium thermodynamic integration integrator. It is for testing purpose and its only differece from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
 
@@ -10,7 +10,7 @@ Syntax
 
 The parameters can be specified as follows::
 
-    ensemble ti_spring lambda <lambda> temp <temperature> tperiod <tau_temperature> spring <element_name> <spring_constant>
+    ensemble ti lambda <lambda> temp <temperature> tperiod <tau_temperature> spring <element_name> <spring_constant>
 
 - :attr:`<temperature>`: The temperature of the simulation.
 - :attr:`<tau_temperature>`: This parameter is optional, and defaults to ``100``. It determines the period of the thermostat in units of the timestep. It determines how strongly the system is coupled to the thermostat.

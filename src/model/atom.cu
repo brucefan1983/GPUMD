@@ -13,22 +13,20 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
-#include "ensemble_mttk.cuh"
+/*----------------------------------------------------------------------------80
+The class defining the simulation box.
+------------------------------------------------------------------------------*/
 
-class Ensemble_NPHug : public Ensemble_MTTK
+#include "atom.cuh"
+#include "utilities/error.cuh"
+#include <cmath>
+
+int Atom::number_of_type(std::string& symbol)
 {
-public:
-  Ensemble_NPHug(const char** params, int num_params);
-  Ensemble_NPHug(void);
-  virtual ~Ensemble_NPHug(void);
-
-  double p0, v0, e0, e_current, v_current, p_nphug_current;
-  double thermo_info[8];
-  int uniaxial_compress;
-  double dhugo;
-
-  void get_target_temp();
-  void get_thermo();
-  void init_mttk();
-};
+  int sum = 0;
+  for (int i = 0; i < number_of_atoms; i++) {
+    if (cpu_atom_symbol[i] == symbol)
+      sum++;
+  }
+  return sum;
+}

@@ -43,11 +43,11 @@ public:
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
-  virtual void init();
+  virtual void init_mttk();
   void nhc_temp_integrate();
   void nhc_press_integrate();
   virtual void get_target_temp();
-  void get_target_pressure();
+  virtual void get_target_pressure();
   double get_delta();
   void get_sigma();
   double find_current_temperature();

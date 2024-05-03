@@ -47,6 +47,28 @@ static __global__ void gpu_add_spring_force(
   }
 }
 
+static __global__ void gpu_add_msd(
+  int number_of_atoms,
+  Box box,
+  double* k,
+  double* x,
+  double* y,
+  double* z,
+  double* x0,
+  double* y0,
+  double* z0)
+{
+  double dx, dy, dz;
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    dx = x[i] - x0[i];
+    dy = y[i] - y0[i];
+    dz = z[i] - z0[i];
+    apply_mic(box, dx, dy, dz);
+    k[i] += dx * dx + dy * dy + dz * dz;
+  }
+}
+
 static __global__ void gpu_get_espring_sum(const int N, double* espring)
 {
   //<<<1, 1024>>>
@@ -79,10 +101,12 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "tswitch") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
     } else if (strcmp(params[i], "tequil") == 0) {
+      auto_switch = false;
       if (!is_valid_int(params[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
@@ -90,12 +114,18 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       if (!is_valid_real(params[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
+    } else if (strcmp(params[i], "press") == 0) {
+      if (!is_valid_real(params[i + 1], &target_pressure))
+        PRINT_INPUT_ERROR("Wrong inputs for press keyword.");
+      target_pressure /= PRESSURE_UNIT_CONVERSION;
+      i += 2;
     } else if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
     } else if (strcmp(params[i], "spring") == 0) {
       i++;
+      auto_k = false;
       double _k;
       while (i < num_params) {
         if (!is_valid_real(params[i + 1], &_k))
@@ -111,10 +141,6 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
     temperature,
     temperature_coupling);
-  printf(
-    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
-    t_switch,
-    t_equil);
   type = 3;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
@@ -122,7 +148,15 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 
 void Ensemble_TI_Spring::init()
 {
-  printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
+  if (auto_switch) {
+    t_switch = (int)(*total_steps * 0.4);
+    t_equil = (int)(*total_steps * 0.1);
+  } else
+    printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
+    t_switch,
+    t_equil);
   output_file = my_fopen("ti_spring.csv", "w");
   fprintf(output_file, "lambda,dlambda,pe,espring\n");
   int N = atom->number_of_atoms;
@@ -133,15 +167,8 @@ void Ensemble_TI_Spring::init()
   CUDA_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
-  gpu_k.resize(N);
-  cpu_k.resize(N);
-  for (int i = 0; i < N; i++) {
-    std::string ele = atom->cpu_atom_symbol[i];
-    if (spring_map.find(ele) == spring_map.end())
-      PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
-    cpu_k[i] = spring_map[ele];
-  }
-  gpu_k.copy_from_host(cpu_k.data());
+  gpu_k.resize(N, 0);
+  cpu_k.resize(N, 0);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
   CHECK(cudaMemcpy(
@@ -149,6 +176,16 @@ void Ensemble_TI_Spring::init()
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
     cudaMemcpyDeviceToDevice));
+
+  if (!auto_k) {
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      if (spring_map.find(ele) == spring_map.end())
+        PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
+      cpu_k[i] = spring_map[ele];
+    }
+    gpu_k.copy_from_host(cpu_k.data());
+  }
 }
 
 void Ensemble_TI_Spring::find_thermo()
@@ -164,13 +201,47 @@ void Ensemble_TI_Spring::find_thermo()
     *thermo);
   thermo->copy_to_host(thermo_cpu.data());
   pe = thermo_cpu[1];
-  espring = get_espring_sum();
+  pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
 Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
 {
+  double kT = K_B * temperature;
+  int N = atom->number_of_atoms;
+  for (int i = 0; i < N; i++) {
+    cpu_k[i] = pow(cpu_k[i] / atom->cpu_mass[i], 0.5);
+    cpu_k[i] = log(cpu_k[i] * HBAR / kT);
+    E_Ein += cpu_k[i];
+  }
+  E_Ein = 3 * kT * E_Ein / N;
+  V = box->get_volume() / N;
+
+  FILE* yaml_file = my_fopen("ti_spring.yaml", "w");
+  fprintf(yaml_file, "E_Einstein: %f\n", E_Ein);
+  fprintf(yaml_file, "E_diff: %f\n", E_diff);
+  fprintf(yaml_file, "F: %f\n", E_Ein + E_diff);
+  fprintf(yaml_file, "T: %f\n", temperature);
+  fprintf(yaml_file, "V: %f\n", V);
+  fprintf(yaml_file, "P: %f\n", target_pressure);
+  fprintf(yaml_file, "G: %f\n", E_Ein + E_diff + target_pressure * V);
+
   printf("Closing ti_spring output file...\n");
   fclose(output_file);
+  fclose(yaml_file);
+
+  printf("\n");
+  printf("-----------------------------------------------------------------------\n");
+  printf("Free energy of reference system (Einstein crystal): %f eV/atom.\n", E_Ein);
+  printf("Free energy difference: %f eV/atom.\n", E_diff);
+  printf(
+    "Pressure: %f eV/A^3 = %f GPa.\n", target_pressure, target_pressure * PRESSURE_UNIT_CONVERSION);
+  printf("Volume: %f A^3.\n", V);
+  printf("Helmholtz free energy of the system of interest: %f eV/atom.\n", E_Ein + E_diff);
+  printf(
+    "Gibbs free energy of the system of interest: %f eV/atom.\n",
+    E_Ein + E_diff + target_pressure * V);
+  printf("These values are stored in ti_spring.yaml.\n");
+  printf("-----------------------------------------------------------------------\n");
 }
 
 void Ensemble_TI_Spring::add_spring_force()
@@ -215,24 +286,65 @@ void Ensemble_TI_Spring::compute1(
 
 void Ensemble_TI_Spring::find_lambda()
 {
-  bool need_lambda = false;
-  if (*current_step < t_equil)
-    return;
+  find_thermo();
+  int N = atom->number_of_atoms;
+  bool need_output = false;
+
+  if (*current_step < t_equil) {
+    avg_pressure += pressure / t_equil;
+    if (auto_k)
+      gpu_add_msd<<<(N - 1) / 128 + 1, 128>>>(
+        N,
+        *box,
+        gpu_k.data(),
+        atom->position_per_atom.data(),
+        atom->position_per_atom.data() + N,
+        atom->position_per_atom.data() + 2 * N,
+        position_0.data(),
+        position_0.data() + N,
+        position_0.data() + 2 * N);
+  }
+
+  // calculate MSD and spring constants
+  if ((*current_step == t_equil - 1) && auto_k) {
+    gpu_k.copy_to_host(cpu_k.data());
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      if (spring_map.find(ele) == spring_map.end())
+        spring_map[ele] = 0;
+      spring_map[ele] += cpu_k[i];
+    }
+    printf("---------------------------------------\n");
+    printf("Estimating spring constants from MSD...\n");
+    for (const auto& myPair : spring_map) {
+      std::string ele = myPair.first;
+      spring_map[ele] /= atom->number_of_type(ele) * t_equil;
+      spring_map[ele] = 3 * K_B * temperature / spring_map[ele];
+      printf("  %s --- %f eV/A^2\n", myPair.first.c_str(), myPair.second);
+    }
+    printf("---------------------------------------\n");
+    for (int i = 0; i < N; i++) {
+      std::string ele = atom->cpu_atom_symbol[i];
+      cpu_k[i] = spring_map[ele];
+    }
+    gpu_k.copy_from_host(cpu_k.data());
+  }
+
   const int t = *current_step - t_equil;
   const double r_switch = 1.0 / t_switch;
 
   if ((t >= 0) && (t <= t_switch)) {
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
-    need_lambda = true;
+    need_output = true;
   } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
-    need_lambda = true;
+    need_output = true;
   }
 
-  if (need_lambda) {
-    find_thermo();
+  if (need_output) {
+    espring = get_espring_sum();
     fprintf(
       output_file,
       "%e,%e,%e,%e\n",
@@ -240,6 +352,7 @@ void Ensemble_TI_Spring::find_lambda()
       dlambda,
       pe / atom->number_of_atoms,
       espring / atom->number_of_atoms);
+    E_diff += 0.5 * (pe - espring) * abs(dlambda) / atom->number_of_atoms;
   }
 }
 
