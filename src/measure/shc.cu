@@ -41,7 +41,7 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
     group_size = N;
     group_num = 1;
   } else {
-    if (group_method == 0 && group_id == -1) {
+    if (group_id == -1) {
       group_size = N;
       group_num = group[group_method].number;
     } else {
@@ -185,7 +185,7 @@ void SHC::process(
     CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
     CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
   } else {
-    if (group_method == 0 && group_id == -1) {
+    if (group_id == -1) {
       for (int n = 0; n < group_num; ++n) {
         int offset_s = Nc * group[group_method].cpu_size_sum[n] + 
                        correlation_step * group[group_method].cpu_size[n];
@@ -231,7 +231,7 @@ void SHC::process(
   if (sample_step >= Nc - 1) {
     ++num_time_origins;
 
-    if (group_method == 0 && group_id == -1) {
+    if (group_id == -1) {
       for (int n = 0; n < group_num; ++n) {
         int offset_s = Nc * group[group_method].cpu_size_sum[n];
         int offset_e = offset_s + correlation_step * group[group_method].cpu_size[n];
@@ -303,7 +303,7 @@ void SHC::average_k()
   ko_positive.copy_to_host(ko_positive_cpu.data());
 
   const double scalar = 1000.0 / TIME_UNIT_CONVERSION / num_time_origins;
-  if (group_method == 0 && group_id == -1) {
+  if (group_id == -1) {
     for (int n = 0; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       const int offset_n = Nc * n;
@@ -331,7 +331,7 @@ void SHC::average_k()
 
 void SHC::find_shc(const double dt_in_ps, const double d_omega)
 {
-  if (group_method == 0 && group_id == -1) {
+  if (group_id == -1) {
     for (int n = 0; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
@@ -390,7 +390,7 @@ void SHC::postprocess(const double time_step)
 
   average_k();
   find_shc(dt_in_ps, d_omega);
-  if (group_method == 0 && group_id == -1) {
+  if (group_id == -1) {
     for (int n = 0; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       // ki and ko are in units of A*eV/ps
