@@ -186,7 +186,7 @@ void SHC::process(
     CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
   } else {
     if (group_id == -1) {
-      for (int n = 0; n < group_num; ++n) {
+      for (int n = 1; n < group_num; ++n) {
         int offset_s = Nc * group[group_method].cpu_size_sum[n] + 
                        correlation_step * group[group_method].cpu_size[n];
         gpu_copy_data<<<(group[group_method].cpu_size[n] - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
@@ -232,7 +232,7 @@ void SHC::process(
     ++num_time_origins;
 
     if (group_id == -1) {
-      for (int n = 0; n < group_num; ++n) {
+      for (int n = 1; n < group_num; ++n) {
         int offset_s = Nc * group[group_method].cpu_size_sum[n];
         int offset_e = offset_s + correlation_step * group[group_method].cpu_size[n];
         gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
@@ -304,7 +304,7 @@ void SHC::average_k()
 
   const double scalar = 1000.0 / TIME_UNIT_CONVERSION / num_time_origins;
   if (group_id == -1) {
-    for (int n = 0; n < group_num; ++n) {
+    for (int n = 1; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       const int offset_n = Nc * n;
       for (int nc = 0; nc < Nc - 1; ++nc) {
@@ -332,7 +332,7 @@ void SHC::average_k()
 void SHC::find_shc(const double dt_in_ps, const double d_omega)
 {
   if (group_id == -1) {
-    for (int n = 0; n < group_num; ++n) {
+    for (int n = 1; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
         const double hann_window = (cos(PI * (nc + 1 - Nc) / Nc) + 1.0) * 0.5;
@@ -341,7 +341,7 @@ void SHC::find_shc(const double dt_in_ps, const double d_omega)
       }
     }
 
-    for (int n = 0; n < group_num; ++n) {
+    for (int n = 1; n < group_num; ++n) {
       const int offset_s = num_omega * n;
       const int offset_k = (Nc * 2 - 1) * n;
       for (int nw = 0; nw < num_omega; ++nw) {
@@ -391,7 +391,7 @@ void SHC::postprocess(const double time_step)
   average_k();
   find_shc(dt_in_ps, d_omega);
   if (group_id == -1) {
-    for (int n = 0; n < group_num; ++n) {
+    for (int n = 1; n < group_num; ++n) {
       const int offset_k = (Nc * 2 - 1) * n;
       // ki and ko are in units of A*eV/ps
       for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
@@ -486,5 +486,12 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
     }
+  }
+  
+  if (group_id == -1) {
+    printf("    compute SHC for all group IDs except group ID 0 in grouping method %d.\n", group_method);
+  }
+  if (group_id < -1) {
+    PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");  // Only for computing all group_id's SHC except group_id 0
   }
 }

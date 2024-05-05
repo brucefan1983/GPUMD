@@ -54,9 +54,6 @@ void parse_group(
   if (group_id < 0 && !allow_all_groups) {
     PRINT_INPUT_ERROR("group ID should >= 0.\n");
   }
-  if (group_id < -1 && allow_all_groups) {
-    PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.\n");   // Only for computing all group_id's SHC
-  }
 
   printf("    grouping method is %d and group ID is %d.\n", grouping_method, group_id);
 
