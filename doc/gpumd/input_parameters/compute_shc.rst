@@ -36,7 +36,8 @@ The angular frequency data will be :attr:`max_omega/num_omega, 2*max_omega/num_o
 
 This means that :math:`K(t)` will be calculated for atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
 Usually, :attr:`group_id` should be :math:`\geq 0` and smaller than the number of groups in grouping method :attr:`grouping_method`.
-If :attr:`grouping_method` is 0 and :attr:`group_id` is -1, it means to calculate the :math:`K(t)` for every group.
+If :attr:`grouping_method` is assigned and :attr:`group_id` is -1, it means to calculate the :math:`K(t)` for every :attr:`group_id` except for :attr:`group_id` 0 in the assigned :attr:`grouping_method`.
+Since it is very time and memory consuming to calculate the all group :math:`K(t)` for a large system, so one can assign the part that don't want to calculate to :attr:`group_id` 0.
 Also, grouping method :attr:`grouping_method` must be defined in the :ref:`simulation model input file <model_xyz>`.
 If this option is missing, it means computing :math:`K(t)` for the whole system.
 
@@ -69,6 +70,22 @@ The command::
 means that
 
 * you want to calculate :math:`K(t)` for atoms in group :attr:`4` defined in grouping method :attr:`0`
+* the sampling interval is 1 (sample the data at each time step)
+* the maximum number of correlation steps is 500
+* the transport direction is :math:`y`
+* you want to consider 500 frequency points
+* the maximum angular frequency is 200 THz
+
+Example 3
+^^^^^^^^^
+
+The command::
+
+  compute_shc 1 500 1 500 200.0 group 1 -1
+
+means that
+
+* you want to calculate :math:`K(t)` for all :attr:`group_id` except for :attr:`group_id` 0 defined in grouping method :attr:`1`
 * the sampling interval is 1 (sample the data at each time step)
 * the maximum number of correlation steps is 500
 * the transport direction is :math:`y`

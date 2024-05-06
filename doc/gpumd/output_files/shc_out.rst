@@ -32,3 +32,5 @@ In the next :attr:`num_omega` rows:
 :math:`J_q^{\rm in}(\omega) + J_q^{\rm out}(\omega) = J_q(\omega)` is exactly the left expression in Eq. (20) of [Fan2019]_.
 
 Only the potential part of the heat current has been included.
+
+If :attr: 'group_id' is -1, then the file follows the above rules and will contain :math:`K(t)` and :math:`J_q(\omega)` for each group id except for group id 0. And the contents of the :attr: 'group_id' are arranged from smallest to largest.
