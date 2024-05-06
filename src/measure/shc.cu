@@ -489,9 +489,9 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   }
   
   if (group_id == -1) {
-    printf("    compute SHC for all group IDs except group ID 0 in grouping method %d.\n", group_method);
+    printf("    compute SHC for all group IDs except for group ID 0 in grouping method %d.\n", group_method);
   }
   if (group_id < -1) {
-    PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");  // Only for computing all group_id's SHC except group_id 0
+    PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");
   }
 }
