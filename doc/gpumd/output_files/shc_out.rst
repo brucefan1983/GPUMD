@@ -33,4 +33,4 @@ In the next :attr:`num_omega` rows:
 
 Only the potential part of the heat current has been included.
 
-If :attr: 'group_id' is -1, then the file follows the above rules and will contain :math:`K(t)` and :math:`J_q(\omega)` for each group id except group id 0. And the contents of the :attr: 'group_id' are arranged from smallest to largest.
+If :attr: 'group_id' is -1, then the file follows the above rules and will contain :math:`K(t)` and :math:`J_q(\omega)` for each group id except for group id 0. And the contents of the :attr: 'group_id' are arranged from smallest to largest.
