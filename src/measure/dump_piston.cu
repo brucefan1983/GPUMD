@@ -35,7 +35,6 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 
 static __global__ void gpu_com(
   int N,
-  int bins,
   int avg_window,
   double* g_mass,
   double* g_x,
@@ -75,7 +74,6 @@ static __global__ void gpu_calc1(
 
 static __global__ void gpu_thermo(
   int N,
-  int bins,
   double avg_window,
   double* g_x,
   double* g_mass,
@@ -231,7 +229,6 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   // calculate COM velocity first
   gpu_com<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    bins,
     avg_window,
     atom.mass.data(),
     atom.position_per_atom.data() + direction * n,
@@ -247,7 +244,6 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   // get spatial thermo info
   gpu_thermo<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    bins,
     avg_window,
     atom.position_per_atom.data() + direction * n,
     atom.mass.data(),
