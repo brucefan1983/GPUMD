@@ -64,7 +64,7 @@ where
    A^i_{nlm} = \sum_{j\neq i} g_n(r_{ij}) Y_{lm}(\theta_{ij},\phi_{ij}),
 
 and :math:`Y_{lm}(\theta_{ij},\phi_{ij})` are the spherical harmonics as a function of the polar angle :math:`\theta_{ij}` and the azimuthal angle :math:`\phi_{ij}`.
-For expressions of he 4-body and 5-body descriptor components, we refer to [Fan2022b]_.
+For expressions of the 4-body and 5-body descriptor components, we refer to [Fan2022b]_.
 
 The radial functions :math:`g_n(r_{ij})` appear in both the radial and the angular descriptor components.
 For NEP3 [Fan2022b]_, in the radial descriptor components,
