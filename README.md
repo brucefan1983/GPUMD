@@ -45,6 +45,7 @@ https://www.freelists.org/list/gpumd
 | Package               | link                           |
 | --------------------- | --------------------------------- |
 | `calorine`            | https://gitlab.com/materials-modeling/calorine  |
+| `GPUMD-Wizard`        | https://github.com/Jonsnow-willow/GPUMD-Wizard  |
 | `gpyumd`              |https://github.com/AlexGabourie/gpyumd   |
 | `pynep`               | https://github.com/bigd4/PyNEP   |
 | `somd`                | https://github.com/initqp/somd  |
