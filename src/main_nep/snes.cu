@@ -45,8 +45,11 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   number_of_variables = para.number_of_variables;
   population_size = para.population_size;
   const int N =  population_size * number_of_variables;
-  eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
-              (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
+  int num = number_of_variables;
+  if (para.version == 4) {
+    num /= para.num_types;
+  }
+  eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
   fitness.resize(population_size * 6 * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
