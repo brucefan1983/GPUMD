@@ -79,6 +79,7 @@ https://www.freelists.org/list/gpumd
 | Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
 | Shuning Pan           | https://github.com/psn417 |
 | Haikuan Dong          | https://github.com/hailan2005 |
+| Zihan Yan             | https://github.com/zhyan0603 |
 
 ## Citations
 
