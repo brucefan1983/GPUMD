@@ -111,8 +111,7 @@ Fitness::Fitness(Parameters& para)
   }
 
   if (para.version == 5) {
-    potential.reset(
-      new NEP5(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    potential.reset(new NEP5(para, N, N_times_max_NN_radial, deviceCount));
   } else {
     potential.reset(
       new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));

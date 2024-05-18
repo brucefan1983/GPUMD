@@ -21,16 +21,11 @@ class Parameters;
 class Dataset;
 
 struct NEP5_Data {
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
-  GPU_Vector<int> NN_angular; // angular neighbor number
-  GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
+  GPU_Vector<int> NN;  // neighbor number
+  GPU_Vector<int> NL;  // neighbor list
+  GPU_Vector<float> x12;
+  GPU_Vector<float> y12;
+  GPU_Vector<float> z12;
   GPU_Vector<float> descriptors; // descriptors
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
@@ -41,21 +36,15 @@ class NEP5 : public Potential
 {
 public:
   struct ParaMB {
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int basis_size_radial = 0;  // for NEP5
-    int basis_size_angular = 0; // for NEP5
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 1, 2, ..., L_max
+    float rc = 0.0f;     // cutoff
+    float rcinv = 0.0f;  // inverse of the cutoff
+    int basis_size = 0;
+    int n_max = 0;       // n = 0, 1, 2, ..., n_max
+    int L_max = 0;       // l = 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int num_types = 0;
-    int num_types_sq = 0; // for NEP5
-    int num_c_radial = 0; // for NEP5
-    int version = 2;      // 2 for NEP2 and 3 for NEP5
+    int num_types_sq = 0;
   };
 
   struct ANN {
@@ -88,9 +77,7 @@ public:
   NEP5(
     Parameters& para,
     int N,
-    int N_times_max_NN_radial,
-    int N_times_max_NN_angular,
-    int version,
+    int N_times_max_NN,
     int deviceCount);
   void find_force(
     Parameters& para,
