@@ -277,6 +277,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       } else {
         fprintf(fid_nep, "nep4 %d ", para.num_types);
       }
+    } else if (para.version == 5) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep5_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep5 %d ", para.num_types);
+      }
     }
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 2) {
@@ -285,6 +291,8 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
     } else if (para.version == 4) {
       fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
+    } else if (para.version == 5) {
+      fprintf(fid_nep, "nep5_dipole %d ", para.num_types);
     }
   } else if (para.train_mode == 2) { // polarizability model
     if (para.version == 2) {
@@ -293,6 +301,8 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
     } else if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
+    } else if (para.version == 5) {
+      fprintf(fid_nep, "nep5_polarizability %d ", para.num_types);
     }
   } else if (para.train_mode == 3) { // temperature model
     if (para.version == 2) {
@@ -312,6 +322,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
         fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
       } else {
         fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
+      }
+    } else if (para.version == 5) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep5_zbl_temperature %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep5_temperature %d ", para.num_types);
       }
     }
   }
