@@ -175,11 +175,14 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version >= 4 ? num_types : 1) + 1;
 
   if (version == 2) {
     number_of_variables_descriptor =
       (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  } else if (version == 5) {
+    number_of_variables_descriptor =
+      num_types * num_types * ((n_max_angular + 1) * (basis_size_angular + 1));
   } else {
     number_of_variables_descriptor =
       num_types * num_types *
@@ -191,7 +194,7 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (version == 4) {
+  if (version >= 4) {
     if (!is_lambda_1_set) {
       lambda_1 = sqrt(number_of_variables * 1.0e-7f / num_types);
     }
@@ -499,8 +502,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 2 || version > 5) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4 or 5.");
   }
 }
 
