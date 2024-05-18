@@ -20,7 +20,7 @@
 class Parameters;
 class Dataset;
 
-struct NEP3_Data {
+struct NEP5_Data {
   GPU_Vector<int> NN_radial;  // radial neighbor number
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
@@ -37,7 +37,7 @@ struct NEP3_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
-class NEP3 : public Potential
+class NEP5 : public Potential
 {
 public:
   struct ParaMB {
@@ -45,17 +45,17 @@ public:
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int basis_size_radial = 0;  // for nep3
-    int basis_size_angular = 0; // for nep3
+    int basis_size_radial = 0;  // for NEP5
+    int basis_size_angular = 0; // for NEP5
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int num_types = 0;
-    int num_types_sq = 0; // for nep3
-    int num_c_radial = 0; // for nep3
-    int version = 2;      // 2 for NEP2 and 3 for NEP3
+    int num_types_sq = 0; // for NEP5
+    int num_c_radial = 0; // for NEP5
+    int version = 2;      // 2 for NEP2 and 3 for NEP5
   };
 
   struct ANN {
@@ -85,7 +85,7 @@ public:
     float atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP3(
+  NEP5(
     Parameters& para,
     int N,
     int N_times_max_NN_radial,
@@ -103,7 +103,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP3_Data nep_data[16];
+  NEP5_Data nep_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };
