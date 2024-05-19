@@ -46,7 +46,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   const int N =  population_size * number_of_variables;
   int num = number_of_variables;
-  if (para.version == 4) {
+  if (para.version >= 4) {
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
@@ -98,7 +98,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     for (int n = 0; n < number_of_variables; ++n) {
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
       int num = number_of_variables;
-      if (para.version == 4) {
+      if (para.version >= 4) {
         num /= para.num_types;
       }
       sigma[n] =  (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f));
@@ -136,7 +136,7 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  if (para.version == 4) {
+  if (para.version >= 4) {
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
@@ -186,13 +186,15 @@ void SNES::find_type_of_variable(Parameters& para)
     }
     offset +=
       (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types * para.num_types;
-    for (int n = 0; n <= para.n_max_angular; ++n) {
-      for (int k = 0; k <= para.basis_size_angular; ++k) {
-        int nk = n * (para.basis_size_angular + 1) + k;
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
+    if (para.version != 5) {
+      for (int n = 0; n <= para.n_max_angular; ++n) {
+        for (int k = 0; k <= para.basis_size_angular; ++k) {
+          int nk = n * (para.basis_size_angular + 1) + k;
+          for (int t1 = 0; t1 < para.num_types; ++t1) {
+            for (int t2 = 0; t2 < para.num_types; ++t2) {
+              int t12 = t1 * para.num_types + t2;
+              type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
+            }
           }
         }
       }
@@ -244,7 +246,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      if (para.version == 4) {
+      if (para.version >= 4) {
         regularize_NEP4(para);
       } else {
         regularize(para);
