@@ -80,6 +80,7 @@ https://www.freelists.org/list/gpumd
 | Shuning Pan           | https://github.com/psn417 |
 | Haikuan Dong          | https://github.com/hailan2005 |
 | Zihan Yan             | https://github.com/zhyan0603 |
+| Yongchao Wu           | https://github.com/mushroomfire |
 
 ## Citations
 
