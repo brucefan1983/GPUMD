@@ -94,6 +94,10 @@ Ensemble_mirror::Ensemble_mirror(const char** params, int num_params)
       if (!is_valid_real(params[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
+    } else if (strcmp(params[i], "accerlate") == 0) {
+      if (!is_valid_int(params[i + 1], &accerlate_steps))
+        PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
+      i += 2;
     } else {
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
@@ -159,7 +163,12 @@ void Ensemble_mirror::compute2(
   GPU_Vector<double>& thermo)
 {
   int n = atoms.number_of_atoms;
-  mirror_pos += time_step * vp;
+  if (*current_step < accerlate_steps)
+    vp_current = vp * ((double)*current_step / (double)accerlate_steps);
+  else
+    vp_current = vp;
+
+  mirror_pos += time_step * vp_current;
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
     false,
     n,

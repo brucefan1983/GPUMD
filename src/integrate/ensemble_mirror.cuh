@@ -46,7 +46,8 @@ public:
 protected:
   double thickness = 20;
   double mirror_pos = 0;
-  double vp;
+  double vp, vp_current;
+  int accerlate_steps = 0;
   GPU_Vector<bool> gpu_right_wall_list;
   std::vector<double> thermo_cpu;
 };
