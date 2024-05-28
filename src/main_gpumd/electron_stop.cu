@@ -141,7 +141,7 @@ void Electron_Stop::compute(double time_step, Atom& atom)
     atom.mass.data(),
     atom.velocity_per_atom.data(),
     stopping_force.data(),
-    stopping_power_loss.data();
+    stopping_power_loss.data());
 
   CUDA_CHECK_KERNEL
 
