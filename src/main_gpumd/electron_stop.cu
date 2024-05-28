@@ -131,6 +131,7 @@ void Electron_Stop::compute(double time_step, Atom& atom)
   find_stopping_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms,
     num_points,
+    time_step,
     energy_min,
     energy_max,
     1.0 / energy_interval,
