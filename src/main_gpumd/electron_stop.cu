@@ -69,8 +69,7 @@ static void __global__ find_stopping_force(
     g_force[1 * num_atoms + i] = vy * factor;
     g_force[2 * num_atoms + i] = vz * factor;
 
-    power_loss = stopping_power * sqrt(v2) * time_step;
-    atomicAdd(g_power_loss, power_loss);
+    g_power_loss[i] = stopping_power * sqrt(v2) * time_step; 
   }
 }
 
@@ -210,6 +209,7 @@ void Electron_Stop::parse(
   stopping_power_gpu.resize(num_points * num_types);
   stopping_power_gpu.copy_from_host(stopping_power_cpu.data());
   stopping_force.resize(num_atoms * 3);
+  stopping_loss.resize(num_atoms);
   do_electron_stop = true;
 }
 
