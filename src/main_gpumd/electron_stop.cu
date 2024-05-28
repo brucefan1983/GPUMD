@@ -190,12 +190,9 @@ void Electron_Stop::compute(double time_step, Atom& atom)
   find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
   CUDA_CHECK_KERNEL
 
-  cudaDeviceSynchronize();
-  double power_loss_host;
-  cudaMemcpyFromSymbol(&power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost);
-  stopping_power_loss += power_loss_host;
-  cudaMemset(&device_power_loss, 0, sizeof(double));
-
+  float power_loss_host;  
+  cudaMemcpyFromSymbol(&power_loss_host, device_power_loss, sizeof(float), 0, cudaMemcpyDeviceToHost);
+  stopping_power_loss += static_cast<double>(power_loss_host);
 }
 
 void Electron_Stop::parse(
