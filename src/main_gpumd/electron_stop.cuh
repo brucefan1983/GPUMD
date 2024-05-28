@@ -30,6 +30,7 @@ public:
 
 private:
   int num_points = 0;
+  double stopping_power_loss = 0.0;
   double energy_min;
   double energy_max;
   double energy_interval;
