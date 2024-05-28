@@ -66,6 +66,8 @@ static void __global__ find_stopping_force(
     g_force[0 * num_atoms + i] = vx * factor;
     g_force[1 * num_atoms + i] = vy * factor;
     g_force[2 * num_atoms + i] = vz * factor;
+
+    stopping_power_loss += stopping_power * sqrt(v2) * time_step;
   }
 }
 
@@ -119,7 +121,7 @@ apply_electron_stopping(const int num_atoms, const double* g_stopping_force, dou
   }
 }
 
-void Electron_Stop::compute(Atom& atom)
+void Electron_Stop::compute(double time_step, Atom& atom)
 {
   if (!do_electron_stop) {
     return;
