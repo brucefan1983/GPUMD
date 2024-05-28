@@ -27,6 +27,7 @@ Apply electron stopping.
 static void __global__ find_stopping_force(
   const int num_atoms,
   const int num_points,
+  const double time_step,
   const double energy_min,
   const double energy_max,
   const double energy_interval_inverse,
@@ -37,6 +38,7 @@ static void __global__ find_stopping_force(
   double* g_force)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  double stopping_power_loss = 0.0;
   if (i < num_atoms) {
     int type = g_type[i];
     double mass = g_mass[i];
