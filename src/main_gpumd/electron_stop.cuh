@@ -37,5 +37,5 @@ private:
   std::vector<double> stopping_power_cpu;
   GPU_Vector<double> stopping_power_gpu;
   GPU_Vector<double> stopping_force;
-  GPU_Vector<double> stopping_power_lose;
+  GPU_Vector<double> stopping_power_loss;
 };
