@@ -129,34 +129,32 @@ static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
 {
   //<<<1, 1024>>>
   int tid = threadIdx.x;
-  int bid = blockIdx.x;
-    int num_blocks = gridDim.x;
-    int block_size = blockDim.x;
+  int block_size = blockDim.x;
 
-    int number_of_batches = (num_atoms + block_size - 1) / block_size;
-    __shared__ double s_f[1024];
-    double f = 0.0;
+  int number_of_batches = (num_atoms + block_size - 1) / block_size;
+  __shared__ double s_f[1024];
+  double f = 0.0;
 
-    for (int batch = 0; batch < number_of_batches; ++batch) {
-        int idx = tid + batch * block_size;
-        if (idx < num_atoms) {
-            f += g_power_loss[idx];
-        }
-    }
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+      int idx = tid + batch * block_size;
+      if (idx < num_atoms) {
+          f += g_power_loss[idx];
+      }
+  }
 
-    s_f[tid] = f;
-    __syncthreads();
+  s_f[tid] = f;
+  __syncthreads();
 
-    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-            s_f[tid] += s_f[tid + offset];
-        }
-        __syncthreads(); 
-    }
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+      if (tid < offset) {
+          s_f[tid] += s_f[tid + offset];
+      }
+      __syncthreads(); 
+  }
 
-    if (tid == 0) {
-        device_power_loss = s_f[0];
-    }
+  if (tid == 0) {
+      device_power_loss = s_f[0];
+  }
 
 }
 
