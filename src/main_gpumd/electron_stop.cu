@@ -123,6 +123,43 @@ apply_electron_stopping(const int num_atoms, const double* g_stopping_force, dou
   }
 }
 
+__device__ float device_power_loss;
+
+static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
+{
+  //<<<1, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+    int num_blocks = gridDim.x;
+    int block_size = blockDim.x;
+
+    int number_of_batches = (num_atoms + block_size - 1) / block_size;
+    __shared__ double s_f[1024];
+    double f = 0.0;
+
+    for (int batch = 0; batch < number_of_batches; ++batch) {
+        int idx = tid + batch * block_size;
+        if (idx < num_atoms) {
+            f += g_power_loss[idx];
+        }
+    }
+
+    s_f[tid] = f;
+    __syncthreads();
+
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            s_f[tid] += s_f[tid + offset];
+        }
+        __syncthreads(); 
+    }
+
+    if (tid == 0) {
+        device_power_loss = s_f[0];
+    }
+
+}
+
 void Electron_Stop::compute(double time_step, Atom& atom)
 {
   if (!do_electron_stop) {
@@ -140,7 +177,8 @@ void Electron_Stop::compute(double time_step, Atom& atom)
     atom.type.data(),
     atom.mass.data(),
     atom.velocity_per_atom.data(),
-    stopping_force.data());
+    stopping_force.data(),
+    stopping_loss.data());
 
   CUDA_CHECK_KERNEL
 
@@ -150,6 +188,16 @@ void Electron_Stop::compute(double time_step, Atom& atom)
   apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
   CUDA_CHECK_KERNEL
+
+  find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
+  CUDA_CHECK_KERNEL
+
+  cudaDeviceSynchronize();
+  double power_loss_host;
+  cudaMemcpyFromSymbol(&power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost);
+  stopping_power_loss += power_loss_host;
+  cudaMemset(&device_power_loss, 0, sizeof(double));
+
 }
 
 void Electron_Stop::parse(
