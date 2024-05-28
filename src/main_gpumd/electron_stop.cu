@@ -38,7 +38,6 @@ static void __global__ find_stopping_force(
   double* g_force)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  double stopping_power_loss = 0.0;
   if (i < num_atoms) {
     int type = g_type[i];
     double mass = g_mass[i];
@@ -210,4 +209,11 @@ void Electron_Stop::parse(
   do_electron_stop = true;
 }
 
-void Electron_Stop::finalize() { do_electron_stop = false; }
+void Electron_Stop::finalize() 
+{ 
+  if (do_electron_stop) { 
+    printf("    total electron stopping power loss = %g eV.\n", stopping_power_loss);
+  }
+  do_electron_stop = false; 
+  stopping_power_loss = 0.0;
+  }
