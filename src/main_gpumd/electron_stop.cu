@@ -36,7 +36,7 @@ static void __global__ find_stopping_force(
   const double* g_mass,
   const double* g_velocity,
   double* g_force,
-  double* stopping_power_loss)
+  double* g_power_loss)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < num_atoms) {
@@ -69,7 +69,7 @@ static void __global__ find_stopping_force(
     g_force[1 * num_atoms + i] = vy * factor;
     g_force[2 * num_atoms + i] = vz * factor;
 
-    stopping_power_loss += stopping_power * sqrt(v2) * time_step;
+    g_power_loss[i] = stopping_power * sqrt(v2) * time_step;
   }
 }
 
@@ -141,7 +141,7 @@ void Electron_Stop::compute(double time_step, Atom& atom)
     atom.mass.data(),
     atom.velocity_per_atom.data(),
     stopping_force.data(),
-    stopping_power_loss);
+    stopping_power_loss.data();
 
   CUDA_CHECK_KERNEL
 
@@ -210,6 +210,7 @@ void Electron_Stop::parse(
   stopping_power_gpu.resize(num_points * num_types);
   stopping_power_gpu.copy_from_host(stopping_power_cpu.data());
   stopping_force.resize(num_atoms * 3);
+  stopping_power_loss.resize(num_atoms);
   do_electron_stop = true;
 }
 
