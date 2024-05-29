@@ -392,7 +392,7 @@ static __global__ void find_energy_nep(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
+      1.0f, annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] = F;
   }
 }

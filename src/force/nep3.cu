@@ -709,6 +709,7 @@ static __global__ void find_descriptor(
 
     if (is_polarizability) {
       apply_ann_one_layer(
+        1.0f,
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0_pol[t1],
@@ -734,7 +735,7 @@ static __global__ void find_descriptor(
     }
 
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
+      1.0f, annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -1711,7 +1712,7 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
+      1.0f, annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {

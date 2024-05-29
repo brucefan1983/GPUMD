@@ -37,6 +37,7 @@ const int MAX_DIM = MAX_NUM_N * 7;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
 
 static __device__ void apply_ann_one_layer(
+  const float a,
   const int N_des,
   const int N_neu,
   const float* w0,
@@ -52,8 +53,8 @@ static __device__ void apply_ann_one_layer(
     for (int d = 0; d < N_des; ++d) {
       w0_times_q += w0[n * N_des + d] * q[d];
     }
-    float x1 = tanh(w0_times_q - b0[n]);
-    float tanh_der = 1.0f - x1 * x1;
+    float x1 = tanh(a * (w0_times_q - b0[n]));
+    float tanh_der = (1.0f - x1 * x1) * a;
     energy += w1[n] * x1;
     for (int d = 0; d < N_des; ++d) {
       float y1 = tanh_der * w0[n * N_des + d];

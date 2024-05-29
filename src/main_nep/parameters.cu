@@ -72,6 +72,7 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
+  is_a_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -102,6 +103,7 @@ void Parameters::set_default_parameters()
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
+  a = 1.0f;
 }
 
 void Parameters::read_nep_in()
@@ -328,6 +330,12 @@ void Parameters::report_inputs()
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
+  if (is_a_set) {
+    printf("    (input)   a in tanh(ax) = %g.\n", a);
+  } else {
+    printf("    (default) a in tanh(ax) = %g.\n", a);
+  }
+
   if (is_lambda_1_set) {
     printf("    (input)   lambda_1 = %g.\n", lambda_1);
   } else {
@@ -454,6 +462,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
+  } else if (strcmp(param[0], "a") == 0) {
+    parse_a(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -729,6 +739,26 @@ void Parameters::parse_neuron(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
   } else if (num_neurons1 > 200) {
     PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  }
+}
+
+void Parameters::parse_a(const char** param, int num_param)
+{
+  is_a_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("a should have 1 parameter.\n");
+  }
+  double a_tmp = 0.0;
+  if (!is_valid_real(param[1], &a_tmp)) {
+    PRINT_INPUT_ERROR("a should be a number.\n");
+  }
+  a = a_tmp;
+
+  if (a < 0.1f) {
+    PRINT_INPUT_ERROR("a should >= 0.1");
+  } else if (a > 10.0f) {
+    PRINT_INPUT_ERROR("a should <= 10.0.");
   }
 }
 

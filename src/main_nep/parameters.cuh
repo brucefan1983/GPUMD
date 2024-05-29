@@ -53,6 +53,7 @@ public:
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
+  float a; // tanh(ax)
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -76,6 +77,7 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
+  bool is_a_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -125,4 +127,5 @@ private:
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);
+  void parse_a(const char** param, int num_param);
 };

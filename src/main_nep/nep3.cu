@@ -238,6 +238,7 @@ NEP3::NEP3(
   int deviceCount)
 {
   paramb.version = version;
+  paramb.a = para.a;
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
@@ -398,6 +399,7 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
+      paramb.a,
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[type],
@@ -438,6 +440,7 @@ static __global__ void apply_ann_pol(
 
     // scalar part
     apply_ann_one_layer(
+      paramb.a,
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0_pol[type],
@@ -456,6 +459,7 @@ static __global__ void apply_ann_pol(
       Fp[d] = 0.0f;
     }
     apply_ann_one_layer(
+      paramb.a,
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[type],
@@ -497,6 +501,7 @@ static __global__ void apply_ann_temperature(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
+      paramb.a,
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[type],

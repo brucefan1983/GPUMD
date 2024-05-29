@@ -41,6 +41,7 @@ class NEP3 : public Potential
 {
 public:
   struct ParaMB {
+    float a = 1.0f;             // tanh(ax)
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
