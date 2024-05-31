@@ -33,8 +33,8 @@ __constant__ float C5B[3] = {0.026596810706114f, 0.053193621412227f, 0.026596810
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
-const int MAX_DIM = MAX_NUM_N * 7;
-const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
+const int MAX_DIM = MAX_NUM_N * 35;
+const int MAX_DIM_ANGULAR = MAX_NUM_N * 34;
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
@@ -814,6 +814,230 @@ find_q_with_5body(const int n_max_angular_plus_1, const int n, const float* s, f
   float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
   q[5 * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + C5B[1] * s0_sq * s1_sq_plus_s2_sq +
                                     C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
+}
+
+static __device__ __forceinline__ void
+find_q_nep5(
+  const int L_max_1, 
+  const int L_max_2, 
+  const int n_max_angular_plus_1, 
+  const int n, 
+  const float* s, 
+  float* q)
+{
+  float q0 = C3B[0] * s[0] * s[0] + 2.0f * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
+  float q1 = C3B[3] * s[3] * s[3] + 2.0f * (C3B[4] * s[4] * s[4] + C3B[5] * s[5] * s[5] +
+                                   C3B[6] * s[6] * s[6] + C3B[7] * s[7] * s[7]);
+  float q2 = C3B[8] * s[8] * s[8] +
+    2.0f * (C3B[9] * s[9] * s[9] + C3B[10] * s[10] * s[10] + C3B[11] * s[11] * s[11] +
+            C3B[12] * s[12] * s[12] + C3B[13] * s[13] * s[13] + C3B[14] * s[14] * s[14]);
+  float q3 = C3B[15] * s[15] * s[15] +
+    2.0f * (C3B[16] * s[16] * s[16] + C3B[17] * s[17] * s[17] + C3B[18] * s[18] * s[18] +
+            C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
+            C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
+  q[n] = q0;
+  q[n_max_angular_plus_1 + n] = q1;
+  q[2 * n_max_angular_plus_1 + n] = q2;
+  q[3 * n_max_angular_plus_1 + n] = q3;
+  int count = 4;
+  if (L_max_1 >= 1) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q0;
+  } 
+  if (L_max_1 >= 2) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q1;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q1;
+  } 
+  if (L_max_1 >= 3) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q2 * q2;
+  } 
+  if (L_max_1 >= 4) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q2 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q3 * q3;
+  }
+  if (L_max_2 >= 1) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q0 * q0;
+  } 
+  if (L_max_2 >= 2) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q0 * q1;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q1 * q1;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q1 * q1;
+  } 
+  if (L_max_2 >= 3) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q0 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q1 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q2 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q1 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q2 * q2;
+    q[(count++) * n_max_angular_plus_1 + n] = q2 * q2 * q2;
+  } 
+  if (L_max_2 >= 4) {
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q0 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q1 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q2 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q0 * q3 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q1 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q2 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q1 * q3 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q2 * q2 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q2 * q3 * q3;
+    q[(count++) * n_max_angular_plus_1 + n] = q3 * q3 * q3;
+  }
+}
+
+static __device__ __forceinline__ void accumulate_f12_nep5_quadratic(
+  const float Fp,
+  const float qa,
+  const float qb,
+  const float* f12a,
+  const float* f12b,
+  float* f12)
+{
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += (f12a[d] * qb + qa * f12b[d]) * Fp;
+  }
+}
+
+static __device__ __forceinline__ void accumulate_f12_nep5_cubic(
+  const float Fp,
+  const float qa,
+  const float qb,
+  const float qc,
+  const float* f12a,
+  const float* f12b,
+  const float* f12c,
+  float* f12)
+{
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += (f12a[d] * qb * qc  + qa * f12b[d] * qc + qa * qb * f12c[d]) * Fp;
+  }
+}
+
+static __device__ __forceinline__ void accumulate_f12_nep5(
+  const int L_max_1, 
+  const int L_max_2, 
+  const int n,
+  const int n_max_angular_plus_1,
+  const float d12,
+  const float* r12,
+  float fn,
+  float fnp,
+  const float* q,
+  const float* Fp,
+  const float* sum_fxyz,
+  float* f12)
+{
+  const float d12inv = 1.0f / d12;
+  float f12_0[3] = {0.0f};
+  float f12_1[3] = {0.0f};
+  float f12_2[3] = {0.0f};
+  float f12_3[3] = {0.0f};
+  float q0 = q[0 * n_max_angular_plus_1 + n];
+  float q1 = q[1 * n_max_angular_plus_1 + n];
+  float q2 = q[2 * n_max_angular_plus_1 + n];
+  float q3 = q[3 * n_max_angular_plus_1 + n];
+
+  // l = 1
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s1[3] = {
+    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0],
+    sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
+    sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
+  get_f12_1(d12inv, fn, fnp, 1.0f, s1, r12, f12_0);
+  // l = 2
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s2[5] = {
+    sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3],
+    sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
+    sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5],
+    sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
+    sum_fxyz[n * NUM_OF_ABC + 7] * C3B[7]};
+  get_f12_2(d12, d12inv, fn, fnp, 1.0f, s2, r12, f12_1);
+  // l = 3
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s3[7] = {
+    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
+    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
+    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
+    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  get_f12_3(d12, d12inv, fn, fnp, 1.0f, s3, r12, f12_2);
+  // l = 4
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s4[9] = {
+    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
+    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
+    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
+    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
+    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  get_f12_4(r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, 1.0f, s4, f12_3);
+
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += f12_0[d] * Fp[n] + f12_1[d] * Fp[n_max_angular_plus_1 + n] 
+            + f12_2[d] * Fp[2 * n_max_angular_plus_1 + n] 
+            + f12_3[d] * Fp[3 * n_max_angular_plus_1 + n];
+  }
+
+  int count = 4;
+  if (L_max_1 >= 1) {
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q0, f12_0, f12_0, f12);
+  } 
+  if (L_max_1 >= 2) {
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q1, f12_0, f12_1, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q1, f12_1, f12_1, f12);
+  } 
+  if (L_max_1 >= 3) {
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q2, f12_0, f12_2, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q2, f12_1, f12_2, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q2, q2, f12_2, f12_2, f12);
+  } 
+  if (L_max_1 >= 4) {
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q3, f12_0, f12_3, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q3, f12_1, f12_3, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q2, q3, f12_2, f12_3, f12);
+    accumulate_f12_nep5_quadratic(Fp[(count++) * n_max_angular_plus_1 + n], q3, q3, f12_3, f12_3, f12);
+  }
+  if (L_max_2 >= 1) {
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q0, q0, f12_0, f12_0, f12_0, f12);
+  } 
+  if (L_max_2 >= 2) {
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q0, q1, f12_0, f12_0, f12_1, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q1, q1, f12_0, f12_1, f12_1, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q1, q1, f12_1, f12_1, f12_1, f12);
+  } 
+  if (L_max_2 >= 3) {
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q0, q2, f12_0, f12_0, f12_2, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q1, q2, f12_0, f12_1, f12_2, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q2, q2, f12_0, f12_2, f12_2, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q1, q2, f12_1, f12_1, f12_2, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q2, q2, f12_1, f12_2, f12_2, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q2, q2, q2, f12_2, f12_2, f12_2, f12);
+  } 
+  if (L_max_2 >= 4) {
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q0, q3, f12_0, f12_0, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q1, q3, f12_0, f12_1, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q2, q3, f12_0, f12_2, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q0, q3, q3, f12_0, f12_3, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q1, q3, f12_1, f12_1, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q2, q3, f12_1, f12_2, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q1, q3, q3, f12_1, f12_3, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q2, q2, q3, f12_2, f12_2, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q2, q3, q3, f12_2, f12_3, f12_3, f12);
+    accumulate_f12_nep5_cubic(Fp[(count++) * n_max_angular_plus_1 + n], q3, q3, q3, f12_3, f12_3, f12_3, f12);
+  }
 }
 
 #ifdef USE_TABLE

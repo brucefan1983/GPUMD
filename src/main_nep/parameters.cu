@@ -82,9 +82,9 @@ void Parameters::set_default_parameters()
   basis_size_angular = 8;      // large enough in most cases
   n_max_radial = 4;            // a relatively small value to achieve high speed
   n_max_angular = 4;           // a relatively small value to achieve high speed
-  L_max = 4;                   // the only supported value
-  L_max_4body = 2;             // default is to include 4body
-  L_max_5body = 0;             // default is not to include 5body
+  L_max[0] = 4;
+  L_max[1] = 2;
+  L_max[2] = 0;
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
@@ -157,13 +157,26 @@ void Parameters::calculate_parameters()
     }
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
-  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
-    dim_angular += n_max_angular + 1;
+  dim_angular = (n_max_angular + 1) * L_max[0]; // 3-body descriptors q^i_nl
+  if (version >= 3 && version <= 4) { 
+    if (L_max[1] != 0 &&  L_max[1] != 2) {
+      PRINT_INPUT_ERROR("L_max[1] should be 0 or 2.\n");
+    }
+    if (L_max[2] != 0 &&  L_max[2] != 1) {
+      PRINT_INPUT_ERROR("L_max[2] should be 0 or 1.\n");
+    }
+    if (L_max[1] > 0) {
+      dim_angular += n_max_angular + 1; // 4-body descriptors q^i_n222
+    }
+    if (L_max[2] > 0) {
+      dim_angular += n_max_angular + 1; // 5-body descriptors q^i_n1111
+    }
+  } else if (version == 5) {
+    int num_quadratic[5] = {0, 1, 3, 6, 10};
+    int num_cubic[5] = {0, 1, 4, 10, 20};
+    dim_angular += (n_max_angular + 1) * (num_quadratic[L_max[1]] + num_cubic[L_max[2]]);
   }
-  if (version >= 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
-    dim_angular += n_max_angular + 1;
-  }
+
   dim = dim_radial + dim_angular;
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
@@ -175,7 +188,7 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version >= 4 ? num_types : 1) + 1;
 
   if (version == 2) {
     number_of_variables_descriptor =
@@ -191,7 +204,7 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (version == 4) {
+  if (version >= 4) {
     if (!is_lambda_1_set) {
       lambda_1 = sqrt(number_of_variables * 1.0e-7f / num_types);
     }
@@ -313,13 +326,9 @@ void Parameters::report_inputs()
   }
 
   if (is_l_max_set) {
-    printf("    (input)   l_max_3body = %d.\n", L_max);
-    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
-    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
+    printf("    (input)   L_max = %d %d %d.\n", L_max[0], L_max[1], L_max[2]);
   } else {
-    printf("    (default) l_max_3body = %d.\n", L_max);
-    printf("    (default) l_max_4body = %d.\n", L_max_4body);
-    printf("    (default) l_max_5body = %d.\n", L_max_5body);
+    printf("    (default) L_max = %d %d %d.\n", L_max[0], L_max[1], L_max[2]);
   }
 
   if (is_neuron_set) {
@@ -499,8 +508,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 3 || version > 5) {
+    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
   }
 }
 
@@ -686,31 +695,28 @@ void Parameters::parse_l_max(const char** param, int num_param)
   if (num_param != 2 && num_param != 3 && num_param != 4) {
     PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
   }
-  if (!is_valid_int(param[1], &L_max)) {
+  if (!is_valid_int(param[1], &L_max[0])) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
   }
-  if (L_max != 4) {
+  if (L_max[0] != 4) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should = 4.");
   }
 
   if (num_param >= 3) {
-    if (!is_valid_int(param[2], &L_max_4body)) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
+    if (!is_valid_int(param[2], &L_max[1])) {
+      PRINT_INPUT_ERROR("l_max[1] should be an integer.\n");
     }
-    if (L_max_4body != 0 && L_max_4body != 2) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
+    if (L_max[1] < 0 || L_max[1] > 4) {
+      PRINT_INPUT_ERROR("l_max[1] should >= 0 and <= 4.");
     }
   }
 
-  if (num_param == 4) {
-    if (!is_valid_int(param[3], &L_max_5body)) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should be an integer.\n");
+  if (num_param >= 4) {
+    if (!is_valid_int(param[3], &L_max[2])) {
+      PRINT_INPUT_ERROR("l_max[2] should be an integer.\n");
     }
-    if (L_max_5body != 0 && L_max_5body != 1) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should = 0 or 1.");
-    }
-    if (L_max_4body == 0 && L_max_5body == 1) {
-      PRINT_INPUT_ERROR("cannot have l_max_4body = 0 with l_max_5body = 1.");
+    if (L_max[2] < 0 || L_max[2] > L_max[1]) {
+      PRINT_INPUT_ERROR("l_max[2] should >= 0 and <= L_max[1].");
     }
   }
 }

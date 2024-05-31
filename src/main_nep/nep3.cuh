@@ -49,7 +49,7 @@ public:
     int basis_size_angular = 0; // for nep3
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 1, 2, ..., L_max
+    int L_max[3];
     int dim_angular;
     int num_L;
     int num_types = 0;

@@ -208,12 +208,16 @@ static __global__ void find_descriptors_angular(
           accumulate_s(d12, x12, y12, z12, gn12, s);
         }
       }
-      if (paramb.num_L == paramb.L_max) {
-        find_q(paramb.n_max_angular + 1, n, s, q);
-      } else if (paramb.num_L == paramb.L_max + 1) {
-        find_q_with_4body(paramb.n_max_angular + 1, n, s, q);
+      if (paramb.version == 5) {
+        find_q_nep5(paramb.L_max[1], paramb.L_max[2], paramb.n_max_angular + 1, n, s, q);
       } else {
-        find_q_with_5body(paramb.n_max_angular + 1, n, s, q);
+        if (paramb.num_L == paramb.L_max[0]) {
+          find_q(paramb.n_max_angular + 1, n, s, q);
+        } else if (paramb.num_L == paramb.L_max[0] + 1) {
+          find_q_with_4body(paramb.n_max_angular + 1, n, s, q);
+        } else {
+          find_q_with_5body(paramb.n_max_angular + 1, n, s, q);
+        }
       }
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
@@ -245,17 +249,11 @@ NEP3::NEP3(
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
-  paramb.L_max = para.L_max;
-  paramb.num_L = paramb.L_max;
-  if (version >= 3) {
-    if (para.L_max_4body == 2) {
-      paramb.num_L += 1;
-    }
-    if (para.L_max_5body == 1) {
-      paramb.num_L += 1;
-    }
-  }
-  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
+  paramb.L_max[0] = para.L_max[0];
+  paramb.L_max[1] = para.L_max[1];
+  paramb.L_max[2] = para.L_max[2];
+  paramb.num_L = para.dim_angular / (para.n_max_angular + 1);
+  paramb.dim_angular = para.dim_angular;
 
   paramb.basis_size_radial = para.basis_size_radial;
   paramb.basis_size_angular = para.basis_size_angular;
@@ -305,7 +303,7 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+    if (t > 0 && paramb.version < 4) { // Use the same set of NN parameters for NEP2 and NEP3
       pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
@@ -320,7 +318,7 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 
   if (para.train_mode == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+      if (t > 0 && paramb.version < 4) { // Use the same set of NN parameters for NEP2 and NEP3
         pointer -= (ann.dim + 2) * ann.num_neurons1;
       }
       ann.w0_pol[t] = pointer;
@@ -637,6 +635,7 @@ static __global__ void find_force_angular(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
+  const float* __restrict__ g_q,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
   float* g_fx,
@@ -654,9 +653,11 @@ static __global__ void find_force_angular(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
 
+    float q[MAX_DIM_ANGULAR] = {0.0f};
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
+      q[d] = g_q[(paramb.n_max_radial + 1 + d) * N + n1];
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
@@ -702,14 +703,18 @@ static __global__ void find_force_angular(
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          if (paramb.num_L == paramb.L_max) {
-            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-          } else if (paramb.num_L == paramb.L_max + 1) {
-            accumulate_f12_with_4body(
-              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+          if (paramb.version == 5) {
+            accumulate_f12_nep5(paramb.L_max[1], paramb.L_max[2], n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, q, Fp, sum_fxyz, f12);
           } else {
-            accumulate_f12_with_5body(
+              if (paramb.num_L == paramb.L_max[0]) {
+              accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+            } else if (paramb.num_L == paramb.L_max[0] + 1) {
+              accumulate_f12_with_4body(
               n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+            } else {
+              accumulate_f12_with_5body(
+              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+            }
           }
         }
       }
@@ -988,6 +993,7 @@ void NEP3::find_force(
       nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(),
       nep_data[device_id].z12_angular.data(),
+      nep_data[device_id].descriptors.data(),
       nep_data[device_id].Fp.data(),
       nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].force.data(),
