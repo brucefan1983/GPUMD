@@ -33,8 +33,8 @@ __constant__ float C5B[3] = {0.026596810706114f, 0.053193621412227f, 0.026596810
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
-const int MAX_DIM = MAX_NUM_N * 35;
-const int MAX_DIM_ANGULAR = MAX_NUM_N * 34;
+const int MAX_DIM = 220;
+const int MAX_DIM_ANGULAR = 200;
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
