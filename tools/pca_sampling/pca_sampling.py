@@ -68,15 +68,14 @@ p1 = pca.explained_variance_ratio_[1]
 print(f'Explained variance for component 0: {p0:.2f}')
 print(f'Explained variance for component 1: {p1:.2f}')
 
-# Select 100 structures using FPS
-n_samples = 100
+# Select 25 structures using FPS
+n_samples = 25
 selected_indices = farthest_point_sampling(pc, n_samples)
 selected_structures = [tol[i] for i in selected_indices]
 unselected_structures = [t for i, t in enumerate(tol) if i not in selected_indices]
 
 # Save the selected and unselected structures
 write('selected_structures.xyz', selected_structures)
-write('unselected_structures.xyz', unselected_structures)
 
 figure(figsize=(10, 8))
 set_fig_properties([gca()])
