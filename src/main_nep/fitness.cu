@@ -132,7 +132,7 @@ void Fitness::compute(
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
-    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
+    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f / (para.basis_size_angular + 1));
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(
         para, 
