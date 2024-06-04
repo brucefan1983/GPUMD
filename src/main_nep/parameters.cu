@@ -189,10 +189,10 @@ void Parameters::calculate_parameters()
 #endif
 
   if (dim > 220) {
-    PRINT_INPUT_ERROR("total descriptor dimension should be no larger than 220.\n");
+    PRINT_INPUT_ERROR("total descriptor dimension should be not larger than 220.\n");
   }
   if (dim_angular > 200) {
-    PRINT_INPUT_ERROR("angular descriptor dimension should be no larger than 200.\n");
+    PRINT_INPUT_ERROR("angular descriptor dimension should be not larger than 200.\n");
   }
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version >= 4 ? num_types : 1) + 1;
