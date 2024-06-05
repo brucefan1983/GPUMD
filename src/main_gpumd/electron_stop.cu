@@ -259,7 +259,7 @@ void Electron_Stop::parse(
 void Electron_Stop::finalize() 
 { 
   if (do_electron_stop) { 
-    printf("    total electron stopping power loss = %g eV.\n", stopping_power_loss);
+    printf("Total electron stopping power loss = %g eV.\n", stopping_power_loss);
   }
   do_electron_stop = false; 
   stopping_power_loss = 0.0;
