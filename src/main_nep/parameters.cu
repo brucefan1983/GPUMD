@@ -95,6 +95,7 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  initial_para = 1.0f;
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
@@ -470,6 +471,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
+  } else if (strcmp(param[0], "initial_para") == 0) {
+    parse_initial_para(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -930,5 +933,22 @@ void Parameters::parse_generation(const char** param, int num_param)
     PRINT_INPUT_ERROR("maximum number of generations should >= 0.");
   } else if (maximum_generation > 10000000) {
     PRINT_INPUT_ERROR("maximum number of generations should <= 10000000.");
+  }
+}
+
+void Parameters::parse_initial_para(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("initial_para should have 1 parameter.\n");
+  }
+
+  double initial_para_tmp = 0.0;
+  if (!is_valid_real(param[1], &initial_para_tmp)) {
+    PRINT_INPUT_ERROR("initial_para should be a number.\n");
+  }
+  initial_para = initial_para_tmp;
+
+  if (initial_para < 0.1f || initial_para > 1.0f) {
+    PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
   }
 }

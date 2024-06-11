@@ -94,10 +94,14 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
 {
   FILE* fid_restart = fopen("nep.restart", "r");
   if (fid_restart == NULL) {
-    std::uniform_real_distribution<float> r1(-0.2, 0.2);
+    std::uniform_real_distribution<float> r1(0, 1);
     for (int n = 0; n < number_of_variables; ++n) {
-      mu[n] = r1(rng);
-      sigma[n] = 0.02;
+      mu[n] = (r1(rng) - 0.5f) * 2.0f;
+      int num = number_of_variables;
+      if (para.version == 4) {
+        num /= para.num_types;
+      }
+      sigma[n] =  (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f));
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
