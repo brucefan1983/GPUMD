@@ -101,7 +101,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       if (para.version == 4) {
         num /= para.num_types;
       }
-      sigma[n] =  (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f));
+      sigma[n] = 0.01f;
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
@@ -532,7 +532,7 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = sigma * exp(eta_sigma * gradient_sigma);
+    g_sigma[v] = sigma * exp(eta_sigma * gradient_sigma) * 0.99999f;
   }
 }
 
