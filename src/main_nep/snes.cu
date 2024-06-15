@@ -532,7 +532,7 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = max(0.001f, min(0.01f, sigma * exp(eta_sigma * gradient_sigma)));
+    g_sigma[v] = max(0.000f, min(0.01f, sigma * exp(eta_sigma * gradient_sigma)));
   }
 }
 
