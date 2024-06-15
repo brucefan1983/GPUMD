@@ -96,6 +96,7 @@ void Parameters::set_default_parameters()
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
+
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {

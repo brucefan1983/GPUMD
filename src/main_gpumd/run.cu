@@ -241,7 +241,7 @@ void Run::perform_a_run()
     }
 #endif
 
-    electron_stop.compute(atom);
+    electron_stop.compute(time_step, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 

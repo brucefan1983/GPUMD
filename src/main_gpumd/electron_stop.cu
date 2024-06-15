@@ -27,6 +27,7 @@ Apply electron stopping.
 static void __global__ find_stopping_force(
   const int num_atoms,
   const int num_points,
+  const double time_step,
   const double energy_min,
   const double energy_max,
   const double energy_interval_inverse,
@@ -34,7 +35,8 @@ static void __global__ find_stopping_force(
   const int* g_type,
   const double* g_mass,
   const double* g_velocity,
-  double* g_force)
+  double* g_force,
+  double* g_power_loss)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < num_atoms) {
@@ -66,6 +68,8 @@ static void __global__ find_stopping_force(
     g_force[0 * num_atoms + i] = vx * factor;
     g_force[1 * num_atoms + i] = vy * factor;
     g_force[2 * num_atoms + i] = vz * factor;
+
+    g_power_loss[i] = stopping_power * sqrt(v2) * time_step; 
   }
 }
 
@@ -119,7 +123,42 @@ apply_electron_stopping(const int num_atoms, const double* g_stopping_force, dou
   }
 }
 
-void Electron_Stop::compute(Atom& atom)
+__device__ double device_power_loss;
+
+static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
+{
+  //<<<1, 1024>>>
+  int tid = threadIdx.x;
+  int block_size = blockDim.x;
+
+  int number_of_batches = (num_atoms + block_size - 1) / block_size;
+  __shared__ double s_f[1024];
+  double f = 0.0;
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+      int idx = tid + batch * block_size;
+      if (idx < num_atoms) {
+          f += g_power_loss[idx];
+      }
+  }
+
+  s_f[tid] = f;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+      if (tid < offset) {
+          s_f[tid] += s_f[tid + offset];
+      }
+      __syncthreads(); 
+  }
+
+  if (tid == 0) {
+      device_power_loss = s_f[0];
+  }
+
+}
+
+void Electron_Stop::compute(double time_step, Atom& atom)
 {
   if (!do_electron_stop) {
     return;
@@ -128,6 +167,7 @@ void Electron_Stop::compute(Atom& atom)
   find_stopping_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms,
     num_points,
+    time_step,
     energy_min,
     energy_max,
     1.0 / energy_interval,
@@ -135,7 +175,9 @@ void Electron_Stop::compute(Atom& atom)
     atom.type.data(),
     atom.mass.data(),
     atom.velocity_per_atom.data(),
-    stopping_force.data());
+    stopping_force.data(),
+    stopping_loss.data());
+
   CUDA_CHECK_KERNEL
 
   find_force_average<<<3, 1024>>>(atom.number_of_atoms, stopping_force.data());
@@ -144,6 +186,13 @@ void Electron_Stop::compute(Atom& atom)
   apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
   CUDA_CHECK_KERNEL
+
+  find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
+  CUDA_CHECK_KERNEL
+
+  double power_loss_host;  
+  CHECK(cudaMemcpyFromSymbol(&power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost));
+  stopping_power_loss += power_loss_host;
 }
 
 void Electron_Stop::parse(
@@ -203,7 +252,15 @@ void Electron_Stop::parse(
   stopping_power_gpu.resize(num_points * num_types);
   stopping_power_gpu.copy_from_host(stopping_power_cpu.data());
   stopping_force.resize(num_atoms * 3);
+  stopping_loss.resize(num_atoms);
   do_electron_stop = true;
 }
 
-void Electron_Stop::finalize() { do_electron_stop = false; }
+void Electron_Stop::finalize() 
+{ 
+  if (do_electron_stop) { 
+    printf("Total electron stopping power loss = %g eV.\n", stopping_power_loss);
+  }
+  do_electron_stop = false; 
+  stopping_power_loss = 0.0;
+}
