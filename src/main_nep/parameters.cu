@@ -96,6 +96,7 @@ void Parameters::set_default_parameters()
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
+  sigma0 = 0.1f;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -458,6 +459,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_zbl(param, num_param);
   } else if (strcmp(param[0], "initial_para") == 0) {
     parse_initial_para(param, num_param);
+  } else if (strcmp(param[0], "sigma0") == 0) {
+    parse_sigma0(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -938,5 +941,22 @@ void Parameters::parse_initial_para(const char** param, int num_param)
 
   if (initial_para < 0.1f || initial_para > 1.0f) {
     PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
+  }
+}
+
+void Parameters::parse_sigma0(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma0 should have 1 parameter.\n");
+  }
+
+  double sigma0_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma0_tmp)) {
+    PRINT_INPUT_ERROR("sigma0 should be a number.\n");
+  }
+  sigma0 = sigma0_tmp;
+
+  if (sigma0 < 0.01f || sigma0 > 0.1f) {
+    PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
   }
 }

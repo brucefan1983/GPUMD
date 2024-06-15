@@ -97,7 +97,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     std::uniform_real_distribution<float> r1(0, 1);
     for (int n = 0; n < number_of_variables; ++n) {
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
-      sigma[n] = 0.01f;
+      sigma[n] = para.sigma0;
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
@@ -260,7 +260,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         fitness_L2,
         population.data() + number_of_variables * best_index);
 
-      update_mu_and_sigma();
+      update_mu_and_sigma(para);
       if (0 == (n + 1) % 100) {
         output_mu_and_sigma(para);
       }
@@ -508,6 +508,7 @@ static __global__ void gpu_update_mu_and_sigma(
   const int population_size,
   const int number_of_variables,
   const float eta_sigma,
+  const float simga0,
   const int* g_type_of_variable,
   const int* g_index,
   const float* g_utility,
@@ -528,11 +529,11 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = min(0.01f, sigma * exp(eta_sigma * gradient_sigma));
+    g_sigma[v] = min(simga0, sigma * exp(eta_sigma * gradient_sigma));
   }
 }
 
-void SNES::update_mu_and_sigma()
+void SNES::update_mu_and_sigma(Parameters& para)
 {
   cudaSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
@@ -542,6 +543,7 @@ void SNES::update_mu_and_sigma()
     population_size,
     number_of_variables,
     eta_sigma,
+    para.sigma0,
     gpu_type_of_variable.data(),
     gpu_index.data(),
     gpu_utility.data(),
