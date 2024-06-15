@@ -97,10 +97,6 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     std::uniform_real_distribution<float> r1(0, 1);
     for (int n = 0; n < number_of_variables; ++n) {
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
-      int num = number_of_variables;
-      if (para.version == 4) {
-        num /= para.num_types;
-      }
       sigma[n] = 0.01f;
     }
   } else {
@@ -532,7 +528,7 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = max(0.000f, min(0.01f, sigma * exp(eta_sigma * gradient_sigma)));
+    g_sigma[v] = min(0.01f, sigma * exp(eta_sigma * gradient_sigma));
   }
 }
 
