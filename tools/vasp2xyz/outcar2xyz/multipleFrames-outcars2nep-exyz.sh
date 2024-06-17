@@ -49,7 +49,9 @@ echo "Converged OUTCAR files: $total_converged"
 echo "Non-converged OUTCAR files: $total_non_converged"
 
 # Write non-converged OUTCAR file paths to the error file
-printf "%s\n" "${non_converged_files[@]}" > "$error_file"
+if [ $total_non_converged -gt 0 ]; then
+    printf "%s\n" "${non_converged_files[@]}" > "$error_file"
+fi
 
 # Process converged OUTCAR files
 N_count=1
