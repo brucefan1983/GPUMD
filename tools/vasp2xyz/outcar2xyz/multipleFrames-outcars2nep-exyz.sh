@@ -86,8 +86,8 @@ for file in "${converged_files[@]}"; do
             echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Properties=species:S:1:pos:R:3:forces:R:3 Energy=$ener pbc=\"T T T\"" >> "$writ_dire/$writ_file"
         fi
 
-        for ((j=0; j<${#ion_numb_arra[*]}; j++)); do
-            printf '%s\n' "${ion_symb_arra[j]}"$(seq 1 ${ion_numb_arra[j]}) >> "$writ_dire/symb.tem"
+        for((j=0;j<${#ion_numb_arra[*]};j++));do
+            printf ''${ion_symb_arra[j]}'%.0s\n' $(seq 1 1 ${ion_numb_arra[j]}) >> $writ_dire/symb.tem
         done
 
         grep -A $((syst_numb_atom + 1)) "TOTAL-FORCE (eV/Angst)" temp.file | tail -n $syst_numb_atom > "$writ_dire/posi_forc.tem"
