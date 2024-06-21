@@ -16,8 +16,13 @@ jobs:
     - name: Set up MSVC environment
       uses: ilammy/msvc-dev-cmd@v1.4.1
       
-    - name: Install CUDA
-      uses: nvidia/setup-cuda@v12
+    - name: Install CUDA      
+      run: |
+        choco install cuda --version=11.2.2.46133
+        
+    - name: add CUDA to path
+      run: |
+        SET "PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin"
       
     - name: check CUDA version
       run: |
