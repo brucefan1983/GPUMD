@@ -11,8 +11,9 @@ jobs:
 
     steps:
     - name: Checkout code
-    - uses: actions/checkout@v2
-    - uses: ilammy/msvc-dev-cmd@v1.4.1
+      uses: actions/checkout@v2      
+    - name: Set up MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1.4.1
       
     - name: Install CUDA
       run: |
