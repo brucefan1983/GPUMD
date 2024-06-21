@@ -11,24 +11,14 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Install Visual Studio 2019
-      run: |
-        choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --includeOptional"
-
+    - uses: actions/checkout@v2
+    - uses: ilammy/msvc-dev-cmd@v1.4.1
+      
     - name: Install CUDA
       run: |
         choco install cuda --version=11.2
 
-    - name: Set up environment
-      shell: cmd.exe
-      run: |
-        SET "PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin"
-
     - name: Build project
-      shell: cmd.exe
       run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
         cd src && make
 
