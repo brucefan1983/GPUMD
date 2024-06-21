@@ -17,7 +17,7 @@ jobs:
       
     - name: Install CUDA
       run: |
-        choco install cuda --version=11.2
+        choco install cuda --version=11.2.2.46133
 
     - name: Build project
       run: |
