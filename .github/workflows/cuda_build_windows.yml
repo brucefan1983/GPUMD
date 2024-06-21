@@ -12,18 +12,17 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2      
+      
     - name: Set up MSVC environment
       uses: ilammy/msvc-dev-cmd@v1.4.1
       
     - name: Install CUDA
-      run: |
-        choco install cuda --version=11.2.2.46133
-    - name: add CUDA to path
-      run: |
-        echo 'export PATH="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.2/bin:$PATH"' >> $GITHUB_ENV
+      uses: nvidia/setup-cuda@v12
+      
     - name: check CUDA version
       run: |
         nvcc -v
+        
     - name: Build project
       run: |
         cd src && make
