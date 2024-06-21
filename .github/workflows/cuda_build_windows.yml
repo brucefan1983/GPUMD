@@ -10,26 +10,25 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up MSVC
-        run: |
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+    - name: Install Visual Studio 2019
+      run: |
+        choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --includeOptional"
 
-      - name: Install Chocolatey
-        run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    - name: Install CUDA
+      run: |
+        choco install cuda --version=11.2
 
-      - name: Install CUDA
-        run: |
-          choco install cuda -y
+    - name: Set up environment
+      shell: cmd.exe
+      run: |
+        SET "PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin"
 
-      - name: Verify CUDA installation
-        run: nvcc --version
-
-      - name: Build with Make
-        run: |
-          choco install make -y
-          cd src && make
+    - name: Build project
+      shell: cmd.exe
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+        cd src && make
 
