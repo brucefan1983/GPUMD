@@ -22,6 +22,7 @@ jobs:
       run: |
         echo 'export PATH="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.2/bin:$PATH"' >> $GITHUB_ENV
     - name: check CUDA version
+      run: |
         nvcc -v
     - name: Build project
       run: |
