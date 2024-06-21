@@ -16,10 +16,11 @@
 # some flags
 ###########################################################
 CC = nvcc
+CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_60 -Xcompiler "/wd 4819"
+CFLAGS = -O3 $(CUDA_ARCH) -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++14 -O3 -arch=sm_60
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
 endif
 INC = -I./
 LDFLAGS = 
