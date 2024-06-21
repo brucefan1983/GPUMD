@@ -18,7 +18,11 @@ jobs:
     - name: Install CUDA
       run: |
         choco install cuda --version=11.2.2.46133
-
+    - name: add CUDA to path
+      run: |
+        echo 'export PATH="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.2/bin:$PATH"' >> $GITHUB_ENV
+    - name: check CUDA version
+        nvcc -v
     - name: Build project
       run: |
         cd src && make
