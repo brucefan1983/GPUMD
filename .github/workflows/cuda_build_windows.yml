@@ -7,14 +7,14 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2      
       
     - name: Set up MSVC environment
-      uses: ilammy/msvc-dev-cmd@vs-version
+      uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x64
         vsversion: "2019"
