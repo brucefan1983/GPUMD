@@ -22,7 +22,8 @@ jobs:
         
     - name: add CUDA to path
       run: |
-        "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin"\nvcc -v
+        $env:Path += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin"
+        nvcc -v
         
     - name: Build project
       run: |
