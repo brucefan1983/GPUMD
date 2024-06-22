@@ -417,30 +417,41 @@ read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& 
   }
 }
 
-static void find_permuted_indices(std::vector<int>& permuted_indices)
+static void find_permuted_indices(
+  const int num_batches,
+  const std::vector<Structure>& structures, 
+  std::vector<int>& permuted_indices)
 {
-  std::mt19937 rng;
-#ifdef DEBUG
-  rng = std::mt19937(54321);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    permuted_indices[i] = i;
+  std::vector<float> energy(structures.size());
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    energy[nc] = structures[nc].energy;
   }
-  std::uniform_int_distribution<int> rand_int(0, INT_MAX);
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    int j = rand_int(rng) % (permuted_indices.size() - i) + i;
-    int temp = permuted_indices[i];
-    permuted_indices[i] = permuted_indices[j];
-    permuted_indices[j] = temp;
+
+  std::vector<int> energy_index(structures.size());
+  std::iota(energy_index.begin(), energy_index.end(), 0); 
+  std::stable_sort(
+    energy_index.begin(), 
+    energy_index.end(),
+    [&energy](size_t i1, size_t i2) {return energy[i1] < energy[i2];}
+  );
+
+  int count = 0;
+  for (int b = 0; b < num_batches; ++b) {
+    const int batch_size_minimal = structures.size() / num_batches;
+    const bool is_larger_batch = b + batch_size_minimal * num_batches < structures.size();
+    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+    for (int c = 0; c < batch_size; ++c) {
+      permuted_indices[count + c] = energy_index[b + num_batches * c];
+    }
+    count += batch_size;
   }
+  
 }
 
-static void reorder(std::vector<Structure>& structures)
+static void reorder(const int num_batches, std::vector<Structure>& structures)
 {
   std::vector<int> configuration_id(structures.size());
-  find_permuted_indices(configuration_id);
+  find_permuted_indices(num_batches, structures, configuration_id);
 
   std::vector<Structure> structures_copy(structures.size());
 
@@ -540,7 +551,8 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
   }
 
   if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
-    reorder(structures);
+    int num_batches = (structures.size() - 1) / para.batch_size + 1;
+    reorder(num_batches, structures);
   }
 
   return has_test_set;

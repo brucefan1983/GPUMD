@@ -53,6 +53,8 @@ public:
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
+  float initial_para;
+  float sigma0;
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -125,4 +127,6 @@ private:
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);
+  void parse_initial_para(const char** param, int num_param);
+  void parse_sigma0(const char** param, int num_param);
 };

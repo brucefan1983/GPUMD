@@ -51,16 +51,19 @@ Fitness::Fitness(Parameters& para)
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     train_set[batch_id].resize(deviceCount);
   }
+  int count = 0;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    int n1 = batch_id * para.batch_size;
-    int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
+    const int batch_size_minimal = structures_train.size() / num_batches;
+    const bool is_larger_batch = batch_id + batch_size_minimal * num_batches < structures_train.size();
+    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+    count += batch_size;
     printf("\nBatch %d:\n", batch_id);
-    printf("Number of configurations = %d.\n", n2 - n1);
+    printf("Number of configurations = %d.\n", batch_size);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();
       printf("Constructing train_set in device  %d.\n", device_id);
       CHECK(cudaSetDevice(device_id));
-      train_set[batch_id][device_id].construct(para, structures_train, n1, n2, device_id);
+      train_set[batch_id][device_id].construct(para, structures_train, count - batch_size, count, device_id);
       print_line_2();
     }
   }
@@ -132,7 +135,7 @@ void Fitness::compute(
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
-    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
+    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, para.initial_para);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(
         para, 

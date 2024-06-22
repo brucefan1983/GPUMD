@@ -24,8 +24,9 @@ class Electron_Stop
 {
 public:
   bool do_electron_stop = false;
+  double stopping_power_loss = 0.0;
   void parse(const char** param, int num_param, const int num_atoms, const int num_types);
-  void compute(Atom& atom);
+  void compute(double time_step, Atom& atom);
   void finalize();
 
 private:
@@ -36,4 +37,5 @@ private:
   std::vector<double> stopping_power_cpu;
   GPU_Vector<double> stopping_power_gpu;
   GPU_Vector<double> stopping_force;
+  GPU_Vector<double> stopping_loss;
 };

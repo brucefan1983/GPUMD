@@ -63,6 +63,6 @@ protected:
   void regularize(Parameters&);
   void regularize_NEP4(Parameters& para);
   void sort_population(Parameters& para);
-  void update_mu_and_sigma();
+  void update_mu_and_sigma(Parameters& para);
   void output_mu_and_sigma(Parameters& para);
 };
