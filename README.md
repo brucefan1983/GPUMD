@@ -67,7 +67,7 @@ https://www.freelists.org/list/gpumd
 | Jiahui Liu            | https://github.com/Jonsnow-willow |
 | Penghua Ying          | https://github.com/hityingph      |
 | Real Name ?           | https://github.com/Lazemare       |
-| Real Name ?           | https://github.com/initqp         |
+| Jintu Zhang           | https://github.com/initqp         |
 | Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
 | Rui Zhao              | https://github.com/grtheaory      |
 | Eric Lindgren         | https://github.com/elindgren      |
@@ -83,6 +83,7 @@ https://www.freelists.org/list/gpumd
 | Haikuan Dong          | https://github.com/hailan2005 |
 | Zihan Yan             | https://github.com/zhyan0603 |
 | Yongchao Wu           | https://github.com/mushroomfire |
+| Yanlong Li            | https://github.com/DragonPara |
 
 ## Citations
 
