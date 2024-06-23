@@ -23,6 +23,7 @@
 #include <iostream>
 #include <iterator>
 #include <random>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>

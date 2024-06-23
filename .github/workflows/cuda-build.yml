@@ -1,0 +1,24 @@
+name: CUDA CI
+
+on:
+  pull_request:
+    branches:
+      - master  # 你可以根据需要调整分支
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: 
+      image: nvidia/cuda:11.2.2-devel-ubuntu20.04  # 使用适合你的CUDA版本的官方NVIDIA容器
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential
+
+      - name: Build with Make
+        run: cd src && make
