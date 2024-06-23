@@ -16,10 +16,10 @@ Syntax
 
 .. code::
 
-   dump_position interval <time_interval> direction <direction> bin_size <size of each bin>
+   dump_piston direction <direction> interval <time_interval> bin_size <size of each bin>
 
-- The :attr:`interval` parameter sets the output interval (number of steps).
 - The :attr:`direction` parameter specifies the shock wave direction (x, y, or z).
+- The :attr:`interval` parameter sets the output interval (number of steps).
 - The :attr:`bin_size` parameter, optional with a default value of 10, defines the thickness of each histogram bin, measured in Angstroms.
 
 Examples
@@ -29,4 +29,4 @@ To output spatial thermo information every 1000 steps for a run in the x-directi
 
 .. code::
 
-  dump_position interval 1000 direction x bin_size 20
+  dump_piston direction x interval 1000 bin_size 20
