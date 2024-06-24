@@ -119,8 +119,9 @@ Run::Run()
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
     atom.velocity_per_atom,
-    false,
-    1);
+    true,
+    123);
+  printf("Initialized velocities with default T = 300 K.\n");
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
@@ -497,6 +498,7 @@ void Run::parse_velocity(const char** param, int num_param)
     atom.velocity_per_atom,
     use_seed,
     seed);
+  printf("Initialized velocities with input T = %g K.\n", initial_temperature);
 }
 
 void Run::parse_correct_velocity(const char** param, int num_param)
