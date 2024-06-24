@@ -92,6 +92,7 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_para
 
 void Ensemble_wall_harmonic::init()
 {
+  box->pbc_x = 0;
   wall_pos_left = 0;
   wall_pos_right = box->cpu_h[0];
 }

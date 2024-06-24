@@ -44,8 +44,7 @@ public:
   void init();
 
 protected:
-  double thickness = 20;
-  double mirror_pos = 0;
+  double mirror_pos_left, mirror_pos_right;
   double vp, vp_current;
   int accerlate_steps = 0;
   GPU_Vector<bool> gpu_right_wall_list;
