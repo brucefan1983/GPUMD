@@ -21,11 +21,11 @@
 #include "utilities/read_file.cuh"
 #include <math.h>
 
-class Ensemble_mirror : public Ensemble
+class Ensemble_wall_mirror : public Ensemble
 {
 public:
-  Ensemble_mirror(const char** params, int num_params);
-  virtual ~Ensemble_mirror(void);
+  Ensemble_wall_mirror(const char** params, int num_params);
+  virtual ~Ensemble_wall_mirror(void);
 
   virtual void compute1(
     const double time_step,

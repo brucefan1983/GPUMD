@@ -1,5 +1,5 @@
 .. _piston:
-.. _kw_ensemble_piston:
+.. _kw_ensemble_wall_piston:
 .. index::
    single: piston (keyword in run.in)
    single: piston integrator

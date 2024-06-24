@@ -1,5 +1,5 @@
 .. _mirror:
-.. _kw_ensemble_mirror:
+.. _kw_ensemble_wall_mirror:
 .. index::
    single: mirror (keyword in run.in)
    single: mirror integrator

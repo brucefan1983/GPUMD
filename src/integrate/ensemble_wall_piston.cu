@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "ensemble_piston.cuh"
+#include "ensemble_wall_piston.cuh"
 
 namespace
 {
@@ -95,7 +95,7 @@ static __global__ void gpu_velocity_verlet(
 }
 } // namespace
 
-Ensemble_piston::Ensemble_piston(const char** params, int num_params)
+Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
 {
   int i = 2;
   while (i < num_params) {
@@ -132,7 +132,7 @@ Ensemble_piston::Ensemble_piston(const char** params, int num_params)
   printf("The thickness of fixed wall: %f Ang.\n", thickness);
 }
 
-void Ensemble_piston::init()
+void Ensemble_wall_piston::init()
 {
   int N = atom->number_of_atoms;
   gpu_left_wall_list.resize(N, false);
@@ -146,9 +146,9 @@ void Ensemble_piston::init()
     atom->position_per_atom.data() + N * direction);
 }
 
-Ensemble_piston::~Ensemble_piston(void) {}
+Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
 
-void Ensemble_piston::compute1(
+void Ensemble_wall_piston::compute1(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
@@ -188,7 +188,7 @@ void Ensemble_piston::compute1(
     atoms.force_per_atom.data() + 2 * n);
 }
 
-void Ensemble_piston::compute2(
+void Ensemble_wall_piston::compute2(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
