@@ -112,6 +112,16 @@ Run::Run()
 
   allocate_memory_gpu(group, atom, thermo);
 
+  velocity.initialize(
+    false,
+    300,
+    atom.cpu_mass,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom,
+    atom.velocity_per_atom,
+    false,
+    1);
+
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
   fflush(stdout);
