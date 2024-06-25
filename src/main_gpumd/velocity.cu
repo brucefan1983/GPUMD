@@ -322,8 +322,6 @@ void Velocity::initialize(
   }
 
   velocity_per_atom.copy_from_host(cpu_velocity_per_atom.data());
-
-  printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 
 void Velocity::finalize() { do_velocity_correction = false; }

@@ -1,0 +1,32 @@
+name: CUDA CI on Windows
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-2019
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2      
+      
+    - name: Set up MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1.13.0
+      with:
+        arch: x64
+        vsversion: "2019"
+      
+    - name: Install CUDA      
+      run: |
+        choco install cuda --version=11.2.2.46133
+        
+    - name: Build project
+      shell: cmd
+      run: |
+        set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\bin
+        nvcc --version
+        cd src && make
+

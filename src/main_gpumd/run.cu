@@ -112,6 +112,21 @@ Run::Run()
 
   allocate_memory_gpu(group, atom, thermo);
 
+  velocity.initialize(
+    has_velocity_in_xyz,
+    300,
+    atom.cpu_mass,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom,
+    atom.velocity_per_atom,
+    true,
+    123);
+  if (has_velocity_in_xyz) {
+    printf("Initialized velocities with data in model.xyz.\n");
+  } else {
+    printf("Initialized velocities with default T = 300 K.\n");
+  }
+
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
   fflush(stdout);
@@ -487,6 +502,9 @@ void Run::parse_velocity(const char** param, int num_param)
     atom.velocity_per_atom,
     use_seed,
     seed);
+  if (!has_velocity_in_xyz) {
+    printf("Initialized velocities with input T = %g K.\n", initial_temperature);
+  }
 }
 
 void Run::parse_correct_velocity(const char** param, int num_param)
