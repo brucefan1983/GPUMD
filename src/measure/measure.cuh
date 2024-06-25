@@ -28,6 +28,7 @@
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
+#include "cavity.cuh"
 #include "force/force.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
@@ -112,6 +113,7 @@ public:
   Dump_Piston dump_piston;
   Dump_Dipole dump_dipole;
   Dump_Polarizability dump_polarizability;
+  Cavity cavity;
   Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;

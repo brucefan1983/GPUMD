@@ -58,6 +58,7 @@ void Measure::initialize(
   dump_piston.preprocess(atom, box);
   dump_dipole.preprocess(number_of_atoms, number_of_potentials, force);
   dump_polarizability.preprocess(number_of_atoms, number_of_potentials, force);
+  cavity.preprocess(number_of_atoms, number_of_potentials, force, atom.mass);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
@@ -88,6 +89,7 @@ void Measure::finalize(
   dump_piston.postprocess();
   dump_dipole.postprocess();
   dump_polarizability.postprocess();
+  cavity.postprocess();
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();
@@ -164,6 +166,7 @@ void Measure::process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
   dump_dipole.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   dump_polarizability.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
+  cavity.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
   compute.process(
