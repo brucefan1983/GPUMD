@@ -134,7 +134,6 @@ Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
 
 void Ensemble_wall_piston::init()
 {
-  box->pbc_x = 0;
   int N = atom->number_of_atoms;
   gpu_left_wall_list.resize(N, false);
   gpu_right_wall_list.resize(N, false);

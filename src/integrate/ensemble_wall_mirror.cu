@@ -93,9 +93,9 @@ Ensemble_wall_mirror::Ensemble_wall_mirror(const char** params, int num_params)
 
 void Ensemble_wall_mirror::init()
 {
-  box->pbc_x = 0;
   mirror_pos_left = 0;
   mirror_pos_right = box->cpu_h[0];
+  box->cpu_h[0] += 20;
 }
 
 Ensemble_wall_mirror::~Ensemble_wall_mirror(void) {}
