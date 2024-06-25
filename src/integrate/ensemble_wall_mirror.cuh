@@ -45,8 +45,6 @@ public:
 
 protected:
   double mirror_pos_left, mirror_pos_right;
-  double vp, vp_current;
-  int accerlate_steps = 0;
-  GPU_Vector<bool> gpu_right_wall_list;
+  double vp;
   std::vector<double> thermo_cpu;
 };

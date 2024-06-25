@@ -19,28 +19,26 @@ namespace
 {
 static __global__ void gpu_find_wall(
   int number_of_atoms,
-  double left,
-  double right,
-  bool* left_wall_list,
-  bool* right_wall_list,
+  double wall_pos_left,
+  double wall_pos_right,
+  bool* wall_list_left,
+  bool* wall_list_right,
   double* position)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_atoms) {
-    left_wall_list[i] = (position[i] < left);
-    right_wall_list[i] = (position[i] > right);
+    wall_list_left[i] = (position[i] < wall_pos_left);
+    wall_list_right[i] = (position[i] > wall_pos_right);
   }
 }
 
 static __global__ void gpu_velocity_verlet(
   const bool is_step1,
   const int number_of_particles,
-  const double move_velocity_x,
-  const double move_velocity_y,
-  const double move_velocity_z,
-  const double g_time_step,
+  const double vp,
   bool* left_wall_list,
   bool* right_wall_list,
+  const double g_time_step,
   const double* g_mass,
   double* g_x,
   double* g_y,
@@ -63,28 +61,23 @@ static __global__ void gpu_velocity_verlet(
     const double ax = g_fx[i] * mass_inv;
     const double ay = g_fy[i] * mass_inv;
     const double az = g_fz[i] * mass_inv;
+
     if (right_wall_list[i]) {
       vx = 0;
       vy = 0;
       vz = 0;
-      g_vx[i] = 0.0;
-      g_vy[i] = 0.0;
-      g_vz[i] = 0.0;
     } else if (left_wall_list[i]) {
-      vx = move_velocity_x;
-      vy = move_velocity_y;
-      vz = move_velocity_z;
-      g_vx[i] = 0.0;
-      g_vy[i] = 0.0;
-      g_vz[i] = 0.0;
+      vx = vp;
+      vy = 0;
+      vz = 0;
     } else {
       vx += ax * time_step_half;
       vy += ay * time_step_half;
       vz += az * time_step_half;
-      g_vx[i] = vx;
-      g_vy[i] = vy;
-      g_vz[i] = vz;
     }
+    g_vx[i] = vx;
+    g_vy[i] = vy;
+    g_vz[i] = vz;
 
     if (is_step1) {
       g_x[i] += vx * time_step;
@@ -99,35 +92,19 @@ Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
 {
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "direction") == 0) {
-      if (strcmp(params[i + 1], "x") == 0)
-        direction = 0;
-      else if (strcmp(params[i + 1], "y") == 0)
-        direction = 1;
-      else if (strcmp(params[i + 1], "z") == 0)
-        direction = 2;
-      else
-        PRINT_INPUT_ERROR("Direction should be x or y or z.");
+    if (strcmp(params[i], "vp") == 0) {
+      if (!is_valid_real(params[i + 1], &vp))
+        PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
     } else if (strcmp(params[i], "thickness") == 0) {
       if (!is_valid_real(params[i + 1], &thickness))
         PRINT_INPUT_ERROR("Wrong inputs for thickness keyword.");
       i += 2;
-    } else if (strcmp(params[i], "vp") == 0) {
-      if (!is_valid_real(params[i + 1], &vp))
-        PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
-      i += 2;
     } else {
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
-  if (direction == 0)
-    vp_x = vp / 100 * TIME_UNIT_CONVERSION;
-  else if (direction == 1)
-    vp_y = vp / 100 * TIME_UNIT_CONVERSION;
-  else if (direction == 2)
-    vp_z = vp / 100 * TIME_UNIT_CONVERSION;
-  printf("Shock wave direction: %d.\n", direction);
+  vp = vp / 100 * TIME_UNIT_CONVERSION;
   printf("Piston velocity: %f km/s.\n", vp);
   printf("The thickness of fixed wall: %f Ang.\n", thickness);
 }
@@ -140,10 +117,11 @@ void Ensemble_wall_piston::init()
   gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
     N,
     thickness,
-    box->cpu_h[direction] - thickness,
+    box->cpu_h[0] - thickness,
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
-    atom->position_per_atom.data() + N * direction);
+    atom->position_per_atom.data());
+  box->cpu_h[0] += 20;
 }
 
 Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
@@ -170,12 +148,10 @@ void Ensemble_wall_piston::compute1(
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
     true,
     n,
-    vp_x,
-    vp_y,
-    vp_z,
-    time_step,
+    vp,
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
+    time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),
     atoms.position_per_atom.data() + n,
@@ -199,12 +175,10 @@ void Ensemble_wall_piston::compute2(
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
     false,
     n,
-    vp_x,
-    vp_y,
-    vp_z,
-    time_step,
+    vp,
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
+    time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),
     atoms.position_per_atom.data() + n,

@@ -46,6 +46,6 @@ public:
 protected:
   double wall_pos_left, wall_pos_right;
   double vp;
-  double k = 5;
+  double k = 10;
   std::vector<double> thermo_cpu;
 };
