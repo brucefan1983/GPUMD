@@ -35,7 +35,7 @@ public:
       const int number_of_atoms, 
       const int number_of_potentials, 
       Force& force,
-      GPU_Vector<double>& gpu_mass);
+      Atom& atom);
   void process(
     int step,
     const double global_time,
@@ -51,8 +51,10 @@ private:
   int dump_interval_ = 1;
   FILE* file_;
   GPU_Vector<double> gpu_dipole_;
+  std::vector<double> cpu_dipole_;
   GPU_Vector<double> gpu_dipole_jacobian_;
   std::vector<double> cpu_dipole_jacobian_;
+  std::vector<double> masses_;
   double mass_;
   double coupling_strength;
   double cavity_frequency; 
@@ -62,7 +64,6 @@ private:
   void cavity_force(const int step);
   void get_dipole(
     Box& box,
-    Atom& atom,
     Force& force,
     GPU_Vector<double>& dipole_);
   void get_dipole_jacobian(

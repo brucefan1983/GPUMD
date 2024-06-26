@@ -91,8 +91,7 @@ static __global__ void get_center_of_mass(
   for (int patch = 0; patch < number_of_patches; ++patch) {
     int atomIdx = tid + patch * 1024;
     if (atomIdx < N) {
-      int idx = componentIdx + atomIdx;
-      d += g_mass_per_atom[idx] * g_position_per_atom[idx];
+      d += g_mass_per_atom[atomIdx] * g_position_per_atom[componentIdx + atomIdx];
     }
   }
 
@@ -123,8 +122,8 @@ static __global__ void get_center_of_mass(
 
 static __global__ void initialize_atomic_properties(
   int N,
-  double* mass,
-  double* ref_mass,
+  double* g_mass,
+  double* ref_g_mass,
   double* g_p,
   double* ref_g_p,
   double* g_fx,
@@ -136,9 +135,9 @@ static __global__ void initialize_atomic_properties(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     // Copy the masses
-    mass[n1] = ref_mass[n1];
+    g_mass[n1] = ref_g_mass[n1];
 
-    // Copy the atom positions positions
+    // Copy the atom positions
     g_p[n1 + 0 * N] = ref_g_p[n1 + 0 * N];
     g_p[n1 + 1 * N] = ref_g_p[n1 + 1 * N];
     g_p[n1 + 2 * N] = ref_g_p[n1 + 2 * N];
@@ -169,6 +168,20 @@ static __global__ void initialize_dipole(double* g_virial_sum)
     g_virial_sum[0] = 0.0;
     g_virial_sum[1] = 0.0;
     g_virial_sum[2] = 0.0;
+  }
+}
+
+static __global__ void displace_atom(
+    int index,
+    double* g_position,
+    double displacement)
+{
+  // incredibly innefficient, do something else here
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 == 0) {
+    // displacement should have the appropriate sign
+    // depending on if it's forwards or backwards.
+    g_position[index] += displacement;
   }
 }
 
@@ -205,7 +218,7 @@ void Cavity::preprocess(
   const int number_of_atoms, 
   const int number_of_potentials, 
   Force& force,
-  GPU_Vector<double>& gpu_mass)
+  Atom& atom)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   if (enabled_) {
@@ -213,14 +226,16 @@ void Cavity::preprocess(
     file_ = my_fopen(filename_.c_str(), "a");
     gpu_dipole_.resize(3);
     gpu_dipole_jacobian_.resize(number_of_atoms * 3 * 3);
+    cpu_dipole_.resize(3);
     cpu_dipole_jacobian_.resize(number_of_atoms * 3 * 3);
-    // cpu_dipole_.resize(3);
 
     // Set up a local copy of the Atoms, on which to compute the dipole
     // Typically in GPUMD we are limited by computational speed, not memory,
     // so we can sacrifice a bit of memory to skip having to recompute the forces
     // & virials with the original potential
     atom_copy.number_of_atoms = number_of_atoms;
+    atom_copy.type.resize(number_of_atoms);
+    atom_copy.mass.resize(number_of_atoms);
     atom_copy.position_per_atom.resize(number_of_atoms * 3);
     atom_copy.force_per_atom.resize(number_of_atoms * 3);
     atom_copy.virial_per_atom.resize(number_of_atoms * 9);
@@ -239,11 +254,13 @@ void Cavity::preprocess(
     // Copy the mass array on atoms to the CPU
     // and compute the total mass. Do this on the CPU
     // since we only need to do it once
-    std::vector<double> masses (number_of_atoms);
-    gpu_mass.copy_to_host(masses.data());
+    masses_.resize(number_of_atoms);
     for (int i=0; i<number_of_atoms; i++) {
-      mass_ += masses[i];
+      masses_[i] = atom.cpu_mass[i];
+      mass_ += masses_[i];
     }
+    // Transfer the cpu_types to our copy of the Atoms object
+    atom_copy.type.copy_from_host(atom.cpu_type.data());
   }
 }
 
@@ -256,6 +273,9 @@ void Cavity::process(
   Atom& atom,
   Force& force)
 {
+  if (!enabled_) {
+    return;
+  }
   const int number_of_atoms = atom_copy.number_of_atoms;
   // copy stuff to our atoms object
   initialize_atomic_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -272,9 +292,9 @@ void Cavity::process(
   CUDA_CHECK_KERNEL
 
   // Compute the dipole
-  get_dipole(box, atom, force, gpu_dipole_);
+  get_dipole(box, force, gpu_dipole_);
+  
   // Compute the dipole jacobian
-
   get_dipole_jacobian(box, force, number_of_atoms, 0.01, charge);
 
   // Update the cavity position
@@ -285,28 +305,28 @@ void Cavity::process(
 
   // Dump things
   // Transfer gpu_sum to the CPU
-  // gpu_dipole_.copy_to_host(cpu_dipole_.data());
+  gpu_dipole_.copy_to_host(cpu_dipole_.data());
+  //gpu_dipole_jacobian_.copy_to_host(cpu_dipole_jacobian_.data());
   // Write properties
-  // write_dipole(step);
+  write_dipole(step);
 }
 
 
 void Cavity::get_dipole(
   Box& box,
-  Atom& atom,
   Force& force,
   GPU_Vector<double>& dipole_) 
 {
   const int number_of_atoms = atom_copy.number_of_atoms;
   // Compute the dipole
-  initialize_dipole<<<(number_of_atoms - 1) / 128 + 1, 128>>>(dipole_.data());
+  initialize_dipole<<<1, 1>>>(dipole_.data());
   CUDA_CHECK_KERNEL
 
   // Use the types from the existing atoms object,
   // but store the results in the local copy.
   force.potentials[1]->compute(
     box,
-    atom.type,
+    atom_copy.type,
     atom_copy.position_per_atom,
     atom_copy.potential_per_atom,
     atom_copy.force_per_atom,
@@ -382,7 +402,6 @@ void Cavity::get_dipole_jacobian(
       center_of_mass_forward_one_h);
   // Positions are in order [x1, ..., xN, y1, ..., yN, ...]
   int index = 0;
-  double old_position = 0.0;
   double old_center_of_mass = 0.0;
   const double displacement_over_M = displacement / mass_;
   const double one_over_displacement =
@@ -393,37 +412,52 @@ void Cavity::get_dipole_jacobian(
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms; j++) {
       index = number_of_atoms * i + j; // idx of position to change
-      old_position = atom_copy.position_per_atom[index];
       old_center_of_mass = center_of_mass_forward_one_h[i];
 
       // --- Forward displacement
       // Step one displacement forward
-      atom_copy.position_per_atom[index] += displacement; // + h
+      // I hate this
+      displace_atom<<<1, 1>>>(
+          index, 
+          atom_copy.position_per_atom.data(), 
+          displacement); // +h
+      CUDA_CHECK_KERNEL
       center_of_mass_forward_one_h[i] +=
-          displacement_over_M * atom_copy.mass[j]; // center of mass gets moved by
+          displacement_over_M * masses_[j]; // center of mass gets moved by
                                               // +h/N in the same direction
-      get_dipole(box, atom_copy, force, gpu_dipole_forward_one_h);
+      get_dipole(box, force, gpu_dipole_forward_one_h);
       gpu_dipole_forward_one_h.copy_to_host(dipole_forward_one_h.data());
 
       // Step two displacements forward
-      atom_copy.position_per_atom[index] += displacement; // + 2h total
+      displace_atom<<<1, 1>>>(
+          index, 
+          atom_copy.position_per_atom.data(), 
+          displacement); // displaced +2h in total
+      CUDA_CHECK_KERNEL
       center_of_mass_forward_two_h[i] +=
-          2 * displacement_over_M *
-          atom_copy.mass[j]; // center of mass gest moved by
-                        // +2h/N in the same direction
-      get_dipole(box, atom_copy, force, gpu_dipole_forward_two_h);
+          2 * displacement_over_M * masses_[j]; // center of mass gest moved by
+                                                // +2h/N in the same direction
+      get_dipole(box, force, gpu_dipole_forward_two_h);
       gpu_dipole_forward_two_h.copy_to_host(dipole_forward_two_h.data());
 
       // --- Backwards displacement
-      atom_copy.position_per_atom[index] -= 3 * displacement; // 2h - 3h = -h
-      center_of_mass_backward_one_h[i] -= displacement_over_M * atom_copy.mass[j];
-      get_dipole(box, atom_copy, force, gpu_dipole_backward_one_h);
+      displace_atom<<<1, 1>>>(
+          index, 
+          atom_copy.position_per_atom.data(), 
+          -3*displacement); // 2h - 3h = -h
+      CUDA_CHECK_KERNEL
+      center_of_mass_backward_one_h[i] -= displacement_over_M * masses_[j];
+      get_dipole(box, force, gpu_dipole_backward_one_h);
       gpu_dipole_backward_one_h.copy_to_host(dipole_backward_one_h.data());
 
-      atom_copy.position_per_atom[index] -= displacement; // -h - h = -2h
+      displace_atom<<<1, 1>>>(
+          index, 
+          atom_copy.position_per_atom.data(), 
+          -displacement); // -h - h = -2h
+      CUDA_CHECK_KERNEL
       center_of_mass_backward_two_h[i] -=
-          2 * displacement_over_M * atom_copy.mass[j];
-      get_dipole(box, atom_copy, force, gpu_dipole_backward_two_h);
+          2 * displacement_over_M * masses_[j];
+      get_dipole(box, force, gpu_dipole_backward_two_h);
       gpu_dipole_backward_two_h.copy_to_host(dipole_backward_two_h.data());
 
       for (int k = 0; k < N_components; k++) {
@@ -439,7 +473,11 @@ void Cavity::get_dipole_jacobian(
             one_over_displacement;
       }
       // Restore positions
-      atom_copy.position_per_atom[index] = old_position;
+      displace_atom<<<1, 1>>>(
+          index, 
+          atom_copy.position_per_atom.data(), 
+          2*displacement); // -2h + 2h = 0
+      CUDA_CHECK_KERNEL
       center_of_mass_forward_one_h[i] = old_center_of_mass;
       center_of_mass_forward_two_h[i] = old_center_of_mass;
       center_of_mass_backward_one_h[i] = old_center_of_mass;
@@ -456,8 +494,16 @@ void Cavity::cavity_force(const int step) {
 void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  // fprintf(file_, "%d%20.10e%20.10e%20.10e\n", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
-  // fflush(file_);
+  fprintf(file_, 
+      "%d%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n", 
+      step, 
+      cpu_dipole_[0], 
+      cpu_dipole_[1], 
+      cpu_dipole_[2], 
+      cpu_dipole_jacobian_[0], 
+      cpu_dipole_jacobian_[1], 
+      cpu_dipole_jacobian_[2]);
+  fflush(file_);
 }
 
 void Cavity::postprocess()
