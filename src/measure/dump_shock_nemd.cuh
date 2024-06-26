@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-class Dump_Piston
+class Dump_Shock_NEMD
 {
 public:
   void parse(const char** param, int num_param);
@@ -36,12 +36,11 @@ private:
   bool dump_ = false;
   int n;
   int dump_interval_ = -1;
-  int direction;
+  int direction = 0;
   int bins;
   double slice_vol = 1;
   double avg_window = 10;
-  FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file, *com_vy_file,
-    *com_vz_file;
+  FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file;
   GPU_Vector<double> gpu_temp, gpu_pxx, gpu_pyy, gpu_pzz, gpu_density, gpu_com_vx, gpu_com_vy,
     gpu_com_vz, gpu_number;
   std::vector<double> cpu_temp, cpu_pxx, cpu_pyy, cpu_pzz, cpu_density, cpu_com_vx, cpu_com_vy,
