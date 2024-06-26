@@ -120,17 +120,12 @@ static __global__ void get_center_of_mass(
   }
 }
 
-static __global__ void initialize_atomic_properties(
+static __global__ void copy_atomic_properties(
   int N,
   double* g_mass,
   double* ref_g_mass,
   double* g_p,
-  double* ref_g_p,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_pe,
-  double* g_virial)
+  double* ref_g_p)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
@@ -141,8 +136,21 @@ static __global__ void initialize_atomic_properties(
     g_p[n1 + 0 * N] = ref_g_p[n1 + 0 * N];
     g_p[n1 + 1 * N] = ref_g_p[n1 + 1 * N];
     g_p[n1 + 2 * N] = ref_g_p[n1 + 2 * N];
+  }
+}
 
-    // Set the forces, virials and energies to 0
+
+static __global__ void initialize_properties(
+  int N,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_pe,
+  double* g_virial,
+  double* g_virial_sum)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
     g_fx[n1] = 0.0;
     g_fy[n1] = 0.0;
     g_fz[n1] = 0.0;
@@ -157,12 +165,6 @@ static __global__ void initialize_atomic_properties(
     g_virial[n1 + 7 * N] = 0.0;
     g_virial[n1 + 8 * N] = 0.0;
   }
-}
-
-static __global__ void initialize_dipole(double* g_virial_sum)
-{
-  // incredibly innefficient, do something else here
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 == 0) {
     // Only need to set g_virial_sum to zero once
     g_virial_sum[0] = 0.0;
@@ -278,17 +280,12 @@ void Cavity::process(
   }
   const int number_of_atoms = atom_copy.number_of_atoms;
   // copy stuff to our atoms object
-  initialize_atomic_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  copy_atomic_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     atom_copy.mass.data(),
     atom.mass.data(),
     atom_copy.position_per_atom.data(),
-    atom.position_per_atom.data(),
-    atom_copy.force_per_atom.data(),
-    atom_copy.force_per_atom.data() + number_of_atoms,
-    atom_copy.force_per_atom.data() + number_of_atoms * 2,
-    atom_copy.potential_per_atom.data(),
-    atom_copy.virial_per_atom.data());
+    atom.position_per_atom.data());
   CUDA_CHECK_KERNEL
 
   // Compute the dipole
@@ -318,12 +315,16 @@ void Cavity::get_dipole(
   GPU_Vector<double>& dipole_) 
 {
   const int number_of_atoms = atom_copy.number_of_atoms;
-  // Compute the dipole
-  initialize_dipole<<<1, 1>>>(dipole_.data());
+  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    atom_copy.force_per_atom.data(),
+    atom_copy.force_per_atom.data() + number_of_atoms,
+    atom_copy.force_per_atom.data() + number_of_atoms * 2,
+    atom_copy.potential_per_atom.data(),
+    atom_copy.virial_per_atom.data(),
+    dipole_.data());
   CUDA_CHECK_KERNEL
-
-  // Use the types from the existing atoms object,
-  // but store the results in the local copy.
+  // Compute the dipole
   force.potentials[1]->compute(
     box,
     atom_copy.type,
@@ -423,7 +424,7 @@ void Cavity::get_dipole_jacobian(
           displacement); // +h
       CUDA_CHECK_KERNEL
       center_of_mass_forward_one_h[i] +=
-          displacement_over_M * masses_[j]; // center of mass gets moved by
+          displacement_over_M * masses_[j];   // center of mass gets moved by
                                               // +h/N in the same direction
       get_dipole(box, force, gpu_dipole_forward_one_h);
       gpu_dipole_forward_one_h.copy_to_host(dipole_forward_one_h.data());
@@ -494,15 +495,11 @@ void Cavity::cavity_force(const int step) {
 void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(file_, 
-      "%d%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n", 
-      step, 
-      cpu_dipole_[0], 
-      cpu_dipole_[1], 
-      cpu_dipole_[2], 
-      cpu_dipole_jacobian_[0], 
-      cpu_dipole_jacobian_[1], 
-      cpu_dipole_jacobian_[2]);
+  fprintf(file_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
+  for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
+    fprintf(file_, "%20.10e", cpu_dipole_jacobian_[i]);
+  }
+  fprintf(file_, "\n");
   fflush(file_);
 }
 
