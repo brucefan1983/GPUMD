@@ -15,27 +15,24 @@
 
 #pragma once
 
-#include "utilities/gpu_vector.cuh"
 #include <vector>
 
 class Atom;
+class Group;
 
 class Add_Force
 {
 public:
-  bool do_electron_stop = false;
-  double stopping_power_loss = 0.0;
-  void parse(const char** param, int num_param, const int num_atoms, const int num_types);
-  void compute(double time_step, Atom& atom);
+
+  void parse(const char** param, int num_param, const std::vector<Group>& group);
+  void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();
 
 private:
-  int num_points = 0;
-  double energy_min;
-  double energy_max;
-  double energy_interval;
-  std::vector<double> stopping_power_cpu;
-  GPU_Vector<double> stopping_power_gpu;
-  GPU_Vector<double> stopping_force;
-  GPU_Vector<double> stopping_loss;
+
+  int num_calls_ = 0;
+  int table_length_[10];
+  std::vector<double> force_table_[10];
+  int grouping_method_[10];
+  int group_id_[10];
 };
