@@ -44,12 +44,17 @@ static __global__ void gpu_velocity_verlet(
     double vy = g_vy[i];
     double vz = g_vz[i];
     const double mass_inv = 1.0 / g_mass[i];
-    if (!is_step1) {
-      if (g_x[i] < wall_pos_left)
-        g_fx[i] += k * (wall_pos_left - g_x[i]);
-      if (g_x[i] > wall_pos_right)
-        g_fx[i] += k * (wall_pos_right - g_x[i]);
+
+    // don't let atoms move < 0 at the beginning
+    if (g_x[i] < 0) {
+      g_x[i] = -g_x[i];
+      g_vx[i] = -g_vx[i];
     }
+    if (g_x[i] < wall_pos_left)
+      g_fx[i] += k * (wall_pos_left - g_x[i]);
+    if (g_x[i] > wall_pos_right)
+      g_fx[i] += k * (wall_pos_right - g_x[i]);
+
     const double ax = g_fx[i] * mass_inv;
     const double ay = g_fy[i] * mass_inv;
     const double az = g_fz[i] * mass_inv;
