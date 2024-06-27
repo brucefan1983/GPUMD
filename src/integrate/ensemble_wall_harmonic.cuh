@@ -47,5 +47,6 @@ protected:
   double wall_pos_left, wall_pos_right;
   double vp;
   double k = 10;
+  double shift = 0;
   std::vector<double> thermo_cpu;
 };

@@ -87,6 +87,10 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_para
       if (!is_valid_real(params[i + 1], &k))
         PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
       i += 2;
+    } else if (strcmp(params[i], "shift") == 0) {
+      if (!is_valid_real(params[i + 1], &shift))
+        PRINT_INPUT_ERROR("Wrong inputs for shift keyword.");
+      i += 2;
     } else {
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
@@ -98,7 +102,7 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_para
 void Ensemble_wall_harmonic::init()
 {
   wall_pos_left = 0;
-  wall_pos_right = box->cpu_h[0];
+  wall_pos_right = box->cpu_h[0] - shift;
   box->cpu_h[0] += 20;
 }
 
