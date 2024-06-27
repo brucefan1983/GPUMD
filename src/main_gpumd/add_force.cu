@@ -55,7 +55,7 @@ void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& 
     const int num_atoms_total = atom.force_per_atom.size() / 3;
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
-    add_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    add_force<<<(group_size - 1) / 64 + 1, 64>>>(
       group_size,
       group_size_sum,
       groups[grouping_method_[call]].contents.data(),
@@ -154,7 +154,9 @@ void Add_Force::parse(const char** param, int num_param, const std::vector<Group
 
   ++num_calls_;
 
-  exit(1);
+  if (num_calls_ > 10) {
+    PRINT_INPUT_ERROR("add_force cannot be used more than 10 times in one run.");
+  }
 }
 
 void Add_Force::finalize() 
