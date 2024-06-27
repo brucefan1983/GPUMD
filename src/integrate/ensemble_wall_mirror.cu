@@ -17,12 +17,21 @@
 
 namespace
 {
+static __global__ void
+gpu_find_wall(int number_of_atoms, double wall_pos_right, bool* wall_list_right, double* position)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    wall_list_right[i] = (position[i] > wall_pos_right);
+  }
+}
+
 static __global__ void gpu_velocity_verlet(
   const bool is_step1,
   const int number_of_particles,
   const double mirror_vel_left,
   const double mirror_pos_left,
-  const double mirror_pos_right,
+  const bool* right_wall_list,
   const double g_time_step,
   const double* g_mass,
   double* g_x,
@@ -47,9 +56,15 @@ static __global__ void gpu_velocity_verlet(
     const double ay = g_fy[i] * mass_inv;
     const double az = g_fz[i] * mass_inv;
 
-    vx += ax * time_step_half;
-    vy += ay * time_step_half;
-    vz += az * time_step_half;
+    if (right_wall_list[i]) {
+      vx = 0;
+      vy = 0;
+      vz = 0;
+    } else {
+      vx += ax * time_step_half;
+      vy += ay * time_step_half;
+      vz += az * time_step_half;
+    }
     g_vx[i] = vx;
     g_vy[i] = vy;
     g_vz[i] = vz;
@@ -63,9 +78,6 @@ static __global__ void gpu_velocity_verlet(
     if (g_x[i] < mirror_pos_left) {
       g_x[i] = 2 * mirror_pos_left - g_x[i];
       g_vx[i] = 2 * mirror_vel_left - g_vx[i];
-    } else if (g_x[i] > mirror_pos_right) {
-      g_x[i] = 2 * mirror_pos_right - g_x[i];
-      g_vx[i] = -g_vx[i];
     }
   }
 }
@@ -90,8 +102,10 @@ Ensemble_wall_mirror::Ensemble_wall_mirror(const char** params, int num_params)
 void Ensemble_wall_mirror::init()
 {
   mirror_pos_left = 0;
-  mirror_pos_right = box->cpu_h[0];
-  box->cpu_h[0] += 20;
+  int N = atom->number_of_atoms;
+  gpu_right_wall_list.resize(N, false);
+  gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
+    N, box->cpu_h[0] - thickness, gpu_right_wall_list.data(), atom->position_per_atom.data());
 }
 
 Ensemble_wall_mirror::~Ensemble_wall_mirror(void) {}
@@ -120,7 +134,7 @@ void Ensemble_wall_mirror::compute1(
     n,
     vp,
     mirror_pos_left,
-    mirror_pos_right,
+    gpu_right_wall_list.data(),
     time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),
@@ -149,7 +163,7 @@ void Ensemble_wall_mirror::compute2(
     n,
     vp,
     mirror_pos_left,
-    mirror_pos_right,
+    gpu_right_wall_list.data(),
     time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),
