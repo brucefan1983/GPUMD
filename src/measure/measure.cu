@@ -58,7 +58,7 @@ void Measure::initialize(
   dump_piston.preprocess(atom, box);
   dump_dipole.preprocess(number_of_atoms, number_of_potentials, force);
   dump_polarizability.preprocess(number_of_atoms, number_of_potentials, force);
-  cavity.preprocess(number_of_atoms, number_of_potentials, force, atom);
+  cavity.preprocess(number_of_atoms, number_of_potentials, box, atom, force  );
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);

@@ -32,10 +32,11 @@ class Cavity
 public:
   void parse(const char** param, int num_param);
   void preprocess(
-      const int number_of_atoms, 
-      const int number_of_potentials, 
-      Force& force,
-      Atom& atom);
+    const int number_of_atoms, 
+    const int number_of_potentials, 
+    Box& box,
+    Atom& atom,
+    Force& force);
   void process(
     int step,
     const double global_time,
@@ -59,7 +60,12 @@ private:
   double coupling_strength;
   double cavity_frequency; 
   int charge;
+  double q0; // Initial cavity coordinate, q_0
   double q; // cavity coordinate, q(t)
+  double cos_integral;
+  double sin_integral;
+  double prevtime;
+  std::vector<double> prev_dipole;
   void write_dipole(const int step);
   void cavity_force(const int step);
   void get_dipole(
@@ -72,5 +78,6 @@ private:
     int number_of_atoms,
     double displacement, 
     double charge);
+  void _get_center_of_mass(GPU_Vector<double>& gpu_center_of_mass);
   Atom atom_copy;
 };
