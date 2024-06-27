@@ -76,7 +76,7 @@ void Add_Force::parse(const char** param, int num_param, const std::vector<Group
 
   // check the number of parameters
   if (num_param != 6 && num_param != 4) {
-    PRINT_INPUT_ERROR("electron_stop should have 5 or 3 parameters.\n");
+    PRINT_INPUT_ERROR("add_force should have 5 or 3 parameters.\n");
   }
 
   // parse grouping method
@@ -101,6 +101,12 @@ void Add_Force::parse(const char** param, int num_param, const std::vector<Group
     PRINT_INPUT_ERROR("group id should < maximum number of groups in the grouping method.\n");
   }
 
+  printf(
+    "    for atoms in group %d of grouping method %d.\n", 
+    group_id_[num_calls_], 
+    grouping_method_[num_calls_]
+  );
+
   if (num_param == 6) {
     table_length_[num_calls_] = 1;
     force_table_[num_calls_].resize(table_length_[num_calls_] * 3);
@@ -113,6 +119,9 @@ void Add_Force::parse(const char** param, int num_param, const std::vector<Group
     if (!is_valid_real(param[5], &force_table_[num_calls_][2])) {
       PRINT_INPUT_ERROR("fz should be a number.\n");
     }
+    printf("    fx = %g eV/A.\n", force_table_[num_calls_][0]);
+    printf("    fy = %g eV/A.\n", force_table_[num_calls_][1]);
+    printf("    fz = %g eV/A.\n", force_table_[num_calls_][2]);
   } else {
     std::ifstream input(param[3]);
     if (!input.is_open()) {
