@@ -175,6 +175,7 @@ void Run::perform_a_run()
 {
   integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
   mc.initialize();
+  cavity.initialize(box, atom, force);
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
 #ifdef USE_PLUMED
@@ -184,7 +185,14 @@ void Run::perform_a_run()
 #endif
 
   clock_t time_begin = clock();
-
+  
+  // Dipole cavity dynamics
+  // 1. Calculate forces with PES
+  // 2. Calculate dipole and jacobian
+  // 3. Apply cavity force
+  // 4. Propagate atoms
+  // 5. Update cavity coordinate.
+  
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -214,6 +222,10 @@ void Run::perform_a_run()
 
   double initial_time_step = time_step;
 
+  // Step 2 & 3
+  cavity.compute_dipole_and_jacobian(initial_time_step, box, atom, force);
+  cavity.compute_and_apply_cavity_force(atom);
+
   for (int step = 0; step < number_of_steps; ++step) {
 
     calculate_time_step(
@@ -222,6 +234,8 @@ void Run::perform_a_run()
 
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    // Step 5: atoms have been moved
+    cavity.update_cavity(step, global_time);
 
     if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -248,6 +262,9 @@ void Run::perform_a_run()
         atom.velocity_per_atom,
         atom.mass);
     }
+    // Step 2 & 3; Compute new dipole & jacobian, compute forces and apply.
+    cavity.compute_dipole_and_jacobian(initial_time_step, box, atom, force);
+    cavity.compute_and_apply_cavity_force(atom);
 
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
@@ -313,6 +330,7 @@ void Run::perform_a_run()
   electron_stop.finalize();
   integrate.finalize();
   mc.finalize();
+  cavity.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;
 }
@@ -464,7 +482,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "cavity") == 0) {
-    measure.cavity.parse(param, num_param);
+    cavity.parse(param, num_param);
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {

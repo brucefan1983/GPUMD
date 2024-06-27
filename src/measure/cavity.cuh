@@ -31,43 +31,47 @@ class Cavity
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(
-    const int number_of_atoms, 
-    const int number_of_potentials, 
+  void initialize(
     Box& box,
     Atom& atom,
     Force& force);
-  void process(
+  void compute_dipole_and_jacobian(
     int step,
-    const double global_time,
-    const int number_of_atoms_fixed,
-    std::vector<Group>& group,
     Box& box,
     Atom& atom,
     Force& force);
-  void postprocess();
+  void compute_and_apply_cavity_force(Atom& atom);
+  void update_cavity(const int step, const double global_time);
+  void finalize();
 
 private:
   bool enabled_ = false;
   int dump_interval_ = 1;
-  FILE* file_;
+  FILE* jacfile_;
+  FILE* cavfile_;
+  Atom atom_copy;
   GPU_Vector<double> gpu_dipole_;
   std::vector<double> cpu_dipole_;
   GPU_Vector<double> gpu_dipole_jacobian_;
   std::vector<double> cpu_dipole_jacobian_;
+  GPU_Vector<double> gpu_cavity_force_;
+  std::vector<double> cpu_cavity_force_;
   std::vector<double> masses_;
   double mass_;
   double coupling_strength;
   double cavity_frequency; 
   int charge;
-  double q0; // Initial cavity coordinate, q_0
-  double q; // cavity coordinate, q(t)
-  double cos_integral;
-  double sin_integral;
+  double q0;  // Initial cavity coordinate, q_0
+  double q;   // cavity canonical position coordinate, q(t)
+  double p;   // cavity canonical momentum coordinate, p(t)
+  double cos_integral; // sum for the cos integral
+  double sin_integral; // sum for the sin integral
   double prevtime;
-  std::vector<double> prev_dipole;
+  double cavity_pot; // cavity potential energy
+  double cavity_kin; // cavity kinetic energy
+  std::vector<double> prevdipole;
   void write_dipole(const int step);
-  void cavity_force(const int step);
+  void write_cavity(const int step, const double time);
   void get_dipole(
     Box& box,
     Force& force,
@@ -79,5 +83,10 @@ private:
     double displacement, 
     double charge);
   void _get_center_of_mass(GPU_Vector<double>& gpu_center_of_mass);
-  Atom atom_copy;
+  void canonical_position(const double time);
+  void canonical_momentum(const double time);
+  void cavity_potential_energy();
+  void cavity_kinetic_energy();
+  void cavity_force();
+  void step_cavity(const double time);
 };

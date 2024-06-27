@@ -1,8 +1,10 @@
 potential nep.txt
 potential nep4_dipole.txt
-time_step 1
+time_step 0.1
 velocity 300
 ensemble nve
-cavity 1.0 1.0 -1
+cavity 1.183 1.01 -1
 dump_position 1
-run 2
+dump_force 1
+dump_thermo 1
+run 100

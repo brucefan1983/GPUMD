@@ -113,7 +113,6 @@ public:
   Dump_Piston dump_piston;
   Dump_Dipole dump_dipole;
   Dump_Polarizability dump_polarizability;
-  Cavity cavity;
   Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;

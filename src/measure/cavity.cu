@@ -143,6 +143,21 @@ static __global__ void copy_atomic_properties(
   }
 }
 
+static __global__ void apply_cavity_force(
+  int N,
+  double* g_force,
+  double* g_cav_force)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    // apply the cavity force to the existing forces
+    // from the PES. 
+    g_force[n1 + 0 * N] += g_cav_force[n1 + 0 * N];
+    g_force[n1 + 1 * N] += g_cav_force[n1 + 1 * N];
+    g_force[n1 + 2 * N] += g_cav_force[n1 + 2 * N];
+  }
+}
+
 
 static __global__ void initialize_properties(
   int N,
@@ -220,21 +235,26 @@ void Cavity::parse(const char** param, int num_param)
   printf("   total charge %d.\n", charge);
 }
 
-void Cavity::preprocess(
-  const int number_of_atoms, 
-  const int number_of_potentials, 
+void Cavity::initialize(
   Box& box,
   Atom& atom,
   Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   if (enabled_) {
-    std::string filename_ = "jacobian.out";
-    file_ = my_fopen(filename_.c_str(), "a");
+    const int number_of_atoms = atom.mass.size();
+    const int number_of_potentials = force.potentials.size();
+    std::string jac_filename_ = "jacobian.out";
+    std::string cav_filename_ = "cavity.out";
+    jacfile_ = my_fopen(jac_filename_.c_str(), "a");
+    cavfile_ = my_fopen(cav_filename_.c_str(), "a");
     gpu_dipole_.resize(3);
-    gpu_dipole_jacobian_.resize(number_of_atoms * 3 * 3);
     cpu_dipole_.resize(3);
+    gpu_dipole_jacobian_.resize(number_of_atoms * 3 * 3);
     cpu_dipole_jacobian_.resize(number_of_atoms * 3 * 3);
+    gpu_cavity_force_.resize(number_of_atoms * 3);
+    cpu_cavity_force_.resize(number_of_atoms * 3);
+    prevdipole.resize(3);
 
     // Set up a local copy of the Atoms, on which to compute the dipole
     // Typically in GPUMD we are limited by computational speed, not memory,
@@ -272,10 +292,9 @@ void Cavity::preprocess(
 
     // initialize the cavity stuff
     // initial cavity coordinate is equal to
-    // self._cav_q0 = self.coupling_strength_v @ dipole_v / self.cav_frequency
+    // self._cav_q0 = self.coupling_strength_v @ dipole_v / self.cavity_frequency
     // so we need the dipole initially
 
-    const int number_of_atoms = atom_copy.number_of_atoms;
     // copy stuff to our atoms object
     copy_atomic_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -290,14 +309,20 @@ void Cavity::preprocess(
     // For now, only allow a coupling strength vector in the z-direction.
     q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
     std::cout << "init: " << mass_ << " " << q0 << "\n";
+
+    // set initial values
+    cos_integral = 0.0;
+    sin_integral = 0.0;
+    prevtime = 0.0;
+    std::copy(
+        cpu_dipole_.begin(),
+        cpu_dipole_.end(),
+        prevdipole.begin());
   }
 }
 
-void Cavity::process(
+void Cavity::compute_dipole_and_jacobian(
   int step,
-  const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
   Box& box,
   Atom& atom,
   Force& force)
@@ -305,7 +330,7 @@ void Cavity::process(
   if (!enabled_) {
     return;
   }
-  const int number_of_atoms = atom_copy.number_of_atoms;
+  const int number_of_atoms = atom.mass.size();
   // copy stuff to our atoms object
   copy_atomic_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
@@ -326,7 +351,8 @@ void Cavity::process(
   get_dipole(box, force, gpu_dipole_);
   gpu_dipole_.copy_to_host(cpu_dipole_.data());
   // The dipole is currently in atomic units.
-  // Convert it to GPUMD units (Bohr -> Å),
+  // Convert it to the units of the forces, 
+  // which are in eV/Å (Bohr -> Å),
   // and subtract the charge times the COM.
   GPU_Vector<double> gpu_center_of_mass(3);
   std::vector<double> cpu_center_of_mass(3);
@@ -341,17 +367,47 @@ void Cavity::process(
   // The dipole jacobian has already been converted from atomic
   // units to GPUMD units and shifted appropriately.
   get_dipole_jacobian(box, force, number_of_atoms, 0.01, charge);
+}
 
-  // Update the cavity position
-  // TODO
-  
+void Cavity::compute_and_apply_cavity_force(Atom& atom) {
+  if (!enabled_) {
+    return;
+  }
+  const int number_of_atoms = atom_copy.number_of_atoms;
   // Compute the cavity force
-  // TODO
+  cavity_force();
 
-  // Dump things
-  //gpu_dipole_jacobian_.copy_to_host(cpu_dipole_jacobian_.data());
+  // Apply the cavity force
+  // apply the cavity force to the original Atom object,
+  // not the local copy. This has the effect of adding 
+  // the cavity force on top of the regular PES force.
+  gpu_cavity_force_.copy_from_host(cpu_cavity_force_.data());
+  apply_cavity_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    atom.force_per_atom.data(),
+    gpu_cavity_force_.data());
+  CUDA_CHECK_KERNEL
+}
+
+void Cavity::update_cavity(const int step, const double global_time) {
+  if (!enabled_) {
+    return;
+  }
+  double time = global_time * TIME_UNIT_CONVERSION; // natural (atomic?) units to fs
+  // Step the cavity
+  // should be done last after atoms have been moved
+  // and dipoles and jacobians have been computed
+  step_cavity(time);
+  
+  // Update all properties
+  canonical_position(time);
+  canonical_momentum(time);
+  cavity_potential_energy();
+  cavity_kinetic_energy();
+
   // Write properties
-  write_dipole(step);
+  //write_dipole(step);
+  //write_cavity(step, time);
 }
 
 
@@ -546,26 +602,163 @@ void Cavity::get_dipole_jacobian(
   }
 }
 
+void Cavity::canonical_position(const double time) {
+  /* 
+    Cavity position coordinate
 
-void Cavity::cavity_force(const int step) {
-  // TODO
+        q(t) = sin(ω(t-t₀)) Icos - cos(ω(t-t₀)) Isin + q(t₀) cos(ω(t-t₀))
+
+    where
+
+                t
+        Icos = ∫  dt' cos(ωt') λ⋅μ
+                t₀
+
+    and
+
+                t
+        Isin = ∫  dt' sin(ωt') λ⋅μ
+                t₀
+    
+  */
+  double phase = cavity_frequency * time;
+  q = sin(phase) * cos_integral
+        - cos(phase) * sin_integral
+        + q0 * cos(phase);
 }
+
+void Cavity::canonical_momentum(const double time) {
+  /*
+      Cavity momentum coordinate
+
+      p(t) = ω cos(ω(t-t₀)) Icos + ω sin(ω(t-t₀)) Isin - q(t₀) ω sin(ω(t-t₀))
+
+      where
+
+              t
+      Icos = ∫  dt' cos(ωt') λ⋅μ
+              t₀
+
+      and
+
+              t
+      Isin = ∫  dt' sin(ωt') λ⋅μ
+              t₀
+  */
+  double phase = cavity_frequency * time;
+  p = cavity_frequency * (
+      cos(phase) * cos_integral
+      + sin(phase) * sin_integral
+      - q0 * sin(phase));
+}
+
+
+void Cavity::cavity_potential_energy() {
+  /*
+     Potential energy of the cavity
+        0.5 (ω q(t) - λ⋅μ(t))²
+  */
+  // For now, only allow a coupling strength vector in the z-direction.
+  double coup_times_dip = coupling_strength * cpu_dipole_[2];
+  double cav_factor = cavity_frequency * q - coup_times_dip;
+  cavity_pot = 0.5 * cav_factor * cav_factor;
+}
+
+
+void Cavity::cavity_kinetic_energy() {
+  /*
+     Kinetic energy of the cavity
+       0.5 p(t)²
+  */
+  cavity_kin = 0.5 * p * p;
+}
+
+
+void Cavity::cavity_force() {
+  /* Force from the cavity 
+     get_dipole, get_dipole_jacobian and
+     step() should have been run before
+     this function.
+
+     This function can be replaced with a kernel
+     once the jacobian is no longer the time limiting step.
+   */
+  const int N = atom_copy.number_of_atoms;
+
+  // initialize the cavity force
+  for (int i = 0; i < 3*N; i++){
+    cpu_cavity_force_[i] = 0.0;
+  }
+
+  // njdip_iv = dipole_jacobian_ivv @ self.coupling_strength_v
+  // force_iv = njdip_iv * (self.cavity_frequency * self.canonical_position
+  //                           - self.coupling_strength_v @ dipole_v)
+  double cav_factor = cavity_frequency * q - coupling_strength*cpu_dipole_[2];
+  int N_components = 3;
+  int values_per_atom = 9;
+  for (int j = 0; j < N; j++){
+
+    // The coupling is non-zero only in the z-direction
+    // so we only need to grap the k=2 components. 
+    // the jacobian is indexed as
+    // [i * N_components + j * values_per_atom + k]
+    cpu_cavity_force_[j + 0*N] = cav_factor*coupling_strength*cpu_dipole_jacobian_[0 * N_components + j * values_per_atom + 2];
+    cpu_cavity_force_[j + 1*N] = cav_factor*coupling_strength*cpu_dipole_jacobian_[1 * N_components + j * values_per_atom + 2];
+    cpu_cavity_force_[j + 2*N] = cav_factor*coupling_strength*cpu_dipole_jacobian_[2 * N_components + j * values_per_atom + 2];
+  }
+}
+
+void Cavity::step_cavity(double time) {
+  /*
+    Step the time dependent potential by time dt.
+    Should be called after updating the positions
+  */
+  // TODO
+  double dt = time - prevtime;
+  double prevlmu = coupling_strength * prevdipole[2];
+  double lmu = coupling_strength * cpu_dipole_[2];
+
+  cos_integral += 0.5 * dt * cos(cavity_frequency * prevtime) * prevlmu;
+  sin_integral += 0.5 * dt * sin(cavity_frequency * prevtime) * prevlmu;
+  cos_integral += 0.5 * dt * cos(cavity_frequency * time) * lmu;
+  sin_integral += 0.5 * dt * sin(cavity_frequency * time) * lmu;
+
+  // Copy current values to previous
+  prevtime = time;
+  std::copy(
+      cpu_dipole_.begin(),
+      cpu_dipole_.end(),
+      prevdipole.begin());
+}
+
 
 void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(file_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
+  fprintf(jacfile_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
   for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
-    fprintf(file_, "%20.10e", cpu_dipole_jacobian_[i]);
+    fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
   }
-  fprintf(file_, "\n");
-  fflush(file_);
+  fprintf(jacfile_, "\n");
+  fflush(jacfile_);
 }
 
-void Cavity::postprocess()
+void Cavity::write_cavity(const int step, const double time)
+{
+  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
+  fprintf(cavfile_, "%d%20.10e%20.10e%20.10e%20.10e%20.10e", step, time, q, p, cavity_pot, cavity_kin);
+  for (int i = 0; i < cpu_cavity_force_.size(); i++) {
+    fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
+  }
+  fprintf(cavfile_, "\n");
+  fflush(cavfile_);
+}
+
+void Cavity::finalize()
 {
   if (enabled_) {
-    fclose(file_);
+    fclose(jacfile_);
+    fclose(cavfile_);
     enabled_ = false;
   }
 }
