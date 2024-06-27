@@ -3,7 +3,7 @@
    single: dump_shock_nemd (keyword in run.in)
 
 :attr:`dump_shock_nemd`
-=====================
+=======================
 
 In shock wave piston simulations, it's often crucial to compute thermo information at different regions, both before and after the shock wave passage.
 
