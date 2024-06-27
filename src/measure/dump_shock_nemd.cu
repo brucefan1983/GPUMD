@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dump_piston.cuh"
+#include "dump_shock_nemd.cuh"
 #include <cstring>
 
 namespace
@@ -139,24 +139,14 @@ void write_to_file(FILE* file, double* array, int n)
 
 } // namespace
 
-void Dump_Piston::parse(const char** param, int num_param)
+void Dump_Shock_NEMD::parse(const char** param, int num_param)
 {
   dump_ = true;
 
   printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
   int i = 1;
   while (i < num_param) {
-    if (strcmp(param[i], "direction") == 0) {
-      if (strcmp(param[i + 1], "x") == 0)
-        direction = 0;
-      else if (strcmp(param[i + 1], "y") == 0)
-        direction = 1;
-      else if (strcmp(param[i + 1], "z") == 0)
-        direction = 2;
-      else
-        PRINT_INPUT_ERROR("Direction should be x or y or z.");
-      i += 2;
-    } else if (strcmp(param[i], "interval") == 0) {
+    if (strcmp(param[i], "interval") == 0) {
       if (!is_valid_int(param[i + 1], &dump_interval_))
         PRINT_INPUT_ERROR("Dump interval should be an integer.");
       i += 2;
@@ -168,19 +158,9 @@ void Dump_Piston::parse(const char** param, int num_param)
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
-
-  if (strcmp(param[2], "x") == 0) {
-    direction = 0;
-  } else if (strcmp(param[2], "y") == 0) {
-    direction = 1;
-  } else if (strcmp(param[2], "z") == 0) {
-    direction = 2;
-  } else
-    PRINT_INPUT_ERROR("Direction should be x or y or z.");
-  printf("in %d direction.\n", direction);
 }
 
-void Dump_Piston::preprocess(Atom& atom, Box& box)
+void Dump_Shock_NEMD::preprocess(Atom& atom, Box& box)
 {
   if (!dump_)
     return;
@@ -199,12 +179,10 @@ void Dump_Piston::preprocess(Atom& atom, Box& box)
   pyy_file = my_fopen("pyy_hist.txt", "w");
   pzz_file = my_fopen("pzz_hist.txt", "w");
   density_file = my_fopen("density_hist.txt", "w");
-  com_vx_file = my_fopen("com_vx_hist.txt", "w");
-  com_vy_file = my_fopen("com_vy_hist.txt", "w");
-  com_vz_file = my_fopen("com_vz_hist.txt", "w");
+  com_vx_file = my_fopen("vp_hist.txt", "w");
 }
 
-void Dump_Piston::process(Atom& atom, Box& box, const int step)
+void Dump_Shock_NEMD::process(Atom& atom, Box& box, const int step)
 {
   if (!dump_ || step % dump_interval_ != 0)
     return;
@@ -295,11 +273,9 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   write_to_file(pzz_file, cpu_pzz.data(), bins);
   write_to_file(density_file, cpu_density.data(), bins);
   write_to_file(com_vx_file, cpu_com_vx.data(), bins);
-  write_to_file(com_vy_file, cpu_com_vy.data(), bins);
-  write_to_file(com_vz_file, cpu_com_vz.data(), bins);
 }
 
-void Dump_Piston::postprocess()
+void Dump_Shock_NEMD::postprocess()
 {
   if (!dump_)
     return;
@@ -310,7 +286,5 @@ void Dump_Piston::postprocess()
   fclose(pzz_file);
   fclose(density_file);
   fclose(com_vx_file);
-  fclose(com_vy_file);
-  fclose(com_vz_file);
   dump_ = false;
 }

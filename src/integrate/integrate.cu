@@ -21,7 +21,6 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
-#include "ensemble_mirror.cuh"
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
@@ -29,11 +28,13 @@ The driver class for the various integrators.
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
-#include "ensemble_piston.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
+#include "ensemble_wall_harmonic.cuh"
+#include "ensemble_wall_mirror.cuh"
+#include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -134,6 +135,8 @@ void Integrate::initialize(
     case -8: // ti_rs
       break;
     case -9: // ti_as
+      break;
+    case -10:
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -406,24 +409,27 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "ti_spring") == 0) {
     type = -2;
     ensemble.reset(new Ensemble_TI_Spring(param, num_param));
-  } else if (strcmp(param[1], "piston") == 0) {
+  } else if (strcmp(param[1], "wall_piston") == 0) {
     type = -4;
-    ensemble.reset(new Ensemble_piston(param, num_param));
+    ensemble.reset(new Ensemble_wall_piston(param, num_param));
   } else if (strcmp(param[1], "nphug") == 0) {
     type = -5;
     ensemble.reset(new Ensemble_NPHug(param, num_param));
   } else if (strcmp(param[1], "ti") == 0) {
     type = -6;
     ensemble.reset(new Ensemble_TI(param, num_param));
-  } else if (strcmp(param[1], "mirror") == 0) {
+  } else if (strcmp(param[1], "wall_mirror") == 0) {
     type = -7;
-    ensemble.reset(new Ensemble_mirror(param, num_param));
+    ensemble.reset(new Ensemble_wall_mirror(param, num_param));
   } else if (strcmp(param[1], "ti_rs") == 0) {
     type = -8;
     ensemble.reset(new Ensemble_TI_RS(param, num_param));
   } else if (strcmp(param[1], "ti_as") == 0) {
     type = -9;
     ensemble.reset(new Ensemble_TI_AS(param, num_param));
+  } else if (strcmp(param[1], "wall_harmonic") == 0) {
+    type = -10;
+    ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -861,6 +867,8 @@ void Integrate::parse_ensemble(
     case -8:
       break;
     case -9:
+      break;
+    case -10:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

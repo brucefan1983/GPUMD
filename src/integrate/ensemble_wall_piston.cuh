@@ -14,36 +14,38 @@
 */
 
 #pragma once
-
-#include "model/atom.cuh"
+#include "ensemble.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/gpu_vector.cuh"
+#include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include <cooperative_groups.h>
-#include <string>
-#include <vector>
+#include <math.h>
 
-class Dump_Piston
+class Ensemble_wall_piston : public Ensemble
 {
 public:
-  void parse(const char** param, int num_param);
-  void preprocess(Atom& atom, Box& box);
-  void process(Atom& atom, Box& box, const int step);
-  void postprocess();
+  Ensemble_wall_piston(const char** params, int num_params);
+  virtual ~Ensemble_wall_piston(void);
 
-private:
-  bool dump_ = false;
-  int n;
-  int dump_interval_ = -1;
-  int direction;
-  int bins;
-  double slice_vol = 1;
-  double avg_window = 10;
-  FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file, *com_vy_file,
-    *com_vz_file;
-  GPU_Vector<double> gpu_temp, gpu_pxx, gpu_pyy, gpu_pzz, gpu_density, gpu_com_vx, gpu_com_vy,
-    gpu_com_vz, gpu_number;
-  std::vector<double> cpu_temp, cpu_pxx, cpu_pyy, cpu_pzz, cpu_density, cpu_com_vx, cpu_com_vy,
-    cpu_com_vz;
+  virtual void compute1(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atoms,
+    GPU_Vector<double>& thermo);
+
+  virtual void compute2(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atoms,
+    GPU_Vector<double>& thermo);
+
+  void init();
+
+protected:
+  double thickness = 20;
+  double vp;
+  GPU_Vector<bool> gpu_left_wall_list, gpu_right_wall_list;
+  std::vector<double> thermo_cpu;
 };

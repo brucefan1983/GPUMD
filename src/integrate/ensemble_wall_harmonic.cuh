@@ -21,11 +21,11 @@
 #include "utilities/read_file.cuh"
 #include <math.h>
 
-class Ensemble_piston : public Ensemble
+class Ensemble_wall_harmonic : public Ensemble
 {
 public:
-  Ensemble_piston(const char** params, int num_params);
-  virtual ~Ensemble_piston(void);
+  Ensemble_wall_harmonic(const char** params, int num_params);
+  virtual ~Ensemble_wall_harmonic(void);
 
   virtual void compute1(
     const double time_step,
@@ -44,9 +44,8 @@ public:
   void init();
 
 protected:
-  int direction;
-  double thickness = 20;
-  double vp, vp_x = 0, vp_y = 0, vp_z = 0;
-  GPU_Vector<bool> gpu_left_wall_list, gpu_right_wall_list;
+  double wall_pos_left, wall_pos_right;
+  double vp;
+  double k = 10;
   std::vector<double> thermo_cpu;
 };

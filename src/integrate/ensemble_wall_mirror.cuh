@@ -21,11 +21,11 @@
 #include "utilities/read_file.cuh"
 #include <math.h>
 
-class Ensemble_mirror : public Ensemble
+class Ensemble_wall_mirror : public Ensemble
 {
 public:
-  Ensemble_mirror(const char** params, int num_params);
-  virtual ~Ensemble_mirror(void);
+  Ensemble_wall_mirror(const char** params, int num_params);
+  virtual ~Ensemble_wall_mirror(void);
 
   virtual void compute1(
     const double time_step,
@@ -44,9 +44,7 @@ public:
   void init();
 
 protected:
-  double thickness = 20;
-  double mirror_pos = 0;
+  double mirror_pos_left, mirror_pos_right;
   double vp;
-  GPU_Vector<bool> gpu_right_wall_list;
   std::vector<double> thermo_cpu;
 };
