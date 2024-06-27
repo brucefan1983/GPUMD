@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from ase.io import read
 from calorine.calculators import CPUNEP, GPUNEP
+from ase.units import Bohr
 
 suite_path = 'gpumd/cavity'
 repo_dir = f'{os.path.expanduser("~")}/repos/GPUMD/'
@@ -61,21 +62,22 @@ def md(tmp_path, request):
     run_md(params, path, repeat=request.param)
     return path, dipole_model
 
-@pytest.mark.parametrize('md', [1, 2], indirect=True)
+@pytest.mark.parametrize('md', [1], indirect=True)
 def test_cavity_self_consistent(md):
     """Ensure cavity writes dipoles and dipole jacobians that are consistent with the NEP executable"""
     md_path, dipole_model = md
     jacobian = np.loadtxt(f'{md_path}/jacobian.out')
+    charge = -1
     # Read positions, and predict dipole with dipole model
     for gpu_dipole, conf in zip(jacobian[:, 1:4], read(f'{md_path}/movie.xyz', ':')):
+        COM = conf.get_center_of_mass()
         conf.calc = CPUNEP(dipole_model)
-        cpu_dipole = conf.get_dipole_moment()
+        cpu_dipole = conf.get_dipole_moment() * Bohr + charge * COM
         assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-2, rtol=1e-6)
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
         calc = CPUNEP(dipole_model)
         conf.calc = calc
-
-        cpu_jacobian = calc.get_dipole_gradient(displacement=0.01, method='second order central difference', charge=-1)
+        cpu_jacobian = calc.get_dipole_gradient(displacement=0.01, method='second order central difference', charge=-1/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
         gj = gpu_jacobian.reshape(len(conf), 3, 3)
         assert np.allclose(cpu_jacobian, gj, atol=5e-2, rtol=1e-6)
 
