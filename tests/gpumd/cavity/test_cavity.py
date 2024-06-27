@@ -69,6 +69,8 @@ def test_cavity_self_consistent(md):
     jacobian = np.loadtxt(f'{md_path}/jacobian.out')
     charge = -1
     # Read positions, and predict dipole with dipole model
+    # TODO fails atm, could be due to change in when dipoles are computed
+    # in run.cu.
     for gpu_dipole, conf in zip(jacobian[:, 1:4], read(f'{md_path}/movie.xyz', ':')):
         COM = conf.get_center_of_mass()
         conf.calc = CPUNEP(dipole_model)
@@ -77,7 +79,7 @@ def test_cavity_self_consistent(md):
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
         calc = CPUNEP(dipole_model)
         conf.calc = calc
-        cpu_jacobian = calc.get_dipole_gradient(displacement=0.01, method='second order central difference', charge=-1/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
+        cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=-1/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
         gj = gpu_jacobian.reshape(len(conf), 3, 3)
         assert np.allclose(cpu_jacobian, gj, atol=5e-2, rtol=1e-6)
 

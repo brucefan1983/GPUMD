@@ -366,7 +366,7 @@ void Cavity::compute_dipole_and_jacobian(
   // Compute the dipole jacobian
   // The dipole jacobian has already been converted from atomic
   // units to GPUMD units and shifted appropriately.
-  get_dipole_jacobian(box, force, number_of_atoms, 0.01, charge);
+  get_dipole_jacobian(box, force, number_of_atoms, 0.001, charge);
 }
 
 void Cavity::compute_and_apply_cavity_force(Atom& atom) {
@@ -406,8 +406,8 @@ void Cavity::update_cavity(const int step, const double global_time) {
   cavity_kinetic_energy();
 
   // Write properties
-  //write_dipole(step);
-  //write_cavity(step, time);
+  write_dipole(step);
+  write_cavity(step, time);
 }
 
 
