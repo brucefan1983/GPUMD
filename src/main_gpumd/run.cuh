@@ -23,7 +23,7 @@ class Measure;
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
-#include "measure/cavity.cuh"
+#include "cavity/cavity.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
