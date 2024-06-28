@@ -232,6 +232,8 @@ void Cavity::parse(
   }
   number_of_atoms_ = number_of_atoms;
   potential.reset(new NEP3Cavity(param[1], number_of_atoms));
+  potential->N1 = 0;
+  potential->N2 = number_of_atoms;
 
   if (num_param != 5) {
     PRINT_INPUT_ERROR("cavity should have 4 parameters.");
@@ -423,6 +425,14 @@ void Cavity::update_cavity(const int step, const double global_time) {
   canonical_momentum(time);
   cavity_potential_energy();
   cavity_kinetic_energy();
+}
+
+void Cavity::write(const int step, const double global_time) {
+  if (!enabled_) {
+    return;
+  }
+  // Make sure that the frequency is in fs
+  double time = global_time * TIME_UNIT_CONVERSION; // natural (atomic?) units to fs
 
   // Write properties
   write_dipole(step);

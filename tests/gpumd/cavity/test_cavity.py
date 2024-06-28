@@ -52,7 +52,7 @@ def md(tmp_path, request):
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("cavity", (1.0, 1.0, -1)),
+        ("cavity", (dipole_model, 1.0, 1.0, -1)),
         ("dump_position", 1),
         ("dump_force", 1),
         ("dump_thermo", 1),
@@ -75,13 +75,13 @@ def test_cavity_self_consistent(md):
         COM = conf.get_center_of_mass()
         conf.calc = CPUNEP(dipole_model)
         cpu_dipole = conf.get_dipole_moment() * Bohr + charge * COM
-        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-2, rtol=1e-6)
+        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-4, rtol=1e-6)
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
         calc = CPUNEP(dipole_model)
         conf.calc = calc
         cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=-1/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
         gj = gpu_jacobian.reshape(len(conf), 3, 3)
-        assert np.allclose(cpu_jacobian, gj, atol=5e-2, rtol=1e-6)
+        assert np.allclose(cpu_jacobian, gj, atol=5e-4, rtol=1e-6)
 
 
 

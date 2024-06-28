@@ -47,6 +47,7 @@ public:
     Force& force);
   void compute_and_apply_cavity_force(Atom& atom);
   void update_cavity(const int step, const double global_time);
+  void write(const int step, const double global_time);
   void finalize();
 
 private:

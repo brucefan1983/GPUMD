@@ -278,7 +278,7 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     mc.compute(step, number_of_steps, atom, box, group);
-
+    cavity.write(step, global_time);
     measure.process(
       number_of_steps,
       step,
