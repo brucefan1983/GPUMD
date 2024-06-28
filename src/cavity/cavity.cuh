@@ -20,6 +20,7 @@
 #include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "cavity/potential_cavity.cuh"
 #include <string>
 #include <vector>
 class Box;
@@ -30,7 +31,11 @@ class Integrate;
 class Cavity
 {
 public:
-  void parse(const char** param, int num_param);
+  Cavity(void);
+  void parse(
+      const char** param, 
+      int num_param,
+      int number_of_atoms);
   void initialize(
     Box& box,
     Atom& atom,
@@ -50,6 +55,8 @@ private:
   FILE* jacfile_;
   FILE* cavfile_;
   Atom atom_copy;
+  std::unique_ptr<PotentialCavity> potential;
+  int number_of_atoms_;
   GPU_Vector<double> gpu_dipole_;
   std::vector<double> cpu_dipole_;
   GPU_Vector<double> gpu_dipole_jacobian_;
@@ -61,14 +68,14 @@ private:
   double coupling_strength;
   double cavity_frequency; 
   int charge;
-  double q0;  // Initial cavity coordinate, q_0
-  double q;   // cavity canonical position coordinate, q(t)
-  double p;   // cavity canonical momentum coordinate, p(t)
+  double q0;           // Initial cavity coordinate, q_0
+  double q;            // cavity canonical position coordinate, q(t)
+  double p;            // cavity canonical momentum coordinate, p(t)
   double cos_integral; // sum for the cos integral
   double sin_integral; // sum for the sin integral
-  double prevtime;
-  double cavity_pot; // cavity potential energy
-  double cavity_kin; // cavity kinetic energy
+  double prevtime;     // previous time for use in cavity dynamics
+  double cavity_pot;   // cavity potential energy
+  double cavity_kin;   // cavity kinetic energy
   std::vector<double> prevdipole;
   void write_dipole(const int step);
   void write_cavity(const int step, const double time);
@@ -79,7 +86,6 @@ private:
   void get_dipole_jacobian(
     Box& box,
     Force& force,
-    int number_of_atoms,
     double displacement, 
     double charge);
   void _get_center_of_mass(GPU_Vector<double>& gpu_center_of_mass);

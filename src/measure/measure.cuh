@@ -28,7 +28,6 @@
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
-#include "cavity.cuh"
 #include "force/force.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
