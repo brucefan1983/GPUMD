@@ -121,7 +121,6 @@ void Ensemble_wall_piston::init()
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
     atom->position_per_atom.data());
-  box->cpu_h[0] += 20;
 }
 
 Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
