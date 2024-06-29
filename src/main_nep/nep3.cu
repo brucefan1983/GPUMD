@@ -280,8 +280,8 @@ NEP3::NEP3(
   zbl.rc_inner = para.zbl_rc_inner;
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    zbl.atomic_numbers[n] = para.atomic_numbers[n];
-    paramb.atomic_numbers[n] = para.atomic_numbers[n];
+    zbl.atomic_numbers[n] = para.atomic_numbers[n]; // starting from 1
+    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
   }
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
@@ -792,7 +792,7 @@ static __global__ void find_force_ZBL(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     int type1 = g_type[n1];
-    int zi = zbl.atomic_numbers[type1];
+    int zi = zbl.atomic_numbers[type1]; // starting from 1
     float pow_zi = pow(float(zi), 0.23f);
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
@@ -803,7 +803,7 @@ static __global__ void find_force_ZBL(
       float d12inv = 1.0f / d12;
       float f, fp;
       int type2 = g_type[n2];
-      int zj = zbl.atomic_numbers[type2];
+      int zj = zbl.atomic_numbers[type2]; // starting from 1
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
       if (zbl.flexibled) {
@@ -825,7 +825,8 @@ static __global__ void find_force_ZBL(
         float rc_inner = zbl.rc_inner;
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff) {
-          rc_outer = min((COVALENT_RADIUS[zi] + COVALENT_RADIUS[zj]) * 0.7f, rc_outer);
+          // zi and zj start from 1, so need to minus 1 here
+          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.7f, rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
