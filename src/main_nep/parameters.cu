@@ -977,4 +977,5 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
     PRINT_INPUT_ERROR("use_typewise_cutoff should have no parameter.\n");
   }
   use_typewise_cutoff = true;
+  is_use_typewise_cutoff_set = true;
 }
