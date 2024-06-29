@@ -126,11 +126,17 @@ static __global__ void find_descriptors_radial(
       float z12 = g_z12[index];
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc(rc, rcinv, d12, fc12);
+
       float fn12[MAX_NUM_N];
       if (paramb.version == 2) {
-        find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
+        find_fn(paramb.n_max_radial, rcinv, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float c = (paramb.num_types == 1)
                       ? 1.0f
@@ -138,7 +144,7 @@ static __global__ void find_descriptors_radial(
           q[n] += fn12[n] * c;
         }
       } else {
-        find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+        find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gn12 = 0.0f;
           for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -185,11 +191,16 @@ static __global__ void find_descriptors_angular(
         float z12 = g_z12[index];
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
+        float rc = paramb.rc_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+        }
+        float rcinv = 1.0f / rc;
+        find_fc(rc, rcinv, d12, fc12);
         if (paramb.version == 2) {
           float fn;
-          find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
+          find_fn(n, rcinv, d12, fc12, fn);
           fn *=
             (paramb.num_types == 1)
               ? 1.0f
@@ -198,7 +209,7 @@ static __global__ void find_descriptors_angular(
           accumulate_s(d12, x12, y12, z12, fn, s);
         } else {
           float fn12[MAX_NUM_N];
-          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+          find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
           float gn12 = 0.0f;
           for (int k = 0; k <= paramb.basis_size_angular; ++k) {
             int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
@@ -242,6 +253,7 @@ NEP3::NEP3(
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+  paramb.use_typewise_cutoff = para.use_typewise_cutoff;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
@@ -269,6 +281,7 @@ NEP3::NEP3(
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];
+    paramb.atomic_numbers[n] = para.atomic_numbers[n];
   }
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
@@ -563,13 +576,18 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       float f12[3] = {0.0f};
 
       if (paramb.version == 2) {
-        find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(paramb.n_max_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
           tmp12 *= (paramb.num_types == 1)
@@ -581,7 +599,7 @@ static __global__ void find_force_radial(
         }
       } else {
         find_fn_and_fnp(
-          paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+          paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gnp12 = 0.0f;
           for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -670,15 +688,20 @@ static __global__ void find_force_angular(
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
+      float rc = paramb.rc_angular;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
 
       if (paramb.version == 2) {
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float fn;
           float fnp;
-          find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
+          find_fn_and_fnp(n, rcinv, d12, fc12, fcp12, fn, fnp);
           const float c =
             (paramb.num_types == 1)
               ? 1.0f
@@ -691,8 +714,7 @@ static __global__ void find_force_angular(
       } else {
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
-        find_fn_and_fnp(
-          paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float gn12 = 0.0f;
           float gnp12 = 0.0f;
@@ -746,6 +768,7 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
+  const NEP3::ParaMB paramb,
   const NEP3::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
@@ -769,8 +792,8 @@ static __global__ void find_force_ZBL(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     int type1 = g_type[n1];
-    float zi = zbl.atomic_numbers[type1];
-    float pow_zi = pow(zi, 0.23f);
+    int zi = zbl.atomic_numbers[type1];
+    float pow_zi = pow(float(zi), 0.23f);
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
@@ -780,8 +803,8 @@ static __global__ void find_force_ZBL(
       float d12inv = 1.0f / d12;
       float f, fp;
       int type2 = g_type[n2];
-      float zj = zbl.atomic_numbers[type2];
-      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      int zj = zbl.atomic_numbers[type2];
+      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
       if (zbl.flexibled) {
         int t1, t2;
@@ -799,7 +822,13 @@ static __global__ void find_force_ZBL(
         }
         find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
-        find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+        float rc_inner = zbl.rc_inner;
+        float rc_outer = zbl.rc_outer;
+        if (paramb.use_typewise_cutoff) {
+          rc_outer = min((COVALENT_RADIUS[zi] + COVALENT_RADIUS[zj]) * 0.7f, rc_outer);
+          rc_inner = rc_outer * 0.5f;
+        }
+        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
@@ -999,6 +1028,7 @@ void NEP3::find_force(
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
         dataset[device_id].N,
+        paramb,
         zbl,
         nep_data[device_id].NN_angular.data(),
         nep_data[device_id].NL_angular.data(),

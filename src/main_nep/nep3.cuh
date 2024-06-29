@@ -41,6 +41,7 @@ class NEP3 : public Potential
 {
 public:
   struct ParaMB {
+    bool use_typewise_cutoff = false;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
@@ -56,15 +57,16 @@ public:
     int num_types_sq = 0; // for nep3
     int num_c_radial = 0; // for nep3
     int version = 2;      // 2 for NEP2 and 3 for NEP3
+    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
     int dim = 0;          // dimension of the descriptor
     int num_neurons1 = 0; // number of neurons in the hidden layer
     int num_para = 0;     // number of parameters
-    const float* w0[100]; // weight from the input layer to the hidden layer
-    const float* b0[100]; // bias for the hidden layer
-    const float* w1[100]; // weight from the hidden layer to the output layer
+    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
+    const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
+    const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     // for the scalar part of polarizability
     const float* w0_pol[10]; // weight from the input layer to the hidden layer
@@ -82,7 +84,7 @@ public:
     float rc_outer = 2.0f;
     int num_types;
     float para[550];
-    float atomic_numbers[NUM_ELEMENTS];
+    int atomic_numbers[NUM_ELEMENTS];
   };
 
   NEP3(

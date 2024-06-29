@@ -28,7 +28,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
   "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "Pa", "U",  "Np", "Pu"};
 
 Parameters::Parameters()
 {
@@ -72,6 +72,7 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
+  is_use_typewise_cutoff_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -97,6 +98,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  use_typewise_cutoff = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -299,6 +301,12 @@ void Parameters::report_inputs()
     printf("    (default) angular cutoff = %g A.\n", rc_angular);
   }
 
+  if (is_use_typewise_cutoff_set) {
+    printf("    (input)   use %s cutoff.\n", use_typewise_cutoff ? "typewise" : "global");
+  } else {
+    printf("    (default) use %s cutoff.\n", use_typewise_cutoff ? "typewise" : "global");
+  }
+
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);
@@ -461,6 +469,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
+    parse_use_typewise_cutoff(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -959,4 +969,12 @@ void Parameters::parse_sigma0(const char** param, int num_param)
   if (sigma0 < 0.01f || sigma0 > 0.1f) {
     PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
   }
+}
+
+void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
+{
+  if (num_param != 1) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff should have no parameter.\n");
+  }
+  use_typewise_cutoff = true;
 }
