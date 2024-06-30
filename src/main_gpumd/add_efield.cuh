@@ -32,7 +32,7 @@ private:
 
   int num_calls_ = 0;
   int table_length_[10];
-  std::vector<double> force_table_[10];
+  std::vector<double> efield_table_[10];
   int grouping_method_[10];
   int group_id_[10];
 };

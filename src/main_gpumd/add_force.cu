@@ -49,9 +49,9 @@ void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& 
 {
   for (int call = 0; call < num_calls_; ++call) {
     const int step_mod_table_length = step % table_length_[call];
-    const float added_fx = force_table_[call][0 * table_length_[call] + step_mod_table_length];
-    const float added_fy = force_table_[call][1 * table_length_[call] + step_mod_table_length];
-    const float added_fz = force_table_[call][2 * table_length_[call] + step_mod_table_length];
+    const double added_fx = force_table_[call][0 * table_length_[call] + step_mod_table_length];
+    const double added_fy = force_table_[call][1 * table_length_[call] + step_mod_table_length];
+    const double added_fz = force_table_[call][2 * table_length_[call] + step_mod_table_length];
     const int num_atoms_total = atom.force_per_atom.size() / 3;
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
