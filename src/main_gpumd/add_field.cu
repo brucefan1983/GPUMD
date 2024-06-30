@@ -17,7 +17,7 @@
 Add force to a group of atoms.
 ------------------------------------------------------------------------------*/
 
-#include "add_force.cuh"
+#include "add_efield.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/read_file.cuh"
@@ -25,7 +25,7 @@ Add force to a group of atoms.
 #include <vector>
 
 static void __global__
-add_force(
+add_efield(
   const int group_size,
   const int group_size_sum,
   const int* g_group_contents,
@@ -45,7 +45,7 @@ add_force(
   }
 }
 
-void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& atom)
+void Add_Efeild::compute(const int step, const std::vector<Group>& groups, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {
     const int step_mod_table_length = step % table_length_[call];
@@ -55,7 +55,7 @@ void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& 
     const int num_atoms_total = atom.force_per_atom.size() / 3;
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
-    add_force<<<(group_size - 1) / 64 + 1, 64>>>(
+    add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
       group_size,
       group_size_sum,
       groups[grouping_method_[call]].contents.data(),
@@ -70,7 +70,7 @@ void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& 
   }
 }
 
-void Add_Force::parse(const char** param, int num_param, const std::vector<Group>& group)
+void Add_Efeild::parse(const char** param, int num_param, const std::vector<Group>& group)
 {
   printf("Add force.\n");
 
@@ -159,7 +159,7 @@ void Add_Force::parse(const char** param, int num_param, const std::vector<Group
   }
 }
 
-void Add_Force::finalize() 
+void Add_Efeild::finalize() 
 { 
   num_calls_ = 0;
 }
