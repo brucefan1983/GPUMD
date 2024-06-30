@@ -31,6 +31,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "dftd3para.cuh"
 #include "model/box.cuh"
 #include "neighbor.cuh"
+#include "utilities/common.cuh"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -40,7 +41,6 @@ J. Comput. Chem., 32, 1456 (2011).
 namespace
 {
 const int MN = 10000; // maximum number of neighbors for one atom
-const int NUM_ELEMENTS = 103;
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
   "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
@@ -48,7 +48,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
   "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "Pa", "U",  "Np", "Pu"};
 
 void __global__ find_dftd3_coordination_number_small_box(
   DFTD3::DFTD3_Para dftd3_para,
