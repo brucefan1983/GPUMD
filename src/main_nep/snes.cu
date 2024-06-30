@@ -46,7 +46,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   const int N =  population_size * number_of_variables;
   int num = number_of_variables;
-  if (para.version == 4) {
+  if (para.version >= 4) {
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
@@ -132,7 +132,7 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  if (para.version == 4) {
+  if (para.version >= 4) {
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
@@ -240,7 +240,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      if (para.version == 4) {
+      if (para.version >= 4) {
         regularize_NEP4(para);
       } else {
         regularize(para);
