@@ -47,7 +47,7 @@ add_efield(
   }
 }
 
-void Add_Efeild::compute(const int step, const std::vector<Group>& groups, Atom& atom)
+void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {
     const int step_mod_table_length = step % table_length_[call];
@@ -73,7 +73,7 @@ void Add_Efeild::compute(const int step, const std::vector<Group>& groups, Atom&
   }
 }
 
-void Add_Efeild::parse(const char** param, int num_param, const std::vector<Group>& group)
+void Add_Efield::parse(const char** param, int num_param, const std::vector<Group>& group)
 {
   printf("Add electric field.\n");
 
@@ -162,7 +162,7 @@ void Add_Efeild::parse(const char** param, int num_param, const std::vector<Grou
   }
 }
 
-void Add_Efeild::finalize() 
+void Add_Efield::finalize() 
 { 
   num_calls_ = 0;
 }

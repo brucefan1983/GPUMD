@@ -20,7 +20,7 @@
 class Atom;
 class Group;
 
-class Add_Efeild
+class Add_Efield
 {
 public:
 

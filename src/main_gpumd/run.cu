@@ -17,6 +17,7 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
+#include "add_efield.cuh"
 #include "add_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
@@ -259,6 +260,7 @@ void Run::perform_a_run()
 
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
+    add_efield.compute(step, group, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
@@ -314,6 +316,7 @@ void Run::perform_a_run()
 
   electron_stop.finalize();
   add_force.finalize();
+  add_efield.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -466,6 +469,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
+  } else if (strcmp(param[0], "add_efield") == 0) {
+    add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "dftd3") == 0) {
