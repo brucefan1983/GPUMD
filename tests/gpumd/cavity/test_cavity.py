@@ -7,7 +7,7 @@ from ase.io import read
 from calorine.calculators import CPUNEP, GPUNEP
 from ase.units import Bohr
 from ase import Atoms
-from cavity_calculator import TimeDependentCavityCalculator
+from cavity_calculator import TimeDependentCavityCalculator, CavityCalculator, DipoleCalculator
 
 suite_path = 'gpumd/cavity'
 repo_dir = f'{os.path.expanduser("~")}/repos/GPUMD/'
@@ -54,7 +54,7 @@ def md(tmp_path, request):
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("cavity", (dipole_model, 1.0, 1.0, 0)),
+        ("cavity", (dipole_model, 1.2, 0.7, 0)),
         ("dump_position", 1),
         ("dump_force", 1),
         ("dump_thermo", 1),
@@ -107,8 +107,8 @@ def test_cavity_time_dependent_cavity(md):
     # TODO fails atm, could be due to change in when dipoles are computed
     # in run.cu.
     initial_dipole, initial_jacobian = _compute_dipole(read(f'{test_folder}/model.xyz'), dipole_model, charge)
-    coupling_strength = [0.0, 0.0, 1.0]
-    cavity_calc = TimeDependentCavityCalculator(resonance_frequency=1.0,
+    coupling_strength = [0.0, 0.0, 1.2]
+    cavity_calc = TimeDependentCavityCalculator(resonance_frequency=0.7,
                                                 coupling_strength=coupling_strength,
                                                 dipole_v=initial_dipole)
     for cav_properties, gpu_cavity, conf in zip(cavity[:, 1:6], cavity[:,6:], 
@@ -120,6 +120,13 @@ def test_cavity_time_dependent_cavity(md):
 
         changed = cavity_calc.step_if_time_changed(dipole)
         cpu_cavity = cavity_calc.cavity_force(dipole, jacobian)
+
+        # Test cavity properties
+        assert np.allclose(cavity_calc.canonical_position, q, atol=1e-4, rtol=1e-6)
+        assert np.allclose(cavity_calc.canonical_momentum, p, atol=1e-4, rtol=1e-6)
+        assert np.allclose(cavity_calc.cavity_potential_energy(dipole), cavity_pot, atol=1e-6, rtol=1e-6)
+        assert np.allclose(cavity_calc.cavity_kinetic_energy(), cavity_kin, atol=1e-6, rtol=1e-6)
+
         # gpumd forces are in order [f_x1,..., f_xN, ..., f_z1, ..., f_zN]
         N = len(conf)
         gpu_cav = np.zeros((N, 3))
@@ -127,6 +134,48 @@ def test_cavity_time_dependent_cavity(md):
         gpu_cav[:, 1] = gpu_cavity[N:2*N]
         gpu_cav[:, 2] = gpu_cavity[2*N:]
         assert np.allclose(cpu_cavity, gpu_cav, atol=1e-4, rtol=1e-6)
+
+
+@pytest.mark.parametrize('md', [1], indirect=True)
+def test_cavity_total_forces(md):
+    """Ensure the total forces matches those from the CavityCalculator"""
+    md_path, dipole_model = md
+    cavity = np.loadtxt(f'{md_path}/cavity.out')
+    forces = np.loadtxt(f'{md_path}/force.out')
+    N = 27
+    forces = forces.reshape((-1, N, 3))
+    charge = 0.0
+    coupling_strength = [0.0, 0.0, 1.2]
+    # Read positions, and predict dipole with dipole model
+    # TODO fails atm, could be due to change in when dipoles are computed
+    # in run.cu.
+    dipole_model = f"{test_folder}/nep4_dipole.txt"
+    initial_atoms = read(f'{test_folder}/model.xyz')
+    nep_calc = CPUNEP(f"{test_folder}/nep.txt")
+    dipole_calc = DipoleCalculator(dipole_filename=dipole_model,
+                                   resonance_frequency=0.7,
+                                   coupling_strength=coupling_strength,
+                                   charge=charge,
+                                   gradient_mode='fd')
+    cavity_calc = CavityCalculator(nep_calc, dipole_calc)
+    # Set the initial dipole on the td cavity calculator
+    cavity_calc.calculate(initial_atoms)
+    print(cavity_calc.dipole_calc.td_cav.canonical_position)
+    for cav_properties, gpu_force, conf in zip(cavity[:, 1:6], forces, read(f'{md_path}/movie.xyz', ':')):
+        time, q, p, cavity_pot, cavity_kin = cav_properties
+        # Step cavity calculator to current timestep
+        cavity_calc.dipole_calc.td_cav._time = time
+
+        print(cavity_calc.dipole_calc.td_cav._time,
+              cavity_calc.dipole_calc.td_cav.canonical_position, 
+              q)
+        # Compute the new forces
+        cavity_calc.calculate(conf, ['energy', 'forces'])
+        cpu_force = cavity_calc.results['forces'] 
+
+        # gpumd forces are in order [f_x1,..., f_xN, ..., f_z1, ..., f_zN]
+        assert np.allclose(cpu_force, gpu_force, atol=1e-2, rtol=1e-6)
+
 
 # @pytest.mark.parametrize('md', [1], indirect=True)
 # def test_cavity_numeric(md):

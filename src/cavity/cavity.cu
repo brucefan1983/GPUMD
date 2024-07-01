@@ -255,91 +255,91 @@ void Cavity::parse(
     PRINT_INPUT_ERROR("total system charge should be an integer.");
   }
   printf("   coupling strength %f.\n", coupling_strength);
-  printf("   cavity frequency %f.\n", cavity_frequency);
-  printf("   total charge %d.\n", charge);
+printf("   cavity frequency %f.\n", cavity_frequency);
+printf("   total charge %d.\n", charge);
 }
 
 void Cavity::initialize(
-  Box& box,
-  Atom& atom,
-  Force& force)
+Box& box,
+Atom& atom,
+Force& force)
 {
-  // Setup a dump_exyz with the dump_interval for dump_observer.
-  if (enabled_) {
-    const int number_of_potentials = force.potentials.size();
-    std::string jac_filename_ = "jacobian.out";
-    std::string cav_filename_ = "cavity.out";
-    jacfile_ = my_fopen(jac_filename_.c_str(), "a");
-    cavfile_ = my_fopen(cav_filename_.c_str(), "a");
-    gpu_dipole_.resize(3);
-    cpu_dipole_.resize(3);
-    gpu_dipole_jacobian_.resize(number_of_atoms_ * 3 * 3);
-    cpu_dipole_jacobian_.resize(number_of_atoms_ * 3 * 3);
-    gpu_cavity_force_.resize(number_of_atoms_ * 3);
-    cpu_cavity_force_.resize(number_of_atoms_ * 3);
-    prevdipole.resize(3);
+// Setup a dump_exyz with the dump_interval for dump_observer.
+if (enabled_) {
+  const int number_of_potentials = force.potentials.size();
+  std::string jac_filename_ = "jacobian.out";
+  std::string cav_filename_ = "cavity.out";
+  jacfile_ = my_fopen(jac_filename_.c_str(), "a");
+  cavfile_ = my_fopen(cav_filename_.c_str(), "a");
+  gpu_dipole_.resize(3);
+  cpu_dipole_.resize(3);
+  gpu_dipole_jacobian_.resize(number_of_atoms_ * 3 * 3);
+  cpu_dipole_jacobian_.resize(number_of_atoms_ * 3 * 3);
+  gpu_cavity_force_.resize(number_of_atoms_ * 3);
+  cpu_cavity_force_.resize(number_of_atoms_ * 3);
+  prevdipole.resize(3);
 
-    // Set up a local copy of the Atoms, on which to compute the dipole
-    // Typically in GPUMD we are limited by computational speed, not memory,
-    // so we can sacrifice a bit of memory to skip having to recompute the forces
-    // & virials with the original potential
-    atom_copy.number_of_atoms = number_of_atoms_;
-    atom_copy.type.resize(number_of_atoms_);
-    atom_copy.mass.resize(number_of_atoms_);
-    atom_copy.position_per_atom.resize(number_of_atoms_ * 3);
-    atom_copy.force_per_atom.resize(number_of_atoms_ * 3);
-    atom_copy.virial_per_atom.resize(number_of_atoms_ * 9);
-    atom_copy.potential_per_atom.resize(number_of_atoms_);
+  // Set up a local copy of the Atoms, on which to compute the dipole
+  // Typically in GPUMD we are limited by computational speed, not memory,
+  // so we can sacrifice a bit of memory to skip having to recompute the forces
+  // & virials with the original potential
+  atom_copy.number_of_atoms = number_of_atoms_;
+  atom_copy.type.resize(number_of_atoms_);
+  atom_copy.mass.resize(number_of_atoms_);
+  atom_copy.position_per_atom.resize(number_of_atoms_ * 3);
+  atom_copy.force_per_atom.resize(number_of_atoms_ * 3);
+  atom_copy.virial_per_atom.resize(number_of_atoms_ * 9);
+  atom_copy.potential_per_atom.resize(number_of_atoms_);
 
-    // make sure that the second potential is actually a dipole model.
-    if (number_of_potentials != 2) {
-      PRINT_INPUT_ERROR("cavity requires two potentials to be specified.");
-    }
-    // Multiple potentials may only be used with NEPs, so we know that
-    // the second potential must be an NEP
-    if (force.potentials[1]->nep_model_type != 1) {
-      PRINT_INPUT_ERROR("cavity requires the second NEP potential to be a dipole model.");
-    }
+  // make sure that the second potential is actually a dipole model.
+  if (number_of_potentials != 2) {
+    PRINT_INPUT_ERROR("cavity requires two potentials to be specified.");
+  }
+  // Multiple potentials may only be used with NEPs, so we know that
+  // the second potential must be an NEP
+  if (force.potentials[1]->nep_model_type != 1) {
+    PRINT_INPUT_ERROR("cavity requires the second NEP potential to be a dipole model.");
+  }
 
-    // Copy the mass array on atoms to the CPU
-    // and compute the total mass. Do this on the CPU
-    // since we only need to do it once
-    masses_.resize(number_of_atoms_);
-    for (int i=0; i<number_of_atoms_; i++) {
-      double m_i = atom.cpu_mass[i];
-      masses_[i] = m_i;
-      mass_ += m_i;
-    }
-    // Transfer the cpu_types to our copy of the Atoms object
-    atom_copy.type.copy_from_host(atom.cpu_type.data());
+  // Copy the mass array on atoms to the CPU
+  // and compute the total mass. Do this on the CPU
+  // since we only need to do it once
+  masses_.resize(number_of_atoms_);
+  for (int i=0; i<number_of_atoms_; i++) {
+    double m_i = atom.cpu_mass[i];
+    masses_[i] = m_i;
+    mass_ += m_i;
+  }
+  // Transfer the cpu_types to our copy of the Atoms object
+  atom_copy.type.copy_from_host(atom.cpu_type.data());
 
-    // initialize the cavity stuff
-    // initial cavity coordinate is equal to
-    // self._cav_q0 = self.coupling_strength_v @ dipole_v / self.cavity_frequency
-    // so we need the dipole initially
+  // initialize the cavity stuff
+  // initial cavity coordinate is equal to
+  // self._cav_q0 = self.coupling_strength_v @ dipole_v / self.cavity_frequency
+  // so we need the dipole initially
 
-    // copy stuff to our atoms object
-    copy_atomic_properties<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
-      number_of_atoms_,
-      atom_copy.mass.data(),
-      atom.mass.data(),
-      atom_copy.position_per_atom.data(),
-      atom.position_per_atom.data());
-    CUDA_CHECK_KERNEL
-    
-    // TODO clean up
-    // Update the dipole and the jacobian
-    // we only need the dipole here, but
-    // doing one unecessary jacobian calc is
-    // not too bad. 
-    compute_dipole_and_jacobian(0, box, atom, force);
-    // For now, only allow a coupling strength vector in the z-direction.
-    // TODO should actually be the charge corrected dipole
-    q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
-    std::cout << "init: " << mass_ << " " << q0 <<  cpu_dipole_[2] << "\n";
+  // copy stuff to our atoms object
+  copy_atomic_properties<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_,
+    atom_copy.mass.data(),
+    atom.mass.data(),
+    atom_copy.position_per_atom.data(),
+    atom.position_per_atom.data());
+  CUDA_CHECK_KERNEL
+  
+  // TODO clean up
+  // Update the dipole and the jacobian
+  // we only need the dipole here, but
+  // doing one unecessary jacobian calc is
+  // not too bad. 
+  compute_dipole_and_jacobian(0, box, atom, force);
+  // For now, only allow a coupling strength vector in the z-direction.
+  // TODO should actually be the charge corrected dipole
+  q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
+  std::cout << "init: " << mass_ << " " << q0 <<  cpu_dipole_[2] << "\n";
 
-    // set initial values
-    cos_integral = 0.0;
+  // set initial values
+  cos_integral = 0.0;
     sin_integral = 0.0;
     prevtime = 0.0;
     std::copy(
@@ -430,8 +430,6 @@ void Cavity::update_cavity(const int step, const double global_time) {
   canonical_momentum(time);
   cavity_potential_energy();
   cavity_kinetic_energy();
-
-  std::cout << "cos integral: " <<  time << " " << cos_integral << "\n";
 }
 
 void Cavity::write(const int step, const double global_time) {
@@ -752,7 +750,7 @@ void Cavity::step_cavity(double time) {
   double lmu = coupling_strength * cpu_dipole_[2];
 
   
-  std::cout << time << " " << prevtime << " " << dt << " " << prevlmu << " " << lmu << " " << cpu_dipole_[2] << "\n";
+  // std::cout << time << " " << dt << " " << prevlmu << " " << lmu << " " << cavity_frequency << " " << prevdipole[2] << " " << cpu_dipole_[2] << "\n";
   cos_integral += 0.5 * dt * cos(cavity_frequency * prevtime) * prevlmu;
   sin_integral += 0.5 * dt * sin(cavity_frequency * prevtime) * prevlmu;
   cos_integral += 0.5 * dt * cos(cavity_frequency * time) * lmu;
