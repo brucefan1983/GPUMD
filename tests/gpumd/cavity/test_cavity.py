@@ -6,6 +6,8 @@ import pytest
 from ase.io import read
 from calorine.calculators import CPUNEP, GPUNEP
 from ase.units import Bohr
+from ase import Atoms
+from cavity_calculator import TimeDependentCavityCalculator
 
 suite_path = 'gpumd/cavity'
 repo_dir = f'{os.path.expanduser("~")}/repos/GPUMD/'
@@ -52,7 +54,7 @@ def md(tmp_path, request):
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("cavity", (dipole_model, 1.0, 1.0, -1)),
+        ("cavity", (dipole_model, 1.0, 1.0, 0)),
         ("dump_position", 1),
         ("dump_force", 1),
         ("dump_thermo", 1),
@@ -62,12 +64,22 @@ def md(tmp_path, request):
     run_md(params, path, repeat=request.param)
     return path, dipole_model
 
+
+def _compute_dipole(structure: Atoms, dipole_model: str, charge: int):
+    COM = structure.get_center_of_mass()
+    calc = CPUNEP(dipole_model)
+    structure.calc = calc
+    cpu_dipole = structure.get_dipole_moment() * Bohr + charge * COM
+    cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=charge/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
+    return cpu_dipole, cpu_jacobian
+
+
 @pytest.mark.parametrize('md', [1], indirect=True)
 def test_cavity_self_consistent(md):
     """Ensure cavity writes dipoles and dipole jacobians that are consistent with the NEP executable"""
     md_path, dipole_model = md
     jacobian = np.loadtxt(f'{md_path}/jacobian.out')
-    charge = -1
+    charge = 0
     # Read positions, and predict dipole with dipole model
     # TODO fails atm, could be due to change in when dipoles are computed
     # in run.cu.
@@ -76,14 +88,45 @@ def test_cavity_self_consistent(md):
         conf.calc = CPUNEP(dipole_model)
         cpu_dipole = conf.get_dipole_moment() * Bohr + charge * COM
         assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-4, rtol=1e-6)
+
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
         calc = CPUNEP(dipole_model)
         conf.calc = calc
-        cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=-1/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
+        cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=charge/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
         gj = gpu_jacobian.reshape(len(conf), 3, 3)
         assert np.allclose(cpu_jacobian, gj, atol=5e-4, rtol=1e-6)
 
 
+@pytest.mark.parametrize('md', [1], indirect=True)
+def test_cavity_time_dependent_cavity(md):
+    """Ensure the cavity forces matches those from the TimeDependentCavityCalculator"""
+    md_path, dipole_model = md
+    cavity = np.loadtxt(f'{md_path}/cavity.out')
+    charge = 0
+    # Read positions, and predict dipole with dipole model
+    # TODO fails atm, could be due to change in when dipoles are computed
+    # in run.cu.
+    initial_dipole, initial_jacobian = _compute_dipole(read(f'{test_folder}/model.xyz'), dipole_model, charge)
+    coupling_strength = [0.0, 0.0, 1.0]
+    cavity_calc = TimeDependentCavityCalculator(resonance_frequency=1.0,
+                                                coupling_strength=coupling_strength,
+                                                dipole_v=initial_dipole)
+    for cav_properties, gpu_cavity, conf in zip(cavity[:, 1:6], cavity[:,6:], 
+                                read(f'{md_path}/movie.xyz', ':')):
+        dipole, jacobian = _compute_dipole(conf, dipole_model, charge)
+        time, q, p, cavity_pot, cavity_kin = cav_properties
+        # Step cavity calculator to current timestep
+        cavity_calc._time = time
+
+        changed = cavity_calc.step_if_time_changed(dipole)
+        cpu_cavity = cavity_calc.cavity_force(dipole, jacobian)
+        # gpumd forces are in order [f_x1,..., f_xN, ..., f_z1, ..., f_zN]
+        N = len(conf)
+        gpu_cav = np.zeros((N, 3))
+        gpu_cav[:, 0] = gpu_cavity[:N]
+        gpu_cav[:, 1] = gpu_cavity[N:2*N]
+        gpu_cav[:, 2] = gpu_cavity[2*N:]
+        assert np.allclose(cpu_cavity, gpu_cav, atol=1e-4, rtol=1e-6)
 
 # @pytest.mark.parametrize('md', [1], indirect=True)
 # def test_cavity_numeric(md):

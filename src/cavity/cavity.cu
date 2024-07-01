@@ -326,12 +326,17 @@ void Cavity::initialize(
       atom_copy.position_per_atom.data(),
       atom.position_per_atom.data());
     CUDA_CHECK_KERNEL
-
-    get_dipole(box, force, gpu_dipole_);
-    gpu_dipole_.copy_to_host(cpu_dipole_.data());
+    
+    // TODO clean up
+    // Update the dipole and the jacobian
+    // we only need the dipole here, but
+    // doing one unecessary jacobian calc is
+    // not too bad. 
+    compute_dipole_and_jacobian(0, box, atom, force);
     // For now, only allow a coupling strength vector in the z-direction.
+    // TODO should actually be the charge corrected dipole
     q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
-    std::cout << "init: " << mass_ << " " << q0 << "\n";
+    std::cout << "init: " << mass_ << " " << q0 <<  cpu_dipole_[2] << "\n";
 
     // set initial values
     cos_integral = 0.0;
@@ -425,6 +430,8 @@ void Cavity::update_cavity(const int step, const double global_time) {
   canonical_momentum(time);
   cavity_potential_energy();
   cavity_kinetic_energy();
+
+  std::cout << "cos integral: " <<  time << " " << cos_integral << "\n";
 }
 
 void Cavity::write(const int step, const double global_time) {
@@ -649,8 +656,8 @@ void Cavity::canonical_position(const double time) {
   */
   double phase = cavity_frequency * time;
   q = sin(phase) * cos_integral
-        - cos(phase) * sin_integral
-        + q0 * cos(phase);
+      - cos(phase) * sin_integral
+      + q0 * cos(phase);
 }
 
 void Cavity::canonical_momentum(const double time) {
@@ -744,6 +751,8 @@ void Cavity::step_cavity(double time) {
   double prevlmu = coupling_strength * prevdipole[2];
   double lmu = coupling_strength * cpu_dipole_[2];
 
+  
+  std::cout << time << " " << prevtime << " " << dt << " " << prevlmu << " " << lmu << " " << cpu_dipole_[2] << "\n";
   cos_integral += 0.5 * dt * cos(cavity_frequency * prevtime) * prevlmu;
   sin_integral += 0.5 * dt * sin(cavity_frequency * prevtime) * prevlmu;
   cos_integral += 0.5 * dt * cos(cavity_frequency * time) * lmu;

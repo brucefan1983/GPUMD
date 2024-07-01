@@ -234,8 +234,6 @@ void Run::perform_a_run()
 
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
-    // Step 5: atoms have been moved
-    cavity.update_cavity(step, global_time);
 
     if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -262,8 +260,11 @@ void Run::perform_a_run()
         atom.velocity_per_atom,
         atom.mass);
     }
-    // Step 2 & 3; Compute new dipole & jacobian, compute forces and apply.
+    // Atoms have been moved, recompute the dipole and update the cavity
     cavity.compute_dipole_and_jacobian(initial_time_step, box, atom, force);
+    cavity.update_cavity(step, global_time);
+    
+    // Compute and apply the cavity forces.
     cavity.compute_and_apply_cavity_force(atom);
 
 #ifdef USE_PLUMED
