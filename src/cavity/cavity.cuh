@@ -61,15 +61,16 @@ private:
   std::unique_ptr<PotentialCavity> potential;
   std::unique_ptr<PotentialCavity> potential_jacobian;
   int number_of_atoms_;
+  int number_of_copied_systems_;
   int number_of_atoms_in_copied_system_;
-  GPU_Vector<double> gpu_dipole_;
-  std::vector<double> cpu_dipole_;
-  GPU_Vector<double> gpu_dipole_jacobian_;
-  std::vector<double> cpu_dipole_jacobian_;
-  GPU_Vector<double> gpu_cavity_force_;
-  std::vector<double> cpu_cavity_force_;
-  std::vector<double> masses_;
   double mass_;
+  std::vector<double> masses_;
+  std::vector<double> cpu_dipole_;
+  std::vector<double> cpu_dipole_jacobian_;
+  std::vector<double> cpu_cavity_force_;
+  GPU_Vector<double> gpu_dipole_;
+  GPU_Vector<double> gpu_dipole_jacobian_;
+  GPU_Vector<double> gpu_cavity_force_;
   double coupling_strength;
   double cavity_frequency; 
   int charge;
@@ -86,8 +87,7 @@ private:
   void write_cavity(const int step, const double time);
   void get_dipole(
     Box& box,
-    Force& force,
-    GPU_Vector<double>& dipole_);
+    Force& force);
   void get_dipole_jacobian(
     Box& box,
     Force& force,
