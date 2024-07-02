@@ -30,7 +30,8 @@ __constant__ double C4B[5] = {
   0.404971964639861,
   -0.809943929279723};
 __constant__ double C5B[3] = {0.026596810706114, 0.053193621412227, 0.026596810706114};
-
+// __constant__ double PI = 3.141592653589793;
+// __constant__ double PI_HALF = 1.570796326794897;
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
@@ -67,7 +68,7 @@ static __device__ __forceinline__ void find_fc(double rc, double rcinv, double d
 {
   if (d12 < rc) {
     double x = d12 * rcinv;
-    fc = 0.5 * cos(3.1415927 * x) + 0.5;
+    fc = 0.5 * cos(3.141592653589793 * x) + 0.5;
   } else {
     fc = 0.0;
   }
@@ -78,8 +79,8 @@ find_fc_and_fcp(double rc, double rcinv, double d12, double& fc, double& fcp)
 {
   if (d12 < rc) {
     double x = d12 * rcinv;
-    fc = 0.5 * cos(3.1415927 * x) + 0.5;
-    fcp = -1.5707963 * sin(3.1415927 * x);
+    fc = 0.5 * cos(3.141592653589793 * x) + 0.5;
+    fcp = -1.570796326794897 * sin(3.141592653589793 * x);
     fcp *= rcinv;
   } else {
     fc = 0.0;
@@ -94,7 +95,7 @@ find_fc_and_fcp_zbl(double r1, double r2, double d12, double& fc, double& fcp)
     fc = 1.0;
     fcp = 0.0;
   } else if (d12 < r2) {
-    double pi_factor = 3.14159265358979323846 / (r2 - r1);
+    double pi_factor = 3.141592653589793 / (r2 - r1);
     fc = cos(pi_factor * (d12 - r1)) * 0.5 + 0.5;
     fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5;
   } else {
