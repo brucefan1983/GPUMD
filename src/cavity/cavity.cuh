@@ -21,6 +21,7 @@
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "cavity/potential_cavity.cuh"
+#include "cavity/atom_cavity.cuh"
 #include <string>
 #include <vector>
 class Box;
@@ -56,8 +57,11 @@ private:
   FILE* jacfile_;
   FILE* cavfile_;
   Atom atom_copy;
+  AtomCavity atom_cavity;
   std::unique_ptr<PotentialCavity> potential;
+  std::unique_ptr<PotentialCavity> potential_jacobian;
   int number_of_atoms_;
+  int number_of_atoms_in_copied_system_;
   GPU_Vector<double> gpu_dipole_;
   std::vector<double> cpu_dipole_;
   GPU_Vector<double> gpu_dipole_jacobian_;

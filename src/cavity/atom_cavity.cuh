@@ -22,6 +22,6 @@
 class AtomCavity: public Atom
 {
 public:
-  std::vector<int> cpu_system_id; // id for the copy of the system
-  GPU_Vector<int> system_id;       
+  std::vector<int> cpu_system_index; // id for the copy of the system
+  GPU_Vector<int> system_index;       
 };

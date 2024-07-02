@@ -472,7 +472,7 @@ static __global__ void find_neighbor_list_jacobian(
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
-  const int* __restrict__ g_sytem_index,
+  const int* __restrict__ g_system_index,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -552,7 +552,7 @@ static __global__ void find_neighbor_list_jacobian(
             continue;
           }
 
-          if (g_system_index[n1] != g_sytem_index[n2]) {
+          if (g_system_index[n1] != g_system_index[n2]) {
             continue;
           }
 
@@ -1918,7 +1918,7 @@ void NEP3Cavity::compute_jacobian(
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& system_index)
+  GPU_Vector<int>& system_index)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
@@ -1950,6 +1950,7 @@ void NEP3Cavity::compute_jacobian(
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),
+    system_index.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,

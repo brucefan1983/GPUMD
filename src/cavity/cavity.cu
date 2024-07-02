@@ -124,18 +124,33 @@ static __global__ void get_center_of_mass(
   }
 }
 
-static __global__ void copy_atomic_properties(
-  int N,
+static __global__ void copy_mass_and_type_to_cavity(
+  const int N,
+  const double* ref_g_mass,
+  const int* ref_g_type,
   double* g_mass,
-  double* ref_g_mass,
-  double* g_p,
-  double* ref_g_p)
+  int* g_type)
+{
+  // Copy mass and type to the twelve copies 
+  // of the system in AtomCavity
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    for (int i = 0; i < 12; i++) {
+      g_mass[n1 + i * N] = ref_g_mass[n1];
+      g_type[n1 + i * N] = ref_g_type[n1];
+
+    }
+  }
+}
+
+
+static __global__ void copy_positions(
+  const int N,
+  const double* ref_g_p,
+  double* g_p)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    // Copy the masses
-    g_mass[n1] = ref_g_mass[n1];
-
     // Copy the atom positions
     g_p[n1 + 0 * N] = ref_g_p[n1 + 0 * N];
     g_p[n1 + 1 * N] = ref_g_p[n1 + 1 * N];
@@ -230,10 +245,16 @@ void Cavity::parse(
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
+  // Set up the potential for calculating dipoles with double precision
   number_of_atoms_ = number_of_atoms;
   potential.reset(new NEP3Cavity(param[1], number_of_atoms));
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
+  // and the potential for the jacobian batch calculations
+  number_of_atoms_in_copied_system_ = 12*number_of_atoms_;
+  potential.reset(new NEP3Cavity(param[1], number_of_atoms_in_copied_system_));
+  potential->N1 = 0;
+  potential->N2 = number_of_atoms_in_copied_system_;
 
   if (num_param != 5) {
     PRINT_INPUT_ERROR("cavity should have 4 parameters.");
@@ -291,6 +312,20 @@ if (enabled_) {
   atom_copy.virial_per_atom.resize(number_of_atoms_ * 9);
   atom_copy.potential_per_atom.resize(number_of_atoms_);
 
+  // Configure the AtomCavity object that will hold all the dipoles
+  // for the batched Jacobian calculations
+  // This system will have 12*N the number of atoms
+  atom_cavity.number_of_atoms = number_of_atoms_in_copied_system_;
+  atom_cavity.type.resize(number_of_atoms_in_copied_system_);
+  atom_cavity.mass.resize(number_of_atoms_in_copied_system_);
+  atom_cavity.position_per_atom.resize(number_of_atoms_in_copied_system_ * 3);
+  atom_cavity.force_per_atom.resize(number_of_atoms_in_copied_system_ * 3);
+  atom_cavity.virial_per_atom.resize(number_of_atoms_in_copied_system_ * 9);
+  atom_cavity.potential_per_atom.resize(number_of_atoms_in_copied_system_);
+  atom_cavity.cpu_system_index.resize(number_of_atoms_in_copied_system_);
+  atom_cavity.system_index.resize(number_of_atoms_in_copied_system_);
+
+
   // make sure that the second potential is actually a dipole model.
   if (number_of_potentials != 2) {
     PRINT_INPUT_ERROR("cavity requires two potentials to be specified.");
@@ -310,23 +345,24 @@ if (enabled_) {
     masses_[i] = m_i;
     mass_ += m_i;
   }
-  // Transfer the cpu_types to our copy of the Atoms object
+  // Transfer the types and masses to our copy of the Atoms objects
   atom_copy.type.copy_from_host(atom.cpu_type.data());
+  atom_copy.mass.copy_from_host(atom.cpu_mass.data());
+  // repeat this 12 times for the 12 copies of the system
+  // in AtomCavity
+  copy_mass_and_type_to_cavity<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_,
+    atom.mass.data(),
+    atom.type.data(),
+    atom_cavity.mass.data(),
+    atom_cavity.type.data());
+  CUDA_CHECK_KERNEL
 
   // initialize the cavity stuff
   // initial cavity coordinate is equal to
   // self._cav_q0 = self.coupling_strength_v @ dipole_v / self.cavity_frequency
   // so we need the dipole initially
 
-  // copy stuff to our atoms object
-  copy_atomic_properties<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
-    number_of_atoms_,
-    atom_copy.mass.data(),
-    atom.mass.data(),
-    atom_copy.position_per_atom.data(),
-    atom.position_per_atom.data());
-  CUDA_CHECK_KERNEL
-  
   // TODO clean up
   // Update the dipole and the jacobian
   // we only need the dipole here, but
@@ -336,7 +372,7 @@ if (enabled_) {
   // For now, only allow a coupling strength vector in the z-direction.
   // TODO should actually be the charge corrected dipole
   q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
-  std::cout << "init: " << mass_ << " " << q0 <<  cpu_dipole_[2] << "\n";
+  std::cout << "init: " << mass_ << " " << q0  << "\n";
 
   // set initial values
   cos_integral = 0.0;
@@ -358,13 +394,14 @@ void Cavity::compute_dipole_and_jacobian(
   if (!enabled_) {
     return;
   }
-  // copy stuff to our atoms object
-  copy_atomic_properties<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+  // This is probably really bad from a performance perspective
+  // and I should remove it and just use the original
+  // atoms object.
+  // copy positions to the local copy of the atoms object
+  copy_positions<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
     number_of_atoms_,
-    atom_copy.mass.data(),
-    atom.mass.data(),
-    atom_copy.position_per_atom.data(),
-    atom.position_per_atom.data());
+    atom.position_per_atom.data(),
+    atom_copy.position_per_atom.data());
   CUDA_CHECK_KERNEL
 
   // Compute the dipole
@@ -542,7 +579,9 @@ void Cavity::get_dipole_jacobian(
   std::vector<double> center_of_mass_backward_two_h(
       center_of_mass_forward_one_h);
   // Positions are in order [x1, ..., xN, y1, ..., yN, ...]
-  int index = 0;
+  int displaced_index = 0;
+  int reference_index = 0;
+  int copy_index = 0;
   double old_center_of_mass = 0.0;
   const double displacement_over_M = displacement / mass_;
   const double one_over_displacement =
@@ -550,81 +589,109 @@ void Cavity::get_dipole_jacobian(
 
   const double c0 = -1.0 / 12.0; // coefficient for 2h
   const double c1 = 2.0 / 3.0;   // coefficient for h
+
+  // Step 1: Setup the 12N cavity atom system for batched
+  // calculation of all dipoles
+  // Dipoles will be displaced in the following order:
+  const std::vector<double> shifts{
+    displacement,     // h 
+    displacement,     // h + h = 2h
+    -3*displacement,  // 2h - 3*h = -h
+    -1*displacement   // -h - h = -2h
+  };
+  atom_copy.position_per_atom.copy_to_host(
+      atom_copy.cpu_position_per_atom.data());
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms_; j++) {
-      index = number_of_atoms_ * i + j; // idx of position to change
+      displaced_index = number_of_atoms_ * i + j; // idx of position to change
+      for (int k = 0; k < 4; k++){
+        copy_index = number_of_atoms_ * i + j * 4 + k;
+        // copy all the atom positions to this copy
+        std::copy(
+            atom_copy.cpu_position_per_atom.begin(),
+            atom_copy.cpu_position_per_atom.end(),
+            atom_cavity.cpu_position_per_atom.begin() 
+            + copy_index * number_of_atoms_);
+        // displace the current atom
+        atom_cavity.cpu_position_per_atom[copy_index + displaced_index] += shifts[k];
+        // set the copy index for these atoms
+        std::fill(
+            atom_cavity.cpu_system_index.begin()
+            + copy_index * number_of_atoms_,
+            atom_cavity.cpu_system_index.begin()
+            + (copy_index+1) * number_of_atoms_,
+            copy_index);
+      }
+    }
+  }
+  atom_cavity.position_per_atom.copy_from_host(
+      atom_cavity.cpu_position_per_atom.data());
+  atom_cavity.system_index.copy_from_host(
+      atom_cavity.cpu_system_index.data());
+
+
+  // Step 2: Compute the dipoles in the batched system
+  initialize_properties<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_in_copied_system_,
+    atom_cavity.force_per_atom.data(),
+    atom_cavity.force_per_atom.data() + number_of_atoms_in_copied_system_,
+    atom_cavity.force_per_atom.data() + number_of_atoms_in_copied_system_ * 2,
+    atom_cavity.potential_per_atom.data(),
+    atom_cavity.virial_per_atom.data(),
+    gpu_dipole_forward_one_h.data()); // TODO remove this
+  CUDA_CHECK_KERNEL
+  // Compute the dipole
+  potential_jacobian->compute(
+    box,
+    atom_cavity.type,
+    atom_cavity.position_per_atom,
+    atom_cavity.potential_per_atom,
+    atom_cavity.force_per_atom,
+    atom_cavity.virial_per_atom);
+
+  // Step 3: Collect all dipoles by iterating through
+  // the displacements and summing the dipoles, then
+  // then computing the Jacobian.
+  for (int i = 0; i < N_cartesian; i++) {
+    for (int j = 0; j < number_of_atoms_; j++) {
+      displaced_index = number_of_atoms_ * i + j; // idx of position to change
       old_center_of_mass = center_of_mass_forward_one_h[i];
 
       // --- Forward displacement
-      // Step one displacement forward
-      // I hate this
-      displace_atom<<<1, 1>>>(
-          index, 
-          atom_copy.position_per_atom.data(), 
-          displacement); // +h
-      CUDA_CHECK_KERNEL
       center_of_mass_forward_one_h[i] +=
           displacement_over_M * masses_[j];   // center of mass gets moved by
                                               // +h/N in the same direction
-      get_dipole(box, force, gpu_dipole_forward_one_h);
-      gpu_dipole_forward_one_h.copy_to_host(dipole_forward_one_h.data());
 
       // Step two displacements forward
-      displace_atom<<<1, 1>>>(
-          index, 
-          atom_copy.position_per_atom.data(), 
-          displacement); // displaced +2h in total
-      CUDA_CHECK_KERNEL
       center_of_mass_forward_two_h[i] +=
           2 * displacement_over_M * masses_[j]; // center of mass gest moved by
                                                 // +2h/N in the same direction
-      get_dipole(box, force, gpu_dipole_forward_two_h);
-      gpu_dipole_forward_two_h.copy_to_host(dipole_forward_two_h.data());
 
       // --- Backwards displacement
-      displace_atom<<<1, 1>>>(
-          index, 
-          atom_copy.position_per_atom.data(), 
-          -3*displacement); // 2h - 3h = -h
-      CUDA_CHECK_KERNEL
       center_of_mass_backward_one_h[i] -= displacement_over_M * masses_[j];
-      get_dipole(box, force, gpu_dipole_backward_one_h);
-      gpu_dipole_backward_one_h.copy_to_host(dipole_backward_one_h.data());
 
-      displace_atom<<<1, 1>>>(
-          index, 
-          atom_copy.position_per_atom.data(), 
-          -displacement); // -h - h = -2h
-      CUDA_CHECK_KERNEL
       center_of_mass_backward_two_h[i] -=
           2 * displacement_over_M * masses_[j];
-      get_dipole(box, force, gpu_dipole_backward_two_h);
-      gpu_dipole_backward_two_h.copy_to_host(dipole_backward_two_h.data());
 
       for (int k = 0; k < N_components; k++) {
-        cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
-            (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_forward_two_h[k]) +
-             c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_forward_one_h[k]) -
-             c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_backward_one_h[k]) -
-             c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_backward_two_h[k])) *
-            one_over_displacement;
+        // cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
+        //     (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM +
+        //            charge * center_of_mass_forward_two_h[k]) +
+        //      c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM +
+        //            charge * center_of_mass_forward_one_h[k]) -
+        //      c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM +
+        //            charge * center_of_mass_backward_one_h[k]) -
+        //      c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM +
+        //            charge * center_of_mass_backward_two_h[k])) *
+        //     one_over_displacement;
         //cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
         //    (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM) +
         //     c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM) -
         //     c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM)-
         //     c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM)) *
         //    one_over_displacement;
+        cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] = 0.0;
       }
-      // Restore positions
-      displace_atom<<<1, 1>>>(
-          index, 
-          atom_copy.position_per_atom.data(), 
-          2*displacement); // -2h + 2h = 0
-      CUDA_CHECK_KERNEL
       center_of_mass_forward_one_h[i] = old_center_of_mass;
       center_of_mass_forward_two_h[i] = old_center_of_mass;
       center_of_mass_backward_one_h[i] = old_center_of_mass;

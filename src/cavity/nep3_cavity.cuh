@@ -116,7 +116,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    GPU_Vector<double>& system_index);
+    GPU_Vector<int>& system_index);
 
   virtual void compute(
     const double temperature,
