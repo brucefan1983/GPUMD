@@ -109,6 +109,14 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+  virtual void compute_jacobian(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    GPU_Vector<double>& system_index);
 
   virtual void compute(
     const double temperature,

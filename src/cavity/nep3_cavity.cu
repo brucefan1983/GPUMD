@@ -459,6 +459,118 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
+
+static __global__ void find_neighbor_list_jacobian(
+  NEP3Cavity::ParaMB paramb,
+  const int N,
+  const int N1,
+  const int N2,
+  const int nx,
+  const int ny,
+  const int nz,
+  const Box box,
+  const int* __restrict__ g_cell_count,
+  const int* __restrict__ g_cell_count_sum,
+  const int* __restrict__ g_cell_contents,
+  const int* __restrict__ g_sytem_index,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  int* g_NN_radial,
+  int* g_NL_radial,
+  int* g_NN_angular,
+  int* g_NL_angular)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 >= N2) {
+    return;
+  }
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+  int count_radial = 0;
+  int count_angular = 0;
+
+  int cell_id;
+  int cell_id_x;
+  int cell_id_y;
+  int cell_id_z;
+  find_cell_id(
+    box,
+    x1,
+    y1,
+    z1,
+    2.0f * paramb.rcinv_radial,
+    nx,
+    ny,
+    nz,
+    cell_id_x,
+    cell_id_y,
+    cell_id_z,
+    cell_id);
+
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
+
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
+        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+        if (cell_id_x + xx < 0)
+          neighbor_cell += nx;
+        if (cell_id_x + xx >= nx)
+          neighbor_cell -= nx;
+        if (cell_id_y + yy < 0)
+          neighbor_cell += ny * nx;
+        if (cell_id_y + yy >= ny)
+          neighbor_cell -= ny * nx;
+        if (cell_id_z + zz < 0)
+          neighbor_cell += nz * ny * nx;
+        if (cell_id_z + zz >= nz)
+          neighbor_cell -= nz * ny * nx;
+
+        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
+        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
+
+        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
+
+          if (n2 < N1 || n2 >= N2 || n1 == n2) {
+            continue;
+          }
+
+          double x12double = g_x[n2] - x1;
+          double y12double = g_y[n2] - y1;
+          double z12double = g_z[n2] - z1;
+          apply_mic(box, x12double, y12double, z12double);
+          double x12 = double(x12double), y12 = double(y12double), z12 = double(z12double);
+          double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+
+          if (d12_square >= paramb.rc_radial * paramb.rc_radial) {
+            continue;
+          }
+
+          if (g_system_index[n1] != g_sytem_index[n2]) {
+            continue;
+          }
+
+          g_NL_radial[count_radial++ * N + n1] = n2;
+
+          if (d12_square < paramb.rc_angular * paramb.rc_angular) {
+            g_NL_angular[count_angular++ * N + n1] = n2;
+          }
+        }
+      }
+    }
+  }
+
+  g_NN_radial[n1] = count_radial;
+  g_NN_angular[n1] = count_angular;
+}
+
+
 static __global__ void find_descriptor(
   NEP3Cavity::ParaMB paramb,
   NEP3Cavity::ANN annmb,
@@ -1295,6 +1407,7 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3Cavity::Expand
   return is_small_box;
 }
 
+
 void NEP3Cavity::compute(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1796,4 +1909,172 @@ void NEP3Cavity::compute(
       force_per_atom,
       virial_per_atom);
   }
+}
+
+void NEP3Cavity::compute_jacobian(
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& system_index)
+{
+  const int BLOCK_SIZE = 64;
+  const int N = type.size();
+  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  const double rc_cell_list = 0.5 * rc;
+
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+
+  find_cell_list(
+    rc_cell_list,
+    num_bins,
+    box,
+    position_per_atom,
+    nep_data.cell_count,
+    nep_data.cell_count_sum,
+    nep_data.cell_contents);
+
+  find_neighbor_list_jacobian<<<grid_size, BLOCK_SIZE>>>(
+    paramb,
+    N,
+    N1,
+    N2,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    box,
+    nep_data.cell_count.data(),
+    nep_data.cell_count_sum.data(),
+    nep_data.cell_contents.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
+    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < nep_data.cpu_NN_radial[n]) {
+        radial_actual = nep_data.cpu_NN_radial[n];
+      }
+      if (angular_actual < nep_data.cpu_NN_angular[n]) {
+        angular_actual = nep_data.cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
+    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
+    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  bool is_polarizability = paramb.model_type == 2;
+  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    is_polarizability,
+#ifdef USE_TABLE
+    nep_data.gn_radial.data(),
+    nep_data.gn_angular.data(),
+#endif
+    potential_per_atom.data(),
+    nep_data.Fp.data(),
+    virial_per_atom.data(),
+    nep_data.sum_fxyz.data());
+  CUDA_CHECK_KERNEL
+
+  bool is_dipole = paramb.model_type == 1;
+  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.Fp.data(),
+    is_dipole,
+#ifdef USE_TABLE
+    nep_data.gnp_radial.data(),
+#endif
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
+    virial_per_atom.data());
+  CUDA_CHECK_KERNEL
+
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.Fp.data(),
+    nep_data.sum_fxyz.data(),
+#ifdef USE_TABLE
+    nep_data.gn_angular.data(),
+    nep_data.gnp_angular.data(),
+#endif
+    nep_data.f12x.data(),
+    nep_data.f12y.data(),
+    nep_data.f12z.data());
+  CUDA_CHECK_KERNEL
+
+  find_properties_many_body(
+    box,
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    nep_data.f12x.data(),
+    nep_data.f12y.data(),
+    nep_data.f12z.data(),
+    is_dipole,
+    position_per_atom,
+    force_per_atom,
+    virial_per_atom);
+  CUDA_CHECK_KERNEL
 }
