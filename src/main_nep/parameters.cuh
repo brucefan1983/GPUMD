@@ -24,7 +24,7 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // nep version, can be 2 or 3
+  int version;            // nep version, can be 3 or 4
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types

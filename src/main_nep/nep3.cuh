@@ -46,17 +46,17 @@ public:
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int basis_size_radial = 0;  // for nep3
-    int basis_size_angular = 0; // for nep3
+    int basis_size_radial = 0;
+    int basis_size_angular = 0;
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int num_types = 0;
-    int num_types_sq = 0; // for nep3
-    int num_c_radial = 0; // for nep3
-    int version = 2;      // 2 for NEP2 and 3 for NEP3
+    int num_types_sq = 0;
+    int num_c_radial = 0;
+    int version = 4;      // 3 for NEP3 and 4 for NEP4
     int atomic_numbers[NUM_ELEMENTS];
   };
 

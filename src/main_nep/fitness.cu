@@ -257,13 +257,7 @@ void Fitness::output(
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
-    if (para.version == 2) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep %d ", para.num_types);
-      }
-    } else if (para.version == 3) {
+    if (para.version == 3) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
       } else {
@@ -277,29 +271,19 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       }
     }
   } else if (para.train_mode == 1) { // dipole model
-    if (para.version == 2) {
-      fprintf(fid_nep, "nep_dipole %d ", para.num_types);
-    } else if (para.version == 3) {
+    if (para.version == 3) {
       fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
     } else if (para.version == 4) {
       fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
     }
   } else if (para.train_mode == 2) { // polarizability model
-    if (para.version == 2) {
-      fprintf(fid_nep, "nep_polarizability %d ", para.num_types);
-    } else if (para.version == 3) {
+    if (para.version == 3) {
       fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
     } else if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
   } else if (para.train_mode == 3) { // temperature model
-    if (para.version == 2) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep_temperature %d ", para.num_types);
-      }
-    } else if (para.version == 3) {
+    if (para.version == 3) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
       } else {
@@ -333,12 +317,8 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     max_NN_radial,
     max_NN_angular);
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-  if (para.version >= 3) {
-    fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-    fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
-  } else {
-    fprintf(fid_nep, "l_max %d\n", para.L_max);
-  }
+  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
+  fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
 
   fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
   for (int m = 0; m < para.number_of_variables; ++m) {

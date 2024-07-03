@@ -163,10 +163,10 @@ void Parameters::calculate_parameters()
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  if (L_max_4body == 2) {    // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
-  if (version >= 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
+  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
@@ -182,14 +182,9 @@ void Parameters::calculate_parameters()
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
-  if (version == 2) {
-    number_of_variables_descriptor =
-      (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
-  } else {
-    number_of_variables_descriptor =
-      num_types * num_types *
-      (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-  }
+  number_of_variables_descriptor =
+    num_types * num_types *
+    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   if (train_mode == 2) {
@@ -516,8 +511,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
