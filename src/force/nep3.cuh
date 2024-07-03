@@ -48,7 +48,7 @@ class NEP3 : public Potential
 {
 public:
   struct ParaMB {
-    int version = 2; // NEP version, 2 for NEP2 and 3 for NEP3
+    int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
     float rc_radial = 0.0f;     // radial cutoff

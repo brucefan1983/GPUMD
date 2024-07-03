@@ -22,7 +22,7 @@ class NEP_Energy
 {
 public:
   struct ParaMB {
-    int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
+    int version = 4;            // NEP version, 3 for NEP3 and 4 for NEP4
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
