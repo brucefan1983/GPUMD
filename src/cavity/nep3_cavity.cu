@@ -540,6 +540,10 @@ static __global__ void find_neighbor_list_jacobian(
           if (n2 < N1 || n2 >= N2 || n1 == n2) {
             continue;
           }
+          
+          if (g_system_index[n1] != g_system_index[n2]) {
+            continue;
+          }
 
           double x12double = g_x[n2] - x1;
           double y12double = g_y[n2] - y1;
@@ -549,10 +553,6 @@ static __global__ void find_neighbor_list_jacobian(
           double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
           if (d12_square >= paramb.rc_radial * paramb.rc_radial) {
-            continue;
-          }
-
-          if (g_system_index[n1] != g_system_index[n2]) {
             continue;
           }
 
