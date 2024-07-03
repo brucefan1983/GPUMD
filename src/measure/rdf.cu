@@ -608,6 +608,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
     atom_id2_[s] = -1;
   }
   rdf_atom_count = 1;
+  num_repeat_ = 0;
 }
 
 void RDF::parse(
