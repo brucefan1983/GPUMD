@@ -2016,23 +2016,6 @@ void NEP3Cavity::compute_jacobian(
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
-  
-   // std::vector<int> cpu_nl(paramb.MN_radial * N);
-   // Nep_data.NL_radial.copy_to_host(cpu_nl.data());
-   // std::vector<double> cpu_pos(3*N);
-   // position_per_atom.copy_to_host(cpu_pos.data());
-   // for (int i = 0; i < 24; i++){
-   //   //std::cout << cpu_vir[i * 27] << "\n";
-   //   // make sure that the neighbor id for the first atom in each system is the same
-   //   std::cout << i << ": ";
-   //   for (int j = 0; j < 4; j++){
-   //       std::cout << cpu_nl[i*paramb.MN_radial*2 +j] << " ";
-   //   }
-   //   std::cout << "\n";
-   // }
-   // for (int i = 0; i < 324; i++) {
-   //   std::cout << i << ": " << cpu_pos[i*27] << "\n";
-   // }
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -2058,18 +2041,6 @@ void NEP3Cavity::compute_jacobian(
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
   CUDA_CHECK_KERNEL
-
-  // std::vector<double> cpu_vir(N*3);
-  // virial_per_atom.copy_to_host(cpu_vir.data());
-  // for (int i = 0; i < 324; i++){
-  //   //std::cout << cpu_vir[i * 27] << "\n";
-  //   // make sure that the neighbor id for the first atom in each system is the same
-  //   std::cout << i << ": ";
-  //   for (int j = 0; j < 27; j++){
-  //       std::cout << cpu_vir[i*9*27 + j] << " ";
-  //   }
-  //   std::cout << "\n";
-  // }
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
     paramb,

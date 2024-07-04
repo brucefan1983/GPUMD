@@ -689,15 +689,6 @@ void Cavity::get_dipole_jacobian(
       }
     }
   }
-  std::vector<int> cavity_types(number_of_atoms_in_copied_system_);
-  atom_cavity.type.copy_to_host(cavity_types.data());
-  for (int i = 0; i < number_of_copies; i++) {
-    // double x = atom_cavity.cpu_position_per_atom[i*number_of_atoms_];
-    // double y = atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + number_of_atoms_in_copied_system_];
-    // double z = atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + 2*number_of_atoms_in_copied_system_];
-    // std::cout << "i: " << "(" << x << ", " << y << ", " << z << ")" << "\n";
-    std::cout << "i: " << cavity_types[i*number_of_atoms_] << ", " << cavity_types[i*number_of_atoms_+1] << "\n";
-  }
   atom_cavity.position_per_atom.copy_from_host(
       atom_cavity.cpu_position_per_atom.data());
   atom_cavity.system_index.copy_from_host(
@@ -742,12 +733,6 @@ void Cavity::get_dipole_jacobian(
     gpu_dipole_batch.data());
   CUDA_CHECK_KERNEL
   gpu_dipole_batch.copy_to_host(cpu_dipole_batch.data());
-  std::cout << "Reference: " << cpu_dipole_[0] << "\n";
-  for (int i = 0; i < 3*number_of_atoms_in_copied_system_; i++){
-    std::cout << "    " << cpu_dipole_batch[i]*BOHR_IN_ANGSTROM << "\n";
-  }
-  std::vector<double> cavity_vir(number_of_atoms_in_copied_system_*9);
-  atom_cavity.virial_per_atom.copy_to_host(cavity_vir.data());
 
   // Step 4: Compute the jacobian
   // For now we skip the charge correction
