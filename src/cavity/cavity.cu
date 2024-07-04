@@ -54,7 +54,67 @@ static __global__ void sum_dipole(
   __syncthreads();
 
   // aggregate the patches in parallel
-#pragma unroll
+  #pragma unroll
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_d[tid] += s_d[tid + offset];
+    }
+    __syncthreads();
+  }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_d[tid] += s_d[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  // save the final value
+  if (tid == 0) {
+    g_dipole[bid] = s_d[0];
+  }
+}
+
+
+static __global__ void sum_dipole_batch(
+  const int N,
+  const int N_atoms_per_thread,
+  const int N_total,
+  const double* g_virial_per_atom, 
+  double* g_dipole)
+{
+  // Sums the virials in each of the M=Ntotal/N copies of the system 
+  // into [d_x^1,...d_x^M, d_y^1, ..., d_y^M, ...]
+  // M is thus the number of system copies, and is equal
+  // to the gridDim.y
+  // Each thread is responsible for summing N atoms
+  //<<<3, M>>>
+  
+  // We have a 1D thread block of 64 threads
+  int tid = threadIdx.x;
+
+  // Each block in the y direction corresponds to
+  // a copy of the system.
+  int bid = blockIdx.x * gridDim.y + blockIdx.y;
+  __shared__ double s_d[64]; // 64 = blockDim.x, since we have 1D thread blocks
+  double d = 0.0;
+
+  // Each block sums in x, y and z direction
+  const int componentIdx = blockIdx.x * N_total;   // Starting point of the cartesian direction
+  const int copyIdx = blockIdx.y * N;              // Start of the current copy of the atoms
+
+  // 64 threads, each summing a patch of N_atoms_per_thread
+  for (int patch = 0; patch < N_atoms_per_thread; ++patch) {
+    int atomIdx = tid + patch * blockDim.x;
+    if (atomIdx < N)
+      d += g_virial_per_atom[componentIdx + copyIdx + atomIdx];
+  }
+
+  // save the sum for this patch
+  s_d[tid] = d;
+  __syncthreads();
+
+  // aggregate the patches in parallel
+  #pragma unroll
   for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
     if (tid < offset) {
       s_d[tid] += s_d[tid + offset];
@@ -131,11 +191,11 @@ static __global__ void copy_mass_and_type_to_cavity(
   double* g_mass,
   int* g_type)
 {
-  // Copy mass and type to the twelve copies 
+  // Copy mass and type to the twelve N copies 
   // of the system in AtomCavity
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 12*N; i++) {
       g_mass[n1 + i * N] = ref_g_mass[n1];
       g_type[n1 + i * N] = ref_g_type[n1];
     }
@@ -580,20 +640,21 @@ void Cavity::get_dipole_jacobian(
   // calculation of all dipoles
   // Dipoles will be displaced in the following order:
   std::vector<double> shifts{
-           displacement,  // h 
-     2.0 * displacement,  // 2h
+     2.0 * displacement,  // 2h 
+           displacement,  // h
     -1.0 * displacement,  // -h
     -2.0 * displacement   // -2h
   };
   atom_copy.position_per_atom.copy_to_host(
       atom_copy.cpu_position_per_atom.data());
   int values_per_direction = 4 * number_of_atoms_;
+  const int number_of_copies = 3 * 4 * number_of_atoms_;
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms_; j++) {
       for (int k = 0; k < 4; k++){
         // Index of the current copy of the system      
         copy_index = values_per_direction * i + 4 * j + k;
-        // pointer to where the N atoms of the current copy, in the current cartesian direction
+        // pointer to where the N atoms of the current copy start, in the current cartesian direction
         copy_atoms_index = (i*number_of_atoms_ + j) * 4 * number_of_atoms_ + number_of_atoms_ * k;
         // Position of the current atom to displace
         displaced_index = copy_atoms_index + i * number_of_atoms_in_copied_system_ + j;
@@ -628,6 +689,15 @@ void Cavity::get_dipole_jacobian(
       }
     }
   }
+  std::vector<int> cavity_types(number_of_atoms_in_copied_system_);
+  atom_cavity.type.copy_to_host(cavity_types.data());
+  for (int i = 0; i < number_of_copies; i++) {
+    // double x = atom_cavity.cpu_position_per_atom[i*number_of_atoms_];
+    // double y = atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + number_of_atoms_in_copied_system_];
+    // double z = atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + 2*number_of_atoms_in_copied_system_];
+    // std::cout << "i: " << "(" << x << ", " << y << ", " << z << ")" << "\n";
+    std::cout << "i: " << cavity_types[i*number_of_atoms_] << ", " << cavity_types[i*number_of_atoms_+1] << "\n";
+  }
   atom_cavity.position_per_atom.copy_from_host(
       atom_cavity.cpu_position_per_atom.data());
   atom_cavity.system_index.copy_from_host(
@@ -651,83 +721,91 @@ void Cavity::get_dipole_jacobian(
     atom_cavity.virial_per_atom,
     atom_cavity.system_index);
   
-  // Step 3: Collect all dipoles by iterating through
-  // the displacements and summing the dipoles, then
-  // then computing the Jacobian.
-  const int number_of_threads = 1024;
+  // Step 3: Collect all dipoles
+  const int number_of_threads = 64;
   const int number_of_atoms_per_thread = (number_of_atoms_ - 1) / number_of_threads + 1;
+  // The systems we study are typically small, so we'll use
+  // a block size of 64 threads. Each block will sum the dipole
+  // in one copy of the system, with one thread summing number_of_atoms_ / 64 atoms.
+  // The blocks will then be launched in grids of size (3, number_of_copies),
+  // where 3 corresponds to the number of cartesian directions.
+  // Thus, each block will have access to a contigous chunk of memory
+  // corresponding to the values for a certain copy of the system.
+  GPU_Vector<double> gpu_dipole_batch(3 * number_of_copies);
+  std::vector<double> cpu_dipole_batch(3 * number_of_copies);
+  dim3 gridDim(3, number_of_copies);
+  sum_dipole_batch<<<gridDim, number_of_threads>>>(
+    number_of_atoms_,
+    number_of_atoms_per_thread,
+    number_of_atoms_in_copied_system_,
+    atom_cavity.virial_per_atom.data(),
+    gpu_dipole_batch.data());
+  CUDA_CHECK_KERNEL
+  gpu_dipole_batch.copy_to_host(cpu_dipole_batch.data());
+  std::cout << "Reference: " << cpu_dipole_[0] << "\n";
+  for (int i = 0; i < 3*number_of_atoms_in_copied_system_; i++){
+    std::cout << "    " << cpu_dipole_batch[i]*BOHR_IN_ANGSTROM << "\n";
+  }
+  std::vector<double> cavity_vir(number_of_atoms_in_copied_system_*9);
+  atom_cavity.virial_per_atom.copy_to_host(cavity_vir.data());
+
+  // Step 4: Compute the jacobian
+  // For now we skip the charge correction
+  // Each thread 
+  //sum_dipoles_into_jacobian<<<gridDim, number_of_threads>>>(
+  //  number_of_atoms_,
+  //  number_of_atoms_per_thread,
+  //  number_of_atoms_in_copied_system_,
+  //  atom_cavity.virial_per_atom.data(),
+  //  gpu_dipoles.data());
+  //CUDA_CHECK_KERNEL
 
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms_; j++) {
       displaced_index = number_of_atoms_ * i + j; // idx of position to change
       old_center_of_mass = center_of_mass_forward_one_h[i];
-      copy_index = values_per_direction * i + j * 4 + 0;
+      // index of the current group of four displacements
+      // dipoles come in the order [d_x^1,d_x^2,d_x^3,d_x^4,...,d_x^M, d_y^1,..., d_z^M]
+      int group_of_four_copies_index = values_per_direction * i + j * 4;
 
       // --- Forward displacement
-      int forward_one_h_index = (copy_index + 0) * number_of_atoms_;
-      sum_dipole<<<3, 1024>>>(
-        number_of_atoms_,
-        number_of_atoms_per_thread,
-        atom_cavity.virial_per_atom.data() + forward_one_h_index,
-        gpu_dipole_forward_one_h.data());
-      CUDA_CHECK_KERNEL
-      gpu_dipole_forward_one_h.copy_to_host(dipole_forward_one_h.data());
       center_of_mass_forward_one_h[i] +=
           displacement_over_M * masses_[j];   // center of mass gets moved by
                                               // +h/N in the same direction
 
       // Step two displacements forward
-      int forward_two_h_index = (copy_index + 1) * number_of_atoms_;
-      sum_dipole<<<3, 1024>>>(
-        number_of_atoms_,
-        number_of_atoms_per_thread,
-        atom_cavity.virial_per_atom.data() + forward_two_h_index,
-        gpu_dipole_forward_two_h.data());
-      CUDA_CHECK_KERNEL
-      gpu_dipole_forward_two_h.copy_to_host(dipole_forward_two_h.data());
       center_of_mass_forward_two_h[i] +=
           2 * displacement_over_M * masses_[j]; // center of mass gest moved by
                                                 // +2h/N in the same direction
 
       // --- Backwards displacement
-      int backward_one_h_index = (copy_index + 2) * number_of_atoms_;
-      sum_dipole<<<3, 1024>>>(
-        number_of_atoms_,
-        number_of_atoms_per_thread,
-        atom_cavity.virial_per_atom.data() + backward_one_h_index,
-        gpu_dipole_backward_one_h.data());
-      CUDA_CHECK_KERNEL
-      gpu_dipole_backward_two_h.copy_to_host(dipole_backward_one_h.data());
       center_of_mass_backward_one_h[i] -= displacement_over_M * masses_[j];
 
-      int backward_two_h_index = (copy_index + 3) * number_of_atoms_;
-      sum_dipole<<<3, 1024>>>(
-        number_of_atoms_,
-        number_of_atoms_per_thread,
-        atom_cavity.virial_per_atom.data() + backward_two_h_index,
-        gpu_dipole_forward_two_h.data());
-      CUDA_CHECK_KERNEL
-      gpu_dipole_backward_two_h.copy_to_host(dipole_backward_two_h.data());
       center_of_mass_backward_two_h[i] -=
           2 * displacement_over_M * masses_[j];
 
       for (int k = 0; k < N_components; k++) {
-        cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
-            (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_forward_two_h[k]) +
-             c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_forward_one_h[k]) -
-             c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_backward_one_h[k]) -
-             c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM +
-                   charge * center_of_mass_backward_two_h[k])) *
-            one_over_displacement;
+        int componentIdx = k * number_of_copies;
+        double dipole_forward_two_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 0];
+        double dipole_forward_one_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 1];
+        double dipole_backward_one_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 2];
+        double dipole_backward_two_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 3];
         //cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
-        //    (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM) +
-        //     c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM) -
-        //     c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM)-
-        //     c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM)) *
+        //    (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM +
+        //           charge * center_of_mass_forward_two_h[k]) +
+        //     c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM +
+        //           charge * center_of_mass_forward_one_h[k]) -
+        //     c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM +
+        //           charge * center_of_mass_backward_one_h[k]) -
+        //     c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM +
+        //           charge * center_of_mass_backward_two_h[k])) *
         //    one_over_displacement;
+        cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
+            (c0 * (dipole_forward_two_h * BOHR_IN_ANGSTROM) +
+             c1 * (dipole_forward_one_h * BOHR_IN_ANGSTROM) -
+             c1 * (dipole_backward_one_h * BOHR_IN_ANGSTROM)-
+             c0 * (dipole_backward_two_h * BOHR_IN_ANGSTROM)) *
+            one_over_displacement;
         //cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] = 1.0;
       }
       center_of_mass_forward_one_h[i] = old_center_of_mass;
