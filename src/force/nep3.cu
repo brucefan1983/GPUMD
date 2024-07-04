@@ -168,10 +168,10 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     }
   }
 
-  // cutoff 4.2 3.7 80 47
+  // cutoff 4.2 3.7 80 47 1
   tokens = get_tokens(input);
-  if (tokens.size() != 3 && tokens.size() != 5) {
-    std::cout << "This line should be cutoff rc_radial rc_angular [MN_radial] [MN_angular].\n";
+  if (tokens.size() != 5 && tokens.size() != 6) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [use_typewise_cutoff].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -179,19 +179,23 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
-  paramb.MN_radial = 500;
-  paramb.MN_angular = 100;
+  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  printf("    MN_radial = %d.\n", MN_radial);
+  printf("    MN_angular = %d.\n", MN_angular);
+  paramb.MN_radial = int(ceil(MN_radial * 1.25));
+  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 5) {
-    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("    MN_radial = %d.\n", MN_radial);
-    printf("    MN_angular = %d.\n", MN_angular);
-    paramb.MN_radial = int(ceil(MN_radial * 1.25));
-    paramb.MN_angular = int(ceil(MN_angular * 1.25));
-    printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-    printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (tokens.size() == 6) {
+    paramb.use_typewise_cutoff = get_int_from_token(tokens[5], __FILE__, __LINE__);
   }
+#ifdef USE_TABLE
+  if (paramd.use_typewise_cutoff) {
+    PRINT_ERROR("Cannot use tabulated radial functions with typewise cutoff.")
+  }
+#endif
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -418,6 +422,7 @@ static __global__ void find_neighbor_list_large_box(
   const int ny,
   const int nz,
   const Box box,
+  const int* g_type,
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
@@ -437,6 +442,7 @@ static __global__ void find_neighbor_list_large_box(
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
+  int t1 = g_type[n1];
   int count_radial = 0;
   int count_angular = 0;
 
@@ -496,13 +502,23 @@ static __global__ void find_neighbor_list_large_box(
           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
-          if (d12_square >= paramb.rc_radial * paramb.rc_radial) {
+          int t2 = g_type[n2];
+          float rc_radial = paramb.rc_radial;
+          float rc_angular = paramb.rc_angular;
+          if (paramb.use_typewise_cutoff) {
+            int z1 = paramb.atomic_numbers[t1];
+            int z2 = paramb.atomic_numbers[t2];
+            rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.5f, rc_radial);
+            rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.0f, rc_angular);
+          }
+
+          if (d12_square >= rc_radial * rc_radial) {
             continue;
           }
 
           g_NL_radial[count_radial++ * N + n1] = n2;
 
-          if (d12_square < paramb.rc_angular * paramb.rc_angular) {
+          if (d12_square < rc_angular * rc_angular) {
             g_NL_angular[count_angular++ * N + n1] = n2;
           }
         }
@@ -572,11 +588,16 @@ static __global__ void find_descriptor(
       }
 #else
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
       
-      find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -614,10 +635,15 @@ static __global__ void find_descriptor(
         accumulate_s(d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
+        float rc = paramb.rc_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+        }
+        float rcinv = 1.0f / rc;
+        find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
@@ -763,10 +789,15 @@ static __global__ void find_force_radial(
       }
 #else
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
@@ -898,15 +929,19 @@ static __global__ void find_partial_force_angular(
         }
       }
 #else
-
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
+      float rc = paramb.rc_angular;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(
-        paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+        paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
@@ -1074,6 +1109,7 @@ void NEP3::compute_large_box(
     num_bins[1],
     num_bins[2],
     box,
+    type.data(),
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),
@@ -1255,6 +1291,7 @@ void NEP3::compute_small_box(
     N2,
     box,
     ebox,
+    type.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
@@ -1519,10 +1556,15 @@ static __global__ void find_descriptor(
       }
 #else
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
-      find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -1560,10 +1602,15 @@ static __global__ void find_descriptor(
         accumulate_s(d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
+        float rc = paramb.rc_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+        }
+        float rcinv = 1.0f / rc;
+        find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
@@ -1640,6 +1687,7 @@ void NEP3::compute_large_box(
     num_bins[1],
     num_bins[2],
     box,
+    type.data(),
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),
@@ -1821,6 +1869,7 @@ void NEP3::compute_small_box(
     N2,
     box,
     ebox,
+    type.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,

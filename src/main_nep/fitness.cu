@@ -311,11 +311,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   }
   fprintf(
     fid_nep,
-    "cutoff %g %g %d %d\n",
+    "cutoff %g %g %d %d %d\n",
     para.rc_radial,
     para.rc_angular,
     max_NN_radial,
-    max_NN_angular);
+    max_NN_angular,
+    para.use_typewise_cutoff ? 1 : 0);
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
