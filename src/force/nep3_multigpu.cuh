@@ -124,7 +124,7 @@ public:
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     float para[550];
-    float atomic_numbers[NUM_ELEMENTS];
+    int atomic_numbers[NUM_ELEMENTS];
     int num_types;
   };
 

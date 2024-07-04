@@ -147,7 +147,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    paramb.atomic_numbers[n] = atomic_number - 1;
+    printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl 0.7 1.4
@@ -1237,6 +1238,7 @@ static __global__ void find_partial_force_angular(
 }
 
 static __global__ void find_force_ZBL(
+  NEP3_MULTIGPU::ParaMB paramb,
   const int N,
   const NEP3_MULTIGPU::ZBL zbl,
   const int N1,
@@ -1273,8 +1275,8 @@ static __global__ void find_force_ZBL(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     int type1 = g_type[n1];
-    float zi = zbl.atomic_numbers[type1];
-    float pow_zi = pow(zi, 0.23f);
+    int zi = zbl.atomic_numbers[type1];
+    float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       double x12double = g_x[n2] - x1;
@@ -1286,8 +1288,8 @@ static __global__ void find_force_ZBL(
       float d12inv = 1.0f / d12;
       float f, fp;
       int type2 = g_type[n2];
-      float zj = zbl.atomic_numbers[type2];
-      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      int zj = zbl.atomic_numbers[type2];
+      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
       if (zbl.flexibled) {
         int t1, t2;
@@ -1305,7 +1307,14 @@ static __global__ void find_force_ZBL(
         }
         find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
-        find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+        float rc_inner = zbl.rc_inner;
+        float rc_outer = zbl.rc_outer;
+        if (paramb.use_typewise_cutoff) {
+          // zi and zj start from 1, so need to minus 1 here
+          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.7f, rc_outer);
+          rc_inner = rc_outer * 0.5f;
+        }
+        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
@@ -1838,6 +1847,7 @@ void NEP3_MULTIGPU::compute(
         64,
         0,
         nep_data[gpu].stream>>>(
+        paramb,
         nep_temp_data.num_atoms_per_gpu,
         zbl,
         nep_data[gpu].N1,
@@ -2384,6 +2394,7 @@ void NEP3_MULTIGPU::compute(
         64,
         0,
         nep_data[gpu].stream>>>(
+        paramb,
         nep_temp_data.num_atoms_per_gpu,
         zbl,
         nep_data[gpu].N1,
