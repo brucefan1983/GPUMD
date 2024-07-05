@@ -148,48 +148,26 @@ void SNES::find_type_of_variable(Parameters& para)
   }
 
   // descriptor part
-  if (para.version == 2) {
-    if (para.num_types > 1) {
-      for (int n = 0; n <= para.n_max_radial; ++n) {
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            type_of_variable[n * para.num_types * para.num_types + t12 + offset] = t1;
-          }
-        }
-      }
-      offset += (para.n_max_radial + 1) * para.num_types * para.num_types;
-      for (int n = 0; n <= para.n_max_angular; ++n) {
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            type_of_variable[n * para.num_types * para.num_types + t12 + offset] = t1;
-          }
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int t12 = t1 * para.num_types + t2;
+          type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
         }
       }
     }
-  } else {
-    for (int n = 0; n <= para.n_max_radial; ++n) {
-      for (int k = 0; k <= para.basis_size_radial; ++k) {
-        int nk = n * (para.basis_size_radial + 1) + k;
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
-          }
-        }
-      }
-    }
-    offset +=
-      (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types * para.num_types;
-    for (int n = 0; n <= para.n_max_angular; ++n) {
-      for (int k = 0; k <= para.basis_size_angular; ++k) {
-        int nk = n * (para.basis_size_angular + 1) + k;
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
-          }
+  }
+  offset +=
+    (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types * para.num_types;
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int t12 = t1 * para.num_types + t2;
+          type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
         }
       }
     }
@@ -273,11 +251,11 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     std::vector<std::string> tokens;
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
-    if (tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl") {
+    if (tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" 
+      || tokens[0] == "nep3_zbl_temperature" || tokens[0] == "nep4_zbl_temperature") {
       num_lines_to_be_skipped = 6;
-    } else if (tokens[0] == "nep") {
-      num_lines_to_be_skipped = 4;
     }
+
     for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }

@@ -28,7 +28,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
   "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "Pa", "U",  "Np", "Pu"};
 
 Parameters::Parameters()
 {
@@ -72,6 +72,8 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
+  is_use_typewise_cutoff_set = false;
+  is_use_typewise_cutoff_zbl_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -97,6 +99,8 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  use_typewise_cutoff = false;
+  use_typewise_cutoff_zbl = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -161,10 +165,10 @@ void Parameters::calculate_parameters()
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  if (L_max_4body == 2) {    // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
-  if (version >= 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
+  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
@@ -180,14 +184,9 @@ void Parameters::calculate_parameters()
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
-  if (version == 2) {
-    number_of_variables_descriptor =
-      (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
-  } else {
-    number_of_variables_descriptor =
-      num_types * num_types *
-      (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-  }
+  number_of_variables_descriptor =
+    num_types * num_types *
+    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   if (train_mode == 2) {
@@ -297,6 +296,18 @@ void Parameters::report_inputs()
   } else {
     printf("    (default) radial cutoff = %g A.\n", rc_radial);
     printf("    (default) angular cutoff = %g A.\n", rc_angular);
+  }
+
+  if (is_use_typewise_cutoff_set) {
+    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+  } else {
+    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+  }
+
+  if (is_use_typewise_cutoff_zbl_set) {
+    printf("    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+  } else {
+    printf("    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
   }
 
   if (is_n_max_set) {
@@ -461,6 +472,10 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
+    parse_use_typewise_cutoff(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
+    parse_use_typewise_cutoff_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -506,8 +521,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
@@ -959,4 +974,22 @@ void Parameters::parse_sigma0(const char** param, int num_param)
   if (sigma0 < 0.01f || sigma0 > 0.1f) {
     PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
   }
+}
+
+void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
+{
+  if (num_param != 1) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff should have no parameter.\n");
+  }
+  use_typewise_cutoff = true;
+  is_use_typewise_cutoff_set = true;
+}
+
+void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param)
+{
+  if (num_param != 1) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have no parameter.\n");
+  }
+  use_typewise_cutoff_zbl = true;
+  is_use_typewise_cutoff_zbl_set = true;
 }
