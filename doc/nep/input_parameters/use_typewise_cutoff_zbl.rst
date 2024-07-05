@@ -1,4 +1,4 @@
-.. _kw_cutoff:
+.. _kw_use_typewise_cutoff_zbl:
 .. index::
    single: use_typewise_cutoff_zbl (keyword in nep.in)
 
@@ -12,6 +12,6 @@ The syntax is::
 
 without any parameter.
 
-If this keyword is present, the outer ZBL cutoff between elements I and J is the minimum between the global ZBL outer cutoff :math:`r_\mathrm{outer}^\mathrm{ZBL}` and 0.6 times of the sum of the covalent radii of the two elements, and the inner ZBL cutoff is half of the outer one.
+If this keyword is present, the outer ZBL cutoff between two elements is the minimum between the global outer ZBL cutoff :math:`r_\mathrm{outer}^\mathrm{ZBL}` and 0.6 times of the sum of the covalent radii of the two elements, and the inner ZBL cutoff is half of the outer one.
 
 By default, this keyword is not in effect.
