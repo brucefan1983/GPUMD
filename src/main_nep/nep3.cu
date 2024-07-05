@@ -786,7 +786,7 @@ static __global__ void find_force_ZBL(
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff) {
           // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.7f, rc_outer);
+          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.6f, rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
