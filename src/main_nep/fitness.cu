@@ -309,14 +309,16 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
   }
-  if (para.use_typewise_cutoff) {
+  if (para.use_typewise_cutoff || para.use_typewise_cutoff_zbl) {
     fprintf(
       fid_nep,
-      "cutoff %g %g %d %d 1\n",
+      "cutoff %g %g %d %d %d %d\n",
       para.rc_radial,
       para.rc_angular,
       max_NN_radial,
-      max_NN_angular);
+      max_NN_angular,
+      para.use_typewise_cutoff ? 1 : 0,
+      para.use_typewise_cutoff_zbl ? 1 : 0);
   } else {
     fprintf(
     fid_nep,

@@ -42,6 +42,7 @@ class NEP3 : public Potential
 public:
   struct ParaMB {
     bool use_typewise_cutoff = false;
+    bool use_typewise_cutoff_zbl = false;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff

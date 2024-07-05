@@ -173,8 +173,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
 
   // cutoff 4.2 3.7 80 47 1
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != 6) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [use_typewise_cutoff].\n";
+  if (tokens.size() != 5 && tokens.size() != 7) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [use_typewise_cutoff] [use_typewise_cutoff_zbl].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -191,8 +191,9 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 6) {
+  if (tokens.size() == 7) {
     paramb.use_typewise_cutoff = get_int_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.use_typewise_cutoff_zbl = get_int_from_token(tokens[6], __FILE__, __LINE__);
   }
 #ifdef USE_TABLE
   if (paramd.use_typewise_cutoff) {
@@ -1309,7 +1310,7 @@ static __global__ void find_force_ZBL(
       } else {
         float rc_inner = zbl.rc_inner;
         float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff) {
+        if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
           rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.6f, rc_outer);
           rc_inner = rc_outer * 0.5f;

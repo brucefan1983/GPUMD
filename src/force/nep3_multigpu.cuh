@@ -78,6 +78,7 @@ class NEP3_MULTIGPU : public Potential
 public:
   struct ParaMB {
     bool use_typewise_cutoff = false;
+    bool use_typewise_cutoff_zbl = false;
     int num_gpus = 1;
     int version = 2; // NEP version, 2 for NEP2 and 3 for NEP3
     int model_type =

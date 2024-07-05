@@ -73,6 +73,7 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
+  is_use_typewise_cutoff_zbl_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -99,6 +100,7 @@ void Parameters::set_default_parameters()
   initial_para = 1.0f;
   sigma0 = 0.1f;
   use_typewise_cutoff = false;
+  use_typewise_cutoff_zbl = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -297,9 +299,15 @@ void Parameters::report_inputs()
   }
 
   if (is_use_typewise_cutoff_set) {
-    printf("    (input)   use %s cutoff.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
   } else {
-    printf("    (default) use %s cutoff.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+  }
+
+  if (is_use_typewise_cutoff_zbl_set) {
+    printf("    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+  } else {
+    printf("    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
   }
 
   if (is_n_max_set) {
@@ -466,6 +474,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_sigma0(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
+    parse_use_typewise_cutoff_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -973,4 +983,13 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
   }
   use_typewise_cutoff = true;
   is_use_typewise_cutoff_set = true;
+}
+
+void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param)
+{
+  if (num_param != 1) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have no parameter.\n");
+  }
+  use_typewise_cutoff_zbl = true;
+  is_use_typewise_cutoff_zbl_set = true;
 }

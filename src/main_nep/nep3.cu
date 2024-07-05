@@ -246,6 +246,7 @@ NEP3::NEP3(
   paramb.rc_angular = para.rc_angular;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.use_typewise_cutoff = para.use_typewise_cutoff;
+  paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
@@ -784,7 +785,7 @@ static __global__ void find_force_ZBL(
       } else {
         float rc_inner = zbl.rc_inner;
         float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff) {
+        if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
           rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.6f, rc_outer);
           rc_inner = rc_outer * 0.5f;

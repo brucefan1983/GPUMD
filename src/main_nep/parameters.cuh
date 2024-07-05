@@ -56,6 +56,7 @@ public:
   float initial_para;
   float sigma0;
   bool use_typewise_cutoff;
+  bool use_typewise_cutoff_zbl;
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -80,6 +81,7 @@ public:
   bool is_force_delta_set;
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
+  bool is_use_typewise_cutoff_zbl_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -132,4 +134,5 @@ private:
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
+  void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
 };
