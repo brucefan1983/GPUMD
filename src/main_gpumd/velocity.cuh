@@ -18,11 +18,14 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
+class Group;
+
 class Velocity
 {
 public:
   bool do_velocity_correction = false;
   int velocity_correction_interval = 1000;
+  int velocity_correction_group_method = -1;
 
   void initialize(
     const bool has_velocity_in_xyz,
@@ -36,6 +39,7 @@ public:
 
   void correct_velocity(
     const int step,
+    const std::vector<Group>& group,
     const std::vector<double>& cpu_mass,
     GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom,

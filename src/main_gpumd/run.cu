@@ -282,6 +282,7 @@ void Run::perform_a_run()
 
     velocity.correct_velocity(
       step,
+      group,
       atom.cpu_mass,
       atom.position_per_atom,
       atom.cpu_position_per_atom,
@@ -398,7 +399,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    parse_correct_velocity(param, num_param);
+    parse_correct_velocity(param, num_param, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
@@ -517,17 +518,40 @@ void Run::parse_velocity(const char** param, int num_param)
   }
 }
 
-void Run::parse_correct_velocity(const char** param, int num_param)
+void Run::parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("correct_velocity should have 1 parameter.\n");
+  printf("Correct linear and angular momenta.\n");
+
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("correct_velocity should have 1 or 2 parameters.\n");
   }
   if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
     PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
   }
-  if (velocity.velocity_correction_interval <= 0) {
-    PRINT_INPUT_ERROR("velocity correction interval should be positive.\n");
+  if (velocity.velocity_correction_interval < 10) {
+    PRINT_INPUT_ERROR("velocity correction interval should >= 10.\n");
   }
+
+  printf("    every %d steps.\n", velocity.velocity_correction_interval);
+
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &velocity.velocity_correction_group_method)) {
+      PRINT_INPUT_ERROR("velocity correction group method should be an integer.\n");
+    }
+    if (velocity.velocity_correction_group_method < 0) {
+      PRINT_INPUT_ERROR("grouping method should >= 0.\n");
+    }
+    if (velocity.velocity_correction_group_method >= group.size()) {
+      PRINT_INPUT_ERROR("grouping method should < maximum number of grouping methods.\n");
+    }
+  }
+
+  if (velocity.velocity_correction_group_method < 0) {
+    printf("    for the whole system.\n");
+  } else {
+    printf("    for individual groups in group method %d.\n", velocity.velocity_correction_group_method);
+  }
+  
   velocity.do_velocity_correction = true;
 }
 

@@ -21,6 +21,7 @@ If DEBUG is on in the makefile, the velocities are the same from run to run.
 If DEBUG is off, the velocities are different in different runs.
 ------------------------------------------------------------------------------*/
 
+#include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
@@ -269,6 +270,7 @@ void Velocity::correct_velocity(
 
 void Velocity::correct_velocity(
   const int step,
+  const std::vector<Group>& group,
   const std::vector<double>& cpu_mass,
   GPU_Vector<double>& position_per_atom,
   std::vector<double>& cpu_position_per_atom,
@@ -279,7 +281,32 @@ void Velocity::correct_velocity(
     if ((step + 1) % velocity_correction_interval == 0) {
       position_per_atom.copy_to_host(cpu_position_per_atom.data());
       velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-      correct_velocity(cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
+      if (velocity_correction_group_method < 0) {
+        correct_velocity(cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
+      } else {
+        for (int g = 0; g < group[velocity_correction_group_method].number; ++g) {
+          int cpu_size = group[velocity_correction_group_method].cpu_size[g];
+          int cpu_size_sum = group[velocity_correction_group_method].cpu_size_sum[g];
+          std::vector<double> mass(cpu_size);
+          std::vector<double> position(cpu_size * 3);
+          std::vector<double> velocity(cpu_size * 3);
+          for (int m = 0; m < cpu_size; ++m) {
+            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
+            mass[m] = cpu_mass[n];
+            for (int d = 0; d < 3; ++d) {
+              position[m + d * cpu_size] = cpu_position_per_atom[n + d * cpu_mass.size()];
+              velocity[m + d * cpu_size] = cpu_velocity_per_atom[n + d * cpu_mass.size()];
+            }
+          }
+          correct_velocity(mass, position, velocity);
+          for (int m = 0; m < cpu_size; ++m) {
+            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
+            for (int d = 0; d < 3; ++d) {
+              cpu_velocity_per_atom[n + d * cpu_mass.size()] = velocity[m + d * cpu_size];
+            }
+          }
+        }
+      }
       velocity_per_atom.copy_from_host(cpu_velocity_per_atom.data());
     }
   }
@@ -324,4 +351,8 @@ void Velocity::initialize(
   velocity_per_atom.copy_from_host(cpu_velocity_per_atom.data());
 }
 
-void Velocity::finalize() { do_velocity_correction = false; }
+void Velocity::finalize()
+{
+  do_velocity_correction = false; 
+  velocity_correction_group_method = -1;
+}
