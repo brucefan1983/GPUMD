@@ -121,6 +121,7 @@ public:
   
   virtual void compute_jacobian(
     Box& box,
+    const int num_copies,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

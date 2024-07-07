@@ -744,6 +744,7 @@ void Cavity::get_dipole_jacobian(
   // Compute the dipole
   potential_jacobian->compute_jacobian(
     box,
+    number_of_copies,
     atom_cavity.type,
     atom_cavity.position_per_atom,
     atom_cavity.potential_per_atom,

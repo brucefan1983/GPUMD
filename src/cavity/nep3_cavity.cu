@@ -21,6 +21,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
+#include "cavity/neighbor_cavity.cuh"
 #include "cavity/nep3_cavity.cuh"
 #include "cavity/nep3_small_box_cavity.cuh"
 #include "cavity/nep_utilities_double.cuh"
@@ -469,6 +470,7 @@ static __global__ void find_neighbor_list_jacobian(
   const int ny,
   const int nz,
   const Box box,
+  const int N_cells_per_copy,
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
@@ -496,7 +498,7 @@ static __global__ void find_neighbor_list_jacobian(
   int cell_id_x;
   int cell_id_y;
   int cell_id_z;
-  find_cell_id(
+  find_cell_id_jacobian(
     box,
     x1,
     y1,
@@ -505,6 +507,8 @@ static __global__ void find_neighbor_list_jacobian(
     nx,
     ny,
     nz,
+    g_system_index[n1],
+    N_cells_per_copy,
     cell_id_x,
     cell_id_y,
     cell_id_z,
@@ -540,7 +544,16 @@ static __global__ void find_neighbor_list_jacobian(
           if (n2 < N1 || n2 >= N2 || n1 == n2) {
             continue;
           }
-          
+
+          // if n1 and n2 differ by more than N we know that they cannot
+          // belong to the same system. Only actually check if they are
+          // close than that.
+          const int diff = n1 - n2;
+          if (diff < -N || diff > N){
+            continue;
+          }
+          // if it's closer, actually access the index lists
+          // in memory and check
           if (g_system_index[n1] != g_system_index[n2]) {
             continue;
           }
@@ -1913,6 +1926,7 @@ void NEP3Cavity::compute(
 
 void NEP3Cavity::compute_jacobian(
   Box& box,
+  const int num_copies,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -1928,12 +1942,16 @@ void NEP3Cavity::compute_jacobian(
 
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
+  const int N_cells_per_copy = num_bins[0] * num_bins[1] * num_bins[2];
+  // Increasing the number of bins by a factor of 2 increases
+  // speed by a factor of 3.
+  find_cell_list_jacobian(
     rc_cell_list,
     num_bins,
+    num_copies,
     box,
     position_per_atom,
+    system_index,
     nep_data.cell_count,
     nep_data.cell_count_sum,
     nep_data.cell_contents);
@@ -1947,6 +1965,7 @@ void NEP3Cavity::compute_jacobian(
     num_bins[1],
     num_bins[2],
     box,
+    N_cells_per_copy,
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),
