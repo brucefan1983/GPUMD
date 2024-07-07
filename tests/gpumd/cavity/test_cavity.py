@@ -87,7 +87,7 @@ def test_cavity_self_consistent(md):
         COM = conf.get_center_of_mass()
         conf.calc = CPUNEP(dipole_model)
         cpu_dipole = conf.get_dipole_moment() * Bohr + charge * COM
-        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-1, rtol=1e-6)
+        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-4, rtol=1e-6)
 
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
         calc = CPUNEP(dipole_model)

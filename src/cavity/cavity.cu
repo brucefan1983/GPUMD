@@ -237,6 +237,8 @@ static __global__ void displace_atoms(
    */
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   const int fourN = 4*N;
+  // displacements are done in the order [+2h, +h, -h, -2h]
+  const int coefficients[] = {2, 1, -1, -2};
   if (n1 < N) {
     // n1 corresponds to the current atomIdx in the small system
     for (int i = 0; i < 3; i++) {
@@ -245,8 +247,7 @@ static __global__ void displace_atoms(
         unsigned int atomIdx = copyIdx * N + n1; // atomIdx in the large system
 
         // displace appropriately in the correct direction
-        // displacements are done in the order [+2h, +h, -h, -2h]
-        g_pos[atomIdx + i*N_total] += (2-j)*displacement;
+        g_pos[atomIdx + i*N_total] += coefficients[j]*displacement;
       }
     }
   }
@@ -670,34 +671,8 @@ void Cavity::get_dipole_jacobian(
   // Coefficients are defined here:
   // https://en.wikipedia.org/wiki/Finite_difference_coefficient#Central_finite_difference
 
-  // dipole vectors are zeroed in find_dipole, can be allocated here
-  GPU_Vector<double> gpu_dipole_forward_one_h(3);
-  GPU_Vector<double> gpu_dipole_forward_two_h(3);
-  GPU_Vector<double> gpu_dipole_backward_one_h(3);
-  GPU_Vector<double> gpu_dipole_backward_two_h(3);
-  std::vector<double> dipole_forward_one_h(3);
-  std::vector<double> dipole_forward_two_h(3);
-  std::vector<double> dipole_backward_one_h(3);
-  std::vector<double> dipole_backward_two_h(3);
-
-  // use center of mass to correct for permanent dipole
-  GPU_Vector<double> gpu_center_of_mass(3);
-  std::vector<double> center_of_mass_forward_one_h(3);
-  _get_center_of_mass(gpu_center_of_mass);
-  gpu_center_of_mass.copy_to_host(center_of_mass_forward_one_h.data());
-
-  std::vector<double> center_of_mass_forward_two_h(
-      center_of_mass_forward_one_h);
-  std::vector<double> center_of_mass_backward_one_h(
-      center_of_mass_forward_one_h);
-  std::vector<double> center_of_mass_backward_two_h(
-      center_of_mass_forward_one_h);
-  // Positions are in order [x1, ..., xN, y1, ..., yN, ...]
-  double old_center_of_mass = 0.0;
-  const double displacement_over_M = displacement / mass_;
   const double one_over_displacement =
       1.0 / displacement; // coefficients are scaled properly
-
   const double c0 = -1.0 / 12.0; // coefficient for 2h
   const double c1 = 2.0 / 3.0;   // coefficient for h
   
@@ -721,17 +696,6 @@ void Cavity::get_dipole_jacobian(
     displacement,
     atom_cavity.position_per_atom.data());
   CUDA_CHECK_KERNEL
-
-  // Copy and check
-  // std::cout << "pos\n";
-  // atom_cavity.position_per_atom.copy_to_host(atom_cavity.cpu_position_per_atom.data());
-  // for (int i = 0; i < number_of_copies; i++) {
-  //   for (int j = 0; j < number_of_atoms_; j++) {
-  //     std::cout << i << ": " << atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + j] << " ";
-  //   }
-  //   std::cout << "\n";
-  // }
-  // std::cout << "\n";
 
   // Step 2: Compute the dipoles in the batched system
   initialize_properties<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
@@ -773,12 +737,6 @@ void Cavity::get_dipole_jacobian(
     gpu_dipole_batch.data());
   CUDA_CHECK_KERNEL
   gpu_dipole_batch.copy_to_host(cpu_dipole_batch.data());
-  
-  // Copy and check
-  // std::cout << "Ref: " << cpu_dipole_[2] << "\n";
-  // for (int i = 0; i < number_of_copies; i++) {
-  //   std::cout << "\t" << cpu_dipole_batch[i + 2*number_of_copies]*BOHR_IN_ANGSTROM << "\n";
-  // }
 
   // Step 4: Compute the jacobian
   // For now we skip the charge correction
@@ -793,26 +751,9 @@ void Cavity::get_dipole_jacobian(
 
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms_; j++) {
-      old_center_of_mass = center_of_mass_forward_one_h[i];
       // index of the current group of four displacements
       // dipoles come in the order [d_x^1,d_x^2,d_x^3,d_x^4,...,d_x^M, d_y^1,..., d_z^M]
       int group_of_four_copies_index = values_per_direction * i + j * 4;
-
-      // --- Forward displacement
-      center_of_mass_forward_one_h[i] +=
-          displacement_over_M * masses_[j];   // center of mass gets moved by
-                                              // +h/N in the same direction
-
-      // Step two displacements forward
-      center_of_mass_forward_two_h[i] +=
-          2 * displacement_over_M * masses_[j]; // center of mass gest moved by
-                                                // +2h/N in the same direction
-
-      // --- Backwards displacement
-      center_of_mass_backward_one_h[i] -= displacement_over_M * masses_[j];
-
-      center_of_mass_backward_two_h[i] -=
-          2 * displacement_over_M * masses_[j];
 
       for (int k = 0; k < N_components; k++) {
         int componentIdx = k * number_of_copies;
@@ -820,28 +761,13 @@ void Cavity::get_dipole_jacobian(
         double dipole_forward_one_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 1];
         double dipole_backward_one_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 2];
         double dipole_backward_two_h = cpu_dipole_batch[componentIdx + group_of_four_copies_index + 3];
-        //cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
-        //    (c0 * (dipole_forward_two_h[k] * BOHR_IN_ANGSTROM +
-        //           charge * center_of_mass_forward_two_h[k]) +
-        //     c1 * (dipole_forward_one_h[k] * BOHR_IN_ANGSTROM +
-        //           charge * center_of_mass_forward_one_h[k]) -
-        //     c1 * (dipole_backward_one_h[k] * BOHR_IN_ANGSTROM +
-        //           charge * center_of_mass_backward_one_h[k]) -
-        //     c0 * (dipole_backward_two_h[k] * BOHR_IN_ANGSTROM +
-        //           charge * center_of_mass_backward_two_h[k])) *
-        //    one_over_displacement;
         cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] =
             (c0 * (dipole_forward_two_h * BOHR_IN_ANGSTROM) +
              c1 * (dipole_forward_one_h * BOHR_IN_ANGSTROM) -
              c1 * (dipole_backward_one_h * BOHR_IN_ANGSTROM)-
              c0 * (dipole_backward_two_h * BOHR_IN_ANGSTROM)) *
             one_over_displacement;
-        //cpu_dipole_jacobian_[i * N_components + j * values_per_atom + k] = 1.0;
       }
-      center_of_mass_forward_one_h[i] = old_center_of_mass;
-      center_of_mass_forward_two_h[i] = old_center_of_mass;
-      center_of_mass_backward_one_h[i] = old_center_of_mass;
-      center_of_mass_backward_two_h[i] = old_center_of_mass;
     }
   }
 }
