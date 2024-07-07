@@ -184,6 +184,74 @@ static __global__ void get_center_of_mass(
   }
 }
 
+static __global__ void setup_copied_systems(
+    const int N,
+    const int N_atoms_per_system,
+    const double* ref_g_pos,
+    double* g_pos,
+    int* g_index)
+{
+  // Each atom in the large system of copies will have
+  // it's own thread. Depending on it's index, we can
+  // figure out which copy it depends on, if it should
+  // be a displaced atom, and if so, in what direction.
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+     // Calculate the index for this copy of the smaller system
+     unsigned int copyIdx = n1 / N_atoms_per_system;
+     g_index[n1] = copyIdx;
+     
+     // Get the atomIdx from 0-N_atoms_per_system that this
+     // thread corresponds to
+     unsigned int atomIdx = n1 - copyIdx * N_atoms_per_system;
+
+     // Copy the position for this atom
+     g_pos[n1] = ref_g_pos[atomIdx];                                // x position
+     g_pos[n1 + N] = ref_g_pos[atomIdx + N_atoms_per_system];       // y position
+     g_pos[n1 + 2*N] = ref_g_pos[atomIdx + 2*N_atoms_per_system];   // z position
+  }
+}
+
+static __global__ void displace_atoms(
+    const int N,
+    const int N_total,
+    const double displacement,
+    double* g_pos)
+{
+  /* Each atom in the smaller atom system has it's own thread.
+     For each atom, displace it's corresponding partner in
+     the correct copy in the appropriate direction.
+     Each atom is displaced in three directions (x,y,z) with
+     four different displacements, for a total of 12 displacements
+     per atom. There is a total of 4N copies per cartesian direction
+     for a total of 12N copies of the system (12N*N atoms in total).
+
+     The displaced systems come as follows:
+      i=0, j=0, copyIdx=0: displace atom 0 by +2h in x
+      i=0, j=1, copyIdx=1: displace atom 0 by  +h in x
+      i=0, j=2, copyIdx=2: displace atom 0 by  -h in x
+      i=0, j=3, copyIdx=3: displace atom 0 by -2h in x
+      i=0, j=0, copyIdx=4: displace atom 1 by +2h in x
+      ...
+      i=1, j=0, copyIdx=4N: displace atom 0 by +2h in y
+   */
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  const int fourN = 4*N;
+  if (n1 < N) {
+    // n1 corresponds to the current atomIdx in the small system
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 4; j++) {
+        unsigned int copyIdx = i*fourN + j + n1*4;
+        unsigned int atomIdx = copyIdx * N + n1; // atomIdx in the large system
+
+        // displace appropriately in the correct direction
+        // displacements are done in the order [+2h, +h, -h, -2h]
+        g_pos[atomIdx + i*N_total] += (2-j)*displacement;
+      }
+    }
+  }
+}
+
 static __global__ void copy_mass_and_type_to_cavity(
   const int N,
   const double* ref_g_mass,
@@ -625,9 +693,6 @@ void Cavity::get_dipole_jacobian(
   std::vector<double> center_of_mass_backward_two_h(
       center_of_mass_forward_one_h);
   // Positions are in order [x1, ..., xN, y1, ..., yN, ...]
-  int displaced_index = 0;
-  int copy_index = 0;
-  int copy_atoms_index = 0;
   double old_center_of_mass = 0.0;
   const double displacement_over_M = displacement / mass_;
   const double one_over_displacement =
@@ -635,64 +700,38 @@ void Cavity::get_dipole_jacobian(
 
   const double c0 = -1.0 / 12.0; // coefficient for 2h
   const double c1 = 2.0 / 3.0;   // coefficient for h
+  
+
+  int values_per_direction = 4 * number_of_atoms_;
+  const int number_of_copies = 3 * 4 * number_of_atoms_;
 
   // Step 1: Setup the 12N cavity atom system for batched
   // calculation of all dipoles
-  // Dipoles will be displaced in the following order:
-  std::vector<double> shifts{
-     2.0 * displacement,  // 2h 
-           displacement,  // h
-    -1.0 * displacement,  // -h
-    -2.0 * displacement   // -2h
-  };
-  atom_copy.position_per_atom.copy_to_host(
-      atom_copy.cpu_position_per_atom.data());
-  int values_per_direction = 4 * number_of_atoms_;
-  const int number_of_copies = 3 * 4 * number_of_atoms_;
-  for (int i = 0; i < N_cartesian; i++) {
-    for (int j = 0; j < number_of_atoms_; j++) {
-      for (int k = 0; k < 4; k++){
-        // Index of the current copy of the system      
-        copy_index = values_per_direction * i + 4 * j + k;
-        // pointer to where the N atoms of the current copy start, in the current cartesian direction
-        copy_atoms_index = (i*number_of_atoms_ + j) * 4 * number_of_atoms_ + number_of_atoms_ * k;
-        // Position of the current atom to displace
-        displaced_index = copy_atoms_index + i * number_of_atoms_in_copied_system_ + j;
+  setup_copied_systems<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_in_copied_system_,
+    number_of_atoms_,
+    atom_copy.position_per_atom.data(),
+    atom_cavity.position_per_atom.data(),
+    atom_cavity.system_index.data());
+  CUDA_CHECK_KERNEL
+  
+  displace_atoms<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_,
+    number_of_atoms_in_copied_system_,
+    displacement,
+    atom_cavity.position_per_atom.data());
+  CUDA_CHECK_KERNEL
 
-        // copy all the atom positions to this copy
-        // std::copy(
-        //     atom_copy.cpu_position_per_atom.begin(),
-        //     atom_copy.cpu_position_per_atom.end(),
-        //     atom_cavity.cpu_position_per_atom.begin() 
-        //     + copy_index * number_of_atoms_);
-        for (int l = 0; l < number_of_atoms_; l++){
-          // the combined system has positions in the following
-          // order, with system copy_index as superscript and atom
-          // index as subscript
-          // [x^1_1, ..., x^1_N, x^2_1,... x^4N_N, y^1_1, ..., z^4N_N]
-          atom_cavity.cpu_position_per_atom[copy_atoms_index + 0 * number_of_atoms_in_copied_system_ + l] = atom_copy.cpu_position_per_atom[l];
-          atom_cavity.cpu_position_per_atom[copy_atoms_index + 1 * number_of_atoms_in_copied_system_ + l] = atom_copy.cpu_position_per_atom[l + 1 * number_of_atoms_];
-          atom_cavity.cpu_position_per_atom[copy_atoms_index + 2 * number_of_atoms_in_copied_system_ + l] = atom_copy.cpu_position_per_atom[l + 2 * number_of_atoms_];
-        }
-        // displace the current atom
-        atom_cavity.cpu_position_per_atom[displaced_index] += shifts[k];
-        // set the copy index for these atoms
-        // std::fill(
-        //     atom_cavity.cpu_system_index.begin()
-        //     + copy_index * number_of_atoms_,
-        //     atom_cavity.cpu_system_index.begin()
-        //     + (copy_index+1) * number_of_atoms_ - 1,
-        //     copy_index);
-        for (int l = 0; l < number_of_atoms_; l++){
-          atom_cavity.cpu_system_index[copy_atoms_index + l] = copy_index;
-        }
-      }
-    }
-  }
-  atom_cavity.position_per_atom.copy_from_host(
-      atom_cavity.cpu_position_per_atom.data());
-  atom_cavity.system_index.copy_from_host(
-      atom_cavity.cpu_system_index.data());
+  // Copy and check
+  // std::cout << "pos\n";
+  // atom_cavity.position_per_atom.copy_to_host(atom_cavity.cpu_position_per_atom.data());
+  // for (int i = 0; i < number_of_copies; i++) {
+  //   for (int j = 0; j < number_of_atoms_; j++) {
+  //     std::cout << i << ": " << atom_cavity.cpu_position_per_atom[i*number_of_atoms_ + j] << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  // std::cout << "\n";
 
   // Step 2: Compute the dipoles in the batched system
   initialize_properties<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
@@ -733,6 +772,12 @@ void Cavity::get_dipole_jacobian(
     gpu_dipole_batch.data());
   CUDA_CHECK_KERNEL
   gpu_dipole_batch.copy_to_host(cpu_dipole_batch.data());
+  
+  // Copy and check
+  // std::cout << "Ref: " << cpu_dipole_[2] << "\n";
+  // for (int i = 0; i < number_of_copies; i++) {
+  //   std::cout << "\t" << cpu_dipole_batch[i + 2*number_of_copies]*BOHR_IN_ANGSTROM << "\n";
+  // }
 
   // Step 4: Compute the jacobian
   // For now we skip the charge correction
@@ -747,7 +792,6 @@ void Cavity::get_dipole_jacobian(
 
   for (int i = 0; i < N_cartesian; i++) {
     for (int j = 0; j < number_of_atoms_; j++) {
-      displaced_index = number_of_atoms_ * i + j; // idx of position to change
       old_center_of_mass = center_of_mass_forward_one_h[i];
       // index of the current group of four displacements
       // dipoles come in the order [d_x^1,d_x^2,d_x^3,d_x^4,...,d_x^M, d_y^1,..., d_z^M]
