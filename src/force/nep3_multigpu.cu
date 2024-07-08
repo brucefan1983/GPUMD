@@ -196,8 +196,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     paramb.use_typewise_cutoff_zbl = get_int_from_token(tokens[6], __FILE__, __LINE__);
   }
 #ifdef USE_TABLE
-  if (paramd.use_typewise_cutoff) {
-    PRINT_ERROR("Cannot use tabulated radial functions with typewise cutoff.")
+  if (paramb.use_typewise_cutoff) {
+    PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
   }
 #endif
 
