@@ -529,16 +529,10 @@ void Cavity::compute_dipole_and_jacobian(
   // The dipole is currently in atomic units.
   // Convert it to the units of the forces, 
   // which are in eV/Å (Bohr -> Å),
-  // and subtract the charge times the COM.
-  GPU_Vector<double> gpu_center_of_mass(3);
-  std::vector<double> cpu_center_of_mass(3);
-  _get_center_of_mass(gpu_center_of_mass);
-  gpu_center_of_mass.copy_to_host(cpu_center_of_mass.data());
-
   for (int i = 0; i < 3; i++){
     cpu_dipole_[i] *= BOHR_IN_ANGSTROM;
-    cpu_dipole_[i] += charge * cpu_center_of_mass[i];
   }
+  std::cout << "Dipole: " << cpu_dipole_[2] << "\n";
   // Compute the dipole jacobian
   // The dipole jacobian has already been converted from atomic
   // units to GPUMD units and shifted appropriately.
@@ -704,7 +698,7 @@ void Cavity::get_dipole_jacobian(
     atom_cavity.force_per_atom.data(),
     atom_cavity.virial_per_atom.data());
   CUDA_CHECK_KERNEL
-
+  
   // Compute the dipole
   potential_jacobian->compute_jacobian(
     box,
@@ -715,6 +709,12 @@ void Cavity::get_dipole_jacobian(
     atom_cavity.force_per_atom,
     atom_cavity.virial_per_atom,
     atom_cavity.system_index);
+
+  std::vector<double> cpu_virial_per_atom_small(number_of_atoms_*9);
+  std::vector<double> cpu_virial_per_atom_large(number_of_atoms_in_copied_system_*9);
+  atom_cavity.virial_per_atom.copy_to_host(cpu_virial_per_atom_large.data());
+  atom_copy.virial_per_atom.copy_to_host(cpu_virial_per_atom_small.data());
+
   
   // Step 3: Collect all dipoles
   const int number_of_threads = 64;
@@ -737,6 +737,14 @@ void Cavity::get_dipole_jacobian(
     gpu_dipole_batch.data());
   CUDA_CHECK_KERNEL
   gpu_dipole_batch.copy_to_host(cpu_dipole_batch.data());
+
+  // Check the dipoles
+  // std::cout << "-----\n";
+  // std::cout << "Ref: " << cpu_dipole_[2] << "\n";
+  // for (int i=0; i<number_of_copies; i++) {
+  //   std::cout << i << ": " << cpu_dipole_batch[i + number_of_copies*2]*BOHR_IN_ANGSTROM << "\n";
+  // }
+  // std::cout << "-----\n";
 
   // Step 4: Compute the jacobian
   // For now we skip the charge correction

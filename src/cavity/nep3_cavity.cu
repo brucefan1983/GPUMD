@@ -517,11 +517,14 @@ static __global__ void find_neighbor_list_jacobian(
   const int z_lim = box.pbc_z ? 2 : 0;
   const int y_lim = box.pbc_y ? 2 : 0;
   const int x_lim = box.pbc_x ? 2 : 0;
+  
+  int cell_id_offset = g_system_index[n1] * N_cells_per_copy; // the offset in cell id for this copy of cells
 
   for (int zz = -z_lim; zz <= z_lim; ++zz) {
     for (int yy = -y_lim; yy <= y_lim; ++yy) {
       for (int xx = -x_lim; xx <= x_lim; ++xx) {
-        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+        // Remove the cell id offset and compute which is the neighboring cells
+        int neighbor_cell = (cell_id - cell_id_offset) + zz * nx * ny + yy * nx + xx;
         if (cell_id_x + xx < 0)
           neighbor_cell += nx;
         if (cell_id_x + xx >= nx)
@@ -534,7 +537,10 @@ static __global__ void find_neighbor_list_jacobian(
           neighbor_cell += nz * ny * nx;
         if (cell_id_z + zz >= nz)
           neighbor_cell -= nz * ny * nx;
-
+        
+        // add back the cell id offset in order to access the correct
+        // neighboring cell
+        neighbor_cell += cell_id_offset;
         const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
         const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
 
@@ -545,13 +551,13 @@ static __global__ void find_neighbor_list_jacobian(
             continue;
           }
 
-          // if n1 and n2 differ by more than N we know that they cannot
+          // if n1 and n2 differ by more than N_atoms_per_copy we know that they cannot
           // belong to the same system. Only actually check if they are
-          // close than that.
-          const int diff = n1 - n2;
-          if (diff < -N || diff > N){
-            continue;
-          }
+          // closer than that.
+          // const int diff = n1 - n2;
+          // if (diff < -192 || diff > 192){
+          //   continue;
+          // }
           // if it's closer, actually access the index lists
           // in memory and check
           if (g_system_index[n1] != g_system_index[n2]) {
@@ -568,7 +574,7 @@ static __global__ void find_neighbor_list_jacobian(
           if (d12_square >= paramb.rc_radial * paramb.rc_radial) {
             continue;
           }
-
+          
           g_NL_radial[count_radial++ * N + n1] = n2;
 
           if (d12_square < paramb.rc_angular * paramb.rc_angular) {
@@ -1924,6 +1930,74 @@ void NEP3Cavity::compute(
   }
 }
 
+
+static bool get_expanded_box_jacobian(const double rc, const Box& box, NEP3Cavity::ExpandedBox& ebox)
+{
+  double volume = box.get_volume();
+  double thickness_x = volume / box.get_area(0);
+  double thickness_y = volume / box.get_area(1);
+  double thickness_z = volume / box.get_area(2);
+  ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
+  ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
+  ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
+
+  bool is_small_box = false;
+  if (box.pbc_x && thickness_x <= 2.5 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_y && thickness_y <= 2.5 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_z && thickness_z <= 2.5 * rc) {
+    is_small_box = true;
+  }
+
+  if (is_small_box) {
+    std::cout << "Error:\n"
+              << "    The box has\n"
+              << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
+              << "    Please increase the periodic direction(s).\n";
+    exit(1);
+
+    if (box.triclinic) {
+      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+
+      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+      for (int n = 9; n < 18; n++) {
+        ebox.h[n] /= det;
+      }
+    } else {
+      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+      ebox.h[3] = ebox.h[0] * 0.5;
+      ebox.h[4] = ebox.h[1] * 0.5;
+      ebox.h[5] = ebox.h[2] * 0.5;
+    }
+  }
+
+  return is_small_box;
+}
+
 void NEP3Cavity::compute_jacobian(
   Box& box,
   const int num_copies,
@@ -1934,17 +2008,17 @@ void NEP3Cavity::compute_jacobian(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<int>& system_index)
 {
+  const bool is_small_box = get_expanded_box_jacobian(paramb.rc_radial, box, ebox);
+  // TODO handle small box
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   const double rc_cell_list = 0.5 * rc;
-
+  
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
   const int N_cells_per_copy = num_bins[0] * num_bins[1] * num_bins[2];
-  // Increasing the number of bins by a factor of 2 increases
-  // speed by a factor of 3.
   find_cell_list_jacobian(
     rc_cell_list,
     num_bins,
@@ -2008,6 +2082,21 @@ void NEP3Cavity::compute_jacobian(
   gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
+  
+  // std::vector<int> cpu_NL_radial(N*paramb.MN_radial);
+  // std::vector<int> cpu_index(N);
+  // nep_data.NL_radial.copy_to_host(cpu_NL_radial.data());
+  // system_index.copy_to_host(cpu_index.data());
+  // int index = 0;
+  // int num_neigh = nep_data.cpu_NN_radial[index];
+  // first atom should have 96 neighbors, not 125
+  // there is some double counting going on
+  // std::cout << "num_neigh: " << num_neigh << "\n"; 
+  // for (int n = 0; n < num_neigh; n++) {
+  //   //std::cout << cpu_index[cpu_NL_radial[n * N + index]] << " ";
+  //   std::cout << cpu_NL_radial[n * N + index] << " ";
+  // }
+  // std::cout <<"\n";
 
   bool is_polarizability = paramb.model_type == 2;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
