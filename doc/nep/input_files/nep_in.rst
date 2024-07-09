@@ -93,5 +93,5 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   population	50      # default
   generation	100000  # default
 
-The `NEP tutorial <https://github.com/brucefan1983/GPUMD/blob/master/examples/nep_potentials/PbTe/train/nep_tutorial.ipynb>`_ illustrates the construction of a :term:`NEP` model.
+The `NEP tutorial <https://github.com/brucefan1983/GPUMD/tree/master/examples/11_NEP_potential_PbTe/tutorial.ipynb>`_ illustrates the construction of a :term:`NEP` model.
 More examples can be found in `this repository <https://gitlab.com/brucefan1983/nep-data>`_.
