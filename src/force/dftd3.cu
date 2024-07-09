@@ -1192,9 +1192,9 @@ void DFTD3::initialize(
   valid = valid || set_para(functional, "tpssh", 1.000, 0.4529, 2.2382, 4.6550, dftd3_para);
   valid = valid || set_para(functional, "b2kplyp", 0.64, 0.0000, 0.1521, 7.1916, dftd3_para);
   valid = valid || set_para(functional, "dsd-pbep86", 0.418, 0.0000, 0.0000, 5.6500, dftd3_para);
-  valid = valid || set_para(functional, "b97m", 1.0000 -0.0780 0.1384 5.5946);
-  valid = valid || set_para(functional, "wb97x", 1.0000 0.0000 0.2641 5.4959);
-  valid = valid || set_para(functional, "wb97m", 1.0000 0.5660 0.3908 3.1280);
+  valid = valid || set_para(functional, "b97m", 1.0000, -0.0780, 0.1384, 5.5946, dftd3_para);
+  valid = valid || set_para(functional, "wb97x", 1.0000, 0.0000, 0.2641, 5.4959, dftd3_para);
+  valid = valid || set_para(functional, "wb97m", 1.0000, 0.5660, 0.3908, 3.1280, dftd3_para);
 
   if (!valid) {
     std::cout << "The " << functional
