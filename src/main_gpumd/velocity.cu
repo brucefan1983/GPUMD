@@ -278,7 +278,7 @@ void Velocity::correct_velocity(
   GPU_Vector<double>& velocity_per_atom)
 {
   if (do_velocity_correction) {
-    if ((step + 1) % velocity_correction_interval == 0) {
+    if (step % velocity_correction_interval == 0) {
       position_per_atom.copy_to_host(cpu_position_per_atom.data());
       velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
       if (velocity_correction_group_method < 0) {

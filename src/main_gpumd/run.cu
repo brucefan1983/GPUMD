@@ -218,6 +218,15 @@ void Run::perform_a_run()
 
   for (int step = 0; step < number_of_steps; ++step) {
 
+    velocity.correct_velocity(
+      step,
+      group,
+      atom.cpu_mass,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.velocity_per_atom);
+
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
@@ -279,15 +288,6 @@ void Run::perform_a_run()
       thermo,
       atom,
       force);
-
-    velocity.correct_velocity(
-      step,
-      group,
-      atom.cpu_mass,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.velocity_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
