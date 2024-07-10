@@ -437,17 +437,6 @@ if (enabled_) {
   atom_cavity.system_index.resize(number_of_atoms_in_copied_system_);
   atom_cavity.cpu_system_index.resize(number_of_atoms_in_copied_system_);
 
-
-  // make sure that the second potential is actually a dipole model.
-  if (number_of_potentials != 2) {
-    PRINT_INPUT_ERROR("cavity requires two potentials to be specified.");
-  }
-  // Multiple potentials may only be used with NEPs, so we know that
-  // the second potential must be an NEP
-  if (force.potentials[1]->nep_model_type != 1) {
-    PRINT_INPUT_ERROR("cavity requires the second NEP potential to be a dipole model.");
-  }
-
   // Copy the mass array on atoms to the CPU
   // and compute the total mass. Do this on the CPU
   // since we only need to do it once
