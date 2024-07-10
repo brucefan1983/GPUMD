@@ -649,6 +649,7 @@ void Cavity::get_dipole_jacobian(
   const int N_cartesian = 3;
   const int N_components = 3;
   const int values_per_atom = N_cartesian * N_components;
+  const int BLOCK_SIZE = 128;
   
   // Second order central differences
   // Need to compute four dipoles for each structure, yielding an error O(h^4)
@@ -666,7 +667,7 @@ void Cavity::get_dipole_jacobian(
 
   // Step 1: Setup the 12N cavity atom system for batched
   // calculation of all dipoles
-  setup_copied_systems<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
+  setup_copied_systems<<<(number_of_atoms_in_copied_system_ - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
     number_of_atoms_in_copied_system_,
     number_of_atoms_,
     atom_copy.position_per_atom.data(),
@@ -674,7 +675,7 @@ void Cavity::get_dipole_jacobian(
     atom_cavity.system_index.data());
   CUDA_CHECK_KERNEL
   
-  displace_atoms<<<(number_of_atoms_ - 1) / 128 + 1, 128>>>(
+  displace_atoms<<<(number_of_atoms_ - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
     number_of_atoms_,
     number_of_atoms_in_copied_system_,
     displacement,
@@ -682,7 +683,7 @@ void Cavity::get_dipole_jacobian(
   CUDA_CHECK_KERNEL
 
   // Step 2: Compute the dipoles in the batched system
-  initialize_properties<<<(number_of_atoms_in_copied_system_ - 1) / 128 + 1, 128>>>(
+  initialize_properties<<<(number_of_atoms_in_copied_system_ - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
     number_of_atoms_in_copied_system_,
     atom_cavity.potential_per_atom.data(),
     atom_cavity.force_per_atom.data(),
@@ -905,9 +906,9 @@ void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(jacfile_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
-  // for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
-  //   fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
-  // }
+  for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
+    fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
+  }
   fprintf(jacfile_, "\n");
   fflush(jacfile_);
 }
@@ -916,9 +917,9 @@ void Cavity::write_cavity(const int step, const double time)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(cavfile_, "%d%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", step, time, q, p, cavity_pot, cavity_kin, cos_integral, sin_integral);
-  // for (int i = 0; i < cpu_cavity_force_.size(); i++) {
-  //   fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
-  // }
+  for (int i = 0; i < cpu_cavity_force_.size(); i++) {
+    fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
+  }
   fprintf(cavfile_, "\n");
   fflush(cavfile_);
 }
