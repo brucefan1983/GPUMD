@@ -378,12 +378,12 @@ void Cavity::parse(
   if (cavity_frequency < 0.0) {
     PRINT_INPUT_ERROR("cavity frequency cannot be negative.");
   }
-  if (!is_valid_int(param[4], &charge)) {
-    PRINT_INPUT_ERROR("total system charge should be an integer.");
+  if (!is_valid_int(param[4], &dump_frequency)) {
+    PRINT_INPUT_ERROR("dump_frequency should be an integer.");
   }
   printf("   coupling strength %f.\n", coupling_strength);
-printf("   cavity frequency %f.\n", cavity_frequency);
-printf("   total charge %d.\n", charge);
+  printf("   cavity frequency %f.\n", cavity_frequency);
+  printf("   dump_frequency %d.\n", dump_frequency);
 }
 
 void Cavity::initialize(
@@ -532,11 +532,11 @@ void Cavity::compute_dipole_and_jacobian(
   for (int i = 0; i < 3; i++){
     cpu_dipole_[i] *= BOHR_IN_ANGSTROM;
   }
-  std::cout << "Dipole: " << cpu_dipole_[2] << "\n";
+  //std::cout << "Dipole: " << cpu_dipole_[2] << "\n";
   // Compute the dipole jacobian
   // The dipole jacobian has already been converted from atomic
   // units to GPUMD units and shifted appropriately.
-  get_dipole_jacobian(box, force, 0.001, charge);
+  get_dipole_jacobian(box, force, 0.001);
 }
 
 void Cavity::compute_and_apply_cavity_force(Atom& atom) {
@@ -579,6 +579,8 @@ void Cavity::write(const int step, const double global_time) {
   if (!enabled_) {
     return;
   }
+  if ((step + 1) % dump_frequency != 0)
+    return;
   // Make sure that the frequency is in fs
   double time = global_time * TIME_UNIT_CONVERSION; // natural (atomic?) units to fs
 
@@ -643,8 +645,7 @@ void Cavity::_get_center_of_mass(GPU_Vector<double>& gpu_center_of_mass) {
 void Cavity::get_dipole_jacobian(
   Box& box,
   Force& force,
-  double displacement, 
-  double charge) 
+  double displacement) 
 {
   /**
    @brief Get dipole gradient through finite differences.
@@ -915,9 +916,9 @@ void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(jacfile_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
-  for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
-    fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
-  }
+  // for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
+  //   fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
+  // }
   fprintf(jacfile_, "\n");
   fflush(jacfile_);
 }
@@ -925,10 +926,10 @@ void Cavity::write_dipole(const int step)
 void Cavity::write_cavity(const int step, const double time)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(cavfile_, "%d%20.10e%20.10e%20.10e%20.10e%20.10e", step, time, q, p, cavity_pot, cavity_kin);
-  for (int i = 0; i < cpu_cavity_force_.size(); i++) {
-    fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
-  }
+  fprintf(cavfile_, "%d%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", step, time, q, p, cavity_pot, cavity_kin, cos_integral, sin_integral);
+  // for (int i = 0; i < cpu_cavity_force_.size(); i++) {
+  //   fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
+  // }
   fprintf(cavfile_, "\n");
   fflush(cavfile_);
 }

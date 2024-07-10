@@ -73,7 +73,7 @@ private:
   GPU_Vector<double> gpu_cavity_force_;
   double coupling_strength;
   double cavity_frequency; 
-  int charge;
+  int dump_frequency;
   double q0;           // Initial cavity coordinate, q_0
   double q;            // cavity canonical position coordinate, q(t)
   double p;            // cavity canonical momentum coordinate, p(t)
@@ -91,8 +91,7 @@ private:
   void get_dipole_jacobian(
     Box& box,
     Force& force,
-    double displacement, 
-    double charge);
+    double displacement);
   void _get_center_of_mass(GPU_Vector<double>& gpu_center_of_mass);
   void canonical_position(const double time);
   void canonical_momentum(const double time);
