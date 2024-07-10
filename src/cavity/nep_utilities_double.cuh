@@ -68,7 +68,7 @@ static __device__ __forceinline__ void find_fc(double rc, double rcinv, double d
 {
   if (d12 < rc) {
     double x = d12 * rcinv;
-    fc = 0.5 * cos(3.141592653589793 * x) + 0.5;
+    fc = 0.5 * cospi(x) + 0.5;
   } else {
     fc = 0.0;
   }
@@ -80,7 +80,7 @@ find_fc_and_fcp(double rc, double rcinv, double d12, double& fc, double& fcp)
   if (d12 < rc) {
     double x = d12 * rcinv;
     fc = 0.5 * cos(3.141592653589793 * x) + 0.5;
-    fcp = -1.570796326794897 * sin(3.141592653589793 * x);
+    fcp = -1.570796326794897 * sinpi(x);
     fcp *= rcinv;
   } else {
     fc = 0.0;
