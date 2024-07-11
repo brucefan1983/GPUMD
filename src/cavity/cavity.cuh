@@ -20,7 +20,8 @@
 #include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "cavity/potential_cavity.cuh"
+//#include "cavity/potential_cavity.cuh"
+#include "cavity/potential_float.cuh"
 #include "cavity/atom_cavity.cuh"
 #include <string>
 #include <vector>
@@ -58,8 +59,8 @@ private:
   FILE* cavfile_;
   Atom atom_copy;
   AtomCavity atom_cavity;
-  std::unique_ptr<PotentialCavity> potential;
-  std::unique_ptr<PotentialCavity> potential_jacobian;
+  std::unique_ptr<PotentialFloat> potential;
+  std::unique_ptr<PotentialFloat> potential_jacobian;
   int number_of_atoms_;
   int number_of_copied_systems_;
   int number_of_atoms_in_copied_system_;

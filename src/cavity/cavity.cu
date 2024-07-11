@@ -17,8 +17,10 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "cavity.cuh"
-#include "nep3_cavity.cuh"
-#include "potential_cavity.cuh"
+//#include "nep3_cavity.cuh"
+#include "nep3_float.cuh"
+//#include "potential_cavity.cuh"
+#include "potential_float.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "utilities/common.cuh"
@@ -352,13 +354,13 @@ void Cavity::parse(
   }
   // Set up the potential for calculating dipoles with double precision
   number_of_atoms_ = number_of_atoms;
-  potential.reset(new NEP3Cavity(param[1], number_of_atoms));
+  potential.reset(new NEP3Float(param[1], number_of_atoms));
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
   // and the potential for the jacobian batch calculations
   number_of_copied_systems_ = 12*number_of_atoms_;
   number_of_atoms_in_copied_system_ = number_of_copied_systems_ * number_of_atoms_;
-  potential_jacobian.reset(new NEP3Cavity(param[1], number_of_atoms_in_copied_system_));
+  potential_jacobian.reset(new NEP3Float(param[1], number_of_atoms_in_copied_system_));
   potential_jacobian->N1 = 0;
   potential_jacobian->N2 = number_of_atoms_in_copied_system_;
 
