@@ -908,9 +908,9 @@ void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(jacfile_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
-  for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
-    fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
-  }
+  //for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
+  //  fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
+  //}
   fprintf(jacfile_, "\n");
   fflush(jacfile_);
 }
