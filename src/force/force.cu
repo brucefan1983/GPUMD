@@ -128,10 +128,7 @@ void Force::parse_potential(
     }
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
-    // DISABLE THIS CHECK FOR CAVITY DYNAMICS
-    // This is not necessary (I believe) when dumping polarizabilities, but might be an issue
-    // if one runs dynamics with the average mode (but maybe not?).
-    // check_types(param[1]);
+    check_types(param[1]);
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
