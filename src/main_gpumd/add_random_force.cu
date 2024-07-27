@@ -19,23 +19,34 @@ Add random forces with zero mean and specified variance.
 
 #include "add_random_force.cuh"
 #include "model/atom.cuh"
-#include "model/group.cuh"
 #include "utilities/read_file.cuh"
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 
-static void __global__
-add_random_force(
-  const int num_atoms_total,
+static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    curand_init(seed, n, 0, &state[n]);
+  }
+}
+
+static __global__ void add_random_force(
+  const int N,
+  const double force_variance,
+  curandState* g_state,
   double* g_fx,
   double* g_fy,
   double* g_fz)
 {
-  const int atom_id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (atom_id < num_atoms_total) {
-    g_fx[atom_id] += 0;
-    g_fy[atom_id] += 0;
-    g_fz[atom_id] += 0;
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    curandState state = g_state[n];
+    g_fx[n] = force_variance * curand_normal_double(&state);
+    g_fy[n] = force_variance * curand_normal_double(&state);
+    g_fz[n] = force_variance * curand_normal_double(&state);
+    g_state[n] = state;
   }
 }
 
@@ -45,6 +56,8 @@ void Add_Random_Force::compute(const int step, Atom& atom)
     const int num_atoms_total = atom.force_per_atom.size() / 3;
     add_random_force<<<(num_atoms_total - 1) / 64 + 1, 64>>>(
       num_atoms_total,
+      force_variance_,
+      curand_states_.data(),
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + num_atoms_total,
       atom.force_per_atom.data() + num_atoms_total * 2
@@ -53,7 +66,7 @@ void Add_Random_Force::compute(const int step, Atom& atom)
   }
 }
 
-void Add_Random_Force::parse(const char** param, int num_param)
+void Add_Random_Force::parse(const char** param, int num_param, int number_of_atoms)
 {
   printf("Add force.\n");
 
@@ -75,6 +88,11 @@ void Add_Random_Force::parse(const char** param, int num_param)
   if (num_calls_ > 1) {
     PRINT_INPUT_ERROR("add_random_force cannot be used more than 1 time in one run.");
   }
+
+  curand_states_.resize(number_of_atoms);
+  int grid_size = (number_of_atoms - 1) / 128 + 1;
+  initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), number_of_atoms, rand());
+  CUDA_CHECK_KERNEL
 }
 
 void Add_Random_Force::finalize() 

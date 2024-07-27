@@ -14,6 +14,8 @@
 */
 
 #pragma once
+#include "utilities/gpu_vector.cuh"
+#include <curand_kernel.h>
 
 class Atom;
 
@@ -21,12 +23,13 @@ class Add_Random_Force
 {
 public:
 
-  void parse(const char** param, int num_param);
+  void parse(const char** param, int num_param, int number_of_atoms);
   void compute(const int step, Atom& atom);
   void finalize();
 
 private:
 
+  GPU_Vector<curandState> curand_states_;
   int num_calls_ = 0;
   double force_variance_ = 0.0;
 };
