@@ -50,18 +50,102 @@ static __global__ void add_random_force(
   }
 }
 
+__device__ double device_total_force[3];
+
+// get the total force
+static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* g_fz)
+{
+  //<<<3, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_patches = (N - 1) / 1024 + 1;
+  __shared__ double s_f[1024];
+  double f = 0.0;
+
+  switch (bid) {
+    case 0:
+      for (int patch = 0; patch < number_of_patches; ++patch) {
+        int n = tid + patch * 1024;
+        if (n < N)
+          f += g_fx[n];
+      }
+      break;
+    case 1:
+      for (int patch = 0; patch < number_of_patches; ++patch) {
+        int n = tid + patch * 1024;
+        if (n < N)
+          f += g_fy[n];
+      }
+      break;
+    case 2:
+      for (int patch = 0; patch < number_of_patches; ++patch) {
+        int n = tid + patch * 1024;
+        if (n < N)
+          f += g_fz[n];
+      }
+      break;
+  }
+  s_f[tid] = f;
+  __syncthreads();
+
+#pragma unroll
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncthreads();
+  }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    device_total_force[bid] = s_f[0];
+  }
+}
+
+// correct the total force
+static __global__ void
+gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* g_fz)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    g_fx[i] -= device_total_force[0] * one_over_N;
+    g_fy[i] -= device_total_force[1] * one_over_N;
+    g_fz[i] -= device_total_force[2] * one_over_N;
+  }
+}
+
 void Add_Random_Force::compute(const int step, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {
-    const int num_atoms_total = atom.force_per_atom.size() / 3;
-    add_random_force<<<(num_atoms_total - 1) / 64 + 1, 64>>>(
-      num_atoms_total,
+    const int number_of_atoms = atom.force_per_atom.size() / 3;
+    add_random_force<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      number_of_atoms,
       force_variance_,
       curand_states_.data(),
       atom.force_per_atom.data(),
-      atom.force_per_atom.data() + num_atoms_total,
-      atom.force_per_atom.data() + num_atoms_total * 2
+      atom.force_per_atom.data() + number_of_atoms,
+      atom.force_per_atom.data() + number_of_atoms * 2
     );
+    CUDA_CHECK_KERNEL
+
+    gpu_sum_force<<<3, 1024>>>(
+        number_of_atoms,
+        atom.force_per_atom.data(),
+        atom.force_per_atom.data() + number_of_atoms,
+        atom.force_per_atom.data() + 2 * number_of_atoms);
+    CUDA_CHECK_KERNEL
+
+    gpu_correct_force<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+        number_of_atoms,
+        1.0 / number_of_atoms,
+        atom.force_per_atom.data(),
+        atom.force_per_atom.data() + number_of_atoms,
+        atom.force_per_atom.data() + 2 * number_of_atoms);
     CUDA_CHECK_KERNEL
   }
 }
