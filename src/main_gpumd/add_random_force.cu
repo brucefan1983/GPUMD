@@ -43,9 +43,9 @@ static __global__ void add_random_force(
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     curandState state = g_state[n];
-    g_fx[n] = force_variance * curand_normal_double(&state);
-    g_fy[n] = force_variance * curand_normal_double(&state);
-    g_fz[n] = force_variance * curand_normal_double(&state);
+    g_fx[n] += force_variance * curand_normal_double(&state);
+    g_fy[n] += force_variance * curand_normal_double(&state);
+    g_fz[n] += force_variance * curand_normal_double(&state);
     g_state[n] = state;
   }
 }
