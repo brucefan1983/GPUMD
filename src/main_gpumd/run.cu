@@ -18,6 +18,7 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 #include "add_efield.cuh"
+#include "add_random_force.cuh"
 #include "add_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
@@ -468,6 +469,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
+  } else if (strcmp(param[0], "add_random_force") == 0) {
+    add_random_force.parse(param, num_param);
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "add_efield") == 0) {

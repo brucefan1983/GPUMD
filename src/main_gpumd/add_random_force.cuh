@@ -15,24 +15,18 @@
 
 #pragma once
 
-#include <vector>
-
 class Atom;
-class Group;
 
 class Add_Random_Force
 {
 public:
 
-  void parse(const char** param, int num_param, const std::vector<Group>& group);
-  void compute(const int step, const std::vector<Group>& groups, Atom& atom);
+  void parse(const char** param, int num_param);
+  void compute(const int step, Atom& atom);
   void finalize();
 
 private:
 
   int num_calls_ = 0;
-  int table_length_[10];
-  std::vector<double> force_table_[10];
-  int grouping_method_[10];
-  int group_id_[10];
+  double force_variance_ = 0.0;
 };
