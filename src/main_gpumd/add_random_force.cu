@@ -122,30 +122,29 @@ gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* 
 void Add_Random_Force::compute(const int step, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {
-    const int number_of_atoms = atom.force_per_atom.size() / 3;
-    add_random_force<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-      number_of_atoms,
+    add_random_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+      atom.number_of_atoms,
       force_variance_,
       curand_states_.data(),
       atom.force_per_atom.data(),
-      atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2
+      atom.force_per_atom.data() + atom.number_of_atoms,
+      atom.force_per_atom.data() + atom.number_of_atoms * 2
     );
     CUDA_CHECK_KERNEL
 
     gpu_sum_force<<<3, 1024>>>(
-        number_of_atoms,
+        atom.number_of_atoms,
         atom.force_per_atom.data(),
-        atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + 2 * number_of_atoms);
+        atom.force_per_atom.data() + atom.number_of_atoms,
+        atom.force_per_atom.data() + 2 * atom.number_of_atoms);
     CUDA_CHECK_KERNEL
 
-    gpu_correct_force<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-        number_of_atoms,
-        1.0 / number_of_atoms,
+    gpu_correct_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+        atom.number_of_atoms,
+        1.0 / atom.number_of_atoms,
         atom.force_per_atom.data(),
-        atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + 2 * number_of_atoms);
+        atom.force_per_atom.data() + atom.number_of_atoms,
+        atom.force_per_atom.data() + 2 * atom.number_of_atoms);
     CUDA_CHECK_KERNEL
   }
 }
@@ -159,7 +158,7 @@ void Add_Random_Force::parse(const char** param, int num_param, int number_of_at
     PRINT_INPUT_ERROR("add_random_force should have 1 parameter.\n");
   }
 
-  // parse grouping method
+  // parse force variance
   if (!is_valid_real(param[1], &force_variance_)) {
     PRINT_INPUT_ERROR("force variance should be a number.\n");
   }
