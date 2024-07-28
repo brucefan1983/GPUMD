@@ -21,6 +21,7 @@ class Measure;
 
 #include "add_efield.cuh"
 #include "add_force.cuh"
+#include "add_random_force.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -71,5 +72,6 @@ private:
   Measure measure;
   Electron_Stop electron_stop;
   Add_Force add_force;
+  Add_Random_Force add_random_force;
   Add_Efield add_efield;
 };
