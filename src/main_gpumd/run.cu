@@ -122,7 +122,7 @@ Run::Run()
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
     atom.velocity_per_atom,
-    true,
+    false,
     123);
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
