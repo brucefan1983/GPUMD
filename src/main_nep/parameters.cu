@@ -101,6 +101,9 @@ void Parameters::set_default_parameters()
   sigma0 = 0.1f;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
+  typewise_cutoff_radial_factor = -1.0f;
+  typewise_cutoff_angular_factor = -1.0f;
+  typewise_cutoff_zbl_factor = -1.0f;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -300,12 +303,15 @@ void Parameters::report_inputs()
 
   if (is_use_typewise_cutoff_set) {
     printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
+    printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
   } else {
     printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
     printf("    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+    printf("              factor = %g.\n", typewise_cutoff_zbl_factor);
   } else {
     printf("    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
   }
@@ -978,18 +984,55 @@ void Parameters::parse_sigma0(const char** param, int num_param)
 
 void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
 {
-  if (num_param != 1) {
-    PRINT_INPUT_ERROR("use_typewise_cutoff should have no parameter.\n");
+  if (num_param != 1 && num_param != 3) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff should have 0 or 2 parameters.\n");
   }
   use_typewise_cutoff = true;
   is_use_typewise_cutoff_set = true;
+  typewise_cutoff_radial_factor = 2.5f;
+  typewise_cutoff_angular_factor = 2.0f;
+
+  if (num_param == 3) {
+    double typewise_cutoff_radial_factor_temp = 0.0;
+    if (!is_valid_real(param[1], &typewise_cutoff_radial_factor_temp)) {
+       PRINT_INPUT_ERROR("typewise_cutoff_radial_factor should be a number.\n");
+    }
+    typewise_cutoff_radial_factor = typewise_cutoff_radial_factor_temp;
+
+    double typewise_cutoff_angular_factor_temp = 0.0;
+    if (!is_valid_real(param[2], &typewise_cutoff_angular_factor_temp)) {
+       PRINT_INPUT_ERROR("typewise_cutoff_angular_factor should be a number.\n");
+    }
+    typewise_cutoff_angular_factor = typewise_cutoff_angular_factor_temp;
+  }
+
+  if (typewise_cutoff_angular_factor < 1.5f) {
+    PRINT_INPUT_ERROR("typewise_cutoff_angular_factor must >= 1.5.\n");
+  }
+
+  if (typewise_cutoff_radial_factor < typewise_cutoff_angular_factor) {
+    PRINT_INPUT_ERROR("typewise_cutoff_radial_factor must >= typewise_cutoff_angular_factor.\n");
+  }
 }
 
 void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param)
 {
-  if (num_param != 1) {
-    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have no parameter.\n");
+  if (num_param != 1 && num_param != 2) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have 0 or 1 parameter.\n");
   }
   use_typewise_cutoff_zbl = true;
   is_use_typewise_cutoff_zbl_set = true;
+  typewise_cutoff_zbl_factor = 0.65f;
+
+  if (num_param == 2) {
+    double typewise_cutoff_zbl_factor_temp = 0.0;
+    if (!is_valid_real(param[1], &typewise_cutoff_zbl_factor_temp)) {
+       PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor should be a number.\n");
+    }
+    typewise_cutoff_zbl_factor = typewise_cutoff_zbl_factor_temp;
+  }
+
+  if (typewise_cutoff_zbl_factor < 0.5f) {
+    PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
+  }
 }

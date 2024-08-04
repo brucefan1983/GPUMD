@@ -88,8 +88,8 @@ static __global__ void gpu_find_neighbor_list(
             if (use_typewise_cutoff) {
               int z1 = paramb.atomic_numbers[t1];
               int z2 = paramb.atomic_numbers[t2];
-              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.5f, rc_radial);
-              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.0f, rc_angular);
+              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor, rc_radial);
+              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor, rc_angular);
             }
             if (distance_square < rc_radial * rc_radial) {
               NL_radial[count_radial * N + n1] = n2;
@@ -142,7 +142,8 @@ static __global__ void find_descriptors_radial(
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
@@ -197,7 +198,8 @@ static __global__ void find_descriptors_angular(
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
-          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+          + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
@@ -247,6 +249,9 @@ NEP3::NEP3(
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.use_typewise_cutoff = para.use_typewise_cutoff;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
+  paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
+  paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
+  paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
@@ -569,7 +574,8 @@ static __global__ void find_force_radial(
       float fc12, fcp12;
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -668,7 +674,8 @@ static __global__ void find_force_angular(
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -787,7 +794,8 @@ static __global__ void find_force_ZBL(
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.6f, rc_outer);
+          rc_outer = min((COVALENT_RADIUS[zi - 1] 
+          + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor, rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);

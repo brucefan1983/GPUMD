@@ -57,6 +57,9 @@ public:
   float sigma0;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
+  float typewise_cutoff_radial_factor;
+  float typewise_cutoff_angular_factor;
+  float typewise_cutoff_zbl_factor;
 
   // check if a parameter has been set:
   bool is_train_mode_set;
