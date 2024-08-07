@@ -394,7 +394,6 @@ void NEP3::construct_table(float* parameters)
     parameters +
     (annmb.dim + 2) * annmb.num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
   construct_table_radial_or_angular(
-    paramb.version,
     paramb.num_types,
     paramb.num_types_sq,
     paramb.n_max_radial,
@@ -405,7 +404,6 @@ void NEP3::construct_table(float* parameters)
     gn_radial.data(),
     gnp_radial.data());
   construct_table_radial_or_angular(
-    paramb.version,
     paramb.num_types,
     paramb.num_types_sq,
     paramb.n_max_angular,

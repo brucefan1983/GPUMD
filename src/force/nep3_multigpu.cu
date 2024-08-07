@@ -354,7 +354,6 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
                          (paramb.version == 4 ? paramb.num_types : 1) +
                        1;
     construct_table_radial_or_angular(
-      paramb.version,
       paramb.num_types,
       paramb.num_types_sq,
       paramb.n_max_radial,
@@ -365,7 +364,6 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
       gn_radial.data(),
       gnp_radial.data());
     construct_table_radial_or_angular(
-      paramb.version,
       paramb.num_types,
       paramb.num_types_sq,
       paramb.n_max_angular,

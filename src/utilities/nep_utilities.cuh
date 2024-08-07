@@ -853,7 +853,6 @@ __device__ void find_index_and_weight(
 }
 
 static void construct_table_radial_or_angular(
-  const int version,
   const int num_types,
   const int num_types_sq,
   const int n_max,
@@ -873,26 +872,17 @@ static void construct_table_radial_or_angular(
         int t12 = t1 * num_types + t2;
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
-        if (version == 2) {
-          find_fn_and_fnp(n_max, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = fn12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
-            gnp[index_all] = fnp12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
+        find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
+        for (int n = 0; n <= n_max; ++n) {
+          float gn12 = 0.0f;
+          float gnp12 = 0.0f;
+          for (int k = 0; k <= basis_size; ++k) {
+            gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
+            gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
           }
-        } else {
-          find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            float gn12 = 0.0f;
-            float gnp12 = 0.0f;
-            for (int k = 0; k <= basis_size; ++k) {
-              gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-              gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-            }
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = gn12;
-            gnp[index_all] = gnp12;
-          }
+          int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
+          gn[index_all] = gn12;
+          gnp[index_all] = gnp12;
         }
       }
     }
