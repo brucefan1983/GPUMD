@@ -131,8 +131,8 @@ static __global__ void find_neighbor_list_small_box(
             if (paramb.use_typewise_cutoff) {
               int z1 = paramb.atomic_numbers[t1];
               int z2 = paramb.atomic_numbers[t2];
-              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.5f, rc_radial);
-              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.0f, rc_angular);
+              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor, rc_radial);
+              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor, rc_angular);
             }
 
             if (distance_square < rc_radial * rc_radial) {
@@ -214,7 +214,8 @@ static __global__ void find_descriptor_small_box(
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
@@ -257,7 +258,8 @@ static __global__ void find_descriptor_small_box(
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
-          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+          + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
@@ -380,7 +382,8 @@ static __global__ void find_descriptor_small_box(
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
@@ -423,7 +426,8 @@ static __global__ void find_descriptor_small_box(
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
-          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+          + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
@@ -524,7 +528,8 @@ static __global__ void find_force_radial_small_box(
       float fc12, fcp12;
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.5f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -669,7 +674,8 @@ static __global__ void find_force_angular_small_box(
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * 2.0f, rc);
+        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
+        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -801,7 +807,7 @@ static __global__ void find_force_ZBL_small_box(
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * 0.6f, rc_outer);
+          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor, rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);

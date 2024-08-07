@@ -49,6 +49,9 @@ public:
   struct ParaMB {
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
+    float typewise_cutoff_radial_factor = 0.0f;
+    float typewise_cutoff_angular_factor = 0.0f;
+    float typewise_cutoff_zbl_factor = 0.0f;
     int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
