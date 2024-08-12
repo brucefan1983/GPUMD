@@ -122,6 +122,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
+  } else {
+    std::cout << tokens[0] << " is an unsupported NEP model. We only support NEP3 and NEP4 models now." << std::endl;
+    exit(1);
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
