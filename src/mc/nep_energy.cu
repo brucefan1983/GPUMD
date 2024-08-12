@@ -65,6 +65,9 @@ void NEP_Energy::initialize(const char* file_potential)
   } else if (tokens[0] == "nep4_zbl") {
     paramb.version = 4;
     zbl.enabled = true;
+  } else {
+    std::cout << tokens[0] << " is an unsupported NEP model. We only support NEP3 and NEP4 models now." << std::endl;
+    exit(1);
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
@@ -88,7 +91,8 @@ void NEP_Energy::initialize(const char* file_potential)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("        type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    paramb.atomic_numbers[n] = atomic_number - 1;
+    printf("        type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl 0.7 1.4
@@ -113,8 +117,8 @@ void NEP_Energy::initialize(const char* file_potential)
 
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
-  if (tokens.size() != 3 && tokens.size() != 5) {
-    std::cout << "This line should be cutoff rc_radial rc_angular [MN_radial] [MN_angular].\n";
+  if (tokens.size() != 5 && tokens.size() != 8) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -122,18 +126,25 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        radial cutoff = %g A.\n", paramb.rc_radial);
   printf("        angular cutoff = %g A.\n", paramb.rc_angular);
 
-  paramb.MN_radial = 500;
-  paramb.MN_angular = 100;
+  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  printf("        MN_radial = %d.\n", MN_radial);
+  printf("        MN_angular = %d.\n", MN_angular);
+  paramb.MN_radial = int(ceil(MN_radial * 1.25));
+  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
+  printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 5) {
-    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("        MN_radial = %d.\n", MN_radial);
-    printf("        MN_angular = %d.\n", MN_angular);
-    paramb.MN_radial = int(ceil(MN_radial * 1.25));
-    paramb.MN_angular = int(ceil(MN_angular * 1.25));
-    printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
-    printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (tokens.size() == 8) {
+    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    if (paramb.typewise_cutoff_radial_factor > 0.0f) {
+      paramb.use_typewise_cutoff = true;
+    }
+    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
+      paramb.use_typewise_cutoff_zbl = true;
+    }
   }
 
   // n_max 10 8
@@ -292,10 +303,21 @@ static __global__ void find_energy_nep(
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_t2_radial[index];
+      double rc = paramb.rc_radial;
+      double rcinv = paramb.rcinv_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+        rcinv = 1.0f / rc;
+      }
+      find_fc(rc, rcinv, d12, fc12);
+
       float fn12[MAX_NUM_N];
-      find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -315,10 +337,21 @@ static __global__ void find_energy_nep(
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_t2_angular[index];
+        double rc = paramb.rc_angular;
+        double rcinv = paramb.rcinv_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min(
+            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+              paramb.typewise_cutoff_angular_factor,
+            rc);
+          rcinv = 1.0f / rc;
+        }
+        find_fc(rc, rcinv, d12, fc12);
+
         float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
@@ -351,6 +384,7 @@ static __global__ void find_energy_nep(
 
 static __global__ void find_energy_zbl(
   const int N,
+  const NEP_Energy::ParaMB paramb,
   const NEP_Energy::ZBL zbl,
   const int* g_NN,
   const int* __restrict__ g_type,
@@ -364,8 +398,8 @@ static __global__ void find_energy_zbl(
   if (n1 < N) {
     float s_pe = 0.0f;
     int type1 = g_type[n1];
-    float zi = zbl.atomic_numbers[type1];
-    float pow_zi = pow(zi, 0.23f);
+    int zi = zbl.atomic_numbers[type1];
+    float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -373,8 +407,8 @@ static __global__ void find_energy_zbl(
       float d12inv = 1.0f / d12;
       float f, fp;
       int type2 = g_t2_angular[index];
-      float zj = zbl.atomic_numbers[type2];
-      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      int zj = zbl.atomic_numbers[type2];
+      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
       if (zbl.flexibled) {
         int t1, t2;
@@ -392,7 +426,14 @@ static __global__ void find_energy_zbl(
         }
         find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
-        find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+        float rc_inner = zbl.rc_inner;
+        float rc_outer = zbl.rc_outer;
+        if (paramb.use_typewise_cutoff_zbl) {
+          // zi and zj start from 1, so need to minus 1 here
+          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor, rc_outer);
+          rc_inner = rc_outer * 0.5f;
+        }
+        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       s_pe += f * 0.5f;
     }
@@ -436,6 +477,7 @@ void NEP_Energy::find_energy(
   if (zbl.enabled) {
     find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
       N,
+      paramb,
       zbl,
       g_NN_angular,
       g_type,
