@@ -5,7 +5,6 @@
 :attr:`l_max`
 =============
 
-This keyword is only relevant for NEP3 and NEP4.
 It sets the maximum expansion order for the angular terms, see Sect. II.C of [Fan2022b]_.
 The syntax is::
 
