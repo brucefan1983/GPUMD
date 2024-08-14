@@ -34,7 +34,7 @@ converged_files=()
 non_converged_files=()
 
 for file in $(find "$read_dire" -name "OUTCAR"); do
-    NSW=$(grep "NSW" "$file" | awk '{print $3}')
+    NSW=$(grep "number of steps for IOM" "$file" | awk '{print $3}')
     
     if [ "$NSW" -ne 0 ]; then
         converged_files+=("$file")
