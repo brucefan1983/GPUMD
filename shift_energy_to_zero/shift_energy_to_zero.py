@@ -2,9 +2,10 @@
 # coding: utf-8
 '''
 Goal:
-    Shift total energy to ~0 by substracting atomic energies
+    Shift total energy to ~0 by substracting atomic energies using the least square method.
 Run example:
     $ python shift_energy_to_zero.py your.xyz
+    A new file shifted.xyz will be generated which contains the shifted potential energies.
 Author:
     Nan Xu (tamas@zju.edu.cn)
 '''
