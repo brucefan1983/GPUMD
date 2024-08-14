@@ -10,7 +10,7 @@ The syntax is::
 
   use_typewise_cutoff [<radial_factor> <angular_factor>]
 
-without two optional (dimensionless) parameters, :attr:`<radial_factor>` and :attr:`<angular_factor>`, which default to 2.5 and 2, respectively.
+with two optional (dimensionless) parameters, :attr:`<radial_factor>` and :attr:`<angular_factor>`, which default to 2.5 and 2, respectively.
 
 If this keyword is present, the radial cutoff between two elements is the minimum between the global radial cutoff :math:`r_\mathrm{c}^\mathrm{R}` and :attr:`<radial_factor>` times of the sum of the covalent radii of the two elements, and the angular cutoff between two elements is the minimum between the global angular cutoff :math:`r_\mathrm{c}^\mathrm{A}` and :attr:`<angular_factor>` times of the sum of the covalent radii of the two elements.
 

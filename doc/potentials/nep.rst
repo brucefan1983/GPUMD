@@ -8,7 +8,7 @@ Neuroevolution potential
 The neuroevolution potential (:term:`NEP`) approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2) and [Fan2022b]_ (NEP3).
 Currently, :program:`GPUMD` supports NEP3 and NEP4 (to be published).
 Both versions have comparable accuracy for single-component systems.
-For multi-component systems, NEP4 usually has the higher accuracy, if all the other hyperparameters are the same.
+For multi-component systems, NEP4 usually has higher accuracy, if all the other hyperparameters are the same.
 
 :program:`GPUMD` not only allows one to carry out simulations using :term:`NEP` models via the :ref:`gpumd executable <gpumd_executable>` but even the construction of such models via the :ref:`nep executable <nep_executable>`.
 
