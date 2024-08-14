@@ -34,8 +34,16 @@ converged_files=()
 non_converged_files=()
 
 for file in $(find "$read_dire" -name "OUTCAR"); do
+    NSW=$(grep "number of steps for IOM" "$file" | awk '{print $3}')
+    
+    if [ "$NSW" -ne 0 ]; then
+        converged_files+=("$file")
+        continue
+    fi
+    
     NELM=$(grep "NELM" "$file" | awk '{print $3}' | tr -d ';')
     actual_steps=$(grep -c "Iteration" "$file")
+
     if grep -q "aborting loop because EDIFF is reached" "$file"; then
         if [ "$actual_steps" -lt "$NELM" ]; then
             converged_files+=("$file")
