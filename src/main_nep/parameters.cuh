@@ -30,7 +30,10 @@ public:
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
-  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
+  int num_hidden_layers;  // number of hidden layers
+  int num_neurons1;       // number of nuerons in the 1st hidden layer
+  int num_neurons2;       // number of nuerons in the 2st hidden layer
+  int num_neurons3;       // number of nuerons in the 3st hidden layer
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
