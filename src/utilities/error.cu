@@ -162,14 +162,6 @@ int get_int_from_token(const std::string& token, const char* filename, const int
     std::cout << "    Error message: " << e.what() << std::endl;
     exit(1);
   }
-  if (std::isinf(value)) {
-    std::cout << "This number is inf.\n";
-    exit(1);
-  }
-  if (std::isnan(value)) {
-    std::cout << "This number is nan.\n";
-    exit(1);
-  }
   return value;
 }
 
