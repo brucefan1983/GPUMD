@@ -798,6 +798,10 @@ void Parameters::parse_neuron(const char** param, int num_param)
       PRINT_INPUT_ERROR("number of neurons should <= 200.");
     }
   }
+
+  if (num_neurons[0] + num_neurons[1] + num_neurons[2] > 200) {
+    PRINT_INPUT_ERROR("total number of neurons should <= 200.\n");
+  }
 }
 
 void Parameters::parse_lambda_1(const char** param, int num_param)
