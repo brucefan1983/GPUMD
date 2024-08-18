@@ -88,9 +88,9 @@ void Parameters::set_default_parameters()
   L_max_4body = 2;             // default is to include 4body
   L_max_5body = 0;             // default is not to include 5body
   num_hidden_layers = 1;       // default is to have one hidden layer
-  num_neurons1 = 30;           // a relatively small value to achieve high speed
-  num_neurons2 = 0;            // default is not to have the 2nd hidden layer
-  num_neurons3 = 0;            // default is not to have the 3rd hidden layer
+  num_neurons[0] = 30;         // a relatively small value to achieve high speed
+  num_neurons[1] = 0;          // default is not to have the 2nd hidden layer
+  num_neurons[2] = 0;          // default is not to have the 3rd hidden layer
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
@@ -189,11 +189,11 @@ void Parameters::calculate_parameters()
 #endif
 
   if (num_hidden_layers == 1) {
-    number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+    number_of_variables_ann = (dim + 2) * num_neurons[0] * (version == 4 ? num_types : 1) + 1;
   } else if (num_hidden_layers == 2) {
-    number_of_variables_ann = ((dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2) * (version == 4 ? num_types : 1) + 1;
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 2) * num_neurons[1]) * (version == 4 ? num_types : 1) + 1;
   } else {
-    number_of_variables_ann = ((dim + 1) * num_neurons1 + (num_neurons1 + 1) * num_neurons2 + (num_neurons2 + 2) * num_neurons3) * (version == 4 ? num_types : 1) + 1;
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 1) * num_neurons[1] + (num_neurons[1] + 2) * num_neurons[2]) * (version == 4 ? num_types : 1) + 1;
   }
 
   number_of_variables_descriptor =
@@ -352,15 +352,9 @@ void Parameters::report_inputs()
   }
 
   if (is_neuron_set) {
-    printf("    (input)   number of hiden layers = %d.\n", num_hidden_layers);
-    printf("    (input-1st)   number of neurons = %d.\n", num_neurons1);
-    printf("    (input-2nd)   number of neurons = %d.\n", num_neurons2);
-    printf("    (input-3rd)   number of neurons = %d.\n", num_neurons3);
+    printf("    (input)   number of neurons = (%d, %d, %d).\n", num_neurons[0], num_neurons[1], num_neurons[2]);
   } else {
-    printf("    (default) number of hiden layers = %d.\n", num_hidden_layers);
-    printf("    (default-1st) number of neurons = %d.\n", num_neurons1);
-    printf("    (default-2nd)   number of neurons = %d.\n", num_neurons2);
-    printf("    (default-3rd)   number of neurons = %d.\n", num_neurons3);
+    printf("    (default) number of neurons = (%d, %d, %d).\n", num_neurons[0], num_neurons[1], num_neurons[2]);
   }
 
   if (is_lambda_1_set) {
@@ -431,12 +425,12 @@ void Parameters::report_inputs()
   printf("    number of radial descriptor components = %d.\n", dim_radial);
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
-  if (num_neurons3 != 0) {
-    printf("    NN architecture = %d-%d-%d-%d-1.\n", dim, num_neurons1, num_neurons2, num_neurons3);
-  } else if (num_neurons2 != 0) {
-    printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons1, num_neurons2);
+  if (num_hidden_layers == 3) {
+    printf("    NN architecture = %d-%d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1], num_neurons[2]);
+  } else if (num_hidden_layers == 2) {
+    printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1]);
   } else {
-    printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
+    printf("    NN architecture = %d-%d-1.\n", dim, num_neurons[0]);
   }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
@@ -774,35 +768,39 @@ void Parameters::parse_neuron(const char** param, int num_param)
 
   num_hidden_layers = num_param - 1;
 
-  if (!is_valid_int(param[1], &num_neurons1)) {
+  if (!is_valid_int(param[1], &num_neurons[0])) {
     PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
   }
-  if (num_neurons1 < 1) {
+  if (num_neurons[0] < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
+  } else if (num_neurons[0] > 200) {
     PRINT_INPUT_ERROR("number of neurons should <= 200.");
   }
 
   if (num_param > 2) {
-    if (!is_valid_int(param[2], &num_neurons2)) {
+    if (!is_valid_int(param[2], &num_neurons[1])) {
       PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
     }
-    if (num_neurons2 < 1) {
+    if (num_neurons[1] < 1) {
       PRINT_INPUT_ERROR("number of neurons should >= 1.");
-    } else if (num_neurons2 > 200) {
+    } else if (num_neurons[1] > 200) {
       PRINT_INPUT_ERROR("number of neurons should <= 200.");
     }
   }
 
   if (num_param > 3) {
-    if (!is_valid_int(param[3], &num_neurons3)) {
+    if (!is_valid_int(param[3], &num_neurons[2])) {
       PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
     }
-    if (num_neurons3 < 1) {
+    if (num_neurons[2] < 1) {
       PRINT_INPUT_ERROR("number of neurons should >= 1.");
-    } else if (num_neurons3 > 200) {
+    } else if (num_neurons[2] > 200) {
       PRINT_INPUT_ERROR("number of neurons should <= 200.");
     }
+  }
+
+  if (num_neurons[0] + num_neurons[1] + num_neurons[2] > 200) {
+    PRINT_INPUT_ERROR("total number of neurons should <= 200.\n");
   }
 }
 

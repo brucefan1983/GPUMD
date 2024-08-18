@@ -69,14 +69,13 @@ public:
     int num_hidden_layers = 1; // number of hidden layers (1 to 3)
     int num_neurons[3] = {0, 0, 0}; // number of neurons in the hidden layer
     int num_para = 0;     // number of parameters
-    const float* w[50][3]; // weights for each layer
-    const float* b[50][3]; // biases for each layer
-    const float* w_out[50]; // weight from the hidden layer to the output layer
+    int num_para_one_ann_without_bias = 0; // number of parameters for one ann without the output bias
+    int offset_w[4];
+    int offset_b[3];
+    const float* para[NUM_ELEMENTS]; // weight and bias parameters for the hidden layers
     const float* b_out;      // bias for the output layer
     // for the scalar part of polarizability
-    const float* w_pol[10][3]; // weight from the input layer to the hidden layer
-    const float* b_pol[10][3]; // bias for the hidden layer
-    const float* w_out_pol[10]; // weight from the hidden layer to the output layer
+    const float* para_pol[NUM_ELEMENTS]; // weight and bias parameters for the hidden layers
     const float* b_out_pol;     // bias for the output layer
     // for elements in descriptor
     const float* c;
