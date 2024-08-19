@@ -18,7 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
-#define MAX_NUM_ELEMENTS_EAM 10
+#define MAX_NUM_ELEMENTS_EAM 18
 
 struct EAM2004Zhou {
   double re_inv[MAX_NUM_ELEMENTS_EAM];
