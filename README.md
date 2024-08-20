@@ -84,6 +84,7 @@ https://www.freelists.org/list/gpumd
 | Zihan Yan             | https://github.com/zhyan0603 |
 | Yongchao Wu           | https://github.com/mushroomfire |
 | Yanlong Li            | https://github.com/DragonPara |
+| Qi You                | https://github.com/YouQixiaowu |
 
 ## Citations
 
