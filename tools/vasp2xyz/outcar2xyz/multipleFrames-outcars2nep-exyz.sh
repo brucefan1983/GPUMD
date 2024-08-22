@@ -41,7 +41,7 @@ for file in $(find "$read_dire" -name "OUTCAR"); do
         continue
     fi
     
-    NELM=$(grep "NELM" "$file" | awk '{print $3}' | tr -d ';')
+    NELM=$(grep "of ELM steps" "$file" | awk '{print $3}' | tr -d ';')
     actual_steps=$(grep -c "Iteration" "$file")
 
     if grep -q "aborting loop because EDIFF is reached" "$file"; then
