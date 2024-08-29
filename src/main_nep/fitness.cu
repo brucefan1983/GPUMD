@@ -54,7 +54,8 @@ Fitness::Fitness(Parameters& para)
   int count = 0;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     const int batch_size_minimal = structures_train.size() / num_batches;
-    const bool is_larger_batch = batch_id + batch_size_minimal * num_batches < structures_train.size();
+    const bool is_larger_batch =
+      batch_id + batch_size_minimal * num_batches < structures_train.size();
     const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
     count += batch_size;
     printf("\nBatch %d:\n", batch_id);
@@ -63,7 +64,8 @@ Fitness::Fitness(Parameters& para)
       print_line_1();
       printf("Constructing train_set in device  %d.\n", device_id);
       CHECK(cudaSetDevice(device_id));
-      train_set[batch_id][device_id].construct(para, structures_train, count - batch_size, count, device_id);
+      train_set[batch_id][device_id].construct(
+        para, structures_train, count - batch_size, count, device_id);
       print_line_2();
     }
   }
@@ -138,15 +140,15 @@ void Fitness::compute(
     std::vector<float> dummy_solution(para.number_of_variables * deviceCount, para.initial_para);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(
-        para, 
-        dummy_solution.data(), 
-        train_set[n], 
+        para,
+        dummy_solution.data(),
+        train_set[n],
 #ifdef USE_FIXED_SCALER
-        false, 
+        false,
 #else
         true,
 #endif
-        true, 
+        true,
         deviceCount);
     }
   } else {
@@ -215,16 +217,15 @@ void Fitness::compute(
         }
       }
     }
-
   }
 }
 
 void Fitness::output(
   bool is_stress,
-  int num_components, 
-  FILE* fid, 
-  float* prediction, 
-  float* reference, 
+  int num_components,
+  FILE* fid,
+  float* prediction,
+  float* reference,
   Dataset& dataset)
 {
   for (int nc = 0; nc < dataset.Nc; ++nc) {
@@ -322,19 +323,20 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       para.typewise_cutoff_zbl_factor);
   } else {
     fprintf(
-    fid_nep,
-    "cutoff %g %g %d %d\n",
-    para.rc_radial,
-    para.rc_angular,
-    max_NN_radial,
-    max_NN_angular);
+      fid_nep,
+      "cutoff %g %g %d %d\n",
+      para.rc_radial,
+      para.rc_angular,
+      max_NN_radial,
+      max_NN_angular);
   }
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
 
   if (para.num_hidden_layers == 3) {
-    fprintf(fid_nep, "ANN %d %d %d\n", para.num_neurons[0], para.num_neurons[1], para.num_neurons[2]);
+    fprintf(
+      fid_nep, "ANN %d %d %d\n", para.num_neurons[0], para.num_neurons[1], para.num_neurons[2]);
   } else if (para.num_hidden_layers == 2) {
     fprintf(fid_nep, "ANN %d %d %d\n", para.num_neurons[0], para.num_neurons[1], 0);
   } else if (para.num_hidden_layers == 1) {
@@ -528,7 +530,13 @@ void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
 void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  output(
+    false,
+    6,
+    fid_polarizability,
+    dataset.virial_cpu.data(),
+    dataset.virial_ref_cpu.data(),
+    dataset);
 }
 
 void Fitness::predict(Parameters& para, float* elite)
@@ -540,7 +548,8 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_stress = my_fopen("stress_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
+      update_energy_force_virial(
+        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
     }
     fclose(fid_energy);
     fclose(fid_force);

@@ -22,13 +22,12 @@
 #include <iostream>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 Parameters::Parameters()
 {
@@ -171,7 +170,7 @@ void Parameters::calculate_parameters()
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
   if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
@@ -191,9 +190,14 @@ void Parameters::calculate_parameters()
   if (num_hidden_layers == 1) {
     number_of_variables_ann = (dim + 2) * num_neurons[0] * (version == 4 ? num_types : 1) + 1;
   } else if (num_hidden_layers == 2) {
-    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 2) * num_neurons[1]) * (version == 4 ? num_types : 1) + 1;
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 2) * num_neurons[1]) *
+                                (version == 4 ? num_types : 1) +
+                              1;
   } else {
-    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 1) * num_neurons[1] + (num_neurons[1] + 2) * num_neurons[2]) * (version == 4 ? num_types : 1) + 1;
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 1) * num_neurons[1] +
+                               (num_neurons[1] + 2) * num_neurons[2]) *
+                                (version == 4 ? num_types : 1) +
+                              1;
   }
 
   number_of_variables_descriptor =
@@ -319,10 +323,12 @@ void Parameters::report_inputs()
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
-    printf("    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+    printf(
+      "    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
     printf("              factor = %g.\n", typewise_cutoff_zbl_factor);
   } else {
-    printf("    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+    printf(
+      "    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
   }
 
   if (is_n_max_set) {
@@ -352,9 +358,17 @@ void Parameters::report_inputs()
   }
 
   if (is_neuron_set) {
-    printf("    (input)   number of neurons = (%d, %d, %d).\n", num_neurons[0], num_neurons[1], num_neurons[2]);
+    printf(
+      "    (input)   number of neurons = (%d, %d, %d).\n",
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
   } else {
-    printf("    (default) number of neurons = (%d, %d, %d).\n", num_neurons[0], num_neurons[1], num_neurons[2]);
+    printf(
+      "    (default) number of neurons = (%d, %d, %d).\n",
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
   }
 
   if (is_lambda_1_set) {
@@ -426,7 +440,12 @@ void Parameters::report_inputs()
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
   if (num_hidden_layers == 3) {
-    printf("    NN architecture = %d-%d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1], num_neurons[2]);
+    printf(
+      "    NN architecture = %d-%d-%d-%d-1.\n",
+      dim,
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
   } else if (num_hidden_layers == 2) {
     printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1]);
   } else {
@@ -762,7 +781,7 @@ void Parameters::parse_neuron(const char** param, int num_param)
 {
   is_neuron_set = true;
 
-  if (num_param < 2 || num_param > 4) { 
+  if (num_param < 2 || num_param > 4) {
     PRINT_INPUT_ERROR("neuron should have 1 to 3 parameters.\n");
   }
 
@@ -1039,13 +1058,13 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
   if (num_param == 3) {
     double typewise_cutoff_radial_factor_temp = 0.0;
     if (!is_valid_real(param[1], &typewise_cutoff_radial_factor_temp)) {
-       PRINT_INPUT_ERROR("typewise_cutoff_radial_factor should be a number.\n");
+      PRINT_INPUT_ERROR("typewise_cutoff_radial_factor should be a number.\n");
     }
     typewise_cutoff_radial_factor = typewise_cutoff_radial_factor_temp;
 
     double typewise_cutoff_angular_factor_temp = 0.0;
     if (!is_valid_real(param[2], &typewise_cutoff_angular_factor_temp)) {
-       PRINT_INPUT_ERROR("typewise_cutoff_angular_factor should be a number.\n");
+      PRINT_INPUT_ERROR("typewise_cutoff_angular_factor should be a number.\n");
     }
     typewise_cutoff_angular_factor = typewise_cutoff_angular_factor_temp;
   }
@@ -1071,7 +1090,7 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   if (num_param == 2) {
     double typewise_cutoff_zbl_factor_temp = 0.0;
     if (!is_valid_real(param[1], &typewise_cutoff_zbl_factor_temp)) {
-       PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor should be a number.\n");
+      PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor should be a number.\n");
     }
     typewise_cutoff_zbl_factor = typewise_cutoff_zbl_factor_temp;
   }

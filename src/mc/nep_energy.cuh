@@ -49,13 +49,13 @@ public:
   };
 
   struct ANN {
-    int dim = 0;          // dimension of the descriptor
-    int num_neurons1 = 0; // number of neurons in the 1st hidden layer
-    int num_para = 0;     // number of parameters
+    int dim = 0;                   // dimension of the descriptor
+    int num_neurons1 = 0;          // number of neurons in the 1st hidden layer
+    int num_para = 0;              // number of parameters
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* b1;      // bias for the output layer
+    const float* b1;               // bias for the output layer
     const float* c;
   };
 

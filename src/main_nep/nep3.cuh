@@ -52,31 +52,32 @@ public:
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int basis_size_radial = 0;
     int basis_size_angular = 0;
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 1, 2, ..., L_max
+    int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;         // l = 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
-    int version = 4;      // 3 for NEP3 and 4 for NEP4
+    int version = 4; // 3 for NEP3 and 4 for NEP4
     int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
-    int dim = 0;          // dimension of the descriptor
-    int num_hidden_layers = 1; // number of hidden layers (1 to 3)
+    int dim = 0;                    // dimension of the descriptor
+    int num_hidden_layers = 1;      // number of hidden layers (1 to 3)
     int num_neurons[3] = {0, 0, 0}; // number of neurons in the hidden layer
-    int num_para = 0;     // number of parameters
-    int num_para_one_ann_without_bias = 0; // number of parameters for one ann without the output bias
+    int num_para = 0;               // number of parameters
+    int num_para_one_ann_without_bias =
+      0; // number of parameters for one ann without the output bias
     int offset_w[4];
     int offset_b[3];
     const float* para[NUM_ELEMENTS]; // weight and bias parameters for the hidden layers
-    const float* b_out;      // bias for the output layer
+    const float* b_out;              // bias for the output layer
     // for the scalar part of polarizability
     const float* para_pol[NUM_ELEMENTS]; // weight and bias parameters for the hidden layers
-    const float* b_out_pol;     // bias for the output layer
+    const float* b_out_pol;              // bias for the output layer
     // for elements in descriptor
     const float* c;
   };

@@ -32,7 +32,7 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  
+
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;

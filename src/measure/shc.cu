@@ -187,9 +187,11 @@ void SHC::process(
   } else {
     if (group_id == -1) {
       for (int n = 1; n < group_num; ++n) {
-        int offset_s = Nc * group[group_method].cpu_size_sum[n] + 
+        int offset_s = Nc * group[group_method].cpu_size_sum[n] +
                        correlation_step * group[group_method].cpu_size[n];
-        gpu_copy_data<<<(group[group_method].cpu_size[n] - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+        gpu_copy_data<<<
+          (group[group_method].cpu_size[n] - 1) / BLOCK_SIZE_SHC + 1,
+          BLOCK_SIZE_SHC>>>(
           group[group_method].cpu_size[n],
           group[group_method].cpu_size_sum[n],
           group[group_method].contents.data(),
@@ -487,9 +489,11 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
       PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
     }
   }
-  
+
   if (group_id == -1) {
-    printf("    compute SHC for all group IDs except for group ID 0 in grouping method %d.\n", group_method);
+    printf(
+      "    compute SHC for all group IDs except for group ID 0 in grouping method %d.\n",
+      group_method);
   }
   if (group_id < -1) {
     PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");

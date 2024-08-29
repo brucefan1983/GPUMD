@@ -30,13 +30,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <vector>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 void NEP_Energy::initialize(const char* file_potential)
 {
@@ -66,7 +65,9 @@ void NEP_Energy::initialize(const char* file_potential)
     paramb.version = 4;
     zbl.enabled = true;
   } else {
-    std::cout << tokens[0] << " is an unsupported NEP model. We only support NEP3 and NEP4 models now." << std::endl;
+    std::cout << tokens[0]
+              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << std::endl;
     exit(1);
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
@@ -118,7 +119,8 @@ void NEP_Energy::initialize(const char* file_potential)
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
   if (tokens.size() != 5 && tokens.size() != 8) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [radial_factor] [angular_factor] [zbl_factor].\n";
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
+                 "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -430,7 +432,9 @@ static __global__ void find_energy_zbl(
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor, rc_outer);
+          rc_outer = min(
+            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
+            rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);

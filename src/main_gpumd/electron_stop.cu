@@ -69,7 +69,7 @@ static void __global__ find_stopping_force(
     g_force[1 * num_atoms + i] = vy * factor;
     g_force[2 * num_atoms + i] = vz * factor;
 
-    g_power_loss[i] = stopping_power * sqrt(v2) * time_step; 
+    g_power_loss[i] = stopping_power * sqrt(v2) * time_step;
   }
 }
 
@@ -136,26 +136,25 @@ static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
   double f = 0.0;
 
   for (int batch = 0; batch < number_of_batches; ++batch) {
-      int idx = tid + batch * block_size;
-      if (idx < num_atoms) {
-          f += g_power_loss[idx];
-      }
+    int idx = tid + batch * block_size;
+    if (idx < num_atoms) {
+      f += g_power_loss[idx];
+    }
   }
 
   s_f[tid] = f;
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-      if (tid < offset) {
-          s_f[tid] += s_f[tid + offset];
-      }
-      __syncthreads(); 
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncthreads();
   }
 
   if (tid == 0) {
-      device_power_loss = s_f[0];
+    device_power_loss = s_f[0];
   }
-
 }
 
 void Electron_Stop::compute(double time_step, Atom& atom)
@@ -190,8 +189,9 @@ void Electron_Stop::compute(double time_step, Atom& atom)
   find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
   CUDA_CHECK_KERNEL
 
-  double power_loss_host;  
-  CHECK(cudaMemcpyFromSymbol(&power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost));
+  double power_loss_host;
+  CHECK(cudaMemcpyFromSymbol(
+    &power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost));
   stopping_power_loss += power_loss_host;
 }
 
@@ -256,11 +256,11 @@ void Electron_Stop::parse(
   do_electron_stop = true;
 }
 
-void Electron_Stop::finalize() 
-{ 
-  if (do_electron_stop) { 
+void Electron_Stop::finalize()
+{
+  if (do_electron_stop) {
     printf("Total electron stopping power loss = %g eV.\n", stopping_power_loss);
   }
-  do_electron_stop = false; 
+  do_electron_stop = false;
   stopping_power_loss = 0.0;
 }

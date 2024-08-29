@@ -18,8 +18,8 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 #include "add_efield.cuh"
-#include "add_random_force.cuh"
 #include "add_force.cuh"
+#include "add_random_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
@@ -554,9 +554,10 @@ void Run::parse_correct_velocity(const char** param, int num_param, const std::v
   if (velocity.velocity_correction_group_method < 0) {
     printf("    for the whole system.\n");
   } else {
-    printf("    for individual groups in group method %d.\n", velocity.velocity_correction_group_method);
+    printf(
+      "    for individual groups in group method %d.\n", velocity.velocity_correction_group_method);
   }
-  
+
   velocity.do_velocity_correction = true;
 }
 

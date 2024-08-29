@@ -39,12 +39,12 @@ public:
 
 private:
   bool dump_ = false;
-  int interval = 1;          // output interval
-  int has_velocity_ = 0;     // 0 wthout velocities, 1 with velocities
+  int interval = 1;      // output interval
+  int has_velocity_ = 0; // 0 wthout velocities, 1 with velocities
   char file_position[200];
-  int precision = 2;         // 1 = single precision, 2 = double
+  int precision = 2; // 1 = single precision, 2 = double
 
-  int ncid;                  // NetCDF ID
+  int ncid; // NetCDF ID
   static bool append;
 
   // dimensions
