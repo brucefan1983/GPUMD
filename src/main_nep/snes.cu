@@ -44,7 +44,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
   population_size = para.population_size;
-  const int N =  population_size * number_of_variables;
+  const int N = population_size * number_of_variables;
   int num = number_of_variables;
   if (para.version == 4) {
     num /= para.num_types;
@@ -107,8 +107,8 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     fclose(fid_restart);
   }
 #ifdef USE_FIXED_SCALER
-    mu[para.number_of_variables_ann - 1] = 0.0f;
-    sigma[para.number_of_variables_ann - 1] = 0.0f;
+  mu[para.number_of_variables_ann - 1] = 0.0f;
+  sigma[para.number_of_variables_ann - 1] = 0.0f;
 #endif
   cudaSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
@@ -142,15 +142,23 @@ void SNES::find_type_of_variable(Parameters& para)
           }
           offset += (para.dim + 2) * para.num_neurons[0];
         } else if (para.num_hidden_layers == 2) {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1]; ++n) {
+          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
+                                (para.num_neurons[0] + 2) * para.num_neurons[1];
+               ++n) {
             type_of_variable[n + offset] = t;
           }
-          offset += (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1];
+          offset +=
+            (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1];
         } else {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 1) * para.num_neurons[1] + (para.num_neurons[1] + 2) * para.num_neurons[2]; ++n) {
+          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
+                                (para.num_neurons[0] + 1) * para.num_neurons[1] +
+                                (para.num_neurons[1] + 2) * para.num_neurons[2];
+               ++n) {
             type_of_variable[n + offset] = t;
           }
-          offset += (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 1) * para.num_neurons[1] + (para.num_neurons[1] + 2) * para.num_neurons[2];
+          offset += (para.dim + 1) * para.num_neurons[0] +
+                    (para.num_neurons[0] + 1) * para.num_neurons[1] +
+                    (para.num_neurons[1] + 2) * para.num_neurons[2];
         }
       }
       ++offset; // the bias
@@ -159,10 +167,13 @@ void SNES::find_type_of_variable(Parameters& para)
     if (para.num_hidden_layers == 1) {
       offset += (para.dim + 2) * para.num_neurons[0] + 1;
     } else if (para.num_hidden_layers == 2) {
-      offset += (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1] + 1;
+      offset +=
+        (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1] + 1;
     } else {
-      offset += (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 1) * para.num_neurons[1] + (para.num_neurons[1] + 2) * para.num_neurons[2] + 1;
-    }    
+      offset += (para.dim + 1) * para.num_neurons[0] +
+                (para.num_neurons[0] + 1) * para.num_neurons[1] +
+                (para.num_neurons[1] + 2) * para.num_neurons[2] + 1;
+    }
   }
 
   // descriptor part
@@ -269,8 +280,9 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     std::vector<std::string> tokens;
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
-    if (tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" 
-      || tokens[0] == "nep3_zbl_temperature" || tokens[0] == "nep4_zbl_temperature") {
+    if (
+      tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" || tokens[0] == "nep3_zbl_temperature" ||
+      tokens[0] == "nep4_zbl_temperature") {
       num_lines_to_be_skipped = 6;
     }
 
@@ -315,12 +327,12 @@ void SNES::create_population(Parameters& para)
   cudaSetDevice(0); // normally use GPU-0
   const int N = population_size * number_of_variables;
   gpu_create_population<<<(N - 1) / 128 + 1, 128>>>(
-    N, 
-    number_of_variables, 
-    gpu_mu.data(), 
-    gpu_sigma.data(), 
-    curand_states.data(), 
-    gpu_s.data(), 
+    N,
+    number_of_variables,
+    gpu_mu.data(),
+    gpu_sigma.data(),
+    curand_states.data(),
+    gpu_s.data(),
     gpu_population.data());
   CUDA_CHECK_KERNEL
   gpu_population.copy_to_host(population.data());
@@ -381,14 +393,14 @@ void SNES::regularize_NEP4(Parameters& para)
     if (t == para.num_types) {
       num_variables = para.number_of_variables;
     }
-    
+
     gpu_find_L1_L2_NEP4<<<population_size, 1024>>>(
-      number_of_variables, 
+      number_of_variables,
       para.num_types,
-      t, 
-      gpu_type_of_variable.data(), 
-      gpu_population.data(), 
-      gpu_cost_L1reg.data(), 
+      t,
+      gpu_type_of_variable.data(),
+      gpu_population.data(),
+      gpu_cost_L1reg.data(),
       gpu_cost_L2reg.data());
     CUDA_CHECK_KERNEL
 

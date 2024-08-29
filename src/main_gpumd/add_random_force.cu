@@ -128,23 +128,22 @@ void Add_Random_Force::compute(const int step, Atom& atom)
       curand_states_.data(),
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + atom.number_of_atoms,
-      atom.force_per_atom.data() + atom.number_of_atoms * 2
-    );
+      atom.force_per_atom.data() + atom.number_of_atoms * 2);
     CUDA_CHECK_KERNEL
 
     gpu_sum_force<<<3, 1024>>>(
-        atom.number_of_atoms,
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + atom.number_of_atoms,
-        atom.force_per_atom.data() + 2 * atom.number_of_atoms);
+      atom.number_of_atoms,
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + atom.number_of_atoms,
+      atom.force_per_atom.data() + 2 * atom.number_of_atoms);
     CUDA_CHECK_KERNEL
 
     gpu_correct_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-        atom.number_of_atoms,
-        1.0 / atom.number_of_atoms,
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + atom.number_of_atoms,
-        atom.force_per_atom.data() + 2 * atom.number_of_atoms);
+      atom.number_of_atoms,
+      1.0 / atom.number_of_atoms,
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + atom.number_of_atoms,
+      atom.force_per_atom.data() + 2 * atom.number_of_atoms);
     CUDA_CHECK_KERNEL
   }
 }
@@ -178,7 +177,4 @@ void Add_Random_Force::parse(const char** param, int num_param, int number_of_at
   CUDA_CHECK_KERNEL
 }
 
-void Add_Random_Force::finalize() 
-{ 
-  num_calls_ = 0;
-}
+void Add_Random_Force::finalize() { num_calls_ = 0; }

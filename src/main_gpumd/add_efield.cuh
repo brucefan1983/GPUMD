@@ -23,13 +23,11 @@ class Group;
 class Add_Efield
 {
 public:
-
   void parse(const char** param, int num_param, const std::vector<Group>& group);
   void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();
 
 private:
-
   int num_calls_ = 0;
   int table_length_[10];
   std::vector<double> efield_table_[10];

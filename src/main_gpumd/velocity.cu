@@ -353,6 +353,6 @@ void Velocity::initialize(
 
 void Velocity::finalize()
 {
-  do_velocity_correction = false; 
+  do_velocity_correction = false;
   velocity_correction_group_method = -1;
 }

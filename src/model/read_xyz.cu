@@ -298,7 +298,8 @@ static void read_xyz_line_2(
   // properties
   const int num_properties = 6;
   std::string property_name[num_properties] = {"species", "pos", "mass", "charge", "vel", "group"};
-  int property_position[num_properties] = {-1, -1, -1, -1, -1, -1}; // species,pos,mass,charge,vel,group
+  int property_position[num_properties] = {
+    -1, -1, -1, -1, -1, -1}; // species,pos,mass,charge,vel,group
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -554,7 +555,8 @@ void initialize_position(
   int num_columns = 0;
   bool has_mass = true;
   bool has_charge = true;
-  read_xyz_line_2(input, box, has_velocity_in_xyz, has_mass, has_charge, num_columns, property_offset, group);
+  read_xyz_line_2(
+    input, box, has_velocity_in_xyz, has_mass, has_charge, num_columns, property_offset, group);
 
   read_xyz_in_line_3(
     input,

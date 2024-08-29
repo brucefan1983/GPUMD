@@ -32,13 +32,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <vector>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 void NEP3::initialize_dftd3()
 {
@@ -123,7 +122,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     paramb.version = 4;
     paramb.model_type = 2;
   } else {
-    std::cout << tokens[0] << " is an unsupported NEP model. We only support NEP3 and NEP4 models now." << std::endl;
+    std::cout << tokens[0]
+              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << std::endl;
     exit(1);
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
@@ -175,7 +176,8 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   // cutoff 4.2 3.7 80 47 1
   tokens = get_tokens(input);
   if (tokens.size() != 5 && tokens.size() != 8) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [radial_factor] [angular_factor] [zbl_factor].\n";
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
+                 "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -224,7 +226,7 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   tokens = get_tokens(input);
   if (tokens.size() != 3) {
     std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
-      << std::endl;
+              << std::endl;
     exit(1);
   }
   paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
@@ -518,8 +520,12 @@ static __global__ void find_neighbor_list_large_box(
           if (paramb.use_typewise_cutoff) {
             int z1 = paramb.atomic_numbers[t1];
             int z2 = paramb.atomic_numbers[t2];
-            rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor, rc_radial);
-            rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor, rc_angular);
+            rc_radial = min(
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
+              rc_radial);
+            rc_angular = min(
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
+              rc_angular);
           }
 
           if (d12_square >= rc_radial * rc_radial) {
@@ -601,13 +607,16 @@ static __global__ void find_descriptor(
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
-      
+
       find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
@@ -649,8 +658,11 @@ static __global__ void find_descriptor(
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
-          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-          + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
+          rc = min(
+            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+              paramb.typewise_cutoff_angular_factor,
+            rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
@@ -803,8 +815,11 @@ static __global__ void find_force_radial(
       float fc12, fcp12;
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -946,16 +961,18 @@ static __global__ void find_partial_force_angular(
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_angular_factor,
+          rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(
-        paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
@@ -1057,7 +1074,9 @@ static __global__ void find_force_ZBL(
         float rc_outer = zbl.rc_outer;
         if (paramb.use_typewise_cutoff_zbl) {
           // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min((COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor, rc_outer);
+          rc_outer = min(
+            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
+            rc_outer);
           rc_inner = rc_outer * 0.5f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
@@ -1583,8 +1602,11 @@ static __global__ void find_descriptor(
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
-        rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-        + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_radial_factor, rc);
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
@@ -1630,8 +1652,11 @@ static __global__ void find_descriptor(
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
-          rc = min((COVALENT_RADIUS[paramb.atomic_numbers[t1]] 
-          + COVALENT_RADIUS[paramb.atomic_numbers[t2]]) * paramb.typewise_cutoff_angular_factor, rc);
+          rc = min(
+            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+              paramb.typewise_cutoff_angular_factor,
+            rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);

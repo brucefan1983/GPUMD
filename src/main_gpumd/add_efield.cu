@@ -24,12 +24,11 @@ Add electric field to a group of atoms.
 #include <iostream>
 #include <vector>
 
-static void __global__
-add_efield(
+static void __global__ add_efield(
   const int group_size,
   const int group_size_sum,
   const int* g_group_contents,
-  const double Ex, 
+  const double Ex,
   const double Ey,
   const double Ez,
   const double* g_charge,
@@ -67,8 +66,7 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
       atom.charge.data(),
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + num_atoms_total,
-      atom.force_per_atom.data() + num_atoms_total * 2
-    );
+      atom.force_per_atom.data() + num_atoms_total * 2);
     CUDA_CHECK_KERNEL
   }
 }
@@ -105,10 +103,9 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
   }
 
   printf(
-    "    for atoms in group %d of grouping method %d.\n", 
-    group_id_[num_calls_], 
-    grouping_method_[num_calls_]
-  );
+    "    for atoms in group %d of grouping method %d.\n",
+    group_id_[num_calls_],
+    grouping_method_[num_calls_]);
 
   if (num_param == 6) {
     table_length_[num_calls_] = 1;
@@ -150,7 +147,8 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
         PRINT_INPUT_ERROR("Number of electric field components at each step should be 3.");
       }
       for (int t = 0; t < 3; ++t) {
-        efield_table_[num_calls_][t * table_length_[num_calls_] + n] = get_double_from_token(tokens[t], __FILE__, __LINE__);
+        efield_table_[num_calls_][t * table_length_[num_calls_] + n] =
+          get_double_from_token(tokens[t], __FILE__, __LINE__);
       }
     }
   }
@@ -162,7 +160,4 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
   }
 }
 
-void Add_Efield::finalize() 
-{ 
-  num_calls_ = 0;
-}
+void Add_Efield::finalize() { num_calls_ = 0; }
