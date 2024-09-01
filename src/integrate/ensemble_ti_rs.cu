@@ -280,5 +280,5 @@ double Ensemble_TI_RS::switch_func(double t) { return 1 / (1 + t * (1 / lambda_f
 double Ensemble_TI_RS::dswitch_func(double t)
 {
   double a = 1 / lambda_f - 1;
-  return -(a / pow((1 + a * t), 2)) / t_switch;
+  return -(a / pow((1 + a * t), 2.0)) / t_switch;
 }
