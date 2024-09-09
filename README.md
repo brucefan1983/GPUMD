@@ -66,6 +66,7 @@ This software is distributed under the GNU General Public License (GPL) version 
 | [14]                  | NEP4 |
 | [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
+| [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
 
 ## References
 
@@ -112,8 +113,11 @@ arXiv:2311.04732 [cond-mat.mtrl-sci]
 
 [15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
 [Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343)
-J. Chem. Theory Comput. (2024).
+J. Chem. Theory Comput. **20**, 3273 (2024).
 
 [16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694)
 arXiv:2404.13694 [cond-mat.mtrl-sci]
+
+[17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430)
+arXiv:2409.04430 [cond-mat.mtrl-sci]
 
