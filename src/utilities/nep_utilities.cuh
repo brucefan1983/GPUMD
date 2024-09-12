@@ -654,7 +654,7 @@ static __device__ __forceinline__ void accumulate_f12(
   fn = fn * d12inv;
   float s1[3] = {
     sum_fxyz[n * NUM_OF_ABC + 0], sum_fxyz[n * NUM_OF_ABC + 1], sum_fxyz[n * NUM_OF_ABC + 2]};
-  if (num_L == L_max + 2) {
+  if (num_L >= L_max + 2) {
     get_f12_5body(d12, d12inv, fn, fnp, Fp[(L_max + 1) * n_max_angular_plus_1 + n], s1, r12, f12);
   }
   s1[0] *= C3B[0];
@@ -673,7 +673,7 @@ static __device__ __forceinline__ void accumulate_f12(
     sum_fxyz[n * NUM_OF_ABC + 5],
     sum_fxyz[n * NUM_OF_ABC + 6],
     sum_fxyz[n * NUM_OF_ABC + 7]};
-  if (num_L == L_max + 1) {
+  if (num_L >= L_max + 1) {
     get_f12_4body(d12, d12inv, fn, fnp, Fp[L_max * n_max_angular_plus_1 + n], s2, r12, f12);
   }
   s2[0] *= C3B[3];
@@ -785,13 +785,13 @@ find_q(
               C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
               C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
   }
-  if (num_L == L_max + 1) {
+  if (num_L >= L_max + 1) {
     q[L_max * n_max_angular_plus_1 + n] =
       C4B[0] * s[3] * s[3] * s[3] + C4B[1] * s[3] * (s[4] * s[4] + s[5] * s[5]) +
       C4B[2] * s[3] * (s[6] * s[6] + s[7] * s[7]) + C4B[3] * s[6] * (s[5] * s[5] - s[4] * s[4]) +
       C4B[4] * s[4] * s[5] * s[7];
   }
-  if (num_L == L_max + 2) {
+  if (num_L >= L_max + 2) {
     float s0_sq = s[0] * s[0];
     float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
     q[(L_max + 1) * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + 
