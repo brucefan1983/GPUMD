@@ -362,13 +362,7 @@ static __global__ void find_energy_nep(
         }
         accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
       }
-      if (paramb.num_L == paramb.L_max) {
-        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else if (paramb.num_L == paramb.L_max + 1) {
-        find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else {
-        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      }
+      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
     }
 
     // nomalize descriptor
