@@ -378,12 +378,10 @@ void Fitness::report_error(
     float rmse_force_train = rmse_force_train_array.back();
     float rmse_virial_train = rmse_virial_train_array.back();
 
-#ifndef USE_FIXED_SCALER
     // correct the last bias parameter in the NN
     if (para.train_mode == 0 || para.train_mode == 3) {
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
     }
-#endif
 
     float rmse_energy_test = 0.0f;
     float rmse_force_test = 0.0f;

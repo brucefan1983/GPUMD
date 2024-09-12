@@ -436,7 +436,6 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   return rmse_array;
 }
 
-#ifndef USE_FIXED_SCALER
 static __global__ void
 gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
 {
@@ -472,7 +471,6 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
     g_energy_shift[bid] = diff;
   }
 }
-#endif
 
 static __global__ void gpu_sum_pe_error(
   float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
@@ -523,7 +521,6 @@ std::vector<float> Dataset::get_rmse_energy(
   const int block_size = 256;
   int mem = sizeof(float) * Nc;
 
-#ifndef USE_FIXED_SCALER
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
@@ -533,7 +530,6 @@ std::vector<float> Dataset::get_rmse_energy(
     }
     energy_shift_per_structure /= Nc;
   }
-#endif
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure,
