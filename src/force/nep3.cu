@@ -940,7 +940,7 @@ static __global__ void find_partial_force_angular(
           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
                       g_gnp_angular[index_right_all] * weight_right;
-          accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 #else
       float fc12, fcp12;
