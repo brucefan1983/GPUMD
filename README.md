@@ -4,6 +4,10 @@
 
 # `GPUMD`
 
+Copyright (2017) Zheyong Fan.
+This is the GPUMD software package.
+This software is distributed under the GNU General Public License (GPL) version 3.
+
 ## What is `GPUMD`?
 
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics.
@@ -32,14 +36,6 @@
 * Latest released version: https://gpumd.org/
 * Development version: https://gpumd.org/dev/
 
-## Mailing list:
-* You can use the following link to subscribe and unsubscribe the mailing list:
-https://www.freelists.org/list/gpumd
-
-* To post a question, you can send an email to gpumd(at)freelists.org
-
-* Here is the archive (public): https://www.freelists.org/archive/gpumd/
-
 ## Python packages related to GPUMD and/or NEP:
 
 | Package               | link                           | comment |
@@ -50,40 +46,6 @@ https://www.freelists.org/list/gpumd
 | `mdapy`               | https://github.com/mushroomfire/mdapy | The `mdapy` python library provides an array of powerful, flexible, and straightforward tools to analyze atomic trajectories generated from Molecular Dynamics (MD) simulations. |
 | `pynep`               | https://github.com/bigd4/PyNEP   | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
 | `somd`                | https://github.com/initqp/somd  | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
-
-
-  
-## Authors:
-
-* Before the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
-* Below is the full list of contributors starting from the first release.
-
-| Name                  | contact                           |
-| --------------------- | --------------------------------- |
-| Zheyong Fan           | https://github.com/brucefan1983   |
-| Alexander J. Gabourie | https://github.com/AlexGabourie   |
-| Ke Xu                 | https://github.com/Kick-H         |
-| Ting Liang            | https://github.com/Tingliangstu   |
-| Jiahui Liu            | https://github.com/Jonsnow-willow |
-| Penghua Ying          | https://github.com/hityingph      |
-| Real Name ?           | https://github.com/Lazemare       |
-| Jintu Zhang           | https://github.com/initqp         |
-| Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
-| Rui Zhao              | https://github.com/grtheaory      |
-| Eric Lindgren         | https://github.com/elindgren      |
-| Junjie Wang           | https://github.com/bigd4          |
-| Yong Wang             | https://github.com/AmbroseWong    |
-| Zhixin Liang          | https://github.com/liangzhixin-202169    |
-| Paul Erhart           | https://materialsmodeling.org/ |
-| Nan Xu                | https://github.com/tamaswells | 
-| Shunda Chen           | https://github.com/shdchen |
-| Jiuyang Shi           | https://github.com/XIX-YANG |
-| Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
-| Shuning Pan           | https://github.com/psn417 |
-| Haikuan Dong          | https://github.com/hailan2005 |
-| Zihan Yan             | https://github.com/zhyan0603 |
-| Yongchao Wu           | https://github.com/mushroomfire |
-| Yanlong Li            | https://github.com/DragonPara |
 
 ## Citations
 
@@ -104,6 +66,7 @@ https://www.freelists.org/list/gpumd
 | [14]                  | NEP4 |
 | [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
+| [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
 
 ## References
 
@@ -150,8 +113,11 @@ arXiv:2311.04732 [cond-mat.mtrl-sci]
 
 [15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
 [Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343)
-J. Chem. Theory Comput. (2024).
+J. Chem. Theory Comput. **20**, 3273 (2024).
 
 [16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694)
 arXiv:2404.13694 [cond-mat.mtrl-sci]
+
+[17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430)
+arXiv:2409.04430 [cond-mat.mtrl-sci]
 

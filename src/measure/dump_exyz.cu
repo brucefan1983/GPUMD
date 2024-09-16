@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -105,14 +105,14 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 
   if (num_param >= 6) {
-     if (!is_valid_int(param[5], &separated_)) {
+    if (!is_valid_int(param[5], &separated_)) {
       PRINT_INPUT_ERROR("separated should be an integer.");
-     }
-     if (separated_ == 0) {
+    }
+    if (separated_ == 0) {
       printf("    dump_exyz into dump.xyz.\n");
-     } else {
+    } else {
       printf("    dump_exyz into separated dump.*.xyz.\n");
-     }
+    }
   }
 }
 
@@ -122,7 +122,7 @@ void Dump_EXYZ::preprocess(const int number_of_atoms)
     if (separated_ == 0) {
       fid_ = my_fopen("dump.xyz", "a");
     }
-    
+
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
@@ -250,9 +250,9 @@ void Dump_EXYZ::process(
   if (has_potential_) {
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
   }
-  
+
   if (separated_) {
-    std::string filename = "dump."+std::to_string(step+1)+".xyz";
+    std::string filename = "dump." + std::to_string(step + 1) + ".xyz";
     fid_ = my_fopen(filename.data(), "w");
   }
 
@@ -290,7 +290,6 @@ void Dump_EXYZ::process(
   } else {
     fclose(fid_);
   }
-  
 }
 
 void Dump_EXYZ::postprocess()

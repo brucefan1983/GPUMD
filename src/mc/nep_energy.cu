@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,13 +30,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <vector>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 void NEP_Energy::initialize(const char* file_potential)
 {
@@ -53,15 +52,9 @@ void NEP_Energy::initialize(const char* file_potential)
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep") {
-    paramb.version = 2;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep3") {
+  if (tokens[0] == "nep3") {
     paramb.version = 3;
     zbl.enabled = false;
-  } else if (tokens[0] == "nep_zbl") {
-    paramb.version = 2;
-    zbl.enabled = true;
   } else if (tokens[0] == "nep3_zbl") {
     paramb.version = 3;
     zbl.enabled = true;
@@ -71,6 +64,11 @@ void NEP_Energy::initialize(const char* file_potential)
   } else if (tokens[0] == "nep4_zbl") {
     paramb.version = 4;
     zbl.enabled = true;
+  } else {
+    std::cout << tokens[0]
+              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << std::endl;
+    exit(1);
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
@@ -94,7 +92,8 @@ void NEP_Energy::initialize(const char* file_potential)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("        type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    paramb.atomic_numbers[n] = atomic_number - 1;
+    printf("        type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl 0.7 1.4
@@ -119,8 +118,9 @@ void NEP_Energy::initialize(const char* file_potential)
 
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
-  if (tokens.size() != 3 && tokens.size() != 5) {
-    std::cout << "This line should be cutoff rc_radial rc_angular [MN_radial] [MN_angular].\n";
+  if (tokens.size() != 5 && tokens.size() != 8) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
+                 "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -128,18 +128,25 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        radial cutoff = %g A.\n", paramb.rc_radial);
   printf("        angular cutoff = %g A.\n", paramb.rc_angular);
 
-  paramb.MN_radial = 500;
-  paramb.MN_angular = 100;
+  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  printf("        MN_radial = %d.\n", MN_radial);
+  printf("        MN_angular = %d.\n", MN_angular);
+  paramb.MN_radial = int(ceil(MN_radial * 1.25));
+  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
+  printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 5) {
-    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("        MN_radial = %d.\n", MN_radial);
-    printf("        MN_angular = %d.\n", MN_angular);
-    paramb.MN_radial = int(ceil(MN_radial * 1.25));
-    paramb.MN_angular = int(ceil(MN_angular * 1.25));
-    printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
-    printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (tokens.size() == 8) {
+    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    if (paramb.typewise_cutoff_radial_factor > 0.0f) {
+      paramb.use_typewise_cutoff = true;
+    }
+    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
+      paramb.use_typewise_cutoff_zbl = true;
+    }
   }
 
   // n_max 10 8
@@ -154,48 +161,37 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
-  if (paramb.version >= 3) {
-    tokens = get_tokens(input);
-    if (tokens.size() != 3) {
-      std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
-                << std::endl;
-      exit(1);
-    }
-    paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-    printf("        basis_size_radial = %d.\n", paramb.basis_size_radial);
-    printf("        basis_size_angular = %d.\n", paramb.basis_size_angular);
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
+              << std::endl;
+    exit(1);
   }
+  paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  printf("        basis_size_radial = %d.\n", paramb.basis_size_radial);
+  printf("        basis_size_angular = %d.\n", paramb.basis_size_angular);
 
   // l_max
   tokens = get_tokens(input);
-  if (paramb.version == 2) {
-    if (tokens.size() != 2) {
-      std::cout << "This line should be l_max l_max_3body." << std::endl;
-      exit(1);
-    }
-  } else {
-    if (tokens.size() != 4) {
-      std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
-      exit(1);
-    }
+  if (tokens.size() != 4) {
+    std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
+    exit(1);
   }
 
   paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
   printf("        l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
-  if (paramb.version >= 3) {
-    int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
-    int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    printf("        l_max_4body = %d.\n", L_max_4body);
-    printf("        l_max_5body = %d.\n", L_max_5body);
-    if (L_max_4body == 2) {
-      paramb.num_L += 1;
-    }
-    if (L_max_5body == 1) {
-      paramb.num_L += 1;
-    }
+  int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  printf("        l_max_4body = %d.\n", L_max_4body);
+  printf("        l_max_5body = %d.\n", L_max_5body);
+  if (L_max_4body == 2) {
+    paramb.num_L += 1;
+  }
+  if (L_max_5body == 1) {
+    paramb.num_L += 1;
   }
 
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
@@ -221,22 +217,12 @@ void NEP_Energy::initialize(const char* file_potential)
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-  if (paramb.version == 2) {
-    num_para_descriptor =
-      (paramb.num_types == 1)
-        ? 0
-        : paramb.num_types_sq * (paramb.n_max_radial + paramb.n_max_angular + 2);
-  }
   printf("        number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
   printf("        total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-  if (paramb.version == 2) {
-    paramb.num_c_radial =
-      (paramb.num_types == 1) ? 0 : paramb.num_types_sq * (paramb.n_max_radial + 1);
-  }
 
   // NN and descriptor parameters
   std::vector<float> parameters(annmb.num_para);
@@ -277,7 +263,7 @@ void NEP_Energy::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP3
       pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
@@ -319,28 +305,29 @@ static __global__ void find_energy_nep(
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_t2_radial[index];
+      double rc = paramb.rc_radial;
+      double rcinv = paramb.rcinv_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+        rcinv = 1.0f / rc;
+      }
+      find_fc(rc, rcinv, d12, fc12);
+
       float fn12[MAX_NUM_N];
-      if (paramb.version == 2) {
-        find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
-        for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float c = (paramb.num_types == 1)
-                      ? 1.0f
-                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
-          q[n] += fn12[n] * c;
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gn12 += fn12[k] * annmb.c[c_index];
         }
-      } else {
-        find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
-        for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-            c_index += t1 * paramb.num_types + t2;
-            gn12 += fn12[k] * annmb.c[c_index];
-          }
-          q[n] += gn12;
-        }
+        q[n] += gn12;
       }
     }
 
@@ -352,28 +339,28 @@ static __global__ void find_energy_nep(
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_t2_angular[index];
-        if (paramb.version == 2) {
-          float fn;
-          find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
-          fn *=
-            (paramb.num_types == 1)
-              ? 1.0f
-              : annmb.c
-                  [((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
-          accumulate_s(d12, r12[0], r12[1], r12[2], fn, s);
-        } else {
-          float fn12[MAX_NUM_N];
-          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
-          float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-            c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-            gn12 += fn12[k] * annmb.c[c_index];
-          }
-          accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
+        double rc = paramb.rc_angular;
+        double rcinv = paramb.rcinv_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min(
+            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+              paramb.typewise_cutoff_angular_factor,
+            rc);
+          rcinv = 1.0f / rc;
         }
+        find_fc(rc, rcinv, d12, fc12);
+
+        float fn12[MAX_NUM_N];
+        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
       }
       if (paramb.num_L == paramb.L_max) {
         find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
@@ -399,6 +386,7 @@ static __global__ void find_energy_nep(
 
 static __global__ void find_energy_zbl(
   const int N,
+  const NEP_Energy::ParaMB paramb,
   const NEP_Energy::ZBL zbl,
   const int* g_NN,
   const int* __restrict__ g_type,
@@ -412,8 +400,8 @@ static __global__ void find_energy_zbl(
   if (n1 < N) {
     float s_pe = 0.0f;
     int type1 = g_type[n1];
-    float zi = zbl.atomic_numbers[type1];
-    float pow_zi = pow(zi, 0.23f);
+    int zi = zbl.atomic_numbers[type1];
+    float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -421,8 +409,8 @@ static __global__ void find_energy_zbl(
       float d12inv = 1.0f / d12;
       float f, fp;
       int type2 = g_t2_angular[index];
-      float zj = zbl.atomic_numbers[type2];
-      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      int zj = zbl.atomic_numbers[type2];
+      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
       if (zbl.flexibled) {
         int t1, t2;
@@ -440,7 +428,16 @@ static __global__ void find_energy_zbl(
         }
         find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
-        find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+        float rc_inner = zbl.rc_inner;
+        float rc_outer = zbl.rc_outer;
+        if (paramb.use_typewise_cutoff_zbl) {
+          // zi and zj start from 1, so need to minus 1 here
+          rc_outer = min(
+            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
+            rc_outer);
+          rc_inner = rc_outer * 0.5f;
+        }
+        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       s_pe += f * 0.5f;
     }
@@ -484,6 +481,7 @@ void NEP_Energy::find_energy(
   if (zbl.enabled) {
     find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
       N,
+      paramb,
       zbl,
       g_NN_angular,
       g_type,

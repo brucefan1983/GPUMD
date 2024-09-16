@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_utilities.cuh"
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
@@ -189,8 +190,11 @@ static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
   const int* Na_sum,
-  const float rc2_radial,
-  const float rc2_angular,
+  const bool use_typewise_cutoff,
+  const int* g_type,
+  const int* g_atomic_numbers,
+  const float g_rc_radial,
+  const float g_rc_angular,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -209,6 +213,7 @@ static __global__ void gpu_find_neighbor_number(
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
+    int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
@@ -226,10 +231,19 @@ static __global__ void gpu_find_neighbor_number(
             float z12 = z[n2] + delta_z - z1;
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            if (distance_square < rc2_radial) {
+            int t2 = g_type[n2];
+            float rc_radial = g_rc_radial;
+            float rc_angular = g_rc_angular;
+            if (use_typewise_cutoff) {
+              int z1 = g_atomic_numbers[t1];
+              int z2 = g_atomic_numbers[t2];
+              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.5f, rc_radial);
+              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.0f, rc_angular);
+            }
+            if (distance_square < rc_radial * rc_radial) {
               count_radial++;
             }
-            if (distance_square < rc2_angular) {
+            if (distance_square < rc_angular * rc_angular) {
               count_angular++;
             }
           }
@@ -247,15 +261,23 @@ void Dataset::find_neighbor(Parameters& para)
   GPU_Vector<int> NN_angular_gpu(N);
   std::vector<int> NN_radial_cpu(N);
   std::vector<int> NN_angular_cpu(N);
-  float rc2_radial = para.rc_radial * para.rc_radial;
-  float rc2_angular = para.rc_angular * para.rc_angular;
+
+  std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
+  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+    atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
+  }
+  GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
+  atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
 
   gpu_find_neighbor_number<<<Nc, 256>>>(
     N,
     Na.data(),
     Na_sum.data(),
-    rc2_radial,
-    rc2_angular,
+    para.use_typewise_cutoff,
+    type.data(),
+    atomic_numbers.data(),
+    para.rc_radial,
+    para.rc_angular,
     box.data(),
     box_original.data(),
     num_cell.data(),
@@ -414,7 +436,6 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   return rmse_array;
 }
 
-#ifndef USE_FIXED_SCALER
 static __global__ void
 gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
 {
@@ -450,7 +471,6 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
     g_energy_shift[bid] = diff;
   }
 }
-#endif
 
 static __global__ void gpu_sum_pe_error(
   float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
@@ -501,7 +521,6 @@ std::vector<float> Dataset::get_rmse_energy(
   const int block_size = 256;
   int mem = sizeof(float) * Nc;
 
-#ifndef USE_FIXED_SCALER
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
@@ -511,7 +530,6 @@ std::vector<float> Dataset::get_rmse_energy(
     }
     energy_shift_per_structure /= Nc;
   }
-#endif
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure,

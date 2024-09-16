@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -608,6 +608,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
     atom_id2_[s] = -1;
   }
   rdf_atom_count = 1;
+  num_repeat_ = 0;
 }
 
 void RDF::parse(
@@ -634,10 +635,14 @@ void RDF::parse(
   if (r_cut_ <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
   }
-  double thickness_half[3] = {box.get_volume()/box.get_area(0)/ 2.5,box.get_volume()/box.get_area(1)/ 2.5,box.get_volume()/box.get_area(2)/ 2.5};
+  double thickness_half[3] = {
+    box.get_volume() / box.get_area(0) / 2.5,
+    box.get_volume() / box.get_area(1) / 2.5,
+    box.get_volume() / box.get_area(2) / 2.5};
   if (r_cut_ > thickness_half[0] || r_cut_ > thickness_half[1] || r_cut_ > thickness_half[2]) {
-    std::string message = "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
-                          "                Please increase the periodic direction(s).\n";
+    std::string message =
+      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
+      "                Please increase the periodic direction(s).\n";
     PRINT_INPUT_ERROR(message.c_str());
   }
   printf("    radial cutoff %g.\n", r_cut_);

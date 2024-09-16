@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  
+
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;

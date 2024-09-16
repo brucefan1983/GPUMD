@@ -35,6 +35,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    plumed
    mc
    electron_stop
+   add_force
+   add_efield
 
 .. toctree::
    :maxdepth: 1

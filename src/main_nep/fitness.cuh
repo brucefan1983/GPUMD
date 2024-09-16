@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,14 +48,13 @@ protected:
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
   void output(
-    bool is_stress, 
-    int num_components, 
-    FILE* fid, 
-    float* prediction, 
-    float* reference, 
+    bool is_stress,
+    int num_components,
+    FILE* fid,
+    float* prediction,
+    float* reference,
     Dataset& dataset);
-  void
-  update_energy_force_virial(
+  void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
   void update_polarizability(FILE* fid_polarizability, Dataset& dataset);

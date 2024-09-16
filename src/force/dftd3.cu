@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "dftd3para.cuh"
 #include "model/box.cuh"
 #include "neighbor.cuh"
+#include "utilities/common.cuh"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -40,15 +41,13 @@ J. Comput. Chem., 32, 1456 (2011).
 namespace
 {
 const int MN = 10000; // maximum number of neighbors for one atom
-const int NUM_ELEMENTS = 103;
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 void __global__ find_dftd3_coordination_number_small_box(
   DFTD3::DFTD3_Para dftd3_para,
@@ -1192,6 +1191,9 @@ void DFTD3::initialize(
   valid = valid || set_para(functional, "tpssh", 1.000, 0.4529, 2.2382, 4.6550, dftd3_para);
   valid = valid || set_para(functional, "b2kplyp", 0.64, 0.0000, 0.1521, 7.1916, dftd3_para);
   valid = valid || set_para(functional, "dsd-pbep86", 0.418, 0.0000, 0.0000, 5.6500, dftd3_para);
+  valid = valid || set_para(functional, "b97m", 1.0000, -0.0780, 0.1384, 5.5946, dftd3_para);
+  valid = valid || set_para(functional, "wb97x", 1.0000, 0.0000, 0.2641, 5.4959, dftd3_para);
+  valid = valid || set_para(functional, "wb97m", 1.0000, 0.5660, 0.3908, 3.1280, dftd3_para);
 
   if (!valid) {
     std::cout << "The " << functional

@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 */
 
 #include "error.cuh"
+#include <cmath>
 #include <cstring>
 #include <errno.h>
 #include <fstream>
@@ -176,6 +177,14 @@ float get_float_from_token(const std::string& token, const char* filename, const
     std::cout << "    Error message: " << e.what() << std::endl;
     exit(1);
   }
+  if (std::isinf(value)) {
+    std::cout << "This number is inf.\n";
+    exit(1);
+  }
+  if (std::isnan(value)) {
+    std::cout << "This number is nan.\n";
+    exit(1);
+  }
   return value;
 }
 
@@ -189,6 +198,14 @@ double get_double_from_token(const std::string& token, const char* filename, con
     std::cout << "    File:          " << filename << std::endl;
     std::cout << "    Line:          " << line << std::endl;
     std::cout << "    Error message: " << e.what() << std::endl;
+    exit(1);
+  }
+  if (std::isinf(value)) {
+    std::cout << "This number is inf.\n";
+    exit(1);
+  }
+  if (std::isnan(value)) {
+    std::cout << "This number is nan.\n";
     exit(1);
   }
   return value;

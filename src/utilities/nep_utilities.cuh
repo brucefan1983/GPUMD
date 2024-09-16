@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,19 @@ __constant__ float C4B[5] = {
   -0.809943929279723f};
 __constant__ float C5B[3] = {0.026596810706114f, 0.053193621412227f, 0.026596810706114f};
 
+__constant__ float COVALENT_RADIUS[94] = {
+  0.426667f, 0.613333f, 1.6f,     1.25333f, 1.02667f, 1.0f,     0.946667f, 0.84f,    0.853333f,
+  0.893333f, 1.86667f,  1.66667f, 1.50667f, 1.38667f, 1.46667f, 1.36f,     1.32f,    1.28f,
+  2.34667f,  2.05333f,  1.77333f, 1.62667f, 1.61333f, 1.46667f, 1.42667f,  1.38667f, 1.33333f,
+  1.32f,     1.34667f,  1.45333f, 1.49333f, 1.45333f, 1.53333f, 1.46667f,  1.52f,    1.56f,
+  2.52f,     2.22667f,  1.96f,    1.85333f, 1.76f,    1.65333f, 1.53333f,  1.50667f, 1.50667f,
+  1.44f,     1.53333f,  1.64f,    1.70667f, 1.68f,    1.68f,    1.64f,     1.76f,    1.74667f,
+  2.78667f,  2.34667f,  2.16f,    1.96f,    2.10667f, 2.09333f, 2.08f,     2.06667f, 2.01333f,
+  2.02667f,  2.01333f,  2.0f,     1.98667f, 1.98667f, 1.97333f, 2.04f,     1.94667f, 1.82667f,
+  1.74667f,  1.64f,     1.57333f, 1.54667f, 1.48f,    1.49333f, 1.50667f,  1.76f,    1.73333f,
+  1.73333f,  1.81333f,  1.74667f, 1.84f,    1.89333f, 2.68f,    2.41333f,  2.22667f, 2.10667f,
+  2.02667f,  2.04f,     2.05333f, 2.06667f};
+
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
@@ -61,6 +74,77 @@ static __device__ void apply_ann_one_layer(
     }
   }
   energy -= b1[0];
+}
+
+static __device__ void apply_ann_multi_layers(
+  const int N_des,
+  const int layers,
+  const int* N_neu,
+  const float* w0,
+  const float* w1,
+  const float* w2,
+  const float* b0,
+  const float* b1,
+  const float* b2,
+  const float* w_out,
+  const float* b_out,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  constexpr int MAX_NEURONS_PER_LAYER = 200;
+  float x[3 * MAX_NEURONS_PER_LAYER];     // Maximum number of neurons per layer
+  float delta[3 * MAX_NEURONS_PER_LAYER]; // error of each neuron
+
+  // input layer
+  for (int n = 0; n < N_neu[0]; ++n) {
+    float sum = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      sum += w0[n * N_des + d] * q[d];
+    }
+    x[n] = tanh(sum - b0[n]);
+  }
+  // hidden layers
+  for (int l = 1; l < layers; ++l) {
+    const float* w = (l == 1) ? w1 : w2;
+    const float* b = (l == 1) ? b1 : b2;
+    for (int n = 0; n < N_neu[l]; ++n) {
+      float sum = 0.0f;
+      for (int m = 0; m < N_neu[l - 1]; ++m) {
+        sum += w[n * N_neu[l - 1] + m] * x[(l - 1) * MAX_NEURONS_PER_LAYER + m];
+      }
+      x[l * MAX_NEURONS_PER_LAYER + n] = tanh(sum - b[n]);
+    }
+  }
+  // output layer
+  energy = 0.0f;
+  for (int n = 0; n < N_neu[layers - 1]; ++n) {
+    float out = x[(layers - 1) * MAX_NEURONS_PER_LAYER + n];
+    energy += w_out[n] * out; // w_out_j * x_j^3
+    delta[(layers - 1) * MAX_NEURONS_PER_LAYER + n] = w_out[n] * (1.0f - out * out); // delta_j^3
+  }
+  energy -= b_out[0];
+
+  // Backpropagation error
+  for (int l = layers - 1; l >= 1; --l) {     // l = 2, 1
+    const float* w_next = (l == 1) ? w1 : w2; // w2, w1
+    for (int m = 0; m < N_neu[l - 1]; ++m) {
+      float sum = 0.0f;
+      for (int n = 0; n < N_neu[l]; ++n) {
+        sum += w_next[n * N_neu[l - 1] + m] * delta[l * MAX_NEURONS_PER_LAYER + n];
+      }
+      float out = x[(l - 1) * MAX_NEURONS_PER_LAYER + m];
+      delta[(l - 1) * MAX_NEURONS_PER_LAYER + m] = sum * (1.0f - out * out);
+    }
+  }
+
+  // Derivative of the energy
+  for (int d = 0; d < N_des; ++d) {
+    energy_derivative[d] = 0.0f;
+    for (int n = 0; n < N_neu[0]; ++n) {
+      energy_derivative[d] += w0[n * N_des + d] * delta[n];
+    }
+  }
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
@@ -841,7 +925,6 @@ __device__ void find_index_and_weight(
 }
 
 static void construct_table_radial_or_angular(
-  const int version,
   const int num_types,
   const int num_types_sq,
   const int n_max,
@@ -861,26 +944,17 @@ static void construct_table_radial_or_angular(
         int t12 = t1 * num_types + t2;
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
-        if (version == 2) {
-          find_fn_and_fnp(n_max, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = fn12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
-            gnp[index_all] = fnp12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
+        find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
+        for (int n = 0; n <= n_max; ++n) {
+          float gn12 = 0.0f;
+          float gnp12 = 0.0f;
+          for (int k = 0; k <= basis_size; ++k) {
+            gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
+            gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
           }
-        } else {
-          find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            float gn12 = 0.0f;
-            float gnp12 = 0.0f;
-            for (int k = 0; k <= basis_size; ++k) {
-              gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-              gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-            }
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = gn12;
-            gnp[index_all] = gnp12;
-          }
+          int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
+          gn[index_all] = gn12;
+          gnp[index_all] = gnp12;
         }
       }
     }

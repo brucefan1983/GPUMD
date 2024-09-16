@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,13 +22,12 @@
 #include <iostream>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 Parameters::Parameters()
 {
@@ -72,6 +71,8 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
+  is_use_typewise_cutoff_set = false;
+  is_use_typewise_cutoff_zbl_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -85,7 +86,10 @@ void Parameters::set_default_parameters()
   L_max = 4;                   // the only supported value
   L_max_4body = 2;             // default is to include 4body
   L_max_5body = 0;             // default is not to include 5body
-  num_neurons1 = 30;           // a relatively small value to achieve high speed
+  num_hidden_layers = 1;       // default is to have one hidden layer
+  num_neurons[0] = 30;         // a relatively small value to achieve high speed
+  num_neurons[1] = 0;          // default is not to have the 2nd hidden layer
+  num_neurons[2] = 0;          // default is not to have the 3rd hidden layer
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
@@ -97,6 +101,11 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  use_typewise_cutoff = false;
+  use_typewise_cutoff_zbl = false;
+  typewise_cutoff_radial_factor = -1.0f;
+  typewise_cutoff_angular_factor = -1.0f;
+  typewise_cutoff_zbl_factor = -1.0f;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -161,10 +170,10 @@ void Parameters::calculate_parameters()
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
-  if (version >= 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
+  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
@@ -178,16 +187,22 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
-
-  if (version == 2) {
-    number_of_variables_descriptor =
-      (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  if (num_hidden_layers == 1) {
+    number_of_variables_ann = (dim + 2) * num_neurons[0] * (version == 4 ? num_types : 1) + 1;
+  } else if (num_hidden_layers == 2) {
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 2) * num_neurons[1]) *
+                                (version == 4 ? num_types : 1) +
+                              1;
   } else {
-    number_of_variables_descriptor =
-      num_types * num_types *
-      (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 1) * num_neurons[1] +
+                               (num_neurons[1] + 2) * num_neurons[2]) *
+                                (version == 4 ? num_types : 1) +
+                              1;
   }
+
+  number_of_variables_descriptor =
+    num_types * num_types *
+    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   if (train_mode == 2) {
@@ -299,6 +314,23 @@ void Parameters::report_inputs()
     printf("    (default) angular cutoff = %g A.\n", rc_angular);
   }
 
+  if (is_use_typewise_cutoff_set) {
+    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
+    printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
+  } else {
+    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+  }
+
+  if (is_use_typewise_cutoff_zbl_set) {
+    printf(
+      "    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+    printf("              factor = %g.\n", typewise_cutoff_zbl_factor);
+  } else {
+    printf(
+      "    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
+  }
+
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);
@@ -326,9 +358,17 @@ void Parameters::report_inputs()
   }
 
   if (is_neuron_set) {
-    printf("    (input)   number of neurons = %d.\n", num_neurons1);
+    printf(
+      "    (input)   number of neurons = (%d, %d, %d).\n",
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
   } else {
-    printf("    (default) number of neurons = %d.\n", num_neurons1);
+    printf(
+      "    (default) number of neurons = (%d, %d, %d).\n",
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
   }
 
   if (is_lambda_1_set) {
@@ -399,7 +439,18 @@ void Parameters::report_inputs()
   printf("    number of radial descriptor components = %d.\n", dim_radial);
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
-  printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
+  if (num_hidden_layers == 3) {
+    printf(
+      "    NN architecture = %d-%d-%d-%d-1.\n",
+      dim,
+      num_neurons[0],
+      num_neurons[1],
+      num_neurons[2]);
+  } else if (num_hidden_layers == 2) {
+    printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1]);
+  } else {
+    printf("    NN architecture = %d-%d-1.\n", dim, num_neurons[0]);
+  }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
     number_of_variables_ann * (train_mode == 2 ? 2 : 1));
@@ -461,6 +512,10 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
+    parse_use_typewise_cutoff(param, num_param);
+  } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
+    parse_use_typewise_cutoff_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -506,8 +561,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
@@ -726,16 +781,45 @@ void Parameters::parse_neuron(const char** param, int num_param)
 {
   is_neuron_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("neuron should have 1 parameter.\n");
+  if (num_param < 2 || num_param > 4) {
+    PRINT_INPUT_ERROR("neuron should have 1 to 3 parameters.\n");
   }
-  if (!is_valid_int(param[1], &num_neurons1)) {
+
+  num_hidden_layers = num_param - 1;
+
+  if (!is_valid_int(param[1], &num_neurons[0])) {
     PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
   }
-  if (num_neurons1 < 1) {
+  if (num_neurons[0] < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
+  } else if (num_neurons[0] > 200) {
     PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  }
+
+  if (num_param > 2) {
+    if (!is_valid_int(param[2], &num_neurons[1])) {
+      PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
+    }
+    if (num_neurons[1] < 1) {
+      PRINT_INPUT_ERROR("number of neurons should >= 1.");
+    } else if (num_neurons[1] > 200) {
+      PRINT_INPUT_ERROR("number of neurons should <= 200.");
+    }
+  }
+
+  if (num_param > 3) {
+    if (!is_valid_int(param[3], &num_neurons[2])) {
+      PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
+    }
+    if (num_neurons[2] < 1) {
+      PRINT_INPUT_ERROR("number of neurons should >= 1.");
+    } else if (num_neurons[2] > 200) {
+      PRINT_INPUT_ERROR("number of neurons should <= 200.");
+    }
+  }
+
+  if (num_neurons[0] + num_neurons[1] + num_neurons[2] > 200) {
+    PRINT_INPUT_ERROR("total number of neurons should <= 200.\n");
   }
 }
 
@@ -958,5 +1042,60 @@ void Parameters::parse_sigma0(const char** param, int num_param)
 
   if (sigma0 < 0.01f || sigma0 > 0.1f) {
     PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
+  }
+}
+
+void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
+{
+  if (num_param != 1 && num_param != 3) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff should have 0 or 2 parameters.\n");
+  }
+  use_typewise_cutoff = true;
+  is_use_typewise_cutoff_set = true;
+  typewise_cutoff_radial_factor = 2.5f;
+  typewise_cutoff_angular_factor = 2.0f;
+
+  if (num_param == 3) {
+    double typewise_cutoff_radial_factor_temp = 0.0;
+    if (!is_valid_real(param[1], &typewise_cutoff_radial_factor_temp)) {
+      PRINT_INPUT_ERROR("typewise_cutoff_radial_factor should be a number.\n");
+    }
+    typewise_cutoff_radial_factor = typewise_cutoff_radial_factor_temp;
+
+    double typewise_cutoff_angular_factor_temp = 0.0;
+    if (!is_valid_real(param[2], &typewise_cutoff_angular_factor_temp)) {
+      PRINT_INPUT_ERROR("typewise_cutoff_angular_factor should be a number.\n");
+    }
+    typewise_cutoff_angular_factor = typewise_cutoff_angular_factor_temp;
+  }
+
+  if (typewise_cutoff_angular_factor < 1.5f) {
+    PRINT_INPUT_ERROR("typewise_cutoff_angular_factor must >= 1.5.\n");
+  }
+
+  if (typewise_cutoff_radial_factor < typewise_cutoff_angular_factor) {
+    PRINT_INPUT_ERROR("typewise_cutoff_radial_factor must >= typewise_cutoff_angular_factor.\n");
+  }
+}
+
+void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param)
+{
+  if (num_param != 1 && num_param != 2) {
+    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have 0 or 1 parameter.\n");
+  }
+  use_typewise_cutoff_zbl = true;
+  is_use_typewise_cutoff_zbl_set = true;
+  typewise_cutoff_zbl_factor = 0.65f;
+
+  if (num_param == 2) {
+    double typewise_cutoff_zbl_factor_temp = 0.0;
+    if (!is_valid_real(param[1], &typewise_cutoff_zbl_factor_temp)) {
+      PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor should be a number.\n");
+    }
+    typewise_cutoff_zbl_factor = typewise_cutoff_zbl_factor_temp;
+  }
+
+  if (typewise_cutoff_zbl_factor < 0.5f) {
+    PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
   }
 }

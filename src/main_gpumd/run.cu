@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
+#include "add_efield.cuh"
+#include "add_force.cuh"
+#include "add_random_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
@@ -119,7 +122,7 @@ Run::Run()
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
     atom.velocity_per_atom,
-    true,
+    false,
     123);
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
@@ -216,6 +219,15 @@ void Run::perform_a_run()
 
   for (int step = 0; step < number_of_steps; ++step) {
 
+    velocity.correct_velocity(
+      step,
+      group,
+      atom.cpu_mass,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.velocity_per_atom);
+
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
@@ -257,6 +269,9 @@ void Run::perform_a_run()
 #endif
 
     electron_stop.compute(time_step, atom);
+    add_force.compute(step, group, atom);
+    add_random_force.compute(step, atom);
+    add_efield.compute(step, group, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
@@ -275,14 +290,6 @@ void Run::perform_a_run()
       thermo,
       atom,
       force);
-
-    velocity.correct_velocity(
-      step,
-      atom.cpu_mass,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.velocity_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
@@ -311,6 +318,9 @@ void Run::perform_a_run()
     atom.number_of_beads);
 
   electron_stop.finalize();
+  add_force.finalize();
+  add_random_force.finalize();
+  add_efield.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -392,7 +402,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    parse_correct_velocity(param, num_param);
+    parse_correct_velocity(param, num_param, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
@@ -461,6 +471,12 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
+  } else if (strcmp(param[0], "add_random_force") == 0) {
+    add_random_force.parse(param, num_param, atom.number_of_atoms);
+  } else if (strcmp(param[0], "add_force") == 0) {
+    add_force.parse(param, num_param, group);
+  } else if (strcmp(param[0], "add_efield") == 0) {
+    add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "dftd3") == 0) {
@@ -507,17 +523,41 @@ void Run::parse_velocity(const char** param, int num_param)
   }
 }
 
-void Run::parse_correct_velocity(const char** param, int num_param)
+void Run::parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("correct_velocity should have 1 parameter.\n");
+  printf("Correct linear and angular momenta.\n");
+
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("correct_velocity should have 1 or 2 parameters.\n");
   }
   if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
     PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
   }
-  if (velocity.velocity_correction_interval <= 0) {
-    PRINT_INPUT_ERROR("velocity correction interval should be positive.\n");
+  if (velocity.velocity_correction_interval < 10) {
+    PRINT_INPUT_ERROR("velocity correction interval should >= 10.\n");
   }
+
+  printf("    every %d steps.\n", velocity.velocity_correction_interval);
+
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &velocity.velocity_correction_group_method)) {
+      PRINT_INPUT_ERROR("velocity correction group method should be an integer.\n");
+    }
+    if (velocity.velocity_correction_group_method < 0) {
+      PRINT_INPUT_ERROR("grouping method should >= 0.\n");
+    }
+    if (velocity.velocity_correction_group_method >= group.size()) {
+      PRINT_INPUT_ERROR("grouping method should < maximum number of grouping methods.\n");
+    }
+  }
+
+  if (velocity.velocity_correction_group_method < 0) {
+    printf("    for the whole system.\n");
+  } else {
+    printf(
+      "    for individual groups in group method %d.\n", velocity.velocity_correction_group_method);
+  }
+
   velocity.do_velocity_correction = true;
 }
 

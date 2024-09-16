@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -216,7 +216,6 @@ void DOS::process(
   const int correlation_step = sample_step % num_correlation_steps_;
   copy_velocity(correlation_step, velocity_per_atom);
   if (sample_step >= num_correlation_steps_ - 1) {
-    ++num_time_origins_;
     find_vac(correlation_step);
   }
 }
@@ -252,7 +251,6 @@ void DOS::parse_num_dos_points(const char** param, int& k)
 void DOS::initialize_parameters(
   const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
 {
-  num_time_origins_ = 0;
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   if (1.0 / dt_in_ps_ < omega_max_ / PI) {
