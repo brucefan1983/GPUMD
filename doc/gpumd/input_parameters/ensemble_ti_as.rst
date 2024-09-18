@@ -10,7 +10,7 @@ Syntax
 
 The parameters can be specified as follows::
 
-    ensemble ti_rs temp <temperature> tperiod <tau_temperature> <pressure_control> <pmin> <pmax> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
+    ensemble ti_as temp <temperature> tperiod <tau_temperature> <pressure_control> <pmin> <pmax> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
 - :attr:`<temperature>`: The temperature of the AS simulation.
 - :attr:`<pmin>` and :attr:`<pmax>`: The pressure range of the AS simulation.
