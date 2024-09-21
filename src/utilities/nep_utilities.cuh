@@ -719,31 +719,63 @@ static __device__ __forceinline__ void accumulate_f12(
 }
 
 static __device__ __forceinline__ void
-accumulate_s(const float d12, float x12, float y12, float z12, const float fn, float* s)
+accumulate_s1(const float x12, const float y12, const float z12, const float fn, float* s)
 {
-  float d12inv = 1.0f / d12;
-  x12 *= d12inv;
-  y12 *= d12inv;
-  z12 *= d12inv;
-  float x12sq = x12 * x12;
-  float y12sq = y12 * y12;
-  float z12sq = z12 * z12;
-  float x12sq_minus_y12sq = x12sq - y12sq;
   s[0] += z12 * fn;                                                             // Y10
   s[1] += x12 * fn;                                                             // Y11_real
   s[2] += y12 * fn;                                                             // Y11_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s2(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
   s[3] += (3.0f * z12sq - 1.0f) * fn;                                           // Y20
   s[4] += x12 * z12 * fn;                                                       // Y21_real
   s[5] += y12 * z12 * fn;                                                       // Y21_imag
   s[6] += x12sq_minus_y12sq * fn;                                               // Y22_real
   s[7] += 2.0f * x12 * y12 * fn;                                                // Y22_imag
-  s[8] += (5.0f * z12sq - 3.0f) * z12 * fn;                                     // Y30
-  s[9] += (5.0f * z12sq - 1.0f) * x12 * fn;                                     // Y31_real
-  s[10] += (5.0f * z12sq - 1.0f) * y12 * fn;                                    // Y31_imag
-  s[11] += x12sq_minus_y12sq * z12 * fn;                                        // Y32_real
-  s[12] += 2.0f * x12 * y12 * z12 * fn;                                         // Y32_imag
-  s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn;                           // Y33_real
-  s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn;                           // Y33_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s3(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float x12sq,
+  const float y12sq,
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
+  s[8] += (5.0f * z12sq - 3.0f) * z12 * fn;                             // Y30
+  s[9] += (5.0f * z12sq - 1.0f) * x12 * fn;                             // Y31_real
+  s[10] += (5.0f * z12sq - 1.0f) * y12 * fn;                            // Y31_imag
+  s[11] += x12sq_minus_y12sq * z12 * fn;                                // Y32_real
+  s[12] += 2.0f * x12 * y12 * z12 * fn;                                 // Y32_imag
+  s[13] += (x12sq - 3.0f * y12sq) * x12 * fn;                           // Y33_real
+  s[14] += (3.0f * x12sq - y12sq) * y12 * fn;                           // Y33_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s4(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float x12sq,
+  const float y12sq,
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
   s[15] += ((35.0f * z12sq - 30.0f) * z12sq + 3.0f) * fn;                       // Y40
   s[16] += (7.0f * z12sq - 3.0f) * x12 * z12 * fn;                              // Y41_real
   s[17] += (7.0f * z12sq - 3.0f) * y12 * z12 * fn;                              // Y41_iamg
@@ -753,6 +785,61 @@ accumulate_s(const float d12, float x12, float y12, float z12, const float fn, f
   s[21] += (3.0f * x12sq - y12sq) * y12 * z12 * fn;                             // Y43_imag
   s[22] += (x12sq_minus_y12sq * x12sq_minus_y12sq - 4.0f * x12sq * y12sq) * fn; // Y44_real
   s[23] += (4.0f * x12 * y12 * x12sq_minus_y12sq) * fn;                         // Y44_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s5(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float x12sq,
+  const float y12sq,
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
+  float z12sqsq = z12sq * z12sq;
+  float temp1 = 21.0f * z12sqsq - 14.0f * z12sq + 1.0f;
+  float temp2 = 3.0f * z12sq - 1.0f;
+  s[24] += (63.0f * z12sqsq - 70.0f * z12sq + 15.0f) * z12 * fn;    // Y50
+  s[25] += temp1 * x12 * fn;                                        // Y51_real
+  s[26] += temp1 * y12 * fn;                                        // Y51_iamg
+  s[27] += x12sq_minus_y12sq * temp2 * z12 * fn;                    // Y51_real
+  s[28] += 2.0f * x12 * y12 * temp2 * z12 * fn;                     // Y51_iamg
+  s[29] += 1; // TODO
+  s[30] += 1; // TODO
+  s[31] += (x12sq_minus_y12sq * x12sq_minus_y12sq - 4.0f * x12sq * y12sq) * z12 * fn; // Y54_real
+  s[32] += (4.0f * x12 * y12 * x12sq_minus_y12sq) * z12 * fn;                         // Y54_imag
+
+}
+
+static __device__ __forceinline__ void
+accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, const float fn, float* s)
+{
+  float d12inv = 1.0f / d12;
+  x12 *= d12inv;
+  y12 *= d12inv;
+  z12 *= d12inv;
+  float x12sq = x12 * x12;
+  float y12sq = y12 * y12;
+  float z12sq = z12 * z12;
+  float x12sq_minus_y12sq = x12sq - y12sq;
+  if (L_max >= 1) {
+    accumulate_s1(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 2) {
+    accumulate_s2(x12, y12, z12, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+  if (L_max >= 3) {
+    accumulate_s3(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+  if (L_max >= 4) {
+    accumulate_s4(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+  if (L_max >= 5) {
+    accumulate_s5(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
+  }
 }
 
 static __device__ __forceinline__ void

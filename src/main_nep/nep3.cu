@@ -221,7 +221,7 @@ static __global__ void find_descriptors_angular(
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
           gn12 += fn12[k] * annmb.c[c_index];
         }
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
