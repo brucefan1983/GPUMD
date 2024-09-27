@@ -193,6 +193,11 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (paramb.MN_radial > 1000 || paramb.MN_angular > 1000) {
+    std::cout << "The enlarged radial or angular neighbors exceeds 1000. Please reduce this value."
+              << std::endl;
+    exit(1);
+  }
 
   if (tokens.size() == 8) {
     paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
