@@ -188,6 +188,11 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
   int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  if (MN_radial > 819) {
+    std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
+              << std::endl;
+    exit(1);
+  }
   int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
   printf("    MN_radial = %d.\n", MN_radial);
   printf("    MN_angular = %d.\n", MN_angular);
