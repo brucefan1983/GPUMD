@@ -188,16 +188,15 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
   int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
   printf("    MN_radial = %d.\n", MN_radial);
-  printf("    MN_angular = %d.\n", MN_angular);
+  if (MN_radial > 819) {
+    std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
+              << std::endl;
+    exit(1);
+  }
   paramb.MN_radial = int(ceil(MN_radial * 1.25));
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
-  if (paramb.MN_radial > 1000 || paramb.MN_angular > 1000) {
-    std::cout << "The enlarged radial or angular neighbors exceeds 1000. Please reduce this value."
-              << std::endl;
-    exit(1);
-  }
 
   if (tokens.size() == 8) {
     paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
