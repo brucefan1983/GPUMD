@@ -132,44 +132,15 @@ void SNES::find_type_of_variable(Parameters& para)
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        if (para.num_hidden_layers == 1) {
-          for (int n = 0; n < (para.dim + 2) * para.num_neurons[0]; ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset += (para.dim + 2) * para.num_neurons[0];
-        } else if (para.num_hidden_layers == 2) {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
-                                (para.num_neurons[0] + 2) * para.num_neurons[1];
-               ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset +=
-            (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1];
-        } else {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
-                                (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                                (para.num_neurons[1] + 2) * para.num_neurons[2];
-               ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset += (para.dim + 1) * para.num_neurons[0] +
-                    (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                    (para.num_neurons[1] + 2) * para.num_neurons[2];
+        for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
+          type_of_variable[n + offset] = t;
         }
+        offset += (para.dim + 2) * para.num_neurons1;
       }
       ++offset; // the bias
     }
   } else {
-    if (para.num_hidden_layers == 1) {
-      offset += (para.dim + 2) * para.num_neurons[0] + 1;
-    } else if (para.num_hidden_layers == 2) {
-      offset +=
-        (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1] + 1;
-    } else {
-      offset += (para.dim + 1) * para.num_neurons[0] +
-                (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                (para.num_neurons[1] + 2) * para.num_neurons[2] + 1;
-    }
+    offset += (para.dim + 2) * para.num_neurons1 + 1;
   }
 
   // descriptor part
