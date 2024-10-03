@@ -215,7 +215,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      if (para.version == 4) {
+      if (para.version != 3) {
         regularize_NEP4(para);
       } else {
         regularize(para);

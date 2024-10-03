@@ -334,9 +334,7 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
     if (para.version == 5) {
-      pointer += ann.num_neurons1 + 1; // one extra bias for NEP5 stored in ann.w1[t]
-    } else {
-      pointer += ann.num_neurons1;
+      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
     }
   }
   ann.b1 = pointer;
