@@ -292,23 +292,23 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   if (paramb.version == 3) {
-    annmb[0].num_para = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
+    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
   } else if (paramb.version == 4) {
-    annmb[0].num_para = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
+    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
   } else {
-    annmb[0].num_para = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
+    annmb[0].num_para_ann = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
   }
 
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
-    annmb[0].num_para *= 2;
+    annmb[0].num_para_ann *= 2;
   }
-  printf("    number of neural network parameters = %d.\n", annmb[0].num_para);
+  printf("    number of neural network parameters = %d.\n", annmb[0].num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
-  annmb[0].num_para += num_para_descriptor;
+  annmb[0].num_para = annmb[0].num_para_ann + num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb[0].num_para);
 
   paramb.num_c_radial =
@@ -342,6 +342,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   }
 
   for (int gpu = 0; gpu < num_gpus; ++gpu) {
+    annmb[gpu].num_para_ann = annmb[0].num_para_ann;
     annmb[gpu].num_para = annmb[0].num_para;
     annmb[gpu].dim = annmb[0].dim;
     annmb[gpu].num_neurons1 = annmb[0].num_neurons1;
@@ -371,7 +372,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
     std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
     std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    float* c_pointer = parameters.data() + annmb[gpu].num_para;
+    float* c_pointer = parameters.data() + annmb[gpu].num_para_ann;
     construct_table_radial_or_angular(
       paramb.num_types,
       paramb.num_types_sq,
