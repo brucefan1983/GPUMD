@@ -294,33 +294,8 @@ NEP3::NEP3(
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
     annmb[device_id].dim = para.dim;
-    annmb[device_id].num_neurons[0] = para.num_neurons[0];
-    annmb[device_id].num_neurons[1] = para.num_neurons[1];
-    annmb[device_id].num_neurons[2] = para.num_neurons[2];
+    annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
-    annmb[device_id].num_hidden_layers = para.num_hidden_layers;
-    if (annmb[device_id].num_hidden_layers == 1) {
-      annmb[device_id].num_para_one_ann_without_bias =
-        (annmb[device_id].dim + 2) * annmb[device_id].num_neurons[0];
-    } else if (annmb[device_id].num_hidden_layers == 2) {
-      annmb[device_id].num_para_one_ann_without_bias =
-        (annmb[device_id].dim + 1) * annmb[device_id].num_neurons[0] +
-        (annmb[device_id].num_neurons[0] + 2) * annmb[device_id].num_neurons[1];
-    } else {
-      annmb[device_id].num_para_one_ann_without_bias =
-        (annmb[device_id].dim + 1) * annmb[device_id].num_neurons[0] +
-        (annmb[device_id].num_neurons[0] + 1) * annmb[device_id].num_neurons[1] +
-        (annmb[device_id].num_neurons[1] + 2) * annmb[device_id].num_neurons[2];
-    }
-    annmb[device_id].offset_w[0] = 0;
-    annmb[device_id].offset_b[0] = annmb[device_id].dim * annmb[device_id].num_neurons[0];
-    annmb[device_id].offset_w[1] = annmb[device_id].offset_b[0] + annmb[device_id].num_neurons[0];
-    annmb[device_id].offset_b[1] = annmb[device_id].offset_w[1] + annmb[device_id].num_neurons[0] *
-                                                                    annmb[device_id].num_neurons[1];
-    annmb[device_id].offset_w[2] = annmb[device_id].offset_b[1] + annmb[device_id].num_neurons[1];
-    annmb[device_id].offset_b[2] = annmb[device_id].offset_w[2] + annmb[device_id].num_neurons[1] *
-                                                                    annmb[device_id].num_neurons[2];
-    annmb[device_id].offset_w[3] = annmb[device_id].offset_b[2] + annmb[device_id].num_neurons[2];
 
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);
@@ -343,24 +318,35 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP3
-      pointer -= ann.num_para_one_ann_without_bias;
+    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
+      pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
-    ann.para[t] = pointer;
-    pointer += ann.num_para_one_ann_without_bias;
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
+    if (para.version == 5) {
+      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
+    }
   }
-  ann.b_out = pointer;
+  ann.b1 = pointer;
   pointer += 1;
 
   if (para.train_mode == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP3
-        pointer -= ann.num_para_one_ann_without_bias;
+      if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
+        pointer -= (ann.dim + 2) * ann.num_neurons1;
       }
-      ann.para_pol[t] = pointer;
-      pointer += ann.num_para_one_ann_without_bias;
+      ann.w0_pol[t] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0_pol[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1_pol[t] = pointer;
+      pointer += ann.num_neurons1;
     }
-    ann.b_out_pol = pointer;
+    ann.b1_pol = pointer;
     pointer += 1;
   }
 
@@ -427,21 +413,30 @@ static __global__ void apply_ann(
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_multi_layers(
-      annmb.dim,
-      annmb.num_hidden_layers,
-      annmb.num_neurons,
-      annmb.para[type] + annmb.offset_w[0],
-      annmb.para[type] + annmb.offset_w[1],
-      annmb.para[type] + annmb.offset_w[2],
-      annmb.para[type] + annmb.offset_b[0],
-      annmb.para[type] + annmb.offset_b[1],
-      annmb.para[type] + annmb.offset_b[2],
-      annmb.para[type] + annmb.offset_w[3],
-      annmb.b_out,
-      q,
-      F,
-      Fp);
+
+    if (paramb.version == 5) {
+      apply_ann_one_layer_nep5(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    } else {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    }
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -472,18 +467,13 @@ static __global__ void apply_ann_pol(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     // scalar part
-    apply_ann_multi_layers(
+    apply_ann_one_layer(
       annmb.dim,
-      annmb.num_hidden_layers,
-      annmb.num_neurons,
-      annmb.para_pol[type] + annmb.offset_w[0],
-      annmb.para_pol[type] + annmb.offset_w[1],
-      annmb.para_pol[type] + annmb.offset_w[2],
-      annmb.para_pol[type] + annmb.offset_b[0],
-      annmb.para_pol[type] + annmb.offset_b[1],
-      annmb.para_pol[type] + annmb.offset_b[2],
-      annmb.para_pol[type] + annmb.offset_w[3],
-      annmb.b_out_pol,
+      annmb.num_neurons1,
+      annmb.w0_pol[type],
+      annmb.b0_pol[type],
+      annmb.w1_pol[type],
+      annmb.b1_pol,
       q,
       F,
       Fp);
@@ -495,18 +485,13 @@ static __global__ void apply_ann_pol(
     for (int d = 0; d < annmb.dim; ++d) {
       Fp[d] = 0.0f;
     }
-    apply_ann_multi_layers(
+    apply_ann_one_layer(
       annmb.dim,
-      annmb.num_hidden_layers,
-      annmb.num_neurons,
-      annmb.para[type] + annmb.offset_w[0],
-      annmb.para[type] + annmb.offset_w[1],
-      annmb.para[type] + annmb.offset_w[2],
-      annmb.para[type] + annmb.offset_b[0],
-      annmb.para[type] + annmb.offset_b[1],
-      annmb.para[type] + annmb.offset_b[2],
-      annmb.para[type] + annmb.offset_w[3],
-      annmb.b_out,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
       q,
       F,
       Fp);
@@ -541,18 +526,13 @@ static __global__ void apply_ann_temperature(
     q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_multi_layers(
+    apply_ann_one_layer(
       annmb.dim,
-      annmb.num_hidden_layers,
-      annmb.num_neurons,
-      annmb.para[type] + annmb.offset_w[0],
-      annmb.para[type] + annmb.offset_w[1],
-      annmb.para[type] + annmb.offset_w[2],
-      annmb.para[type] + annmb.offset_b[0],
-      annmb.para[type] + annmb.offset_b[1],
-      annmb.para[type] + annmb.offset_b[2],
-      annmb.para[type] + annmb.offset_w[3],
-      annmb.b_out,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
       q,
       F,
       Fp);

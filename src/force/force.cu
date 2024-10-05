@@ -90,16 +90,16 @@ void Force::parse_potential(
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
-    strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
-    strcmp(potential_name, "nep_dipole") == 0 ||
-    strcmp(potential_name, "nep_polarizability") == 0 || strcmp(potential_name, "nep3") == 0 ||
-    strcmp(potential_name, "nep3_zbl") == 0 || strcmp(potential_name, "nep4") == 0 ||
-    strcmp(potential_name, "nep4_zbl") == 0 || strcmp(potential_name, "nep3_dipole") == 0 ||
+    strcmp(potential_name, "nep5") == 0 || 
+    strcmp(potential_name, "nep5_zbl") == 0 ||
+    strcmp(potential_name, "nep3") == 0 ||
+    strcmp(potential_name, "nep3_zbl") == 0 || 
+    strcmp(potential_name, "nep4") == 0 ||
+    strcmp(potential_name, "nep4_zbl") == 0 || 
+    strcmp(potential_name, "nep3_dipole") == 0 ||
     strcmp(potential_name, "nep3_polarizability") == 0 ||
     strcmp(potential_name, "nep4_dipole") == 0 ||
     strcmp(potential_name, "nep4_polarizability") == 0 ||
-    strcmp(potential_name, "nep_temperature") == 0 ||
-    strcmp(potential_name, "nep_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep3_temperature") == 0 ||
     strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||

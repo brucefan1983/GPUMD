@@ -24,14 +24,13 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // nep version, can be 3 or 4
+  int version;            // nep version, can be 3 or 4 or 5
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
-  int num_hidden_layers;  // number of hidden layers
-  int num_neurons[3];     // number of nuerons in the three hidden layers
+  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials

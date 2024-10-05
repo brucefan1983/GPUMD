@@ -86,10 +86,7 @@ void Parameters::set_default_parameters()
   L_max = 4;                   // the only supported value
   L_max_4body = 2;             // default is to include 4body
   L_max_5body = 0;             // default is not to include 5body
-  num_hidden_layers = 1;       // default is to have one hidden layer
-  num_neurons[0] = 30;         // a relatively small value to achieve high speed
-  num_neurons[1] = 0;          // default is not to have the 2nd hidden layer
-  num_neurons[2] = 0;          // default is not to have the 3rd hidden layer
+  num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
@@ -159,6 +156,9 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
+  if (version == 5 && train_mode != 0) {
+    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
+  }
 
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
@@ -187,17 +187,12 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  if (num_hidden_layers == 1) {
-    number_of_variables_ann = (dim + 2) * num_neurons[0] * (version == 4 ? num_types : 1) + 1;
-  } else if (num_hidden_layers == 2) {
-    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 2) * num_neurons[1]) *
-                                (version == 4 ? num_types : 1) +
-                              1;
-  } else {
-    number_of_variables_ann = ((dim + 1) * num_neurons[0] + (num_neurons[0] + 1) * num_neurons[1] +
-                               (num_neurons[1] + 2) * num_neurons[2]) *
-                                (version == 4 ? num_types : 1) +
-                              1;
+  if (version == 3) {
+    number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+  } else if (version == 4) {
+    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+  } else if (version == 5) {
+    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
   }
 
   number_of_variables_descriptor =
@@ -209,7 +204,7 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (version == 4) {
+  if (version != 3) {
     if (!is_lambda_1_set) {
       lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
     }
@@ -358,17 +353,9 @@ void Parameters::report_inputs()
   }
 
   if (is_neuron_set) {
-    printf(
-      "    (input)   number of neurons = (%d, %d, %d).\n",
-      num_neurons[0],
-      num_neurons[1],
-      num_neurons[2]);
+    printf("    (input)   number of neurons = %d.\n", num_neurons1);
   } else {
-    printf(
-      "    (default) number of neurons = (%d, %d, %d).\n",
-      num_neurons[0],
-      num_neurons[1],
-      num_neurons[2]);
+    printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
   if (is_lambda_1_set) {
@@ -439,18 +426,7 @@ void Parameters::report_inputs()
   printf("    number of radial descriptor components = %d.\n", dim_radial);
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
-  if (num_hidden_layers == 3) {
-    printf(
-      "    NN architecture = %d-%d-%d-%d-1.\n",
-      dim,
-      num_neurons[0],
-      num_neurons[1],
-      num_neurons[2]);
-  } else if (num_hidden_layers == 2) {
-    printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons[0], num_neurons[1]);
-  } else {
-    printf("    NN architecture = %d-%d-1.\n", dim, num_neurons[0]);
-  }
+  printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
     "    number of NN parameters to be optimized = %d.\n",
     number_of_variables_ann * (train_mode == 2 ? 2 : 1));
@@ -561,8 +537,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 3 or 4.");
+  if (version < 3 || version > 5) {
+    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
   }
 }
 
@@ -787,45 +763,17 @@ void Parameters::parse_neuron(const char** param, int num_param)
 {
   is_neuron_set = true;
 
-  if (num_param < 2 || num_param > 4) {
-    PRINT_INPUT_ERROR("neuron should have 1 to 3 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("neuron should have 1 parameter.\n");
   }
 
-  num_hidden_layers = num_param - 1;
-
-  if (!is_valid_int(param[1], &num_neurons[0])) {
+  if (!is_valid_int(param[1], &num_neurons1)) {
     PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
   }
-  if (num_neurons[0] < 1) {
+  if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons[0] > 200) {
+  } else if (num_neurons1 > 200) {
     PRINT_INPUT_ERROR("number of neurons should <= 200.");
-  }
-
-  if (num_param > 2) {
-    if (!is_valid_int(param[2], &num_neurons[1])) {
-      PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
-    }
-    if (num_neurons[1] < 1) {
-      PRINT_INPUT_ERROR("number of neurons should >= 1.");
-    } else if (num_neurons[1] > 200) {
-      PRINT_INPUT_ERROR("number of neurons should <= 200.");
-    }
-  }
-
-  if (num_param > 3) {
-    if (!is_valid_int(param[3], &num_neurons[2])) {
-      PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
-    }
-    if (num_neurons[2] < 1) {
-      PRINT_INPUT_ERROR("number of neurons should >= 1.");
-    } else if (num_neurons[2] > 200) {
-      PRINT_INPUT_ERROR("number of neurons should <= 200.");
-    }
-  }
-
-  if (num_neurons[0] + num_neurons[1] + num_neurons[2] > 200) {
-    PRINT_INPUT_ERROR("total number of neurons should <= 200.\n");
   }
 }
 

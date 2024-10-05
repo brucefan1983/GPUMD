@@ -191,6 +191,8 @@ static __global__ void gpu_find_neighbor_number(
   const int* Na,
   const int* Na_sum,
   const bool use_typewise_cutoff,
+  const float typewise_cutoff_radial_factor,
+  const float typewise_cutoff_angular_factor,
   const int* g_type,
   const int* g_atomic_numbers,
   const float g_rc_radial,
@@ -237,8 +239,8 @@ static __global__ void gpu_find_neighbor_number(
             if (use_typewise_cutoff) {
               int z1 = g_atomic_numbers[t1];
               int z2 = g_atomic_numbers[t2];
-              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.5f, rc_radial);
-              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * 2.0f, rc_angular);
+              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_radial_factor, rc_radial);
+              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_angular_factor, rc_angular);
             }
             if (distance_square < rc_radial * rc_radial) {
               count_radial++;
@@ -274,6 +276,8 @@ void Dataset::find_neighbor(Parameters& para)
     Na.data(),
     Na_sum.data(),
     para.use_typewise_cutoff,
+    para.typewise_cutoff_radial_factor,
+    para.typewise_cutoff_angular_factor,
     type.data(),
     atomic_numbers.data(),
     para.rc_radial,
@@ -436,7 +440,6 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   return rmse_array;
 }
 
-#ifndef USE_FIXED_SCALER
 static __global__ void
 gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
 {
@@ -472,7 +475,6 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
     g_energy_shift[bid] = diff;
   }
 }
-#endif
 
 static __global__ void gpu_sum_pe_error(
   float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
@@ -523,7 +525,6 @@ std::vector<float> Dataset::get_rmse_energy(
   const int block_size = 256;
   int mem = sizeof(float) * Nc;
 
-#ifndef USE_FIXED_SCALER
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
@@ -533,7 +534,6 @@ std::vector<float> Dataset::get_rmse_energy(
     }
     energy_shift_per_structure /= Nc;
   }
-#endif
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure,

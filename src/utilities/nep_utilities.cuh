@@ -76,75 +76,31 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
-static __device__ void apply_ann_multi_layers(
+static __device__ void apply_ann_one_layer_nep5(
   const int N_des,
-  const int layers,
-  const int* N_neu,
+  const int N_neu,
   const float* w0,
-  const float* w1,
-  const float* w2,
   const float* b0,
+  const float* w1,
   const float* b1,
-  const float* b2,
-  const float* w_out,
-  const float* b_out,
   float* q,
   float& energy,
   float* energy_derivative)
 {
-  constexpr int MAX_NEURONS_PER_LAYER = 200;
-  float x[3 * MAX_NEURONS_PER_LAYER];     // Maximum number of neurons per layer
-  float delta[3 * MAX_NEURONS_PER_LAYER]; // error of each neuron
-
-  // input layer
-  for (int n = 0; n < N_neu[0]; ++n) {
-    float sum = 0.0f;
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
     for (int d = 0; d < N_des; ++d) {
-      sum += w0[n * N_des + d] * q[d];
+      w0_times_q += w0[n * N_des + d] * q[d];
     }
-    x[n] = tanh(sum - b0[n]);
-  }
-  // hidden layers
-  for (int l = 1; l < layers; ++l) {
-    const float* w = (l == 1) ? w1 : w2;
-    const float* b = (l == 1) ? b1 : b2;
-    for (int n = 0; n < N_neu[l]; ++n) {
-      float sum = 0.0f;
-      for (int m = 0; m < N_neu[l - 1]; ++m) {
-        sum += w[n * N_neu[l - 1] + m] * x[(l - 1) * MAX_NEURONS_PER_LAYER + m];
-      }
-      x[l * MAX_NEURONS_PER_LAYER + n] = tanh(sum - b[n]);
+    float x1 = tanh(w0_times_q - b0[n]);
+    float tanh_der = 1.0f - x1 * x1;
+    energy += w1[n] * x1;
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = tanh_der * w0[n * N_des + d];
+      energy_derivative[d] += w1[n] * y1;
     }
   }
-  // output layer
-  energy = 0.0f;
-  for (int n = 0; n < N_neu[layers - 1]; ++n) {
-    float out = x[(layers - 1) * MAX_NEURONS_PER_LAYER + n];
-    energy += w_out[n] * out; // w_out_j * x_j^3
-    delta[(layers - 1) * MAX_NEURONS_PER_LAYER + n] = w_out[n] * (1.0f - out * out); // delta_j^3
-  }
-  energy -= b_out[0];
-
-  // Backpropagation error
-  for (int l = layers - 1; l >= 1; --l) {     // l = 2, 1
-    const float* w_next = (l == 1) ? w1 : w2; // w2, w1
-    for (int m = 0; m < N_neu[l - 1]; ++m) {
-      float sum = 0.0f;
-      for (int n = 0; n < N_neu[l]; ++n) {
-        sum += w_next[n * N_neu[l - 1] + m] * delta[l * MAX_NEURONS_PER_LAYER + n];
-      }
-      float out = x[(l - 1) * MAX_NEURONS_PER_LAYER + m];
-      delta[(l - 1) * MAX_NEURONS_PER_LAYER + m] = sum * (1.0f - out * out);
-    }
-  }
-
-  // Derivative of the energy
-  for (int d = 0; d < N_des; ++d) {
-    energy_derivative[d] = 0.0f;
-    for (int n = 0; n < N_neu[0]; ++n) {
-      energy_derivative[d] += w0[n * N_des + d] * delta[n];
-    }
-  }
+  energy -= w1[N_neu] + b1[0]; // typewise bias + common bias
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)

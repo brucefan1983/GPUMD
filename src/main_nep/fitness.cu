@@ -270,6 +270,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       } else {
         fprintf(fid_nep, "nep4 %d ", para.num_types);
       }
+    } else if (para.version == 5) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep5_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep5 %d ", para.num_types);
+      }
     }
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 3) {
@@ -334,14 +340,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
 
-  if (para.num_hidden_layers == 3) {
-    fprintf(
-      fid_nep, "ANN %d %d %d\n", para.num_neurons[0], para.num_neurons[1], para.num_neurons[2]);
-  } else if (para.num_hidden_layers == 2) {
-    fprintf(fid_nep, "ANN %d %d %d\n", para.num_neurons[0], para.num_neurons[1], 0);
-  } else if (para.num_hidden_layers == 1) {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons[0], 0);
-  }
+  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
   }
@@ -378,12 +377,10 @@ void Fitness::report_error(
     float rmse_force_train = rmse_force_train_array.back();
     float rmse_virial_train = rmse_virial_train_array.back();
 
-#ifndef USE_FIXED_SCALER
     // correct the last bias parameter in the NN
     if (para.train_mode == 0 || para.train_mode == 3) {
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
     }
-#endif
 
     float rmse_energy_test = 0.0f;
     float rmse_force_test = 0.0f;

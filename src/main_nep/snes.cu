@@ -46,7 +46,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   const int N = population_size * number_of_variables;
   int num = number_of_variables;
-  if (para.version == 4) {
+  if (para.version != 3) {
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
@@ -106,10 +106,6 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
-#ifdef USE_FIXED_SCALER
-  mu[para.number_of_variables_ann - 1] = 0.0f;
-  sigma[para.number_of_variables_ann - 1] = 0.0f;
-#endif
   cudaSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
@@ -132,48 +128,20 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  if (para.version == 4) {
+  if (para.version != 3) {
     int num_ann = (para.train_mode == 2) ? 2 : 1;
+    int num_extra_bias = (para.version == 5) ? 1 : 0;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        if (para.num_hidden_layers == 1) {
-          for (int n = 0; n < (para.dim + 2) * para.num_neurons[0]; ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset += (para.dim + 2) * para.num_neurons[0];
-        } else if (para.num_hidden_layers == 2) {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
-                                (para.num_neurons[0] + 2) * para.num_neurons[1];
-               ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset +=
-            (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1];
-        } else {
-          for (int n = 0; n < (para.dim + 1) * para.num_neurons[0] +
-                                (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                                (para.num_neurons[1] + 2) * para.num_neurons[2];
-               ++n) {
-            type_of_variable[n + offset] = t;
-          }
-          offset += (para.dim + 1) * para.num_neurons[0] +
-                    (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                    (para.num_neurons[1] + 2) * para.num_neurons[2];
+        for (int n = 0; n < (para.dim + 2) * para.num_neurons1 + num_extra_bias; ++n) {
+          type_of_variable[n + offset] = t;
         }
+        offset += (para.dim + 2) * para.num_neurons1 + num_extra_bias;
       }
       ++offset; // the bias
     }
   } else {
-    if (para.num_hidden_layers == 1) {
-      offset += (para.dim + 2) * para.num_neurons[0] + 1;
-    } else if (para.num_hidden_layers == 2) {
-      offset +=
-        (para.dim + 1) * para.num_neurons[0] + (para.num_neurons[0] + 2) * para.num_neurons[1] + 1;
-    } else {
-      offset += (para.dim + 1) * para.num_neurons[0] +
-                (para.num_neurons[0] + 1) * para.num_neurons[1] +
-                (para.num_neurons[1] + 2) * para.num_neurons[2] + 1;
-    }
+    offset += (para.dim + 2) * para.num_neurons1 + 1;
   }
 
   // descriptor part
@@ -247,7 +215,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      if (para.version == 4) {
+      if (para.version != 3) {
         regularize_NEP4(para);
       } else {
         regularize(para);
