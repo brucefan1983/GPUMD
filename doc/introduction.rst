@@ -13,12 +13,13 @@ Python interfaces
 -----------------
 There are several packages that provide Python interfaces to :program:`GPUMD` functionality, including `calorine <https://calorine.materialsmodeling.org>`_, `gpyumd <https://github.com/AlexGabourie/gpyumd>`_, and `pyNEP <https://github.com/bigd4/PyNEP>`_.
 
-Mailing list
-------------
-* You can use the following link to subscribe and unsubscribe to the mailing list: https://www.freelists.org/list/gpumd
-* To post a question, you can send an email to gpumd(at)freelists.org
-* Here, is the archive (public): https://www.freelists.org/archive/gpumd/
+Github Discussions
+------------------
+* For general discussions: https://github.com/brucefan1983/GPUMD/discussions
+* For issue reporting: https://github.com/brucefan1983/GPUMD/issues
 
-Discussion group
-----------------
-There is a Chinese discussion group based on the following QQ 群: 887975816
+Discussion groups
+-----------------
+There are Chinese discussion groups based on the following QQ numbers: 
+* 887975816 (close to be full)
+* 778083814 (available)
