@@ -672,26 +672,6 @@ static __device__ __forceinline__ void accumulate_f12(
     get_f12_4(
       r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
   }
-
-  // l = 5
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s5[11] = {
-    sum_fxyz[n * NUM_OF_ABC + 24] * C3B[24],
-    sum_fxyz[n * NUM_OF_ABC + 25] * C3B[25],
-    sum_fxyz[n * NUM_OF_ABC + 26] * C3B[26],
-    sum_fxyz[n * NUM_OF_ABC + 27] * C3B[27],
-    sum_fxyz[n * NUM_OF_ABC + 28] * C3B[28],
-    sum_fxyz[n * NUM_OF_ABC + 29] * C3B[29],
-    sum_fxyz[n * NUM_OF_ABC + 30] * C3B[30],
-    sum_fxyz[n * NUM_OF_ABC + 31] * C3B[31],
-    sum_fxyz[n * NUM_OF_ABC + 32] * C3B[32],
-    sum_fxyz[n * NUM_OF_ABC + 33] * C3B[33],
-    sum_fxyz[n * NUM_OF_ABC + 34] * C3B[34]};
-  if (L_max >= 5) {
-    get_f12_4(
-      r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s5, f12);
-  }
 }
 
 static __device__ __forceinline__ void
@@ -763,52 +743,6 @@ accumulate_s4(
   s[23] += (4.0f * x12 * y12 * x12sq_minus_y12sq) * fn;                         // Y44_imag
 }
 
-static __device__ __forceinline__ void complex_product(float a, float b, float& c, float& d)
-{
-  float temp_c = c;
-  c = a * c - b * d;
-  d = a * d + b * temp_c;
-}
-
-static __device__ __forceinline__ void
-accumulate_s5(
-  const float x12, 
-  const float y12, 
-  const float z12, 
-  const float z12sq, 
-  const float fn, 
-  float* s)
-{
-  const float z12sqsq = z12sq * z12sq;
-  s[24] += (63.0f * z12sqsq - 70.0f * z12sq + 15.0f) * z12 * fn; // Y50
-
-  float real_part = x12;
-  float imag_part = y12;
-  float z_factor = (21.0f * z12sqsq - 14.0f * z12sq + 1.0f) * fn;
-  s[25] += real_part * z_factor; // Y51_real
-  s[26] += imag_part * z_factor; // Y51_iamg
-
-  complex_product(x12, y12, real_part, imag_part);
-  z_factor = (3.0f * z12sq - 1.0f) * z12 * fn;
-  s[27] += real_part * z_factor; // Y52_real
-  s[28] += imag_part * z_factor; // Y52_iamg
-
-  complex_product(x12, y12, real_part, imag_part);
-  z_factor = (9.0f * z12sq - 1.0f) * fn;
-  s[29] += real_part * z_factor; // Y53_real
-  s[30] += imag_part * z_factor; // Y53_iamg
-
-  complex_product(x12, y12, real_part, imag_part);
-  z_factor = z12 * fn;
-  s[31] += real_part * z_factor; // Y54_real
-  s[32] += imag_part * z_factor; // Y54_iamg
-
-  complex_product(x12, y12, real_part, imag_part);
-  z_factor = fn;
-  s[33] += real_part * z_factor; // Y55_real
-  s[34] += imag_part * z_factor; // Y55_iamg
-}
-
 static __device__ __forceinline__ void
 accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, const float fn, float* s)
 {
@@ -831,9 +765,6 @@ accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, 
   }
   if (L_max >= 4) {
     accumulate_s4(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
-  }
-  if (L_max >= 5) {
-    accumulate_s5(x12, y12, z12, z12sq, fn, s);
   }
 }
 
