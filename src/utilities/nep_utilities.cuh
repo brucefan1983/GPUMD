@@ -591,130 +591,8 @@ static __device__ __forceinline__ void get_f12_4(
 }
 
 static __device__ __forceinline__ void accumulate_f12(
-  const int n,
-  const int n_max_angular_plus_1,
-  const float d12,
-  const float* r12,
-  float fn,
-  float fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  float* f12)
-{
-  const float d12inv = 1.0f / d12;
-  // l = 1
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0],
-    sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
-    sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
-  get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
-  // l = 2
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3],
-    sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
-    sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5],
-    sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
-    sum_fxyz[n * NUM_OF_ABC + 7] * C3B[7]};
-  get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
-  // l = 3
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s3[7] = {
-    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
-    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
-    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
-    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
-  get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
-  // l = 4
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s4[9] = {
-    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
-    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
-    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
-    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
-    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
-  get_f12_4(
-    r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
-}
-
-static __device__ __forceinline__ void accumulate_f12_with_4body(
-  const int n,
-  const int n_max_angular_plus_1,
-  const float d12,
-  const float* r12,
-  float fn,
-  float fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  float* f12)
-{
-  const float d12inv = 1.0f / d12;
-  // l = 1
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0],
-    sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
-    sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
-  get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
-  // l = 2
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3],
-    sum_fxyz[n * NUM_OF_ABC + 4],
-    sum_fxyz[n * NUM_OF_ABC + 5],
-    sum_fxyz[n * NUM_OF_ABC + 6],
-    sum_fxyz[n * NUM_OF_ABC + 7]};
-  get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
-  s2[0] *= C3B[3];
-  s2[1] *= C3B[4];
-  s2[2] *= C3B[5];
-  s2[3] *= C3B[6];
-  s2[4] *= C3B[7];
-  get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
-  // l = 3
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s3[7] = {
-    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
-    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
-    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
-    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
-  get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
-  // l = 4
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s4[9] = {
-    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
-    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
-    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
-    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
-    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
-  get_f12_4(
-    r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
-}
-
-static __device__ __forceinline__ void accumulate_f12_with_5body(
+  const int L_max,
+  const int num_L,
   const int n,
   const int n_max_angular_plus_1,
   const float d12,
@@ -731,11 +609,16 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
   fn = fn * d12inv;
   float s1[3] = {
     sum_fxyz[n * NUM_OF_ABC + 0], sum_fxyz[n * NUM_OF_ABC + 1], sum_fxyz[n * NUM_OF_ABC + 2]};
-  get_f12_5body(d12, d12inv, fn, fnp, Fp[5 * n_max_angular_plus_1 + n], s1, r12, f12);
+  if (num_L >= L_max + 2) {
+    get_f12_5body(d12, d12inv, fn, fnp, Fp[(L_max + 1) * n_max_angular_plus_1 + n], s1, r12, f12);
+  }
   s1[0] *= C3B[0];
   s1[1] *= C3B[1];
   s1[2] *= C3B[2];
-  get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
+  if (L_max >= 1) {
+    get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
+  }
+  
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -745,13 +628,18 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
     sum_fxyz[n * NUM_OF_ABC + 5],
     sum_fxyz[n * NUM_OF_ABC + 6],
     sum_fxyz[n * NUM_OF_ABC + 7]};
-  get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
+  if (num_L >= L_max + 1) {
+    get_f12_4body(d12, d12inv, fn, fnp, Fp[L_max * n_max_angular_plus_1 + n], s2, r12, f12);
+  }
   s2[0] *= C3B[3];
   s2[1] *= C3B[4];
   s2[2] *= C3B[5];
   s2[3] *= C3B[6];
   s2[4] *= C3B[7];
-  get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
+  if (L_max >= 2) {
+    get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
+  }
+  
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -763,7 +651,10 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
     sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
     sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
     sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
-  get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
+  if (L_max >= 3) {  
+    get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
+  }
+
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -777,36 +668,70 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
     sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
     sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
     sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
-  get_f12_4(
-    r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
+  if (L_max >= 4) {
+    get_f12_4(
+      r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
+  }
 }
 
 static __device__ __forceinline__ void
-accumulate_s(const float d12, float x12, float y12, float z12, const float fn, float* s)
+accumulate_s1(const float x12, const float y12, const float z12, const float fn, float* s)
 {
-  float d12inv = 1.0f / d12;
-  x12 *= d12inv;
-  y12 *= d12inv;
-  z12 *= d12inv;
-  float x12sq = x12 * x12;
-  float y12sq = y12 * y12;
-  float z12sq = z12 * z12;
-  float x12sq_minus_y12sq = x12sq - y12sq;
   s[0] += z12 * fn;                                                             // Y10
   s[1] += x12 * fn;                                                             // Y11_real
   s[2] += y12 * fn;                                                             // Y11_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s2(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
   s[3] += (3.0f * z12sq - 1.0f) * fn;                                           // Y20
   s[4] += x12 * z12 * fn;                                                       // Y21_real
   s[5] += y12 * z12 * fn;                                                       // Y21_imag
   s[6] += x12sq_minus_y12sq * fn;                                               // Y22_real
   s[7] += 2.0f * x12 * y12 * fn;                                                // Y22_imag
-  s[8] += (5.0f * z12sq - 3.0f) * z12 * fn;                                     // Y30
-  s[9] += (5.0f * z12sq - 1.0f) * x12 * fn;                                     // Y31_real
-  s[10] += (5.0f * z12sq - 1.0f) * y12 * fn;                                    // Y31_imag
-  s[11] += x12sq_minus_y12sq * z12 * fn;                                        // Y32_real
-  s[12] += 2.0f * x12 * y12 * z12 * fn;                                         // Y32_imag
-  s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn;                           // Y33_real
-  s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn;                           // Y33_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s3(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float x12sq,
+  const float y12sq,
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
+  s[8] += (5.0f * z12sq - 3.0f) * z12 * fn;                             // Y30
+  s[9] += (5.0f * z12sq - 1.0f) * x12 * fn;                             // Y31_real
+  s[10] += (5.0f * z12sq - 1.0f) * y12 * fn;                            // Y31_imag
+  s[11] += x12sq_minus_y12sq * z12 * fn;                                // Y32_real
+  s[12] += 2.0f * x12 * y12 * z12 * fn;                                 // Y32_imag
+  s[13] += (x12sq - 3.0f * y12sq) * x12 * fn;                           // Y33_real
+  s[14] += (3.0f * x12sq - y12sq) * y12 * fn;                           // Y33_imag
+}
+
+static __device__ __forceinline__ void
+accumulate_s4(
+  const float x12, 
+  const float y12, 
+  const float z12, 
+  const float x12sq,
+  const float y12sq,
+  const float z12sq, 
+  const float x12sq_minus_y12sq,
+  const float fn, 
+  float* s)
+{
   s[15] += ((35.0f * z12sq - 30.0f) * z12sq + 3.0f) * fn;                       // Y40
   s[16] += (7.0f * z12sq - 3.0f) * x12 * z12 * fn;                              // Y41_real
   s[17] += (7.0f * z12sq - 3.0f) * y12 * z12 * fn;                              // Y41_iamg
@@ -819,41 +744,73 @@ accumulate_s(const float d12, float x12, float y12, float z12, const float fn, f
 }
 
 static __device__ __forceinline__ void
-find_q(const int n_max_angular_plus_1, const int n, const float* s, float* q)
+accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, const float fn, float* s)
 {
-  q[n] = C3B[0] * s[0] * s[0] + 2.0f * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
-  q[n_max_angular_plus_1 + n] =
-    C3B[3] * s[3] * s[3] + 2.0f * (C3B[4] * s[4] * s[4] + C3B[5] * s[5] * s[5] +
+  float d12inv = 1.0f / d12;
+  x12 *= d12inv;
+  y12 *= d12inv;
+  z12 *= d12inv;
+  float x12sq = x12 * x12;
+  float y12sq = y12 * y12;
+  float z12sq = z12 * z12;
+  float x12sq_minus_y12sq = x12sq - y12sq;
+  if (L_max >= 1) {
+    accumulate_s1(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 2) {
+    accumulate_s2(x12, y12, z12, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+  if (L_max >= 3) {
+    accumulate_s3(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+  if (L_max >= 4) {
+    accumulate_s4(x12, y12, z12, x12sq, y12sq, z12sq, x12sq_minus_y12sq, fn, s);
+  }
+}
+
+static __device__ __forceinline__ void
+find_q(
+  const int L_max, 
+  const int num_L, 
+  const int n_max_angular_plus_1, 
+  const int n, 
+  const float* s, 
+  float* q)
+{
+  if (L_max >= 1) {
+    q[0 * n_max_angular_plus_1 + n] = C3B[0] * s[0] * s[0] + 2.0f * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
+  }
+  if (L_max >= 2) {
+    q[1 * n_max_angular_plus_1 + n] =
+      C3B[3] * s[3] * s[3] + 2.0f * (C3B[4] * s[4] * s[4] + C3B[5] * s[5] * s[5] +
                                    C3B[6] * s[6] * s[6] + C3B[7] * s[7] * s[7]);
-  q[2 * n_max_angular_plus_1 + n] =
-    C3B[8] * s[8] * s[8] +
-    2.0f * (C3B[9] * s[9] * s[9] + C3B[10] * s[10] * s[10] + C3B[11] * s[11] * s[11] +
-            C3B[12] * s[12] * s[12] + C3B[13] * s[13] * s[13] + C3B[14] * s[14] * s[14]);
-  q[3 * n_max_angular_plus_1 + n] =
-    C3B[15] * s[15] * s[15] +
-    2.0f * (C3B[16] * s[16] * s[16] + C3B[17] * s[17] * s[17] + C3B[18] * s[18] * s[18] +
-            C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
-            C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
-}
-
-static __device__ __forceinline__ void
-find_q_with_4body(const int n_max_angular_plus_1, const int n, const float* s, float* q)
-{
-  find_q(n_max_angular_plus_1, n, s, q);
-  q[4 * n_max_angular_plus_1 + n] =
-    C4B[0] * s[3] * s[3] * s[3] + C4B[1] * s[3] * (s[4] * s[4] + s[5] * s[5]) +
-    C4B[2] * s[3] * (s[6] * s[6] + s[7] * s[7]) + C4B[3] * s[6] * (s[5] * s[5] - s[4] * s[4]) +
-    C4B[4] * s[4] * s[5] * s[7];
-}
-
-static __device__ __forceinline__ void
-find_q_with_5body(const int n_max_angular_plus_1, const int n, const float* s, float* q)
-{
-  find_q_with_4body(n_max_angular_plus_1, n, s, q);
-  float s0_sq = s[0] * s[0];
-  float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
-  q[5 * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + C5B[1] * s0_sq * s1_sq_plus_s2_sq +
-                                    C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
+  }
+  if (L_max >= 3) {
+    q[2 * n_max_angular_plus_1 + n] =
+      C3B[8] * s[8] * s[8] +
+      2.0f * (C3B[9] * s[9] * s[9] + C3B[10] * s[10] * s[10] + C3B[11] * s[11] * s[11] +
+              C3B[12] * s[12] * s[12] + C3B[13] * s[13] * s[13] + C3B[14] * s[14] * s[14]);
+  }
+  if (L_max >= 4) {
+    q[3 * n_max_angular_plus_1 + n] =
+      C3B[15] * s[15] * s[15] +
+      2.0f * (C3B[16] * s[16] * s[16] + C3B[17] * s[17] * s[17] + C3B[18] * s[18] * s[18] +
+              C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
+              C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
+  }
+  if (num_L >= L_max + 1) {
+    q[L_max * n_max_angular_plus_1 + n] =
+      C4B[0] * s[3] * s[3] * s[3] + C4B[1] * s[3] * (s[4] * s[4] + s[5] * s[5]) +
+      C4B[2] * s[3] * (s[6] * s[6] + s[7] * s[7]) + C4B[3] * s[6] * (s[5] * s[5] - s[4] * s[4]) +
+      C4B[4] * s[4] * s[5] * s[7];
+  }
+  if (num_L >= L_max + 2) {
+    float s0_sq = s[0] * s[0];
+    float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
+    q[(L_max + 1) * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + 
+                                                C5B[1] * s0_sq * s1_sq_plus_s2_sq +
+                                                C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
+  }
 }
 
 #ifdef USE_TABLE

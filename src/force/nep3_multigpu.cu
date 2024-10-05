@@ -942,7 +942,7 @@ static __global__ void find_descriptor(
             weight_left +
           g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
             weight_right;
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
         int t2 = g_type[n2];
@@ -964,16 +964,10 @@ static __global__ void find_descriptor(
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
           gn12 += fn12[k] * annmb.c[c_index];
         }
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      if (paramb.num_L == paramb.L_max) {
-        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else if (paramb.num_L == paramb.L_max + 1) {
-        find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else {
-        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      }
+      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -1254,15 +1248,7 @@ static __global__ void find_partial_force_angular(
           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
                       g_gnp_angular[index_right_all] * weight_right;
-        if (paramb.num_L == paramb.L_max) {
-          accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        } else if (paramb.num_L == paramb.L_max + 1) {
-          accumulate_f12_with_4body(
-            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        } else {
-          accumulate_f12_with_5body(
-            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        }
+        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 #else
       float fc12, fcp12;
@@ -1290,15 +1276,7 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        if (paramb.num_L == paramb.L_max) {
-          accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        } else if (paramb.num_L == paramb.L_max + 1) {
-          accumulate_f12_with_4body(
-            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        } else {
-          accumulate_f12_with_5body(
-            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        }
+        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 #endif
       g_f12x[index] = f12[0];
@@ -2088,7 +2066,7 @@ static __global__ void find_descriptor(
             weight_left +
           g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
             weight_right;
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
         int t2 = g_type[n2];
@@ -2110,16 +2088,10 @@ static __global__ void find_descriptor(
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
           gn12 += fn12[k] * annmb.c[c_index];
         }
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      if (paramb.num_L == paramb.L_max) {
-        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else if (paramb.num_L == paramb.L_max + 1) {
-        find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      } else {
-        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      }
+      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
