@@ -270,6 +270,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       } else {
         fprintf(fid_nep, "nep4 %d ", para.num_types);
       }
+    } else if (para.version == 5) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep5_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep5 %d ", para.num_types);
+      }
     }
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 3) {

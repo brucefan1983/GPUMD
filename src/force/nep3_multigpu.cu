@@ -97,6 +97,12 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   } else if (tokens[0] == "nep4_zbl") {
     paramb.version = 4;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep5") {
+    paramb.version = 5;
+    zbl.enabled = false;
+  } else if (tokens[0] == "nep5_zbl") {
+    paramb.version = 5;
+    zbl.enabled = true;
   } else if (tokens[0] == "nep3_temperature") {
     paramb.version = 3;
     paramb.model_type = 3;
@@ -285,8 +291,14 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  annmb[0].num_para =
-    (annmb[0].dim + 2) * annmb[0].num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
+  if (paramb.version == 3) {
+    annmb[0].num_para = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
+  } else if (paramb.version == 4) {
+    annmb[0].num_para = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
+  } else {
+    annmb[0].num_para = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
+  }
+
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
     annmb[0].num_para *= 2;
@@ -359,10 +371,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
     std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
     std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    float* c_pointer = parameters.data() +
-                       (annmb[gpu].dim + 2) * annmb[gpu].num_neurons1 *
-                         (paramb.version == 4 ? paramb.num_types : 1) +
-                       1;
+    float* c_pointer = parameters.data() + annmb[gpu].num_para;
     construct_table_radial_or_angular(
       paramb.num_types,
       paramb.num_types_sq,
@@ -448,7 +457,7 @@ void NEP3_MULTIGPU::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP3
+    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
       pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
@@ -457,6 +466,9 @@ void NEP3_MULTIGPU::update_potential(float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
+    if (paramb.version == 5) {
+      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
+    }
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -464,7 +476,7 @@ void NEP3_MULTIGPU::update_potential(float* parameters, ANN& ann)
   // Possibly read polarizability parameters, which are placed after the regular nep parameters.
   if (paramb.model_type == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP3
+      if (t > 0 && paramb.version == 4) { // Use the same set of NN parameters for NEP3
         pointer -= (ann.dim + 2) * ann.num_neurons1;
       }
       ann.w0_pol[t] = pointer;
@@ -996,8 +1008,30 @@ static __global__ void find_descriptor(
       }
     }
 
-    apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
+    if (paramb.version == 5) {
+      apply_ann_one_layer_nep5(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    } else {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    }
+
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
