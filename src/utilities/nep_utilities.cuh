@@ -31,6 +31,32 @@ __constant__ float C4B[5] = {
   -0.809943929279723f};
 __constant__ float C5B[3] = {0.026596810706114f, 0.053193621412227f, 0.026596810706114f};
 
+__constant__ float Z_COEFFICIENT_1[2][2] = {
+  {0.0f, 1.0f},
+  {1.0f, 0.0f}
+};
+
+__constant__ float Z_COEFFICIENT_2[3][3] = {
+  {-1.0f, 0.0f, 3.0f},
+  {0.0f, 1.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f}
+};
+
+__constant__ float Z_COEFFICIENT_3[4][4] = {
+  {0.0f, -3.0f, 0.0f, 5.0f},
+  {-1.0f, 0.0f, 5.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f}
+};
+
+__constant__ float Z_COEFFICIENT_4[5][5] = {
+  {3.0f, 0.0f, -30.0f, 0.0f, 35.0f},
+  {0.0f, -3.0f, 0.0f, 7.0f, 0.0f},
+  {-1.0f, 0.0f, 7.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+};
+
 __constant__ float COVALENT_RADIUS[94] = {
   0.426667f, 0.613333f, 1.6f,     1.25333f, 1.02667f, 1.0f,     0.946667f, 0.84f,    0.853333f,
   0.893333f, 1.86667f,  1.66667f, 1.50667f, 1.38667f, 1.46667f, 1.36f,     1.32f,    1.28f,
@@ -48,6 +74,14 @@ const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
+
+static __device__ __forceinline__ void
+complex_product(const float a, const float b, float& real_part, float& imag_part)
+{
+  const float real_temp = real_part;
+  real_part = a * real_temp - b * imag_part;
+  imag_part = a * imag_part + b * real_temp;
+}
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
@@ -666,39 +700,7 @@ static __device__ __forceinline__ void accumulate_f12(
   }
 }
 
-__constant__ float Z_COEFFICIENT_1[2][2] = {
-  {0.0f, 1.0f},
-  {1.0f, 0.0f}
-};
 
-__constant__ float Z_COEFFICIENT_2[3][3] = {
-  {-1.0f, 0.0f, 3.0f},
-  {0.0f, 1.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f}
-};
-
-__constant__ float Z_COEFFICIENT_3[4][4] = {
-  {0.0f, -3.0f, 0.0f, 5.0f},
-  {-1.0f, 0.0f, 5.0f, 0.0f},
-  {0.0f, 1.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f}
-};
-
-__constant__ float Z_COEFFICIENT_4[5][5] = {
-  {3.0f, 0.0f, -30.0f, 0.0f, 35.0f},
-  {0.0f, -3.0f, 0.0f, 7.0f, 0.0f},
-  {-1.0f, 0.0f, 7.0f, 0.0f, 0.0f},
-  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
-
-static __device__ __forceinline__ void
-complex_pruduct(const float a, const float b, float& real_part, float& imag_part)
-{
-  const float real_temp = real_part;
-  real_part = a * real_temp - b * imag_part;
-  imag_part = a * imag_part + b * real_temp;
-}
 
 template <int L>
 static __device__ __forceinline__ void
@@ -718,7 +720,7 @@ accumulate_s_one(
   float imag_part = y12;
   for (int n1 = 0; n1 <= L; ++n1) {
     int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
-    float z_factor = 0;
+    float z_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
       if (L == 1) z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
       if (L == 2) z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
@@ -731,7 +733,7 @@ accumulate_s_one(
     } else {
       s[s_index++] += z_factor * real_part;
       s[s_index++] += z_factor * imag_part;
-      complex_pruduct(x12, y12, real_part, imag_part);
+      complex_product(x12, y12, real_part, imag_part);
     }
   }
 }
