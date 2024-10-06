@@ -346,49 +346,6 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   }
 }
 
-static __device__ __forceinline__ void get_f12_1(
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float* s,
-  const float* r12,
-  float* f12)
-{
-  float tmp = s[1] * r12[0];
-  tmp += s[2] * r12[1];
-  tmp += s[0] * r12[2];
-  tmp *= fnp * d12inv;
-  for (int d = 0; d < 3; ++d) {
-    f12[d] += tmp * r12[d];
-  }
-  f12[0] += fn * s[1];
-  f12[1] += fn * s[2];
-  f12[2] += fn * s[0];
-}
-
-static __device__ __forceinline__ void get_f12_2(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float* s,
-  const float* r12,
-  float* f12)
-{
-  float tmp = s[1] * r12[0] * r12[2];                // Re[Y21]
-  tmp += s[2] * r12[1] * r12[2];                     // Im[Y21]
-  tmp += s[3] * (r12[0] * r12[0] - r12[1] * r12[1]); // Re[Y22]
-  tmp += s[4] * 2.0f * r12[0] * r12[1];              // Im[Y22]
-  tmp += s[0] * (3.0f * r12[2] * r12[2] - d12 * d12); // Y20
-  tmp *= fnp * d12inv;
-  for (int d = 0; d < 3; ++d) {
-    f12[d] += tmp * r12[d];
-  }
-  f12[0] += fn * (-2.0f * s[0] * r12[0] + s[1] * r12[2] + 2.0f * s[3] * r12[0] + 2.0f * s[4] * r12[1]);
-  f12[1] += fn * (-2.0f * s[0] * r12[1] + s[2] * r12[2] - 2.0f * s[3] * r12[1] + 2.0f * s[4] * r12[0]);
-  f12[2] += fn * (4.0f * s[0] * r12[2] + s[1] * r12[0] + s[2] * r12[1]);
-}
-
 static __device__ __forceinline__ void get_f12_4body(
   const float d12,
   const float d12inv,
@@ -484,130 +441,6 @@ static __device__ __forceinline__ void get_f12_5body(
   f12[2] += tmp1 * r12[2];
 }
 
-static __device__ __forceinline__ void get_f12_3(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float* s,
-  const float* r12,
-  float* f12)
-{
-  float d12sq = d12 * d12;
-  float x2 = r12[0] * r12[0];
-  float y2 = r12[1] * r12[1];
-  float z2 = r12[2] * r12[2];
-  float xy = r12[0] * r12[1];
-  float xz = r12[0] * r12[2];
-  float yz = r12[1] * r12[2];
-
-  float tmp = s[1] * (5.0f * z2 - d12sq) * r12[0];
-  tmp += s[2] * (5.0f * z2 - d12sq) * r12[1];
-  tmp += s[3] * (x2 - y2) * r12[2];
-  tmp += s[4] * 2.0f * xy * r12[2];
-  tmp += s[5] * r12[0] * (x2 - 3.0f * y2);
-  tmp += s[6] * r12[1] * (3.0f * x2 - y2);
-  tmp += s[0] * (5.0f * z2 - 3.0f * d12sq) * r12[2];
-  tmp *= fnp * d12inv;
-  for (int d = 0; d < 3; ++d) {
-    f12[d] += tmp * r12[d];
-  }
-
-  // x
-  tmp = s[1] * (4.0f * z2 - 3.0f * x2 - y2);
-  tmp += s[2] * (-2.0f * xy);
-  tmp += s[3] * 2.0f * xz;
-  tmp += s[4] * (2.0f * yz);
-  tmp += s[5] * (3.0f * (x2 - y2));
-  tmp += s[6] * (6.0f * xy);
-  tmp += s[0] * (-6.0f * xz);
-  f12[0] += tmp * fn;
-  // y
-  tmp = s[1] * (-2.0f * xy);
-  tmp += s[2] * (4.0f * z2 - 3.0f * y2 - x2);
-  tmp += s[3] * (-2.0f * yz);
-  tmp += s[4] * (2.0f * xz);
-  tmp += s[5] * (-6.0f * xy);
-  tmp += s[6] * (3.0f * (x2 - y2));
-  tmp += s[0] * (-6.0f * yz);
-  f12[1] += tmp * fn;
-  // z
-  tmp = s[1] * (8.0f * xz);
-  tmp += s[2] * (8.0f * yz);
-  tmp += s[3] * (x2 - y2);
-  tmp += s[4] * (2.0f * xy);
-  tmp += s[0] * (9.0f * z2 - 3.0f * d12sq);
-  f12[2] += tmp * fn;
-}
-
-static __device__ __forceinline__ void get_f12_4(
-  const float x,
-  const float y,
-  const float z,
-  const float r,
-  const float rinv,
-  const float fn,
-  const float fnp,
-  const float* s,
-  float* f12)
-{
-  const float r2 = r * r;
-  const float x2 = x * x;
-  const float y2 = y * y;
-  const float z2 = z * z;
-  const float xy = x * y;
-  const float xz = x * z;
-  const float yz = y * z;
-  const float xyz = x * yz;
-  const float x2my2 = x2 - y2;
-
-  float tmp = s[1] * (7.0f * z2 - 3.0f * r2) * xz; // Y41_real
-  tmp += s[2] * (7.0f * z2 - 3.0f * r2) * yz;      // Y41_imag
-  tmp += s[3] * (7.0f * z2 - r2) * x2my2;          // Y42_real
-  tmp += s[4] * (7.0f * z2 - r2) * 2.0f * xy;      // Y42_imag
-  tmp += s[5] * (x2 - 3.0f * y2) * xz;             // Y43_real
-  tmp += s[6] * (3.0f * x2 - y2) * yz;             // Y43_imag
-  tmp += s[7] * (x2my2 * x2my2 - 4.0f * x2 * y2);  // Y44_real
-  tmp += s[8] * (4.0f * xy * x2my2);               // Y44_imag
-  tmp += s[0] * ((35.0f * z2 - 30.0f * r2) * z2 + 3.0f * r2 * r2); // Y40
-  tmp *= fnp * rinv;
-  f12[0] += tmp * x;
-  f12[1] += tmp * y;
-  f12[2] += tmp * z;
-
-  // x
-  tmp = s[1] * z * (7.0f * z2 - 3.0f * r2 - 6.0f * x2);  // Y41_real
-  tmp += s[2] * (-6.0f * xyz);                           // Y41_imag
-  tmp += s[3] * 4.0f * x * (3.0f * z2 - x2);             // Y42_real
-  tmp += s[4] * 2.0f * y * (7.0f * z2 - r2 - 2.0f * x2); // Y42_imag
-  tmp += s[5] * 3.0f * z * x2my2;                        // Y43_real
-  tmp += s[6] * 6.0f * xyz;                              // Y43_imag
-  tmp += s[7] * 4.0f * x * (x2 - 3.0f * y2);             // Y44_real
-  tmp += s[8] * 4.0f * y * (3.0f * x2 - y2);             // Y44_imag
-  tmp += s[0] * 12.0f * x * (r2 - 5.0f * z2); // Y40
-  f12[0] += tmp * fn;
-  // y
-  tmp = s[1] * (-6.0f * xyz);                            // Y41_real
-  tmp += s[2] * z * (7.0f * z2 - 3.0f * r2 - 6.0f * y2); // Y41_imag
-  tmp += s[3] * 4.0f * y * (y2 - 3.0f * z2);             // Y42_real
-  tmp += s[4] * 2.0f * x * (7.0f * z2 - r2 - 2.0f * y2); // Y42_imag
-  tmp += s[5] * (-6.0f * xyz);                           // Y43_real
-  tmp += s[6] * 3.0f * z * x2my2;                        // Y43_imag
-  tmp += s[7] * 4.0f * y * (y2 - 3.0f * x2);             // Y44_real
-  tmp += s[8] * 4.0f * x * (x2 - 3.0f * y2);             // Y44_imag
-  tmp += s[0] * 12.0f * y * (r2 - 5.0f * z2); // Y40
-  f12[1] += tmp * fn;
-  // z
-  tmp = s[1] * 3.0f * x * (5.0f * z2 - r2);  // Y41_real
-  tmp += s[2] * 3.0f * y * (5.0f * z2 - r2); // Y41_imag
-  tmp += s[3] * 12.0f * z * x2my2;           // Y42_real
-  tmp += s[4] * 24.0f * xyz;                 // Y42_imag
-  tmp += s[5] * x * (x2 - 3.0f * y2);        // Y43_real
-  tmp += s[6] * y * (3.0f * x2 - y2);        // Y43_imag
-  tmp += s[0] * 16.0f * z * (5.0f * z2 - 3.0f * r2); // Y40
-  f12[2] += tmp * fn;
-}
-
 template <int L>
 static __device__ __forceinline__ void accumulate_f12_one(
   const float d12inv,
@@ -672,9 +505,9 @@ static __device__ __forceinline__ void accumulate_f12_one(
         f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
+      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
       for (int d = 0; d < 3; ++d) {
-        const float tmp = (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f12[d] += (s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part) * tmp;
+        f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
       }
     }
   }
@@ -709,7 +542,6 @@ static __device__ __forceinline__ void accumulate_f12(
   s1[1] *= C3B[1] * 4.0f * Fp[n]; // (2 - delta_0m)
   s1[2] *= C3B[2] * 4.0f * Fp[n]; // (2 - delta_0m)
   if (L_max >= 1) {
-    //get_f12_1(d12inv, fn, fnp, s1, r12, f12);
     accumulate_f12_one<1>(d12inv, fn_original, fnp_original, s1, r12unit, f12);
   }
   
@@ -731,7 +563,6 @@ static __device__ __forceinline__ void accumulate_f12(
   s2[3] *= C3B[6] * 4.0f * Fp[n_max_angular_plus_1 + n]; // (2 - delta_0m)
   s2[4] *= C3B[7] * 4.0f * Fp[n_max_angular_plus_1 + n]; // (2 - delta_0m)
   if (L_max >= 2) {
-    //get_f12_2(d12, d12inv, fn, fnp, s2, r12, f12);
     accumulate_f12_one<2>(d12inv, fn_original, fnp_original, s2, r12unit, f12);
   }
   
@@ -748,7 +579,6 @@ static __device__ __forceinline__ void accumulate_f12(
     sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14] * 4.0f * Fp[2 * n_max_angular_plus_1 + n]  // (2 - delta_0m)
   };
   if (L_max >= 3) {  
-    //get_f12_3(d12, d12inv, fn, fnp, s3, r12, f12);
     accumulate_f12_one<3>(d12inv, fn_original, fnp_original, s3, r12unit, f12);
   }
 
@@ -767,7 +597,6 @@ static __device__ __forceinline__ void accumulate_f12(
     sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23] * 4.0f * Fp[3 * n_max_angular_plus_1 + n]  // (2 - delta_0m)
   };
   if (L_max >= 4) {
-    //get_f12_4(r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, s4, f12);
     accumulate_f12_one<4>(d12inv, fn_original, fnp_original, s4, r12unit, f12);
   }
 }
