@@ -722,10 +722,18 @@ accumulate_s_one(
     int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
     float z_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-      if (L == 2) z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-      if (L == 3) z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-      if (L == 4) z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
+      if (L == 1) {
+        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
+      }
+      if (L == 2) {
+        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
+      }
+      if (L == 3) {
+        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
+      }
+      if (L == 4) {
+        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
+      }
     }
     z_factor *= fn;
     if (n1 == 0) {
