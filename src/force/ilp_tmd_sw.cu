@@ -109,3 +109,40 @@ ILP_TMD_SW::~ILP_TMD_SW(void)
 {
   // nothing
 }
+
+// calculate the long-range cutoff term
+static __device__ __forceinline__ float calc_Tap(const float r_ij, const float Rcutinv)
+{
+  float Tap, r;
+
+  r = r_ij * Rcutinv;
+  if (r >= 1.0f) {
+    Tap = 0.0f;
+  } else {
+    Tap = Tap_coeff_tmd[7];
+    for (int i = 6; i >= 0; --i) {
+      Tap = Tap * r + Tap_coeff_tmd[i];
+    }
+  }
+
+  return Tap;
+}
+
+// calculate the derivatives of long-range cutoff term
+static __device__ __forceinline__ float calc_dTap(const float r_ij, const float Rcut, const float Rcutinv)
+{
+  float dTap, r;
+  
+  r = r_ij * Rcutinv;
+  if (r >= Rcut) {
+    dTap = 0.0f;
+  } else {
+    dTap = 7.0f * Tap_coeff_tmd[7];
+    for (int i = 6; i > 0; --i) {
+      dTap = dTap * r + i * Tap_coeff_tmd[i];
+    }
+    dTap *= Rcutinv;
+  }
+
+  return dTap;
+}
