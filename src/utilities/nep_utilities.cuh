@@ -15,7 +15,7 @@
 
 #pragma once
 
-const int NUM_OF_ABC = 35; // 3 + 5 + 7 + 9 + 11 for L_max = 5
+const int NUM_OF_ABC = 48; // 3 + 5 + 7 + 9 + 11 + 13 for L_max = 6
 __constant__ float C3B[NUM_OF_ABC] = {
   0.238732414637843f, 0.119366207318922f, 0.119366207318922f, 0.099471839432435f,
   0.596831036594608f, 0.596831036594608f, 0.149207759148652f, 0.149207759148652f,
@@ -25,7 +25,10 @@ __constant__ float C3B[NUM_OF_ABC] = {
   1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f,
   0.013677377921960f, 0.102580334414698f, 0.102580334414698f, 2.872249363611549f,
   2.872249363611549f, 0.119677056817148f, 0.119677056817148f, 2.154187022708661f,
-  2.154187022708661f, 0.215418702270866f, 0.215418702270866};
+  2.154187022708661f, 0.215418702270866f, 0.215418702270866f, 0.004041043476943f,
+  0.169723826031592f, 0.169723826031592f, 0.106077391269745f, 0.106077391269745f,
+  0.424309565078979f, 0.424309565078979f, 0.127292869523694f, 0.127292869523694f,
+  2.800443129521260f, 2.800443129521260f, 0.233370260793438f, 0.233370260793438f};
 __constant__ float C4B[5] = {
   -0.007499480826664f,
   -0.134990654879954f,
@@ -67,6 +70,16 @@ __constant__ float Z_COEFFICIENT_5[6][6] = {
   {-1.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+};
+
+__constant__ float Z_COEFFICIENT_6[7][7] = {
+  {-5.0f, 0.0f, 105.0f, 0.0f, -315.0f, 0.0f, 231.0f},
+  {0.0f, 5.0f, 0.0f, -30.0f, 0.0f, 33.0f, 0.0f},
+  {1.0f, 0.0f, -18.0f, 0.0f, 33.0f, 0.0f, 0.0f},
+  {0.0f, -3.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f},
+  {-1.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
 };
 
 __constant__ float COVALENT_RADIUS[94] = {
@@ -508,6 +521,12 @@ static __device__ __forceinline__ void accumulate_f12_one(
           dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
         }
       }
+      if (L == 6) {
+        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
+        if (n2 > 0) {
+          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
+        }
+      }
     }
     if (n1 == 0) {
       for (int d = 0; d < 3; ++d) {
@@ -635,6 +654,17 @@ static __device__ __forceinline__ void accumulate_f12(
   if (L_max >= 5) {
     accumulate_f12_one<5>(d12inv, fn_original, fnp_original, s5, r12unit, f12);
   }
+
+  if (L_max >= 6) {
+    float s6[13];
+    float Fp_factor = 2.0f * Fp[5 * n_max_angular_plus_1 + n];
+    s6[0] = sum_fxyz[n * NUM_OF_ABC + 35] * C3B[35] * Fp_factor;
+    Fp_factor *= 2;
+    for (int k = 1; k < 13; ++k) {
+      s6[k] = sum_fxyz[n * NUM_OF_ABC + 35 + k] * C3B[35 + k] * Fp_factor;
+    }
+    accumulate_f12_one<6>(d12inv, fn_original, fnp_original, s6, r12unit, f12);
+  }
 }
 
 template <int L>
@@ -672,6 +702,9 @@ accumulate_s_one(
       if (L == 5) {
         z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
       }
+      if (L == 6) {
+        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
+      }
     }
     z_factor *= fn;
     if (n1 == 0) {
@@ -705,6 +738,9 @@ accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, 
   }
   if (L_max >= 5) {
     accumulate_s_one<5>(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 6) {
+    accumulate_s_one<6>(x12, y12, z12, fn, s);
   }
 }
 
@@ -745,6 +781,15 @@ find_q(
               C3B[28] * s[28] * s[28] + C3B[29] * s[29] * s[29] + C3B[30] * s[30] * s[30] + 
               C3B[31] * s[31] * s[31] + C3B[32] * s[32] * s[32] + C3B[33] * s[33] * s[33] +
               C3B[34] * s[34] * s[34]);
+  }
+  if (L_max >= 6) {
+    float temp = 0.0f;
+    for (int k = 1; k < 13; ++k) {
+      temp += C3B[35 + k] * s[35 + k] * s[35 + k];
+    }
+    temp *= 2.0f;
+    temp += C3B[35] * s[35] * s[35];
+    q[5 * n_max_angular_plus_1 + n] = temp;
   }
   if (num_L >= L_max + 1) {
     q[L_max * n_max_angular_plus_1 + n] =
