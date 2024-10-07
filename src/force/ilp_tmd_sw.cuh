@@ -37,3 +37,19 @@ struct ILP_TMD_SW_Para {
   float S[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];           // scale
   float rcut_global[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];           // scale
 };
+
+struct ILP_TMD_SW_Data {
+  GPU_Vector<int> NN, NL;
+  GPU_Vector<int> reduce_NL;
+  GPU_Vector<int> big_ilp_NN, big_ilp_NL;
+  GPU_Vector<int> ilp_NN, ilp_NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+  GPU_Vector<float> f12x;
+  GPU_Vector<float> f12y;
+  GPU_Vector<float> f12z;
+  GPU_Vector<float> f12x_ilp_neigh;
+  GPU_Vector<float> f12y_ilp_neigh;
+  GPU_Vector<float> f12z_ilp_neigh;
+};
