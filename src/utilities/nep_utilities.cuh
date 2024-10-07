@@ -764,28 +764,13 @@ find_q(
     q[2 * n_max_angular_plus_1 + n] = find_q_one<3>(s);
   }
   if (L_max >= 4) {
-    q[3 * n_max_angular_plus_1 + n] =
-      C3B[15] * s[15] * s[15] +
-      2.0f * (C3B[16] * s[16] * s[16] + C3B[17] * s[17] * s[17] + C3B[18] * s[18] * s[18] +
-              C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
-              C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
+    q[3 * n_max_angular_plus_1 + n] = find_q_one<4>(s);
   }
   if (L_max >= 5) {
-    q[4 * n_max_angular_plus_1 + n] =
-      C3B[24] * s[24] * s[24] +
-      2.0f * (C3B[25] * s[25] * s[25] + C3B[26] * s[26] * s[26] + C3B[27] * s[27] * s[27] + 
-              C3B[28] * s[28] * s[28] + C3B[29] * s[29] * s[29] + C3B[30] * s[30] * s[30] + 
-              C3B[31] * s[31] * s[31] + C3B[32] * s[32] * s[32] + C3B[33] * s[33] * s[33] +
-              C3B[34] * s[34] * s[34]);
+    q[4 * n_max_angular_plus_1 + n] = find_q_one<5>(s);
   }
   if (L_max >= 6) {
-    float temp = 0.0f;
-    for (int k = 1; k < 13; ++k) {
-      temp += C3B[35 + k] * s[35 + k] * s[35 + k];
-    }
-    temp *= 2.0f;
-    temp += C3B[35] * s[35] * s[35];
-    q[5 * n_max_angular_plus_1 + n] = temp;
+    q[5 * n_max_angular_plus_1 + n] = find_q_one<6>(s);
   }
   if (num_L >= L_max + 1) {
     q[L_max * n_max_angular_plus_1 + n] =
