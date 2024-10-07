@@ -575,10 +575,13 @@ static __device__ __forceinline__ void accumulate_f12(
   if (num_L >= L_max + 2) {
     get_f12_5body(d12, d12inv, fn, fnp, Fp[(L_max + 1) * n_max_angular_plus_1 + n], s1, r12, f12);
   }
-  s1[0] *= C3B[0] * 2.0f * Fp[n];
-  s1[1] *= C3B[1] * 4.0f * Fp[n];
-  s1[2] *= C3B[2] * 4.0f * Fp[n];
+
   if (L_max >= 1) {
+    float Fp_factor = 2.0f * Fp[n];
+    s1[0] *= C3B[0] * Fp_factor;
+    Fp_factor *= 2.0f;
+    s1[1] *= C3B[1] * Fp_factor;
+    s1[2] *= C3B[2] * Fp_factor;
     accumulate_f12_one<1>(d12inv, fn_original, fnp_original, s1, r12unit, f12);
   }
   
@@ -594,28 +597,26 @@ static __device__ __forceinline__ void accumulate_f12(
   if (num_L >= L_max + 1) {
     get_f12_4body(d12, d12inv, fn, fnp, Fp[L_max * n_max_angular_plus_1 + n], s2, r12, f12);
   }
-  s2[0] *= C3B[3] * 2.0f * Fp[n_max_angular_plus_1 + n];
-  s2[1] *= C3B[4] * 4.0f * Fp[n_max_angular_plus_1 + n];
-  s2[2] *= C3B[5] * 4.0f * Fp[n_max_angular_plus_1 + n];
-  s2[3] *= C3B[6] * 4.0f * Fp[n_max_angular_plus_1 + n];
-  s2[4] *= C3B[7] * 4.0f * Fp[n_max_angular_plus_1 + n];
+
   if (L_max >= 2) {
+    float Fp_factor = 2.0f * Fp[n_max_angular_plus_1 + n];
+    s2[0] *= C3B[3] * Fp_factor;
+    Fp_factor *= 2;
+    s2[1] *= C3B[4] * Fp_factor;
+    s2[2] *= C3B[5] * Fp_factor;
+    s2[3] *= C3B[6] * Fp_factor;
+    s2[4] *= C3B[7] * Fp_factor;
     accumulate_f12_one<2>(d12inv, fn_original, fnp_original, s2, r12unit, f12);
   }
-  
-  // l = 3
-  fnp = fnp * d12inv - fn * d12inv * d12inv;
-  fn = fn * d12inv;
-  float s3[7] = {
-    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8] * 2.0f * Fp[2 * n_max_angular_plus_1 + n],  
-    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9] * 4.0f * Fp[2 * n_max_angular_plus_1 + n],  
-    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10] * 4.0f * Fp[2 * n_max_angular_plus_1 + n],
-    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11] * 4.0f * Fp[2 * n_max_angular_plus_1 + n],
-    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12] * 4.0f * Fp[2 * n_max_angular_plus_1 + n],
-    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13] * 4.0f * Fp[2 * n_max_angular_plus_1 + n],
-    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14] * 4.0f * Fp[2 * n_max_angular_plus_1 + n] 
-  };
-  if (L_max >= 3) {  
+
+  if (L_max >= 3) {
+    float s3[7];
+    float Fp_factor = 2.0f * Fp[2 * n_max_angular_plus_1 + n];
+    s3[0] = sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8] * Fp_factor;
+    Fp_factor *= 2.0f;
+    for (int k = 1; k < 7; ++k) {
+      s3[k] = sum_fxyz[n * NUM_OF_ABC + 8 + k] * C3B[8 + k] * Fp_factor;
+    }  
     accumulate_f12_one<3>(d12inv, fn_original, fnp_original, s3, r12unit, f12);
   }
 
