@@ -80,3 +80,5 @@ protected:
   ILP_TMD_SW_Para ilp_para;
   ILP_TMD_SW_Data ilp_data;
 };
+
+static __constant__ float Tap_coeff_tmd[8];
