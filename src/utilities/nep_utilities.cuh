@@ -731,6 +731,20 @@ accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, 
   }
 }
 
+template<int L>
+static __device__ __forceinline__ float find_q_one(const float* s)
+{
+  const int start_index = L * L-1;
+  const int num_terms = 2 * L + 1;
+  float q = 0.0f;
+  for (int k = 1; k < num_terms; ++k) {
+    q += C3B[start_index + k] * s[start_index + k] * s[start_index + k];
+  }
+  q *= 2.0f;
+  q += C3B[start_index] * s[start_index] * s[start_index];
+  return q;
+}
+
 static __device__ __forceinline__ void
 find_q(
   const int L_max, 
@@ -741,18 +755,13 @@ find_q(
   float* q)
 {
   if (L_max >= 1) {
-    q[0 * n_max_angular_plus_1 + n] = C3B[0] * s[0] * s[0] + 2.0f * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
+    q[0 * n_max_angular_plus_1 + n] = find_q_one<1>(s);
   }
   if (L_max >= 2) {
-    q[1 * n_max_angular_plus_1 + n] =
-      C3B[3] * s[3] * s[3] + 2.0f * (C3B[4] * s[4] * s[4] + C3B[5] * s[5] * s[5] +
-                                   C3B[6] * s[6] * s[6] + C3B[7] * s[7] * s[7]);
+    q[1 * n_max_angular_plus_1 + n] = find_q_one<2>(s);
   }
   if (L_max >= 3) {
-    q[2 * n_max_angular_plus_1 + n] =
-      C3B[8] * s[8] * s[8] +
-      2.0f * (C3B[9] * s[9] * s[9] + C3B[10] * s[10] * s[10] + C3B[11] * s[11] * s[11] +
-              C3B[12] * s[12] * s[12] + C3B[13] * s[13] * s[13] + C3B[14] * s[14] * s[14]);
+    q[2 * n_max_angular_plus_1 + n] = find_q_one<3>(s);
   }
   if (L_max >= 4) {
     q[3 * n_max_angular_plus_1 + n] =
