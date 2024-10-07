@@ -104,3 +104,8 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid, int num_types, int num_atoms)
   // set ilp_flag to 1
   ilp_flag = 1;
 }
+
+ILP_TMD_SW::~ILP_TMD_SW(void)
+{
+  // nothing
+}
