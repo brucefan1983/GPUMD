@@ -53,3 +53,30 @@ struct ILP_TMD_SW_Data {
   GPU_Vector<float> f12y_ilp_neigh;
   GPU_Vector<float> f12z_ilp_neigh;
 };
+
+class ILP_TMD_SW : public Potential
+{
+public:
+  ILP_TMD_SW(FILE*, int, int);
+  virtual ~ILP_TMD_SW(void);
+  virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+  
+  virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    std::vector<Group> &group);
+
+protected:
+  ILP_TMD_SW_Para ilp_para;
+  ILP_TMD_SW_Data ilp_data;
+};
