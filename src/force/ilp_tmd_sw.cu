@@ -529,3 +529,40 @@ static __device__ void calc_normal(
     return;
   }
 }
+
+// calculate the van der Waals force and energy
+static __device__ void calc_vdW(
+  float r,
+  float rinv,
+  float rsq,
+  float d,
+  float d_Seff,
+  float C_6,
+  float Tap,
+  float dTap,
+  float &p2_vdW,
+  float &f2_vdW)
+{
+  float r2inv, r6inv, r8inv;
+  float TSvdw, TSvdwinv, Vilp;
+  float fpair, fsum;
+
+  r2inv = 1.0f / rsq;
+  r6inv = r2inv * r2inv * r2inv;
+  r8inv = r2inv * r6inv;
+
+  // TSvdw = 1.0 + exp(-d_Seff * r + d);
+  TSvdw = 1.0f + expf(-d_Seff * r + d);
+  TSvdwinv = 1.0f / TSvdw;
+  Vilp = -C_6 * r6inv * TSvdwinv;
+
+  // derivatives
+  // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
+  //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
+  fpair = (-6.0f + d_Seff * (TSvdw - 1.0f) * TSvdwinv * r ) * C_6 * TSvdwinv * r8inv;
+  fsum = fpair * Tap - Vilp * dTap * rinv;
+
+  p2_vdW = Tap * Vilp;
+  f2_vdW = fsum;
+  
+}
