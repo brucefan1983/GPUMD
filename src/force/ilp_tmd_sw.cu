@@ -280,3 +280,252 @@ static __device__ __forceinline__ int modulo(int k, int range)
 {
   return (k + range) % range;
 }
+
+// calculate the normals and its derivatives
+static __device__ void calc_normal(
+  float (&vect)[NNEI][3],
+  int cont,
+  float (&normal)[3],
+  float (&dnormdri)[3][3],
+  float (&dnormal)[3][NNEI][3])
+{
+  int id, ip, m;
+  float  dni[3];
+  float  dnn[3][3], dpvdri[3][3];
+  float Nave[3], pvet[NNEI][3], dpvet1[NNEI][3][3], dpvet2[NNEI][3][3], dNave[3][NNEI][3];
+
+  float nninv;
+
+  // initialize the arrays
+  for (id = 0; id < 3; id++) {
+    dni[id] = 0.0f;
+
+    Nave[id] = 0.0f;
+    for (ip = 0; ip < 3; ip++) {
+      dpvdri[ip][id] = 0.0f;
+      for (m = 0; m < NNEI; m++) {
+        dnn[m][id] = 0.0f;
+        pvet[m][id] = 0.0f;
+        dpvet1[m][ip][id] = 0.0f;
+        dpvet2[m][ip][id] = 0.0f;
+        dNave[id][m][ip] = 0.0f;
+      }
+    }
+  }
+
+  if (cont <= 1) {
+    normal[0] = 0.0f;
+    normal[1] = 0.0f;
+    normal[2] = 1.0f;
+    for (id = 0; id < 3; ++id) {
+      for (ip = 0; ip < 3; ++ip) {
+        dnormdri[id][ip] = 0.0f;
+        for (m = 0; m < NNEI; ++m) {
+          dnormal[id][m][ip] = 0.0f;
+        }
+      }
+    }
+  } else if (cont > 1 && cont < NNEI) {
+    for (int k = 0; k < cont - 1; ++k) {
+      for (ip = 0; ip < 3; ++ip) {
+        pvet[k][ip] = vect[k][modulo(ip + 1, 3)] * vect[k + 1][modulo(ip + 2, 3)] -
+                vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
+      }
+      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // derivatives respect to atom l
+      // dNik,x/drl
+      dpvet1[k][0][0] = 0.0f;
+      dpvet1[k][0][1] = vect[modulo(k + 1, NNEI)][2];
+      dpvet1[k][0][2] = -vect[modulo(k + 1, NNEI)][1];
+      // dNik,y/drl
+      dpvet1[k][1][0] = -vect[modulo(k + 1, NNEI)][2];
+      dpvet1[k][1][1] = 0.0f;
+      dpvet1[k][1][2] = vect[modulo(k + 1, NNEI)][0];
+      // dNik,z/drl
+      dpvet1[k][2][0] = vect[modulo(k + 1, NNEI)][1];
+      dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
+      dpvet1[k][2][2] = 0.0f;
+
+      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // derivatives respect to atom l+1
+      // dNik,x/drl+1
+      dpvet2[k][0][0] = 0.0f;
+      dpvet2[k][0][1] = -vect[modulo(k, NNEI)][2];
+      dpvet2[k][0][2] = vect[modulo(k, NNEI)][1];
+      // dNik,y/drl+1
+      dpvet2[k][1][0] = vect[modulo(k, NNEI)][2];
+      dpvet2[k][1][1] = 0.0f;
+      dpvet2[k][1][2] = -vect[modulo(k, NNEI)][0];
+      // dNik,z/drl+1
+      dpvet2[k][2][0] = -vect[modulo(k, NNEI)][1];
+      dpvet2[k][2][1] = vect[modulo(k, NNEI)][0];
+      dpvet2[k][2][2] = 0.0f;
+    }
+
+    // average the normal vectors by using the NNEI neighboring planes
+    for (ip = 0; ip < 3; ip++) {
+      Nave[ip] = 0.0f;
+      for (int k = 0; k < cont - 1; k++) {
+        Nave[ip] += pvet[k][ip];
+      }
+      Nave[ip] /= (cont - 1);
+    }
+    nninv = rnorm3df(Nave[0], Nave[1], Nave[2]);
+    
+    // the unit normal vector
+    normal[0] = Nave[0] * nninv;
+    normal[1] = Nave[1] * nninv;
+    normal[2] = Nave[2] * nninv;
+
+    // derivatives of non-normalized normal vector, dNave:3xcontx3 array
+    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        for (m = 0; m < cont; m++) {
+          if (m == 0) {
+            dNave[id][m][ip] = dpvet1[m][id][ip] / (cont - 1);
+          } else if (m == cont - 1) {
+            dNave[id][m][ip] = dpvet2[m - 1][id][ip] / (cont - 1);
+          } else {    // sum of the derivatives of the mth and (m-1)th normal vector respect to the atom m
+            dNave[id][m][ip] = (dpvet1[m][id][ip] + dpvet2[m - 1][id][ip]) / (cont - 1);
+          }
+        }
+      }
+    }
+    // derivatives of nn, dnn:contx3 vector
+    // dnn[m][id]: the derivative of nn respect to r[m][id], m=0,...NNEI-1; id=0,1,2
+    // r[m][id]: the id's component of atom m
+    for (m = 0; m < cont; m++) {
+      for (id = 0; id < 3; id++) {
+        dnn[m][id] = (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] +
+                      Nave[2] * dNave[2][m][id]) * nninv;
+      }
+    }
+    // dnormal[i][id][m][ip]: the derivative of normal[i][id] respect to r[m][ip], id,ip=0,1,2.
+    // for atom m, which is a neighbor atom of atom i, m = 0,...,NNEI-1
+    for (m = 0; m < cont; m++) {
+      for (id = 0; id < 3; id++) {
+        for (ip = 0; ip < 3; ip++) {
+          dnormal[id][m][ip] = dNave[id][m][ip] * nninv - Nave[id] * dnn[m][ip] * nninv * nninv;
+        }
+      }
+    }
+    // Calculte dNave/dri, defined as dpvdri
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        dpvdri[id][ip] = 0.0;
+        for (int k = 0; k < cont; k++) {
+          dpvdri[id][ip] -= dNave[id][k][ip];
+        }
+      }
+    }
+
+    // derivatives of nn, dnn:3x1 vector
+    dni[0] = (Nave[0] * dpvdri[0][0] + Nave[1] * dpvdri[1][0] + Nave[2] * dpvdri[2][0]) * nninv;
+    dni[1] = (Nave[0] * dpvdri[0][1] + Nave[1] * dpvdri[1][1] + Nave[2] * dpvdri[2][1]) * nninv;
+    dni[2] = (Nave[0] * dpvdri[0][2] + Nave[1] * dpvdri[1][2] + Nave[2] * dpvdri[2][2]) * nninv;
+    // derivatives of unit vector ni respect to ri, the result is 3x3 matrix
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        dnormdri[id][ip] = dpvdri[id][ip] * nninv - Nave[id] * dni[ip] * nninv * nninv;
+      }
+    }
+  } else if (cont == NNEI) {
+    // derivatives of Ni[l] respect to the NNEI neighbors
+    for (int k = 0; k < NNEI; ++k) {
+      for (ip = 0; ip < 3; ++ip) {
+        pvet[k][ip] = vect[modulo(k, NNEI)][modulo(ip + 1, 3)] *
+                vect[modulo(k + 1, NNEI)][modulo(ip + 2, 3)] -
+            vect[modulo(k, NNEI)][modulo(ip + 2, 3)] *
+                vect[modulo(k + 1, NNEI)][modulo(ip + 1, 3)];
+      }
+      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // derivatives respect to atom l
+      // dNik,x/drl
+      dpvet1[k][0][0] = 0.0f;
+      dpvet1[k][0][1] = vect[modulo(k + 1, NNEI)][2];
+      dpvet1[k][0][2] = -vect[modulo(k + 1, NNEI)][1];
+      // dNik,y/drl
+      dpvet1[k][1][0] = -vect[modulo(k + 1, NNEI)][2];
+      dpvet1[k][1][1] = 0.0f;
+      dpvet1[k][1][2] = vect[modulo(k + 1, NNEI)][0];
+      // dNik,z/drl
+      dpvet1[k][2][0] = vect[modulo(k + 1, NNEI)][1];
+      dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
+      dpvet1[k][2][2] = 0.0f;
+
+      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // derivatives respect to atom l+1
+      // dNik,x/drl+1
+      dpvet2[k][0][0] = 0.0f;
+      dpvet2[k][0][1] = -vect[modulo(k, NNEI)][2];
+      dpvet2[k][0][2] = vect[modulo(k, NNEI)][1];
+      // dNik,y/drl+1
+      dpvet2[k][1][0] = vect[modulo(k, NNEI)][2];
+      dpvet2[k][1][1] = 0.0f;
+      dpvet2[k][1][2] = -vect[modulo(k, NNEI)][0];
+      // dNik,z/drl+1
+      dpvet2[k][2][0] = -vect[modulo(k, NNEI)][1];
+      dpvet2[k][2][1] = vect[modulo(k, NNEI)][0];
+      dpvet2[k][2][2] = 0.0f;
+    }
+
+    // average the normal vectors by using the NNEI neighboring planes
+    for (ip = 0; ip < 3; ++ip) {
+      Nave[ip] = 0.0f;
+      for (int k = 0; k < NNEI; ++k) {
+        Nave[ip] += pvet[k][ip];
+      }
+      Nave[ip] /= NNEI;
+    }
+    // the magnitude of the normal vector
+    // nn2 = Nave[0] * Nave[0] + Nave[1] * Nave[1] + Nave[2] * Nave[2];
+    nninv = rnorm3df(Nave[0], Nave[1], Nave[2]);
+    // the unit normal vector
+    normal[0] = Nave[0] * nninv;
+    normal[1] = Nave[1] * nninv;
+    normal[2] = Nave[2] * nninv;
+
+    // for the central atoms, dnormdri is always zero
+    for (id = 0; id < 3; ++id) {
+      for (ip = 0; ip < 3; ++ip) {
+        dnormdri[id][ip] = 0.0f;
+      }
+    }
+
+    // derivatives of non-normalized normal vector, dNave:3xNNEIx3 array
+    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    for (id = 0; id < 3; ++id) {
+      for (ip = 0; ip < 3; ++ip) {
+        for (
+            m = 0; m < NNEI;
+            ++m) {    // sum of the derivatives of the mth and (m-1)th normal vector respect to the atom m
+          dNave[id][m][ip] =
+              (dpvet1[modulo(m, NNEI)][id][ip] + dpvet2[modulo(m - 1, NNEI)][id][ip]) / NNEI;
+        }
+      }
+    }
+    // derivatives of nn, dnn:NNEIx3 vector
+    // dnn[m][id]: the derivative of nn respect to r[m][id], m=0,...NNEI-1; id=0,1,2
+    // r[m][id]: the id's component of atom m
+    for (m = 0; m < NNEI; ++m) {
+      for (id = 0; id < 3; ++id) {
+        dnn[m][id] =
+            (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] + Nave[2] * dNave[2][m][id]) *
+            nninv;
+      }
+    }
+    // dnormal[i][id][m][ip]: the derivative of normal[i][id] respect to r[m][ip], id,ip=0,1,2.
+    // for atom m, which is a neighbor atom of atom i, m = 0,...,NNEI-1
+    for (m = 0; m < NNEI; ++m) {
+      for (id = 0; id < 3; ++id) {
+        for (ip = 0; ip < 3; ++ip) {
+          dnormal[id][m][ip] = dNave[id][m][ip] * nninv - Nave[id] * dnn[m][ip] * nninv * nninv;
+        }
+      }
+    }
+  } else {
+    printf("\n===== ILP neighbor number[%d] is greater than 6 =====\n", cont);
+    return;
+  }
+}
