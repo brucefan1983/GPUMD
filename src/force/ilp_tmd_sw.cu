@@ -274,3 +274,9 @@ static __global__ void ILP_neighbor(
     }
   }
 }
+
+// modulo func to change atom index
+static __device__ __forceinline__ int modulo(int k, int range)
+{
+  return (k + range) % range;
+}
