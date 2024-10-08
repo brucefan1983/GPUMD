@@ -57,6 +57,7 @@ struct ILP_TMD_SW_Data {
 class ILP_TMD_SW : public Potential
 {
 public:
+  using Potential::compute;
   ILP_TMD_SW(FILE*, int, int);
   virtual ~ILP_TMD_SW(void);
   virtual void compute(
