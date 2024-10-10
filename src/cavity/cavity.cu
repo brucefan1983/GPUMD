@@ -481,12 +481,12 @@ if (enabled_) {
 
   // set initial values
   cos_integral = 0.0;
-    sin_integral = 0.0;
-    prevtime = 0.0;
-    std::copy(
-        cpu_dipole_.begin(),
-        cpu_dipole_.end(),
-        prevdipole.begin());
+  sin_integral = 0.0;
+  prevtime = 0.0;
+  std::copy(
+      cpu_dipole_.begin(),
+      cpu_dipole_.end(),
+      prevdipole.begin());
   }
 }
 
@@ -894,7 +894,7 @@ void Cavity::step_cavity(double time) {
   double lmu = coupling_strength * cpu_dipole_[2];
 
   #ifdef DEBUG
-  std::cout << time << " " << dt << " " << cavity_frequency*time << "\n";
+  std::cout << "dt: " << dt << " prevlmu " << prevlmu << " lmu " << lmu << "\n";
   #endif
   cos_integral += 0.5 * dt * cos(cavity_frequency * prevtime) * prevlmu;
   sin_integral += 0.5 * dt * sin(cavity_frequency * prevtime) * prevlmu;
@@ -925,11 +925,12 @@ void Cavity::write_dipole(const int step)
 
 void Cavity::write_cavity(const int step, const double time)
 {
-  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(cavfile_, "%d%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", step, time, q, p, cavity_pot, cavity_kin, cos_integral, sin_integral);
+  #ifdef DEBUG
   for (int i = 0; i < cpu_cavity_force_.size(); i++) {
     fprintf(cavfile_, "%20.10e", cpu_cavity_force_[i]);
   }
+  #endif
   fprintf(cavfile_, "\n");
   fflush(cavfile_);
 }
