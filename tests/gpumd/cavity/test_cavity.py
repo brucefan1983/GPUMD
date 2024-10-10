@@ -13,6 +13,7 @@ suite_path = 'gpumd/cavity'
 repo_dir = f'{os.path.expanduser("~")}/repos/GPUMD/'
 test_folder = f'{repo_dir}/tests/gpumd/cavity/self-consistent/'
 
+TIME_UNIT_CONVERSION = 1.018051e+1  # from natural to fs
 
 def run_md(params, path, repeat=1):
     gpumd_command = f'{repo_dir}/src/gpumd'
@@ -69,7 +70,7 @@ def _compute_dipole(structure: Atoms, dipole_model: str, charge: int):
     calc = CPUNEP(dipole_model)
     structure.calc = calc
     cpu_dipole = structure.get_dipole_moment() * Bohr + charge * COM
-    cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=charge/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
+    cpu_jacobian = calc.get_dipole_gradient(displacement=1e-3, method='second order central difference', charge=charge/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
     return cpu_dipole, cpu_jacobian
 
 
@@ -80,20 +81,13 @@ def test_cavity_self_consistent(md):
     jacobian = np.loadtxt(f'{md_path}/jacobian.out')
     charge = 0
     # Read positions, and predict dipole with dipole model
-    # TODO fails atm, could be due to change in when dipoles are computed
-    # in run.cu.
     for gpu_dipole, conf in zip(jacobian[:, 1:4], read(f'{md_path}/movie.xyz', ':')):
-        COM = conf.get_center_of_mass()
-        conf.calc = CPUNEP(dipole_model)
-        cpu_dipole = conf.get_dipole_moment() * Bohr + charge * COM
-        print(cpu_dipole, gpu_dipole)
+        cpu_dipole, _ = _compute_dipole(conf, dipole_model, charge)
+        print('dipoles: ', cpu_dipole, gpu_dipole)
         assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-1, rtol=1e-6)
     for gpu_jacobian, conf in zip(jacobian[:, 4:], read(f'{md_path}/movie.xyz', ':')):
-        calc = CPUNEP(dipole_model)
-        conf.calc = calc
-        cpu_jacobian = calc.get_dipole_gradient(displacement=0.001, method='second order central difference', charge=charge/Bohr) * Bohr # CPUNEP corrects for center of mass, but not the unit conversion from au to ASE units. 
+        _, cpu_jacobian = _compute_dipole(conf, dipole_model, charge)
         gj = gpu_jacobian.reshape(len(conf), 3, 3)
-        print(gj)
         assert np.allclose(cpu_jacobian, gj, atol=1e-1, rtol=1e-6)
 
 
@@ -116,11 +110,10 @@ def test_cavity_time_dependent_cavity(md):
         dipole, jacobian = _compute_dipole(conf, dipole_model, charge)
         time, q, p, cavity_pot, cavity_kin, cos_integral, sin_integral = cav_properties
         # Step cavity calculator to current timestep
-        cavity_calc._time = time
+        cavity_calc._time = time / TIME_UNIT_CONVERSION  # GPUMD uses atomic units internally; convert to the same
 
         changed = cavity_calc.step_if_time_changed(dipole)
         cpu_cavity = cavity_calc.cavity_force(dipole, jacobian)
-
         # Test cavity properties
         assert np.allclose(cavity_calc.canonical_position, q, atol=1e-4, rtol=1e-6)
         assert np.allclose(cavity_calc.canonical_momentum, p, atol=1e-4, rtol=1e-6)
@@ -145,15 +138,15 @@ def test_cavity_time_dependent_cavity(md):
 #     N = 27
 #     forces = forces.reshape((-1, N, 3))
 #     charge = 0.0
-#     coupling_strength = [0.0, 0.0, 1.2]
+#     coupling_strength = [0.0, 0.0, 1.0]
 #     # Read positions, and predict dipole with dipole model
 #     # TODO fails atm, could be due to change in when dipoles are computed
 #     # in run.cu.
-#     dipole_model = f"{test_folder}/nep4_dipole.txt"
+#     dipole_model = f"{test_folder}/nep-dipole.txt"
 #     initial_atoms = read(f'{test_folder}/model.xyz')
 #     nep_calc = CPUNEP(f"{test_folder}/nep.txt")
 #     dipole_calc = DipoleCalculator(dipole_filename=dipole_model,
-#                                    resonance_frequency=0.7,
+#                                    resonance_frequency=1.0,
 #                                    coupling_strength=coupling_strength,
 #                                    charge=charge,
 #                                    gradient_mode='fd')
@@ -165,8 +158,10 @@ def test_cavity_time_dependent_cavity(md):
 #         time, q, p, cavity_pot, cavity_kin = cav_properties
 #         # Step cavity calculator to current timestep
 #         cavity_calc.dipole_calc.td_cav._time = time
+#         
 # 
-#         print(cavity_calc.dipole_calc.td_cav._time,
+#         print(time, 
+#               cavity_calc.dipole_calc.td_cav._time,
 #               cavity_calc.dipole_calc.td_cav.canonical_position, 
 #               q)
 #         # Compute the new forces
@@ -224,8 +219,8 @@ def test_cavity_time_dependent_cavity(md):
 #     assert 'cavity requires the second NEP potential to be a dipole model' in str(
 #         process.stderr
 #     )
-# 
-# 
+
+
 # def test_cavity_missing_potential(tmp_path):
 #     """Should raise an error when only a single NEP potential is specified."""
 #     params = [
