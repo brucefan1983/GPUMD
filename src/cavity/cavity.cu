@@ -475,7 +475,9 @@ if (enabled_) {
   // For now, only allow a coupling strength vector in the z-direction.
   // TODO should actually be the charge corrected dipole
   q0 = coupling_strength * cpu_dipole_[2] / cavity_frequency;
+  #ifdef DEBUG
   std::cout << "init: " << mass_ << " " << q0  << "\n";
+  #endif
 
   // set initial values
   cos_integral = 0.0;
@@ -523,7 +525,9 @@ void Cavity::compute_dipole_and_jacobian(
   for (int i = 0; i < 3; i++){
     cpu_dipole_[i] *= BOHR_IN_ANGSTROM;
   }
-  //std::cout << "Dipole: " << cpu_dipole_[2] << "\n";
+  #ifdef DEBUG
+  std::cout << "Dipole: " << cpu_dipole_[2] << "\n";
+  #endif
   // Compute the dipole jacobian
   // The dipole jacobian has already been converted from atomic
   // units to GPUMD units and shifted appropriately.
@@ -889,8 +893,9 @@ void Cavity::step_cavity(double time) {
   double prevlmu = coupling_strength * prevdipole[2];
   double lmu = coupling_strength * cpu_dipole_[2];
 
-  
-  // std::cout << time << " " << dt << " " << prevlmu << " " << lmu << " " << cavity_frequency << " " << prevdipole[2] << " " << cpu_dipole_[2] << "\n";
+  #ifdef DEBUG
+  std::cout << time << " " << dt << " " << cavity_frequency*time << "\n";
+  #endif
   cos_integral += 0.5 * dt * cos(cavity_frequency * prevtime) * prevlmu;
   sin_integral += 0.5 * dt * sin(cavity_frequency * prevtime) * prevlmu;
   cos_integral += 0.5 * dt * cos(cavity_frequency * time) * lmu;
@@ -909,9 +914,11 @@ void Cavity::write_dipole(const int step)
 {
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(jacfile_, "%d%20.10e%20.10e%20.10e", step, cpu_dipole_[0], cpu_dipole_[1], cpu_dipole_[2]);
-  // for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
-  //   fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
-  // }
+  #ifdef DEBUG
+  for (int i = 0; i < cpu_dipole_jacobian_.size(); i++) {
+    fprintf(jacfile_, "%20.10e", cpu_dipole_jacobian_[i]);
+  }
+  #endif
   fprintf(jacfile_, "\n");
   fflush(jacfile_);
 }
