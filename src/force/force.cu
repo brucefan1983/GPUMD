@@ -138,6 +138,7 @@ void Force::parse_potential(
     }
     FILE* fid_sw = my_fopen(param[2], "r");
     potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
+    fclose(fid_sw);
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
