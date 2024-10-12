@@ -29,6 +29,7 @@ TODO:
 
 ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms)
 {
+  // read ILP TMD potential parameter
   printf("Use %d-element ILP potential with elements:\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_TMD_SW)) {
     PRINT_INPUT_ERROR("Incorrect type number of ILP_TMD_SW parameters.\n");
@@ -73,6 +74,18 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
     }
   }
 
+  // read SW potential parameter
+  if (num_types == 1) {
+    initialize_sw_1985_1(fid_sw);
+  }
+  if (num_types == 2) {
+    initialize_sw_1985_2(fid_sw);
+  }
+  if (num_types == 3) {
+    initialize_sw_1985_3(fid_sw);
+  }
+
+  // initialize neighbor lists and some temp vectors
   int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_TMD);
   ilp_data.NN.resize(num_atoms);
   ilp_data.NL.resize(num_atoms * max_neighbor_number);
