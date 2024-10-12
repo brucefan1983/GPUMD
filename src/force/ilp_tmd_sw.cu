@@ -1246,6 +1246,20 @@ void ILP_TMD_SW::compute(
       ilp_data.NL,
       ilp_data.big_ilp_NN,
       ilp_data.big_ilp_NL);
+    
+    find_neighbor(
+      N1,
+      N2,
+      rc,
+      box,
+      type,
+      position_per_atom,
+      sw2_data.cell_count,
+      sw2_data.cell_count_sum,
+      sw2_data.cell_contents,
+      sw2_data.NN,
+      sw2_data.NL
+    );
 
     build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_FORCE>>>(
       number_of_atoms,
@@ -1269,6 +1283,9 @@ void ILP_TMD_SW::compute(
   int *reduce_NL = ilp_data.reduce_NL.data();
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
+
+  const int* NN_sw = sw2_data.NN.data();
+  const int* NL_sw = sw2_data.NL.data();
 
   ilp_data.ilp_NL.fill(0);
   ilp_data.ilp_NN.fill(0);
