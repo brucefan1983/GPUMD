@@ -24,7 +24,7 @@
 #define MAX_ILP_NEIGHBOR_TMD 6
 #define MAX_BIG_ILP_NEIGHBOR_TMD 128
 
-struct ILP_TMD_SW_Para {
+struct ILP_TMD_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float d[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float d_Seff[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];      // d / S_R / r_eff
@@ -38,7 +38,7 @@ struct ILP_TMD_SW_Para {
   float rcut_global[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];           // scale
 };
 
-struct ILP_TMD_SW_Data {
+struct ILP_TMD_Data {
   GPU_Vector<int> NN, NL;
   GPU_Vector<int> reduce_NL;
   GPU_Vector<int> big_ilp_NN, big_ilp_NL;
@@ -52,6 +52,23 @@ struct ILP_TMD_SW_Data {
   GPU_Vector<float> f12x_ilp_neigh;
   GPU_Vector<float> f12y_ilp_neigh;
   GPU_Vector<float> f12z_ilp_neigh;
+};
+
+struct SW2_Para {
+  // 2-body part
+  double A[3][3], B[3][3], a[3][3], sigma[3][3], gamma[3][3], rc[3][3];
+  // 3-body part
+  double lambda[3][3][3], cos0[3][3][3];
+};
+
+struct SW2_Data {
+  GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+  // GPU_Vector<double> f12x;
+  // GPU_Vector<double> f12y;
+  // GPU_Vector<double> f12z;
 };
 
 class ILP_TMD_SW : public Potential
@@ -76,10 +93,17 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     std::vector<Group> &group);
+  
+  // sw term
+  void initialize_sw_1985_1(FILE*); // called by the constructor
+  void initialize_sw_1985_2(FILE*); // called by the constructor
+  void initialize_sw_1985_3(FILE*); // called by the constructor
 
 protected:
-  ILP_TMD_SW_Para ilp_para;
-  ILP_TMD_SW_Data ilp_data;
+  ILP_TMD_Para ilp_para;
+  ILP_TMD_Data ilp_data;
+  SW2_Para sw2_para;
+  SW2_Data sw2_data;
 };
 
 static __constant__ float Tap_coeff_tmd[8];
