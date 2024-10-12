@@ -27,7 +27,7 @@ TODO:
 // there are most 6 intra-layer neighbors for TMD
 #define NNEI 6
 
-ILP_TMD_SW::ILP_TMD_SW(FILE* fid, int num_types, int num_atoms)
+ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms)
 {
   printf("Use %d-element ILP potential with elements:\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_TMD_SW)) {
@@ -35,7 +35,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid, int num_types, int num_atoms)
   }
   for (int n = 0; n < num_types; ++n) {
     char atom_symbol[10];
-    int count = fscanf(fid, "%s", atom_symbol);
+    int count = fscanf(fid_ilp, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "Reading error for ILP_TMD_SW potential.");
     printf(" %s", atom_symbol);
   }
@@ -47,7 +47,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid, int num_types, int num_atoms)
   rc = 0.0;
   for (int n = 0; n < num_types; ++n) {
     for (int m = 0; m < num_types; ++m) {
-      int count = fscanf(fid, "%f%f%f%f%f%f%f%f%f%f%f%f", \
+      int count = fscanf(fid_ilp, "%f%f%f%f%f%f%f%f%f%f%f%f", \
       &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, \
       &rcut_ilp, &rcut_global);
       PRINT_SCANF_ERROR(count, 12, "Reading error for ILP_TMD_SW potential.");

@@ -75,7 +75,7 @@ class ILP_TMD_SW : public Potential
 {
 public:
   using Potential::compute;
-  ILP_TMD_SW(FILE*, int, int);
+  ILP_TMD_SW(FILE*, FILE*, int, int);
   virtual ~ILP_TMD_SW(void);
   virtual void compute(
     Box& box,

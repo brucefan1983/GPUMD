@@ -133,7 +133,11 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
-    potential.reset(new ILP_TMD_SW(fid_potential, num_types, number_of_atoms));
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should ILP potential file and SW potential file.\n");
+    }
+    FILE* fid_sw = my_fopen(param[2], "r");
+    potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
