@@ -58,6 +58,21 @@ void find_neighbor(
   GPU_Vector<int>& big_ilp_NN,
   GPU_Vector<int>& big_ilp_NL);
 
+// for SW
+void find_neighbor_SW(
+  const int N1,
+  const int N2,
+  double rc,
+  Box& box,
+  const int* group_label,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents,
+  GPU_Vector<int>& NN,
+  GPU_Vector<int>& NL);
+
 static __device__ void find_cell_id(
   const Box& box,
   const double x,
