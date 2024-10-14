@@ -23,6 +23,7 @@
 #define CUDA_MAX_NL_TMD 2048
 #define MAX_ILP_NEIGHBOR_TMD 6
 #define MAX_BIG_ILP_NEIGHBOR_TMD 128
+#define MAX_SW_NEIGHBOR_NUM 50
 
 struct ILP_TMD_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
@@ -66,9 +67,9 @@ struct SW2_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
-  // GPU_Vector<double> f12x;
-  // GPU_Vector<double> f12y;
-  // GPU_Vector<double> f12z;
+  GPU_Vector<double> f12x;
+  GPU_Vector<double> f12y;
+  GPU_Vector<double> f12z;
 };
 
 class ILP_TMD_SW : public Potential

@@ -115,6 +115,12 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   sw2_data.cell_count_sum.resize(num_atoms);
   sw2_data.cell_contents.resize(num_atoms);
 
+  // memory for the partial forces dU_i/dr_ij
+  const int num_of_neighbors = MAX_SW_NEIGHBOR_NUM * num_atoms;
+  sw2_data.f12x.resize(num_of_neighbors);
+  sw2_data.f12y.resize(num_of_neighbors);
+  sw2_data.f12z.resize(num_of_neighbors);
+
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
     {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
