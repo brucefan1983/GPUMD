@@ -154,7 +154,7 @@ void ILP_TMD_SW::initialize_sw_1985_1(FILE* fid)
   sw2_para.sigma[0][0] = sigma;
   sw2_para.gamma[0][0] = gamma;
   sw2_para.rc[0][0] = sigma * a;
-  rc = sw2_para.rc[0][0];
+  rc_sw = sw2_para.rc[0][0];
   sw2_para.lambda[0][0][0] = epsilon * lambda;
   sw2_para.cos0[0][0][0] = cos0;
 }
@@ -166,7 +166,7 @@ void ILP_TMD_SW::initialize_sw_1985_2(FILE* fid)
 
   // 2-body parameters and the force cutoff
   double A[3], B[3], a[3], sigma[3], gamma[3];
-  rc = 0.0;
+  rc_sw = 0.0;
   for (int n = 0; n < 3; n++) {
     count = fscanf(fid, "%lf%lf%lf%lf%lf", &A[n], &B[n], &a[n], &sigma[n], &gamma[n]);
     PRINT_SCANF_ERROR(count, 5, "Reading error for SW potential.");
@@ -179,8 +179,8 @@ void ILP_TMD_SW::initialize_sw_1985_2(FILE* fid)
       sw2_para.sigma[n1][n2] = sigma[n1 + n2];
       sw2_para.gamma[n1][n2] = gamma[n1 + n2];
       sw2_para.rc[n1][n2] = sigma[n1 + n2] * a[n1 + n2];
-      if (rc < sw2_para.rc[n1][n2])
-        rc = sw2_para.rc[n1][n2];
+      if (rc_sw < sw2_para.rc[n1][n2])
+        rc_sw = sw2_para.rc[n1][n2];
     }
 
   // 3-body parameters
@@ -202,7 +202,7 @@ void ILP_TMD_SW::initialize_sw_1985_3(FILE* fid)
 
   // 2-body parameters and the force cutoff
   double A, B, a, sigma, gamma;
-  rc = 0.0;
+  rc_sw = 0.0;
   for (int n1 = 0; n1 < 3; n1++)
     for (int n2 = 0; n2 < 3; n2++) {
       count = fscanf(fid, "%lf%lf%lf%lf%lf", &A, &B, &a, &sigma, &gamma);
@@ -213,8 +213,8 @@ void ILP_TMD_SW::initialize_sw_1985_3(FILE* fid)
       sw2_para.sigma[n1][n2] = sigma;
       sw2_para.gamma[n1][n2] = gamma;
       sw2_para.rc[n1][n2] = sigma * a;
-      if (rc < sw2_para.rc[n1][n2])
-        rc = sw2_para.rc[n1][n2];
+      if (rc_sw < sw2_para.rc[n1][n2])
+        rc_sw = sw2_para.rc[n1][n2];
     }
 
   // 3-body parameters
@@ -1378,7 +1378,7 @@ void ILP_TMD_SW::compute(
     find_neighbor_SW(
       N1,
       N2,
-      rc,
+      rc_sw,
       box,
       group_label,
       type,

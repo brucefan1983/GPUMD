@@ -106,6 +106,8 @@ protected:
   ILP_TMD_Data ilp_data;
   SW2_Para sw2_para;
   SW2_Data sw2_data;
+  // rcut for SW
+  double rc_sw;
 };
 
 static __constant__ float Tap_coeff_tmd[8];
