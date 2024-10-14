@@ -27,6 +27,9 @@ TODO:
 // there are most 6 intra-layer neighbors for TMD
 #define NNEI 6
 
+#define BLOCK_SIZE_SW 64
+// 128 is also good
+
 ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms)
 {
   // read ILP TMD potential parameter
@@ -1199,6 +1202,124 @@ static __global__ void reduce_force_many_body(
   }
 }
 
+// SW term
+// two-body part of the SW potential
+static __device__ void find_p2_and_f2(
+  double sigma, double a, double B, double epsilon_times_A, double d12, double& p2, double& f2)
+{
+  double r12 = d12 / sigma;
+  double B_over_r12power4 = B / (r12 * r12 * r12 * r12);
+  double exp_factor = epsilon_times_A * exp(1.0 / (r12 - a));
+  p2 = exp_factor * (B_over_r12power4 - 1.0);
+  f2 = -p2 / ((r12 - a) * (r12 - a)) - exp_factor * 4.0 * B_over_r12power4 / r12;
+  f2 /= (sigma * d12);
+}
+
+// find the partial forces dU_i/dr_ij of SW potential
+static __global__ void gpu_find_force_sw3_partial(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const Box box,
+  const SW2_Para sw3,
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  const int* g_type,
+  const int shift,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_potential,
+  double* g_f12x,
+  double* g_f12y,
+  double* g_f12z)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+  if (n1 >= N1 && n1 < N2) {
+    int neighbor_number = g_neighbor_number[n1];
+    int type1 = g_type[n1] - shift;
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    double potential_energy = 0.0;
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * number_of_particles + n1;
+      int n2 = g_neighbor_list[index];
+      int type2 = g_type[n2] - shift;
+      double x12 = g_x[n2] - x1;
+      double y12 = g_y[n2] - y1;
+      double z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      double d12inv = 1.0 / d12;
+      if (d12 >= sw3.rc[type1][type2]) {
+        continue;
+      }
+
+      double gamma12 = sw3.gamma[type1][type2];
+      double sigma12 = sw3.sigma[type1][type2];
+      double a12 = sw3.a[type1][type2];
+      double tmp = gamma12 / (sigma12 * (d12 / sigma12 - a12) * (d12 / sigma12 - a12));
+      double p2, f2;
+      find_p2_and_f2(sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2], d12, p2, f2);
+
+      // treat the two-body part in the same way as the many-body part
+      double f12x = f2 * x12 * 0.5;
+      double f12y = f2 * y12 * 0.5;
+      double f12z = f2 * z12 * 0.5;
+      // accumulate potential energy
+      potential_energy += p2 * 0.5;
+
+      // three-body part
+      for (int i2 = 0; i2 < neighbor_number; ++i2) {
+        int n3 = g_neighbor_list[n1 + number_of_particles * i2];
+        if (n3 == n2) {
+          continue;
+        }
+        int type3 = g_type[n3] - shift;
+        double x13 = g_x[n3] - x1;
+        double y13 = g_y[n3] - y1;
+        double z13 = g_z[n3] - z1;
+        apply_mic(box, x13, y13, z13);
+        double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+        if (d13 >= sw3.rc[type1][type3]) {
+          continue;
+        }
+
+        double cos0 = sw3.cos0[type1][type2][type3];
+        double lambda = sw3.lambda[type1][type2][type3];
+        double exp123 = d13 / sw3.sigma[type1][type3] - sw3.a[type1][type3];
+        exp123 = sw3.gamma[type1][type3] / exp123;
+        exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
+        double one_over_d12d13 = 1.0 / (d12 * d13);
+        double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) * one_over_d12d13;
+        double cos123_over_d12d12 = cos123 * d12inv * d12inv;
+
+        double tmp1 = exp123 * (cos123 - cos0) * lambda;
+        double tmp2 = tmp * (cos123 - cos0) * d12inv;
+
+        // accumulate potential energy
+        potential_energy += (cos123 - cos0) * tmp1 * 0.5;
+
+        double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
+        f12x += tmp1 * (2.0 * cos_d - tmp2 * x12);
+
+        cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
+        f12y += tmp1 * (2.0 * cos_d - tmp2 * y12);
+
+        cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
+        f12z += tmp1 * (2.0 * cos_d - tmp2 * z12);
+      }
+      g_f12x[index] = f12x;
+      g_f12y[index] = f12y;
+      g_f12z[index] = f12z;
+    }
+    // save potential
+    g_potential[n1] += potential_energy;
+  }
+}
+
 // define the pure virtual func
 void ILP_TMD_SW::compute(
   Box &box,
@@ -1376,4 +1497,13 @@ void ILP_TMD_SW::compute(
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
     CUDA_CHECK_KERNEL
+
+  // step 1: calculate the partial forces
+  gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>(
+    number_of_atoms, N1, N2, box, sw2_para, sw2_data.NN.data(), sw2_data.NL.data(),
+    type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
+    sw2_data.f12y.data(), sw2_data.f12z.data());
+  CUDA_CHECK_KERNEL
+
 }
