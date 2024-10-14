@@ -49,7 +49,6 @@ public:
 
   // add group message for ILP TMD SW
   virtual void compute(
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

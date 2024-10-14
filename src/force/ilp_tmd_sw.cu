@@ -1225,7 +1225,6 @@ static __global__ void gpu_find_force_sw3_partial(
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const int* g_type,
-  const int shift,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -1237,7 +1236,7 @@ static __global__ void gpu_find_force_sw3_partial(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   if (n1 >= N1 && n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    int type1 = g_type[n1] - shift;
+    int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -1246,7 +1245,7 @@ static __global__ void gpu_find_force_sw3_partial(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * number_of_particles + n1;
       int n2 = g_neighbor_list[index];
-      int type2 = g_type[n2] - shift;
+      int type2 = g_type[n2];
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
       double z12 = g_z[n2] - z1;
@@ -1277,7 +1276,7 @@ static __global__ void gpu_find_force_sw3_partial(
         if (n3 == n2) {
           continue;
         }
-        int type3 = g_type[n3] - shift;
+        int type3 = g_type[n3];
         double x13 = g_x[n3] - x1;
         double y13 = g_y[n3] - y1;
         double z13 = g_z[n3] - z1;
@@ -1337,7 +1336,6 @@ void ILP_TMD_SW::compute(
 #define BIG_ILP_CUTOFF_SQUARE 50.0
 // find force and related quantities
 void ILP_TMD_SW::compute(
-  const int type_shift,
   Box &box,
   const GPU_Vector<int> &type,
   const GPU_Vector<double> &position_per_atom,
@@ -1502,7 +1500,7 @@ void ILP_TMD_SW::compute(
   // step 1: calculate the partial forces
   gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>(
     number_of_atoms, N1, N2, box, sw2_para, sw2_data.NN.data(), sw2_data.NL.data(),
-    type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
     sw2_data.f12y.data(), sw2_data.f12z.data());
   CUDA_CHECK_KERNEL
