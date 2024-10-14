@@ -1375,11 +1375,12 @@ void ILP_TMD_SW::compute(
       ilp_data.big_ilp_NN,
       ilp_data.big_ilp_NL);
     
-    find_neighbor(
+    find_neighbor_SW(
       N1,
       N2,
       rc,
       box,
+      group_label,
       type,
       position_per_atom,
       sw2_data.cell_count,
