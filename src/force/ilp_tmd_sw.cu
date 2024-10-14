@@ -1506,4 +1506,8 @@ void ILP_TMD_SW::compute(
     sw2_data.f12y.data(), sw2_data.f12z.data());
   CUDA_CHECK_KERNEL
 
+  // step 2: calculate force and related quantities
+  find_properties_many_body(
+    box, sw2_data.NN.data(), sw2_data.NL.data(), sw2_data.f12x.data(),
+    sw2_data.f12y.data(), sw2_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
 }
