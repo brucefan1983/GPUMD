@@ -1210,6 +1210,7 @@ void ILP_TMD_SW::compute(
 #define BIG_ILP_CUTOFF_SQUARE 50.0
 // find force and related quantities
 void ILP_TMD_SW::compute(
+  const int type_shift,
   Box &box,
   const GPU_Vector<int> &type,
   const GPU_Vector<double> &position_per_atom,
