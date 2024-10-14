@@ -86,6 +86,7 @@ public:
     GPU_Vector<double>& virial);
   
   virtual void compute(
+    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
