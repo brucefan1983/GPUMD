@@ -6,9 +6,9 @@ Neuroevolution potential
 ************************
 
 The neuroevolution potential (:term:`NEP`) approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2) and [Fan2022b]_ (NEP3).
-Currently, :program:`GPUMD` supports NEP3 and NEP4 (to be published).
-Both versions have comparable accuracy for single-component systems.
-For multi-component systems, NEP4 usually has higher accuracy, if all the other hyperparameters are the same.
+Currently, :program:`GPUMD` supports NEP3, NEP4 (to be published), and NEP5 (to be published).
+All versions have comparable accuracy for single-component systems.
+For multi-component systems, NEP4 and NEP5 usually have higher accuracy, if all the other hyperparameters are the same.
 
 :program:`GPUMD` not only allows one to carry out simulations using :term:`NEP` models via the :ref:`gpumd executable <gpumd_executable>` but even the construction of such models via the :ref:`nep executable <nep_executable>`.
 
@@ -123,6 +123,8 @@ Model dimensions
      - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu}+1` (NEP3)
    * -
      - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu} N_\mathrm{typ}+1` (NEP4)
+   * -
+     - :math:`N_\mathrm{nn} = ((N_\mathrm{des} +2) N_\mathrm{neu} + 1) N_\mathrm{typ}+1` (NEP5)
 
 The total number of trainable parameters is the sum of the number of trainable descriptor parameters and the number of :term:`NN` parameters :math:`N_\mathrm{nn}`.
 
