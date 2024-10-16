@@ -16,6 +16,6 @@ The latter two arguments are optional (as indicated by the curly brackets).
 If there is one value :math:`l_\mathrm{max}^\mathrm{4b}=l_\mathrm{max}^\mathrm{5b}=0`.
 If there are two values :math:`l_\mathrm{max}^\mathrm{5b}=0`.
 
-:math:`l_\mathrm{max}^\mathrm{3b}` can only be 4, :math:`l_\mathrm{max}^\mathrm{4b}` can be 0 or 2, and :math:`l_\mathrm{max}^\mathrm{5b}` can be 0 or 1.
+:math:`l_\mathrm{max}^\mathrm{3b}` can take values from 0 to 8, :math:`l_\mathrm{max}^\mathrm{4b}` can be 0 or 2, and :math:`l_\mathrm{max}^\mathrm{5b}` can be 0 or 1. It is also required to have :math:`l_\mathrm{max}^\mathrm{3b} \geq l_\mathrm{max}^\mathrm{4b} \geq l_\mathrm{max}^\mathrm{5b}`.
 
 The default values are :math:`l_\mathrm{max}^\mathrm{3b}=4`, :math:`l_\mathrm{max}^\mathrm{4b}=2`, and :math:`l_\mathrm{max}^\mathrm{5b}=0`.
