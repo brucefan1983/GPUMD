@@ -24,14 +24,10 @@ before_script:
 
 build:linux:
   extends: .build
-  tags:
-    - linux
 
 #------------------- test stage -------------------
 
 .documentation:
-  tags:
-    - linux
   needs:
     - build:linux
   artifacts:
