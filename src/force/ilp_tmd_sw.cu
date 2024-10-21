@@ -21,7 +21,7 @@ TODO:
 #include "ilp_tmd_sw.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
-#include "common.cuh"
+#include "utilities/common.cuh"
 
 #define BLOCK_SIZE_FORCE 128
 
