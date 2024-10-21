@@ -1294,12 +1294,28 @@ static __global__ void gpu_find_force_sw3_partial(
         double one_over_d12d13 = 1.0 / (d12 * d13);
         double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) * one_over_d12d13;
         double cos123_over_d12d12 = cos123 * d12inv * d12inv;
+        // cos123 - cos0
+        double delta_cos = cos123 - cos0;
 
-        double tmp1 = exp123 * (cos123 - cos0) * lambda;
-        double tmp2 = tmp * (cos123 - cos0) * d12inv;
+        // modification to (cos123 - cos0)
+        double abs_delta_cos = fabs(delta_cos);
+        if (abs_delta_cos >= DELTA2) {
+          delta_cos = 0.0;
+        } else if (abs_delta_cos < DELTA2 && abs_delta_cos > DELTA1) {
+          double factor = 0.5 + 0.5 * cos(M_PI * (abs_delta_cos - DELTA1) / (DELTA2 - DELTA1));
+          delta_cos *= factor;
+        }
+
+        // double tmp1 = exp123 * (cos123 - cos0) * lambda;
+        // double tmp2 = tmp * (cos123 - cos0) * d12inv;
+        double tmp1 = exp123 * delta_cos * lambda;
+        double tmp2 = tmp * delta_cos * d12inv;
 
         // accumulate potential energy
-        potential_energy += (cos123 - cos0) * tmp1 * 0.5;
+        // potential_energy += (cos123 - cos0) * tmp1 * 0.5;
+        // double tmp_e = (cos123 - cos0) * tmp1 * 0.5;
+        double tmp_e = delta_cos * tmp1 * 0.5;
+        potential_energy += tmp_e;
 
         double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
         f12x += tmp1 * (2.0 * cos_d - tmp2 * x12);

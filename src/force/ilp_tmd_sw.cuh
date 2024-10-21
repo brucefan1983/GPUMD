@@ -25,6 +25,10 @@
 #define MAX_BIG_ILP_NEIGHBOR_TMD 128
 #define MAX_SW_NEIGHBOR_NUM 50
 
+// modification for TMD
+#define DELTA1 0.25
+#define DELTA2 0.35
+
 struct ILP_TMD_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float d[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
