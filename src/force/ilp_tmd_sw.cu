@@ -27,8 +27,6 @@ TODO:
 // there are most 6 intra-layer neighbors for TMD
 #define NNEI 6
 
-#define BLOCK_SIZE_SW 64
-// 128 is also good
 
 ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms)
 {
@@ -1514,7 +1512,7 @@ void ILP_TMD_SW::compute(
     CUDA_CHECK_KERNEL
 
   // step 1: calculate the partial forces
-  gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>(
+  gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, sw2_para, sw2_data.NN.data(), sw2_data.NL.data(),
     type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
