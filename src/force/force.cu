@@ -25,6 +25,7 @@ The driver class calculating force and related quantities.
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
+#include "ilp_tmd_sw.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -131,6 +132,13 @@ void Force::parse_potential(
     check_types(param[1]);
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
+    }
+    FILE* fid_sw = my_fopen(param[2], "r");
+    potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
+    fclose(fid_sw);
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
@@ -477,6 +485,10 @@ void Force::compute(
         potential_per_atom,
         force_per_atom,
         virial_per_atom);
+    } else if (1 == potentials[0]->ilp_flag) {
+      // compute the potential with ILP
+      potentials[0]->compute_ilp(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
@@ -494,6 +506,10 @@ void Force::compute(
           potential_per_atom,
           force_per_atom,
           virial_per_atom);
+      } else if (1 == potentials[i]->ilp_flag) {
+        // compute the potential with ILP
+        potentials[i]->compute_ilp(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
@@ -764,6 +780,10 @@ void Force::compute(
         potential_per_atom,
         force_per_atom,
         virial_per_atom);
+    } else if (1 == potentials[0]->ilp_flag) {
+      // compute the potential with ILP
+      potentials[0]->compute_ilp(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
@@ -781,6 +801,10 @@ void Force::compute(
           potential_per_atom,
           force_per_atom,
           virial_per_atom);
+      } else if (1 == potentials[i]->ilp_flag) {
+        // compute the potential with ILP
+        potentials[i]->compute_ilp(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
