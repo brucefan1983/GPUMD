@@ -21,6 +21,7 @@ TODO:
 #include "ilp_tmd_sw.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "common.cuh"
 
 #define BLOCK_SIZE_FORCE 128
 
@@ -1300,7 +1301,7 @@ static __global__ void gpu_find_force_sw3_partial(
         if (abs_delta_cos >= DELTA2) {
           delta_cos = 0.0;
         } else if (abs_delta_cos < DELTA2 && abs_delta_cos > DELTA1) {
-          double factor = 0.5 + 0.5 * cos(M_PI * (abs_delta_cos - DELTA1) / (DELTA2 - DELTA1));
+          double factor = 0.5 + 0.5 * cos(PI * (abs_delta_cos - DELTA1) / (DELTA2 - DELTA1));
           delta_cos *= factor;
         }
 
