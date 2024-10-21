@@ -134,7 +134,7 @@ void Force::parse_potential(
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR("potential should ILP potential file and SW potential file.\n");
+      PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
     }
     FILE* fid_sw = my_fopen(param[2], "r");
     potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
@@ -487,7 +487,7 @@ void Force::compute(
         virial_per_atom);
     } else if (1 == potentials[0]->ilp_flag) {
       // compute the potential with ILP
-      potentials[0]->compute(
+      potentials[0]->compute_ilp(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
       potentials[0]->compute(
@@ -508,7 +508,7 @@ void Force::compute(
           virial_per_atom);
       } else if (1 == potentials[i]->ilp_flag) {
         // compute the potential with ILP
-        potentials[i]->compute(
+        potentials[i]->compute_ilp(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(
@@ -782,7 +782,7 @@ void Force::compute(
         virial_per_atom);
     } else if (1 == potentials[0]->ilp_flag) {
       // compute the potential with ILP
-      potentials[0]->compute(
+      potentials[0]->compute_ilp(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
       potentials[0]->compute(
@@ -803,7 +803,7 @@ void Force::compute(
           virial_per_atom);
       } else if (1 == potentials[i]->ilp_flag) {
         // compute the potential with ILP
-        potentials[i]->compute(
+        potentials[i]->compute_ilp(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(

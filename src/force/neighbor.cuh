@@ -41,7 +41,7 @@ void find_neighbor(
   GPU_Vector<int>& NL);
 
 // For ILP
-void find_neighbor(
+void find_neighbor_ilp(
   const int N1,
   const int N2,
   double rc,

@@ -1350,7 +1350,7 @@ void ILP_TMD_SW::compute(
 #define UPDATE_TEMP 10
 #define BIG_ILP_CUTOFF_SQUARE 50.0
 // find force and related quantities
-void ILP_TMD_SW::compute(
+void ILP_TMD_SW::compute_ilp(
   Box &box,
   const GPU_Vector<int> &type,
   const GPU_Vector<double> &position_per_atom,
@@ -1371,7 +1371,7 @@ void ILP_TMD_SW::compute(
 #ifdef USE_FIXED_NEIGHBOR
   if (num_calls++ == 0) {
 #endif
-    find_neighbor(
+    find_neighbor_ilp(
       N1,
       N2,
       rc,

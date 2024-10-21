@@ -343,7 +343,7 @@ void find_neighbor(
 }
 
 // For ILP, the neighbor could not contain atoms in the same layer
-static __global__ void gpu_find_neighbor_ON1(
+static __global__ void gpu_find_neighbor_ON1_ilp(
   const Box box,
   const int N,
   const int N1,
@@ -433,7 +433,7 @@ static __global__ void gpu_find_neighbor_ON1(
   }
 }
 
-void find_neighbor(
+void find_neighbor_ilp(
   const int N1,
   const int N2,
   double rc,
@@ -465,7 +465,7 @@ void find_neighbor(
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
 
-  gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
+  gpu_find_neighbor_ON1_ilp<<<grid_size, block_size>>>(
     box,
     N,
     N1,

@@ -90,7 +90,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
   
-  virtual void compute(
+  virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
