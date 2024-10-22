@@ -360,14 +360,27 @@ static __device__ __forceinline__ void find_fn_and_fnp(
 static __device__ __forceinline__ void
 find_fn(const int n_max, const float rcinv, const float d12, const float fc12, float* fn)
 {
+  // float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+  // fn[0] = 1.0f;
+  // fn[1] = x;
+  // for (int m = 2; m <= n_max; ++m) {
+  //   fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
+  // }
+  // for (int m = 0; m <= n_max; ++m) {
+  //   fn[m] = (fn[m] + 1.0f) * 0.5f * fc12;
+  // }
   float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
-  fn[0] = 1.0f;
-  fn[1] = x;
+  float half_fc12 = 0.5f * fc12;
+  fn[0] = fc12;
+  fn[1] = (x + 1.0f) * half_fc12;
+  float fn_m_minus_2 = 1.0f;
+  float fn_m_minus_1 = x;
+  float tmp = 0.0f;
   for (int m = 2; m <= n_max; ++m) {
-    fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
-  }
-  for (int m = 0; m <= n_max; ++m) {
-    fn[m] = (fn[m] + 1.0f) * 0.5f * fc12;
+    tmp = 2.0f * x * fn_m_minus_1 - fn_m_minus_2;
+    fn_m_minus_2 = fn_m_minus_1;
+    fn_m_minus_1 = tmp;
+    fn[m] = (tmp + 1.0f) * half_fc12;
   }
 }
 
