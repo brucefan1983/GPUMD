@@ -393,62 +393,62 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   float* fn,
   float* fnp)
 {
-  // float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
-  // fn[0] = 1.0f;
-  // fnp[0] = 0.0f;
-  // fn[1] = x;
-  // fnp[1] = 1.0f;
-  // float u0 = 1.0f;
-  // float u1 = 2.0f * x;
-  // float u2;
-  // for (int m = 2; m <= n_max; ++m) {
-  //   fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
-  //   fnp[m] = m * u1;
-  //   u2 = 2.0f * x * u1 - u0;
-  //   u0 = u1;
-  //   u1 = u2;
-  // }
-  // for (int m = 0; m <= n_max; ++m) {
-  //   fn[m] = (fn[m] + 1.0f) * 0.5f;
-  //   fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
-  //   fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
-  //   fn[m] *= fc12;
-  // }
-  float d12_mul_rcinv = d12 * rcinv;
-  float x = 2.0f * (d12_mul_rcinv - 1.0f) * (d12_mul_rcinv - 1.0f) - 1.0f;
-  fn[0] = fc12;
-  // fnp[0] = 0.0f;
-  fnp[0] = fc12 * fcp12;
-  fn[1] = (x + 1.0f) * 0.5f * fc12;
-  // fnp[1] = 1.0f;
-  fnp[1] = 2.0f * (d12_mul_rcinv - 1.0f) * rcinv * fc12 + fn[1] * fcp12;
+  float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+  fn[0] = 1.0f;
+  fnp[0] = 0.0f;
+  fn[1] = x;
+  fnp[1] = 1.0f;
   float u0 = 1.0f;
   float u1 = 2.0f * x;
   float u2;
-  float fn_m_minus_2 = 1.0f;
-  float fn_m_minus_1 = x;
   for (int m = 2; m <= n_max; ++m) {
-    float fn_tmp1 = 2.0f * x * fn_m_minus_1 - fn_m_minus_2;
-    fn_m_minus_2 = fn_m_minus_1;
-    fn_m_minus_1 = fn_tmp1;
-    // fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
-    // fnp[m] = m * u1;
-    float fnp_tmp = m * u1;
+    fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
+    fnp[m] = m * u1;
     u2 = 2.0f * x * u1 - u0;
     u0 = u1;
     u1 = u2;
-
-    float fn_tmp2 = (fn_tmp1 + 1.0f) * 0.5f;
-    fnp[m] = (fnp_tmp * 2.0f * (d12 * rcinv - 1.0f) * rcinv) * fc12 + fn_tmp2 * fcp12;
-    // fnp[m] = fnp[m] * fc12 + fn_tmp2 * fcp12;
-    fn[m] = fn_tmp2 * fc12;
   }
-  // for (int m = 0; m <= n_max; ++m) {
-  //   fn[m] = (fn[m] + 1.0f) * 0.5f;
-  //   fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
-  //   fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
-  //   fn[m] *= fc12;
+  for (int m = 0; m <= n_max; ++m) {
+    fn[m] = (fn[m] + 1.0f) * 0.5f;
+    fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
+    fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
+    fn[m] *= fc12;
+  }
+  // float d12_mul_rcinv = d12 * rcinv;
+  // float x = 2.0f * (d12_mul_rcinv - 1.0f) * (d12_mul_rcinv - 1.0f) - 1.0f;
+  // fn[0] = fc12;
+  // // fnp[0] = 0.0f;
+  // fnp[0] = fc12 * fcp12;
+  // fn[1] = (x + 1.0f) * 0.5f * fc12;
+  // // fnp[1] = 1.0f;
+  // fnp[1] = 2.0f * (d12_mul_rcinv - 1.0f) * rcinv * fc12 + fn[1] * fcp12;
+  // float u0 = 1.0f;
+  // float u1 = 2.0f * x;
+  // float u2;
+  // float fn_m_minus_2 = 1.0f;
+  // float fn_m_minus_1 = x;
+  // for (int m = 2; m <= n_max; ++m) {
+  //   float fn_tmp1 = 2.0f * x * fn_m_minus_1 - fn_m_minus_2;
+  //   fn_m_minus_2 = fn_m_minus_1;
+  //   fn_m_minus_1 = fn_tmp1;
+  //   // fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
+  //   // fnp[m] = m * u1;
+  //   float fnp_tmp = m * u1;
+  //   u2 = 2.0f * x * u1 - u0;
+  //   u0 = u1;
+  //   u1 = u2;
+
+  //   float fn_tmp2 = (fn_tmp1 + 1.0f) * 0.5f;
+  //   fnp[m] = (fnp_tmp * 2.0f * (d12 * rcinv - 1.0f) * rcinv) * fc12 + fn_tmp2 * fcp12;
+  //   // fnp[m] = fnp[m] * fc12 + fn_tmp2 * fcp12;
+  //   fn[m] = fn_tmp2 * fc12;
   // }
+  // // for (int m = 0; m <= n_max; ++m) {
+  // //   fn[m] = (fn[m] + 1.0f) * 0.5f;
+  // //   fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
+  // //   fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
+  // //   fn[m] *= fc12;
+  // // }
 }
 
 static __device__ __forceinline__ void get_f12_4body(
