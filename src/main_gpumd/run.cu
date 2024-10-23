@@ -84,7 +84,7 @@ static void calculate_time_step(
   }
   const int N = velocity_per_atom.size() / 3;
   double* gpu_v2_max;
-  CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
+  CHECK(gpuGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
   gpu_find_largest_v2<<<1, 1024>>>(
     N,
     (N - 1) / 1024 + 1,

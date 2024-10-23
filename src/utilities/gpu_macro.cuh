@@ -19,23 +19,27 @@
 
 #include "hip/hip_runtime.h"
 
+// memory manipulation
 #define gpuMalloc hipMalloc 
 #define gpuMallocManaged hipMallocManaged
 #define gpuFree hipFree
-
 #define gpuMemcpy hipMemcpy
 #define gpuMemcpyFromSymbol hipMemcpyFromSymbol
 #define gpuMemcpyToSymbol hipMemcpyToSymbol
+#define gpuGetSymbolAddress hipGetSymbolAddress
 #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
 #define gpuMemcpyHostToHost hipMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
+#define gpuMemset hipMemset
 
+// error handling
 #define gpuError_t hipError_t 
 #define gpuSuccess hipSuccess
 #define gpuGetErrorString hipGetErrorString
 #define gpuGetLastError hipGetLastError
 
+// device manipulation
 #define gpuSetDevice hipSetDevice
 #define gpuGetDeviceCount hipGetDeviceCount
 #define gpuDeviceProp hipDeviceProp
@@ -46,23 +50,27 @@
 
 #else // CUDA for Nvidia card
 
+// memory manipulation
 #define gpuMalloc cudaMalloc
 #define gpuMallocManaged cudaMallocManaged
 #define gpuFree cudaFree
-
 #define gpuMemcpy cudaMemcpy
 #define gpuMemcpyFromSymbol cudaMemcpyFromSymbol
 #define gpuMemcpyToSymbol cudaMemcpyToSymbol
+#define gpuGetSymbolAddress cudaGetSymbolAddress
 #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
 #define gpuMemcpyHostToHost cudaMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
+#define gpuMemset cudaMemset
 
+// error handling
 #define gpuError_t cudaError_t 
 #define gpuSuccess cudaSuccess
 #define gpuGetErrorString cudaGetErrorString
 #define gpuGetLastError cudaGetLastError
 
+// device manipulation
 #define gpuSetDevice cudaSetDevice
 #define gpuGetDeviceCount cudaGetDeviceCount
 #define gpuDeviceProp cudaDeviceProp

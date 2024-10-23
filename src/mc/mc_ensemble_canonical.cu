@@ -243,7 +243,7 @@ void MC_Ensemble_Canonical::compute(
       type_j = atom.cpu_type[j];
     }
 
-    CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
+    CHECK(gpuMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       box,
@@ -280,8 +280,8 @@ void MC_Ensemble_Canonical::compute(
       local_type_after.data());
     CUDA_CHECK_KERNEL
 
-    CHECK(cudaMemset(NN_radial.data(), 0, sizeof(int) * NN_radial.size()));
-    CHECK(cudaMemset(NN_angular.data(), 0, sizeof(int) * NN_angular.size()));
+    CHECK(gpuMemset(NN_radial.data(), 0, sizeof(int) * NN_radial.size()));
+    CHECK(gpuMemset(NN_angular.data(), 0, sizeof(int) * NN_angular.size()));
     create_inputs_for_energy_calculator<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       NN_ij_cpu,

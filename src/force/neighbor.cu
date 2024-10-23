@@ -183,9 +183,9 @@ void find_cell_list(
     cell_count_sum.resize(N_cells);
   }
 
-  CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
-  CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
-  CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int) * N));
+  CHECK(gpuMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_contents.data(), 0, sizeof(int) * N));
 
   find_cell_counts<<<grid_size, block_size>>>(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
@@ -194,7 +194,7 @@ void find_cell_list(
   thrust::exclusive_scan(
     thrust::device, cell_count.data(), cell_count.data() + N_cells, cell_count_sum.data());
 
-  CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_count.data(), 0, sizeof(int) * N_cells));
 
   find_cell_contents<<<grid_size, block_size>>>(
     box,
