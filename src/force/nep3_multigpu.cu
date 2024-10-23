@@ -679,7 +679,11 @@ static void find_cell_list(
   CUDA_CHECK_KERNEL
 
   thrust::exclusive_scan(
+#ifdef USE_HIP
+    thrust::hip::par.on(stream),
+#else
     thrust::cuda::par.on(stream),
+#endif
     cell_count.data(),
     cell_count.data() + N_cells,
     cell_count_sum.data());
