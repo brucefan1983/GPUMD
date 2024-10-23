@@ -330,20 +330,12 @@ static __global__ void gpu_find_L1_L2_NEP4(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
       s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
-      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -406,20 +398,12 @@ static __global__ void gpu_find_L1_L2(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
       s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
-      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {

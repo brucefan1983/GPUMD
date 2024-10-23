@@ -94,17 +94,11 @@ static __global__ void find_force_average(int num_atoms, double* g_force)
   s_f[tid] = f;
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {

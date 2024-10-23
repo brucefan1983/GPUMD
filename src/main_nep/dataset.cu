@@ -380,18 +380,11 @@ static __global__ void gpu_sum_force_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_error[tid] += s_error[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -456,18 +449,11 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_pe[tid] += s_pe[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -492,18 +478,11 @@ static __global__ void gpu_sum_pe_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_pe[tid] += s_pe[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -589,22 +568,13 @@ static __global__ void gpu_sum_virial_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       for (int d = 0; d < 6; ++d) {
         s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
       }
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      for (int d = 0; d < 6; ++d) {
-        s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
-      }
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
