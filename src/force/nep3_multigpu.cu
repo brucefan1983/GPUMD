@@ -2471,7 +2471,7 @@ void NEP3_MULTIGPU::compute(
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     CHECK(gpuSetDevice(gpu));
-    CHECK(cudaDeviceSynchronize());
+    CHECK(gpuDeviceSynchronize());
   }
 
   CHECK(gpuSetDevice(0));

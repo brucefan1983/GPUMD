@@ -31,6 +31,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "modal_analysis.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -579,7 +580,7 @@ void MODAL_ANALYSIS::process(
   }
 
   // Compute thermal conductivity and output
-  cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
+  gpuDeviceSynchronize(); // ensure GPU ready to move data to CPU
   FILE* fid = fopen(output_file_position, "a");
   for (int i = 0; i < num_bins; i++) {
     fprintf(

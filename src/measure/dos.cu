@@ -29,6 +29,7 @@ Reference for DOS:
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -225,7 +226,7 @@ void DOS::postprocess()
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   normalize_vac();
   output_vac();

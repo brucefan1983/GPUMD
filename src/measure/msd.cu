@@ -24,6 +24,7 @@ Calculate:
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -211,7 +212,7 @@ void MSD::postprocess()
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   // normalize by the number of atoms and number of time origins
   const double msd_scaler = 1.0 / ((double)num_atoms_ * (double)num_time_origins_);

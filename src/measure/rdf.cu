@@ -505,7 +505,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       rdf_g_.data(),
       sizeof(double) * number_of_beads * num_atoms_ * rdf_bins_,
       gpuMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
     for (int k = 0; k < number_of_beads; k++) {
@@ -562,7 +562,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
 
     CHECK(gpuMemcpy(
       rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
     for (int a = 0; a < rdf_atom_count; a++) {

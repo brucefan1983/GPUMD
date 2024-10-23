@@ -15,6 +15,7 @@
 
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
 #include <stdio.h>
@@ -33,12 +34,12 @@ int main(int argc, char* argv[])
   printf("Started running GPUMD.\n");
   print_line_2();
 
-  CHECK(cudaDeviceSynchronize());
+  CHECK(gpuDeviceSynchronize());
   clock_t time_begin = clock();
 
   Run run;
 
-  CHECK(cudaDeviceSynchronize());
+  CHECK(gpuDeviceSynchronize());
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
