@@ -24,28 +24,28 @@ Add random forces with zero mean and specified variance.
 #include <iostream>
 #include <vector>
 
-static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curand_init(seed, n, 0, &state[n]);
+    gpurand_init(seed, n, 0, &state[n]);
   }
 }
 
 static __global__ void add_random_force(
   const int N,
   const double force_variance,
-  curandState* g_state,
+  gpurandState* g_state,
   double* g_fx,
   double* g_fy,
   double* g_fz)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curandState state = g_state[n];
-    g_fx[n] += force_variance * curand_normal_double(&state);
-    g_fy[n] += force_variance * curand_normal_double(&state);
-    g_fz[n] += force_variance * curand_normal_double(&state);
+    gpurandState state = g_state[n];
+    g_fx[n] += force_variance * gpurand_normal_double(&state);
+    g_fy[n] += force_variance * gpurand_normal_double(&state);
+    g_fz[n] += force_variance * gpurand_normal_double(&state);
     g_state[n] = state;
   }
 }

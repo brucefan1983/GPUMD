@@ -32,11 +32,11 @@ https://doi.org/10.1145/2001576.2001692
 #include <cmath>
 #include <iostream>
 
-static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curand_init(seed, n, 0, &state[n]);
+    gpurand_init(seed, n, 0, &state[n]);
   }
 }
 
@@ -276,15 +276,15 @@ static __global__ void gpu_create_population(
   const int number_of_variables,
   const float* g_mu,
   const float* g_sigma,
-  curandState* g_state,
+  gpurandState* g_state,
   float* g_s,
   float* g_population)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     int v = n % number_of_variables;
-    curandState state = g_state[n];
-    float s = curand_normal(&state);
+    gpurandState state = g_state[n];
+    float s = gpurand_normal(&state);
     g_s[n] = s;
     g_population[n] = g_sigma[v] * s + g_mu[v];
     g_state[n] = state;

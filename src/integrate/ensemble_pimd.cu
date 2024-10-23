@@ -289,7 +289,7 @@ static __global__ void gpu_langevin(
   const bool thermostat_centroid,
   const int number_of_atoms,
   const int number_of_beads,
-  curandState* g_state,
+  gpurandState* g_state,
   const double temperature,
   const double temperature_coupling,
   const double omega_n,
@@ -316,7 +316,7 @@ static __global__ void gpu_langevin(
       }
     }
 
-    curandState state = g_state[n];
+    gpurandState state = g_state[n];
     for (int k = 0; k < number_of_beads; ++k) {
       if (k == 0 && !thermostat_centroid) {
         continue;

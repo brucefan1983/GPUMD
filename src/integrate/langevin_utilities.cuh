@@ -18,20 +18,20 @@ Some CUDA kernels for Langevin thermostats.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#define CURAND_NORMAL(a) curand_normal_double(a)
+#define CURAND_NORMAL(a) gpurand_normal_double(a)
 
 // initialize curand states
-static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curand_init(seed, n, 0, &state[n]);
+    gpurand_init(seed, n, 0, &state[n]);
   }
 }
 
 // global Langevin thermostatting
 static __global__ void gpu_langevin(
-  curandState* g_state,
+  gpurandState* g_state,
   const int N,
   const double c1,
   const double c2,
@@ -42,7 +42,7 @@ static __global__ void gpu_langevin(
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curandState state = g_state[n];
+    gpurandState state = g_state[n];
     double c2m = c2 * sqrt(1.0 / g_mass[n]);
     g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
     g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
@@ -123,7 +123,7 @@ static __global__ void gpu_correct_momentum(const int N, double* g_vx, double* g
 
 // local Langevin thermostatting
 static __global__ void gpu_langevin(
-  curandState* g_state,
+  gpurandState* g_state,
   const int N,
   const int offset,
   const int* g_group_contents,
@@ -136,7 +136,7 @@ static __global__ void gpu_langevin(
 {
   int m = blockIdx.x * blockDim.x + threadIdx.x;
   if (m < N) {
-    curandState state = g_state[m];
+    gpurandState state = g_state[m];
     int n = g_group_contents[offset + m];
     double c2m = c2 * sqrt(1.0 / g_mass[n]);
     g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);

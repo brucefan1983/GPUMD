@@ -53,6 +53,12 @@
 #define gpuStreamCreate hipStreamCreate
 #define gpuStreamDestroy hipStreamDestroy
 
+// random numbers
+#define gpurandState hiprandState
+#define gpurand_normal_double hiprand_normal_double
+#define gpurand_normal hiprand_normal
+#define gpurand_init hiprand_init
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -88,5 +94,11 @@
 #define gpuStream_t cudaStream_t
 #define gpuStreamCreate cudaStreamCreate
 #define gpuStreamDestroy cudaStreamDestroy
+
+// random numbers
+#define gpurandState curandState
+#define gpurand_normal_double curand_normal_double
+#define gpurand_normal curand_normal
+#define gpurand_init curand_init
 
 #endif
