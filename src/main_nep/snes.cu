@@ -27,6 +27,7 @@ https://doi.org/10.1145/2001576.2001692
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -61,7 +62,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
 
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.resize(number_of_variables);
   gpu_index.resize(population_size * (para.num_types + 1));
   gpu_utility.resize(number_of_variables);
@@ -106,7 +107,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 }
@@ -292,7 +293,7 @@ static __global__ void gpu_create_population(
 
 void SNES::create_population(Parameters& para)
 {
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   const int N = population_size * number_of_variables;
   gpu_create_population<<<(N - 1) / 128 + 1, 128>>>(
     N,
@@ -346,7 +347,7 @@ static __global__ void gpu_find_L1_L2_NEP4(
 
 void SNES::regularize_NEP4(Parameters& para)
 {
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
 
   for (int t = 0; t <= para.num_types; ++t) {
     float num_variables = float(para.number_of_variables) / para.num_types;
@@ -414,7 +415,7 @@ static __global__ void gpu_find_L1_L2(
 
 void SNES::regularize(Parameters& para)
 {
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   gpu_find_L1_L2<<<population_size, 1024>>>(
     number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
   CUDA_CHECK_KERNEL
@@ -495,7 +496,7 @@ static __global__ void gpu_update_mu_and_sigma(
 
 void SNES::update_mu_and_sigma(Parameters& para)
 {
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
   gpu_index.copy_from_host(index.data());
   gpu_utility.copy_from_host(utility.data());
@@ -515,7 +516,7 @@ void SNES::update_mu_and_sigma(Parameters& para)
 
 void SNES::output_mu_and_sigma(Parameters& para)
 {
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
   FILE* fid_restart = my_fopen("nep.restart", "w");

@@ -28,6 +28,7 @@ The driver class calculating force and related quantities.
 #include "ilp_tmd_sw.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <iostream>
@@ -106,7 +107,7 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_temperature") == 0 ||
     strcmp(potential_name, "nep4_zbl_temperature") == 0) {
     int num_gpus;
-    CHECK(cudaGetDeviceCount(&num_gpus));
+    CHECK(gpuGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
     num_gpus = 3;
 #endif

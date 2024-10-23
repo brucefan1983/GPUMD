@@ -14,6 +14,7 @@
 */
 
 #include "error.cuh"
+#include "gpu_macro.cuh"
 #include "main_common.cuh"
 #include <chrono>
 #include <stdio.h>
@@ -40,12 +41,12 @@ void print_gpu_information(void)
   print_line_2();
 
   int num_gpus;
-  CHECK(cudaGetDeviceCount(&num_gpus));
+  CHECK(gpuGetDeviceCount(&num_gpus));
   printf("number of GPUs = %d\n", num_gpus);
 
   for (int device_id = 0; device_id < num_gpus; ++device_id) {
-    cudaDeviceProp prop;
-    CHECK(cudaGetDeviceProperties(&prop, device_id));
+    gpuDeviceProp prop;
+    CHECK(gpuGetDeviceProperties(&prop, device_id));
 
     printf("Device id:                   %d\n", device_id);
     printf("    Device name:             %s\n", prop.name);
@@ -55,13 +56,13 @@ void print_gpu_information(void)
   }
 
   for (int i = 0; i < num_gpus; i++) {
-    cudaSetDevice(i);
+    gpuSetDevice(i);
     for (int j = 0; j < num_gpus; j++) {
       int can_access;
       if (i != j) {
-        CHECK(cudaDeviceCanAccessPeer(&can_access, i, j));
+        CHECK(gpuDeviceCanAccessPeer(&can_access, i, j));
         if (can_access) {
-          CHECK(cudaDeviceEnablePeerAccess(j, 0));
+          CHECK(gpuDeviceEnablePeerAccess(j, 0));
           printf("GPU-%d can access GPU-%d.\n", i, j);
         } else {
           printf("GPU-%d cannot access GPU-%d.\n", i, j);
@@ -70,5 +71,5 @@ void print_gpu_information(void)
     }
   }
 
-  cudaSetDevice(0); // normally use GPU-0
+  gpuSetDevice(0); // normally use GPU-0
 }

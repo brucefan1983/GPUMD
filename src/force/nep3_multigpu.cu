@@ -348,7 +348,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     annmb[gpu].dim = annmb[0].dim;
     annmb[gpu].num_neurons1 = annmb[0].num_neurons1;
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     nep_data[gpu].parameters.resize(annmb[gpu].num_para);
@@ -401,7 +401,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
 #endif
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
   nep_temp_data.cell_count.resize(num_atoms);
@@ -418,7 +418,7 @@ void NEP3_MULTIGPU::allocate_memory()
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     nep_data[gpu].f12x.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
@@ -439,7 +439,7 @@ void NEP3_MULTIGPU::allocate_memory()
     nep_data[gpu].virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   nep_temp_data.type.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -1740,7 +1740,7 @@ void NEP3_MULTIGPU::compute(
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     find_cell_list(
@@ -1920,7 +1920,7 @@ void NEP3_MULTIGPU::compute(
     }
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
@@ -2290,7 +2290,7 @@ void NEP3_MULTIGPU::compute(
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     find_cell_list(
@@ -2470,11 +2470,11 @@ void NEP3_MULTIGPU::compute(
   }
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
     CHECK(cudaDeviceSynchronize());
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {

@@ -36,6 +36,12 @@
 #define gpuGetErrorString hipGetErrorString
 #define gpuGetLastError hipGetLastError
 
+#define gpuSetDevice hipSetDevice
+#define gpuGetDeviceCount hipGetDeviceCount
+#define gpuDeviceProp hipDeviceProp
+#define gpuGetDeviceProperties hipGetDeviceProperties
+#define gpuDeviceCanAccessPeer hipDeviceCanAccessPeer
+#define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
 #define gpuDeviceSynchronize hipDeviceSynchronize
 
 #else // CUDA for Nvidia card
@@ -57,6 +63,12 @@
 #define gpuGetErrorString cudaGetErrorString
 #define gpuGetLastError cudaGetLastError
 
+#define gpuSetDevice cudaSetDevice
+#define gpuGetDeviceCount cudaGetDeviceCount
+#define gpuDeviceProp cudaDeviceProp
+#define gpuGetDeviceProperties cudaGetDeviceProperties
+#define gpuDeviceCanAccessPeer cudaDeviceCanAccessPeer
+#define gpuDeviceEnablePeerAccess cudaDeviceEnablePeerAccess
 #define gpuDeviceSynchronize cudaDeviceSynchronize
 
 #endif
