@@ -59,6 +59,16 @@
 #define gpurand_normal hiprand_normal
 #define gpurand_init hiprand_init
 
+// blas
+#define gpublasHandle_t hipblasHandle_t
+#define gpublasSgemv hipblasSgemv
+#define gpublasSgemm hipblasSgemm
+#define gpublasSdgmm hipblasSdgmm
+#define gpublasDestroy hipblasDestroy
+#define gpublasCreate hipblasCreate
+#define GPUBLAS_SIDE_LEFT HIPBLAS_SIDE_LEFT
+#define GPUBLAS_OP_N HIPBLAS_OP_N
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -100,5 +110,15 @@
 #define gpurand_normal_double curand_normal_double
 #define gpurand_normal curand_normal
 #define gpurand_init curand_init
+
+// blas
+#define gpublasHandle_t cublasHandle_t
+#define gpublasSgemv cublasSgemv
+#define gpublasSgemm cublasSgemm
+#define gpublasSdgmm cublasSdgmm
+#define gpublasDestroy cublasDestroy
+#define gpublasCreate cublasCreate
+#define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
+#define GPUBLAS_OP_N CUBLAS_OP_N
 
 #endif

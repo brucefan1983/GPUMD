@@ -279,9 +279,9 @@ void MODAL_ANALYSIS::compute_heat(
   int stride = 1;
 
   // Calculate modal velocities
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -292,9 +292,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdotx.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -305,9 +305,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdoty.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -321,10 +321,10 @@ void MODAL_ANALYSIS::compute_heat(
 
   // Calculate intermediate value
   // (i.e. heat current without modal velocities)
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -336,10 +336,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmx.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -351,10 +351,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmy.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -368,9 +368,9 @@ void MODAL_ANALYSIS::compute_heat(
     num_modes);
 
   // calculate modal heat current
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmx.data(),
@@ -379,9 +379,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmx.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmy.data(),
@@ -390,9 +390,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmy.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmz.data(),
@@ -546,7 +546,7 @@ void MODAL_ANALYSIS::preprocess(
     num_participating, N1, mass.data(), sqrtmass.data(), rsqrtmass.data());
   CUDA_CHECK_KERNEL
 
-  cublasCreate(&ma_handle);
+  gpublasCreate(&ma_handle);
 }
 
 void MODAL_ANALYSIS::process(
@@ -606,5 +606,5 @@ void MODAL_ANALYSIS::postprocess()
 {
   if (!compute)
     return;
-  cublasDestroy(ma_handle);
+  gpublasDestroy(ma_handle);
 }
