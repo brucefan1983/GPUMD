@@ -322,13 +322,13 @@ void find_moments_chebyshev(
   double Em_inv = 1.0 / Em;
 
   double *s0r, *s1r, *s2r, *s0i, *s1i, *s2i, *moments_tmp;
-  cudaMalloc((void**)&s0r, sizeof(double) * N);
-  cudaMalloc((void**)&s1r, sizeof(double) * N);
-  cudaMalloc((void**)&s2r, sizeof(double) * N);
-  cudaMalloc((void**)&s0i, sizeof(double) * N);
-  cudaMalloc((void**)&s1i, sizeof(double) * N);
-  cudaMalloc((void**)&s2i, sizeof(double) * N);
-  cudaMalloc((void**)&moments_tmp, memory_moments_tmp);
+  gpuMalloc((void**)&s0r, sizeof(double) * N);
+  gpuMalloc((void**)&s1r, sizeof(double) * N);
+  gpuMalloc((void**)&s2r, sizeof(double) * N);
+  gpuMalloc((void**)&s0i, sizeof(double) * N);
+  gpuMalloc((void**)&s1i, sizeof(double) * N);
+  gpuMalloc((void**)&s2i, sizeof(double) * N);
+  gpuMalloc((void**)&moments_tmp, memory_moments_tmp);
 
   // T_0(H)
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, srr, sri, s0r, s0i);
@@ -370,13 +370,13 @@ void find_moments_chebyshev(
     number_of_blocks, number_of_patches, moments_tmp, moments);
   CUDA_CHECK_KERNEL
 
-  cudaFree(s0r);
-  cudaFree(s0i);
-  cudaFree(s1r);
-  cudaFree(s1i);
-  cudaFree(s2r);
-  cudaFree(s2i);
-  cudaFree(moments_tmp);
+  gpuFree(s0r);
+  gpuFree(s0i);
+  gpuFree(s1r);
+  gpuFree(s1i);
+  gpuFree(s2r);
+  gpuFree(s2i);
+  gpuFree(moments_tmp);
 }
 
 // Jackson damping
@@ -435,12 +435,12 @@ void evolve(
   double* s0i;
   double* s1i;
   double* s2i;
-  cudaMalloc((void**)&s0r, sizeof(double) * N);
-  cudaMalloc((void**)&s0i, sizeof(double) * N);
-  cudaMalloc((void**)&s1r, sizeof(double) * N);
-  cudaMalloc((void**)&s1i, sizeof(double) * N);
-  cudaMalloc((void**)&s2r, sizeof(double) * N);
-  cudaMalloc((void**)&s2i, sizeof(double) * N);
+  gpuMalloc((void**)&s0r, sizeof(double) * N);
+  gpuMalloc((void**)&s0i, sizeof(double) * N);
+  gpuMalloc((void**)&s1r, sizeof(double) * N);
+  gpuMalloc((void**)&s1i, sizeof(double) * N);
+  gpuMalloc((void**)&s2r, sizeof(double) * N);
+  gpuMalloc((void**)&s2i, sizeof(double) * N);
 
   // T_0(H) |psi> = |psi>
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, sr, si, s0r, s0i);
@@ -490,12 +490,12 @@ void evolve(
     s2r = temp_real;
     s2i = temp_imag;
   }
-  cudaFree(s0r);
-  cudaFree(s0i);
-  cudaFree(s1r);
-  cudaFree(s1i);
-  cudaFree(s2r);
-  cudaFree(s2i);
+  gpuFree(s0r);
+  gpuFree(s0i);
+  gpuFree(s1r);
+  gpuFree(s1i);
+  gpuFree(s2r);
+  gpuFree(s2i);
 }
 
 #ifdef USE_GRAPHENE_TB

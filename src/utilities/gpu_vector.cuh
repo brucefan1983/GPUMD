@@ -64,7 +64,7 @@ public:
   ~GPU_Vector()
   {
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
   }
@@ -76,14 +76,14 @@ public:
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
     if (memory_type_ == Memory_Type::global) {
-      CHECK(cudaMalloc((void**)&data_, memory_));
+      CHECK(gpuMalloc((void**)&data_, memory_));
       allocated_ = true;
     } else {
-      CHECK(cudaMallocManaged((void**)&data_, memory_));
+      CHECK(gpuMallocManaged((void**)&data_, memory_));
       allocated_ = true;
     }
   }
@@ -95,14 +95,14 @@ public:
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
     if (memory_type == Memory_Type::global) {
-      CHECK(cudaMalloc((void**)&data_, memory_));
+      CHECK(gpuMalloc((void**)&data_, memory_));
       allocated_ = true;
     } else {
-      CHECK(cudaMallocManaged((void**)&data_, memory_));
+      CHECK(gpuMallocManaged((void**)&data_, memory_));
       allocated_ = true;
     }
     fill(value);
