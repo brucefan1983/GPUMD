@@ -592,7 +592,7 @@ static void cpu_pressure_orthogonal(
   double* scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
 
   if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
@@ -638,7 +638,7 @@ static void cpu_pressure_isotropic(
   double& scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
   const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
   const double scale_factor_Berendsen =
     1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
@@ -666,7 +666,7 @@ static void cpu_pressure_triclinic(
 {
   // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
   double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 6, gpuMemcpyDeviceToHost));
   mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);    // xx
   mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);    // yy
   mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);    // zz

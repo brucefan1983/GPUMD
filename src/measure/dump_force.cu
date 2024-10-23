@@ -124,7 +124,7 @@ void Dump_Force::process(
     for (int d = 0; d < 3; ++d) {
       double* cpu_f = cpu_force_per_atom.data() + group_size * d;
       double* gpu_f = gpu_force_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(

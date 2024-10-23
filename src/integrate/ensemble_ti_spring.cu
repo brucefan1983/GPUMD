@@ -171,11 +171,11 @@ void Ensemble_TI_Spring::init()
   cpu_k.resize(N, 0);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     position_0.data(),
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 
   if (!auto_k) {
     for (int i = 0; i < N; i++) {

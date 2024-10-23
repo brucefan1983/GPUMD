@@ -111,53 +111,53 @@ public:
   // copy data from host with the default size
   void copy_from_host(const T* h_data)
   {
-    CHECK(cudaMemcpy(data_, h_data, memory_, cudaMemcpyHostToDevice));
+    CHECK(gpuMemcpy(data_, h_data, memory_, gpuMemcpyHostToDevice));
   }
 
   // copy data from host with a given size
   void copy_from_host(const T* h_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(data_, h_data, memory, cudaMemcpyHostToDevice));
+    CHECK(gpuMemcpy(data_, h_data, memory, gpuMemcpyHostToDevice));
   }
 
   // copy data from device with the default size
   void copy_from_device(const T* d_data)
   {
-    CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(data_, d_data, memory_, gpuMemcpyDeviceToDevice));
   }
 
   // copy data from device with a given size
   void copy_from_device(const T* d_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(data_, d_data, memory, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(data_, d_data, memory, gpuMemcpyDeviceToDevice));
   }
 
   // copy data to host with the default size
   void copy_to_host(T* h_data)
   {
-    CHECK(cudaMemcpy(h_data, data_, memory_, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(h_data, data_, memory_, gpuMemcpyDeviceToHost));
   }
 
   // copy data to host with a given size
   void copy_to_host(T* h_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(h_data, data_, memory, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(h_data, data_, memory, gpuMemcpyDeviceToHost));
   }
 
   // copy data to device with the default size
   void copy_to_device(T* d_data)
   {
-    CHECK(cudaMemcpy(d_data, data_, memory_, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(d_data, data_, memory_, gpuMemcpyDeviceToDevice));
   }
 
   // copy data to device with a given size
   void copy_to_device(T* d_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(d_data, data_, memory, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(d_data, data_, memory, gpuMemcpyDeviceToDevice));
   }
 
   // give "value" to each element

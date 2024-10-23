@@ -184,8 +184,8 @@ void Electron_Stop::compute(double time_step, Atom& atom)
   CUDA_CHECK_KERNEL
 
   double power_loss_host;
-  CHECK(cudaMemcpyFromSymbol(
-    &power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpyFromSymbol(
+    &power_loss_host, device_power_loss, sizeof(double), 0, gpuMemcpyDeviceToHost));
   stopping_power_loss += power_loss_host;
 }
 

@@ -139,11 +139,11 @@ void Ensemble_TI::init()
   gpu_k.copy_from_host(cpu_k.data());
   gpu_espring.resize(N);
   position_0.resize(3 * N);
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     position_0.data(),
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 }
 
 void Ensemble_TI::find_thermo()

@@ -169,7 +169,7 @@ void Dump_Position::process(
     for (int d = 0; d < 3; ++d) {
       double* cpu_data = cpu_position_per_atom.data() + num_atoms_total * d;
       double* gpu_data = gpu_position_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     fprintf(fid_, "%d\n", group_size);
     output_line2(box, cpu_atom_symbol);

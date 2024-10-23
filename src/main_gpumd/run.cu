@@ -93,7 +93,7 @@ static void calculate_time_step(
     gpu_v2_max);
   CUDA_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
-  CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), gpuMemcpyDeviceToHost));
   double cpu_v_max = sqrt(cpu_v2_max[0]);
   double time_step_min = max_distance_per_step / cpu_v_max;
 

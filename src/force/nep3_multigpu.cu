@@ -1721,17 +1721,17 @@ void NEP3_MULTIGPU::compute(
       nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
       nep_temp_data.type.data(),
       sizeof(int) * nep_data[gpu].N3,
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * nep_data[gpu].N3,
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
   }
 
@@ -1923,26 +1923,26 @@ void NEP3_MULTIGPU::compute(
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_temp_data.potential.data() + nep_data[gpu].N1,
       nep_data[gpu].potential.data() + nep_data[gpu].N1,
       sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
 
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     for (int d = 0; d < 9; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     collect_properties<<<(nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64>>>(
@@ -2271,17 +2271,17 @@ void NEP3_MULTIGPU::compute(
       nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
       nep_temp_data.type.data(),
       sizeof(int) * nep_data[gpu].N3,
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * nep_data[gpu].N3,
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
   }
 
@@ -2477,26 +2477,26 @@ void NEP3_MULTIGPU::compute(
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_temp_data.potential.data() + nep_data[gpu].N1,
       nep_data[gpu].potential.data() + nep_data[gpu].N1,
       sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
 
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     for (int d = 0; d < 9; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     collect_properties<<<(nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64>>>(

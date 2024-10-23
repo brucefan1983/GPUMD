@@ -67,10 +67,10 @@ static void get_f(
     box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
   size_t M = sizeof(double);
-  CHECK(cudaMemcpy(f + 0, force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
-  CHECK(cudaMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(f + 0, force_per_atom.data() + n1, M, gpuMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, gpuMemcpyDeviceToHost));
   CHECK(
-    cudaMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, cudaMemcpyDeviceToHost));
+    gpuMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, gpuMemcpyDeviceToHost));
 
   shift_atom(-dx, n2, beta, position_per_atom);
 }

@@ -129,7 +129,7 @@ void Dump_Velocity::process(
     for (int d = 0; d < 3; ++d) {
       double* cpu_v = cpu_velocity_per_atom.data() + num_atoms_total * d;
       double* gpu_v = gpu_velocity_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(

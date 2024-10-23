@@ -178,12 +178,12 @@ void SHC::process(
   const double* vz_tmp = velocity_per_atom.data() + N * 2;
 
   if (-1 == group_method) {
-    CHECK(cudaMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
   } else {
     if (group_id == -1) {
       for (int n = 1; n < group_num; ++n) {
