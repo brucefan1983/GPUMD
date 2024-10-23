@@ -18,6 +18,7 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 namespace

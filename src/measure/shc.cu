@@ -25,6 +25,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "shc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 

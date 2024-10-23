@@ -22,6 +22,7 @@ TODO:
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 
 #define BLOCK_SIZE_FORCE 128
 

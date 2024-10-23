@@ -21,6 +21,7 @@ Apply electron stopping.
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <iostream>
 #include <vector>
 

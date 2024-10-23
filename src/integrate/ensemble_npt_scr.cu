@@ -24,6 +24,7 @@ J. Chem. Phys. 153, 114107 (2020).
 #include "npt_utilities.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 
 void Ensemble_NPT_SCR::initialize_rng()

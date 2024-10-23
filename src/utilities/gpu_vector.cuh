@@ -16,6 +16,7 @@
 #pragma once
 
 #include "error.cuh"
+#include "gpu_macro.cuh"
 
 namespace
 {

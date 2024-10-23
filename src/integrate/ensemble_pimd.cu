@@ -27,6 +27,7 @@ References for implementation:
 #include "langevin_utilities.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cstdlib>
 
