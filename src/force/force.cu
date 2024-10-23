@@ -227,17 +227,11 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   __syncthreads();
 
 #pragma unroll
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -654,17 +648,11 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
   __syncthreads();
 
 #pragma unroll
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_t[tid] += s_t[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_t[tid] += s_t[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {

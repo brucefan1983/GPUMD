@@ -97,17 +97,11 @@ static __global__ void gpu_find_momentum(
   s_momentum[tid] = momentum;
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_momentum[tid] += s_momentum[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_momentum[tid] += s_momentum[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {

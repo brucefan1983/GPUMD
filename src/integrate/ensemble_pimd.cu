@@ -371,21 +371,13 @@ gpu_find_momentum_beads(const int number_of_atoms, const double* g_mass, double*
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       for (int d = 0; d < 4; ++d) {
         s_momentum[d][tid] += s_momentum[d][tid + offset];
       }
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      for (int d = 0; d < 4; ++d) {
-        s_momentum[d][tid] += s_momentum[d][tid + offset];
-      }
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
