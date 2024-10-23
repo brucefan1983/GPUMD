@@ -1,10 +1,7 @@
 ###########################################################
 # Note: 
-# 1) You can modify -arch=sm_60 according to 
-#    your GPU architecture.
-# 2) For Windows systems, if you get errors like 
-#    c1xx : fatal error C1083: Cannot open source file: ...
-#    You can consider removing -Xcompiler "/wd 4819"
+# 1) You can modify gfx90a according to your GPU
+#    architecture.
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
 # 4) Add -DUSE_TABLE to speed up MD simulations with NEP
@@ -15,16 +12,11 @@
 ###########################################################
 # some flags
 ###########################################################
-CC = nvcc
-CUDA_ARCH=-arch=sm_60
-ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 $(CUDA_ARCH)
-else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
-endif
+CC = hipcc
+CFLAGS = -std=c++14 -O3 --offload-arch=gfx90a
 INC = -I./
 LDFLAGS = 
-LIBS = -lcublas -lcusolver
+LIBS = -lhipblas -lhipsolver
 
 
 ###########################################################
