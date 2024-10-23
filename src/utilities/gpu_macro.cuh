@@ -69,6 +69,28 @@
 #define GPUBLAS_SIDE_LEFT HIPBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N HIPBLAS_OP_N
 
+// lapack
+#define gpuDoubleComplex hipDoubleComplex
+#define gpusolverDnHandle_t hipsolverDnHandle_t
+#define gpusolverDnCreate hipsolverDnCreate
+#define gpusolverDnDestroy hipsolverDnDestroy
+#define gpusolverEigMode_t hipsolverEigMode_t
+#define gpusolverFillMode_t hipsolverFillMode_t
+#define GPUSOLVER_EIG_MODE_NOVECTOR HIPSOLVER_EIG_MODE_NOVECTOR
+#define GPUSOLVER_EIG_MODE_VECTOR HIPSOLVER_EIG_MODE_VECTOR
+#define GPUSOLVER_FILL_MODE_LOWER HIPSOLVER_FILL_MODE_LOWER
+#define gpusolverSyevjInfo_t hipsolverSyevjInfo_t
+#define gpusolverDnCreateSyevjInfo hipsolverDnCreateSyevjInfo
+#define gpusolverDnDestroySyevjInfo hipsolverDnDestroySyevjInfo
+#define gpusolverDnZheevj_bufferSize hipsolverDnZheevj_bufferSize
+#define gpusolverDnZheevj hipsolverDnZheevj
+#define gpusolverDnZheevd_bufferSize hipsolverDnZheevd_bufferSize
+#define gpusolverDnZheevd hipsolverDnZheevd
+#define gpusolverDnDsyevj_bufferSize hipsolverDnDsyevj_bufferSize
+#define gpusolverDnDsyevj hipsolverDnDsyevj
+#define gpusolverDnZheevjBatched_bufferSize hipsolverDnZheevjBatched_bufferSize
+#define gpusolverDnZheevjBatched hipsolverDnZheevjBatched
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -120,5 +142,27 @@
 #define gpublasCreate cublasCreate
 #define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N CUBLAS_OP_N
+
+// lapack
+#define gpuDoubleComplex cuDoubleComplex
+#define gpusolverDnHandle_t cusolverDnHandle_t
+#define gpusolverDnCreate cusolverDnCreate
+#define gpusolverDnDestroy cusolverDnDestroy
+#define gpusolverEigMode_t cusolverEigMode_t
+#define gpusolverFillMode_t cublasFillMode_t // why cublas?
+#define GPUSOLVER_EIG_MODE_NOVECTOR CUSOLVER_EIG_MODE_NOVECTOR
+#define GPUSOLVER_EIG_MODE_VECTOR CUSOLVER_EIG_MODE_VECTOR
+#define GPUSOLVER_FILL_MODE_LOWER CUBLAS_FILL_MODE_LOWER // why cublas?
+#define gpusolverSyevjInfo_t syevjInfo_t // why not cusolverSyevjInfo_t?
+#define gpusolverDnCreateSyevjInfo cusolverDnCreateSyevjInfo
+#define gpusolverDnDestroySyevjInfo cusolverDnDestroySyevjInfo
+#define gpusolverDnZheevj_bufferSize cusolverDnZheevj_bufferSize
+#define gpusolverDnZheevj cusolverDnZheevj
+#define gpusolverDnZheevd_bufferSize cusolverDnZheevd_bufferSize
+#define gpusolverDnZheevd cusolverDnZheevd
+#define gpusolverDnDsyevj_bufferSize cusolverDnDsyevj_bufferSize
+#define gpusolverDnDsyevj cusolverDnDsyevj
+#define gpusolverDnZheevjBatched_bufferSize cusolverDnZheevjBatched_bufferSize
+#define gpusolverDnZheevjBatched cusolverDnZheevjBatched
 
 #endif

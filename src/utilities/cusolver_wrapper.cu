@@ -20,15 +20,19 @@ Some wrappers for the cuSOLVER library
 #include "cusolver_wrapper.cuh"
 #include "error.cuh"
 #include "gpu_vector.cuh"
-#include <cusolverDn.h>
+#ifdef USE_HIP
+  #include <hipsolver.h>
+#else
+  #include <cusolverDn.h>
+#endif
 #include <vector>
 
 void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 {
   // get A
   size_t N2 = N * N;
-  GPU_Vector<cuDoubleComplex> A(N2);
-  std::vector<cuDoubleComplex> A_cpu(N2);
+  GPU_Vector<gpuDoubleComplex> A(N2);
+  std::vector<gpuDoubleComplex> A_cpu(N2);
 
   for (size_t n = 0; n < N2; ++n) {
     A_cpu[n].x = AR[n];
@@ -40,31 +44,31 @@ void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
   GPU_Vector<double> W(N);
 
   // get handle
-  cusolverDnHandle_t handle = NULL;
-  cusolverDnCreate(&handle);
-  cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_NOVECTOR;
-  cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  gpusolverDnHandle_t handle = NULL;
+  gpusolverDnCreate(&handle);
+  gpusolverEigMode_t jobz = GPUSOLVER_EIG_MODE_NOVECTOR;
+  gpusolverFillMode_t uplo = GPUSOLVER_FILL_MODE_LOWER;
 
   // get work
   int lwork = 0;
-  cusolverDnZheevd_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork);
-  GPU_Vector<cuDoubleComplex> work(lwork);
+  gpusolverDnZheevd_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork);
+  GPU_Vector<gpuDoubleComplex> work(lwork);
 
   // get W
   GPU_Vector<int> info(1);
-  cusolverDnZheevd(handle, jobz, uplo, N, A.data(), N, W.data(), work.data(), lwork, info.data());
+  gpusolverDnZheevd(handle, jobz, uplo, N, A.data(), N, W.data(), work.data(), lwork, info.data());
   W.copy_to_host(W_cpu);
 
   // free
-  cusolverDnDestroy(handle);
+  gpusolverDnDestroy(handle);
 }
 
 void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
 {
   // get A
   size_t N2 = N * N;
-  GPU_Vector<cuDoubleComplex> A(N2);
-  std::vector<cuDoubleComplex> A_cpu(N2);
+  GPU_Vector<gpuDoubleComplex> A(N2);
+  std::vector<gpuDoubleComplex> A_cpu(N2);
   for (size_t n = 0; n < N2; ++n) {
     A_cpu[n].x = AR[n];
     A_cpu[n].y = AI[n];
@@ -75,29 +79,29 @@ void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
   GPU_Vector<double> W(N);
 
   // get handle
-  cusolverDnHandle_t handle = NULL;
-  cusolverDnCreate(&handle);
-  cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_NOVECTOR;
-  cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  gpusolverDnHandle_t handle = NULL;
+  gpusolverDnCreate(&handle);
+  gpusolverEigMode_t jobz = GPUSOLVER_EIG_MODE_NOVECTOR;
+  gpusolverFillMode_t uplo = GPUSOLVER_FILL_MODE_LOWER;
 
   // some parameters for the Jacobi method
-  syevjInfo_t para = NULL;
-  cusolverDnCreateSyevjInfo(&para);
+  gpusolverSyevjInfo_t para = NULL;
+  gpusolverDnCreateSyevjInfo(&para);
 
   // get work
   int lwork = 0;
-  cusolverDnZheevj_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork, para);
-  GPU_Vector<cuDoubleComplex> work(lwork);
+  gpusolverDnZheevj_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork, para);
+  GPU_Vector<gpuDoubleComplex> work(lwork);
 
   // get W
   GPU_Vector<int> info(1);
-  cusolverDnZheevj(
+  gpusolverDnZheevj(
     handle, jobz, uplo, N, A.data(), N, W.data(), work.data(), lwork, info.data(), para);
   W.copy_to_host(W_cpu);
 
   // free
-  cusolverDnDestroy(handle);
-  cusolverDnDestroySyevjInfo(para);
+  gpusolverDnDestroy(handle);
+  gpusolverDnDestroySyevjInfo(para);
 }
 
 void eigenvectors_symmetric_Jacobi(size_t N, double* A_cpu, double* W_cpu, double* eigenvectors_cpu)
@@ -111,38 +115,38 @@ void eigenvectors_symmetric_Jacobi(size_t N, double* A_cpu, double* W_cpu, doubl
   GPU_Vector<double> W(N);
 
   // get handle
-  cusolverDnHandle_t handle = NULL;
-  cusolverDnCreate(&handle);
-  cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
-  cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  gpusolverDnHandle_t handle = NULL;
+  gpusolverDnCreate(&handle);
+  gpusolverEigMode_t jobz = GPUSOLVER_EIG_MODE_VECTOR;
+  gpusolverFillMode_t uplo = GPUSOLVER_FILL_MODE_LOWER;
 
   // some parameters for the Jacobi method
-  syevjInfo_t para = NULL;
-  cusolverDnCreateSyevjInfo(&para);
+  gpusolverSyevjInfo_t para = NULL;
+  gpusolverDnCreateSyevjInfo(&para);
 
   // get work
   int lwork = 0;
-  cusolverDnDsyevj_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork, para);
+  gpusolverDnDsyevj_bufferSize(handle, jobz, uplo, N, A.data(), N, W.data(), &lwork, para);
   GPU_Vector<double> work(lwork);
 
   // get W
   GPU_Vector<int> info(1);
-  cusolverDnDsyevj(
+  gpusolverDnDsyevj(
     handle, jobz, uplo, N, A.data(), N, W.data(), work.data(), lwork, info.data(), para);
   W.copy_to_host(W_cpu);
   A.copy_to_host(eigenvectors_cpu);
 
   // free
-  cusolverDnDestroy(handle);
-  cusolverDnDestroySyevjInfo(para);
+  gpusolverDnDestroy(handle);
+  gpusolverDnDestroySyevjInfo(para);
 }
 
 void eig_hermitian_Jacobi_batch(size_t N, size_t batch_size, double* AR, double* AI, double* W_cpu)
 {
   // get A
   size_t M = N * N * batch_size;
-  GPU_Vector<cuDoubleComplex> A(M);
-  std::vector<cuDoubleComplex> A_cpu(M);
+  GPU_Vector<gpuDoubleComplex> A(M);
+  std::vector<gpuDoubleComplex> A_cpu(M);
   for (size_t n = 0; n < M; ++n) {
     A_cpu[n].x = AR[n];
     A_cpu[n].y = AI[n];
@@ -153,24 +157,24 @@ void eig_hermitian_Jacobi_batch(size_t N, size_t batch_size, double* AR, double*
   GPU_Vector<double> W(N * batch_size);
 
   // get handle
-  cusolverDnHandle_t handle = NULL;
-  cusolverDnCreate(&handle);
-  cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_NOVECTOR;
-  cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  gpusolverDnHandle_t handle = NULL;
+  gpusolverDnCreate(&handle);
+  gpusolverEigMode_t jobz = GPUSOLVER_EIG_MODE_NOVECTOR;
+  gpusolverFillMode_t uplo = GPUSOLVER_FILL_MODE_LOWER;
 
   // some parameters for the Jacobi method
-  syevjInfo_t para = NULL;
-  cusolverDnCreateSyevjInfo(&para);
+  gpusolverSyevjInfo_t para = NULL;
+  gpusolverDnCreateSyevjInfo(&para);
 
   // get work
   int lwork = 0;
-  cusolverDnZheevjBatched_bufferSize(
+  gpusolverDnZheevjBatched_bufferSize(
     handle, jobz, uplo, N, A.data(), N, W.data(), &lwork, para, batch_size);
-  GPU_Vector<cuDoubleComplex> work(lwork);
+  GPU_Vector<gpuDoubleComplex> work(lwork);
 
   // get W
   GPU_Vector<int> info(batch_size);
-  cusolverDnZheevjBatched(
+  gpusolverDnZheevjBatched(
     handle,
     jobz,
     uplo,
@@ -186,6 +190,6 @@ void eig_hermitian_Jacobi_batch(size_t N, size_t batch_size, double* AR, double*
   W.copy_to_host(W_cpu);
 
   // free
-  cusolverDnDestroy(handle);
-  cusolverDnDestroySyevjInfo(para);
+  gpusolverDnDestroy(handle);
+  gpusolverDnDestroySyevjInfo(para);
 }
