@@ -360,7 +360,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     nep_data[gpu].cell_count_sum.resize(num_atoms);
     nep_data[gpu].cell_contents.resize(num_atoms);
 
-    CHECK(cudaStreamCreate(&nep_data[gpu].stream));
+    CHECK(gpuStreamCreate(&nep_data[gpu].stream));
 
 #ifdef USE_TABLE
     nep_data[gpu].gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
@@ -451,7 +451,7 @@ void NEP3_MULTIGPU::allocate_memory()
 NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
 {
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaStreamDestroy(nep_data[gpu].stream));
+    CHECK(gpuStreamDestroy(nep_data[gpu].stream));
   }
 }
 
@@ -626,7 +626,7 @@ static void __global__ set_to_zero(int size, int* data)
 }
 
 static void find_cell_list(
-  cudaStream_t& stream,
+  gpuStream_t& stream,
   const int partition_direction,
   const double rc,
   const int* num_bins,

@@ -48,6 +48,11 @@
 #define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
 #define gpuDeviceSynchronize hipDeviceSynchronize
 
+// stream
+#define gpuStream_t hipStream_t
+#define gpuStreamCreate hipStreamCreate
+#define gpuStreamDestroy hipStreamDestroy
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -78,5 +83,10 @@
 #define gpuDeviceCanAccessPeer cudaDeviceCanAccessPeer
 #define gpuDeviceEnablePeerAccess cudaDeviceEnablePeerAccess
 #define gpuDeviceSynchronize cudaDeviceSynchronize
+
+// stream
+#define gpuStream_t cudaStream_t
+#define gpuStreamCreate cudaStreamCreate
+#define gpuStreamDestroy cudaStreamDestroy
 
 #endif

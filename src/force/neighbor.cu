@@ -19,6 +19,7 @@ neighbor list.
 
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 
@@ -221,7 +222,7 @@ static void __global__ set_to_zero(int size, int* data)
 }
 
 void find_cell_list(
-  cudaStream_t& stream,
+  gpuStream_t& stream,
   const double rc,
   const int* num_bins,
   Box& box,
