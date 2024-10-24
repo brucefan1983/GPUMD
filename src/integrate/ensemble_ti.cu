@@ -126,7 +126,7 @@ void Ensemble_TI::init()
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
   gpu_k.resize(N);

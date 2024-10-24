@@ -92,7 +92,7 @@ static void calculate_time_step(
     velocity_per_atom.data() + N,
     velocity_per_atom.data() + N * 2,
     gpu_v2_max);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
   CHECK(gpuMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), gpuMemcpyDeviceToHost));
   double cpu_v_max = sqrt(cpu_v2_max[0]);
@@ -767,7 +767,7 @@ void Run::parse_change_box(const char** param, int num_param)
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (box.triclinic == 0) {
     printf("    Changed box lengths are\n");

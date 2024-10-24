@@ -167,7 +167,7 @@ void Dump_Dipole::process(
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
     gpu_dipole_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
@@ -188,7 +188,7 @@ void Dump_Dipole::process(
     number_of_atoms_per_thread,
     atom_copy.virial_per_atom.data(),
     gpu_dipole_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
   gpu_dipole_.copy_to_host(cpu_dipole_.data());

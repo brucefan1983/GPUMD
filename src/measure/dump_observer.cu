@@ -182,7 +182,7 @@ void Dump_Observer::process(
         atom.force_per_atom.data() + number_of_atoms * 2,
         atom.potential_per_atom.data(),
         atom.virial_per_atom.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
       // Compute new potential properties
       force.potentials[potential_index]->compute(
         box,

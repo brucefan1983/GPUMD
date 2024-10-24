@@ -67,7 +67,7 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + num_atoms_total,
       atom.force_per_atom.data() + num_atoms_total * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

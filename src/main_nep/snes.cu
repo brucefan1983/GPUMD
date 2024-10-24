@@ -74,7 +74,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpu_population.resize(N);
   curand_states.resize(N);
   initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   initialize_mu_and_sigma(para);
   calculate_utility();
@@ -303,7 +303,7 @@ void SNES::create_population(Parameters& para)
     curand_states.data(),
     gpu_s.data(),
     gpu_population.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_population.copy_to_host(population.data());
 }
 
@@ -363,7 +363,7 @@ void SNES::regularize_NEP4(Parameters& para)
       gpu_population.data(),
       gpu_cost_L1reg.data(),
       gpu_cost_L2reg.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_cost_L1reg.copy_to_host(cost_L1reg.data());
     gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
@@ -418,7 +418,7 @@ void SNES::regularize(Parameters& para)
   gpuSetDevice(0); // normally use GPU-0
   gpu_find_L1_L2<<<population_size, 1024>>>(
     number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_cost_L1reg.copy_to_host(cost_L1reg.data());
   gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
 
@@ -511,7 +511,7 @@ void SNES::update_mu_and_sigma(Parameters& para)
     gpu_s.data(),
     gpu_mu.data(),
     gpu_sigma.data());
-  CUDA_CHECK_KERNEL;
+  GPU_CHECK_KERNEL;
 }
 
 void SNES::output_mu_and_sigma(Parameters& para)

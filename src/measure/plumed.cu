@@ -183,7 +183,7 @@ void PLUMED::process(
   }
 
   gpu_sum<<<6, 1024>>>(n_atom, virial.data(), gpu_v_vector.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_v_vector.copy_to_host(tmp.data());
   fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
 
@@ -223,7 +223,7 @@ void PLUMED::process(
     virial.data() + n_atom * 3,
     virial.data() + n_atom * 4,
     virial.data() + n_atom * 5);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void PLUMED::postprocess(void)

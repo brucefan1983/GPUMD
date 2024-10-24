@@ -35,13 +35,13 @@ static void shift_atom(
 
   if (beta == 0) {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else if (beta == 1) {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms * 2 + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

@@ -185,7 +185,7 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
       y_.data() + step_offset,
       z_.data() + step_offset);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // start to calculate the MSD when we have enough frames
   if (sample_step >= num_correlation_steps_ - 1) {
@@ -203,7 +203,7 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
       msdx_.data(),
       msdy_.data(),
       msdz_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

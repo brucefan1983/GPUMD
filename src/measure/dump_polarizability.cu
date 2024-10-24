@@ -168,7 +168,7 @@ void Dump_Polarizability::process(
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
     gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
@@ -187,7 +187,7 @@ void Dump_Polarizability::process(
   const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
   sum_polarizability<<<6, number_of_threads>>>(
     number_of_atoms, number_of_atoms_per_thread, atom_copy.virial_per_atom.data(), gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
   gpu_pol_.copy_to_host(cpu_pol_.data());

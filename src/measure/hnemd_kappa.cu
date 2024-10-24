@@ -86,7 +86,7 @@ void HNEMD::process(
   compute_heat(virial_per_atom, velocity_per_atom, heat_per_atom);
 
   gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, step, heat_per_atom.data(), heat_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (output_flag) {
     const int num = NUM_OF_HEAT_COMPONENTS * output_interval;

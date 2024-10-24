@@ -174,7 +174,7 @@ void Ensemble_PIMD::initialize(Atom& atom)
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 Ensemble_PIMD::~Ensemble_PIMD(void)
@@ -793,15 +793,15 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
       transformation_matrix.data(),
       atom.mass.data(),
       velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_momentum_beads<<<number_of_beads, 1024>>>(
       number_of_atoms, atom.mass.data(), velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
       number_of_atoms, number_of_beads, velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -818,7 +818,7 @@ void Ensemble_PIMD::compute1(
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
@@ -830,7 +830,7 @@ void Ensemble_PIMD::compute1(
     force_beads.data(),
     position_beads.data(),
     velocity_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Ensemble_PIMD::compute2(
@@ -849,13 +849,13 @@ void Ensemble_PIMD::compute2(
     atom.mass.data(),
     force_beads.data(),
     velocity_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   langevin(time_step, atom);
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
@@ -870,7 +870,7 @@ void Ensemble_PIMD::compute2(
     atom.potential_per_atom.data(),
     atom.force_per_atom.data(),
     atom.virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box,
@@ -881,7 +881,7 @@ void Ensemble_PIMD::compute2(
     atom.position_per_atom.data(),
     kinetic_energy_virial_part.data(),
     atom.virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(
     number_of_atoms,
@@ -889,11 +889,11 @@ void Ensemble_PIMD::compute2(
     atom.potential_per_atom.data(),
     atom.virial_per_atom.data(),
     sum_1024.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_thermo<<<8, 1024>>>(
     box.get_volume(), number_of_atoms * K_B * temperature, sum_1024.data(), thermo.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (num_target_pressure_components == 1) {
     double scale_factor;
@@ -917,7 +917,7 @@ void Ensemble_PIMD::compute2(
       scale_factor[2],
       position_beads.data(),
       atom.position_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else if (num_target_pressure_components == 6) {
     double mu[9];
     cpu_pressure_triclinic(

@@ -168,7 +168,7 @@ public:
       const int block_size = 128;
       const int grid_size = (size_ + block_size - 1) / block_size;
       gpu_fill<<<grid_size, block_size>>>(size_, value, data_);
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else // managed (or unified) memory
     {
       for (int i = 0; i < size_; ++i)

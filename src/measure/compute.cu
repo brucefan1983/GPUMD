@@ -278,14 +278,14 @@ void Compute::process(
       velocity_per_atom.data() + N,
       velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     find_group_sum_1<<<Ng, 256>>>(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
       gpu_per_atom_x.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_potential) {
@@ -295,7 +295,7 @@ void Compute::process(
       group[grouping_method].contents.data(),
       potential_per_atom.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_force) {
@@ -307,7 +307,7 @@ void Compute::process(
       force_per_atom.data() + N,
       force_per_atom.data() + 2 * N,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_virial) {
@@ -319,7 +319,7 @@ void Compute::process(
       virial_per_atom.data() + N,
       virial_per_atom.data() + N * 2,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_jp) {
@@ -344,7 +344,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -354,7 +354,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_jk) {
@@ -368,7 +368,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -378,7 +378,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_momentum) {
@@ -391,7 +391,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -401,7 +401,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
 

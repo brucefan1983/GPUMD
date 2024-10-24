@@ -314,7 +314,7 @@ void Ensemble::velocity_verlet(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // Find some thermodynamic properties:
@@ -757,7 +757,7 @@ void Ensemble::find_thermo(
       thermo.data());
   }
 
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // Scale the velocity of every particle in the systems by a factor
@@ -782,7 +782,7 @@ void Ensemble::scale_velocity_global(const double factor, GPU_Vector<double>& ve
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_find_vc_and_ke(
@@ -887,7 +887,7 @@ void Ensemble::find_vc_and_ke(
     vcy,
     vcz,
     ke);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_scale_velocity(
@@ -963,5 +963,5 @@ void Ensemble::scale_velocity_local(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

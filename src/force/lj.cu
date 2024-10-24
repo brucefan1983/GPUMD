@@ -233,5 +233,5 @@ void LJ::compute(
     force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data(),
     potential_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

@@ -166,7 +166,7 @@ void HNEMDEC::process(
     heat_per_atom.data(),
     heat_all.data(),
     diffusion_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (output_flag) {
     const int heat_num = NUM_OF_HEAT_COMPONENTS * output_interval;

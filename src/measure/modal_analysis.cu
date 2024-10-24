@@ -253,7 +253,7 @@ void MODAL_ANALYSIS::compute_heat(
     mvx.data(),
     mvy.data(),
     mvz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Scale stress tensor by inv(sqrt(mass))
   prepare_sm<<<grid_size, BLOCK_SIZE>>>(
@@ -272,7 +272,7 @@ void MODAL_ANALYSIS::compute_heat(
     smx.data(),
     smy.data(),
     smz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const float alpha = 1.0;
   const float beta = 0.0;
@@ -411,7 +411,7 @@ void MODAL_ANALYSIS::compute_heat(
     gpu_update_jm<ACCUMULATE>
       <<<grid_size, BLOCK_SIZE>>>(num_modes, jmx.data(), jmy.data(), jmz.data(), jm.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
@@ -544,7 +544,7 @@ void MODAL_ANALYSIS::preprocess(
   rsqrtmass.resize(num_participating, Memory_Type::managed);
   gpu_set_mass_terms<<<(num_participating - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
     num_participating, N1, mass.data(), sqrtmass.data(), rsqrtmass.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpublasCreate(&ma_handle);
 }
@@ -569,14 +569,14 @@ void MODAL_ANALYSIS::process(
 
   gpu_bin_modes<<<num_bins, BIN_BLOCK>>>(
     num_modes, bin_count.data(), bin_sum.data(), num_bins, jm.data(), bin_out.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (method == HNEMA_METHOD) {
     float factor = KAPPA_UNIT_CONVERSION / (volume * temperature * fe * (float)samples_per_output);
     int num_bins_stored = num_bins * NUM_OF_HEAT_COMPONENTS;
     gpu_scale_jm<<<(num_bins_stored - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
       num_bins_stored, factor, bin_out.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   // Compute thermal conductivity and output
@@ -598,7 +598,7 @@ void MODAL_ANALYSIS::process(
   if (method == HNEMA_METHOD) {
     int grid_size = (num_heat_stored - 1) / BLOCK_SIZE + 1;
     gpu_reset_data<<<grid_size, BLOCK_SIZE>>>(num_heat_stored, jm.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

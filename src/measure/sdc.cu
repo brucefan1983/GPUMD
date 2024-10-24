@@ -183,7 +183,7 @@ void SDC::process(
       vy_.data() + step_offset,
       vz_.data() + step_offset);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // start to calculate the VAC when we have enough frames
   if (sample_step >= num_correlation_steps_ - 1) {
@@ -201,7 +201,7 @@ void SDC::process(
       vacx_.data(),
       vacy_.data(),
       vacz_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

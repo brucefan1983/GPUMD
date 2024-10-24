@@ -90,7 +90,7 @@ void compute_heat(
     heat_per_atom.data() + N * 2,
     heat_per_atom.data() + N * 3,
     heat_per_atom.data() + N * 4);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 namespace
@@ -160,5 +160,5 @@ void compute_heat(
     heat_per_atom.data(),
     heat_per_atom.data() + N,
     heat_per_atom.data() + N * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

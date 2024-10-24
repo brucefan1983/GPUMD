@@ -291,7 +291,7 @@ void Dataset::find_neighbor(Parameters& para)
     r.data() + N * 2,
     NN_radial_gpu.data(),
     NN_angular_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   NN_radial_gpu.copy_to_host(NN_radial_cpu.data());
   NN_angular_gpu.copy_to_host(NN_angular_cpu.data());

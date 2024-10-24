@@ -201,7 +201,7 @@ void Ensemble_MSST::remap(double dilation)
     dilation,
     atom->position_per_atom.data() + shock_direction * N,
     atom->velocity_per_atom.data() + shock_direction * N);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Ensemble_MSST::get_conserved()

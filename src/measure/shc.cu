@@ -208,7 +208,7 @@ void SHC::process(
           vx_tmp,
           vy_tmp,
           vz_tmp);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
@@ -228,7 +228,7 @@ void SHC::process(
         vy_tmp,
         vz_tmp);
     }
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (sample_step >= Nc - 1) {
@@ -249,7 +249,7 @@ void SHC::process(
           vz.data() + offset_s,
           ki_negative.data() + Nc * n,
           ko_negative.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
 
         gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
           group[group_method].cpu_size[n],
@@ -262,7 +262,7 @@ void SHC::process(
           sz.data() + offset_s,
           ki_positive.data() + Nc * n,
           ko_positive.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
@@ -276,7 +276,7 @@ void SHC::process(
         vz.data(),
         ki_negative.data(),
         ko_negative.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
 
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
         group_size,
@@ -289,7 +289,7 @@ void SHC::process(
         sz.data(),
         ki_positive.data(),
         ko_positive.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }

@@ -654,15 +654,15 @@ static void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count_sum.size(), cell_count_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_contents.size(), cell_contents.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
     partition_direction,
@@ -676,7 +676,7 @@ static void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thrust::exclusive_scan(
 #ifdef USE_HIP
@@ -690,7 +690,7 @@ static void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
     partition_direction,
@@ -706,7 +706,7 @@ static void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void find_neighbor_list_large_box(
@@ -1724,7 +1724,7 @@ void NEP3_MULTIGPU::compute(
       position.data(),
       nep_temp_data.type.data(),
       nep_temp_data.position.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
@@ -1784,7 +1784,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_polarizability = paramb.model_type == 2;
     find_descriptor<<<
@@ -1815,7 +1815,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
       nep_data[gpu].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
@@ -1844,7 +1844,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_partial_force_angular<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -1872,7 +1872,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_force_many_body<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
@@ -1895,7 +1895,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<
@@ -1920,7 +1920,7 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
         nep_data[gpu].virial.data(),
         nep_data[gpu].potential.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 
@@ -1963,7 +1963,7 @@ void NEP3_MULTIGPU::compute(
       force.data(),
       potential.data(),
       virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -2274,7 +2274,7 @@ void NEP3_MULTIGPU::compute(
       position.data(),
       nep_temp_data.type.data(),
       nep_temp_data.position.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
@@ -2334,7 +2334,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_descriptor<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -2364,7 +2364,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
       nep_data[gpu].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
@@ -2393,7 +2393,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_partial_force_angular<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -2421,7 +2421,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_force_many_body<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
@@ -2444,7 +2444,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<
@@ -2469,7 +2469,7 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
         nep_data[gpu].virial.data(),
         nep_data[gpu].potential.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 
@@ -2517,6 +2517,6 @@ void NEP3_MULTIGPU::compute(
       force.data(),
       potential.data(),
       virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }

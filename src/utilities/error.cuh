@@ -63,13 +63,13 @@
   } while (0)
 
 #ifdef STRONG_DEBUG
-#define CUDA_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                          \
   {                                                                                                \
     CHECK(gpuGetLastError());                                                                     \
     CHECK(gpuDeviceSynchronize());                                                                \
   }
 #else
-#define CUDA_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                          \
   {                                                                                                \
     CHECK(gpuGetLastError());                                                                     \
   }

@@ -370,14 +370,14 @@ void MC_Ensemble_SGC::compute(
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
       NN_ij.data(),
       NL_ij.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     int NN_ij_cpu;
     NN_ij.copy_to_host(&NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms, i, type_j, atom.type.data(), type_before.data(), type_after.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_local_types<<<(NN_ij_cpu - 1) / 64 + 1, 64>>>(
       NN_ij_cpu,
@@ -386,7 +386,7 @@ void MC_Ensemble_SGC::compute(
       type_after.data(),
       local_type_before.data(),
       local_type_after.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     CHECK(gpuMemset(NN_radial.data(), 0, sizeof(int) * NN_radial.size()));
     CHECK(gpuMemset(NN_angular.data(), 0, sizeof(int) * NN_angular.size()));
@@ -414,7 +414,7 @@ void MC_Ensemble_SGC::compute(
       x12_angular.data(),
       y12_angular.data(),
       z12_angular.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     nep_energy.find_energy(
       NN_ij_cpu,

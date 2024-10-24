@@ -234,7 +234,7 @@ void Ensemble_BER::compute2(
       atom.velocity_per_atom.data(),
       atom.velocity_per_atom.data() + number_of_atoms,
       atom.velocity_per_atom.data() + 2 * number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (type == 11) {
@@ -267,7 +267,7 @@ void Ensemble_BER::compute2(
         atom.position_per_atom.data(),
         atom.position_per_atom.data() + number_of_atoms,
         atom.position_per_atom.data() + number_of_atoms * 2);
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else {
       double mu[9];
       cpu_pressure_triclinic(box, target_pressure, pressure_coupling, thermo.data(), mu);

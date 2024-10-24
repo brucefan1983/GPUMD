@@ -316,7 +316,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
   } else {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -343,7 +343,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

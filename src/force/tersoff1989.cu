@@ -556,7 +556,7 @@ void Tersoff1989::compute(
     position_per_atom.data() + number_of_atoms * 2,
     tersoff_data.b.data(),
     tersoff_data.bp.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -579,7 +579,7 @@ void Tersoff1989::compute(
     tersoff_data.f12x.data(),
     tersoff_data.f12y.data(),
     tersoff_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(
