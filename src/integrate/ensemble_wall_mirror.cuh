@@ -44,7 +44,9 @@ public:
   void init();
 
 protected:
-  double mirror_pos_left, mirror_pos_right;
+  double mirror_pos_left;
   double vp;
   std::vector<double> thermo_cpu;
+  GPU_Vector<bool> gpu_right_wall_list;
+  double thickness = 20;
 };
