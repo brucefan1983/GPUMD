@@ -18,12 +18,21 @@
 namespace
 {
 
+static __global__ void
+gpu_find_wall(int number_of_atoms, double wall_pos_right, bool* wall_list_right, double* position)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    wall_list_right[i] = (position[i] > wall_pos_right);
+  }
+}
+
 static __global__ void gpu_velocity_verlet(
   const bool is_step1,
   const int number_of_particles,
   const double k,
   const double wall_pos_left,
-  const double wall_pos_right,
+  const bool* right_wall_list,
   const double g_time_step,
   const double* g_mass,
   double* g_x,
@@ -44,19 +53,23 @@ static __global__ void gpu_velocity_verlet(
     double vy = g_vy[i];
     double vz = g_vz[i];
     const double mass_inv = 1.0 / g_mass[i];
-    if (!is_step1) {
-      if (g_x[i] < wall_pos_left)
-        g_fx[i] += k * (wall_pos_left - g_x[i]);
-      if (g_x[i] > wall_pos_right)
-        g_fx[i] += k * (wall_pos_right - g_x[i]);
-    }
+
+    if (g_x[i] < wall_pos_left)
+      g_fx[i] += k * (wall_pos_left - g_x[i]);
+
     const double ax = g_fx[i] * mass_inv;
     const double ay = g_fy[i] * mass_inv;
     const double az = g_fz[i] * mass_inv;
 
-    vx += ax * time_step_half;
-    vy += ay * time_step_half;
-    vz += az * time_step_half;
+    if (right_wall_list[i]) {
+      vx = 0;
+      vy = 0;
+      vz = 0;
+    } else {
+      vx += ax * time_step_half;
+      vy += ay * time_step_half;
+      vz += az * time_step_half;
+    }
     g_vx[i] = vx;
     g_vy[i] = vy;
     g_vz[i] = vz;
@@ -65,6 +78,11 @@ static __global__ void gpu_velocity_verlet(
       g_x[i] += vx * time_step;
       g_y[i] += vy * time_step;
       g_z[i] += vz * time_step;
+    }
+    // don't let atoms move < 0 at the beginning
+    if (g_x[i] < 0) {
+      g_x[i] = -g_x[i];
+      g_vx[i] = -g_vx[i];
     }
   }
 }
@@ -92,9 +110,11 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_para
 
 void Ensemble_wall_harmonic::init()
 {
+  int N = atom->number_of_atoms;
   wall_pos_left = 0;
-  wall_pos_right = box->cpu_h[0];
-  box->cpu_h[0] += 20;
+  gpu_right_wall_list.resize(N, false);
+  gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
+    N, box->cpu_h[0] - thickness, gpu_right_wall_list.data(), atom->position_per_atom.data());
 }
 
 Ensemble_wall_harmonic::~Ensemble_wall_harmonic(void) {}
@@ -123,7 +143,7 @@ void Ensemble_wall_harmonic::compute1(
     n,
     k,
     wall_pos_left,
-    wall_pos_right,
+    gpu_right_wall_list.data(),
     time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),
@@ -151,7 +171,7 @@ void Ensemble_wall_harmonic::compute2(
     n,
     k,
     wall_pos_left,
-    wall_pos_right,
+    gpu_right_wall_list.data(),
     time_step,
     atoms.mass.data(),
     atoms.position_per_atom.data(),

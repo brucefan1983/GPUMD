@@ -135,6 +135,7 @@ void write_to_file(FILE* file, double* array, int n)
   for (int i = 0; i < n; i++)
     fprintf(file, "%f ", array[i]);
   fprintf(file, "\n");
+  fflush(stdout);
 }
 
 } // namespace
