@@ -22,6 +22,7 @@ The EAM potential. Currently two analytical versions:
 #include "eam.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 #define BLOCK_SIZE_FORCE 64
 

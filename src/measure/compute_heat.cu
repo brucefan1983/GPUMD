@@ -26,6 +26,7 @@ https://doi.org/10.1103/PhysRevB.92.094301
 
 #include "compute_heat.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {

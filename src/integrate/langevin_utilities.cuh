@@ -18,6 +18,8 @@ Some CUDA kernels for Langevin thermostats.
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "utilities/gpu_macro.cuh"
+
 #define CURAND_NORMAL(a) gpurand_normal_double(a)
 
 // initialize curand states

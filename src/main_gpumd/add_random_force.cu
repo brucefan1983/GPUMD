@@ -19,6 +19,7 @@ Add random forces with zero mean and specified variance.
 
 #include "add_random_force.cuh"
 #include "model/atom.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstdlib>
 #include <iostream>

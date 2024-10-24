@@ -20,6 +20,7 @@ Add electric field to a group of atoms.
 #include "add_efield.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>

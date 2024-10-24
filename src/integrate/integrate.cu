@@ -38,6 +38,7 @@ The driver class for the various integrators.
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 
 void Integrate::initialize(

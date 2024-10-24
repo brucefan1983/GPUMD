@@ -23,6 +23,7 @@ The double-element version of the Tersoff potential as described in
 #include "tersoff1989.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 

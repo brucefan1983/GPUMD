@@ -23,6 +23,7 @@ The version of the Tersoff potential as described in
 #include "tersoff1988.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <vector>
 
 #define LDG(a, n) __ldg(a + n)

@@ -19,6 +19,7 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 
 #include "mc_ensemble.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <fstream>
 #include <iostream>

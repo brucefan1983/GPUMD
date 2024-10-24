@@ -23,6 +23,7 @@ Run active learning on-the-fly during MD
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>

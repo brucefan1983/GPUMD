@@ -19,6 +19,7 @@ The force constant potential (FCP)
 
 #include "fcp.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 #include <vector>
 

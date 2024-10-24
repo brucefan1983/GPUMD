@@ -17,6 +17,7 @@
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <stdio.h>
 #include <stdlib.h>

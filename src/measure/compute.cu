@@ -20,6 +20,7 @@ Compute block (space) averages of various per-atom quantities.
 #include "compute.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>

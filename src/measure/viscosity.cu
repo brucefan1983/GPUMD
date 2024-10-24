@@ -18,6 +18,7 @@ Calculate the stress autocorrelation function and viscosity.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>

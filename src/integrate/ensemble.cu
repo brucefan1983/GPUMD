@@ -19,6 +19,7 @@ The abstract base class (ABC) for the ensemble classes.
 
 #include "ensemble.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #define DIM 3
 
 Ensemble::Ensemble(void)

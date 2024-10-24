@@ -19,6 +19,7 @@ Some wrappers for the cuSOLVER library
 
 #include "cusolver_wrapper.cuh"
 #include "error.cuh"
+#include "gpu_macro.cuh"
 #include "gpu_vector.cuh"
 #ifdef USE_HIP
   #include <hipsolver.h>

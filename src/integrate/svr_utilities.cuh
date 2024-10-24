@@ -22,6 +22,9 @@
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
 ------------------------------------------------------------------------------*/
 
+#pragma once
+#include "utilities/gpu_macro.cuh"
+
 static double gasdev(std::mt19937& rng)
 {
   std::uniform_real_distribution<double> rand1(0, 1);

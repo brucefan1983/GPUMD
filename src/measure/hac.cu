@@ -20,6 +20,7 @@ Calculate the heat current autocorrelation (HAC) function.
 #include "compute_heat.cuh"
 #include "hac.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>

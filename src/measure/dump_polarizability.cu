@@ -22,6 +22,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>

@@ -27,6 +27,7 @@ integration across phase boundaries, Phys. Rev. B 86, 134204 (2012).
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble_sgc.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <map>
 
 const std::map<std::string, double> MASS_TABLE{

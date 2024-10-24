@@ -20,6 +20,7 @@ Add force to a group of atoms.
 #include "add_force.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>

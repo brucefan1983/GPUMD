@@ -25,6 +25,7 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/common.cuh"
 #include "utilities/cusolver_wrapper.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
 
