@@ -80,12 +80,12 @@ all: gpumd nep
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
-	@echo The gpumd executable is successfully installed!
+	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
-	@echo The nep executable is successfully installed!
+	@echo The nep executable is successfully compiled!
 	@echo =================================================
 
 
