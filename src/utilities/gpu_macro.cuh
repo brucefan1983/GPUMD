@@ -17,7 +17,7 @@
 
 #ifdef USE_HIP // HIP for AMD card
 
-#include "hip/hip_runtime.h"
+#include <hip/hip_runtime.h>
 
 // memory manipulation
 #define gpuMalloc hipMalloc 
