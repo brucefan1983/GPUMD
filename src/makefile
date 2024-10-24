@@ -79,8 +79,14 @@ HEADERS =                         \
 all: gpumd nep
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The gpumd executable is successfully installed!
+	@echo =================================================
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The nep executable is successfully installed!
+	@echo =================================================
 
 
 ###########################################################
@@ -129,7 +135,6 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
-
 
 ###########################################################
 # clean up
