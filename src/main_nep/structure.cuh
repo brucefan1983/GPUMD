@@ -24,7 +24,7 @@ struct Structure {
   int has_virial;
   int has_temperature;
   float weight;
-  float energy;
+  float energy = 0.0f;
   float virial[6];
   float box_original[9];
   float volume;
