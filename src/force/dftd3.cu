@@ -32,6 +32,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "model/box.cuh"
 #include "neighbor.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -947,7 +948,7 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_coordination_number_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -959,7 +960,7 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
     cn.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   add_dftd3_force_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -979,7 +980,7 @@ void DFTD3::compute_small_box(
     virial_per_atom.data(),
     dc6_sum.data(),
     dc8_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   add_dftd3_force_extra_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -996,7 +997,7 @@ void DFTD3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DFTD3::compute_large_box(
@@ -1058,7 +1059,7 @@ void DFTD3::compute_large_box(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     cn.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_force_large_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -1084,7 +1085,7 @@ void DFTD3::compute_large_box(
     virial_per_atom.data(),
     dc6_sum.data(),
     dc8_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_force_extra_large_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -1107,7 +1108,7 @@ void DFTD3::compute_large_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DFTD3::compute(

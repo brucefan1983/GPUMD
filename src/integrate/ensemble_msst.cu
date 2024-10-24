@@ -18,6 +18,7 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 namespace
@@ -200,7 +201,7 @@ void Ensemble_MSST::remap(double dilation)
     dilation,
     atom->position_per_atom.data() + shock_direction * N,
     atom->velocity_per_atom.data() + shock_direction * N);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Ensemble_MSST::get_conserved()
@@ -271,22 +272,22 @@ void Ensemble_MSST::compute1(
   get_omega();
 
   get_vsum();
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     gpu_v_backup.data(),
     atom.velocity_per_atom.data(),
     sizeof(double) * gpu_v_backup.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 
   // propagate velocity sum 1/2 step by temporarily propagating the velocities
   msst_v();
   get_vsum();
 
   // reset the velocities
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     atom.velocity_per_atom.data(),
     gpu_v_backup.data(),
     sizeof(double) * gpu_v_backup.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 
   // propagate velocities 1/2 step using the new velocity sum
   msst_v();

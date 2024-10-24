@@ -23,6 +23,7 @@ Run active learning on-the-fly during MD
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
@@ -193,7 +194,7 @@ void Active::process(
   // Reset mean vectors to zero
   initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
   for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
@@ -205,7 +206,7 @@ void Active::process(
       atom.force_per_atom.data() + number_of_atoms * 2,
       atom.potential_per_atom.data(),
       atom.virial_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     // Compute new potential properties
     force.potentials[potential_index]->compute(
       box,
@@ -223,12 +224,12 @@ void Active::process(
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + number_of_atoms,
       atom.force_per_atom.data() + number_of_atoms * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
   double uncertainty = -1.0;
   for (int i = 0; i < number_of_atoms; i++) {

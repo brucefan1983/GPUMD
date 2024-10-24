@@ -19,6 +19,7 @@ The class defining the simulation box.
 
 #include "atom.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cmath>
 
 int Atom::number_of_type(std::string& symbol)

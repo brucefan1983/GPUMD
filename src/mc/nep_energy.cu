@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_energy.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <fstream>
 #include <iostream>
@@ -470,7 +471,7 @@ void NEP_Energy::find_energy(
     g_y12_angular,
     g_z12_angular,
     g_pe);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
@@ -484,6 +485,6 @@ void NEP_Energy::find_energy(
       g_y12_angular,
       g_z12_angular,
       g_pe);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }

@@ -18,6 +18,7 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
@@ -322,37 +323,37 @@ void find_moments_chebyshev(
   double Em_inv = 1.0 / Em;
 
   double *s0r, *s1r, *s2r, *s0i, *s1i, *s2i, *moments_tmp;
-  cudaMalloc((void**)&s0r, sizeof(double) * N);
-  cudaMalloc((void**)&s1r, sizeof(double) * N);
-  cudaMalloc((void**)&s2r, sizeof(double) * N);
-  cudaMalloc((void**)&s0i, sizeof(double) * N);
-  cudaMalloc((void**)&s1i, sizeof(double) * N);
-  cudaMalloc((void**)&s2i, sizeof(double) * N);
-  cudaMalloc((void**)&moments_tmp, memory_moments_tmp);
+  gpuMalloc((void**)&s0r, sizeof(double) * N);
+  gpuMalloc((void**)&s1r, sizeof(double) * N);
+  gpuMalloc((void**)&s2r, sizeof(double) * N);
+  gpuMalloc((void**)&s0i, sizeof(double) * N);
+  gpuMalloc((void**)&s1i, sizeof(double) * N);
+  gpuMalloc((void**)&s2i, sizeof(double) * N);
+  gpuMalloc((void**)&moments_tmp, memory_moments_tmp);
 
   // T_0(H)
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, srr, sri, s0r, s0i);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s0r, s0i, slr, sli, moments_tmp, 0 * grid_size);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // T_1(H)
   gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE_EC>>>(
     N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s1r, s1i, slr, sli, moments_tmp, 1 * grid_size);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // T_m(H) (m >= 2)
   for (int m = 2; m < Nm; ++m) {
     gpu_kernel_polynomial<<<grid_size, BLOCK_SIZE_EC>>>(
       N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i, s2r, s2i);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
       N, s2r, s2i, slr, sli, moments_tmp, m * grid_size);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     // permute the pointers; do not need to copy the data
     double* temp_real;
     double* temp_imag;
@@ -368,15 +369,15 @@ void find_moments_chebyshev(
 
   gpu_find_inner_product_2<<<Nm, BLOCK_SIZE_EC>>>(
     number_of_blocks, number_of_patches, moments_tmp, moments);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
-  cudaFree(s0r);
-  cudaFree(s0i);
-  cudaFree(s1r);
-  cudaFree(s1i);
-  cudaFree(s2r);
-  cudaFree(s2i);
-  cudaFree(moments_tmp);
+  gpuFree(s0r);
+  gpuFree(s0i);
+  gpuFree(s1r);
+  gpuFree(s1i);
+  gpuFree(s2r);
+  gpuFree(s2i);
+  gpuFree(moments_tmp);
 }
 
 // Jackson damping
@@ -435,28 +436,28 @@ void evolve(
   double* s0i;
   double* s1i;
   double* s2i;
-  cudaMalloc((void**)&s0r, sizeof(double) * N);
-  cudaMalloc((void**)&s0i, sizeof(double) * N);
-  cudaMalloc((void**)&s1r, sizeof(double) * N);
-  cudaMalloc((void**)&s1i, sizeof(double) * N);
-  cudaMalloc((void**)&s2r, sizeof(double) * N);
-  cudaMalloc((void**)&s2i, sizeof(double) * N);
+  gpuMalloc((void**)&s0r, sizeof(double) * N);
+  gpuMalloc((void**)&s0i, sizeof(double) * N);
+  gpuMalloc((void**)&s1r, sizeof(double) * N);
+  gpuMalloc((void**)&s1i, sizeof(double) * N);
+  gpuMalloc((void**)&s2r, sizeof(double) * N);
+  gpuMalloc((void**)&s2i, sizeof(double) * N);
 
   // T_0(H) |psi> = |psi>
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, sr, si, s0r, s0i);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // T_1(H) |psi> = H |psi>
   gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE_EC>>>(
     N, Em_inv, NN, NL, U, Hr, Hi, sr, si, s1r, s1i);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // |final_state> = c_0 * T_0(H) |psi> + c_1 * T_1(H) |psi>
   double bessel_0 = j0(time_step_scaled);
   double bessel_1 = 2.0 * j1(time_step_scaled);
   gpu_chebyshev_01<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s0r, s0i, s1r, s1i, sr, si, bessel_0, bessel_1, direction);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   for (int m = 2; m < 1000000; ++m) {
     double bessel_m = jn(m, time_step_scaled);
@@ -477,7 +478,7 @@ void evolve(
     }
     gpu_chebyshev_2<<<grid_size, BLOCK_SIZE_EC>>>(
       N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i, s2r, s2i, sr, si, bessel_m, label);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     // permute the pointers; do not need to copy the data
     double *temp_real, *temp_imag;
@@ -490,12 +491,12 @@ void evolve(
     s2r = temp_real;
     s2i = temp_imag;
   }
-  cudaFree(s0r);
-  cudaFree(s0i);
-  cudaFree(s1r);
-  cudaFree(s1i);
-  cudaFree(s2r);
-  cudaFree(s2i);
+  gpuFree(s0r);
+  gpuFree(s0i);
+  gpuFree(s1r);
+  gpuFree(s1i);
+  gpuFree(s2r);
+  gpuFree(s2i);
 }
 
 #ifdef USE_GRAPHENE_TB
@@ -756,7 +757,7 @@ void LSQT::process(Atom& atom, Box& box, const int step)
     Hr.data(),
     Hi.data(),
     xx.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dos_and_velocity(atom, box);
   find_sigma(atom, box, step);
@@ -854,7 +855,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sli.data(),
       srr.data(),
       sri.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     evolve(
       number_of_orbitals,
@@ -894,7 +895,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
     sli.data(),
     scr.data(),
     sci.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   std::vector<double> vac(number_of_energy_points);
 

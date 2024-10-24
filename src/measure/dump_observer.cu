@@ -21,6 +21,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
@@ -182,7 +183,7 @@ void Dump_Observer::process(
         atom.force_per_atom.data() + number_of_atoms * 2,
         atom.potential_per_atom.data(),
         atom.virial_per_atom.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
       // Compute new potential properties
       force.potentials[potential_index]->compute(
         box,

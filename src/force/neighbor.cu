@@ -19,6 +19,7 @@ neighbor list.
 
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 
@@ -183,18 +184,18 @@ void find_cell_list(
     cell_count_sum.resize(N_cells);
   }
 
-  CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
-  CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
-  CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int) * N));
+  CHECK(gpuMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_contents.data(), 0, sizeof(int) * N));
 
   find_cell_counts<<<grid_size, block_size>>>(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thrust::exclusive_scan(
     thrust::device, cell_count.data(), cell_count.data() + N_cells, cell_count_sum.data());
 
-  CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+  CHECK(gpuMemset(cell_count.data(), 0, sizeof(int) * N_cells));
 
   find_cell_contents<<<grid_size, block_size>>>(
     box,
@@ -209,7 +210,7 @@ void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static void __global__ set_to_zero(int size, int* data)
@@ -221,7 +222,7 @@ static void __global__ set_to_zero(int size, int* data)
 }
 
 void find_cell_list(
-  cudaStream_t& stream,
+  gpuStream_t& stream,
   const double rc,
   const int* num_bins,
   Box& box,
@@ -248,29 +249,33 @@ void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count_sum.size(), cell_count_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_contents.size(), cell_contents.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thrust::exclusive_scan(
+#ifdef USE_HIP
+    thrust::hip::par.on(stream),
+#else
     thrust::cuda::par.on(stream),
+#endif
     cell_count.data(),
     cell_count.data() + N_cells,
     cell_count_sum.data());
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
     box,
@@ -285,7 +290,7 @@ void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void find_neighbor(
@@ -335,11 +340,11 @@ void find_neighbor(
     num_bins[2],
     rc_inv_cell_list,
     rc * rc);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // For ILP, the neighbor could not contain atoms in the same layer
@@ -488,11 +493,11 @@ void find_neighbor_ilp(
     rc_inv_cell_list,
     rc * rc,
     big_ilp_cutoff_square);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_find_neighbor_ON1_SW(
@@ -624,9 +629,9 @@ void find_neighbor_SW(
     num_bins[2],
     rc_inv_cell_list,
     rc * rc);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

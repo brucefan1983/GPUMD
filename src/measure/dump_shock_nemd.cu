@@ -14,6 +14,7 @@
 */
 
 #include "dump_shock_nemd.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 namespace

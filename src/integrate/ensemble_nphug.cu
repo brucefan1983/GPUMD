@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_nphug.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {

@@ -57,7 +57,7 @@ struct NEP3_MULTIGPU_Data {
 
   int N1, N2, N3, N4, N5; // for local system
   int M0, M1, M2;         // for global system
-  cudaStream_t stream;
+  gpuStream_t stream;
 };
 
 struct NEP3_TEMP_Data {

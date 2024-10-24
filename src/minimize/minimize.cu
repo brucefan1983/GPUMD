@@ -22,6 +22,7 @@ The driver class for minimizers.
 #include "minimizer_fire.cuh"
 #include "minimizer_sd.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <memory>

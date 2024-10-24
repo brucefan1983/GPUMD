@@ -20,7 +20,6 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <cooperative_groups.h>
 #include <string>
 #include <vector>
 

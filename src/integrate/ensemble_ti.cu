@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_ti.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {
@@ -125,7 +126,7 @@ void Ensemble_TI::init()
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
   gpu_k.resize(N);
@@ -139,11 +140,11 @@ void Ensemble_TI::init()
   gpu_k.copy_from_host(cpu_k.data());
   gpu_espring.resize(N);
   position_0.resize(3 * N);
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     position_0.data(),
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 }
 
 void Ensemble_TI::find_thermo()

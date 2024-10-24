@@ -21,6 +21,7 @@ Oxford University Press, 2010.
 
 #include "ensemble_nhc.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #define DIM 3
 
 Ensemble_NHC::Ensemble_NHC(int t, int mg, double* mv, int N, double T, double Tc, double dt)

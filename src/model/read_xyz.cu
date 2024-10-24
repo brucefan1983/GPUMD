@@ -23,6 +23,7 @@ The class defining the simulation model.
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <fstream>

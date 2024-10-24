@@ -21,7 +21,11 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <cublas_v2.h>
+#ifdef USE_HIP
+  #include <hipblas.h>
+#else
+  #include <cublas_v2.h>
+#endif
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -97,7 +101,7 @@ private:
   int num_participating;  // Number of particles participating
   int num_heat_stored;    // Number of stored heat current elements
 
-  cublasHandle_t ma_handle;
+  gpublasHandle_t ma_handle;
 
   // stress by by square root mass (intermediate term)
   GPU_Vector<float> smx;

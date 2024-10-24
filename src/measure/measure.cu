@@ -20,6 +20,7 @@ The driver class dealing with measurement.
 #include "measure.cuh"
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #define NUM_OF_HEAT_COMPONENTS 5

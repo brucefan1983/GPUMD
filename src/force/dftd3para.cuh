@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "utilities/gpu_macro.cuh"
+
 namespace
 {
 #define Bohr 0.5291772575069165f

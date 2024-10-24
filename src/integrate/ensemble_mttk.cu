@@ -21,6 +21,7 @@ P and T are both set -> NPT ensemable
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_mttk.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 namespace

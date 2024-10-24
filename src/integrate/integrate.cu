@@ -38,6 +38,7 @@ The driver class for the various integrators.
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 
 void Integrate::initialize(
@@ -273,7 +274,7 @@ void Integrate::compute1(
     atom.position_temp.data(),
     atom.position_temp.data() + num_atoms,
     atom.position_temp.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   ensemble->compute1(time_step, group, box, atom, thermo);
 
@@ -288,7 +289,7 @@ void Integrate::compute1(
     atom.unwrapped_position.data(),
     atom.unwrapped_position.data() + num_atoms,
     atom.unwrapped_position.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Integrate::compute2(

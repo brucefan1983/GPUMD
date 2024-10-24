@@ -19,6 +19,7 @@ The force constant potential (FCP)
 
 #include "fcp.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 #include <vector>
 
@@ -1038,7 +1039,7 @@ void FCP::compute(
     position_per_atom.data() + number_of_atoms * 2,
     fcp_data.r0.data(),
     fcp_data.u.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   fcp_data.pfv.fill(0.0f);
 
@@ -1125,5 +1126,5 @@ void FCP::compute(
     force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data());
 
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

@@ -18,6 +18,7 @@ The abstract base class (ABC) for the minimizer classes.
 ------------------------------------------------------------------------------*/
 
 #include "minimizer.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {

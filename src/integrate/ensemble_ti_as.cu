@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_ti_as.cuh"
+#include "utilities/gpu_macro.cuh"
 
 Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 {

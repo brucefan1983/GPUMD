@@ -16,6 +16,7 @@
 #pragma once
 
 #include "error.cuh"
+#include "gpu_macro.cuh"
 
 namespace
 {
@@ -64,7 +65,7 @@ public:
   ~GPU_Vector()
   {
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
   }
@@ -76,14 +77,14 @@ public:
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
     if (memory_type_ == Memory_Type::global) {
-      CHECK(cudaMalloc((void**)&data_, memory_));
+      CHECK(gpuMalloc((void**)&data_, memory_));
       allocated_ = true;
     } else {
-      CHECK(cudaMallocManaged((void**)&data_, memory_));
+      CHECK(gpuMallocManaged((void**)&data_, memory_));
       allocated_ = true;
     }
   }
@@ -95,14 +96,14 @@ public:
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
     if (allocated_) {
-      CHECK(cudaFree(data_));
+      CHECK(gpuFree(data_));
       allocated_ = false;
     }
     if (memory_type == Memory_Type::global) {
-      CHECK(cudaMalloc((void**)&data_, memory_));
+      CHECK(gpuMalloc((void**)&data_, memory_));
       allocated_ = true;
     } else {
-      CHECK(cudaMallocManaged((void**)&data_, memory_));
+      CHECK(gpuMallocManaged((void**)&data_, memory_));
       allocated_ = true;
     }
     fill(value);
@@ -111,53 +112,53 @@ public:
   // copy data from host with the default size
   void copy_from_host(const T* h_data)
   {
-    CHECK(cudaMemcpy(data_, h_data, memory_, cudaMemcpyHostToDevice));
+    CHECK(gpuMemcpy(data_, h_data, memory_, gpuMemcpyHostToDevice));
   }
 
   // copy data from host with a given size
   void copy_from_host(const T* h_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(data_, h_data, memory, cudaMemcpyHostToDevice));
+    CHECK(gpuMemcpy(data_, h_data, memory, gpuMemcpyHostToDevice));
   }
 
   // copy data from device with the default size
   void copy_from_device(const T* d_data)
   {
-    CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(data_, d_data, memory_, gpuMemcpyDeviceToDevice));
   }
 
   // copy data from device with a given size
   void copy_from_device(const T* d_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(data_, d_data, memory, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(data_, d_data, memory, gpuMemcpyDeviceToDevice));
   }
 
   // copy data to host with the default size
   void copy_to_host(T* h_data)
   {
-    CHECK(cudaMemcpy(h_data, data_, memory_, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(h_data, data_, memory_, gpuMemcpyDeviceToHost));
   }
 
   // copy data to host with a given size
   void copy_to_host(T* h_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(h_data, data_, memory, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(h_data, data_, memory, gpuMemcpyDeviceToHost));
   }
 
   // copy data to device with the default size
   void copy_to_device(T* d_data)
   {
-    CHECK(cudaMemcpy(d_data, data_, memory_, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(d_data, data_, memory_, gpuMemcpyDeviceToDevice));
   }
 
   // copy data to device with a given size
   void copy_to_device(T* d_data, const size_t size)
   {
     const size_t memory = sizeof(T) * size;
-    CHECK(cudaMemcpy(d_data, data_, memory, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(d_data, data_, memory, gpuMemcpyDeviceToDevice));
   }
 
   // give "value" to each element
@@ -167,7 +168,7 @@ public:
       const int block_size = 128;
       const int grid_size = (size_ + block_size - 1) / block_size;
       gpu_fill<<<grid_size, block_size>>>(size_, value, data_);
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else // managed (or unified) memory
     {
       for (int i = 0; i < size_; ++i)

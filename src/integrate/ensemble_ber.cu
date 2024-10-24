@@ -20,6 +20,7 @@ The Berendsen thermostat and barostat:
 
 #include "ensemble_ber.cuh"
 #include "npt_utilities.cuh"
+#include "utilities/gpu_macro.cuh"
 
 Ensemble_BER::Ensemble_BER(int t, int mg, double* mv, double T, double Tc)
 {
@@ -95,7 +96,7 @@ static void cpu_pressure_orthogonal(
   double* scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
 
   if (deform_x) {
     scale_factor[0] = box.cpu_h[0];
@@ -141,7 +142,7 @@ static void cpu_pressure_isotropic(
   Box& box, double* p0, double* p_coupling, double* thermo, double& scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
   scale_factor = 1.0 - p_coupling[0] * (p0[0] - (p[0] + p[1] + p[2]) * 0.3333333333333333);
   box.cpu_h[0] *= scale_factor;
   box.cpu_h[1] *= scale_factor;
@@ -156,7 +157,7 @@ cpu_pressure_triclinic(Box& box, double* p0, double* p_coupling, double* thermo,
 {
   // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
   double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 6, gpuMemcpyDeviceToHost));
   mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);    // xx
   mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);    // yy
   mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);    // zz
@@ -233,7 +234,7 @@ void Ensemble_BER::compute2(
       atom.velocity_per_atom.data(),
       atom.velocity_per_atom.data() + number_of_atoms,
       atom.velocity_per_atom.data() + 2 * number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (type == 11) {
@@ -266,7 +267,7 @@ void Ensemble_BER::compute2(
         atom.position_per_atom.data(),
         atom.position_per_atom.data() + number_of_atoms,
         atom.position_per_atom.data() + number_of_atoms * 2);
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else {
       double mu[9];
       cpu_pressure_triclinic(box, target_pressure, pressure_coupling, thermo.data(), mu);

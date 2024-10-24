@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_ti_rs.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {

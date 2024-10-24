@@ -21,6 +21,7 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "ensemble_bdp.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 #define DIM 3
 

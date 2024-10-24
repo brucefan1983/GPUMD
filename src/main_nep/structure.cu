@@ -16,6 +16,7 @@
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <chrono>

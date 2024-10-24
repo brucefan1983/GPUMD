@@ -22,6 +22,7 @@ The EAM potential. Currently two analytical versions:
 #include "eam.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 #define BLOCK_SIZE_FORCE 64
 
@@ -514,7 +515,7 @@ void EAM::compute(
       position_per_atom.data() + number_of_atoms * 2,
       eam_data.Fp.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou,
@@ -535,7 +536,7 @@ void EAM::compute(
       force_per_atom.data() + 2 * number_of_atoms,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (potential_model == 1) {
@@ -554,7 +555,7 @@ void EAM::compute(
       position_per_atom.data() + number_of_atoms * 2,
       eam_data.Fp.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou,
@@ -575,6 +576,6 @@ void EAM::compute(
       force_per_atom.data() + 2 * number_of_atoms,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }

@@ -23,6 +23,7 @@ The Langevin thermostat with the BAOAB splitting:
 #include "ensemble_bao.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstdlib>
 
 Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
@@ -35,7 +36,7 @@ Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 Ensemble_BAO::Ensemble_BAO(
@@ -69,9 +70,9 @@ Ensemble_BAO::Ensemble_BAO(
   int grid_size_sink = (N_sink - 1) / 128 + 1;
   initialize_curand_states<<<grid_size_source, 128>>>(
     curand_states_source.data(), N_source, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
 }
@@ -96,7 +97,7 @@ void Ensemble_BAO::integrate_nvt_lan(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
     number_of_atoms,
@@ -104,14 +105,14 @@ void Ensemble_BAO::integrate_nvt_lan(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // wrapper of the local Langevin thermostatting kernels
@@ -136,7 +137,7 @@ void Ensemble_BAO::integrate_heat_lan(
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
     ke.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
   energy_transferred[0] += ek2[source] * 0.5;
@@ -153,7 +154,7 @@ void Ensemble_BAO::integrate_heat_lan(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_langevin<<<(N_sink - 1) / 128 + 1, 128>>>(
     curand_states_sink.data(),
@@ -166,7 +167,7 @@ void Ensemble_BAO::integrate_heat_lan(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_ke<<<Ng, 512>>>(
     group[0].size.data(),
@@ -177,7 +178,7 @@ void Ensemble_BAO::integrate_heat_lan(
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
     ke.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
   energy_transferred[0] -= ek2[source] * 0.5;
@@ -271,7 +272,7 @@ void Ensemble_BAO::operator_A(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -288,7 +289,7 @@ void Ensemble_BAO::operator_A(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -411,7 +412,7 @@ void Ensemble_BAO::operator_B(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Ensemble_BAO::compute1(

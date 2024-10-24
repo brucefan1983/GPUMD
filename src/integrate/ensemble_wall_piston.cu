@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_wall_piston.cuh"
+#include "utilities/gpu_macro.cuh"
 
 namespace
 {

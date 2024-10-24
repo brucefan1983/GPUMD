@@ -20,6 +20,7 @@ Calculate the heat current autocorrelation (HAC) function.
 #include "compute_heat.cuh"
 #include "hac.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
@@ -88,7 +89,7 @@ void HAC::process(
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
   gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, heat_per_atom.data(), heat_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // Calculate the Heat current Auto-Correlation function (HAC)
@@ -182,7 +183,7 @@ void HAC::postprocess(
 
   // Here, the block size is fixed to 128, which is a good choice
   gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), hac_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   hac_gpu.copy_to_host(hac_cpu.data());
 

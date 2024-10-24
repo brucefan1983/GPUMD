@@ -23,6 +23,7 @@ Dump bead data in PIMD-related run
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 
 void Dump_Beads::parse(const char** param, int num_param)

@@ -26,6 +26,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "nep3_multigpu.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <string>
@@ -347,7 +348,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     annmb[gpu].dim = annmb[0].dim;
     annmb[gpu].num_neurons1 = annmb[0].num_neurons1;
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     nep_data[gpu].parameters.resize(annmb[gpu].num_para);
@@ -359,7 +360,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     nep_data[gpu].cell_count_sum.resize(num_atoms);
     nep_data[gpu].cell_contents.resize(num_atoms);
 
-    CHECK(cudaStreamCreate(&nep_data[gpu].stream));
+    CHECK(gpuStreamCreate(&nep_data[gpu].stream));
 
 #ifdef USE_TABLE
     nep_data[gpu].gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
@@ -400,7 +401,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
 #endif
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
   nep_temp_data.cell_count.resize(num_atoms);
@@ -417,7 +418,7 @@ void NEP3_MULTIGPU::allocate_memory()
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     nep_data[gpu].f12x.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
@@ -438,7 +439,7 @@ void NEP3_MULTIGPU::allocate_memory()
     nep_data[gpu].virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   nep_temp_data.type.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -450,7 +451,7 @@ void NEP3_MULTIGPU::allocate_memory()
 NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
 {
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaStreamDestroy(nep_data[gpu].stream));
+    CHECK(gpuStreamDestroy(nep_data[gpu].stream));
   }
 }
 
@@ -625,7 +626,7 @@ static void __global__ set_to_zero(int size, int* data)
 }
 
 static void find_cell_list(
-  cudaStream_t& stream,
+  gpuStream_t& stream,
   const int partition_direction,
   const double rc,
   const int* num_bins,
@@ -653,15 +654,15 @@ static void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count_sum.size(), cell_count_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_contents.size(), cell_contents.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
     partition_direction,
@@ -675,17 +676,21 @@ static void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thrust::exclusive_scan(
+#ifdef USE_HIP
+    thrust::hip::par.on(stream),
+#else
     thrust::cuda::par.on(stream),
+#endif
     cell_count.data(),
     cell_count.data() + N_cells,
     cell_count_sum.data());
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
     partition_direction,
@@ -701,7 +706,7 @@ static void find_cell_list(
     num_bins[1],
     num_bins[2],
     rc_inv);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void find_neighbor_list_large_box(
@@ -1719,19 +1724,19 @@ void NEP3_MULTIGPU::compute(
       position.data(),
       nep_temp_data.type.data(),
       nep_temp_data.position.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
       nep_temp_data.type.data(),
       sizeof(int) * nep_data[gpu].N3,
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * nep_data[gpu].N3,
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
   }
 
@@ -1739,7 +1744,7 @@ void NEP3_MULTIGPU::compute(
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     find_cell_list(
@@ -1779,7 +1784,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_polarizability = paramb.model_type == 2;
     find_descriptor<<<
@@ -1810,7 +1815,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
       nep_data[gpu].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
@@ -1839,7 +1844,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_partial_force_angular<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -1867,7 +1872,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_force_many_body<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
@@ -1890,7 +1895,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<
@@ -1915,34 +1920,34 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
         nep_data[gpu].virial.data(),
         nep_data[gpu].potential.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_temp_data.potential.data() + nep_data[gpu].N1,
       nep_data[gpu].potential.data() + nep_data[gpu].N1,
       sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
 
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     for (int d = 0; d < 9; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     collect_properties<<<(nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64>>>(
@@ -1958,7 +1963,7 @@ void NEP3_MULTIGPU::compute(
       force.data(),
       potential.data(),
       virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -2269,19 +2274,19 @@ void NEP3_MULTIGPU::compute(
       position.data(),
       nep_temp_data.type.data(),
       nep_temp_data.position.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_data[gpu].type.data(),
       nep_temp_data.type.data(),
       sizeof(int) * nep_data[gpu].N3,
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * nep_data[gpu].N3,
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
   }
 
@@ -2289,7 +2294,7 @@ void NEP3_MULTIGPU::compute(
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
 #ifndef ZHEYONG
-    CHECK(cudaSetDevice(gpu));
+    CHECK(gpuSetDevice(gpu));
 #endif
 
     find_cell_list(
@@ -2329,7 +2334,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_descriptor<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -2359,7 +2364,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
       nep_data[gpu].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
@@ -2388,7 +2393,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_partial_force_angular<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
@@ -2416,7 +2421,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_force_many_body<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
@@ -2439,7 +2444,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<
@@ -2464,39 +2469,39 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
         nep_data[gpu].virial.data(),
         nep_data[gpu].potential.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaSetDevice(gpu));
-    CHECK(cudaDeviceSynchronize());
+    CHECK(gpuSetDevice(gpu));
+    CHECK(gpuDeviceSynchronize());
   }
 
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       nep_temp_data.potential.data() + nep_data[gpu].N1,
       nep_data[gpu].potential.data() + nep_data[gpu].N1,
       sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-      cudaMemcpyDeviceToDevice));
+      gpuMemcpyDeviceToDevice));
 
     for (int d = 0; d < 3; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     for (int d = 0; d < 9; ++d) {
-      CHECK(cudaMemcpy(
+      CHECK(gpuMemcpy(
         nep_temp_data.virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         nep_data[gpu].virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
         sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1),
-        cudaMemcpyDeviceToDevice));
+        gpuMemcpyDeviceToDevice));
     }
 
     collect_properties<<<(nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64>>>(
@@ -2512,6 +2517,6 @@ void NEP3_MULTIGPU::compute(
       force.data(),
       potential.data(),
       virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }

@@ -29,6 +29,7 @@ Reference for DOS:
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -225,7 +226,7 @@ void DOS::postprocess()
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   normalize_vac();
   output_vac();
@@ -301,7 +302,7 @@ void DOS::copy_mass(const GPU_Vector<double>& mass)
     const int offset = (group_id_ < 0) ? 0 : group_->cpu_size_sum[group_id_];
     gpu_copy_mass<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_, group_->contents.data() + offset, mass.data(), mass_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -338,7 +339,7 @@ void DOS::copy_velocity(const int correlation_step, const GPU_Vector<double>& ve
       }
     }
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::find_vac(const int correlation_step)
@@ -378,7 +379,7 @@ void DOS::find_vac(const int correlation_step)
       vacy_.data(),
       vacz_.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::normalize_vac()

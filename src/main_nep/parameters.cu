@@ -16,6 +16,7 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
@@ -221,9 +222,9 @@ void Parameters::calculate_parameters()
   }
 
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(cudaSetDevice(device_id));
+    CHECK(gpuSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
@@ -932,7 +933,7 @@ void Parameters::parse_population(const char** param, int num_param)
   }
 
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
   int fully_used_device = population_size % deviceCount;
   int population_should_increase;
   if (fully_used_device != 0) {
