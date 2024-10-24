@@ -42,7 +42,7 @@
 // device manipulation
 #define gpuSetDevice hipSetDevice
 #define gpuGetDeviceCount hipGetDeviceCount
-#define gpuDeviceProp hipDeviceProp
+#define gpuDeviceProp hipDeviceProp_t
 #define gpuGetDeviceProperties hipGetDeviceProperties
 #define gpuDeviceCanAccessPeer hipDeviceCanAccessPeer
 #define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
