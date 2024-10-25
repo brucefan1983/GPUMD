@@ -1,4 +1,4 @@
-# Tool related to GPUMD and NEP 
+# Tools related to GPUMD and NEP 
 
 * Below is a list of the tools related to GPUMD and NEP (only the initial creator is listed).
 * Hope you find them helpful, but you should use them with caution.
