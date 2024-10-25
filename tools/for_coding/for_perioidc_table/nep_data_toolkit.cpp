@@ -135,21 +135,6 @@ int get_int_from_token(const std::string& token, const char* filename, const int
   return value;
 }
 
-float get_float_from_token(const std::string& token, const char* filename, const int line)
-{
-  float value = 0;
-  try {
-    value = std::stof(token);
-  } catch (const std::exception& e) {
-    std::cout << "Standard exception:\n";
-    std::cout << "    File:          " << filename << std::endl;
-    std::cout << "    Line:          " << line << std::endl;
-    std::cout << "    Error message: " << e.what() << std::endl;
-    exit(1);
-  }
-  return value;
-}
-
 double get_double_from_token(const std::string& token, const char* filename, const int line)
 {
   double value = 0;
@@ -171,18 +156,18 @@ struct Structure {
   bool has_sid;
   bool has_virial;
   bool has_stress;
-  float energy;
-  float weight;
-  float virial[9];
-  float stress[9];
-  float box[9];
+  double energy;
+  double weight;
+  double virial[9];
+  double stress[9];
+  double box[9];
   std::vector<std::string> atom_symbol;
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<float> z;
-  std::vector<float> fx;
-  std::vector<float> fy;
-  std::vector<float> fz;
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  std::vector<double> fx;
+  std::vector<double> fy;
+  std::vector<double> fz;
 };
 
 static void read_force(
@@ -208,13 +193,13 @@ static void read_force(
       exit(1);
     }
     structure.atom_symbol[na] = tokens[0 + species_offset];
-    structure.x[na] = get_float_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
-    structure.y[na] = get_float_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
-    structure.z[na] = get_float_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
+    structure.x[na] = get_double_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
+    structure.y[na] = get_double_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
+    structure.z[na] = get_double_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
     if (num_columns > 4) {
-      structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
-      structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
-      structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
+      structure.fx[na] = get_double_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
+      structure.fy[na] = get_double_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
+      structure.fz[na] = get_double_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
     }
   }
 }
@@ -245,7 +230,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_float_from_token(
+      structure.energy = get_double_from_token(
         token.substr(energy_string.length(), token.length()), __FILE__, __LINE__);
     }
   }
@@ -258,7 +243,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
     if (token.substr(0, weight_string.length()) == weight_string) {
-      structure.weight = get_float_from_token(
+      structure.weight = get_double_from_token(
         token.substr(weight_string.length(), token.length()), __FILE__, __LINE__);
       if (structure.weight <= 0.0f || structure.weight > 100.0f) {
         std::cout << "Configuration weight should > 0 and <= 100." << std::endl;
@@ -273,7 +258,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
       has_lattice_in_exyz = true;
       for (int m = 0; m < 9; ++m) {
-        structure.box[m] = get_float_from_token(
+        structure.box[m] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -292,7 +277,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (tokens[n].substr(0, virial_string.length()) == virial_string) {
       structure.has_virial = true;
       for (int m = 0; m < 9; ++m) {
-        structure.virial[m] = get_float_from_token(
+        structure.virial[m] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -307,7 +292,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
       if (tokens[n].substr(0, stress_string.length()) == stress_string) {
         structure.has_stress = true;
         for (int m = 0; m < 9; ++m) {
-          structure.stress[m] = get_float_from_token(
+          structure.stress[m] = get_double_from_token(
             tokens[n + m].substr(
               (m == 0) ? (stress_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -473,7 +458,7 @@ static void write(
   const std::string& outputfile,
   const std::string& energy_file,
   const std::vector<Structure>& structures,
-  const float energy_error_0,
+  const double energy_error_0,
   const bool is_train,
   int& Nc)
 {
@@ -491,9 +476,9 @@ static void write(
 
   Nc = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    float energy_nep, energy_dft;
+    double energy_nep, energy_dft;
     input >> energy_nep >> energy_dft;
-    float energy_error = std::abs(energy_nep - energy_dft);
+    double energy_error = std::abs(energy_nep - energy_dft);
     if (is_train) {
       if (energy_error < energy_error_0) {
         continue;
