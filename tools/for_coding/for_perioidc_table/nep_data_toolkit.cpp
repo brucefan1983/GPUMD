@@ -167,10 +167,12 @@ double get_double_from_token(const std::string& token, const char* filename, con
 
 struct Structure {
   int num_atom;
-  int has_virial;
+  bool has_virial;
+  bool has_stress;
   float energy;
   float weight;
   float virial[9];
+  float stress[9];
   float box[9];
   std::vector<std::string> atom_symbol;
   std::vector<float> x;
@@ -180,13 +182,6 @@ struct Structure {
   std::vector<float> fy;
   std::vector<float> fz;
 };
-
-static float get_volume(const float* box)
-{
-  return std::abs(box[0] * (box[4] * box[8] - box[5] * box[7]) +
-                  box[1] * (box[5] * box[6] - box[3] * box[8]) +
-                  box[2] * (box[3] * box[7] - box[4] * box[6]));
-}
 
 static void read_force(
   const int num_columns,
@@ -300,10 +295,9 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string stress_string = "stress=";
       if (tokens[n].substr(0, stress_string.length()) == stress_string) {
-        structure.has_virial = true;
-        float volume = get_volume(structure.box);
+        structure.has_stress = true;
         for (int m = 0; m < 9; ++m) {
-          structure.virial[m] = -volume / structure.num_atom * get_float_from_token(
+          structure.stress[m] = get_float_from_token(
             tokens[n + m].substr(
               (m == 0) ? (stress_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -417,6 +411,17 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
     output << "virial=\"";
     for (int m = 0; m < 9; ++m) {
       output << structure.virial[m];
+      if (m != 8) {
+        output << " ";
+      }
+    }
+    output << "\" ";
+  }
+
+  if (structure.has_stress) {
+    output << "stress=\"";
+    for (int m = 0; m < 9; ++m) {
+      output << structure.stress[m];
       if (m != 8) {
         output << " ";
       }
