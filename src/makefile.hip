@@ -42,13 +42,8 @@ SOURCES_NEP =                     \
 ###########################################################
 # object files
 ###########################################################
-ifdef OS # For Windows with the cl.exe compiler
-OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
-OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
-else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-endif
 
 
 ###########################################################
@@ -80,28 +75,6 @@ nep: $(OBJ_NEP)
 ###########################################################
 # rules for building object files
 ###########################################################
-ifdef OS # for Windows
-integrate/%.obj: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.obj: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.obj: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.obj: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.obj: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.obj: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS_O1) $(INC) -c $< -o $@
-model/%.obj: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.obj: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.obj: main_nep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 mc/%.o: mc/%.cu $(HEADERS)
@@ -115,23 +88,18 @@ measure/%.o: measure/%.cu $(HEADERS)
 main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_O1) $(INC) -c $< -o $@
 model/%.o: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-endif
 
 
 ###########################################################
 # clean up
 ###########################################################
 clean:
-ifdef OS
-	del /s *.obj *.exp *.lib *.exe
-else
 	rm -f */*.o gpumd nep
-endif
 
