@@ -1,16 +1,8 @@
 /*-----------------------------------------------------------------------------------------------100
 compile:
-    g++ -O3 select_xyz.cpp
+    g++ -O3 nep_data_toolkit.cpp
 run:
-    ./a.out 0 max_atom_0 input_dir output_dir
-    # read in input_dir/train.xyz and put the structures with the number of atoms smaller than
-    # num_atom_0 to output_dir/train.xyz and the others to output_dir/test.xyz
-
-
-    ./a.out 1 energy_error_0 input_dir output_dir
-    # first copy input_dir/train.xyz to output_dir/train.xyz and then read in input_dir/test.xyz and
-    # input_dir/energy_test.out and put the structures with energy error larger than energy_error_0
-    # (in units of eV/atom) to output_dir/train.xyz (append) and the others to output_dir/test.xyz
+    ./a.out
 --------------------------------------------------------------------------------------------------*/
 
 #include <algorithm>
@@ -419,33 +411,19 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
 
 static void write(
   const std::string& outputfile,
-  const std::vector<Structure>& structures,
-  const int num_atoms_0,
-  const bool is_train,
-  int& Nc)
+  const std::vector<Structure>& structures)
 {
   std::ofstream output(outputfile);
   if (!output.is_open()) {
     std::cout << "Failed to open " << outputfile << std::endl;
     exit(1);
   }
-
-  Nc = 0;
+  std::cout << outputfile << " is opened." << std::endl;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    if (is_train) {
-      if (structures[nc].num_atom > num_atoms_0) {
-        continue;
-      }
-      ++Nc;
-    } else {
-      if (structures[nc].num_atom <= num_atoms_0) {
-        continue;
-      }
-      ++Nc;
-    }
     write_one_structure(output, structures[nc]);
   }
   output.close();
+  std::cout << outputfile << " is closed." << std::endl;
 }
 
 static void write(
@@ -493,70 +471,28 @@ static void write(
 
 int main(int argc, char* argv[])
 {
-  if (argc != 5) {
-    std::cout << "Usage:\n";
-    std::cout << argv[0] << " 0 num_atoms_0 input_dir output_dir\n";
-    std::cout << "or\n";
-    std::cout << argv[0] << " 1 energy_error_0 input_dir output_dir\n";
-    exit(1);
+  std::cout << "Please choose a number based on your purpose:" << std::endl;
+  std::cout << "0: copy" << std::endl;
+
+  int option;
+  std::cin >> option;
+
+  if (option == 0) {
+    std::cout << "\nPlease enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "\nPlease enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write(output_filename, structures_input);
   } else {
-    int mode = atoi(argv[1]);
-    if (mode == 0) {
-      std::cout << "mode = 0\n";
-      int num_atoms_0 = atoi(argv[2]);
-      std::cout << "num_atoms_0 = " << num_atoms_0 << std::endl;
-      std::string input_dir = argv[3];
-      std::cout << "input_dir = " << input_dir << std::endl;
-      std::string output_dir = argv[4];
-      std::cout << "output_dir = " << output_dir << std::endl;
-      std::vector<Structure> structures_train;
-      read(input_dir + "/train.xyz", structures_train);
-      std::cout << "Number of structures read from "
-                << input_dir + "/train.xyz = " << structures_train.size() << std::endl;
-      int Nc = 0;
-      write(output_dir + "/train.xyz", structures_train, num_atoms_0, true, Nc);
-      std::cout << "Number of structures written to " << output_dir + "/train.xyz = " << Nc
-                << std::endl;
-      write(output_dir + "/test.xyz", structures_train, num_atoms_0, false, Nc);
-      std::cout << "Number of structures written to " << output_dir + "/test.xyz = " << Nc
-                << std::endl;
-    } else if (mode == 1) {
-      std::cout << "mode = 1\n";
-      float energy_error_0 = atof(argv[2]);
-      std::cout << "energy_error_0 = " << energy_error_0 << std::endl;
-      std::string input_dir = argv[3];
-      std::cout << "input_dir = " << input_dir << std::endl;
-      std::string output_dir = argv[4];
-      std::cout << "output_dir = " << output_dir << std::endl;
-      std::vector<Structure> structures_train;
-      std::vector<Structure> structures_test;
-      read(input_dir + "/train.xyz", structures_train);
-      read(input_dir + "/test.xyz", structures_test);
-      std::cout << "Number of structures read from "
-                << input_dir + "/train.xyz = " << structures_train.size() << std::endl;
-      std::cout << "Number of structures read from "
-                << input_dir + "/test.xyz = " << structures_test.size() << std::endl;
-      int Nc = 0;
-      write(output_dir + "/train.xyz", structures_train, -1, false, Nc);
-      std::cout << "Number of structures written to " << output_dir + "/train.xyz = " << Nc
-                << std::endl;
-      write(
-        output_dir + "/train.xyz", input_dir + "/energy_test.out", structures_test, energy_error_0,
-        true, Nc);
-      std::cout << "Number of structures added to " << output_dir + "/train.xyz = " << Nc
-                << std::endl;
-      write(
-        output_dir + "/test.xyz", input_dir + "/energy_test.out", structures_test, energy_error_0,
-        false, Nc);
-      std::cout << "Number of structures written to " << output_dir + "/test.xyz = " << Nc
-                << std::endl;
-    } else {
-      std::cout << "Usage:\n";
-      std::cout << argv[0] << " 0 num_atoms_0 input_dir output_dir\n";
-      std::cout << "or\n";
-      std::cout << argv[0] << " 1 energy_error_0 input_dir output_dir\n";
-      exit(1);
-    }
+    std::cout << "This is an invalid option.";
+    exit(1);
   }
 
   std::cout << "Done." << std::endl;
