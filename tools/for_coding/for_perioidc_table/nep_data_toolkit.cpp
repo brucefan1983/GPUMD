@@ -181,6 +181,13 @@ struct Structure {
   std::vector<float> fz;
 };
 
+static float get_volume(const float* box)
+{
+  return std::abs(box[0] * (box[4] * box[8] - box[5] * box[7]) +
+                  box[1] * (box[5] * box[6] - box[3] * box[8]) +
+                  box[2] * (box[3] * box[7] - box[4] * box[6]));
+}
+
 static void read_force(
   const int num_columns,
   const int species_offset,
@@ -285,6 +292,23 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
+      }
+    }
+  }
+
+  if (!structure.has_virial) {
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string stress_string = "stress=";
+      if (tokens[n].substr(0, stress_string.length()) == stress_string) {
+        structure.has_virial = true;
+        float volume = get_volume(structure.box);
+        for (int m = 0; m < 9; ++m) {
+          structure.virial[m] = -volume / structure.num_atom * get_float_from_token(
+            tokens[n + m].substr(
+              (m == 0) ? (stress_string.length() + 1) : 0,
+              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+            __FILE__, __LINE__);
+        }
       }
     }
   }
@@ -471,17 +495,21 @@ static void write(
 
 int main(int argc, char* argv[])
 {
-  std::cout << "Please choose a number based on your purpose:" << std::endl;
+  std::cout << "Welcome to use nep_data_toolkit!" << std::endl;
+  std::cout << "Here are the functionalities:" << std::endl;
+  std::cout << "====================================================\n";
   std::cout << "0: copy" << std::endl;
+  std::cout << "====================================================\n";
 
+  std::cout << "Please choose a number based on your purpose: ";
   int option;
   std::cin >> option;
 
   if (option == 0) {
-    std::cout << "\nPlease enter the input xyz filename: ";
+    std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
-    std::cout << "\nPlease enter the output xyz filename: ";
+    std::cout << "Please enter the output xyz filename: ";
     std::string output_filename;
     std::cin >> output_filename;
 
