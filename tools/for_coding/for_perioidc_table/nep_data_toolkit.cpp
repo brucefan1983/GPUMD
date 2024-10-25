@@ -167,6 +167,8 @@ double get_double_from_token(const std::string& token, const char* filename, con
 
 struct Structure {
   int num_atom;
+  std::string sid;
+  bool has_sid;
   bool has_virial;
   bool has_stress;
   float energy;
@@ -228,6 +230,14 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
   if (tokens.size() == 0) {
     std::cout << "The second line for each frame should not be empty." << std::endl;
     exit(1);
+  }
+
+  for (const auto& token : tokens) {
+    const std::string sid_string = "sid=";
+    if (token.substr(0, sid_string.length()) == sid_string) {
+      structure.has_sid = true;
+      structure.sid = token.substr(sid_string.length(), token.length());
+    }
   }
 
   bool has_energy_in_exyz = false;
@@ -427,6 +437,10 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
       }
     }
     output << "\" ";
+  }
+
+  if (structure.has_sid) {
+    output << "sid=" << structure.sid << " ";
   }
 
   output << "Properties=species:S:1:pos:R:3:force:R:3\n";
