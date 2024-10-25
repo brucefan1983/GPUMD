@@ -99,7 +99,7 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
     __syncthreads();
 
-#pragma unroll
+
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
         s_data[tid] += s_data[tid + offset];
@@ -123,7 +123,7 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
     __syncthreads();
 
-#pragma unroll
+
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
         s_data[tid] += s_data[tid + offset];

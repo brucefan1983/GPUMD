@@ -56,7 +56,7 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];

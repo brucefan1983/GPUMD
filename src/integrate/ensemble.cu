@@ -838,7 +838,7 @@ static __global__ void gpu_find_vc_and_ke(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_mc[tid] += s_mc[tid + offset];

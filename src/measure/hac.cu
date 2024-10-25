@@ -57,7 +57,7 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
   }
 
   __syncthreads();
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];
@@ -130,7 +130,7 @@ __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, d
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_hac_xi[tid] += s_hac_xi[tid + offset];

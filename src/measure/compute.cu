@@ -187,7 +187,7 @@ static __global__ void find_group_sum_1(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];
@@ -233,7 +233,7 @@ static __global__ void find_group_sum_3(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_fx[tid] += s_fx[tid + offset];

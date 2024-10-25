@@ -90,7 +90,7 @@ static __device__ void gpu_bin_reduce(
   }
 
   __syncthreads();
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data_xin[tid] += s_data_xin[tid + offset];

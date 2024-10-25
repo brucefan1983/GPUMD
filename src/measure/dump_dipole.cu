@@ -52,7 +52,7 @@ static __global__ void sum_dipole(
   __syncthreads();
 
   // aggregate the patches in parallel
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_d[tid] += s_d[tid + offset];
