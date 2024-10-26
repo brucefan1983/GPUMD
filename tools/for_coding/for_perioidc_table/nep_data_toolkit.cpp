@@ -454,47 +454,70 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void write(
-  const std::string& outputfile,
-  const std::string& energy_file,
-  const std::vector<Structure>& structures,
-  const double energy_error_0,
-  const bool is_train,
-  int& Nc)
+const std::string ELEMENTS[89] = {
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
+  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
+  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
+  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
+
+std::vector<std::string> get_elements_in_one_structure(const Structure& structure) 
 {
-  std::ifstream input(energy_file);
-  std::ofstream output(outputfile, std::ios_base::app);
-
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << energy_file << std::endl;
-    exit(1);
-  }
-  if (!output.is_open()) {
-    std::cout << "Failed to open " << outputfile << std::endl;
-    exit(1);
-  }
-
-  Nc = 0;
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    double energy_nep, energy_dft;
-    input >> energy_nep >> energy_dft;
-    double energy_error = std::abs(energy_nep - energy_dft);
-    if (is_train) {
-      if (energy_error < energy_error_0) {
-        continue;
+  std::vector<std::string> elements;
+  for (int n = 0; n < structure.num_atom; ++n) {
+    bool has_same_element = false;
+    for (int i = 0; i < elements.size(); ++i) {
+      if (structure.atom_symbol[n] == elements[i]) {
+        has_same_element = true;
+        break;
       }
-      ++Nc;
-    } else {
-      if (energy_error >= energy_error_0) {
-        continue;
-      }
-      ++Nc;
     }
-    write_one_structure(output, structures[nc]);
+    if (!has_same_element) {
+      elements.emplace_back(structure.atom_symbol[n]);
+    }
   }
+  return elements;
+}
 
-  input.close();
-  output.close();
+int get_element_index(const std::string& element) 
+{
+  int index = 0;
+  for (int n = 0; n < 89; ++n) {
+    if (ELEMENTS[n] == element) {
+      index = n;
+      break;
+    }
+  }
+  return index;
+}
+
+static void write_with_elements(const std::vector<Structure>& structures)
+{
+  int num1 = 0;
+  int num2 = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+    std::ofstream output;
+    if (elements.size() == 1) {
+      output.open("one_component/" + elements[0] + ".xyz", std::ios::app);
+      write_one_structure(output, structures[nc]);
+      num1++;
+    } else if (elements.size() == 2) {
+      int index_0 = get_element_index(elements[0]);
+      int index_1 = get_element_index(elements[1]);
+      if (index_0 < index_1) {
+        output.open("two_component/" + elements[0] + elements[1] + ".xyz", std::ios::app);
+      } else {
+        output.open("two_component/" + elements[1] + elements[0] + ".xyz", std::ios::app);
+      }
+      write_one_structure(output, structures[nc]);
+      num2++;
+    }
+    output.close();
+  }
+  std::cout << "Number of one-component structures = " << num1 << std::endl;
+  std::cout << "Number of two-component structures = " << num2 << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -502,7 +525,8 @@ int main(int argc, char* argv[])
   std::cout << "Welcome to use nep_data_toolkit!" << std::endl;
   std::cout << "Here are the functionalities:" << std::endl;
   std::cout << "====================================================\n";
-  std::cout << "0: copy" << std::endl;
+  std::cout << "0: copy\n";
+  std::cout << "1: classify in terms of chemical composition\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -522,6 +546,15 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     write(output_filename, structures_input);
+  } else if (option == 1) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write_with_elements(structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
