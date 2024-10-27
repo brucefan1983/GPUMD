@@ -1,16 +1,8 @@
 /*-----------------------------------------------------------------------------------------------100
 compile:
-    g++ -O3 select_xyz.cpp
+    g++ -O3 nep_data_toolkit.cpp
 run:
-    ./a.out 0 max_atom_0 input_dir output_dir
-    # read in input_dir/train.xyz and put the structures with the number of atoms smaller than
-    # num_atom_0 to output_dir/train.xyz and the others to output_dir/test.xyz
-
-
-    ./a.out 1 energy_error_0 input_dir output_dir
-    # first copy input_dir/train.xyz to output_dir/train.xyz and then read in input_dir/test.xyz and
-    # input_dir/energy_test.out and put the structures with energy error larger than energy_error_0
-    # (in units of eV/atom) to output_dir/train.xyz (append) and the others to output_dir/test.xyz
+    ./a.out
 --------------------------------------------------------------------------------------------------*/
 
 #include <algorithm>
@@ -143,21 +135,6 @@ int get_int_from_token(const std::string& token, const char* filename, const int
   return value;
 }
 
-float get_float_from_token(const std::string& token, const char* filename, const int line)
-{
-  float value = 0;
-  try {
-    value = std::stof(token);
-  } catch (const std::exception& e) {
-    std::cout << "Standard exception:\n";
-    std::cout << "    File:          " << filename << std::endl;
-    std::cout << "    Line:          " << line << std::endl;
-    std::cout << "    Error message: " << e.what() << std::endl;
-    exit(1);
-  }
-  return value;
-}
-
 double get_double_from_token(const std::string& token, const char* filename, const int line)
 {
   double value = 0;
@@ -175,18 +152,22 @@ double get_double_from_token(const std::string& token, const char* filename, con
 
 struct Structure {
   int num_atom;
-  int has_virial;
-  float energy;
-  float weight;
-  float virial[9];
-  float box[9];
+  std::string sid;
+  bool has_sid;
+  bool has_virial;
+  bool has_stress;
+  double energy;
+  double weight;
+  double virial[9];
+  double stress[9];
+  double box[9];
   std::vector<std::string> atom_symbol;
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<float> z;
-  std::vector<float> fx;
-  std::vector<float> fy;
-  std::vector<float> fz;
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  std::vector<double> fx;
+  std::vector<double> fy;
+  std::vector<double> fz;
 };
 
 static void read_force(
@@ -212,13 +193,13 @@ static void read_force(
       exit(1);
     }
     structure.atom_symbol[na] = tokens[0 + species_offset];
-    structure.x[na] = get_float_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
-    structure.y[na] = get_float_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
-    structure.z[na] = get_float_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
+    structure.x[na] = get_double_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
+    structure.y[na] = get_double_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
+    structure.z[na] = get_double_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
     if (num_columns > 4) {
-      structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
-      structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
-      structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
+      structure.fx[na] = get_double_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
+      structure.fy[na] = get_double_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
+      structure.fz[na] = get_double_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
     }
   }
 }
@@ -236,12 +217,20 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     exit(1);
   }
 
+  for (const auto& token : tokens) {
+    const std::string sid_string = "sid=";
+    if (token.substr(0, sid_string.length()) == sid_string) {
+      structure.has_sid = true;
+      structure.sid = token.substr(sid_string.length(), token.length());
+    }
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_float_from_token(
+      structure.energy = get_double_from_token(
         token.substr(energy_string.length(), token.length()), __FILE__, __LINE__);
     }
   }
@@ -254,7 +243,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
     if (token.substr(0, weight_string.length()) == weight_string) {
-      structure.weight = get_float_from_token(
+      structure.weight = get_double_from_token(
         token.substr(weight_string.length(), token.length()), __FILE__, __LINE__);
       if (structure.weight <= 0.0f || structure.weight > 100.0f) {
         std::cout << "Configuration weight should > 0 and <= 100." << std::endl;
@@ -269,7 +258,7 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
       has_lattice_in_exyz = true;
       for (int m = 0; m < 9; ++m) {
-        structure.box[m] = get_float_from_token(
+        structure.box[m] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -288,11 +277,27 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (tokens[n].substr(0, virial_string.length()) == virial_string) {
       structure.has_virial = true;
       for (int m = 0; m < 9; ++m) {
-        structure.virial[m] = get_float_from_token(
+        structure.virial[m] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
+      }
+    }
+  }
+
+  if (!structure.has_virial) {
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string stress_string = "stress=";
+      if (tokens[n].substr(0, stress_string.length()) == stress_string) {
+        structure.has_stress = true;
+        for (int m = 0; m < 9; ++m) {
+          structure.stress[m] = get_double_from_token(
+            tokens[n + m].substr(
+              (m == 0) ? (stress_string.length() + 1) : 0,
+              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+            __FILE__, __LINE__);
+        }
       }
     }
   }
@@ -408,6 +413,21 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
     output << "\" ";
   }
 
+  if (structure.has_stress) {
+    output << "stress=\"";
+    for (int m = 0; m < 9; ++m) {
+      output << structure.stress[m];
+      if (m != 8) {
+        output << " ";
+      }
+    }
+    output << "\" ";
+  }
+
+  if (structure.has_sid) {
+    output << "sid=" << structure.sid << " ";
+  }
+
   output << "Properties=species:S:1:pos:R:3:force:R:3\n";
 
   for (int n = 0; n < structure.num_atom; ++n) {
@@ -415,6 +435,23 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
            << structure.z[n] << " " << structure.fx[n] << " " << structure.fy[n] << " "
            << structure.fz[n] << "\n";
   }
+}
+
+static void write(
+  const std::string& outputfile,
+  const std::vector<Structure>& structures)
+{
+  std::ofstream output(outputfile);
+  if (!output.is_open()) {
+    std::cout << "Failed to open " << outputfile << std::endl;
+    exit(1);
+  }
+  std::cout << outputfile << " is opened." << std::endl;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    write_one_structure(output, structures[nc]);
+  }
+  output.close();
+  std::cout << outputfile << " is closed." << std::endl;
 }
 
 const std::string ELEMENTS[89] = {
@@ -425,10 +462,7 @@ const std::string ELEMENTS[89] = {
   "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-const int INDEX_START[16] = {0,5,10,15,20,25,30,35,41,47,53,59,65,71,77,83};
-const int INDEX_END[16] = {5,10,15,20,25,30,35,41,47,53,59,65,71,77,83,89};
-
-std::vector<std::string> get_elements(const Structure& structure) 
+std::vector<std::string> get_elements_in_one_structure(const Structure& structure) 
 {
   std::vector<std::string> elements;
   for (int n = 0; n < structure.num_atom; ++n) {
@@ -446,157 +480,242 @@ std::vector<std::string> get_elements(const Structure& structure)
   return elements;
 }
 
-bool elements_is_in_group(const std::vector<std::string>& elements, const int index_start, const int index_end) 
+int get_element_index(const std::string& element) 
 {
-  bool answer = true;
-  for (int i = 0; i < elements.size(); ++i) {
-    bool has_same_element = false;
-    for (int j = index_start; j < index_end; ++j) {
-      if (elements[i] == ELEMENTS[j]) {
-        has_same_element = true;
-        break;
-      }
-    }
-    if (!has_same_element) {
-      answer = false;
+  int index = 0;
+  for (int n = 0; n < 89; ++n) {
+    if (ELEMENTS[n] == element) {
+      index = n;
       break;
     }
   }
-  return answer;
+  return index;
 }
+
+bool is_considered_element(const std::string& element) 
+{
+  bool res = true;
+  if (element == "He" ||
+      element == "Ne" || 
+      element == "Ar" || 
+      element == "Kr" || 
+      element == "Xe" || 
+      element == "La" || 
+      element == "Ce" || 
+      element == "Pr" || 
+      element == "Nd" || 
+      element == "Pm" || 
+      element == "Sm" || 
+      element == "Eu" || 
+      element == "Gd" || 
+      element == "Tb" || 
+      element == "Dy" || 
+      element == "Ho" || 
+      element == "Er" || 
+      element == "Tm" || 
+      element == "Yb" || 
+      element == "Lu" ||
+      element == "Ac" || 
+      element == "Th" || 
+      element == "Pa" || 
+      element == "U"  || 
+      element == "Np" || 
+      element == "Pu") {
+    res = false;
+  }
+  return res;
+}
+
+bool has_element(const std::vector<std::string>& elements, const std::string& e) 
+{
+  bool res = false;
+  for (int n = 0; n < elements.size(); ++n) {
+    if (elements[n] == e) {
+      res = true;
+      break;
+    }
+  }
+  return res;
+} 
+
+bool has_missing_pairs(const std::vector<std::string>& elements) 
+{
+  bool res = false;
+  bool c1 = has_element(elements, "Na") && has_element(elements, "Ru");
+  bool c2 = has_element(elements, "Cr") && has_element(elements, "Os");
+  bool c3 = has_element(elements, "Mn") && has_element(elements, "Ru");
+  bool c4 = has_element(elements, "Ta") && has_element(elements, "Re");
+  bool c5 = has_element(elements, "Tc") && has_element(elements, "Re");
+  bool c6 = has_element(elements, "P") && has_element(elements, "Ba");
+  bool c7 = has_element(elements, "P") && has_element(elements, "Zr");
+  bool c8 = has_element(elements, "P") && has_element(elements, "Cd");
+  bool c9 = has_element(elements, "I") && has_element(elements, "Te");
+  bool c10 = has_element(elements, "I") && has_element(elements, "Mo");
+
+  if (c1 || c2 || c3 || c4 || c5 || c6 || c7 || c8 || c9 || c10) {
+    res = true;
+  }
+     
+  return res;
+}
+
+static void write_with_elements(const std::vector<Structure>& structures)
+{
+  int num1 = 0;
+  int num2 = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+    std::ofstream output;
+    if (elements.size() == 1 && is_considered_element(elements[0])) {
+      output.open("one_component/" + elements[0] + ".xyz", std::ios::app);
+      write_one_structure(output, structures[nc]);
+      num1++;
+    } else if (elements.size() == 2 && is_considered_element(elements[0]) && is_considered_element(elements[1])) {
+      int index_0 = get_element_index(elements[0]);
+      int index_1 = get_element_index(elements[1]);
+      if (index_0 < index_1) {
+        output.open("two_component/" + elements[0] + elements[1] + ".xyz", std::ios::app);
+      } else {
+        output.open("two_component/" + elements[1] + elements[0] + ".xyz", std::ios::app);
+      }
+      write_one_structure(output, structures[nc]);
+      num2++;
+    }
+    output.close();
+  }
+  std::cout << "Number of one-component structures = " << num1 << std::endl;
+  std::cout << "Number of two-component structures = " << num2 << std::endl;
+}
+
+static void write_with_missing_pairs(const std::vector<Structure>& structures)
+{
+  int num1 = 0;
+  std::ofstream output("missing.xyz", std::ios::app);
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+
+    if (elements.size() == 3 && has_missing_pairs(elements)) {
+      write_one_structure(output, structures[nc]);
+      num1++;
+    }
+
+  }
+  output.close();
+  std::cout << "Number of missing structures = " << num1 << std::endl;
+}
+
+static void write_3component(
+  const std::string& input_filename,
+  const std::string& e1,
+  const std::string& e2,
+  const std::string& e3)
+{
+  std::vector<Structure> structures;
+  read(input_filename, structures);
+  std::cout << "Number of structures read from " << input_filename + " = " << structures.size() << std::endl;
+
+  int num = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+    std::ofstream output(e1 + e2 + e3 + ".xyz", std::ios::app);
+    if (elements.size() == 3 && has_element(elements, e1) && has_element(elements, e2) && has_element(elements, e3)) {
+      write_one_structure(output, structures[nc]);
+      num++;
+    }
+    output.close();
+  }
+  std::cout << "Number of 3-component structures written into " + e1 + e2 + e3 + ".xyz = " << num << std::endl;
+}
+
+const std::string FOLDERS[31] = {
+  "npt1000/1.xyz",
+  "npt1000/2.xyz",
+  "npt1000/3.xyz",
+  "npt1000/4.xyz",
+  "npt1000/5.xyz",
+  "npt3000/1.xyz",
+  "npt3000/2.xyz",
+  "npt3000/3.xyz",
+  "npt3000/4.xyz",
+  "npt3000/5.xyz",
+  "nvt1000/1.xyz",
+  "nvt1000/2.xyz",
+  "nvt1000/3.xyz",
+  "nvt1000/4.xyz",
+  "nvt3000/1.xyz",
+  "nvt3000/2.xyz",
+  "nvt3000/3.xyz",
+  "nvt3000/4.xyz",
+  "nvt3000/5.xyz",
+  "rat300/1.xyz",
+  "rat300/2.xyz",
+  "rat500/1.xyz",
+  "rat500/2.xyz",
+  "rat1000/1.xyz",
+  "rat1000/2.xyz",
+  "rat1000/3.xyz",
+  "relax/1.xyz",
+  "relax/2.xyz",
+  "sub300/1.xyz",
+  "sub500/1.xyz",
+  "sub1000/1.xyz"
+};
 
 int main(int argc, char* argv[])
 {
+  std::cout << "Welcome to use nep_data_toolkit!" << std::endl;
+  std::cout << "Here are the functionalities:" << std::endl;
+  std::cout << "====================================================\n";
+  std::cout << "0: copy\n";
+  std::cout << "1: classify in terms of chemical composition\n";
+  std::cout << "2: get 3-component structures for missing 2-component ones\n";
+  std::cout << "3: get 3-component structures with given elements\n";
+  std::cout << "====================================================\n";
 
-  clock_t time_begin = clock();
+  std::cout << "Please choose a number based on your purpose: ";
+  int option;
+  std::cin >> option;
 
+  if (option == 0) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
 
-  std::vector<Structure> structures;
-  read("train.xyz", structures);
-  std::cout << "Number of structures read in = " << structures.size() << std::endl;
-
-  std::vector<std::ofstream> outputs16(16);
-  for (int g = 0; g < 16; ++g) {
-    outputs16[g].open("output16/" + std::to_string(g) + ".xyz", std::ios::out);
-  }
-  std::vector<std::ofstream> outputs8(8);
-  for (int g = 0; g < 8; ++g) {
-    outputs8[g].open("output8/" + std::to_string(g) + ".xyz", std::ios::out);
-  }
-  std::vector<std::ofstream> outputs4(4);
-  for (int g = 0; g < 4; ++g) {
-    outputs4[g].open("output4/" + std::to_string(g) + ".xyz", std::ios::out);
-  }
-  std::vector<std::ofstream> outputs2(2);
-  for (int g = 0; g < 2; ++g) {
-    outputs2[g].open("output2/" + std::to_string(g) + ".xyz", std::ios::out);
-  }
-  std::vector<std::ofstream> outputs1(1);
-  for (int g = 0; g < 1; ++g) {
-    outputs1[g].open("output1/" + std::to_string(g) + ".xyz", std::ios::out);
-  }
-
-  int count16=0;
-  int count8=0;
-  int count4=0;
-  int count2=0;
-  int count1=0;
-  for (int nc = 0; nc < structures.size(); ++ nc) {
-    bool is_written = false;
-
-    // 16
-    for (int g = 0; g < 16; ++g) {
-      if (elements_is_in_group(get_elements(structures[nc]), INDEX_START[g], INDEX_END[g])) {
-        write_one_structure(outputs16[g], structures[nc]);
-        is_written = true;
-        count16++;
-        //std::cout << "g16_selcted=" << g  << std::endl;
-        break;
-      }
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write(output_filename, structures_input);
+  } else if (option == 1) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write_with_elements(structures_input);
+  } else if (option == 2) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write_with_missing_pairs(structures_input);
+  } else if (option == 3) {
+    for (int n = 0; n < 31; ++n) {
+      write_3component(FOLDERS[n], "C", "Si", "Ge");
     }
-
-    if (is_written) continue;
-
-    // 8
-    for (int g = 0; g < 8; ++g) {
-      if (elements_is_in_group(get_elements(structures[nc]), INDEX_START[g*2], INDEX_END[g*2+1])) {
-        write_one_structure(outputs8[g], structures[nc]);
-        is_written = true;
-        count8++;
-        //std::cout << "g8_selcted=" << g  << std::endl;
-        break;
-      }
-    }
-    
-    if (is_written) continue;
-
-    // 4
-    for (int g = 0; g < 4; ++g) {
-      if (elements_is_in_group(get_elements(structures[nc]), INDEX_START[g*4], INDEX_END[g*4+3])) {
-        write_one_structure(outputs4[g], structures[nc]);
-        is_written = true;
-        count4++;
-        //std::cout << "g4_selcted=" << g  << std::endl;
-        break;
-      }
-    }
-    
-    if (is_written) continue;
-
-    // 2
-    for (int g = 0; g < 2; ++g) {
-      if (elements_is_in_group(get_elements(structures[nc]), INDEX_START[g*8], INDEX_END[g*8+7])) {
-        write_one_structure(outputs2[g], structures[nc]);
-        is_written = true;
-        count2++;
-        //std::cout << "g2_selcted=" << g  << std::endl;
-        break;
-      }
-    }
-    
-    if (is_written) continue;
-
-    // 1
-    for (int g = 0; g < 1; ++g) {
-      if (elements_is_in_group(get_elements(structures[nc]), INDEX_START[g*16], INDEX_END[g*16+15])) {
-        write_one_structure(outputs1[g], structures[nc]);
-        is_written = true;
-        count1++;
-        //std::cout << "g1_selcted=" << g  << std::endl;
-        break;
-      }
-    }
-    
-    if (is_written) continue;
-
+  } else {
+    std::cout << "This is an invalid option.";
+    exit(1);
   }
 
-  for (int g = 0; g < 16; ++g) {
-    outputs16[g].close();
-  }
-  for (int g = 0; g < 8; ++g) {
-    outputs8[g].close();
-  }
-  for (int g = 0; g < 4; ++g) {
-    outputs4[g].close();
-  }
-  for (int g = 0; g < 2; ++g) {
-    outputs2[g].close();
-  }
-  for (int g = 0; g < 1; ++g) {
-    outputs1[g].close();
-  }
-
-  std::cout << "count16=" << count16 << std::endl;
-  std::cout << "count8=" << count8 << std::endl;
-  std::cout << "count4=" << count4 << std::endl;
-  std::cout << "count2=" << count2 << std::endl;
-  std::cout << "count1=" << count1 << std::endl;
   std::cout << "Done." << std::endl;
-
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-  std::cout << "time used = " << time_used << " seconds." << std::endl;
-
   return EXIT_SUCCESS;
 }
