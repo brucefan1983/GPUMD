@@ -492,6 +492,40 @@ int get_element_index(const std::string& element)
   return index;
 }
 
+bool is_considered_element(const std::string& element) 
+{
+  bool res = true;
+  if (element == "He" ||
+      element == "Ne" || 
+      element == "Ar" || 
+      element == "Kr" || 
+      element == "Xe" || 
+      element == "La" || 
+      element == "Ce" || 
+      element == "Pr" || 
+      element == "Nd" || 
+      element == "Pm" || 
+      element == "Sm" || 
+      element == "Eu" || 
+      element == "Gd" || 
+      element == "Tb" || 
+      element == "Dy" || 
+      element == "Ho" || 
+      element == "Er" || 
+      element == "Tm" || 
+      element == "Yb" || 
+      element == "Lu" ||
+      element == "Ac" || 
+      element == "Th" || 
+      element == "Pa" || 
+      element == "U"  || 
+      element == "Np" || 
+      element == "Pu") {
+    res = false;
+  }
+  return res;
+}
+
 static void write_with_elements(const std::vector<Structure>& structures)
 {
   int num1 = 0;
@@ -499,11 +533,11 @@ static void write_with_elements(const std::vector<Structure>& structures)
   for (int nc = 0; nc < structures.size(); ++nc) {
     std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
     std::ofstream output;
-    if (elements.size() == 1) {
+    if (elements.size() == 1 && is_considered_element(elements[0])) {
       output.open("one_component/" + elements[0] + ".xyz", std::ios::app);
       write_one_structure(output, structures[nc]);
       num1++;
-    } else if (elements.size() == 2) {
+    } else if (elements.size() == 2 && is_considered_element(elements[0]) && is_considered_element(elements[1])) {
       int index_0 = get_element_index(elements[0]);
       int index_1 = get_element_index(elements[1]);
       if (index_0 < index_1) {
