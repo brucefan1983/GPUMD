@@ -14,8 +14,7 @@
 # some flags
 ###########################################################
 CC = hipcc
-CFLAGS = -std=c++14 -O3 --offload-arch=gfx90a -DUSE_HIP
-CFLAGS_O1 = -std=c++14 -O1 --offload-arch=gfx90a -DUSE_HIP
+CFLAGS = -std=c++14 -O1 --offload-arch=gfx90a -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver
@@ -94,7 +93,7 @@ measure/%.o: measure/%.cu $(HEADERS)
 main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS_O1) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 model/%.o: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 phonon/%.o: phonon/%.cu $(HEADERS)
