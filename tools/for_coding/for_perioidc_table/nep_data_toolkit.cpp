@@ -526,6 +526,39 @@ bool is_considered_element(const std::string& element)
   return res;
 }
 
+bool has_element(const std::vector<std::string>& elements, const std::string& e) 
+{
+  bool res = false;
+  for (int n = 0; n < elements.size(); ++n) {
+    if (elements[n] == e) {
+      res = true;
+      break;
+    }
+  }
+  return res;
+} 
+
+bool has_missing_pairs(const std::vector<std::string>& elements) 
+{
+  bool res = false;
+  bool c1 = has_element(elements, "Na") && has_element(elements, "Ru");
+  bool c2 = has_element(elements, "Cr") && has_element(elements, "Os");
+  bool c3 = has_element(elements, "Mn") && has_element(elements, "Ru");
+  bool c4 = has_element(elements, "Ta") && has_element(elements, "Re");
+  bool c5 = has_element(elements, "Tc") && has_element(elements, "Re");
+  bool c6 = has_element(elements, "P") && has_element(elements, "Ba");
+  bool c7 = has_element(elements, "P") && has_element(elements, "Zr");
+  bool c8 = has_element(elements, "P") && has_element(elements, "Cd");
+  bool c9 = has_element(elements, "I") && has_element(elements, "Te");
+  bool c10 = has_element(elements, "I") && has_element(elements, "Mo");
+
+  if (c1 || c2 || c3 || c4 || c5 || c6 || c7 || c8 || c9 || c10) {
+    res = true;
+  }
+     
+  return res;
+}
+
 static void write_with_elements(const std::vector<Structure>& structures)
 {
   int num1 = 0;
@@ -554,6 +587,80 @@ static void write_with_elements(const std::vector<Structure>& structures)
   std::cout << "Number of two-component structures = " << num2 << std::endl;
 }
 
+static void write_with_missing_pairs(const std::vector<Structure>& structures)
+{
+  int num1 = 0;
+  std::ofstream output("missing.xyz", std::ios::app);
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+
+    if (elements.size() == 3 && has_missing_pairs(elements)) {
+      write_one_structure(output, structures[nc]);
+      num1++;
+    }
+
+  }
+  output.close();
+  std::cout << "Number of missing structures = " << num1 << std::endl;
+}
+
+static void write_3component(
+  const std::string& input_filename,
+  const std::string& e1,
+  const std::string& e2,
+  const std::string& e3)
+{
+  std::vector<Structure> structures;
+  read(input_filename, structures);
+  std::cout << "Number of structures read from " << input_filename + " = " << structures.size() << std::endl;
+
+  int num = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
+    std::ofstream output(e1 + e2 + e3 + ".xyz", std::ios::app);
+    if (elements.size() == 3 && has_element(elements, e1) && has_element(elements, e2) && has_element(elements, e3)) {
+      write_one_structure(output, structures[nc]);
+      num++;
+    }
+    output.close();
+  }
+  std::cout << "Number of 3-component structures written into " + e1 + e2 + e3 + ".xyz = " << num << std::endl;
+}
+
+const std::string FOLDERS[31] = {
+  "npt1000/1.xyz",
+  "npt1000/2.xyz",
+  "npt1000/3.xyz",
+  "npt1000/4.xyz",
+  "npt1000/5.xyz",
+  "npt3000/1.xyz",
+  "npt3000/2.xyz",
+  "npt3000/3.xyz",
+  "npt3000/4.xyz",
+  "npt3000/5.xyz",
+  "nvt1000/1.xyz",
+  "nvt1000/2.xyz",
+  "nvt1000/3.xyz",
+  "nvt1000/4.xyz",
+  "nvt3000/1.xyz",
+  "nvt3000/2.xyz",
+  "nvt3000/3.xyz",
+  "nvt3000/4.xyz",
+  "nvt3000/5.xyz",
+  "rat300/1.xyz",
+  "rat300/2.xyz",
+  "rat500/1.xyz",
+  "rat500/2.xyz",
+  "rat1000/1.xyz",
+  "rat1000/2.xyz",
+  "rat1000/3.xyz",
+  "relax/1.xyz",
+  "relax/2.xyz",
+  "sub300/1.xyz",
+  "sub500/1.xyz",
+  "sub1000/1.xyz"
+};
+
 int main(int argc, char* argv[])
 {
   std::cout << "Welcome to use nep_data_toolkit!" << std::endl;
@@ -561,6 +668,8 @@ int main(int argc, char* argv[])
   std::cout << "====================================================\n";
   std::cout << "0: copy\n";
   std::cout << "1: classify in terms of chemical composition\n";
+  std::cout << "2: get 3-component structures for missing 2-component ones\n";
+  std::cout << "3: get 3-component structures with given elements\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -589,6 +698,19 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     write_with_elements(structures_input);
+  } else if (option == 2) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    write_with_missing_pairs(structures_input);
+  } else if (option == 3) {
+    for (int n = 0; n < 31; ++n) {
+      write_3component(FOLDERS[n], "C", "Si", "Ge");
+    }
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
