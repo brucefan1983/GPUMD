@@ -250,7 +250,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     int num_lines_to_be_skipped = 5;
     if (
       tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" || tokens[0] == "nep3_zbl_temperature" ||
-      tokens[0] == "nep4_zbl_temperature") {
+      tokens[0] == "nep4_zbl_temperature" || tokens[0] == "nep5_zbl") {
       num_lines_to_be_skipped = 6;
     }
 
