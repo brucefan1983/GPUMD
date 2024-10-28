@@ -493,7 +493,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Run::parse_velocity(const char** param, int num_param)
 {
-  int seed;
+  int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
     PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
