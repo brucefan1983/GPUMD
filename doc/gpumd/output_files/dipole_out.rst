@@ -1,4 +1,4 @@
-.. _dipole_out:
+.. _gpumd_dipole_out:
 .. index::
    single: dipole.out (output file)
 

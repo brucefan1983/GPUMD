@@ -1,4 +1,4 @@
-.. _polarizability_out:
+.. _gpumd_polarizability_out:
 .. index::
    single: polarizability.out (output file)
 
