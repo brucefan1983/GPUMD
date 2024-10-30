@@ -127,8 +127,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
     {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
-  gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float));
-  GPU_CHECK_KERNEL
+  CHECK(gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float)));
 
   // set ilp_flag to 1
   ilp_flag = 1;
