@@ -7,7 +7,7 @@ Output files
 The ``nep`` executable produces several output files.
 The :ref:`loss.out file <loss_out>` is written in "append mode", while all other files are continuously overwritten.
 
-The contents of the :ref:`energy_train.out <energy_out>`, :ref:`force_train.out <force_out_nep>`, :ref:`virial_train.out <virial_out>`, :ref:`stress_train.out <stress_out>`, :ref:`dipole_train.out <dipole_out>`, and :ref:`polarizability_train.out <polarizability_out>` files are updated every 1000 steps, while the contents of the other output files are updated every 100 steps.
+The contents of the :ref:`energy_train.out <energy_out>`, :ref:`force_train.out <force_out_nep>`, :ref:`virial_train.out <virial_out>`, :ref:`stress_train.out <stress_out>`, :ref:`dipole_train.out <nep_dipole_out>`, and :ref:`polarizability_train.out <nep_polarizability_out>` files are updated every 1000 steps, while the contents of the other output files are updated every 100 steps.
 
 With the exception of the :ref:`nep.txt file <nep_txt>`, the output files contain only numbers (no text) in matrix form.
 All the files are plain text files.
@@ -41,13 +41,13 @@ All the files are plain text files.
      - target and predicted stress values for training data set
    * - :ref:`stress_test.out <stress_out>`
      - target and predicted stress values for test data set
-   * - :ref:`dipole_train.out <dipole_out>`
+   * - :ref:`dipole_train.out <nep_dipole_out>`
      - target and predicted dipole values for training data set
-   * - :ref:`dipole_test.out <dipole_out>`
+   * - :ref:`dipole_test.out <nep_dipole_out>`
      - target and predicted dipole values for test data set
-   * - :ref:`polarizability_train.out <polarizability_out>`
+   * - :ref:`polarizability_train.out <nep_polarizability_out>`
      - target and predicted polarizability values for training data set
-   * - :ref:`polarizability_test.out <polarizability_out>`
+   * - :ref:`polarizability_test.out <nep_polarizability_out>`
      - target and predicted polarizability values for test data set
 
 .. toctree::

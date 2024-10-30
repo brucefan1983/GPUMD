@@ -50,9 +50,7 @@ todo_include_todos = True
 html_logo = "_static/logo.png"
 html_favicon = "_static/logo.ico"
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_static_path = ['_static']
-html_theme_options = {'display_version': True}
 html_context = {
     'current_version': version,
     'versions':
