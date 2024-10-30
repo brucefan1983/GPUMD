@@ -497,19 +497,22 @@ void Run::parse_velocity(const char** param, int num_param)
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
     PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
+  } else if (num_param == 4) {
+    // See https://github.com/brucefan1983/GPUMD/pull/768
+    // for the reason for putting this branch here.
+    use_seed = true;
+    if (!is_valid_int(param[3], &seed)) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
   }
+
   if (!is_valid_real(param[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
-  if (num_param == 4) {
-    use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
-      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
-    }
-  }
+
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,

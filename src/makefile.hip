@@ -14,7 +14,7 @@
 # some flags
 ###########################################################
 CC = hipcc
-CFLAGS = -std=c++14 -O1 --offload-arch=gfx90a -DUSE_HIP
+CFLAGS = -std=c++14 -O3 --offload-arch=gfx90a -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver
