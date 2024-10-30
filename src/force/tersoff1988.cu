@@ -23,6 +23,7 @@ The version of the Tersoff potential as described in
 #include "tersoff1988.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <vector>
 
 #define LDG(a, n) __ldg(a + n)
@@ -538,7 +539,7 @@ void Tersoff1988::compute(
     position_per_atom.data() + number_of_atoms * 2,
     tersoff_data.b.data(),
     tersoff_data.bp.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -560,7 +561,7 @@ void Tersoff1988::compute(
     tersoff_data.f12x.data(),
     tersoff_data.f12y.data(),
     tersoff_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(

@@ -26,6 +26,7 @@ Calculate:
 #include "rdf.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -315,7 +316,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
   } else {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -342,7 +343,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -499,12 +500,12 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
 
   if (is_pimd) {
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       rdf_.data(),
       rdf_g_.data(),
       sizeof(double) * number_of_beads * num_atoms_ * rdf_bins_,
-      cudaMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+      gpuMemcpyDeviceToHost));
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
     for (int k = 0; k < number_of_beads; k++) {
@@ -559,9 +560,9 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
 
   } else {
 
-    CHECK(cudaMemcpy(
-      rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, cudaMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+    CHECK(gpuMemcpy(
+      rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
     for (int a = 0; a < rdf_atom_count; a++) {

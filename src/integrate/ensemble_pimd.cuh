@@ -15,7 +15,12 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <curand_kernel.h>
+#include "utilities/gpu_macro.cuh"
+#ifdef USE_HIP
+  #include <hiprand_kernel.h>
+#else
+  #include <curand_kernel.h>
+#endif
 #include <random>
 #include <vector>
 
@@ -59,7 +64,7 @@ protected:
   bool thermostat_internal = false;
   bool thermostat_centroid = false;
   double omega_n;
-  GPU_Vector<curandState> curand_states;
+  GPU_Vector<gpurandState> curand_states;
   GPU_Vector<double*> position_beads;
   GPU_Vector<double*> velocity_beads;
   GPU_Vector<double*> potential_beads;

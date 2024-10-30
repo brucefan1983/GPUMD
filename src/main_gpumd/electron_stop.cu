@@ -21,6 +21,7 @@ Apply electron stopping.
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <iostream>
 #include <vector>
 
@@ -171,21 +172,21 @@ void Electron_Stop::compute(double time_step, Atom& atom)
     stopping_force.data(),
     stopping_loss.data());
 
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_force_average<<<3, 1024>>>(atom.number_of_atoms, stopping_force.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   double power_loss_host;
-  CHECK(cudaMemcpyFromSymbol(
-    &power_loss_host, device_power_loss, sizeof(double), 0, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpyFromSymbol(
+    &power_loss_host, device_power_loss, sizeof(double), 0, gpuMemcpyDeviceToHost));
   stopping_power_loss += power_loss_host;
 }
 

@@ -25,6 +25,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep3_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <fstream>
 #include <iostream>
@@ -1176,7 +1177,7 @@ void NEP3::compute_large_box(
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
@@ -1202,11 +1203,11 @@ void NEP3::compute_large_box(
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   bool is_polarizability = paramb.model_type == 2;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
@@ -1233,7 +1234,7 @@ void NEP3::compute_large_box(
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1258,7 +1259,7 @@ void NEP3::compute_large_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1282,7 +1283,7 @@ void NEP3::compute_large_box(
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_properties_many_body(
     box,
@@ -1295,7 +1296,7 @@ void NEP3::compute_large_box(
     position_per_atom,
     force_per_atom,
     virial_per_atom);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
@@ -1316,7 +1317,7 @@ void NEP3::compute_large_box(
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -1362,7 +1363,7 @@ void NEP3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const bool is_polarizability = paramb.model_type == 2;
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1391,7 +1392,7 @@ void NEP3::compute_small_box(
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1415,7 +1416,7 @@ void NEP3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1440,7 +1441,7 @@ void NEP3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1460,7 +1461,7 @@ void NEP3::compute_small_box(
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -1758,7 +1759,7 @@ void NEP3::compute_large_box(
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
@@ -1784,11 +1785,11 @@ void NEP3::compute_large_box(
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     temperature,
@@ -1814,7 +1815,7 @@ void NEP3::compute_large_box(
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1839,7 +1840,7 @@ void NEP3::compute_large_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1863,7 +1864,7 @@ void NEP3::compute_large_box(
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_properties_many_body(
     box,
@@ -1876,7 +1877,7 @@ void NEP3::compute_large_box(
     position_per_atom,
     force_per_atom,
     virial_per_atom);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
@@ -1897,7 +1898,7 @@ void NEP3::compute_large_box(
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -1944,7 +1945,7 @@ void NEP3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     temperature,
@@ -1972,7 +1973,7 @@ void NEP3::compute_small_box(
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1996,7 +1997,7 @@ void NEP3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -2021,7 +2022,7 @@ void NEP3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -2041,7 +2042,7 @@ void NEP3::compute_small_box(
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
       potential_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

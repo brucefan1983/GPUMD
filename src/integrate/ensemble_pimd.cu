@@ -27,6 +27,7 @@ References for implementation:
 #include "langevin_utilities.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cstdlib>
 
@@ -173,7 +174,7 @@ void Ensemble_PIMD::initialize(Atom& atom)
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 Ensemble_PIMD::~Ensemble_PIMD(void)
@@ -288,7 +289,7 @@ static __global__ void gpu_langevin(
   const bool thermostat_centroid,
   const int number_of_atoms,
   const int number_of_beads,
-  curandState* g_state,
+  gpurandState* g_state,
   const double temperature,
   const double temperature_coupling,
   const double omega_n,
@@ -315,7 +316,7 @@ static __global__ void gpu_langevin(
       }
     }
 
-    curandState state = g_state[n];
+    gpurandState state = g_state[n];
     for (int k = 0; k < number_of_beads; ++k) {
       if (k == 0 && !thermostat_centroid) {
         continue;
@@ -592,7 +593,7 @@ static void cpu_pressure_orthogonal(
   double* scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
 
   if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
@@ -638,7 +639,7 @@ static void cpu_pressure_isotropic(
   double& scale_factor)
 {
   double p[3];
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
   const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
   const double scale_factor_Berendsen =
     1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
@@ -666,7 +667,7 @@ static void cpu_pressure_triclinic(
 {
   // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
   double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
-  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 6, gpuMemcpyDeviceToHost));
   mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);    // xx
   mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);    // yy
   mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);    // zz
@@ -792,15 +793,15 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
       transformation_matrix.data(),
       atom.mass.data(),
       velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_find_momentum_beads<<<number_of_beads, 1024>>>(
       number_of_atoms, atom.mass.data(), velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
       number_of_atoms, number_of_beads, velocity_beads.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -817,7 +818,7 @@ void Ensemble_PIMD::compute1(
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
@@ -829,7 +830,7 @@ void Ensemble_PIMD::compute1(
     force_beads.data(),
     position_beads.data(),
     velocity_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Ensemble_PIMD::compute2(
@@ -848,13 +849,13 @@ void Ensemble_PIMD::compute2(
     atom.mass.data(),
     force_beads.data(),
     velocity_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   langevin(time_step, atom);
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
@@ -869,7 +870,7 @@ void Ensemble_PIMD::compute2(
     atom.potential_per_atom.data(),
     atom.force_per_atom.data(),
     atom.virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box,
@@ -880,7 +881,7 @@ void Ensemble_PIMD::compute2(
     atom.position_per_atom.data(),
     kinetic_energy_virial_part.data(),
     atom.virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(
     number_of_atoms,
@@ -888,11 +889,11 @@ void Ensemble_PIMD::compute2(
     atom.potential_per_atom.data(),
     atom.virial_per_atom.data(),
     sum_1024.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_find_thermo<<<8, 1024>>>(
     box.get_volume(), number_of_atoms * K_B * temperature, sum_1024.data(), thermo.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (num_target_pressure_components == 1) {
     double scale_factor;
@@ -916,7 +917,7 @@ void Ensemble_PIMD::compute2(
       scale_factor[2],
       position_beads.data(),
       atom.position_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else if (num_target_pressure_components == 6) {
     double mu[9];
     cpu_pressure_triclinic(

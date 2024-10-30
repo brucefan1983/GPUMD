@@ -17,6 +17,7 @@
 #include "nep3.cuh"
 #include "utilities/common.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/gpu_macro.cuh"
 
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
 static __device__ __inline__ double atomicAdd(double* address, double val)

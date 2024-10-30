@@ -22,6 +22,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
@@ -55,7 +56,7 @@ static __global__ void sum_polarizability(
   __syncthreads();
 
   // aggregate the patches in parallel
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_p[tid] += s_p[tid + offset];
@@ -168,7 +169,7 @@ void Dump_Polarizability::process(
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
     gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
@@ -187,7 +188,7 @@ void Dump_Polarizability::process(
   const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
   sum_polarizability<<<6, number_of_threads>>>(
     number_of_atoms, number_of_atoms_per_thread, atom_copy.virial_per_atom.data(), gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
   gpu_pol_.copy_to_host(cpu_pol_.data());

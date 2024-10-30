@@ -19,33 +19,34 @@ Add random forces with zero mean and specified variance.
 
 #include "add_random_force.cuh"
 #include "model/atom.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
 
-static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curand_init(seed, n, 0, &state[n]);
+    gpurand_init(seed, n, 0, &state[n]);
   }
 }
 
 static __global__ void add_random_force(
   const int N,
   const double force_variance,
-  curandState* g_state,
+  gpurandState* g_state,
   double* g_fx,
   double* g_fy,
   double* g_fz)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    curandState state = g_state[n];
-    g_fx[n] += force_variance * curand_normal_double(&state);
-    g_fy[n] += force_variance * curand_normal_double(&state);
-    g_fz[n] += force_variance * curand_normal_double(&state);
+    gpurandState state = g_state[n];
+    g_fx[n] += force_variance * gpurand_normal_double(&state);
+    g_fy[n] += force_variance * gpurand_normal_double(&state);
+    g_fz[n] += force_variance * gpurand_normal_double(&state);
     g_state[n] = state;
   }
 }
@@ -88,7 +89,7 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   s_f[tid] = f;
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
@@ -123,14 +124,14 @@ void Add_Random_Force::compute(const int step, Atom& atom)
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + atom.number_of_atoms,
       atom.force_per_atom.data() + atom.number_of_atoms * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_sum_force<<<3, 1024>>>(
       atom.number_of_atoms,
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + atom.number_of_atoms,
       atom.force_per_atom.data() + 2 * atom.number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_correct_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
@@ -138,7 +139,7 @@ void Add_Random_Force::compute(const int step, Atom& atom)
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + atom.number_of_atoms,
       atom.force_per_atom.data() + 2 * atom.number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -168,7 +169,7 @@ void Add_Random_Force::parse(const char** param, int num_param, int number_of_at
   curand_states_.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), number_of_atoms, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Add_Random_Force::finalize() { num_calls_ = 0; }

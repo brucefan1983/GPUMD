@@ -18,6 +18,7 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
@@ -290,7 +291,7 @@ void Dataset::find_neighbor(Parameters& para)
     r.data() + N * 2,
     NN_radial_gpu.data(),
     NN_angular_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   NN_radial_gpu.copy_to_host(NN_radial_cpu.data());
   NN_angular_gpu.copy_to_host(NN_angular_cpu.data());
@@ -327,7 +328,7 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(
   Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);
   error_cpu.resize(Nc);
@@ -394,7 +395,7 @@ static __global__ void gpu_sum_force_error(
 
 std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     use_weight,
@@ -411,7 +412,7 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
     force_ref_gpu.data() + N * 2,
     error_gpu.data());
   int mem = sizeof(float) * Nc;
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -498,7 +499,7 @@ std::vector<float> Dataset::get_rmse_energy(
   const bool do_shift,
   int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   energy_shift_per_structure = 0.0f;
 
   const int block_size = 256;
@@ -507,7 +508,7 @@ std::vector<float> Dataset::get_rmse_energy(
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
-    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
     for (int n = 0; n < Nc; ++n) {
       energy_shift_per_structure += error_cpu[n];
     }
@@ -521,7 +522,7 @@ std::vector<float> Dataset::get_rmse_energy(
     energy.data(),
     energy_ref_gpu.data(),
     error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -589,7 +590,7 @@ static __global__ void gpu_sum_virial_error(
 
 std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -607,7 +608,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
     virial.data(),
     virial_ref_gpu.data(),
     error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];

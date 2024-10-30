@@ -23,6 +23,7 @@ Use finite difference to calculate the seconod order force constants：
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <vector>
 
 static __global__ void gpu_shift_atom(const double dx, double* x) { x[0] += dx; }
@@ -34,13 +35,13 @@ static void shift_atom(
 
   if (beta == 0) {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else if (beta == 1) {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms * 2 + n2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -67,10 +68,10 @@ static void get_f(
     box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
   size_t M = sizeof(double);
-  CHECK(cudaMemcpy(f + 0, force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
-  CHECK(cudaMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(f + 0, force_per_atom.data() + n1, M, gpuMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, gpuMemcpyDeviceToHost));
   CHECK(
-    cudaMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, cudaMemcpyDeviceToHost));
+    gpuMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, gpuMemcpyDeviceToHost));
 
   shift_atom(-dx, n2, beta, position_per_atom);
 }

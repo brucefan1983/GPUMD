@@ -22,6 +22,7 @@ TODO:
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 
 #define BLOCK_SIZE_FORCE 128
 
@@ -126,8 +127,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
     {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
-  cudaMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float));
-  CUDA_CHECK_KERNEL
+  CHECK(gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float)));
 
   // set ilp_flag to 1
   ilp_flag = 1;
@@ -1437,7 +1437,7 @@ void ILP_TMD_SW::compute_ilp(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group[1].label.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
   ilp_data.f12x_ilp_neigh.fill(0);
@@ -1485,7 +1485,7 @@ void ILP_TMD_SW::compute_ilp(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
@@ -1510,7 +1510,7 @@ void ILP_TMD_SW::compute_ilp(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
   // step 1: calculate the partial forces
   gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -1518,7 +1518,7 @@ void ILP_TMD_SW::compute_ilp(
     type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
     sw2_data.f12y.data(), sw2_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // step 2: calculate force and related quantities
   find_properties_many_body(

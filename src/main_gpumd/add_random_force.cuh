@@ -15,7 +15,12 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <curand_kernel.h>
+#include "utilities/gpu_macro.cuh"
+#ifdef USE_HIP
+  #include <hiprand_kernel.h>
+#else
+  #include <curand_kernel.h>
+#endif
 
 class Atom;
 
@@ -27,7 +32,7 @@ public:
   void finalize();
 
 private:
-  GPU_Vector<curandState> curand_states_;
+  GPU_Vector<gpurandState> curand_states_;
   int num_calls_ = 0;
   double force_variance_ = 0.0;
 };

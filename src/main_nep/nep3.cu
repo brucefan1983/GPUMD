@@ -26,6 +26,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 
@@ -292,7 +293,7 @@ NEP3::NEP3(
   }
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    cudaSetDevice(device_id);
+    gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
@@ -857,14 +858,14 @@ void NEP3::find_force(
 {
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
-    CHECK(cudaSetDevice(device_id));
+    CHECK(gpuSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
     update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
-    CHECK(cudaSetDevice(device_id));
+    CHECK(gpuSetDevice(device_id));
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
@@ -894,7 +895,7 @@ void NEP3::find_force(
         nep_data[device_id].x12_angular.data(),
         nep_data[device_id].y12_angular.data(),
         nep_data[device_id].z12_angular.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
@@ -908,7 +909,7 @@ void NEP3::find_force(
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
@@ -922,14 +923,14 @@ void NEP3::find_force(
       nep_data[device_id].z12_angular.data(),
       nep_data[device_id].descriptors.data(),
       nep_data[device_id].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
         dataset[device_id].N,
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
 
     zero_force<<<grid_size, block_size>>>(
@@ -940,7 +941,7 @@ void NEP3::find_force(
       dataset[device_id].virial.data(),
       dataset[device_id].virial.data() + dataset[device_id].N,
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (para.train_mode == 2) {
       apply_ann_pol<<<grid_size, block_size>>>(
@@ -952,7 +953,7 @@ void NEP3::find_force(
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].virial.data(),
         nep_data[device_id].Fp.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else if (para.train_mode == 3) {
       apply_ann_temperature<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -964,7 +965,7 @@ void NEP3::find_force(
         dataset[device_id].temperature_ref_gpu.data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } else {
       apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -975,7 +976,7 @@ void NEP3::find_force(
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
 
     bool is_dipole = para.train_mode == 1;
@@ -995,7 +996,7 @@ void NEP3::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_force_angular<<<grid_size, block_size>>>(
       is_dipole,
@@ -1014,7 +1015,7 @@ void NEP3::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
@@ -1032,7 +1033,7 @@ void NEP3::find_force(
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data(),
         dataset[device_id].energy.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }

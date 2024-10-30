@@ -28,6 +28,7 @@ The driver class calculating force and related quantities.
 #include "ilp_tmd_sw.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <iostream>
@@ -106,7 +107,7 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_temperature") == 0 ||
     strcmp(potential_name, "nep4_zbl_temperature") == 0) {
     int num_gpus;
-    CHECK(cudaGetDeviceCount(&num_gpus));
+    CHECK(gpuGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
     num_gpus = 3;
 #endif
@@ -226,7 +227,7 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   s_f[tid] = f;
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
@@ -466,7 +467,7 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2,
     potential_per_atom.data(),
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
@@ -516,7 +517,7 @@ void Force::compute(
       force_per_atom.data(),
       virial_per_atom.data(),
       (double)potentials.size());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
@@ -552,7 +553,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -561,7 +562,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   // always correct the force when using the FCP potential
@@ -574,7 +575,7 @@ void Force::compute(
         force_per_atom.data() + number_of_atoms,
         force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
 
       gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,
@@ -583,7 +584,7 @@ void Force::compute(
         force_per_atom.data() + number_of_atoms,
         force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }
@@ -647,7 +648,7 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
   s_t[tid] = t;
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_t[tid] += s_t[tid + offset];
@@ -754,7 +755,7 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2,
     potential_per_atom.data(),
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   temperature += delta_T;
   if (multiple_potentials_mode_.compare("observe") == 0) {
@@ -805,7 +806,7 @@ void Force::compute(
       force_per_atom.data(),
       virial_per_atom.data(),
       (double)potentials.size());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
@@ -841,7 +842,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -850,7 +851,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   } else if (compute_hnemdec_ == 0) {
     // the tensor:
     // xx xy xz    0 3 4
@@ -876,10 +877,10 @@ void Force::compute(
       virial_per_atom.data() + 8 * number_of_atoms,
       virial_per_atom.data() + 2 * number_of_atoms,
       tensor_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_sum_tensor<<<9, 1024>>>(number_of_atoms, tensor_per_atom.data(), tensor_tot.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -901,7 +902,7 @@ void Force::compute(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
   } else if (compute_hnemdec_ != -1) {
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -926,7 +927,7 @@ void Force::compute(
         force_per_atom.data() + number_of_atoms,
         force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
 
       gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,
@@ -935,7 +936,7 @@ void Force::compute(
         force_per_atom.data() + number_of_atoms,
         force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }

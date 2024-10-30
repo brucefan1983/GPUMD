@@ -22,6 +22,7 @@ Get the fitness
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
 #include <chrono>
@@ -34,7 +35,7 @@ Get the fitness
 Fitness::Fitness(Parameters& para)
 {
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
 
   std::vector<Structure> structures_train;
   read_structures(true, para, structures_train);
@@ -63,7 +64,7 @@ Fitness::Fitness(Parameters& para)
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();
       printf("Constructing train_set in device  %d.\n", device_id);
-      CHECK(cudaSetDevice(device_id));
+      CHECK(gpuSetDevice(device_id));
       train_set[batch_id][device_id].construct(
         para, structures_train, count - batch_size, count, device_id);
       print_line_2();
@@ -77,7 +78,7 @@ Fitness::Fitness(Parameters& para)
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();
       printf("Constructing test_set in device  %d.\n", device_id);
-      CHECK(cudaSetDevice(device_id));
+      CHECK(gpuSetDevice(device_id));
       test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
       print_line_2();
     }
@@ -133,7 +134,7 @@ void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
@@ -344,7 +345,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
   }
-  CHECK(cudaSetDevice(0));
+  CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
     fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);

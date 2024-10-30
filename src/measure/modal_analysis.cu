@@ -31,6 +31,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "modal_analysis.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -89,7 +90,7 @@ static __device__ void gpu_bin_reduce(
   }
 
   __syncthreads();
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data_xin[tid] += s_data_xin[tid + offset];
@@ -252,7 +253,7 @@ void MODAL_ANALYSIS::compute_heat(
     mvx.data(),
     mvy.data(),
     mvz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Scale stress tensor by inv(sqrt(mass))
   prepare_sm<<<grid_size, BLOCK_SIZE>>>(
@@ -271,16 +272,16 @@ void MODAL_ANALYSIS::compute_heat(
     smx.data(),
     smy.data(),
     smz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const float alpha = 1.0;
   const float beta = 0.0;
   int stride = 1;
 
   // Calculate modal velocities
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -291,9 +292,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdotx.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -304,9 +305,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdoty.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -320,10 +321,10 @@ void MODAL_ANALYSIS::compute_heat(
 
   // Calculate intermediate value
   // (i.e. heat current without modal velocities)
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -335,10 +336,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmx.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -350,10 +351,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmy.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -367,9 +368,9 @@ void MODAL_ANALYSIS::compute_heat(
     num_modes);
 
   // calculate modal heat current
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmx.data(),
@@ -378,9 +379,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmx.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmy.data(),
@@ -389,9 +390,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmy.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmz.data(),
@@ -410,7 +411,7 @@ void MODAL_ANALYSIS::compute_heat(
     gpu_update_jm<ACCUMULATE>
       <<<grid_size, BLOCK_SIZE>>>(num_modes, jmx.data(), jmy.data(), jmz.data(), jm.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
@@ -543,9 +544,9 @@ void MODAL_ANALYSIS::preprocess(
   rsqrtmass.resize(num_participating, Memory_Type::managed);
   gpu_set_mass_terms<<<(num_participating - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
     num_participating, N1, mass.data(), sqrtmass.data(), rsqrtmass.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
-  cublasCreate(&ma_handle);
+  gpublasCreate(&ma_handle);
 }
 
 void MODAL_ANALYSIS::process(
@@ -568,18 +569,18 @@ void MODAL_ANALYSIS::process(
 
   gpu_bin_modes<<<num_bins, BIN_BLOCK>>>(
     num_modes, bin_count.data(), bin_sum.data(), num_bins, jm.data(), bin_out.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (method == HNEMA_METHOD) {
     float factor = KAPPA_UNIT_CONVERSION / (volume * temperature * fe * (float)samples_per_output);
     int num_bins_stored = num_bins * NUM_OF_HEAT_COMPONENTS;
     gpu_scale_jm<<<(num_bins_stored - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
       num_bins_stored, factor, bin_out.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   // Compute thermal conductivity and output
-  cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
+  gpuDeviceSynchronize(); // ensure GPU ready to move data to CPU
   FILE* fid = fopen(output_file_position, "a");
   for (int i = 0; i < num_bins; i++) {
     fprintf(
@@ -597,7 +598,7 @@ void MODAL_ANALYSIS::process(
   if (method == HNEMA_METHOD) {
     int grid_size = (num_heat_stored - 1) / BLOCK_SIZE + 1;
     gpu_reset_data<<<grid_size, BLOCK_SIZE>>>(num_heat_stored, jm.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -605,5 +606,5 @@ void MODAL_ANALYSIS::postprocess()
 {
   if (!compute)
     return;
-  cublasDestroy(ma_handle);
+  gpublasDestroy(ma_handle);
 }

@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "gpu_macro.cuh"
 #include <fstream>
 #include <stdio.h>
 #include <string>
@@ -21,13 +22,13 @@
 
 #define CHECK(call)                                                                                \
   do {                                                                                             \
-    const cudaError_t error_code = call;                                                           \
-    if (error_code != cudaSuccess) {                                                               \
+    const gpuError_t error_code = call;                                                           \
+    if (error_code != gpuSuccess) {                                                               \
       fprintf(stderr, "CUDA Error:\n");                                                            \
       fprintf(stderr, "    File:       %s\n", __FILE__);                                           \
       fprintf(stderr, "    Line:       %d\n", __LINE__);                                           \
       fprintf(stderr, "    Error code: %d\n", error_code);                                         \
-      fprintf(stderr, "    Error text: %s\n", cudaGetErrorString(error_code));                     \
+      fprintf(stderr, "    Error text: %s\n", gpuGetErrorString(error_code));                     \
       exit(1);                                                                                     \
     }                                                                                              \
   } while (0)
@@ -62,15 +63,15 @@
   } while (0)
 
 #ifdef STRONG_DEBUG
-#define CUDA_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                          \
   {                                                                                                \
-    CHECK(cudaGetLastError());                                                                     \
-    CHECK(cudaDeviceSynchronize());                                                                \
+    CHECK(gpuGetLastError());                                                                     \
+    CHECK(gpuDeviceSynchronize());                                                                \
   }
 #else
-#define CUDA_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                          \
   {                                                                                                \
-    CHECK(cudaGetLastError());                                                                     \
+    CHECK(gpuGetLastError());                                                                     \
   }
 #endif
 

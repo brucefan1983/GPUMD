@@ -33,6 +33,7 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
 
@@ -83,7 +84,7 @@ static void calculate_time_step(
   }
   const int N = velocity_per_atom.size() / 3;
   double* gpu_v2_max;
-  CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
+  CHECK(gpuGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
   gpu_find_largest_v2<<<1, 1024>>>(
     N,
     (N - 1) / 1024 + 1,
@@ -91,9 +92,9 @@ static void calculate_time_step(
     velocity_per_atom.data() + N,
     velocity_per_atom.data() + N * 2,
     gpu_v2_max);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
-  CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), gpuMemcpyDeviceToHost));
   double cpu_v_max = sqrt(cpu_v2_max[0]);
   double time_step_min = max_distance_per_step / cpu_v_max;
 
@@ -492,23 +493,26 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Run::parse_velocity(const char** param, int num_param)
 {
-  int seed;
+  int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
     PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
+  } else if (num_param == 4) {
+    // See https://github.com/brucefan1983/GPUMD/pull/768
+    // for the reason for putting this branch here.
+    use_seed = true;
+    if (!is_valid_int(param[3], &seed)) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
   }
+
   if (!is_valid_real(param[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
-  if (num_param == 4) {
-    use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
-      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
-    }
-  }
+
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,
@@ -766,7 +770,7 @@ void Run::parse_change_box(const char** param, int num_param)
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (box.triclinic == 0) {
     printf("    Changed box lengths are\n");
