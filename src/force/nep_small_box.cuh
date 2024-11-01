@@ -14,7 +14,7 @@
 */
 
 #include "model/box.cuh"
-#include "nep3.cuh"
+#include "nep.cuh"
 #include "utilities/common.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/gpu_macro.cuh"

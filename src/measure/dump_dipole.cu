@@ -17,7 +17,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
-#include "force/nep3.cuh"
+#include "force/nep.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "parse_utilities.cuh"

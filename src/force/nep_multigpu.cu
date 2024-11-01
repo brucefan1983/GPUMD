@@ -23,7 +23,7 @@ This is the multi-GPU (single-node) version. It has good parallel efficiency
 when there is NVlink, but is also not very bad when there is only PCI-E.
 ------------------------------------------------------------------------------*/
 
-#include "nep3_multigpu.cuh"
+#include "nep_multigpu.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

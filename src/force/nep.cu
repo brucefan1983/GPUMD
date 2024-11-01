@@ -21,8 +21,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"
-#include "nep3.cuh"
-#include "nep3_small_box.cuh"
+#include "nep.cuh"
+#include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
