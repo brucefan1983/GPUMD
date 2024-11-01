@@ -31,7 +31,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/nep_utilities.cuh"
 
 static __global__ void gpu_find_neighbor_list(
-  const NEP3::ParaMB paramb,
+  const NEP::ParaMB paramb,
   const int N,
   const int* Na,
   const int* Na_sum,
@@ -123,8 +123,8 @@ static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -178,8 +178,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -239,7 +239,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP3::NEP3(
+NEP::NEP(
   Parameters& para,
   int N,
   int N_times_max_NN_radial,
@@ -315,7 +315,7 @@ NEP3::NEP3(
   }
 }
 
-void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
+void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -396,8 +396,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 
 static __global__ void apply_ann(
   const int N,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -448,8 +448,8 @@ static __global__ void apply_ann(
 
 static __global__ void apply_ann_pol(
   const int N,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -505,8 +505,8 @@ static __global__ void apply_ann_pol(
 
 static __global__ void apply_ann_temperature(
   const int N,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   float* __restrict__ g_q_scaler,
@@ -564,8 +564,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -657,8 +657,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
+  const NEP::ParaMB paramb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -756,8 +756,8 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
-  const NEP3::ParaMB paramb,
-  const NEP3::ZBL zbl,
+  const NEP::ParaMB paramb,
+  const NEP::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -848,7 +848,7 @@ static __global__ void find_force_ZBL(
   }
 }
 
-void NEP3::find_force(
+void NEP::find_force(
   Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,

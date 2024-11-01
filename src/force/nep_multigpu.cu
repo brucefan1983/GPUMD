@@ -42,7 +42,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP3_MULTIGPU::initialize_dftd3()
+void NEP_MULTIGPU::initialize_dftd3()
 {
   std::ifstream input_run("run.in");
   if (!input_run.is_open()) {
@@ -63,7 +63,7 @@ void NEP3_MULTIGPU::initialize_dftd3()
   input_run.close();
 }
 
-NEP3_MULTIGPU::NEP3_MULTIGPU(
+NEP_MULTIGPU::NEP_MULTIGPU(
   const int num_gpus,
   const char* file_potential,
   const int num_atoms,
@@ -413,7 +413,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   initialize_dftd3();
 }
 
-void NEP3_MULTIGPU::allocate_memory()
+void NEP_MULTIGPU::allocate_memory()
 {
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
@@ -448,14 +448,14 @@ void NEP3_MULTIGPU::allocate_memory()
   nep_temp_data.virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
 }
 
-NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
+NEP_MULTIGPU::~NEP_MULTIGPU(void)
 {
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     CHECK(gpuStreamDestroy(nep_data[gpu].stream));
   }
 }
 
-void NEP3_MULTIGPU::update_potential(float* parameters, ANN& ann)
+void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -710,7 +710,7 @@ static void find_cell_list(
 }
 
 static __global__ void find_neighbor_list_large_box(
-  NEP3_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ParaMB paramb,
   const int partition_direction,
   const int N,
   const int N1,
@@ -844,8 +844,8 @@ static __global__ void find_neighbor_list_large_box(
 }
 
 static __global__ void find_descriptor(
-  NEP3_MULTIGPU::ParaMB paramb,
-  NEP3_MULTIGPU::ANN annmb,
+  NEP_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1041,8 +1041,8 @@ static __global__ void find_descriptor(
 }
 
 static __global__ void find_force_radial(
-  NEP3_MULTIGPU::ParaMB paramb,
-  NEP3_MULTIGPU::ANN annmb,
+  NEP_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1190,8 +1190,8 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_partial_force_angular(
-  NEP3_MULTIGPU::ParaMB paramb,
-  NEP3_MULTIGPU::ANN annmb,
+  NEP_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1292,9 +1292,9 @@ static __global__ void find_partial_force_angular(
 }
 
 static __global__ void find_force_ZBL(
-  NEP3_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ParaMB paramb,
   const int N,
-  const NEP3_MULTIGPU::ZBL zbl,
+  const NEP_MULTIGPU::ZBL zbl,
   const int N1,
   const int N2,
   const Box box,
@@ -1572,7 +1572,7 @@ static __global__ void gpu_find_force_many_body(
   }
 }
 
-void NEP3_MULTIGPU::compute(
+void NEP_MULTIGPU::compute(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position,
@@ -1969,8 +1969,8 @@ void NEP3_MULTIGPU::compute(
 
 static __global__ void find_descriptor(
   const float temperature,
-  NEP3_MULTIGPU::ParaMB paramb,
-  NEP3_MULTIGPU::ANN annmb,
+  NEP_MULTIGPU::ParaMB paramb,
+  NEP_MULTIGPU::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -2121,7 +2121,7 @@ static __global__ void find_descriptor(
   }
 }
 
-void NEP3_MULTIGPU::compute(
+void NEP_MULTIGPU::compute(
   const float temperature,
   Box& box,
   const GPU_Vector<int>& type,

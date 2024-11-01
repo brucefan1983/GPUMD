@@ -19,7 +19,7 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
-struct NEP3_Data {
+struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
@@ -43,7 +43,7 @@ struct NEP3_Data {
 #endif
 };
 
-class NEP3 : public Potential
+class NEP : public Potential
 {
 public:
   struct ParaMB {
@@ -107,8 +107,8 @@ public:
     float h[18];
   };
 
-  NEP3(const char* file_potential, const int num_atoms);
-  virtual ~NEP3(void);
+  NEP(const char* file_potential, const int num_atoms);
+  virtual ~NEP(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -130,7 +130,7 @@ private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
-  NEP3_Data nep_data;
+  NEP_Data nep_data;
   ExpandedBox ebox;
   DFTD3 dftd3;
 

@@ -40,7 +40,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP3::initialize_dftd3()
+void NEP::initialize_dftd3()
 {
   std::ifstream input_run("run.in");
   if (!input_run.is_open()) {
@@ -70,7 +70,7 @@ void NEP3::initialize_dftd3()
   input_run.close();
 }
 
-NEP3::NEP3(const char* file_potential, const int num_atoms)
+NEP::NEP(const char* file_potential, const int num_atoms)
 {
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -358,12 +358,12 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   initialize_dftd3();
 }
 
-NEP3::~NEP3(void)
+NEP::~NEP(void)
 {
   // nothing
 }
 
-void NEP3::update_potential(float* parameters, ANN& ann)
+void NEP::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -404,7 +404,7 @@ void NEP3::update_potential(float* parameters, ANN& ann)
 }
 
 #ifdef USE_TABLE
-void NEP3::construct_table(float* parameters)
+void NEP::construct_table(float* parameters)
 {
   nep_data.gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
   nep_data.gnp_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
@@ -443,7 +443,7 @@ void NEP3::construct_table(float* parameters)
 #endif
 
 static __global__ void find_neighbor_list_large_box(
-  NEP3::ParaMB paramb,
+  NEP::ParaMB paramb,
   const int N,
   const int N1,
   const int N2,
@@ -564,8 +564,8 @@ static __global__ void find_neighbor_list_large_box(
 }
 
 static __global__ void find_descriptor(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -766,8 +766,8 @@ static __global__ void find_descriptor(
 }
 
 static __global__ void find_force_radial(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -915,8 +915,8 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_partial_force_angular(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1017,9 +1017,9 @@ static __global__ void find_partial_force_angular(
 }
 
 static __global__ void find_force_ZBL(
-  NEP3::ParaMB paramb,
+  NEP::ParaMB paramb,
   const int N,
-  const NEP3::ZBL zbl,
+  const NEP::ZBL zbl,
   const int N1,
   const int N2,
   const Box box,
@@ -1131,7 +1131,7 @@ static __global__ void find_force_ZBL(
 }
 
 // large box fo MD applications
-void NEP3::compute_large_box(
+void NEP::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -1322,7 +1322,7 @@ void NEP3::compute_large_box(
 }
 
 // small box possibly used for active learning:
-void NEP3::compute_small_box(
+void NEP::compute_small_box(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -1465,7 +1465,7 @@ void NEP3::compute_small_box(
   }
 }
 
-static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
+static bool get_expanded_box(const double rc, const Box& box, NEP::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);
@@ -1535,7 +1535,7 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
   return is_small_box;
 }
 
-void NEP3::compute(
+void NEP::compute(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -1559,8 +1559,8 @@ void NEP3::compute(
 
 static __global__ void find_descriptor(
   const float temperature,
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1712,7 +1712,7 @@ static __global__ void find_descriptor(
   }
 }
 
-void NEP3::compute_large_box(
+void NEP::compute_large_box(
   const float temperature,
   Box& box,
   const GPU_Vector<int>& type,
@@ -1903,7 +1903,7 @@ void NEP3::compute_large_box(
 }
 
 // small box possibly used for active learning:
-void NEP3::compute_small_box(
+void NEP::compute_small_box(
   const float temperature,
   Box& box,
   const GPU_Vector<int>& type,
@@ -2046,7 +2046,7 @@ void NEP3::compute_small_box(
   }
 }
 
-void NEP3::compute(
+void NEP::compute(
   const float temperature,
   Box& box,
   const GPU_Vector<int>& type,

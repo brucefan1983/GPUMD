@@ -35,7 +35,7 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 #endif
 
 static __device__ void apply_mic_small_box(
-  const Box& box, const NEP3::ExpandedBox& ebox, double& x12, double& y12, double& z12)
+  const Box& box, const NEP::ExpandedBox& ebox, double& x12, double& y12, double& z12)
 {
   if (box.triclinic == 0) {
     if (box.pbc_x == 1 && x12 < -ebox.h[3]) {
@@ -70,12 +70,12 @@ static __device__ void apply_mic_small_box(
 }
 
 static __global__ void find_neighbor_list_small_box(
-  NEP3::ParaMB paramb,
+  NEP::ParaMB paramb,
   const int N,
   const int N1,
   const int N2,
   const Box box,
-  const NEP3::ExpandedBox ebox,
+  const NEP::ExpandedBox ebox,
   const int* g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -164,8 +164,8 @@ static __global__ void find_neighbor_list_small_box(
 }
 
 static __global__ void find_descriptor_small_box(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -354,8 +354,8 @@ static __global__ void find_descriptor_small_box(
 
 static __global__ void find_descriptor_small_box(
   const float temperature,
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -500,8 +500,8 @@ static __global__ void find_descriptor_small_box(
 }
 
 static __global__ void find_force_radial_small_box(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -628,8 +628,8 @@ static __global__ void find_force_radial_small_box(
 }
 
 static __global__ void find_force_angular_small_box(
-  NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -767,9 +767,9 @@ static __global__ void find_force_angular_small_box(
 }
 
 static __global__ void find_force_ZBL_small_box(
-  NEP3::ParaMB paramb,
+  NEP::ParaMB paramb,
   const int N,
-  const NEP3::ZBL zbl,
+  const NEP::ZBL zbl,
   const int N1,
   const int N2,
   const int* g_NN,

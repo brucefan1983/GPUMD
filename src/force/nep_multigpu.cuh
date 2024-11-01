@@ -18,7 +18,7 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
-struct NEP3_MULTIGPU_Data {
+struct NEP_MULTIGPU_Data {
 #ifdef USE_TABLE
   GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
   GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
@@ -60,7 +60,7 @@ struct NEP3_MULTIGPU_Data {
   gpuStream_t stream;
 };
 
-struct NEP3_TEMP_Data {
+struct NEP_TEMP_Data {
   int num_atoms_per_gpu;
   std::vector<int> cell_count_sum_cpu;
   GPU_Vector<int> cell_count;
@@ -73,7 +73,7 @@ struct NEP3_TEMP_Data {
   GPU_Vector<double> virial;
 };
 
-class NEP3_MULTIGPU : public Potential
+class NEP_MULTIGPU : public Potential
 {
 public:
   struct ParaMB {
@@ -133,12 +133,12 @@ public:
     int num_types;
   };
 
-  NEP3_MULTIGPU(
+  NEP_MULTIGPU(
     const int num_gpus,
     const char* file_potential,
     const int num_atoms,
     const int partition_direction);
-  virtual ~NEP3_MULTIGPU(void);
+  virtual ~NEP_MULTIGPU(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -160,8 +160,8 @@ private:
   ParaMB paramb;
   ANN annmb[16];
   ZBL zbl;
-  NEP3_MULTIGPU_Data nep_data[16];
-  NEP3_TEMP_Data nep_temp_data;
+  NEP_MULTIGPU_Data nep_data[16];
+  NEP_TEMP_Data nep_temp_data;
 
   int partition_direction = -1;
 

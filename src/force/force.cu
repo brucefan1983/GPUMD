@@ -112,7 +112,7 @@ void Force::parse_potential(
     num_gpus = 3;
 #endif
     if (num_gpus == 1) {
-      potential.reset(new NEP3(param[1], number_of_atoms));
+      potential.reset(new NEP(param[1], number_of_atoms));
     } else {
       int partition_direction = -1;
       if (num_param == 3) {
@@ -126,7 +126,7 @@ void Force::parse_potential(
           PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.\n");
         }
       }
-      potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
+      potential.reset(new NEP_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
     }
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials

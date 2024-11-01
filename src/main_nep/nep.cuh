@@ -20,7 +20,7 @@
 class Parameters;
 class Dataset;
 
-struct NEP3_Data {
+struct NEP_Data {
   GPU_Vector<int> NN_radial;  // radial neighbor number
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
@@ -37,7 +37,7 @@ struct NEP3_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
-class NEP3 : public Potential
+class NEP : public Potential
 {
 public:
   struct ParaMB {
@@ -91,7 +91,7 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP3(
+  NEP(
     Parameters& para,
     int N,
     int N_times_max_NN_radial,
@@ -109,7 +109,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP3_Data nep_data[16];
+  NEP_Data nep_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };
