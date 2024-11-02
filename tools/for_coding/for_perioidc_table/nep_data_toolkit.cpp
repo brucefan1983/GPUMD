@@ -13,6 +13,7 @@ run:
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -609,21 +610,36 @@ static void write_with_elements(const std::vector<Structure>& structures)
   std::cout << "Number of valid 1- and 2-component structures = " << num << std::endl;
 }
 
-static void write_with_missing_pairs(const std::vector<Structure>& structures)
+static void split_into_train_and_test(const std::vector<Structure>& structures)
 {
-  int num1 = 0;
-  std::ofstream output("missing.xyz", std::ios::app);
+  std::vector<double> energy(structures.size());
   for (int nc = 0; nc < structures.size(); ++nc) {
-    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
-
-    if (elements.size() == 3 && has_missing_pairs(elements)) {
-      write_one_structure(output, structures[nc]);
-      num1++;
-    }
-
+    energy[nc] = structures[nc].energy;
   }
-  output.close();
-  std::cout << "Number of missing structures = " << num1 << std::endl;
+
+  std::vector<int> energy_index(structures.size());
+  std::iota(energy_index.begin(), energy_index.end(), 0);
+  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
+    return energy[i1] < energy[i2];
+  });
+
+  int num1 = 0;
+  int num2 = 0;
+  std::ofstream output_train("train_new.xyz");
+  std::ofstream output_test("test_new.xyz");
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    if (nc % 50 == 0) {
+      write_one_structure(output_train, structures[energy_index[nc]]);
+      num1++;
+    } else {
+      write_one_structure(output_test, structures[energy_index[nc]]);
+      num2++;
+    }
+  }
+  output_train.close();
+  output_test.close();
+  std::cout << "Number of structures written into train_new.xyz = " << num1 << std::endl;
+  std::cout << "Number of structures written into test_new.xyz = " << num2 << std::endl;
 }
 
 static void write_3component(
@@ -690,7 +706,7 @@ int main(int argc, char* argv[])
   std::cout << "====================================================\n";
   std::cout << "0: copy\n";
   std::cout << "1: classify in terms of chemical composition\n";
-  std::cout << "2: get 3-component structures for missing 2-component ones\n";
+  std::cout << "2: split into train and test\n";
   std::cout << "3: get 3-component structures with given elements\n";
   std::cout << "====================================================\n";
 
@@ -728,7 +744,7 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    write_with_missing_pairs(structures_input);
+    split_into_train_and_test(structures_input);
   } else if (option == 3) {
     for (int n = 0; n < 31; ++n) {
       write_3component(FOLDERS[n], "C", "Si", "Ge");
