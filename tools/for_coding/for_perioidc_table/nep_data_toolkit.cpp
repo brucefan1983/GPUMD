@@ -561,16 +561,16 @@ bool has_missing_pairs(const std::vector<std::string>& elements)
 
 static void write_with_elements(const std::vector<Structure>& structures)
 {
-  int num1 = 0;
-  int num2 = 0;
+  int num = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
+    bool is_considered_structure = false;
     std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
     std::ofstream output;
     if (elements.size() == 1 && is_considered_element(elements[0])) {
+      is_considered_structure = true; 
       output.open("one_component/" + elements[0] + ".xyz", std::ios::app);
-      write_one_structure(output, structures[nc]);
-      num1++;
     } else if (elements.size() == 2 && is_considered_element(elements[0]) && is_considered_element(elements[1])) {
+      is_considered_structure = true; 
       int index_0 = get_element_index(elements[0]);
       int index_1 = get_element_index(elements[1]);
       if (index_0 < index_1) {
@@ -578,13 +578,35 @@ static void write_with_elements(const std::vector<Structure>& structures)
       } else {
         output.open("two_component/" + elements[1] + elements[0] + ".xyz", std::ios::app);
       }
-      write_one_structure(output, structures[nc]);
-      num2++;
+    }
+    if (is_considered_structure) {
+      bool energy_is_small = structures[nc].energy < 0.0;
+      bool stress_is_small = true;
+      for (int d = 0; d < 9; ++d) {
+        if (std::abs(structures[nc].stress[d]) * 160.2 > 80.0) {
+          stress_is_small = false;
+          break;
+        }
+      }
+      bool force_is_small = true;
+      for (int n = 0; n < structures[nc].num_atom; ++n) {
+        double fx = structures[nc].fx[n];
+        double fy = structures[nc].fy[n];
+        double fz = structures[nc].fz[n];
+        if (fx * fx + fy * fy + fz * fz > 2500.0) {
+          force_is_small = false;
+          break;
+        }
+      }
+
+      if (energy_is_small && force_is_small && stress_is_small) {
+        write_one_structure(output, structures[nc]);
+        num++;
+      }
     }
     output.close();
   }
-  std::cout << "Number of one-component structures = " << num1 << std::endl;
-  std::cout << "Number of two-component structures = " << num2 << std::endl;
+  std::cout << "Number of valid 1- and 2-component structures = " << num << std::endl;
 }
 
 static void write_with_missing_pairs(const std::vector<Structure>& structures)
