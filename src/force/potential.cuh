@@ -47,7 +47,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial){};
 
-  // add group message for ILP TMD SW
+  // add group message for ILPs
   virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
