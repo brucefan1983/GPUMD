@@ -20,10 +20,12 @@
 #include <stdio.h>
 #include <vector>
 
-// C h-BN
-#define MAX_TYPE_ILP_NEP 3
-#define CUDA_MAX_NL_ILP_NEP_CBN 2048
-#define MAX_ILP_NEIGHBOR_CBN 3 // for c h-bn
+// C, h-BN, TMD
+#define MAX_TYPE_ILP_NEP 7
+#define CUDA_MAX_NL_ILP_NEP_CBN 256   // neighs in different layer
+#define CUDA_MAX_NL_ILP_NEP_TMD 1024  // neighs in different layer
+#define MAX_ILP_NEIGHBOR_CBN 3 // neighs to calc normal
+#define MAX_ILP_NEIGHBOR_TMD 6 // neighs to calc normal
 #define MAX_BIG_ILP_NEIGHBOR_CBN 128
 
 
