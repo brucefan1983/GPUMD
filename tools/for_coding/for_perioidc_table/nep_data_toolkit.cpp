@@ -755,6 +755,7 @@ int main(int argc, char* argv[])
   std::cout << "2: split into train_new.xyz and test_new.xyz\n";
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
   std::cout << "4: get 3-component structures with given elements\n";
+  std::cout << "5: count the number of structures\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -805,6 +806,14 @@ int main(int argc, char* argv[])
     for (int n = 0; n < 31; ++n) {
       write_3component(FOLDERS[n], "C", "Si", "Ge");
     }
+  } else if (option == 5) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
