@@ -83,6 +83,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &nep_group_method), 1, 
   "Reading error for NEP group method.");
   printf("Use group method %d to identify molecule for NEP.\n", nep_group_method);
+
+  // read the number of NEP file
+  PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &num_nep), 1, 
+  "Reading error for the number of NEP file.");
+  printf("NEP file number: %d\n", num_nep);
+
   
   // read NEP parameter
 

@@ -168,8 +168,10 @@ protected:
   ILP_Data ilp_data;
 
 private:
-  ParaMB paramb;
-  ANN annmb;
+  int num_nep = 0; // number of NEP file
+  ParaMB* paramb;
+  ANN* annmb;
+  int* nep_map;     // map nep group to nep parameters
   NEP3_Data nep_data;
   ExpandedBox ebox;
 
