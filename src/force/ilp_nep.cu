@@ -24,6 +24,9 @@ TODO:
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <iostream>
+#include <fstream>
+#include <string>
 
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
@@ -97,8 +100,209 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   "Reading error for the number of NEP file.");
   printf("NEP file number: %d\n", num_nep);
 
+  // init parameter vectors
+  parambs.resize(num_nep);
+  annmbs.resize(num_nep);
   
-  // read NEP parameter
+  // read NEP parameter from each NEP file
+  for (int i = 0; i < num_nep; ++i) {
+    char nep_file[100];
+    int count = fscanf(fid_nep_map, "%s", nep_file);
+    PRINT_SCANF_ERROR(count, 1, "reading error for NEP filename");
+
+    std::ifstream input(nep_file);
+    if (!input.is_open()) {
+      std::cout << "Failed to open " << nep_file << std::endl;
+      exit(1);
+    }
+
+    // nep3 1 C
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() < 3) {
+      std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
+      exit(1);
+    }
+    if (tokens[0] == "nep3") {
+      parambs[i].version = 3;
+    } else if (tokens[0] == "nep4") {
+      parambs[i].version = 4;
+    } else if (tokens[0] == "nep5") {
+      parambs[i].version = 5;
+    } else {
+      std::cout << tokens[0]
+                << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+                << std::endl;
+      exit(1);
+    }
+    parambs[i].num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    if (tokens.size() != 2 + parambs[i].num_types) {
+      std::cout << "The first line of nep.txt should have " << parambs[i].num_types << " atom symbols."
+                << std::endl;
+      exit(1);
+    }
+
+    if (parambs[i].num_types == 1) {
+      printf("Use the NEP%d potential with %d atom type.\n", parambs[i].version, parambs[i].num_types);
+    } else {
+      printf("Use the NEP%d potential with %d atom types.\n", parambs[i].version, parambs[i].num_types);
+    }
+
+    for (int n = 0; n < parambs[i].num_types; ++n) {
+      int atomic_number = 0;
+      for (int m = 0; m < NUM_ELEMENTS; ++m) {
+        if (tokens[2 + n] == ELEMENTS[m]) {
+          atomic_number = m + 1;
+          break;
+        }
+      }
+      parambs[i].atomic_numbers[n] = atomic_number - 1;
+      printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), atomic_number);
+    }
+
+    // cutoff 4.2 3.7 80 47 1
+    tokens = get_tokens(input);
+    if (tokens.size() != 5 && tokens.size() != 8) {
+      std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
+                   "[radial_factor] [angular_factor] [zbl_factor].\n";
+      exit(1);
+    }
+    parambs[i].rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
+    parambs[i].rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    printf("    radial cutoff = %g A.\n", parambs[i].rc_radial);
+    printf("    angular cutoff = %g A.\n", parambs[i].rc_angular);
+
+    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+    printf("    MN_radial = %d.\n", MN_radial);
+    if (MN_radial > 819) {
+      std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
+                << std::endl;
+      exit(1);
+    }
+    parambs[i].MN_radial = int(ceil(MN_radial * 1.25));
+    parambs[i].MN_angular = int(ceil(MN_angular * 1.25));
+    printf("    enlarged MN_radial = %d.\n", parambs[i].MN_radial);
+    printf("    enlarged MN_angular = %d.\n", parambs[i].MN_angular);
+
+    if (tokens.size() == 8) {
+      parambs[i].typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
+      parambs[i].typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
+      if (parambs[i].typewise_cutoff_radial_factor > 0.0f) {
+        parambs[i].use_typewise_cutoff = true;
+      }
+    }
+  #ifdef USE_TABLE
+    if (paramb.use_typewise_cutoff) {
+      PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
+    }
+  #endif
+
+    // n_max 10 8
+    tokens = get_tokens(input);
+    if (tokens.size() != 3) {
+      std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
+      exit(1);
+    }
+    parambs[i].n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    parambs[i].n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    printf("    n_max_radial = %d.\n", parambs[i].n_max_radial);
+    printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
+
+    // basis_size 10 8
+    tokens = get_tokens(input);
+    if (tokens.size() != 3) {
+      std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
+                << std::endl;
+      exit(1);
+    }
+    parambs[i].basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    parambs[i].basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    printf("    basis_size_radial = %d.\n", parambs[i].basis_size_radial);
+    printf("    basis_size_angular = %d.\n", parambs[i].basis_size_angular);
+
+    // l_max
+    tokens = get_tokens(input);
+    if (tokens.size() != 4) {
+      std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
+      exit(1);
+    }
+
+    parambs[i].L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    printf("    l_max_3body = %d.\n", parambs[i].L_max);
+    parambs[i].num_L = parambs[i].L_max;
+
+    int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
+    printf("    l_max_4body = %d.\n", L_max_4body);
+    printf("    l_max_5body = %d.\n", L_max_5body);
+    if (L_max_4body == 2) {
+      parambs[i].num_L += 1;
+    }
+    if (L_max_5body == 1) {
+      parambs[i].num_L += 1;
+    }
+
+    parambs[i].dim_angular = (parambs[i].n_max_angular + 1) * parambs[i].num_L;
+
+    // ANN
+    tokens = get_tokens(input);
+    if (tokens.size() != 3) {
+      std::cout << "This line should be ANN num_neurons 0." << std::endl;
+      exit(1);
+    }
+    annmbs[i].num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    annmbs[i].dim = (parambs[i].n_max_radial + 1) + parambs[i].dim_angular;
+    nep_model_type = parambs[i].model_type;
+    if (parambs[i].model_type == 3) {
+      annmbs[i].dim += 1;
+    }
+    printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
+
+    // calculated parameters:
+    // TODO
+    rc = parambs[i].rc_radial; // largest cutoff
+    parambs[i].rcinv_radial = 1.0f / parambs[i].rc_radial;
+    parambs[i].rcinv_angular = 1.0f / parambs[i].rc_angular;
+    parambs[i].num_types_sq = parambs[i].num_types * parambs[i].num_types;
+
+    if (parambs[i].version == 3) {
+      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
+    } else if (parambs[i].version == 4) {
+      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
+    } else {
+      annmbs[i].num_para_ann = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types + 1;
+    }
+    if (parambs[i].model_type == 2) {
+      // Polarizability models have twice as many parameters
+      annmbs[i].num_para_ann *= 2;
+    }
+    printf("    number of neural network parameters = %d.\n", annmbs[i].num_para_ann);
+    int num_para_descriptor =
+      parambs[i].num_types_sq * ((parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1) +
+                             (parambs[i].n_max_angular + 1) * (parambs[i].basis_size_angular + 1));
+    printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+    annmbs[i].num_para = annmbs[i].num_para_ann + num_para_descriptor;
+    printf("    total number of parameters = %d.\n", annmbs[i].num_para);
+
+    parambs[i].num_c_radial =
+      parambs[i].num_types_sq * (parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1);
+
+    // NN and descriptor parameters
+    std::vector<float> parameters(annmbs[i].num_para);
+    for (int n = 0; n < annmbs[i].num_para; ++n) {
+      tokens = get_tokens(input);
+      parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    nep_data.parameters.resize(annmbs[i].num_para);
+    nep_data.parameters.copy_from_host(parameters.data());
+    update_potential(nep_data.parameters.data(), annmbs[i]);
+    for (int d = 0; d < annmbs[i].dim; ++d) {
+      tokens = get_tokens(input);
+      parambs[i].q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+
+  }
+
 
   // initialize neighbor lists and some temp vectors
   int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_ILP_NEP_CBN);
