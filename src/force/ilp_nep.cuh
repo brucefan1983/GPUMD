@@ -169,9 +169,9 @@ protected:
 
 private:
   int num_nep = 0; // number of NEP file
-  ParaMB* paramb;
-  ANN* annmb;
-  int* nep_map;     // map nep group to nep parameters
+  std::vector<ParaMB> parambs;
+  std::vector<ANN> annmbs;
+  std::vector<int> nep_map;     // map nep group to nep parameters
   NEP3_Data nep_data;
   ExpandedBox ebox;
 
