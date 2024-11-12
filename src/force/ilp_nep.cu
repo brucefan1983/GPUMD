@@ -24,6 +24,7 @@ TODO:
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -332,7 +333,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   }
 
 
-  // initialize neighbor lists and some temp vectors
+  // initialize ilp neighbor lists and some temp vectors
   int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_ILP_NEP_CBN);
   ilp_data.NN.resize(num_atoms);
   ilp_data.NL.resize(num_atoms * max_neighbor_number);
@@ -362,4 +363,26 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
   // set ilp_flag to 1
   ilp_flag = 1;
+
+  // initialize nep neighbor lists
+  nep_data.f12x.resize(num_atoms * max_MN_angular);
+  nep_data.f12y.resize(num_atoms * max_MN_angular);
+  nep_data.f12z.resize(num_atoms * max_MN_angular);
+  nep_data.NN_radial.resize(num_atoms);
+  nep_data.NL_radial.resize(num_atoms * max_MN_radial);
+  nep_data.NN_angular.resize(num_atoms);
+  nep_data.NL_angular.resize(num_atoms * max_MN_angular);
+  nep_data.Fp.resize(num_atoms * max_dim);
+  nep_data.sum_fxyz.resize(num_atoms * (max_n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.cell_count.resize(num_atoms);
+  nep_data.cell_count_sum.resize(num_atoms);
+  nep_data.cell_contents.resize(num_atoms);
+  nep_data.cpu_NN_radial.resize(num_atoms);
+  nep_data.cpu_NN_angular.resize(num_atoms);
+
+#ifdef USE_TABLE
+  construct_table(parameters.data());
+  printf("    use tabulated radial functions to speed up.\n");
+#endif
+
 }
