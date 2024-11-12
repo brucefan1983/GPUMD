@@ -106,6 +106,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   
   // read NEP parameter from each NEP file
   for (int i = 0; i < num_nep; ++i) {
+    printf("\nReading NEP %d.\n", i);
     char nep_file[100];
     int count = fscanf(fid_nep_map, "%s", nep_file);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP filename");
@@ -301,6 +302,29 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       parambs[i].q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
 
+  }
+
+  // read nep map to identify the nep for each group
+  int num_nep_group = 0;
+  PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &num_nep_group), 1, 
+  "Reading error for the number of nep group.");
+  nep_map.resize(num_nep_group);
+  for (int i = 0; i < num_nep_group; ++i) {
+    int nep_i = 0;    // which nep this group use
+    int count = fscanf(fid_nep_map, "%d", &nep_i);
+    PRINT_SCANF_ERROR(count, 1, "reading error for nep number of group.");
+    if (nep_i >= num_nep) {
+      if (num_nep == 1) {
+        printf("There is only 1 nep file, but you set group %d of group method %d \
+        to nep %d", i, nep_group_method, nep_i);
+      } else {
+        printf("There are %d nep files, but you set group %d of group method %d \
+        to nep %d", num_nep, i, nep_group_method, nep_i);
+      }
+      exit(1);
+    }
+    nep_map[i] = nep_i;
+    printf("group %d uses NEP %d.\n", i, nep_i);
   }
 
 
