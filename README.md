@@ -33,8 +33,11 @@ This software is distributed under the GNU General Public License (GPL) version 
 * You can also check other offline tutorials in the examples.
 
 ## Manual
-* Latest released version: https://gpumd.org/
-* Development version: https://gpumd.org/dev/
+* For users and developers:
+  * Latest released version: https://gpumd.org/
+  * Development version: https://gpumd.org/dev/
+* For developers only:
+  * [The developer guide](developers)
 
 ## Python packages related to GPUMD and/or NEP:
 
