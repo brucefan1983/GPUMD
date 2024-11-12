@@ -1,10 +1,10 @@
-# GPUMD Developer guide
+# GPUMD Developer Guide
 
 * This file contains information useful for existing and future `GPUMD` developers.
 
-* You can ignore this file if you are not interested in becoming a devoloper of `GPUMD`.
+* You can ignore this file if you are not interested in becoming a developer of `GPUMD`.
 
-* This is a work in progress, which will be constantly updated along with the GPUMD developement activities.
+* This is a work in progress, which will be constantly updated along with the GPUMD development activities.
 
 ## Using git to manage pull request (PR) contributions
 
@@ -12,15 +12,15 @@
 
 ## Development environments
 
-* You can develop `GPUMD` in either Linux or Windows, as long as you have a working CUDA and/or HIP development toolkit, and a suitable GPU (Nvidia or AMD).
+* You can develop `GPUMD` in either Linux or Windows, as long as you have a working CUDA and/or HIP development toolkit, and one or more suitable GPUs (Nvidia or AMD).
 
-* GPUMD uses `make` to manage installation (or compilation).
+* `GPUMD` uses `make` to manage installation (or compilation).
 We have not seen the necessity of using `cmake`, yet.
 
 * There is no message passing interface (MPI) support in `GPUMD` yet, so currently you don't need to have MPI.
 We might add MPI support in the future.
 
-* To build `GPUMD`, simply type `make -f makefile` (for the CUDA version) or `make -f makefile.hip` (for the HIP version) and you will get the `gpumd` and `nep` binary files.
+* To build `GPUMD`, simply type `make` (for the CUDA version) or `make -f makefile.hip` (for the HIP version) and you will get the `gpumd` and `nep` binary files.
 
 ## External dependencies
 
@@ -29,14 +29,19 @@ In principle, we only use CUDA C++ and HIP C++ in the source code.
 Particularly, we do not use Python in the source code.
 
 * If you want to introduce external dependence, the relevant code must be made optional, which will not be compiled by default.
-You alao need to give detailed instructions for setting up the necessary tools.
+You also need to give detailed instructions for setting up the necessary tools.
 
 * Currently we have two external dependencies, the `NetCDF` package and the `PLUMED` package.
 
 ## Regression tests
 
 * These are a few regression tests in the `tests` folder.
-A developer should run the regression tests before starting a PR, saving the output files, and run the regression tests again after finishing the PR, making sure that the output files are identical.
+
+* During the development, please add `-DDEBUG` to the makefile and remove it right before merging the PR. 
+
+* A developer should run the regression tests before starting a PR, saving the output files, and run the regression tests frequently during the creation of the PR.
+
+* Usually, there should be no single change to the output files (using `diff` in Linux or `fc` in Windows to check), but if there are changes, please justify.
 
 ## Source files
 
@@ -53,9 +58,9 @@ If you use new CUDA and HIP APIs, they should be added to this file.
 
 * `main_nep`: Starting point for neuroevolution potential (NEP) training.
 
-* `main_gpumd`: Starting point for the `gpumd` executale. It contains the following modules:
-  * `model`: The model dealing with the model system in the simulation. This module is used by all the other modules under `main_gpumd`.
-  * `force`: The module contaning all the potentials.
+* `main_gpumd`: Starting point for the `gpumd` executable. It contains the following modules:
+  * `model`: The module dealing with the model system in the simulation. This module is used by all the other modules under `main_gpumd`.
+  * `force`: The module containing all the potentials.
   * `integrate`: The module containing all the integrators/ensembles.
   * `measure`: The module doing most of the on-the-fly calculations of the physical properties.
   * `phonon`: The module for doing phonon calculations.
@@ -67,7 +72,7 @@ If you use new CUDA and HIP APIs, they should be added to this file.
 
 * Units for inputs and outputs should be specified in the user manual.
 
-* Internally, we use the fwollowing basic units:
+* Internally, we use the following basic units:
   * Energy: eV
   * Legnth: Angstrom
   * Mass: Dalton
