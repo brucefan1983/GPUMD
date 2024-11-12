@@ -173,6 +173,10 @@ private:
   NEP3_Data nep_data;
   ExpandedBox ebox;
 
+  // two group methods for ilp and nep
+  int ilp_group_method = 0;
+  int nep_group_method = 0;
+
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE
   void construct_table(float* parameters);

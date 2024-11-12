@@ -29,7 +29,7 @@ TODO:
 
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 {
-  // read ILP potential parameter
+  // read ILP elements
   printf("Use %d-element ILP potential with elements:\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_NEP)) {
     PRINT_INPUT_ERROR("Incorrect type number of ILP parameters.\n");
@@ -42,7 +42,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   }
   printf("\n");
 
-  // read parameters
+  // read ILP group method
+  PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_group_method), 1, 
+  "Reading error for ILP group method.");
+  printf("Use group method %d to identify molecule for ILP.\n", ilp_group_method);
+
+  // read ILP parameters
   float beta, alpha, delta, epsilon, C, d, sR;
   float reff, C6, S, rcut_ilp, rcut_global;
   rc = 0.0;
