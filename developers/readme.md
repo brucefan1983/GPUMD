@@ -35,7 +35,7 @@ You also need to give detailed instructions for setting up the necessary tools.
 
 ## Regression tests
 
-* These are a few regression tests in the `tests` folder.
+* There are a few regression tests in the `tests` folder.
 
 * During the development, please add `-DDEBUG` to the makefile and remove it right before merging the PR. 
 
@@ -66,7 +66,7 @@ If you use new CUDA and HIP APIs, they should be added to this file.
   * `phonon`: The module for doing phonon calculations.
   * `minimize`: The module for doing energy minimization.
   * `mc`: The module for doing hybrid Monte Carlo and molecular dynamics (MCMD) simulations.
-* `utilities`: The module containing some common utilities used in many of other modules.
+* `utilities`: The module containing some common utilities used in many of the other modules.
 
 ## Units
 
