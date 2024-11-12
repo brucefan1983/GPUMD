@@ -79,6 +79,11 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
   }
 
+  // read NEP group method from nep map file
+  PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &nep_group_method), 1, 
+  "Reading error for NEP group method.");
+  printf("Use group method %d to identify molecule for NEP.\n", nep_group_method);
+  
   // read NEP parameter
 
   // initialize neighbor lists and some temp vectors
