@@ -182,6 +182,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
     parambs[i].MN_radial = int(ceil(MN_radial * 1.25));
     parambs[i].MN_angular = int(ceil(MN_angular * 1.25));
+    max_MN_radial = max(max_MN_radial, parambs[i].MN_radial);
+    max_MN_angular = max(max_MN_angular, parambs[i].MN_angular);
     printf("    enlarged MN_radial = %d.\n", parambs[i].MN_radial);
     printf("    enlarged MN_angular = %d.\n", parambs[i].MN_angular);
 
@@ -206,6 +208,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
     parambs[i].n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
     parambs[i].n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    max_n_max_angular = max(max_n_max_angular, parambs[i].n_max_angular);
     printf("    n_max_radial = %d.\n", parambs[i].n_max_radial);
     printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
 
@@ -257,6 +260,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     if (parambs[i].model_type == 3) {
       annmbs[i].dim += 1;
     }
+    max_dim = max(max_dim, annmbs[i].dim);
     printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
 
     // calculated parameters:

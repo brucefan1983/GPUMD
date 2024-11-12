@@ -167,6 +167,10 @@ protected:
 
 private:
   int num_nep = 0; // number of NEP file
+  int max_MN_angular = 0;     // max of parambs[i].MN_angular
+  int max_MN_radial = 0;      // max of parambs[i].MN_radial
+  int max_n_max_angular = 0;  // max of parambs[i].n_max_angular
+  int max_dim = 0;            // max of annmbs[i].dim
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
   std::vector<int> nep_map;     // map nep group to nep parameters
