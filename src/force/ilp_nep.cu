@@ -408,3 +408,8 @@ void ILP_NEP::update_potential(float* parameters, ParaMB& paramb, ANN& ann)
 
   ann.c = pointer;
 }
+
+ILP_NEP::~ILP_NEP(void)
+{
+  // nothing
+}
