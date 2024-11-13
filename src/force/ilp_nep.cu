@@ -1515,4 +1515,37 @@ static __global__ void gpu_find_force(
   }
 }
 
+// build a neighbor list for reducing force
+static __global__ void build_reduce_neighbor_list(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  int *g_reduce_neighbor_list)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (N1 < N2) {
+    int neighbor_number = g_neighbor_number[n1];
+    int l, r, m, tmp_value;
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + i1 * number_of_particles;
+      int n2 = g_neighbor_list[index];
 
+      l = 0;
+      r = g_neighbor_number[n2];
+      while (l < r) {
+        m = (l + r) >> 1;
+        tmp_value = g_neighbor_list[n2 + number_of_particles * m];
+        if (tmp_value < n1) {
+          l = m + 1;
+        } else if (tmp_value > n1) {
+          r = m - 1;
+        } else {
+          break;
+        }
+      }
+      g_reduce_neighbor_list[index] = (l + r) >> 1;
+    }
+  }
+}
