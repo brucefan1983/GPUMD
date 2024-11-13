@@ -266,8 +266,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
 
     // calculated parameters:
-    // TODO
-    rc = parambs[i].rc_radial; // largest cutoff
     parambs[i].rcinv_radial = 1.0f / parambs[i].rc_radial;
     parambs[i].rcinv_angular = 1.0f / parambs[i].rc_angular;
     parambs[i].num_types_sq = parambs[i].num_types * parambs[i].num_types;
