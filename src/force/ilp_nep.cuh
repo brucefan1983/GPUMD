@@ -40,7 +40,7 @@ struct NEP3_Data {
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
-  GPU_Vector<float> parameters; // parameters to be optimized
+  std::vector<GPU_Vector<float>> parameters; // parameters to be optimized
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
@@ -181,7 +181,7 @@ private:
   int ilp_group_method = 0;
   int nep_group_method = 0;
 
-  void update_potential(float* parameters, ANN& ann);
+  void update_potential(float* parameters, ParaMB& paramb, ANN& ann);
 #ifdef USE_TABLE
   void construct_table(float* parameters);
 #endif
