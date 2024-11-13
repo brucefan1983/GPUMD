@@ -618,11 +618,11 @@ static __device__ __forceinline__ int modulo(int k, int range)
 
 // calculate the normals and its derivatives for C B N
 static __device__ void calc_normal_cbn(
-  float (&vet)[3][3],
+  float (&vet)[MAX_ILP_NEIGHBOR_TMD][3],
   int cont,
   float (&normal)[3],
   float (&dnormdri)[3][3],
-  float (&dnormal)[3][3][3])
+  float (&dnormal)[3][MAX_ILP_NEIGHBOR_TMD][3])
 {
   int id, ip, m;
   float pv12[3], pv31[3], pv23[3], n1[3], dni[3];
@@ -1179,3 +1179,340 @@ static __device__ void calc_vdW(
   p2_vdW = Tap * Vilp;
   f2_vdW = fsum;
 }
+
+// force evaluation kernel
+static __global__ void gpu_find_force(
+  ILP_Para ilp_para,
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  int *g_ilp_neighbor_number,
+  int *g_ilp_neighbor_list,
+  const int *group_label,
+  const int *g_type,
+  const double *__restrict__ g_x,
+  const double *__restrict__ g_y,
+  const double *__restrict__ g_z,
+  double *g_fx,
+  double *g_fy,
+  double *g_fz,
+  double *g_virial,
+  double *g_potential,
+  float *g_f12x,
+  float *g_f12y,
+  float *g_f12z,
+  float *g_f12x_ilp_neigh,
+  float *g_f12y_ilp_neigh,
+  float *g_f12z_ilp_neigh,
+  bool sublayer_flag[MAX_TYPE_ILP_NEP])
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+  float s_fx = 0.0f;                                   // force_x
+  float s_fy = 0.0f;                                   // force_y
+  float s_fz = 0.0f;                                   // force_z
+  float s_pe = 0.0f;                                   // potential energy
+  float s_sxx = 0.0f;                                  // virial_stress_xx
+  float s_sxy = 0.0f;                                  // virial_stress_xy
+  float s_sxz = 0.0f;                                  // virial_stress_xz
+  float s_syx = 0.0f;                                  // virial_stress_yx
+  float s_syy = 0.0f;                                  // virial_stress_yy
+  float s_syz = 0.0f;                                  // virial_stress_yz
+  float s_szx = 0.0f;                                  // virial_stress_zx
+  float s_szy = 0.0f;                                  // virial_stress_zy
+  float s_szz = 0.0f;                                  // virial_stress_zz
+
+  float r = 0.0f;
+  float rsq = 0.0f;
+  float Rcut = 0.0f;
+
+  if (n1 < N2) {
+    double x12d, y12d, z12d;
+    float x12f, y12f, z12f;
+    int neighor_number = g_neighbor_number[n1];
+    int type1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+
+    float delkix_half[MAX_ILP_NEIGHBOR_TMD] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float delkiy_half[MAX_ILP_NEIGHBOR_TMD] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float delkiz_half[MAX_ILP_NEIGHBOR_TMD] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    // calculate the normal
+    int cont = 0;
+    float normal[3];
+    float dnormdri[3][3];
+    float dnormal[3][MAX_ILP_NEIGHBOR_TMD][3];
+
+    float vet[MAX_ILP_NEIGHBOR_TMD][3];
+    int id, ip, m;
+    for (id = 0; id < 3; ++id) {
+      normal[id] = 0.0f;
+      for (ip = 0; ip < 3; ++ip) {
+        dnormdri[ip][id] = 0.0f;
+        for (m = 0; m < MAX_ILP_NEIGHBOR_TMD; ++m) {
+          dnormal[id][m][ip] = 0.0f;
+          vet[m][id] = 0.0f;
+        }
+      }
+    }
+
+    int ilp_neighbor_number = g_ilp_neighbor_number[n1];
+    for (int i1 = 0; i1 < ilp_neighbor_number; ++i1) {
+      int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * i1];
+      x12d = g_x[n2_ilp] - x1;
+      y12d = g_y[n2_ilp] - y1;
+      z12d = g_z[n2_ilp] - z1;
+      apply_mic(box, x12d, y12d, z12d);
+      vet[cont][0] = float(x12d);
+      vet[cont][1] = float(y12d);
+      vet[cont][2] = float(z12d);
+      ++cont;
+
+      delkix_half[i1] = float(x12d) * 0.5f;
+      delkiy_half[i1] = float(y12d) * 0.5f;
+      delkiz_half[i1] = float(z12d) * 0.5f;
+    }
+    
+    if (sublayer_flag[type1]) {
+      calc_normal_tmd(vet, cont, normal, dnormdri, dnormal);
+    } else {
+      calc_normal_cbn(vet, cont, normal, dnormdri, dnormal);
+    }
+
+    // calculate energy and force
+    for (int i1 = 0; i1 < neighor_number; ++i1) {
+      int index = n1 + number_of_particles * i1;
+      int n2 = g_neighbor_list[index];
+      int type2 = g_type[n2];
+
+      x12d = g_x[n2] - x1;
+      y12d = g_y[n2] - y1;
+      z12d = g_z[n2] - z1;
+      apply_mic(box, x12d, y12d, z12d);
+
+      // save x12, y12, z12 in float
+      x12f = float(x12d);
+      y12f = float(y12d);
+      z12f = float(z12d);
+
+      // calculate distance between atoms
+      rsq = x12f * x12f + y12f * y12f + z12f * z12f;
+      r = sqrtf(rsq);
+      Rcut = ilp_para.rcut_global[type1][type2];
+
+      if (r >= Rcut) {
+        continue;
+      }
+
+      // calc att
+      float Tap, dTap, rinv;
+      float Rcutinv = 1.0f / Rcut;
+      rinv = 1.0f / r;
+      Tap = calc_Tap(r, Rcutinv);
+      dTap = calc_dTap(r, Rcutinv);
+
+      float p2_vdW, f2_vdW;
+      calc_vdW(
+        r,
+        rinv,
+        rsq,
+        ilp_para.d[type1][type2],
+        ilp_para.d_Seff[type1][type2],
+        ilp_para.C_6[type1][type2],
+        Tap,
+        dTap,
+        p2_vdW,
+        f2_vdW);
+      
+      float f12x = -f2_vdW * x12f * 0.5f;
+      float f12y = -f2_vdW * y12f * 0.5f;
+      float f12z = -f2_vdW * z12f * 0.5f;
+      float f21x = -f12x;
+      float f21y = -f12y;
+      float f21z = -f12z;
+
+      s_fx += f12x - f21x;
+      s_fy += f12y - f21y;
+      s_fz += f12z - f21z;
+
+      s_pe += p2_vdW * 0.5f;
+      s_sxx += x12f * f21x;
+      s_sxy += x12f * f21y;
+      s_sxz += x12f * f21z;
+      s_syx += y12f * f21x;
+      s_syy += y12f * f21y;
+      s_syz += y12f * f21z;
+      s_szx += z12f * f21x;
+      s_szy += z12f * f21y;
+      s_szz += z12f * f21z;
+
+      
+      // calc rep
+      float C = ilp_para.C[type1][type2];
+      float lambda_ = ilp_para.lambda[type1][type2];
+      float delta2inv = ilp_para.delta2inv[type1][type2];
+      float epsilon = ilp_para.epsilon[type1][type2];
+      float z0 = ilp_para.z0[type1][type2];
+      // calc_rep
+      float prodnorm1, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
+      float fpair, fpair1, fsum, delx, dely, delz, fkcx, fkcy, fkcz;
+      float dprodnorm1[3] = {0.0f, 0.0f, 0.0f};
+      float fp1[3] = {0.0f, 0.0f, 0.0f};
+      float fprod1[3] = {0.0f, 0.0f, 0.0f};
+      float fk[3] = {0.0f, 0.0f, 0.0f};
+
+      delx = -x12f;
+      dely = -y12f;
+      delz = -z12f;
+
+      float delx_half = delx * 0.5f;
+      float dely_half = dely * 0.5f;
+      float delz_half = delz * 0.5f;
+
+      // calculate the transverse distance
+      prodnorm1 = normal[0] * delx + normal[1] * dely + normal[2] * delz;
+      rhosq1 = rsq - prodnorm1 * prodnorm1;
+      rdsq1 = rhosq1 * delta2inv;
+
+      // store exponents
+      // exp0 = exp(-lambda_ * (r - z0));
+      // exp1 = exp(-rdsq1);
+      exp0 = expf(-lambda_ * (r - z0));
+      exp1 = expf(-rdsq1);
+
+      frho1 = exp1 * C;
+      Erep = 0.5f * epsilon + frho1;
+      Vilp = exp0 * Erep;
+
+      // derivatives
+      fpair = lambda_ * exp0 * rinv * Erep;
+      fpair1 = 2.0f * exp0 * frho1 * delta2inv;
+      fsum = fpair + fpair1;
+
+      float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
+      float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
+
+      // derivatives of the product of rij and ni, the resutl is a vector
+      dprodnorm1[0] = 
+        dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
+      dprodnorm1[1] = 
+        dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
+      dprodnorm1[2] = 
+        dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
+      // fp1[0] = prodnorm1 * normal[0] * fpair1;
+      // fp1[1] = prodnorm1 * normal[1] * fpair1;
+      // fp1[2] = prodnorm1 * normal[2] * fpair1;
+      // fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
+      // fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
+      // fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
+      fp1[0] = prodnorm1_m_fpair1 * normal[0];
+      fp1[1] = prodnorm1_m_fpair1 * normal[1];
+      fp1[2] = prodnorm1_m_fpair1 * normal[2];
+      fprod1[0] = prodnorm1_m_fpair1 * dprodnorm1[0];
+      fprod1[1] = prodnorm1_m_fpair1 * dprodnorm1[1];
+      fprod1[2] = prodnorm1_m_fpair1 * dprodnorm1[2];
+
+      // fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx * rinv;
+      // fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely * rinv;
+      // fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz * rinv;
+      fkcx = (delx * fsum - fp1[0]) * Tap - Vilp_m_dTap_m_rinv * delx;
+      fkcy = (dely * fsum - fp1[1]) * Tap - Vilp_m_dTap_m_rinv * dely;
+      fkcz = (delz * fsum - fp1[2]) * Tap - Vilp_m_dTap_m_rinv * delz;
+
+      s_fx += fkcx - fprod1[0] * Tap;
+      s_fy += fkcy - fprod1[1] * Tap;
+      s_fz += fkcz - fprod1[2] * Tap;
+
+      g_f12x[index] = fkcx;
+      g_f12y[index] = fkcy;
+      g_f12z[index] = fkcz;
+
+      float minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
+      for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
+      // for (int kk = 0; kk < 0; ++kk) {
+        // int index_ilp = n1 + number_of_particles * kk;
+        // int n2_ilp = g_ilp_neighbor_list[index_ilp];
+        // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
+        dprodnorm1[0] = dnormal[0][kk][0] * delx + dnormal[1][kk][0] * dely +
+            dnormal[2][kk][0] * delz;
+        dprodnorm1[1] = dnormal[0][kk][1] * delx + dnormal[1][kk][1] * dely +
+            dnormal[2][kk][1] * delz;
+        dprodnorm1[2] = dnormal[0][kk][2] * delx + dnormal[1][kk][2] * dely +
+            dnormal[2][kk][2] * delz;
+        // fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
+        // fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
+        // fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
+        fk[0] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[0];
+        fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
+        fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
+
+        g_f12x_ilp_neigh[n1 + number_of_particles * kk] += fk[0];
+        g_f12y_ilp_neigh[n1 + number_of_particles * kk] += fk[1];
+        g_f12z_ilp_neigh[n1 + number_of_particles * kk] += fk[2];
+
+        // delki[0] = g_x[n2_ilp] - x1;
+        // delki[1] = g_y[n2_ilp] - y1;
+        // delki[2] = g_z[n2_ilp] - z1;
+        // apply_mic(box, delki[0], delki[1], delki[2]);
+
+        // s_sxx += delki[0] * fk[0] * 0.5;
+        // s_sxy += delki[0] * fk[1] * 0.5;
+        // s_sxz += delki[0] * fk[2] * 0.5;
+        // s_syx += delki[1] * fk[0] * 0.5;
+        // s_syy += delki[1] * fk[1] * 0.5;
+        // s_syz += delki[1] * fk[2] * 0.5;
+        // s_szx += delki[2] * fk[0] * 0.5;
+        // s_szy += delki[2] * fk[1] * 0.5;
+        // s_szz += delki[2] * fk[2] * 0.5;
+        s_sxx += delkix_half[kk] * fk[0];
+        s_sxy += delkix_half[kk] * fk[1];
+        s_sxz += delkix_half[kk] * fk[2];
+        s_syx += delkiy_half[kk] * fk[0];
+        s_syy += delkiy_half[kk] * fk[1];
+        s_syz += delkiy_half[kk] * fk[2];
+        s_szx += delkiz_half[kk] * fk[0];
+        s_szy += delkiz_half[kk] * fk[1];
+        s_szz += delkiz_half[kk] * fk[2];
+      }
+      s_pe += Tap * Vilp;
+      s_sxx += delx_half * fkcx;
+      s_sxy += delx_half * fkcy;
+      s_sxz += delx_half * fkcz;
+      s_syx += dely_half * fkcx;
+      s_syy += dely_half * fkcy;
+      s_syz += dely_half * fkcz;
+      s_szx += delz_half * fkcx;
+      s_szy += delz_half * fkcy;
+      s_szz += delz_half * fkcz;
+    }
+
+    // save force
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * number_of_particles] += s_sxx;
+    g_virial[n1 + 1 * number_of_particles] += s_syy;
+    g_virial[n1 + 2 * number_of_particles] += s_szz;
+    g_virial[n1 + 3 * number_of_particles] += s_sxy;
+    g_virial[n1 + 4 * number_of_particles] += s_sxz;
+    g_virial[n1 + 5 * number_of_particles] += s_syz;
+    g_virial[n1 + 6 * number_of_particles] += s_syx;
+    g_virial[n1 + 7 * number_of_particles] += s_szx;
+    g_virial[n1 + 8 * number_of_particles] += s_szy;
+
+    // save potential
+    g_potential[n1] += s_pe;
+
+  }
+}
+
+
