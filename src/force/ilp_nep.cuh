@@ -173,9 +173,10 @@ private:
   int max_dim = 0;            // max of annmbs[i].dim
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
-  std::vector<int> nep_map;     // map nep group to nep parameters
+  std::vector<int> nep_map_cpu;     // map nep group to nep parameters (cpu)
+  GPU_Vector<int> nep_map;          // map nep group to nep parameters (gpu)
   std::vector<int> type_map_cpu;    // map ilp type to nep type (cpu)
-  GPU_Vector<int> type_map;    // map ilp type to nep type (gpu)
+  GPU_Vector<int> type_map;         // map ilp type to nep type (gpu)
   NEP3_Data nep_data;
   ExpandedBox ebox;
 

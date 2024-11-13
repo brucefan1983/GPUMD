@@ -52,11 +52,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_NEP)) {
     PRINT_INPUT_ERROR("Incorrect type number of ILP parameters.\n");
   }
+  std::vector<std::string> ilp_elements(num_types);
   for (int n = 0; n < num_types; ++n) {
     char atom_symbol[10];
     int count = fscanf(fid_ilp, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "Reading error for ILP potential.");
     printf(" %s", atom_symbol);
+    ilp_elements[n] = atom_symbol;
     sublayer_flag[n] = check_sublayer(atom_symbol);
   }
   printf("\n");
@@ -112,7 +114,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   parambs.resize(num_nep);
   annmbs.resize(num_nep);
   nep_data.parameters.resize(num_nep);
-  
+
   // init type map cpu
   type_map_cpu.resize(num_types * num_nep, -1);
   
@@ -334,7 +336,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   int num_nep_group = 0;
   PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &num_nep_group), 1, 
   "Reading error for the number of nep group.");
-  nep_map.resize(num_nep_group);
+  nep_map_cpu.resize(num_nep_group);
   for (int i = 0; i < num_nep_group; ++i) {
     int nep_i = 0;    // which nep this group use
     int count = fscanf(fid_nep_map, "%d", &nep_i);
@@ -349,9 +351,15 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       }
       exit(1);
     }
-    nep_map[i] = nep_i;
+    nep_map_cpu[i] = nep_i;
     printf("group %d uses NEP %d.\n", i, nep_i);
   }
+
+  // cp two maps to gpu
+  nep_map.resize(num_nep_group);
+  type_map.resize(num_types * num_nep);
+  nep_map.copy_from_host(nep_map_cpu.data());
+  type_map.copy_from_host(type_map_cpu.data());
 
 
   // initialize ilp neighbor lists and some temp vectors
