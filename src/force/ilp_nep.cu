@@ -358,7 +358,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
     {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
-  CHECK(gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float)));
+  CHECK(gpuMemcpyToSymbol(Tap_coeff, h_tap_coeff, 8 * sizeof(float)));
 
   // set ilp_flag to 1
   ilp_flag = 1;
@@ -412,4 +412,39 @@ void ILP_NEP::update_potential(float* parameters, ParaMB& paramb, ANN& ann)
 ILP_NEP::~ILP_NEP(void)
 {
   // nothing
+}
+
+static __device__ __forceinline__ float calc_Tap(const float r_ij, const float Rcutinv)
+{
+  float Tap, r;
+
+  r = r_ij * Rcutinv;
+  Tap = Tap_coeff[7];
+  Tap = Tap * r + Tap_coeff[6];
+  Tap = Tap * r + Tap_coeff[5];
+  Tap = Tap * r + Tap_coeff[4];
+  Tap = Tap * r + Tap_coeff[3];
+  Tap = Tap * r + Tap_coeff[2];
+  Tap = Tap * r + Tap_coeff[1];
+  Tap = Tap * r + Tap_coeff[0];
+
+  return Tap;
+}
+
+// calculate the derivatives of long-range cutoff term
+static __device__ __forceinline__ float calc_dTap(const float r_ij, const float Rcutinv)
+{
+  float dTap, r;
+  
+  r = r_ij * Rcutinv;
+  dTap = 7.0f * Tap_coeff[7];
+  dTap = dTap * r + 6.0f * Tap_coeff[6];
+  dTap = dTap * r + 5.0f * Tap_coeff[5];
+  dTap = dTap * r + 4.0f * Tap_coeff[4];
+  dTap = dTap * r + 3.0f * Tap_coeff[3];
+  dTap = dTap * r + 2.0f * Tap_coeff[2];
+  dTap = dTap * r + Tap_coeff[1];
+  dTap *= Rcutinv;
+
+  return dTap;
 }

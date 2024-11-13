@@ -205,4 +205,4 @@ private:
   void read_nep_map(int fid);
 };
 
-static __constant__ float Tap_coeff_tmd[8];
+static __constant__ float Tap_coeff[8];
