@@ -113,6 +113,9 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   annmbs.resize(num_nep);
   nep_data.parameters.resize(num_nep);
   
+  // init type map cpu
+  type_map_cpu.resize(num_types * num_nep, -1);
+  
   // read NEP parameter from each NEP file
   for (int i = 0; i < num_nep; ++i) {
     printf("\nReading NEP %d.\n", i);
@@ -167,6 +170,18 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       }
       parambs[i].atomic_numbers[n] = atomic_number - 1;
       printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), atomic_number);
+
+      // update type map
+      // for example: if ilp elements is C N B, element in nep 0 is C, elements in nep 1 are B N
+      // type map should be [0,    -1,    -1,    -1,    1,    0]
+      //   ilp element       C      N      B      C     N     B
+      //   nep 0 element     C(0)   null   null
+      //   nep 1 element                          null  N(1)  B(0)
+      for (int m = 0; m < num_types; ++m) {
+        if (tokens[2 + n] == ilp_elements[m]) {
+          type_map_cpu[m + i * num_types] = n;
+        }
+      }
     }
 
     // cutoff 4.2 3.7 80 47 1

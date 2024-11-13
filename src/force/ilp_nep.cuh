@@ -174,6 +174,8 @@ private:
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
   std::vector<int> nep_map;     // map nep group to nep parameters
+  std::vector<int> type_map_cpu;    // map ilp type to nep type (cpu)
+  GPU_Vector<int> type_map;    // map ilp type to nep type (gpu)
   NEP3_Data nep_data;
   ExpandedBox ebox;
 
