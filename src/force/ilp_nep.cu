@@ -1820,3 +1820,218 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_radial[n1] = count_radial;
   g_NN_angular[n1] = count_angular;
 }
+
+static __global__ void find_descriptor(
+  ILP_NEP::ParaMB paramb,
+  ILP_NEP::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const int* __restrict__ g_type,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const bool is_polarizability,
+#ifdef USE_TABLE
+  const float* __restrict__ g_gn_radial,
+  const float* __restrict__ g_gn_angular,
+#endif
+  double* g_pe,
+  float* g_Fp,
+  double* g_virial,
+  float* g_sum_fxyz)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    int t1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    float q[MAX_DIM] = {0.0f};
+
+    // get radial descriptors
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+
+#ifdef USE_TABLE
+      int index_left, index_right;
+      float weight_left, weight_right;
+      find_index_and_weight(
+        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
+      int t12 = t1 * paramb.num_types + g_type[n2];
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        q[n] +=
+          g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_left +
+          g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_right;
+      }
+#else
+      float fc12;
+      int t2 = g_type[n2];
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc(rc, rcinv, d12, fc12);
+      float fn12[MAX_NUM_N];
+
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        q[n] += gn12;
+      }
+#endif
+    }
+
+    // get angular descriptors
+    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      float s[NUM_OF_ABC] = {0.0f};
+      for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+        int n2 = g_NL_angular[n1 + N * i1];
+        double x12double = g_x[n2] - x1;
+        double y12double = g_y[n2] - y1;
+        double z12double = g_z[n2] - z1;
+        apply_mic(box, x12double, y12double, z12double);
+        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+#ifdef USE_TABLE
+        int index_left, index_right;
+        float weight_left, weight_right;
+        find_index_and_weight(
+          d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
+        int t12 = t1 * paramb.num_types + g_type[n2];
+        float gn12 =
+          g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+            weight_left +
+          g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+            weight_right;
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+#else
+        float fc12;
+        int t2 = g_type[n2];
+        float rc = paramb.rc_angular;
+        if (paramb.use_typewise_cutoff) {
+          rc = min(
+            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+              paramb.typewise_cutoff_angular_factor,
+            rc);
+        }
+        float rcinv = 1.0f / rc;
+        find_fc(rc, rcinv, d12, fc12);
+        float fn12[MAX_NUM_N];
+        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+#endif
+      }
+      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
+        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+      }
+    }
+
+    // nomalize descriptor
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = q[d] * paramb.q_scaler[d];
+    }
+
+    // get energy and energy gradient
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+
+    if (is_polarizability) {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0_pol[t1],
+        annmb.b0_pol[t1],
+        annmb.w1_pol[t1],
+        annmb.b1_pol,
+        q,
+        F,
+        Fp);
+      // Add the potential F for this atom to the diagonal of the virial
+      g_virial[n1] = F;
+      g_virial[n1 + N * 1] = F;
+      g_virial[n1 + N * 2] = F;
+
+      // Reset the potential and forces such that they
+      // are zero for the next call to the model. The next call
+      // is not used in the case of is_pol = True, but it doesn't
+      // hurt to clean up.
+      F = 0.0f;
+      for (int d = 0; d < annmb.dim; ++d) {
+        Fp[d] = 0.0f;
+      }
+    }
+
+    if (paramb.version == 5) {
+      apply_ann_one_layer_nep5(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    } else {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    }
+    g_pe[n1] += F;
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
