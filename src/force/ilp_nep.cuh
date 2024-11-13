@@ -181,6 +181,9 @@ private:
   int ilp_group_method = 0;
   int nep_group_method = 0;
 
+  // true if element type is in the sublayer
+  bool sublayer_flag[MAX_TYPE_ILP_NEP] = {false};
+
   void update_potential(float* parameters, ParaMB& paramb, ANN& ann);
 #ifdef USE_TABLE
   void construct_table(float* parameters);

@@ -38,6 +38,12 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
+static inline bool check_sublayer(const char* element)
+{
+  return strcmp(element, "Mo") == 0 || strcmp(element, "S") == 0 ||
+         strcmp(element, "Se") == 0 || strcmp(element, "W") == 0 ||
+         strcmp(element, "Te");
+}
 
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 {
@@ -51,6 +57,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     int count = fscanf(fid_ilp, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "Reading error for ILP potential.");
     printf(" %s", atom_symbol);
+    sublayer_flag[n] = check_sublayer(atom_symbol);
   }
   printf("\n");
 
