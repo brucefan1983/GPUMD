@@ -134,11 +134,6 @@ public:
     const float* b1_pol;
   };
 
-  // TODO: what is this?
-  struct ExpandedBox {
-    int num_cells[3];
-    float h[18];
-  };
 
   using Potential::compute;
   ILP_NEP(FILE*, FILE*, int, int);
@@ -178,7 +173,6 @@ private:
   std::vector<int> type_map_cpu;    // map ilp type to nep type (cpu)
   GPU_Vector<int> type_map;         // map ilp type to nep type (gpu)
   NEP3_Data nep_data;
-  ExpandedBox ebox;
 
   // two group methods for ilp and nep
   int ilp_group_method = 0;
@@ -191,14 +185,6 @@ private:
 #ifdef USE_TABLE
   void construct_table(float* parameters);
 #endif
-
-  void compute_small_box(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
 
   void compute_large_box(
     Box& box,
