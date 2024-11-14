@@ -1836,7 +1836,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  const bool is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -1966,31 +1965,6 @@ static __global__ void find_descriptor(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (is_polarizability) {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0_pol[t1],
-        annmb.b0_pol[t1],
-        annmb.w1_pol[t1],
-        annmb.b1_pol,
-        q,
-        F,
-        Fp);
-      // Add the potential F for this atom to the diagonal of the virial
-      g_virial[n1] = F;
-      g_virial[n1 + N * 1] = F;
-      g_virial[n1 + N * 2] = F;
-
-      // Reset the potential and forces such that they
-      // are zero for the next call to the model. The next call
-      // is not used in the case of is_pol = True, but it doesn't
-      // hurt to clean up.
-      F = 0.0f;
-      for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0f;
-      }
-    }
 
     if (paramb.version == 5) {
       apply_ann_one_layer_nep5(
@@ -2354,7 +2328,6 @@ void ILP_NEP::compute_large_box(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  bool is_polarizability = paramb.model_type == 2;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -2370,7 +2343,6 @@ void ILP_NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    is_polarizability,
 #ifdef USE_TABLE
     nep_data.gn_radial.data(),
     nep_data.gn_angular.data(),
