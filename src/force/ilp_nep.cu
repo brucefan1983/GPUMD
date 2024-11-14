@@ -2248,8 +2248,8 @@ static __global__ void find_partial_force_angular(
   }
 }
 
-// large box fo MD applications
-void ILP_NEP::compute_large_box(
+// nep part of compute func
+void ILP_NEP::compute_nep(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

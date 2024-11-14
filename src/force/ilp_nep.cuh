@@ -186,7 +186,7 @@ private:
   void construct_table(float* parameters);
 #endif
 
-  void compute_large_box(
+  void compute_nep(
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
