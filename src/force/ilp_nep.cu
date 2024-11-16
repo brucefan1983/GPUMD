@@ -2507,8 +2507,8 @@ void ILP_NEP::compute_nep(
     }
     std::ofstream output_file("neighbor.out", std::ios_base::app);
     output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << "radial(max=" << max_MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << max_MN_angular << ",actual=" << angular_actual << ")."
                 << std::endl;
     output_file.close();
   }
