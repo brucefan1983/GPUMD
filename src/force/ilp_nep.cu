@@ -2275,6 +2275,14 @@ static __global__ void find_descriptor(
       // g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
       g_Fp[d * N + n1] = Fp[d] * q_scaler[d];
     }
+
+    // set ptrs to null
+    paramb = nullptr;
+    paramb_int = nullptr;
+    annmb = nullptr;
+    atomic_numbers = nullptr;
+    q_scaler = nullptr;
+    c = nullptr;
   }
 }
 
