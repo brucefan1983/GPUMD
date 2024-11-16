@@ -2092,22 +2092,32 @@ static __global__ void find_descriptor(
       // }
       if (paramb_int[UTC]) {
         rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+          (COVALENT_RADIUS[atomic_numbers[t1]] +
+           COVALENT_RADIUS[atomic_numbers[t2]]) *
+            paramb[TCRF],
           rc);
       }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
 
-      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      // find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
+      // for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      //   float gn12 = 0.0f;
+      //   for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+      //     int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+      //     c_index += t1 * paramb.num_types + t2;
+      //     gn12 += fn12[k] * annmb.c[c_index];
+      //   }
+      //   q[n] += gn12;
+      // }
+      find_fn(paramb_int[BSR], rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gn12 += fn12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb_int[BSR]; ++k) {
+          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
+          c_index += t1 * paramb_int[NT] + t2;
+          gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
       }
@@ -2115,7 +2125,8 @@ static __global__ void find_descriptor(
     }
 
     // get angular descriptors
-    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+    // for (int n = 0; n <= paramb.n_max_angular; ++n) {
+    for (int n = 0; n <= paramb_int[NMAXA]; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int n2 = g_NL_angular[n1 + N * i1];
@@ -2151,25 +2162,33 @@ static __global__ void find_descriptor(
         // }
         if (paramb_int[UTC]) {
           rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
+            (COVALENT_RADIUS[atomic_numbers[t1]] +
+             COVALENT_RADIUS[atomic_numbers[t2]]) *
+              paramb[TCAF],
             rc);
         }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+        // find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+        find_fn(paramb_int[BSA], rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
+        // for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+        //   int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+        //   c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+        //   gn12 += fn12[k] * annmb.c[c_index];
+        // }
+        // accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+        for (int k = 0; k <= paramb_int[BSA]; ++k) {
+          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
+          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          gn12 += fn12[k] * c[c_index];
         }
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      // find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(paramb_int[LMAX], paramb_int[NUML], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -2189,33 +2208,72 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
+    // if (paramb.version == 5) {
+    //   apply_ann_one_layer_nep5(
+    //     annmb.dim,
+    //     annmb.num_neurons1,
+    //     annmb.w0[t1],
+    //     annmb.b0[t1],
+    //     annmb.w1[t1],
+    //     annmb.b1,
+    //     q,
+    //     F,
+    //     Fp);
+    // } else {
+    //   apply_ann_one_layer(
+    //     annmb.dim,
+    //     annmb.num_neurons1,
+    //     annmb.w0[t1],
+    //     annmb.b0[t1],
+    //     annmb.w1[t1],
+    //     annmb.b1,
+    //     q,
+    //     F,
+    //     Fp);
+    //   }
+    int ann_num_neurons1 = *((int*)annmb + NNEUR);
+    if (paramb_int[VERSION] == 3){
+      apply_ann_one_layer(
+        ann_dim,
+        ann_num_neurons1,
+        FLT_PTR(annmb + PTRW0),
+        FLT_PTR(annmb + PTRB0),
+        FLT_PTR(annmb + PTRW1),
+        &annmb[OUTB1],
         q,
         F,
         Fp);
-    } else {
+    } else if (paramb_int[VERSION] == 4) {
+      int t_offset = (ann_dim + 2) * ann_num_neurons1;
       apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
+        ann_dim,
+        ann_num_neurons1,
+        FLT_PTR(annmb + PTRW0) + t1 * t_offset,
+        FLT_PTR(annmb + PTRB0) + t1 * t_offset,
+        FLT_PTR(annmb + PTRW1) + t1 * t_offset,
+        &annmb[OUTB1],
+        q,
+        F,
+        Fp);
+    } else if (paramb_int[VERSION] == 5) {
+      int t_offset = (ann_dim + 2) * ann_num_neurons1 + 1;
+      apply_ann_one_layer_nep5(
+        ann_dim,
+        ann_num_neurons1,
+        FLT_PTR(annmb + PTRW0) + t1 * t_offset,
+        FLT_PTR(annmb + PTRB0) + t1 * t_offset,
+        FLT_PTR(annmb + PTRW1) + t1 * t_offset,
+        &annmb[OUTB1],
         q,
         F,
         Fp);
     }
     g_pe[n1] += F;
 
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    // for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d < ann_dim; ++d) {
+      // g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d] * q_scaler[d];
     }
   }
 }
