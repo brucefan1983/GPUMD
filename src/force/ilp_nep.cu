@@ -2641,8 +2641,9 @@ void ILP_NEP::compute_ilp(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  // assume the first group column is for ILP
-  const int *group_label = group[0].label.data();
+  // get labels of ILP and nep
+  const int *group_label_ilp = group[ilp_group_method].label.data();
+  const int *group_label_nep = group[nep_group_method].label.data();
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
