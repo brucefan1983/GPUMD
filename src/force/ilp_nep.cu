@@ -3025,11 +3025,11 @@ void ILP_NEP::compute_ilp(
     output_file.close();
   }
 
-  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<N, max_MN_radial, max_MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
   GPU_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<N, max_MN_angular, max_MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
