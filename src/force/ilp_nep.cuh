@@ -224,13 +224,13 @@ private:
   void construct_table(float* parameters);
 #endif
 
-  void compute_nep(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
+  // void compute_nep(
+  //   Box& box,
+  //   const GPU_Vector<int>& type,
+  //   const GPU_Vector<double>& position,
+  //   GPU_Vector<double>& potential,
+  //   GPU_Vector<double>& force,
+  //   GPU_Vector<double>& virial);
   
   void read_nep_map(int fid);
 };
