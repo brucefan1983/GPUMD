@@ -231,8 +231,6 @@ private:
   //   GPU_Vector<double>& potential,
   //   GPU_Vector<double>& force,
   //   GPU_Vector<double>& virial);
-  
-  void read_nep_map(int fid);
 };
 
 static __constant__ float Tap_coeff[8];
