@@ -2967,9 +2967,9 @@ void ILP_NEP::compute_ilp(
     GPU_CHECK_KERNEL
 
   // compute NEP
-  const int BLOCK_SIZE = 64;
+  const int BLOCK_SIZE_NEP = 64;
   const int N = type.size();
-  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+  const int grid_size_nep = (N2 - N1 - 1) / BLOCK_SIZE_NEP + 1;
   int* g_nep_map = nep_map.data();
   int* g_type_map = type_map.data();
 
@@ -2987,7 +2987,7 @@ void ILP_NEP::compute_ilp(
     nep_data.cell_count_sum,
     nep_data.cell_contents);
 
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_large_box<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
     g_nep_map,
     g_type_map,
     group_label_nep,
@@ -3012,8 +3012,8 @@ void ILP_NEP::compute_ilp(
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
+  static int num_calls_n = 0;
+  if (num_calls_n++ % 1000 == 0) {
     nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
     nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
     int radial_actual = 0;
@@ -3027,7 +3027,7 @@ void ILP_NEP::compute_ilp(
       }
     }
     std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+    output_file << "Neighbor info at step " << num_calls_n - 1 << ": "
                 << "radial(max=" << max_MN_radial << ",actual=" << radial_actual
                 << "), angular(max=" << max_MN_angular << ",actual=" << angular_actual << ")."
                 << std::endl;
@@ -3042,7 +3042,7 @@ void ILP_NEP::compute_ilp(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
     g_nep_map,
     g_type_map,
     group_label_nep,
@@ -3071,7 +3071,7 @@ void ILP_NEP::compute_ilp(
   GPU_CHECK_KERNEL
 
   bool is_dipole = 0;
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
     g_nep_map,
     g_type_map,
     group_label_nep,
@@ -3097,7 +3097,7 @@ void ILP_NEP::compute_ilp(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+  find_partial_force_angular<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
     g_nep_map,
     g_type_map,
     group_label_nep,
