@@ -2015,8 +2015,11 @@ static __global__ void find_neighbor_list_large_box(
 }
 
 static __global__ void find_descriptor(
-  ILP_NEP::ParaMB paramb,
-  ILP_NEP::ANN annmb,
+  const int* nep_map,
+  const int* type_map,
+  const int* labels,
+  void* h_parambs,
+  void* h_annmbs,
   const int N,
   const int N1,
   const int N2,
@@ -2853,6 +2856,7 @@ void ILP_NEP::compute_ilp(
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     g_nep_map,
     g_type_map,
+    group_label_nep,
     h_parambs,
     h_annmbs,
     N,
