@@ -124,6 +124,9 @@ struct ILP_Data {
 #define PTRW1           (PTRB0 + PTR_OFFSET)  // pointer of w1 of type0
 #define H_ANN_OFFSET    (PTRW1 + PTR_OFFSET)  // ptr offset of head of annmb
 
+#define INT_PTR(m)      ((int*) *((uintptr_t*) (m)))
+#define FLT_PTR(m)      ((float*) *((uintptr_t*) (m)))
+
 class ILP_NEP : public Potential
 {
 public:
