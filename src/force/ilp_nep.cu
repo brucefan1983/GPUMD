@@ -429,6 +429,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // set parameters data in cpu buffer
   int* para_buf_w = (int*) para_buffer_cpu;     // a write ptr to cpu buffer
   int* para_buf_ptrw = para_buf_w;              // a write ptr to write the ptrs of para
+
+  // parambs head
   for (int i = 0; i < num_nep; ++i) {
     int use_typewise_cutoff_int = parambs[i].use_typewise_cutoff;
     memcpy(para_buf_w + UTC    , &use_typewise_cutoff_int, SIZEOF_INT);
@@ -453,6 +455,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_w + NT     , &(parambs[i].num_types), SIZEOF_INT);
     para_buf_w += H_PAR_OFFSET;    // skip 2 pointers: PTRQS PTRAN
   }
+
+  // annmbs head
   for (int i = 0; i < num_nep; ++i) {
     memcpy(para_buf_w + ANNDIM , &(annmbs[i].dim), SIZEOF_INT);
     memcpy(para_buf_w + NNEUR  , &(annmbs[i].dim), SIZEOF_INT);
