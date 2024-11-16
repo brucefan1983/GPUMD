@@ -219,6 +219,9 @@ private:
   // true if element type is in the sublayer
   bool sublayer_flag[MAX_TYPE_ILP_NEP] = {false};
 
+  // save max nep rcut to make sure pbc
+  double max_nep_rc;
+
   void update_potential(float* parameters, ParaMB& paramb, ANN& ann);
 #ifdef USE_TABLE
   void construct_table(float* parameters);
