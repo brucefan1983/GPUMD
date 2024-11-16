@@ -2292,7 +2292,6 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
-  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
