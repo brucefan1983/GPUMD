@@ -2459,8 +2459,11 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_partial_force_angular(
-  ILP_NEP::ParaMB paramb,
-  ILP_NEP::ANN annmb,
+  const int* nep_map,
+  const int* type_map,
+  const int* labels,
+  void* h_parambs,
+  void* h_annmbs,
   const int N,
   const int N1,
   const int N2,
@@ -2483,17 +2486,29 @@ static __global__ void find_partial_force_angular(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
+    int nep_id = nep_map[labels[n1]];
+    float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+    int* paramb_int = (int*) paramb;
+    float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
+    int* atomic_numbers = INT_PTR(paramb + PTRAN);
+    float* c = FLT_PTR(annmb + PTRC);
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+    // for (int d = 0; d < paramb.dim_angular; ++d) {
+    //   Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+    // }
+    // for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    //   sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    // }
+    for (int d = 0; d < paramb_int[DIMA]; ++d) {
+      Fp[d] = g_Fp[(paramb_int[NMAXR] + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    for (int d = 0; d < (paramb_int[NMAXA] + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
 
-    int t1 = g_type[n1];
+    int t1 = type_map[g_type[n1]];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -2527,12 +2542,20 @@ static __global__ void find_partial_force_angular(
 #else
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
+      // float rc = paramb.rc_angular;
+      // if (paramb.use_typewise_cutoff) {
+      //   rc = min(
+      //     (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+      //      COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+      //       paramb.typewise_cutoff_angular_factor,
+      //     rc);
+      // }
+      float rc = paramb[RCA];
+      if (paramb_int[UTC]) {
         rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
+          (COVALENT_RADIUS[atomic_numbers[t1]] +
+           COVALENT_RADIUS[atomic_numbers[t2]]) *
+            paramb[TCAF],
           rc);
       }
       float rcinv = 1.0f / rc;
@@ -2540,23 +2563,42 @@ static __global__ void find_partial_force_angular(
 
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      // find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      // for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      //   float gn12 = 0.0f;
+      //   float gnp12 = 0.0f;
+      //   for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+      //     int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+      //     c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+      //     gn12 += fn12[k] * annmb.c[c_index];
+      //     gnp12 += fnp12[k] * annmb.c[c_index];
+      //   }
+      //   accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+      // }
+      find_fn_and_fnp(paramb_int[BSA], rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb_int[NMAXA]; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
-          gnp12 += fnp12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb_int[BSA]; ++k) {
+          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
+          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          gn12 += fn12[k] * c[c_index];
+          gnp12 += fnp12[k] * c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb_int[LMAX], paramb_int[NUML], n, paramb_int[NMAXA] + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 #endif
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
       g_f12z[index] = f12[2];
     }
+
+    // set ptrs to null
+    paramb = nullptr;
+    paramb_int = nullptr;
+    annmb = nullptr;
+    atomic_numbers = nullptr;
+    c = nullptr;
   }
 }
 
@@ -2895,7 +2937,7 @@ void ILP_NEP::compute_ilp(
     g_f12z_ilp_neigh);
     GPU_CHECK_KERNEL
 
-    // TODO compute NEP
+  // compute NEP
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
@@ -3025,8 +3067,11 @@ void ILP_NEP::compute_ilp(
   GPU_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
+    g_nep_map,
+    g_type_map,
+    group_label_nep,
+    h_parambs,
+    h_annmbs,
     N,
     N1,
     N2,
