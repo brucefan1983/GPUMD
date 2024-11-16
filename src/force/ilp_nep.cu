@@ -119,6 +119,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   type_map_cpu.resize(num_types * num_nep, -1);
   
   // read NEP parameter from each NEP file
+  std::vector<std::vector<float>> all_ann_para({});     // save paras
   for (int i = 0; i < num_nep; ++i) {
     printf("\nReading NEP %d.\n", i);
     char nep_file[100];
@@ -322,6 +323,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       tokens = get_tokens(input);
       parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
+    all_ann_para.push_back(parameters);
     nep_data.parameters[i].resize(annmbs[i].num_para);
     nep_data.parameters[i].copy_from_host(parameters.data());
     update_potential(nep_data.parameters[i].data(), parambs[i], annmbs[i]);
