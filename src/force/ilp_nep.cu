@@ -2310,7 +2310,8 @@ static __global__ void find_force_radial(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    int t1 = g_type[n1];
+    int nep_id = nep_map[labels[n1]];
+    int t1 = type_map[g_type[n1]];
     float s_fx = 0.0f;
     float s_fy = 0.0f;
     float s_fz = 0.0f;
@@ -2328,7 +2329,7 @@ static __global__ void find_force_radial(
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      int t2 = g_type[n2];
+      int t2 = type_map[g_type[n2]];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
