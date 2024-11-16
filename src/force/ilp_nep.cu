@@ -2047,6 +2047,11 @@ static __global__ void find_descriptor(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
+    float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+    int* paramb_int = (int*) paramb;
+    float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
+    int* atomic_numbers = INT_PTR(paramb + PTRAN);
+    float* c = FLT_PTR(annmb + PTRC);
     float q[MAX_DIM] = {0.0f};
 
     // get radial descriptors
@@ -2154,8 +2159,13 @@ static __global__ void find_descriptor(
     }
 
     // nomalize descriptor
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+    // for (int d = 0; d < annmb.dim; ++d) {
+    //   q[d] = q[d] * paramb.q_scaler[d];
+    // }
+    float* q_scaler = FLT_PTR(paramb + PTRQS);
+    int ann_dim = *((int*)annmb + ANNDIM);
+    for (int d = 0; d < ann_dim; ++d) {
+      q[d] = q[d] * q_scaler[d];
     }
 
     // get energy and energy gradient
