@@ -1894,7 +1894,10 @@ static __global__ void reduce_force_many_body(
 // ----- NEP part -----
 // nep find neighbor list
 static __global__ void find_neighbor_list_large_box(
-  ILP_NEP::ParaMB paramb,
+  const int* nep_map,
+  const int* type_map,
+  const int* labels,
+  void* h_parambs,
   const int N,
   const int N1,
   const int N2,
@@ -1919,10 +1922,14 @@ static __global__ void find_neighbor_list_large_box(
     return;
   }
 
+  int nep_id = nep_map[labels[n1]];
+  float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+  int* paramb_int = (int*) paramb;
+  int* atomic_numbers = INT_PTR(paramb + PTRAN);
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
-  int t1 = g_type[n1];
+  int t1 = type_map[g_type[n1]];
   int count_radial = 0;
   int count_angular = 0;
 
@@ -1935,7 +1942,8 @@ static __global__ void find_neighbor_list_large_box(
     x1,
     y1,
     z1,
-    2.0f * paramb.rcinv_radial,
+    // 2.0f * paramb.rcinv_radial,
+    2.0f * paramb[RCIR],
     nx,
     ny,
     nz,
@@ -1982,17 +1990,29 @@ static __global__ void find_neighbor_list_large_box(
           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
-          int t2 = g_type[n2];
-          float rc_radial = paramb.rc_radial;
-          float rc_angular = paramb.rc_angular;
-          if (paramb.use_typewise_cutoff) {
-            int z1 = paramb.atomic_numbers[t1];
-            int z2 = paramb.atomic_numbers[t2];
+          int t2 = type_map[g_type[n2]];
+          // float rc_radial = paramb.rc_radial;
+          // float rc_angular = paramb.rc_angular;
+          // if (paramb.use_typewise_cutoff) {
+          //   int z1 = paramb.atomic_numbers[t1];
+          //   int z2 = paramb.atomic_numbers[t2];
+          //   rc_radial = min(
+          //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
+          //     rc_radial);
+          //   rc_angular = min(
+          //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
+          //     rc_angular);
+          // }
+          float rc_radial = paramb[RCR];
+          float rc_angular = paramb[RCA];
+          if (paramb_int[UTC]) {
+            int z1 = atomic_numbers[t1];
+            int z2 = atomic_numbers[t2];
             rc_radial = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCRF],
               rc_radial);
             rc_angular = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCAF],
               rc_angular);
           }
 
@@ -2958,8 +2978,10 @@ void ILP_NEP::compute_ilp(
     nep_data.cell_count_sum,
     nep_data.cell_contents);
 
-  // TODO: how to pass parambs?
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+    g_nep_map,
+    g_type_map,
+    group_label_nep,
     h_parambs,
     N,
     N1,
