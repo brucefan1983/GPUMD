@@ -2390,17 +2390,10 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      if (is_dipole) {
-        // The dipole is proportional to minus the sum of the virials times r12
-        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx -= r12_square * f21[0];
-        s_syy -= r12_square * f21[1];
-        s_szz -= r12_square * f21[2];
-      } else {
-        s_sxx += r12[0] * f21[0];
-        s_syy += r12[1] * f21[1];
-        s_szz += r12[2] * f21[2];
-      }
+
+      s_sxx += r12[0] * f21[0];
+      s_syy += r12[1] * f21[1];
+      s_szz += r12[2] * f21[2];
       s_sxy += r12[0] * f21[1];
       s_sxz += r12[0] * f21[2];
       s_syx += r12[1] * f21[0];
@@ -2981,7 +2974,6 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     nep_data.Fp.data(),
-    is_dipole,
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
