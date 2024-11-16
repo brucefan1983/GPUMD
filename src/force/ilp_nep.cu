@@ -284,9 +284,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     annmbs[i].num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
     annmbs[i].dim = (parambs[i].n_max_radial + 1) + parambs[i].dim_angular;
     nep_model_type = parambs[i].model_type;
-    if (parambs[i].model_type == 3) {
-      annmbs[i].dim += 1;
-    }
     max_dim = max(max_dim, annmbs[i].dim);
     printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
 
@@ -301,10 +298,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
     } else {
       annmbs[i].num_para_ann = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types + 1;
-    }
-    if (parambs[i].model_type == 2) {
-      // Polarizability models have twice as many parameters
-      annmbs[i].num_para_ann *= 2;
     }
     printf("    number of neural network parameters = %d.\n", annmbs[i].num_para_ann);
     int num_para_descriptor =
