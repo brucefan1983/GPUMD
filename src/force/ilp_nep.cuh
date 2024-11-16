@@ -41,6 +41,7 @@ struct NEP3_Data {
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
   std::vector<GPU_Vector<float>> parameters; // parameters to be optimized
+  GPU_Vector<char> para_buffer_gpu;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
