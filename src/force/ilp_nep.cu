@@ -416,6 +416,196 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   printf("    use tabulated radial functions to speed up.\n");
 #endif
 
+  // updata nep parameters and ann parameters
+  // calc buffer size
+  int parambs_size = num_nep * (H_PAR_OFFSET) * SIZEOF_INT;
+  int annmbs_size = num_nep * (H_ANN_OFFSET) * SIZEOF_INT;
+  for (int i = 0; i < num_nep; ++i) {
+    // add q_scaler and atomic_number buffers
+    parambs_size += (annmbs[i].dim + parambs[i].num_types) * SIZEOF_INT;
+    // add w0, b0, w1, c buffer
+    annmbs_size += (annmbs[i].num_para - 1) * SIZEOF_INT;   // rm b1
+  }
+  int all_para_size = parambs_size + annmbs_size;
+
+  // init buffers in cpu and gpu
+  char* para_buffer_cpu = (char*) malloc(all_para_size);
+  nep_data.para_buffer_gpu.resize(all_para_size);
+  char* para_buffer_gpu = nep_data.para_buffer_gpu.data();
+
+  // set parameters data in cpu buffer
+  int* para_buf_w = (int*) para_buffer_cpu;     // a write ptr to cpu buffer
+  int* para_buf_ptrw = para_buf_w;              // a write ptr to write the ptrs of para
+  for (int i = 0; i < num_nep; ++i) {
+    int use_typewise_cutoff_int = parambs[i].use_typewise_cutoff;
+    memcpy(para_buf_w + UTC    , &use_typewise_cutoff_int, SIZEOF_INT);
+    memcpy(para_buf_w + TCRF   , &(parambs[i].typewise_cutoff_radial_factor), SIZEOF_INT);
+    memcpy(para_buf_w + TCAF   , &(parambs[i].typewise_cutoff_angular_factor), SIZEOF_INT);
+    memcpy(para_buf_w + VERSION, &(parambs[i].version), SIZEOF_INT);
+    memcpy(para_buf_w + RCR    , &(parambs[i].rc_radial), SIZEOF_INT);
+    memcpy(para_buf_w + RCA    , &(parambs[i].rc_angular), SIZEOF_INT);
+    memcpy(para_buf_w + RCIR   , &(parambs[i].rcinv_radial), SIZEOF_INT);
+    memcpy(para_buf_w + RCIA   , &(parambs[i].rcinv_angular), SIZEOF_INT);
+    memcpy(para_buf_w + MNR    , &(parambs[i].MN_radial), SIZEOF_INT);
+    memcpy(para_buf_w + MNA    , &(parambs[i].MN_angular), SIZEOF_INT);
+    memcpy(para_buf_w + NMAXR  , &(parambs[i].n_max_radial), SIZEOF_INT);
+    memcpy(para_buf_w + NMAXA  , &(parambs[i].n_max_angular), SIZEOF_INT);
+    memcpy(para_buf_w + LMAX   , &(parambs[i].L_max), SIZEOF_INT);
+    memcpy(para_buf_w + DIMA   , &(parambs[i].dim_angular), SIZEOF_INT);
+    memcpy(para_buf_w + NUML   , &(parambs[i].num_L), SIZEOF_INT);
+    memcpy(para_buf_w + BSR    , &(parambs[i].basis_size_radial), SIZEOF_INT);
+    memcpy(para_buf_w + BSA    , &(parambs[i].basis_size_angular), SIZEOF_INT);
+    memcpy(para_buf_w + NTS    , &(parambs[i].num_types_sq), SIZEOF_INT);
+    memcpy(para_buf_w + NCR    , &(parambs[i].num_c_radial), SIZEOF_INT);
+    memcpy(para_buf_w + NT     , &(parambs[i].num_types), SIZEOF_INT);
+    para_buf_w += H_PAR_OFFSET;    // skip 2 pointers: PTRQS PTRAN
+  }
+  for (int i = 0; i < num_nep; ++i) {
+    memcpy(para_buf_w + ANNDIM , &(annmbs[i].dim), SIZEOF_INT);
+    memcpy(para_buf_w + NNEUR  , &(annmbs[i].dim), SIZEOF_INT);
+    int b1_pos = 0;
+    if (parambs[i].version == 3) {
+      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    } else if (parambs[i].version == 4) {
+      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types;
+    } else if (parambs[i].version == 5) {
+      b1_pos = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types;
+    }
+    memcpy(para_buf_w + OUTB1  , &(all_ann_para[i][b1_pos]), SIZEOF_INT);
+    para_buf_w += H_ANN_OFFSET;  // skip 4 pointers: PTRC PTRW0 PTRB0 PTRW1 
+  }
+  
+  // move gpu buffer pointer
+  para_buffer_gpu += num_nep * (H_PAR_OFFSET + H_ANN_OFFSET) * SIZEOF_INT;
+
+  // q_scaler
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer q_scaler
+    memcpy(para_buf_ptrw + i * H_PAR_OFFSET + PTRQS, &para_buffer_gpu, SIZEOF_POINTER);
+
+    int qs_offset = annmbs[i].dim;
+    memcpy(para_buf_w, parambs[i].q_scaler, qs_offset * SIZEOF_INT);
+    para_buf_w += qs_offset;
+    para_buffer_gpu += qs_offset * SIZEOF_INT;
+  }
+
+  // atomic_numbers
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer atomic number
+    memcpy(para_buf_ptrw + i * H_PAR_OFFSET + PTRAN, &para_buffer_gpu, SIZEOF_POINTER);
+
+    int an_offset = parambs[i].num_types;
+    memcpy(para_buf_w, parambs[i].atomic_numbers, an_offset * SIZEOF_INT);
+    para_buf_w += an_offset;
+    para_buffer_gpu += an_offset * SIZEOF_INT;
+  }
+
+  // move cpu para buffer ptr w to the annmb head
+  para_buf_ptrw += num_nep * H_PAR_OFFSET;
+
+  // w0
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer w0
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW0, &para_buffer_gpu, SIZEOF_INT);
+
+    int w0_offset = annmbs[i].num_neurons1 * annmbs[i].dim;
+    if (parambs[i].version == 3) {
+      memcpy(para_buf_w, &(all_ann_para[i][0]), w0_offset * SIZEOF_INT);
+      para_buf_w += w0_offset;
+    } else if (parambs[i].version == 4) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
+        para_buf_w += w0_offset;
+      }
+    } else if (parambs[i].version == 5) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
+        para_buf_w += w0_offset;
+      }
+    }
+
+    para_buffer_gpu += w0_offset * SIZEOF_INT;
+  }
+
+  // b0
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer b0
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRB0, &para_buffer_gpu, SIZEOF_INT);
+
+    int b0_offset = annmbs[i].num_neurons1;
+    int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
+    if (parambs[i].version == 3) {
+      memcpy(para_buf_w, &(all_ann_para[i][b0_base]), b0_offset * SIZEOF_INT);
+      para_buf_w += b0_offset;
+    } else if (parambs[i].version == 4) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
+        para_buf_w += b0_offset;
+      }
+    } else if (parambs[i].version == 5) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
+        para_buf_w += b0_offset;
+      }
+    }
+
+    para_buffer_gpu += b0_offset * SIZEOF_INT;
+  }
+
+  // w1
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer w1
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW1, &para_buffer_gpu, SIZEOF_INT);
+
+    int w1_offset = annmbs[i].num_neurons1;
+    int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
+    if (parambs[i].version == 3) {
+      memcpy(para_buf_w, &(all_ann_para[i][w1_base]), w1_offset * SIZEOF_INT);
+      para_buf_w += w1_offset;
+    } else if (parambs[i].version == 4) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
+        para_buf_w += w1_offset;
+      }
+    } else if (parambs[i].version == 5) {
+      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
+      ++w1_offset;
+      for (int t = 0; t < parambs[i].num_types; ++t) {
+        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
+        para_buf_w += w1_offset;
+      }
+    }
+
+    para_buffer_gpu += w1_offset * SIZEOF_INT;
+  }
+
+  // c
+  for (int i = 0; i < num_nep; ++i) {
+    // update pointer c
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRC, &para_buffer_gpu, SIZEOF_INT);
+
+    int c_offset = annmbs[i].num_para - annmbs[i].num_para_ann;
+    int c_base = annmbs[i].num_para_ann;
+    memcpy(para_buf_w, &(all_ann_para[i][c_base]), c_offset * SIZEOF_INT);
+    para_buf_w += c_offset;
+    para_buffer_gpu += c_offset * SIZEOF_INT;
+  }
+
+
+  // cp parameters from cpu to gpu
+  nep_data.para_buffer_gpu.copy_from_host(para_buffer_cpu, all_para_size);
+
+  // free cpu buffer and set ptrs to null
+  free(para_buffer_cpu);
+  para_buffer_cpu = nullptr;
+  para_buffer_gpu = nullptr;
+  para_buf_w= nullptr;
+  para_buf_ptrw = nullptr;
 }
 
 void ILP_NEP::update_potential(float* parameters, ParaMB& paramb, ANN& ann)
