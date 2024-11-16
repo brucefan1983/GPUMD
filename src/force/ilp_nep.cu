@@ -2043,7 +2043,8 @@ static __global__ void find_descriptor(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    int t1 = g_type[n1];
+    int nep_id = nep_map[labels[n1]];
+    int t1 = type_map[g_type[n1]];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -2079,9 +2080,17 @@ static __global__ void find_descriptor(
       }
 #else
       float fc12;
-      int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
+      int t2 = type_map[g_type[n2]];
+      // float rc = paramb.rc_radial;
+      float rc = paramb[RCR];
+      // if (paramb.use_typewise_cutoff) {
+      //   rc = min(
+      //     (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+      //      COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+      //       paramb.typewise_cutoff_radial_factor,
+      //     rc);
+      // }
+      if (paramb_int[UTC]) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
@@ -2130,9 +2139,17 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
-        int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
+        int t2 = type_map[g_type[n2]];
+        // float rc = paramb.rc_angular;
+        float rc = paramb[RCA];
+        // if (paramb.use_typewise_cutoff) {
+        //   rc = min(
+        //     (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+        //      COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+        //       paramb.typewise_cutoff_angular_factor,
+        //     rc);
+        // }
+        if (paramb_int[UTC]) {
           rc = min(
             (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
              COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
