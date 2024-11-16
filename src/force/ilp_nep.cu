@@ -2453,6 +2453,8 @@ void ILP_NEP::compute_nep(
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+  int* g_nep_map = nep_map.data();
+  int* g_type_map = type_map.data();
 
   const double rc_cell_list = 0.5 * rc;
 
