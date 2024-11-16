@@ -1992,6 +1992,12 @@ static __global__ void find_neighbor_list_large_box(
           apply_mic(box, x12double, y12double, z12double);
           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+          
+          // calc nep in the same layer
+          bool different_layer = labels[n1] != labels[n2];
+          if (different_layer) {
+            continue;
+          }
 
           int t2 = type_map[g_type[n2]];
           // float rc_radial = paramb.rc_radial;
