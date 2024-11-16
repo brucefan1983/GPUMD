@@ -426,6 +426,10 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   nep_data.para_buffer_gpu.resize(all_para_size);
   char* para_buffer_gpu = nep_data.para_buffer_gpu.data();
 
+  // save head pointers
+  h_parambs = para_buffer_gpu;
+  h_annmbs = h_parambs + num_nep * H_PAR_OFFSET * SIZEOF_INT;
+
   // set parameters data in cpu buffer
   int* para_buf_w = (int*) para_buffer_cpu;     // a write ptr to cpu buffer
   int* para_buf_ptrw = para_buf_w;              // a write ptr to write the ptrs of para
