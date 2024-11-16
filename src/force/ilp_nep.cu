@@ -2287,8 +2287,11 @@ static __global__ void find_descriptor(
 }
 
 static __global__ void find_force_radial(
-  ILP_NEP::ParaMB paramb,
-  ILP_NEP::ANN annmb,
+  const int* nep_map,
+  const int* type_map,
+  const int* labels,
+  void* h_parambs,
+  void* h_annmbs,
   const int N,
   const int N1,
   const int N2,
@@ -2324,6 +2327,11 @@ static __global__ void find_force_radial(
     float s_szx = 0.0f;
     float s_szy = 0.0f;
     float s_szz = 0.0f;
+    float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+    int* paramb_int = (int*) paramb;
+    float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
+    int* atomic_numbers = INT_PTR(paramb + PTRAN);
+    float* c = FLT_PTR(annmb + PTRC);
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -2366,26 +2374,41 @@ static __global__ void find_force_radial(
       }
 #else
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
+      // float rc = paramb.rc_radial;
+      // if (paramb.use_typewise_cutoff) {
+      //   rc = min(
+      //     (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+      //      COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+      //       paramb.typewise_cutoff_radial_factor,
+      //     rc);
+      // }
+      float rc = paramb[RCR];
+      if (paramb_int[UTC]) {
         rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+          (COVALENT_RADIUS[atomic_numbers[t1]] +
+           COVALENT_RADIUS[atomic_numbers[t2]]) *
+            paramb[TCRF],
           rc);
       }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      // find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(paramb_int[BSR], rcinv, d12, fc12, fcp12, fn12, fnp12);
+      // for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
-          gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
+        // for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+        //   int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+        //   gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
+        //   gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
+        // }
+        for (int k = 0; k <= paramb_int[BSR]; ++k) {
+          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
+          gnp12 += fnp12[k] * c[c_index + t1 * paramb_int[NT] + t2];
+          gnp21 += fnp12[k] * c[c_index + t2 * paramb_int[NT] + t1];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
@@ -2425,6 +2448,13 @@ static __global__ void find_force_radial(
     g_virial[n1 + 6 * N] += s_syx;
     g_virial[n1 + 7 * N] += s_szx;
     g_virial[n1 + 8 * N] += s_szy;
+
+    // set ptrs to null
+    paramb = nullptr;
+    paramb_int = nullptr;
+    annmb = nullptr;
+    atomic_numbers = nullptr;
+    c = nullptr;
   }
 }
 
@@ -2969,8 +2999,11 @@ void ILP_NEP::compute_ilp(
 
   bool is_dipole = paramb.model_type == 1;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
+    g_nep_map,
+    g_type_map,
+    group_label_nep,
+    h_parambs,
+    h_annmbs,
     N,
     N1,
     N2,
