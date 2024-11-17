@@ -118,7 +118,8 @@ struct ILP_Data {
 #define ANNDIM          0     // ann dim
 #define NNEUR           1     // num_neurous1
 #define OUTB1           2     // bias for output layer
-#define PTRC            3     // pointer of c
+#define EPT             3     // empty
+#define PTRC            4     // pointer of c
 #define PTRW0           (PTRC + PTR_OFFSET)   // pointer of w0 of type0
 #define PTRB0           (PTRW0 + PTR_OFFSET)  // pointer of b0 of type0
 #define PTRW1           (PTRB0 + PTR_OFFSET)  // pointer of w1 of type0
