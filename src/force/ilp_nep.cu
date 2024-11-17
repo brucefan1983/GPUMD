@@ -797,6 +797,10 @@ static __global__ void ILP_neighbor(
           ++ll;
         }
       }
+    } else if (count <= MAX_ILP_NEIGHBOR_CBN) {
+      for (int jj = 0; jj < count; ++jj) {
+        neighsort[jj] = neighptr[jj];
+      }
     }
 
     ilp_neighbor_number[n1] = count;
