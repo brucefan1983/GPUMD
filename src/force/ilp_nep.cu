@@ -472,7 +472,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // annmbs head
   for (int i = 0; i < num_nep; ++i) {
     memcpy(para_buf_w + ANNDIM , &(annmbs[i].dim), SIZEOF_INT);
-    memcpy(para_buf_w + NNEUR  , &(annmbs[i].dim), SIZEOF_INT);
+    memcpy(para_buf_w + NNEUR  , &(annmbs[i].num_neurons1), SIZEOF_INT);
     int b1_pos = 0;
     if (parambs[i].version == 3) {
       b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
