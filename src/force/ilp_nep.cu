@@ -516,7 +516,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // w0
   for (int i = 0; i < num_nep; ++i) {
     // update pointer w0
-    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW0, &para_buffer_gpu, SIZEOF_INT);
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w0_offset = annmbs[i].num_neurons1 * annmbs[i].dim;
     if (parambs[i].version == 3) {
@@ -542,7 +542,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // b0
   for (int i = 0; i < num_nep; ++i) {
     // update pointer b0
-    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRB0, &para_buffer_gpu, SIZEOF_INT);
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRB0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int b0_offset = annmbs[i].num_neurons1;
     int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
@@ -569,7 +569,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // w1
   for (int i = 0; i < num_nep; ++i) {
     // update pointer w1
-    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW1, &para_buffer_gpu, SIZEOF_INT);
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW1, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w1_offset = annmbs[i].num_neurons1;
     int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
@@ -597,7 +597,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // c
   for (int i = 0; i < num_nep; ++i) {
     // update pointer c
-    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRC, &para_buffer_gpu, SIZEOF_INT);
+    memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRC, &para_buffer_gpu, SIZEOF_POINTER);
 
     int c_offset = annmbs[i].num_para - annmbs[i].num_para_ann;
     int c_base = annmbs[i].num_para_ann;
