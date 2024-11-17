@@ -2580,7 +2580,7 @@ static __global__ void find_partial_force_angular(
       }
 #else
       float fc12, fcp12;
-      int t2 = g_type[n2];
+      int t2 = type_map[g_type[n2]];
       // float rc = paramb.rc_angular;
       // if (paramb.use_typewise_cutoff) {
       //   rc = min(
