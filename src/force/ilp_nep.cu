@@ -59,9 +59,15 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     PRINT_SCANF_ERROR(count, 1, "Reading error for ILP potential.");
     printf(" %s", atom_symbol);
     ilp_elements[n] = atom_symbol;
-    sublayer_flag[n] = check_sublayer(atom_symbol);
+    sublayer_flag_cpu[n] = check_sublayer(atom_symbol);
+    if (sublayer_flag_cpu[n]) {
+      printf("(sublayer)");
+    }
   }
   printf("\n");
+  // cp sublayer flags to gpu
+  sublayer_flag_gpu.resize(MAX_TYPE_ILP_NEP);
+  sublayer_flag_gpu.copy_from_host(sublayer_flag_cpu);
 
   // read ILP group method
   PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_group_method), 1, 
@@ -691,7 +697,7 @@ static __global__ void ILP_neighbor(
   int *ilp_neighbor_number,
   int *ilp_neighbor_list,
   const int *group_label,
-  bool sublayer_flag[MAX_TYPE_ILP_NEP])
+  bool* sublayer_flag)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
@@ -2893,7 +2899,7 @@ void ILP_NEP::compute_ilp(
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
-    ilp_NL, group[1].label.data(), sublayer_flag);
+    ilp_NL, group_label_ilp, sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
@@ -2942,7 +2948,7 @@ void ILP_NEP::compute_ilp(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh,
-    sublayer_flag);
+    sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
 
   reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(

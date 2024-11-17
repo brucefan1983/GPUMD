@@ -217,7 +217,8 @@ private:
   int nep_group_method = 0;
 
   // true if element type is in the sublayer
-  bool sublayer_flag[MAX_TYPE_ILP_NEP] = {false};
+  bool sublayer_flag_cpu[MAX_TYPE_ILP_NEP] = {false};
+  GPU_Vector<bool> sublayer_flag_gpu;
 
   // save max nep rcut to make sure pbc
   double max_nep_rc;
