@@ -2824,7 +2824,7 @@ void ILP_NEP::compute(
   // nothing
 }
 
-#define BLOCK_SIZE_FORCE 128
+#define BLOCK_SIZE_ILP 128
 #define USE_FIXED_NEIGHBOR 1
 #define UPDATE_TEMP 10
 #define BIG_ILP_CUTOFF_SQUARE 50.0
@@ -2839,7 +2839,7 @@ void ILP_NEP::compute_ilp(
   std::vector<Group> &group)
 {
   const int number_of_atoms = type.size();
-  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_ILP + 1;
 
   // get labels of ILP and nep
   const int *group_label_ilp = group[ilp_group_method].label.data();
@@ -2869,7 +2869,7 @@ void ILP_NEP::compute_ilp(
       ilp_data.big_ilp_NL);
     
 
-    build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_ILP>>>(
       number_of_atoms,
       N1,
       N2,
@@ -2896,7 +2896,7 @@ void ILP_NEP::compute_ilp(
   ilp_data.ilp_NN.fill(0);
 
   // find ILP neighbor list
-  ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
+  ILP_neighbor<<<grid_size, BLOCK_SIZE_ILP>>>(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group_label_ilp, sublayer_flag_gpu.data());
@@ -2922,7 +2922,7 @@ void ILP_NEP::compute_ilp(
   float *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   float *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
 
-  gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
+  gpu_find_force<<<grid_size, BLOCK_SIZE_ILP>>>(
     ilp_para,
     number_of_atoms,
     N1,
@@ -2951,7 +2951,7 @@ void ILP_NEP::compute_ilp(
     sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
 
-  reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
+  reduce_force_many_body<<<grid_size, BLOCK_SIZE_ILP>>>(
     number_of_atoms,
     N1,
     N2,
