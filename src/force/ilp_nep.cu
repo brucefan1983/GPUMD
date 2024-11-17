@@ -1911,6 +1911,7 @@ static __global__ void find_neighbor_list_large_box(
   const int* type_map,
   const int* labels,
   void* h_parambs,
+  const int total_types,
   const int N,
   const int N1,
   const int N2,
@@ -1942,7 +1943,8 @@ static __global__ void find_neighbor_list_large_box(
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
-  int t1 = type_map[g_type[n1]];
+  int type_offset = nep_id * total_types;
+  int t1 = type_map[g_type[n1] + type_offset];
   int count_radial = 0;
   int count_angular = 0;
 
@@ -2009,7 +2011,7 @@ static __global__ void find_neighbor_list_large_box(
             continue;
           }
 
-          int t2 = type_map[g_type[n2]];
+          int t2 = type_map[g_type[n2] + type_offset];
           // float rc_radial = paramb.rc_radial;
           // float rc_angular = paramb.rc_angular;
           // if (paramb.use_typewise_cutoff) {
@@ -2059,6 +2061,7 @@ static __global__ void find_descriptor(
   const int* labels,
   void* h_parambs,
   void* h_annmbs,
+  const int total_types,
   const int N,
   const int N1,
   const int N2,
@@ -2083,12 +2086,13 @@ static __global__ void find_descriptor(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int nep_id = nep_map[labels[n1]];
-    int t1 = type_map[g_type[n1]];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
     int* paramb_int = (int*) paramb;
+    int type_offset = nep_id * total_types;
+    int t1 = type_map[g_type[n1] + type_offset];
     float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
     int* atomic_numbers = INT_PTR(paramb + PTRAN);
     float* c = FLT_PTR(annmb + PTRC);
@@ -2119,7 +2123,7 @@ static __global__ void find_descriptor(
       }
 #else
       float fc12;
-      int t2 = type_map[g_type[n2]];
+      int t2 = type_map[g_type[n2] + type_offset];
       // float rc = paramb.rc_radial;
       float rc = paramb[RCR];
       // if (paramb.use_typewise_cutoff) {
@@ -2189,7 +2193,7 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #else
         float fc12;
-        int t2 = type_map[g_type[n2]];
+        int t2 = type_map[g_type[n2] + type_offset];
         // float rc = paramb.rc_angular;
         float rc = paramb[RCA];
         // if (paramb.use_typewise_cutoff) {
@@ -2331,6 +2335,7 @@ static __global__ void find_force_radial(
   const int* labels,
   void* h_parambs,
   void* h_annmbs,
+  const int total_types,
   const int N,
   const int N1,
   const int N2,
@@ -2353,7 +2358,6 @@ static __global__ void find_force_radial(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int nep_id = nep_map[labels[n1]];
-    int t1 = type_map[g_type[n1]];
     float s_fx = 0.0f;
     float s_fy = 0.0f;
     float s_fz = 0.0f;
@@ -2371,12 +2375,14 @@ static __global__ void find_force_radial(
     float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
     int* atomic_numbers = INT_PTR(paramb + PTRAN);
     float* c = FLT_PTR(annmb + PTRC);
+    int type_offset = nep_id * total_types;
+    int t1 = type_map[g_type[n1] + type_offset];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      int t2 = type_map[g_type[n2]];
+      int t2 = type_map[g_type[n2] + type_offset];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -2503,6 +2509,7 @@ static __global__ void find_partial_force_angular(
   const int* labels,
   void* h_parambs,
   void* h_annmbs,
+  const int total_types,
   const int N,
   const int N1,
   const int N2,
@@ -2547,7 +2554,8 @@ static __global__ void find_partial_force_angular(
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
 
-    int t1 = type_map[g_type[n1]];
+    int type_offset = nep_id * total_types;
+    int t1 = type_map[g_type[n1] + type_offset];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -2580,7 +2588,7 @@ static __global__ void find_partial_force_angular(
       }
 #else
       float fc12, fcp12;
-      int t2 = type_map[g_type[n2]];
+      int t2 = type_map[g_type[n2] + type_offset];
       // float rc = paramb.rc_angular;
       // if (paramb.use_typewise_cutoff) {
       //   rc = min(
@@ -2982,6 +2990,7 @@ void ILP_NEP::compute_ilp(
   const int grid_size_nep = (N2 - N1 - 1) / BLOCK_SIZE_NEP + 1;
   int* g_nep_map = nep_map.data();
   int* g_type_map = type_map.data();
+  const int total_types = type_map_cpu.size() / num_nep;
 
   const double rc_cell_list = 0.5 * max_nep_rc;
 
@@ -3002,6 +3011,7 @@ void ILP_NEP::compute_ilp(
     g_type_map,
     group_label_nep,
     h_parambs,
+    total_types,
     N,
     N1,
     N2,
@@ -3058,6 +3068,7 @@ void ILP_NEP::compute_ilp(
     group_label_nep,
     h_parambs,
     h_annmbs,
+    total_types,
     N,
     N1,
     N2,
@@ -3087,6 +3098,7 @@ void ILP_NEP::compute_ilp(
     group_label_nep,
     h_parambs,
     h_annmbs,
+    total_types,
     N,
     N1,
     N2,
@@ -3113,6 +3125,7 @@ void ILP_NEP::compute_ilp(
     group_label_nep,
     h_parambs,
     h_annmbs,
+    total_types,
     N,
     N1,
     N2,
