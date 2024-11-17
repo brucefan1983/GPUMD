@@ -482,7 +482,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       b1_pos = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types;
     }
     memcpy(para_buf_w + OUTB1  , &(all_ann_para[i][b1_pos]), SIZEOF_INT);
-    para_buf_w += H_ANN_OFFSET;  // skip 4 pointers: PTRC PTRW0 PTRB0 PTRW1 
+    para_buf_w += H_ANN_OFFSET;  // skip 4 pointers: PTRC PTRW0 PTRB0 PTRW1 and an empty
   }
   
   // move gpu buffer pointer
@@ -774,7 +774,7 @@ static __global__ void ILP_neighbor(
       } else if (count > MAX_ILP_NEIGHBOR_TMD) {
         printf("ERROR in ILP NEIGHBOR LIST\n");
         printf("\n===== ILP neighbor number[%d] is greater than 6 =====\n", count);
-        exit(1);
+        return;
       }
 
       // sort the order of neighbors of atom n1
@@ -1346,7 +1346,7 @@ static __device__ void calc_normal_tmd(
     }
   } else {
     printf("\n===== ILP neighbor number[%d] is greater than 6 =====\n", cont);
-    exit(1);
+    return;
   }
 }
 
