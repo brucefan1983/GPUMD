@@ -42,7 +42,7 @@ static inline bool check_sublayer(const char* element)
 {
   return strcmp(element, "Mo") == 0 || strcmp(element, "S") == 0 ||
          strcmp(element, "Se") == 0 || strcmp(element, "W") == 0 ||
-         strcmp(element, "Te");
+         strcmp(element, "Te") == 0;
 }
 
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
