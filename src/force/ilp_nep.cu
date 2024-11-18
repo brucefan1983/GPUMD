@@ -356,7 +356,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       exit(1);
     }
     nep_map_cpu[i] = nep_i;
-    printf("group %d uses NEP %d.\n", i, nep_i);
+    printf("group %d of group method %d uses NEP %d.\n", i, nep_group_method, nep_i);
   }
 
   // cp two maps to gpu
@@ -2298,25 +2298,23 @@ static __global__ void find_descriptor(
         F,
         Fp);
     } else if (paramb_int[VERSION] == 4) {
-      int t_offset = (ann_dim + 2) * ann_num_neurons1;
       apply_ann_one_layer(
         ann_dim,
         ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * t_offset,
-        FLT_PTR(annmb + PTRB0) + t1 * t_offset,
-        FLT_PTR(annmb + PTRW1) + t1 * t_offset,
+        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
+        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
+        FLT_PTR(annmb + PTRW1) + t1 * ann_num_neurons1,
         &annmb[OUTB1],
         q,
         F,
         Fp);
     } else if (paramb_int[VERSION] == 5) {
-      int t_offset = (ann_dim + 2) * ann_num_neurons1 + 1;
       apply_ann_one_layer_nep5(
         ann_dim,
         ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * t_offset,
-        FLT_PTR(annmb + PTRB0) + t1 * t_offset,
-        FLT_PTR(annmb + PTRW1) + t1 * t_offset,
+        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
+        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
+        FLT_PTR(annmb + PTRW1) + t1 * (ann_num_neurons1 + 1),
         &annmb[OUTB1],
         q,
         F,
