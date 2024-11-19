@@ -68,6 +68,28 @@ If you use new CUDA and HIP APIs, they should be added to this file.
   * `mc`: The module for doing hybrid Monte Carlo and molecular dynamics (MCMD) simulations.
 * `utilities`: The module containing some common utilities used in many of the other modules.
 
+## Class Topology
+
+* To quickly understand software architecture, there are two class topology figures for `gpumd` and `nep`. For each class, the corresponding files are in the `src` folder. For example, you could find class `Atom` in `atom.cu` and `atom.cuh`. In addition to these classes, there is another important class `GPU_Vector`. This class is designed perfectly and handles all data in GPU. The usage of it is almost the same of `std::vector`.
+* Meaning of the symbols:
+  * Solid lines represent the class at the base of the arrow holds an instance of the class at the tip.
+  * Full lines with `*` represent the class at the base of the arrow holds a pointer to an instance of the class at the tip.
+  * Dashed lines represent the class at the tip of the arrow is derived from the class at the base.
+  * Double solid lines represent the class at the base of arrow holds a vector of the class at the tip.
+  * Red boundaries represent these classes have pure virtual functions so that couldn't be instantiated directly.
+  * The shape of boundary represents the "level" of this class to make the figure
+* The topmost class of `gpumd` is `Run`, which holds all core class instances except `Minimize`. Class `Minimize` will be instantiated just when `minimize` is setting.
+![gpumd class topology](./main_gpumd_class_topology.png)
+* More details about `gpumd` class topology:
+  * `Run` holds a vector of `Group` instances that each represents a group method.
+  * `thermo` is a `std::vector` of `float` in the class `Run`.
+
+* The classes in `nep` is simpler so here we list some main functions to make the training process clearer. There are just three main steps in the figure.
+  * Step 1: initialize `para` by parameters set in `nep.in` file.
+  * Step 2: initialize `fitness` by a reference of `para` and read `train.xyz` and `test.xyz` (if exist) to initialize two datasets.
+  * Step 3: initialize `snes` by `para` and `fitness`. At the end of construct function, `SNES::compute` is called to start the training. 
+![nep class topology](./main_nep_class_topology.png)
+
 ## Units
 
 * Units for inputs and outputs should be specified in the user manual.
