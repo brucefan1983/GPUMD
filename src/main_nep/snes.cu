@@ -131,18 +131,22 @@ void SNES::find_type_of_variable(Parameters& para)
   // NN part
   if (para.version != 3) {
     int num_ann = (para.train_mode == 2) ? 2 : 1;
-    int num_extra_bias = (para.version == 5) ? 1 : 0;
+    int num_extra_para = (para.version == 5) ? 1 : 0;
+    num_extra_para += (para.use_xnet) ? para.num_neurons1 * 3 : 0;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < (para.dim + 2) * para.num_neurons1 + num_extra_bias; ++n) {
+        for (int n = 0; n < (para.dim + 2) * para.num_neurons1 + num_extra_para; ++n) {
           type_of_variable[n + offset] = t;
         }
-        offset += (para.dim + 2) * para.num_neurons1 + num_extra_bias;
+        offset += (para.dim + 2) * para.num_neurons1 + num_extra_para;
       }
       ++offset; // the bias
     }
   } else {
     offset += (para.dim + 2) * para.num_neurons1 + 1;
+    if (para.use_xnet) {
+      offset += para.num_neurons1 * 3;
+    }
   }
 
   // descriptor part

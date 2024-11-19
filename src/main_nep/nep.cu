@@ -248,6 +248,7 @@ NEP::NEP(
   int deviceCount)
 {
   paramb.version = version;
+  paramb.use_xnet = para.use_xnet;
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
@@ -328,6 +329,9 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
+    if (para.use_xnet) {
+      pointer += ann.num_neurons1 * 3;
+    }
     if (para.version == 5) {
       pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
     }
@@ -346,6 +350,9 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer += ann.num_neurons1;
       ann.w1_pol[t] = pointer;
       pointer += ann.num_neurons1;
+      if (para.use_xnet) {
+        pointer += ann.num_neurons1 * 3;
+      }
     }
     ann.b1_pol = pointer;
     pointer += 1;
@@ -415,6 +422,31 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
+if (paramb.use_xnet) {
+    if (paramb.version == 5) {
+      apply_ann_one_layer_nep5_xnet(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    } else {
+      apply_ann_one_layer_xnet(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b1,
+        q,
+        F,
+        Fp);
+    }
+} else {
     if (paramb.version == 5) {
       apply_ann_one_layer_nep5(
         annmb.dim,
@@ -438,6 +470,8 @@ static __global__ void apply_ann(
         F,
         Fp);
     }
+}
+
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {

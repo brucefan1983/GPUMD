@@ -167,6 +167,38 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
+static __device__ void apply_ann_one_layer_xnet(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    float x = w0_times_q - b0[n];
+    float lambda1 = w1[n + N_neu * 1];
+    float lambda2 = w1[n + N_neu * 2];
+    float d = w1[n + N_neu * 3];
+    float x2d2_factor = 1.0f / (1.0f + x * x + d * d);
+    float x1 = (lambda1 * x + lambda2) * x2d2_factor;
+    float der = (lambda1 - 2.0f * x * x1) * x2d2_factor;
+    energy += w1[n] * x1;
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = der * w0[n * N_des + d];
+      energy_derivative[d] += w1[n] * y1;
+    }
+  }
+  energy -= b1[0];
+}
+
 static __device__ void apply_ann_one_layer_nep5(
   const int N_des,
   const int N_neu,
@@ -192,6 +224,38 @@ static __device__ void apply_ann_one_layer_nep5(
     }
   }
   energy -= w1[N_neu] + b1[0]; // typewise bias + common bias
+}
+
+static __device__ void apply_ann_one_layer_nep5_xnet(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    float x = w0_times_q - b0[n];
+    float lambda1 = w1[n + N_neu * 1];
+    float lambda2 = w1[n + N_neu * 2];
+    float d = w1[n + N_neu * 3];
+    float x2d2_factor = 1.0f / (1.0f + x * x + d * d);
+    float x1 = (lambda1 * x + lambda2) * x2d2_factor;
+    float der = (lambda1 - 2.0f * x * x1) * x2d2_factor;
+    energy += w1[n] * x1;
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = der * w0[n * N_des + d];
+      energy_derivative[d] += w1[n] * y1;
+    }
+  }
+  energy -= w1[N_neu*4] + b1[0]; // typewise bias + common bias
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)

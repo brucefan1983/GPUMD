@@ -74,6 +74,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
+  is_use_xnet_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -104,6 +105,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  use_xnet = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -190,10 +192,19 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+    if (use_xnet) {
+      number_of_variables_ann += num_neurons1 * 3;
+    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+    if (use_xnet) {
+      number_of_variables_ann += num_neurons1 * 3 * num_types;
+    }
   } else if (version == 5) {
     number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
+    if (use_xnet) {
+      number_of_variables_ann += num_neurons1 * 3 * num_types;
+    }
   }
 
   number_of_variables_descriptor =
@@ -359,6 +370,12 @@ void Parameters::report_inputs()
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
+  if (is_use_xnet_set) {
+    printf("    (input)   use XNet with Cauchy activation function.\n");
+  } else {
+    printf("    (default) use tanh activation function.\n");
+  }
+
   if (is_lambda_1_set) {
     printf("    (input)   lambda_1 = %g.\n", lambda_1);
   } else {
@@ -493,6 +510,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "use_xnet") == 0) {
+    parse_use_xnet(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1053,4 +1072,13 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   if (typewise_cutoff_zbl_factor < 0.5f) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
   }
+}
+
+void Parameters::parse_use_xnet(const char** param, int num_param)
+{
+  if (num_param != 1) {
+    PRINT_INPUT_ERROR("use_xnet should have 0 parameter.\n");
+  }
+  use_xnet = true;
+  is_use_xnet_set = true;
 }

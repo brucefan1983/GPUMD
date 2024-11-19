@@ -60,6 +60,7 @@ public:
   float typewise_cutoff_radial_factor;
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
+  bool use_xnet;
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -85,6 +86,7 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
+  bool is_use_xnet_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -138,4 +140,5 @@ private:
   void parse_sigma0(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
+  void parse_use_xnet(const char** param, int num_param);
 };
