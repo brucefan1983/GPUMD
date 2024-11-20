@@ -73,6 +73,9 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_group_method), 1, 
   "Reading error for ILP group method.");
   printf("Use group method %d to identify molecule for ILP.\n", ilp_group_method);
+  PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_sub_group_method), 1, 
+  "Reading error for ILP group method.");
+  printf("Use group method %d to identify molecule(sublayer) for ILP.\n", ilp_sub_group_method);
 
   // read ILP parameters
   float beta, alpha, delta, epsilon, C, d, sR;
