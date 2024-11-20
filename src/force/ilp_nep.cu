@@ -1423,7 +1423,7 @@ static __global__ void gpu_find_force(
   float *g_f12x_ilp_neigh,
   float *g_f12y_ilp_neigh,
   float *g_f12z_ilp_neigh,
-  bool sublayer_flag[MAX_TYPE_ILP_NEP])
+  bool* sublayer_flag)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   float s_fx = 0.0f;                                   // force_x
@@ -2747,7 +2747,7 @@ void ILP_NEP::compute_ilp(
   ILP_neighbor<<<grid_size, BLOCK_SIZE_ILP>>>(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
-    ilp_NL, group_label_ilp, sublayer_flag_gpu.data());
+    ilp_NL, group_sublabel_ilp, sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
