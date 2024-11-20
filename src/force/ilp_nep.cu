@@ -45,6 +45,101 @@ static inline bool check_sublayer(const char* element)
          strcmp(element, "Te") == 0;
 }
 
+#ifdef CODING
+static __global__ void check_para_gpu(
+  void* h_parambs,
+  void* h_annmbs,
+  const int num_nep)
+{
+  printf("\n\n========== CHECK PARAMETER BUFFER ==========\n");
+  float* f_parambs = (float*)h_parambs;
+  int* i_parambs = (int*)h_parambs;
+  float* f_annmbs = (float*)h_annmbs;
+  int* i_annmbs = (int*)h_annmbs;
+  for (int i = 0; i < num_nep; ++i) {
+    printf("---------- NEP %d HEAD PARAMETERS -----------\n", i);
+    printf("use_typewise_cutoff               %8d\n", i_parambs[UTC     ]);
+    printf("typewise_cutoff_radial_factor     %8f\n", f_parambs[TCRF    ]);
+    printf("typewise_cutoff_angular_factor    %8f\n", f_parambs[TCAF    ]);
+    printf("nep version                       %8d\n", i_parambs[VERSION ]);
+    printf("rc_radial                         %8f\n", f_parambs[RCR     ]);
+    printf("rc_angular                        %8f\n", f_parambs[RCA     ]);
+    printf("rcinv_radial                      %8f\n", f_parambs[RCIR    ]);
+    printf("rcinv_angular                     %8f\n", f_parambs[RCIA    ]);
+    printf("MN_radial                         %8d\n", i_parambs[MNR     ]);
+    printf("MN_angular                        %8d\n", i_parambs[MNA     ]);
+    printf("n_max_radial                      %8d\n", i_parambs[NMAXR   ]);
+    printf("n_max_angular                     %8d\n", i_parambs[NMAXA   ]);
+    printf("L_max                             %8d\n", i_parambs[LMAX    ]);
+    printf("dim_angular                       %8d\n", i_parambs[DIMA    ]);
+    printf("num_L                             %8d\n", i_parambs[NUML    ]);
+    printf("basis_size_radial                 %8d\n", i_parambs[BSR     ]);
+    printf("basis_size_angular                %8d\n", i_parambs[BSA     ]);
+    printf("num_types_sq                      %8d\n", i_parambs[NTS     ]);
+    printf("num_c_radial                      %8d\n", i_parambs[NCR     ]);
+    printf("num_types                         %8d\n", i_parambs[NT      ]);
+    printf("ann dim                           %8d\n",  i_annmbs[ANNDIM  ]);
+    printf("num_neurous1                      %8d\n",  i_annmbs[NNEUR   ]);
+    printf("bias for output layer             %8f\n",  f_annmbs[OUTB1   ]);
+
+    i_annmbs += H_ANN_OFFSET;
+    f_annmbs += H_ANN_OFFSET;
+    i_parambs += H_PAR_OFFSET;
+    f_parambs += H_PAR_OFFSET;
+
+  }
+
+  f_parambs = (float*)h_parambs;
+  i_parambs = (int*)h_parambs;
+  f_annmbs = (float*)h_annmbs;
+  i_annmbs = (int*)h_annmbs;
+  for (int i = 0; i < num_nep; ++i) {
+    printf("---------- NEP %d ANN PARAMETERS -----------\n", i);
+    float* w0 = FLT_PTR((float*)h_annmbs + i * H_ANN_OFFSET + PTRW0);
+    float* b0 = FLT_PTR((float*)h_annmbs + i * H_ANN_OFFSET + PTRB0);
+    float* w1 = FLT_PTR((float*)h_annmbs + i * H_ANN_OFFSET + PTRW1);
+    float* c  = FLT_PTR((float*)h_annmbs + i * H_ANN_OFFSET + PTRC);
+    float* qs = FLT_PTR((float*)h_parambs + i * H_PAR_OFFSET + PTRQS); 
+    int anndim = i_annmbs[ANNDIM];
+    int nneu = i_annmbs[NNEUR];
+    printf("# w0 type1\n");
+    for (int j = 0; j < anndim * nneu; ++j) {
+      printf("%15.7e\n", w0[j]);
+    }
+
+    printf("# b0 type1\n");
+    for (int j = 0; j < nneu; ++j) {
+      printf("%15.7e\n", b0[j]);
+    }
+
+    printf("# w1 type1\n");
+    for (int j = 0; j < nneu; ++j) {
+      printf("%15.7e\n", w1[j]);
+    }
+
+    printf("# c\n");
+    int num_c = i_parambs[NTS] * ((i_parambs[NMAXR] + 1) * (i_parambs[BSR] + 1) + 
+                                  (i_parambs[NMAXA] + 1) * (i_parambs[BSA] + 1));
+    for (int j = 0; j < num_c; ++j) {
+      printf("%15.7e\n", c[j]);
+    }
+
+    printf("# q_scaler\n");
+    for (int j = 0; j < anndim; ++j) {
+      printf("%15.7e\n", qs[j]);
+    }
+
+    i_annmbs += H_ANN_OFFSET;
+    f_annmbs += H_ANN_OFFSET;
+    i_parambs += H_PAR_OFFSET;
+    f_parambs += H_PAR_OFFSET;
+  }
+
+  printf("========== CHECK PARAMETER BUFFER ==========\n\n");
+}
+#endif
+
+
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 {
   // read ILP elements
@@ -362,6 +457,16 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("group %d of group method %d uses NEP %d.\n", i, nep_group_method, nep_i);
   }
 
+#ifdef CODING
+  printf("\n========== TYPE MAP: ILP --> NEP ==========\n");
+  for (int i = 0; i < num_nep; ++i) {
+    for (int j = 0; j < num_types; ++j) {
+      printf("%d\t\t", type_map_cpu[j + i * num_types]);
+    }
+    printf("\n");
+  }
+  printf("========== TYPE MAP: ILP --> NEP ==========\n");
+#endif
   // cp two maps to gpu
   nep_map.resize(num_nep_group);
   type_map.resize(num_types * num_nep);
@@ -629,6 +734,11 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   para_buffer_gpu = nullptr;
   para_buf_w= nullptr;
   para_buf_ptrw = nullptr;
+
+#ifdef CODING
+//  check_para_gpu<<<1,1>>>(h_parambs, h_annmbs, num_nep);
+//  GPU_CHECK_KERNEL
+#endif
 }
 
 void ILP_NEP::update_potential(float* parameters, ParaMB& paramb, ANN& ann)
@@ -2069,6 +2179,38 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
+#ifdef CODING
+static __device__ void check_ann(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q)
+{
+  printf("N_d[%d] N_n[%d] b1[%15.7e]\n", N_des, N_neu, b1[0]);
+  printf("### w0\n");
+  for (int n = 0; n < N_neu; ++n) {
+    for (int d = 0; d < N_des; ++d) {
+      printf("%15.7e\n", w0[n * N_des + d]);
+    }
+  }
+  printf("### b0\n");
+  for (int n = 0; n < N_neu; ++n) {
+    printf("%15.7e\n", b0[n]);
+  }
+  printf("### w1\n");
+  for (int n = 0; n < N_neu; ++n) {
+    printf("%15.7e\n", w1[n]);
+  }
+  printf("### q\n");
+  for (int n = 0; n < N_des; ++n) {
+    printf("%15.7e\n", q[n]);
+  }
+}
+#endif
+
 static __global__ void find_descriptor(
   const int* nep_map,
   const int* type_map,
@@ -2675,6 +2817,16 @@ void ILP_NEP::compute(
   // nothing
 }
 
+#ifdef CODING
+static __global__ void ppe(double* p, int N1, int N2) {
+
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    printf("----- n1[%d] p[%lf]\n", n1, p[n1]);
+  }
+}
+#endif
+
 #define BLOCK_SIZE_ILP 128
 #define USE_FIXED_NEIGHBOR 1
 #define UPDATE_TEMP 10
@@ -2689,6 +2841,11 @@ void ILP_NEP::compute_ilp(
   GPU_Vector<double> &virial_per_atom,
   std::vector<Group> &group)
 {
+#ifdef CODING
+  double p_ilp = 0.0;
+  double p_nep[10] = {0.0};
+#endif
+
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_ILP + 1;
 
@@ -2808,6 +2965,16 @@ void ILP_NEP::compute_ilp(
     g_f12z_ilp_neigh,
     sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
+
+#ifdef CODING
+  std::vector<double> ilp_tmp(number_of_atoms);
+  potential_per_atom.copy_to_host(ilp_tmp.data());
+  for (int i = 0; i < number_of_atoms; ++i) {
+    p_ilp += ilp_tmp[i];
+  }
+
+#endif
+
 
   reduce_force_many_body<<<grid_size, BLOCK_SIZE_ILP>>>(
     number_of_atoms,
@@ -3010,6 +3177,22 @@ void ILP_NEP::compute_ilp(
     force_per_atom,
     virial_per_atom);
   GPU_CHECK_KERNEL
+#ifdef CODING
+  std::vector<double> nep_tmp(number_of_atoms);
+  potential_per_atom.copy_to_host(nep_tmp.data());
+  for (int i = 0; i < number_of_atoms; ++i) {
+    int nep_i = nep_map_cpu[group[nep_group_method].cpu_label[i]];
+    p_nep[nep_i] += nep_tmp[i] - ilp_tmp[i];
+  }
+
+  printf("\n========== OUTPUT ENERGYS FOR DEBUG ==========\n");
+  printf("ilp[%lf]\t\t", p_ilp);
+  for (int i = 0; i < num_nep; ++i) {
+    printf("nep%d[%lf]\t\t", i, p_nep[i]);
+  }
+  printf("\n========== OUTPUT ENERGYS FOR DEBUG ==========\n");
+
+#endif
 
 
 }
