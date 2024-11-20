@@ -1447,6 +1447,10 @@ void ILP_TMD_SW::compute_ilp(
   ilp_data.f12y.fill(0);
   ilp_data.f12z.fill(0);
 
+  sw2_data.f12x.fill(0);
+  sw2_data.f12y.fill(0);
+  sw2_data.f12z.fill(0);
+
   double *g_fx = force_per_atom.data();
   double *g_fy = force_per_atom.data() + number_of_atoms;
   double *g_fz = force_per_atom.data() + number_of_atoms * 2;
