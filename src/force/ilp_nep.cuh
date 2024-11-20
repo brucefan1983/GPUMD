@@ -41,9 +41,6 @@ struct NEP_Data {
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
   GPU_Vector<char> para_buffer_gpu;
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
 #ifdef USE_TABLE
@@ -72,7 +69,6 @@ struct ILP_Para {
 struct ILP_Data {
   GPU_Vector<int> NN, NL;
   GPU_Vector<int> reduce_NL;
-  GPU_Vector<int> big_ilp_NN, big_ilp_NL;
   GPU_Vector<int> ilp_NN, ilp_NL;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;

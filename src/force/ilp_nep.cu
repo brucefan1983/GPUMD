@@ -482,8 +482,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   ilp_data.ilp_NN.resize(num_atoms);
   ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
   ilp_data.reduce_NL.resize(num_atoms * max_neighbor_number);
-  ilp_data.big_ilp_NN.resize(num_atoms);
-  ilp_data.big_ilp_NL.resize(num_atoms * MAX_BIG_ILP_NEIGHBOR_CBN);
 
   ilp_data.f12x.resize(num_atoms * max_neighbor_number);
   ilp_data.f12y.resize(num_atoms * max_neighbor_number);
@@ -511,9 +509,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   nep_data.NL_angular.resize(num_atoms * max_MN_angular);
   nep_data.Fp.resize(num_atoms * max_dim);
   nep_data.sum_fxyz.resize(num_atoms * (max_n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.cell_count.resize(num_atoms);
-  nep_data.cell_count_sum.resize(num_atoms);
-  nep_data.cell_contents.resize(num_atoms);
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
@@ -794,8 +789,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   const int* __restrict__ cell_contents,
   int* NN,
   int* NL,
-  int* big_ilp_NN,
-  int* big_ilp_NL,
   int* NN_nep_radial,
   int* NL_nep_radial,
   int* NN_nep_angular,
@@ -808,8 +801,7 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   const int ny,
   const int nz,
   const double rc_inv,
-  const double ilp_cutoff_square,
-  const double big_ilp_cutoff_square)
+  const double ilp_cutoff_square)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -821,7 +813,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
     const double y1 = y[n1];
     const double z1 = z[n1];
     int ilp_count_diff = 0;   // ilp neighbor in different layer to calc energy
-    int ilp_count_same = 0;   // ilp neighbor in the same layer for calc normal
     int nep_count_radial = 0;
     int nep_count_angular = 0;
     int cell_id;
@@ -874,7 +865,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
               if (different_layer) {
                 NL[ilp_count_diff++ * N + n1] = n2;
               } else if (d2 < rc_radial * rc_radial) {
-                big_ilp_NL[ilp_count_same++ * N + n1] = n2;
                 NL_nep_radial[nep_count_radial++ * N + n1] = n2;
 
                 if (d2 < rc_angular * rc_angular) {
@@ -888,7 +878,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
       }
     }
     NN[n1] = ilp_count_diff;
-    big_ilp_NN[n1] = ilp_count_same;
     NN_nep_radial[n1] = nep_count_radial;
     NN_nep_angular[n1] = nep_count_angular;
   }
@@ -903,7 +892,6 @@ void find_neighbor_ilp_nep(
   void* h_parambs,
   const int total_types,
   double rc,
-  double big_ilp_cutoff_square,
   Box& box,
   const int* group_label_ilp,
   const GPU_Vector<int>& type,
@@ -913,8 +901,6 @@ void find_neighbor_ilp_nep(
   GPU_Vector<int>& cell_contents,
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL,
-  GPU_Vector<int>& big_ilp_NN,
-  GPU_Vector<int>& big_ilp_NL,
   GPU_Vector<int>& NN_nep_radial,
   GPU_Vector<int>& NL_nep_radial,
   GPU_Vector<int>& NN_nep_angular,
@@ -951,8 +937,6 @@ void find_neighbor_ilp_nep(
     cell_contents.data(),
     NN.data(),
     NL.data(),
-    big_ilp_NN.data(),
-    big_ilp_NL.data(),
     NN_nep_radial.data(),
     NL_nep_radial.data(),
     NN_nep_angular.data(),
@@ -965,15 +949,11 @@ void find_neighbor_ilp_nep(
     num_bins[1],
     num_bins[2],
     rc_inv_cell_list,
-    rc * rc,
-    big_ilp_cutoff_square);
+    rc * rc);
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  GPU_CHECK_KERNEL
-  const int MN_big = big_ilp_NL.size() / big_ilp_NN.size();
-  gpu_sort_neighbor_list_ilp<<<N, min(1024, MN_big), MN_big * sizeof(int)>>>(N, big_ilp_NN.data(), big_ilp_NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -3045,7 +3025,6 @@ void ILP_NEP::compute_ilp(
       h_parambs,
       total_types,
       rc,
-      BIG_ILP_CUTOFF_SQUARE,
       box,
       group_label_ilp,
       type,
@@ -3055,8 +3034,6 @@ void ILP_NEP::compute_ilp(
       ilp_data.cell_contents,
       ilp_data.NN,
       ilp_data.NL,
-      ilp_data.big_ilp_NN,
-      ilp_data.big_ilp_NL,
       nep_data.NN_radial,
       nep_data.NL_radial,
       nep_data.NN_angular,
@@ -3089,8 +3066,6 @@ void ILP_NEP::compute_ilp(
   const double* z = position_per_atom.data() + number_of_atoms * 2;
   const int *NN = ilp_data.NN.data();
   const int *NL = ilp_data.NL.data();
-  const int* big_ilp_NN = ilp_data.big_ilp_NN.data();
-  const int* big_ilp_NL = ilp_data.big_ilp_NL.data();
   int *reduce_NL = ilp_data.reduce_NL.data();
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
@@ -3100,7 +3075,7 @@ void ILP_NEP::compute_ilp(
 
   // find ILP neighbor list
   ILP_neighbor<<<grid_size, BLOCK_SIZE_ILP>>>(
-    number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
+    number_of_atoms, N1, N2, box, nep_data.NN_radial.data(), nep_data.NL_radial.data(), \
     type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group_sublabel_ilp, sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
