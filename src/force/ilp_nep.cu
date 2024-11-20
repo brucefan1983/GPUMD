@@ -779,6 +779,11 @@ static __device__ __forceinline__ float calc_dTap(const float r_ij, const float 
 
 // For ILP, the neighbor could not contain atoms in the same layer
 static __global__ void gpu_find_neighbor_ON1_ilp_nep(
+  const int* nep_map,
+  const int* type_map,
+  const int* group_label_nep,
+  void* h_parambs,
+  const int total_types,
   const Box box,
   const int N,
   const int N1,
@@ -791,7 +796,11 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   int* NL,
   int* big_ilp_NN,
   int* big_ilp_NL,
-  const int* group_label,
+  int* NN_nep_radial,
+  int* NL_nep_radial,
+  int* NN_nep_angular,
+  int* NL_nep_angular,
+  const int* group_label_ilp,
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
@@ -799,16 +808,22 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   const int ny,
   const int nz,
   const double rc_inv,
-  const double cutoff_square,
+  const double ilp_cutoff_square,
   const double big_ilp_cutoff_square)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  int count = 0;
-  int ilp_count = 0;
   if (n1 < N2) {
+    int nep_id = nep_map[group_label_nep[n1]];
+    float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+    float rc_radial = paramb[RCR];
+    float rc_angular = paramb[RCA];
     const double x1 = x[n1];
     const double y1 = y[n1];
     const double z1 = z[n1];
+    int ilp_count_diff = 0;   // ilp neighbor in different layer to calc energy
+    int ilp_count_same = 0;   // ilp neighbor in the same layer for calc normal
+    int nep_count_radial = 0;
+    int nep_count_angular = 0;
     int cell_id;
     int cell_id_x;
     int cell_id_y;
@@ -851,11 +866,20 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
-              bool different_layer = group_label[n1] != group_label[n2];
-              if (different_layer && d2 < cutoff_square) {
-                NL[count++ * N + n1] = n2;
-              } else if (!different_layer && d2 < big_ilp_cutoff_square) {
-                big_ilp_NL[ilp_count++ * N + n1] = n2;
+              if (d2 > ilp_cutoff_square) {
+                continue;
+              }
+
+              bool different_layer = group_label_ilp[n1] != group_label_ilp[n2];
+              if (different_layer) {
+                NL[ilp_count_diff++ * N + n1] = n2;
+              } else if (d2 < rc_radial * rc_radial) {
+                big_ilp_NL[ilp_count_same++ * N + n1] = n2;
+                NL_nep_radial[nep_count_radial++ * N + n1] = n2;
+
+                if (d2 < rc_angular * rc_angular) {
+                  NL_nep_angular[nep_count_angular++ * N + n1] = n2;
+                }
               }
 
             }
@@ -863,18 +887,25 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
         }
       }
     }
-    NN[n1] = count;
-    big_ilp_NN[n1] = ilp_count;
+    NN[n1] = ilp_count_diff;
+    big_ilp_NN[n1] = ilp_count_same;
+    NN_nep_radial[n1] = nep_count_radial;
+    NN_nep_angular[n1] = nep_count_angular;
   }
 }
 
 void find_neighbor_ilp_nep(
   const int N1,
   const int N2,
+  const int* nep_map,
+  const int* type_map,
+  const int* group_label_nep,
+  void* h_parambs,
+  const int total_types,
   double rc,
   double big_ilp_cutoff_square,
   Box& box,
-  const int* group_label,
+  const int* group_label_ilp,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& cell_count,
@@ -883,7 +914,11 @@ void find_neighbor_ilp_nep(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL,
   GPU_Vector<int>& big_ilp_NN,
-  GPU_Vector<int>& big_ilp_NL)
+  GPU_Vector<int>& big_ilp_NL,
+  GPU_Vector<int>& NN_nep_radial,
+  GPU_Vector<int>& NL_nep_radial,
+  GPU_Vector<int>& NN_nep_angular,
+  GPU_Vector<int>& NL_nep_angular)
 {
   const int N = NN.size();
   const int block_size = 256;
@@ -901,6 +936,11 @@ void find_neighbor_ilp_nep(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_neighbor_ON1_ilp_nep<<<grid_size, block_size>>>(
+    nep_map,
+    type_map,
+    group_label_nep,
+    h_parambs,
+    total_types,
     box,
     N,
     N1,
@@ -913,7 +953,11 @@ void find_neighbor_ilp_nep(
     NL.data(),
     big_ilp_NN.data(),
     big_ilp_NL.data(),
-    group_label,
+    NN_nep_radial.data(),
+    NL_nep_radial.data(),
+    NN_nep_angular.data(),
+    NL_nep_angular.data(),
+    group_label_ilp,
     x,
     y,
     z,
@@ -2158,155 +2202,155 @@ static __global__ void reduce_force_many_body(
 
 // ----- NEP part -----
 // nep find neighbor list
-static __global__ void find_neighbor_list_large_box(
-  const int* nep_map,
-  const int* type_map,
-  const int* labels,
-  void* h_parambs,
-  const int total_types,
-  const float max_nep_rcinv,
-  const int N,
-  const int N1,
-  const int N2,
-  const int nx,
-  const int ny,
-  const int nz,
-  const Box box,
-  const int* g_type,
-  const int* __restrict__ g_cell_count,
-  const int* __restrict__ g_cell_count_sum,
-  const int* __restrict__ g_cell_contents,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  int* g_NN_radial,
-  int* g_NL_radial,
-  int* g_NN_angular,
-  int* g_NL_angular)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 >= N2) {
-    return;
-  }
-
-  int nep_id = nep_map[labels[n1]];
-  float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
-  int* paramb_int = (int*) paramb;
-  int* atomic_numbers = INT_PTR(paramb + PTRAN);
-  double x1 = g_x[n1];
-  double y1 = g_y[n1];
-  double z1 = g_z[n1];
-  int type_offset = nep_id * total_types;
-  int t1 = type_map[g_type[n1] + type_offset];
-  int count_radial = 0;
-  int count_angular = 0;
-
-  int cell_id;
-  int cell_id_x;
-  int cell_id_y;
-  int cell_id_z;
-  find_cell_id(
-    box,
-    x1,
-    y1,
-    z1,
-    // 2.0f * paramb.rcinv_radial,
-    2.0f * max_nep_rcinv,
-    nx,
-    ny,
-    nz,
-    cell_id_x,
-    cell_id_y,
-    cell_id_z,
-    cell_id);
-
-  const int z_lim = box.pbc_z ? 2 : 0;
-  const int y_lim = box.pbc_y ? 2 : 0;
-  const int x_lim = box.pbc_x ? 2 : 0;
-
-  for (int zz = -z_lim; zz <= z_lim; ++zz) {
-    for (int yy = -y_lim; yy <= y_lim; ++yy) {
-      for (int xx = -x_lim; xx <= x_lim; ++xx) {
-        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
-        if (cell_id_x + xx < 0)
-          neighbor_cell += nx;
-        if (cell_id_x + xx >= nx)
-          neighbor_cell -= nx;
-        if (cell_id_y + yy < 0)
-          neighbor_cell += ny * nx;
-        if (cell_id_y + yy >= ny)
-          neighbor_cell -= ny * nx;
-        if (cell_id_z + zz < 0)
-          neighbor_cell += nz * ny * nx;
-        if (cell_id_z + zz >= nz)
-          neighbor_cell -= nz * ny * nx;
-
-        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
-        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
-
-        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
-
-          if (n2 < N1 || n2 >= N2 || n1 == n2) {
-            continue;
-          }
-
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
-          float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-          
-          // calc nep in the same layer
-          bool different_layer = labels[n1] != labels[n2];
-          if (different_layer) {
-            continue;
-          }
-
-          int t2 = type_map[g_type[n2] + type_offset];
-          // float rc_radial = paramb.rc_radial;
-          // float rc_angular = paramb.rc_angular;
-          // if (paramb.use_typewise_cutoff) {
-          //   int z1 = paramb.atomic_numbers[t1];
-          //   int z2 = paramb.atomic_numbers[t2];
-          //   rc_radial = min(
-          //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-          //     rc_radial);
-          //   rc_angular = min(
-          //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-          //     rc_angular);
-          // }
-          float rc_radial = paramb[RCR];
-          float rc_angular = paramb[RCA];
-          if (paramb_int[UTC]) {
-            int z1 = atomic_numbers[t1];
-            int z2 = atomic_numbers[t2];
-            rc_radial = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCRF],
-              rc_radial);
-            rc_angular = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCAF],
-              rc_angular);
-          }
-
-          if (d12_square >= rc_radial * rc_radial) {
-            continue;
-          }
-
-          g_NL_radial[count_radial++ * N + n1] = n2;
-
-          if (d12_square < rc_angular * rc_angular) {
-            g_NL_angular[count_angular++ * N + n1] = n2;
-          }
-        }
-      }
-    }
-  }
-
-  g_NN_radial[n1] = count_radial;
-  g_NN_angular[n1] = count_angular;
-}
+// static __global__ void find_neighbor_list_large_box(
+//   const int* nep_map,
+//   const int* type_map,
+//   const int* labels,
+//   void* h_parambs,
+//   const int total_types,
+//   const float max_nep_rcinv,
+//   const int N,
+//   const int N1,
+//   const int N2,
+//   const int nx,
+//   const int ny,
+//   const int nz,
+//   const Box box,
+//   const int* g_type,
+//   const int* __restrict__ g_cell_count,
+//   const int* __restrict__ g_cell_count_sum,
+//   const int* __restrict__ g_cell_contents,
+//   const double* __restrict__ g_x,
+//   const double* __restrict__ g_y,
+//   const double* __restrict__ g_z,
+//   int* g_NN_radial,
+//   int* g_NL_radial,
+//   int* g_NN_angular,
+//   int* g_NL_angular)
+// {
+//   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+//   if (n1 >= N2) {
+//     return;
+//   }
+// 
+//   int nep_id = nep_map[labels[n1]];
+//   float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
+//   int* paramb_int = (int*) paramb;
+//   int* atomic_numbers = INT_PTR(paramb + PTRAN);
+//   double x1 = g_x[n1];
+//   double y1 = g_y[n1];
+//   double z1 = g_z[n1];
+//   int type_offset = nep_id * total_types;
+//   int t1 = type_map[g_type[n1] + type_offset];
+//   int count_radial = 0;
+//   int count_angular = 0;
+// 
+//   int cell_id;
+//   int cell_id_x;
+//   int cell_id_y;
+//   int cell_id_z;
+//   find_cell_id(
+//     box,
+//     x1,
+//     y1,
+//     z1,
+//     // 2.0f * paramb.rcinv_radial,
+//     2.0f * max_nep_rcinv,
+//     nx,
+//     ny,
+//     nz,
+//     cell_id_x,
+//     cell_id_y,
+//     cell_id_z,
+//     cell_id);
+// 
+//   const int z_lim = box.pbc_z ? 2 : 0;
+//   const int y_lim = box.pbc_y ? 2 : 0;
+//   const int x_lim = box.pbc_x ? 2 : 0;
+// 
+//   for (int zz = -z_lim; zz <= z_lim; ++zz) {
+//     for (int yy = -y_lim; yy <= y_lim; ++yy) {
+//       for (int xx = -x_lim; xx <= x_lim; ++xx) {
+//         int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+//         if (cell_id_x + xx < 0)
+//           neighbor_cell += nx;
+//         if (cell_id_x + xx >= nx)
+//           neighbor_cell -= nx;
+//         if (cell_id_y + yy < 0)
+//           neighbor_cell += ny * nx;
+//         if (cell_id_y + yy >= ny)
+//           neighbor_cell -= ny * nx;
+//         if (cell_id_z + zz < 0)
+//           neighbor_cell += nz * ny * nx;
+//         if (cell_id_z + zz >= nz)
+//           neighbor_cell -= nz * ny * nx;
+// 
+//         const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
+//         const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
+// 
+//         for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+//           const int n2 = g_cell_contents[num_atoms_previous_cells + m];
+// 
+//           if (n2 < N1 || n2 >= N2 || n1 == n2) {
+//             continue;
+//           }
+// 
+//           double x12double = g_x[n2] - x1;
+//           double y12double = g_y[n2] - y1;
+//           double z12double = g_z[n2] - z1;
+//           apply_mic(box, x12double, y12double, z12double);
+//           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+//           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+//           
+//           // calc nep in the same layer
+//           bool different_layer = labels[n1] != labels[n2];
+//           if (different_layer) {
+//             continue;
+//           }
+// 
+//           int t2 = type_map[g_type[n2] + type_offset];
+//           // float rc_radial = paramb.rc_radial;
+//           // float rc_angular = paramb.rc_angular;
+//           // if (paramb.use_typewise_cutoff) {
+//           //   int z1 = paramb.atomic_numbers[t1];
+//           //   int z2 = paramb.atomic_numbers[t2];
+//           //   rc_radial = min(
+//           //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
+//           //     rc_radial);
+//           //   rc_angular = min(
+//           //     (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
+//           //     rc_angular);
+//           // }
+//           float rc_radial = paramb[RCR];
+//           float rc_angular = paramb[RCA];
+//           if (paramb_int[UTC]) {
+//             int z1 = atomic_numbers[t1];
+//             int z2 = atomic_numbers[t2];
+//             rc_radial = min(
+//               (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCRF],
+//               rc_radial);
+//             rc_angular = min(
+//               (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb[TCAF],
+//               rc_angular);
+//           }
+// 
+//           if (d12_square >= rc_radial * rc_radial) {
+//             continue;
+//           }
+// 
+//           g_NL_radial[count_radial++ * N + n1] = n2;
+// 
+//           if (d12_square < rc_angular * rc_angular) {
+//             g_NL_angular[count_angular++ * N + n1] = n2;
+//           }
+//         }
+//       }
+//     }
+//   }
+// 
+//   g_NN_radial[n1] = count_radial;
+//   g_NN_angular[n1] = count_angular;
+// }
 
 #ifdef CODING
 static __device__ void check_ann(
@@ -2957,7 +3001,7 @@ static __global__ void ppe(double* p, int N1, int N2) {
 #endif
 
 #define BLOCK_SIZE_ILP 128
-#define USE_FIXED_NEIGHBOR 1
+//#define USE_FIXED_NEIGHBOR 1
 #define UPDATE_TEMP 10
 #define BIG_ILP_CUTOFF_SQUARE 50.0
 // find force and related quantities
@@ -2982,6 +3026,9 @@ void ILP_NEP::compute_ilp(
   const int *group_label_ilp = group[ilp_group_method].label.data();
   const int *group_sublabel_ilp = group[ilp_sub_group_method].label.data();
   const int *group_label_nep = group[nep_group_method].label.data();
+  int* g_nep_map = nep_map.data();
+  int* g_type_map = type_map.data();
+  const int total_types = type_map_cpu.size() / num_nep;
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -2989,9 +3036,14 @@ void ILP_NEP::compute_ilp(
 #ifdef USE_FIXED_NEIGHBOR
   if (num_calls++ == 0) {
 #endif
-    find_neighbor_ilp(
+    find_neighbor_ilp_nep(
       N1,
       N2,
+      g_nep_map,
+      g_type_map,
+      group_label_nep,
+      h_parambs,
+      total_types,
       rc,
       BIG_ILP_CUTOFF_SQUARE,
       box,
@@ -3004,8 +3056,20 @@ void ILP_NEP::compute_ilp(
       ilp_data.NN,
       ilp_data.NL,
       ilp_data.big_ilp_NN,
-      ilp_data.big_ilp_NL);
+      ilp_data.big_ilp_NL,
+      nep_data.NN_radial,
+      nep_data.NL_radial,
+      nep_data.NN_angular,
+      nep_data.NL_angular);
     
+  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_radial, max_MN_radial * sizeof(int)>>>(
+    number_of_atoms, nep_data.NN_radial.data(), nep_data.NL_radial.data());
+  GPU_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_angular, max_MN_angular * sizeof(int)>>>(
+    number_of_atoms, nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  GPU_CHECK_KERNEL
+
 
     build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_ILP>>>(
       number_of_atoms,
@@ -3134,50 +3198,7 @@ void ILP_NEP::compute_ilp(
   const int BLOCK_SIZE_NEP = 64;
   const int N = type.size();
   const int grid_size_nep = (N2 - N1 - 1) / BLOCK_SIZE_NEP + 1;
-  int* g_nep_map = nep_map.data();
-  int* g_type_map = type_map.data();
-  const int total_types = type_map_cpu.size() / num_nep;
 
-  const double rc_cell_list = 0.5 * max_nep_rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
-    position_per_atom,
-    nep_data.cell_count,
-    nep_data.cell_count_sum,
-    nep_data.cell_contents);
-
-  find_neighbor_list_large_box<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
-    g_nep_map,
-    g_type_map,
-    group_label_nep,
-    h_parambs,
-    total_types,
-    1.0f / (float) max_nep_rc,
-    N,
-    N1,
-    N2,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
-    box,
-    type.data(),
-    nep_data.cell_count.data(),
-    nep_data.cell_count_sum.data(),
-    nep_data.cell_contents.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data());
-  GPU_CHECK_KERNEL
 
   static int num_calls_n = 0;
   if (num_calls_n++ % 1000 == 0) {
@@ -3200,14 +3221,6 @@ void ILP_NEP::compute_ilp(
                 << std::endl;
     output_file.close();
   }
-
-  gpu_sort_neighbor_list<<<N, max_MN_radial, max_MN_radial * sizeof(int)>>>(
-    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
-  GPU_CHECK_KERNEL
-
-  gpu_sort_neighbor_list<<<N, max_MN_angular, max_MN_angular * sizeof(int)>>>(
-    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
-  GPU_CHECK_KERNEL
 
   find_descriptor<<<grid_size_nep, BLOCK_SIZE_NEP>>>(
     g_nep_map,
