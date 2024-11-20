@@ -367,7 +367,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
 
   // initialize ilp neighbor lists and some temp vectors
-  int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_ILP_NEP_CBN);
+  int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_ILP_NEP_TMD);
   ilp_data.NN.resize(num_atoms);
   ilp_data.NL.resize(num_atoms * max_neighbor_number);
   ilp_data.cell_count.resize(num_atoms);
@@ -376,7 +376,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
   // init ilp neighbor list
   ilp_data.ilp_NN.resize(num_atoms);
-  ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
+  ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
   ilp_data.reduce_NL.resize(num_atoms * max_neighbor_number);
   ilp_data.big_ilp_NN.resize(num_atoms);
   ilp_data.big_ilp_NL.resize(num_atoms * MAX_BIG_ILP_NEIGHBOR_CBN);
@@ -385,9 +385,9 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   ilp_data.f12y.resize(num_atoms * max_neighbor_number);
   ilp_data.f12z.resize(num_atoms * max_neighbor_number);
 
-  ilp_data.f12x_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
-  ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
-  ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
+  ilp_data.f12x_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
+  ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
+  ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
 
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
