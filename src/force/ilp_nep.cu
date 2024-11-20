@@ -217,7 +217,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   // init parameter vectors
   parambs.resize(num_nep);
   annmbs.resize(num_nep);
-  nep_data.parameters.resize(num_nep);
   max_nep_rc = 0.0;
 
   // init type map cpu
@@ -424,9 +423,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
     all_ann_para.push_back(parameters);
-    nep_data.parameters[i].resize(annmbs[i].num_para);
-    nep_data.parameters[i].copy_from_host(parameters.data());
-    update_potential(nep_data.parameters[i].data(), parambs[i], annmbs[i]);
     for (int d = 0; d < annmbs[i].dim; ++d) {
       tokens = get_tokens(input);
       parambs[i].q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
@@ -739,29 +735,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 //  check_para_gpu<<<1,1>>>(h_parambs, h_annmbs, num_nep);
 //  GPU_CHECK_KERNEL
 #endif
-}
-
-void ILP_NEP::update_potential(float* parameters, ParaMB& paramb, ANN& ann)
-{
-  float* pointer = parameters;
-  for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
-    }
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
-    if (paramb.version == 5) {
-      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
-    }
-  }
-  ann.b1 = pointer;
-  pointer += 1;
-
-  ann.c = pointer;
 }
 
 ILP_NEP::~ILP_NEP(void)

@@ -40,7 +40,6 @@ struct NEP_Data {
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
-  std::vector<GPU_Vector<float>> parameters; // parameters to be optimized
   GPU_Vector<char> para_buffer_gpu;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
@@ -164,11 +163,6 @@ public:
     int num_neurons1 = 0;          // number of neurons in the 1st hidden layer
     int num_para = 0;              // number of parameters
     int num_para_ann = 0;          // number of parameters for the ANN part
-    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
-    const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
-    const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* b1;               // bias for the output layer
-    const float* c;
   };
 
 
@@ -225,7 +219,6 @@ private:
   // save max nep rcut to make sure pbc
   double max_nep_rc;
 
-  void update_potential(float* parameters, ParaMB& paramb, ANN& ann);
 #ifdef USE_TABLE
   void construct_table(float* parameters);
 #endif
