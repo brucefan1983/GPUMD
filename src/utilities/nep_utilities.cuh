@@ -187,7 +187,7 @@ static __device__ void apply_ann_one_layer_xnet(
     float lambda1 = w1[n + N_neu * 1];
     float lambda2 = w1[n + N_neu * 2];
     float d = w1[n + N_neu * 3];
-    float x2d2_factor = 1.0f / (1.0f + x * x + d * d);
+    float x2d2_factor = 1.0f / (0.01f + x * x + d * d);
     float x1 = (lambda1 * x + lambda2) * x2d2_factor;
     float der = (lambda1 - 2.0f * x * x1) * x2d2_factor;
     energy += w1[n] * x1;
@@ -246,7 +246,7 @@ static __device__ void apply_ann_one_layer_nep5_xnet(
     float lambda1 = w1[n + N_neu * 1];
     float lambda2 = w1[n + N_neu * 2];
     float d = w1[n + N_neu * 3];
-    float x2d2_factor = 1.0f / (1.0f + x * x + d * d);
+    float x2d2_factor = 1.0f / (0.01f + x * x + d * d);
     float x1 = (lambda1 * x + lambda2) * x2d2_factor;
     float der = (lambda1 - 2.0f * x * x1) * x2d2_factor;
     energy += w1[n] * x1;
