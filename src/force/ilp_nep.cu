@@ -2725,6 +2725,7 @@ void ILP_NEP::compute_ilp(
       ilp_data.NN.data(),
       ilp_data.NL.data(),
       ilp_data.reduce_NL.data());
+  GPU_CHECK_KERNEL
 #ifdef USE_FIXED_NEIGHBOR
   }
   num_calls %= UPDATE_TEMP;
