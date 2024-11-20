@@ -229,14 +229,6 @@ private:
 #ifdef USE_TABLE
   void construct_table(float* parameters);
 #endif
-
-  // void compute_nep(
-  //   Box& box,
-  //   const GPU_Vector<int>& type,
-  //   const GPU_Vector<double>& position,
-  //   GPU_Vector<double>& potential,
-  //   GPU_Vector<double>& force,
-  //   GPU_Vector<double>& virial);
 };
 
 static __constant__ float Tap_coeff[8];
