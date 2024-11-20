@@ -778,7 +778,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   const int* type_map,
   const int* group_label_nep,
   void* h_parambs,
-  const int total_types,
   const Box box,
   const int N,
   const int N1,
@@ -801,7 +800,7 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
   const int ny,
   const int nz,
   const double rc_inv,
-  const double ilp_cutoff_square)
+  const float ilp_cutoff_square)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -809,6 +808,8 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
     float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
     float rc_radial = paramb[RCR];
     float rc_angular = paramb[RCA];
+    float rc_radial_sq = rc_radial * rc_radial;
+    float rc_angular_sq = rc_angular * rc_angular;
     const double x1 = x[n1];
     const double y1 = y[n1];
     const double z1 = z[n1];
@@ -855,7 +856,7 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              float d2 = (float)x12 * (float)x12 + (float)y12 * (float)y12 + (float)z12 * (float)z12;
 
               if (d2 > ilp_cutoff_square) {
                 continue;
@@ -864,10 +865,10 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
               bool different_layer = group_label_ilp[n1] != group_label_ilp[n2];
               if (different_layer) {
                 NL[ilp_count_diff++ * N + n1] = n2;
-              } else if (d2 < rc_radial * rc_radial) {
+              } else if (d2 < rc_radial_sq) {
                 NL_nep_radial[nep_count_radial++ * N + n1] = n2;
 
-                if (d2 < rc_angular * rc_angular) {
+                if (d2 < rc_angular_sq) {
                   NL_nep_angular[nep_count_angular++ * N + n1] = n2;
                 }
               }
@@ -890,8 +891,7 @@ void find_neighbor_ilp_nep(
   const int* type_map,
   const int* group_label_nep,
   void* h_parambs,
-  const int total_types,
-  double rc,
+  float rc,
   Box& box,
   const int* group_label_ilp,
   const GPU_Vector<int>& type,
@@ -926,7 +926,6 @@ void find_neighbor_ilp_nep(
     type_map,
     group_label_nep,
     h_parambs,
-    total_types,
     box,
     N,
     N1,
@@ -3023,7 +3022,6 @@ void ILP_NEP::compute_ilp(
       g_type_map,
       group_label_nep,
       h_parambs,
-      total_types,
       rc,
       box,
       group_label_ilp,
