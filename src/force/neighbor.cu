@@ -498,6 +498,9 @@ void find_neighbor_ilp(
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
+  const int MN_big = big_ilp_NL.size() / big_ilp_NN.size();
+  gpu_sort_neighbor_list_ilp<<<N, min(1024, MN_big), MN_big * sizeof(int)>>>(N, big_ilp_NN.data(), big_ilp_NL.data());
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_find_neighbor_ON1_SW(
