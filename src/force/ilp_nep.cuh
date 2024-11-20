@@ -215,6 +215,7 @@ private:
 
   // two group methods for ilp and nep
   int ilp_group_method = 0;
+  int ilp_sub_group_method = 0;
   int nep_group_method = 0;
 
   // true if element type is in the sublayer

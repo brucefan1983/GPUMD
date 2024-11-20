@@ -2691,6 +2691,7 @@ void ILP_NEP::compute_ilp(
 
   // get labels of ILP and nep
   const int *group_label_ilp = group[ilp_group_method].label.data();
+  const int *group_sublabel_ilp = group[ilp_sub_group_method].label.data();
   const int *group_label_nep = group[nep_group_method].label.data();
 
 #ifdef USE_FIXED_NEIGHBOR
