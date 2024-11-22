@@ -4,6 +4,7 @@
 * Hope you find them helpful, but you should use them with caution.
 * If you have questions on a tool, you can try to contact the creator.
 
+
 | folder               | creator      | brief description                                            |
 | -------------------- | ------------ | ------------------------------------------------------------ |
 | abacus2xyz           | Benrui Tang  | Get `train.xyz` from `ABACUS` outputs.                       |
@@ -28,3 +29,5 @@
 | vasp2xyz             | Yanzhou Wang | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | Highlight GPUMD grammar in `vim`.                            |
 | xyz2gro              | Zerui Chen   | Convert `xyz` file to `gro` file.                            |
+| [NepTrainKit](https://github.com/aboys-cb/NepTrainKit)           | Chengbing Chen| NEP data visualization interface program |
+ 
