@@ -27,3 +27,4 @@
 | vasp2xyz              | Yanzhou Wang  | Get `train.xyz` from `VASP` outputs. |
 | vim                   | Ke Xu         | Highlight GPUMD grammar in `vim`. |
 | xyz2gro               | Zerui Chen    | Convert `xyz` file to `gro` file. |
+| [NepTrainKit](https://github.com/aboys-cb/NepTrainKit)           | Chengbing Chen| NEP data visualization interface program |
