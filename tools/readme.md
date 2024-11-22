@@ -9,7 +9,8 @@
 | -------------------- | ------------ | ------------------------------------------------------------ |
 | abacus2xyz           | Benrui Tang  | Get `train.xyz` from `ABACUS` outputs.                       |
 | add_groups           | Yuwen Zhang  | Generate grouping method(s) for `model.xyz`.                 |
-| castep2exyz          | Zerui Chen   | Get `train.xyz` from `CP2K` outputs.                         |
+| castep2exyz          | Yanzhou Wang | Get `train.xyz` from `CASTEP` outputs.                       |
+| cp2k2xyz             | Zherui Chen  | Get `train.xyz` from `CP2K` outputs or vice versa.           |
 | deep2nep             | Ke Xu        | Oudated?                                                     |
 | doc_3.3.1            | Zheyong Fan  | Documentation for some parts of GPUMD-v3.3.1.                |
 | dp2xyz               | Ke Xu        | Convert `DP` training data to xyz format.                    |
@@ -28,6 +29,6 @@
 | split_xyz            | Yong Wang    | Some functionalities for trainnig/test data.                 |
 | vasp2xyz             | Yanzhou Wang | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | Highlight GPUMD grammar in `vim`.                            |
-| xyz2gro              | Zerui Chen   | Convert `xyz` file to `gro` file.                            |
+| xyz2gro              | Zherui Chen  | Convert `xyz` file to `gro` file.                            |
 | [NepTrainKit](https://github.com/aboys-cb/NepTrainKit)           | Chengbing Chen| NEP data visualization interface program |
  
