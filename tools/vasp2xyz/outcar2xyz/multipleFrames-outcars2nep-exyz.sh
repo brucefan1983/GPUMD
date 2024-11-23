@@ -33,6 +33,8 @@ total_outcar=$(find -L "$read_dire" -name "OUTCAR" | wc -l)
 converged_files=()
 non_converged_files=()
 
+echo "Checking the convergence of OUTCARs ..."
+
 for file in $(find "$read_dire" -name "OUTCAR"); do
     NSW=$(grep "number of steps for IOM" "$file" | awk '{print $3}')
     
