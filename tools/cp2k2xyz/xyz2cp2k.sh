@@ -9,6 +9,8 @@ export PATH=$PATH:/home/chen/software/cp2k-2024.1/exe/local
 xyz_file="trj.xyz"
 template_inp="test.inp"
 
+dos2unix ${xyz_file} ${template_inp}
+
 # Set the number of cores
 num_cores=48  # You can change this value as needed
 
