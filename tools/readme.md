@@ -18,20 +18,20 @@
 | dp2xyz               | Ke Xu        | twtdq@qq.com        | Convert `DP` training data to `xyz` format.                  |
 | exyz2pdb             | Zherui Chem  | chenzherui0124@foxmail.com  | Convert `exyz` to `pdb`. |
 | for_coding           | Zheyong Fan  | brucenju@gmail.com     | Something useful for Zheyong Fan only.                       |
-| get_max_rmse_xyz     | Ke Xu  | twtdq@qq.com | Identify sturctures with the largest errors.           |
+| get_max_rmse_xyz     | Ke Xu  | twtdq@qq.com | Identify structures with the largest errors.          |
 | gmx2exyz             | Zherui Chen  | chenzherui0124@foxmail.com  | Convert the `trr` trajectory of `gmx` to the `exyz` trajectory. |
 | gpumdkit             | Zihan Yan    | yanzihan@westlake.edu.cn            | A shell toolkit for GPUMD.                                   |
 | md_tersoff           | Zheyong Fan  | brucenju@gmail.com  | Already in MD book; can be removed later.                    |
 | mtp2nep              | Who? |                                                     | Outdated?                                                    |
 | mtp2xyz              | Ke Xu | twtdq@qq.com       | Convert `MTP` training data to xyz format.                   |
 | nep2xyz              | Ke Xu        | twtdq@qq.com                                        | Outdated?                                                    |
-| pca_sampling         | Penghua Ying | hityingph@163.com | farthest-point sampling based on `calorine`.                 |
+| pca_sampling         | Penghua Ying | hityingph@163.com | Farthest-point sampling based on `calorine`.                 |
 | perturbed2poscar     | Who?         |                                                         | What?                                                        |
 | rdf_adf              | Ke Xu        | twtdq@qq.com             | Calculate RDF and ADF using `OVITO`.                         |
-| runner2xyz           | Ke Xu        | twtdq@qq.com    | Convert `RUNNER` training data to xyz format.                |
+| runner2xyz           | Ke Xu        | twtdq@qq.com    | Convert `RUNNER` training data to `xyz` format.             |
 | select_xyz_frames    | Zherui Chen  | chenzherui0124@foxmail.com | Select frames from the `exyz`  file. |
 | shift_energy_to_zero | Nan Xu       | tamas@zju.edu.cn | Shift the average energy of each species to zero for a dataset. |
-| split_xyz            | Yong Wang    | yongw@princeton.edu | Some functionalities for trainnig/test data.                 |
+| split_xyz            | Yong Wang    | yongw@princeton.edu | Some functionalities for training/test data.         |
 | vasp2xyz             | Yanzhou Wang | yanzhowang@gmail.com     | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | twtdq@qq.com                | Highlight GPUMD grammar in `vim`.                            |
 | xyz2gro              | Who? |                             | Convert `xyz` file to `gro` file.                            |
