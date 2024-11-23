@@ -688,6 +688,32 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
 }
 
+static void get_small_force(const std::vector<Structure>& structures)
+{
+  std::ifstream input_force("force_train.out");
+  std::ofstream output_small_force("small_force.xyz");
+  int num1 = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    bool is_small_force = true;
+    double force_nep[3];
+    double force_ref[3];
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      input_force >> force_nep[0] >> force_nep[1] >> force_nep[2] >> force_ref[0] >> force_ref[1] >> force_ref[2];
+      if (force_ref[0] * force_ref[0] + force_ref[1] * force_ref[1] + force_ref[2] * force_ref[2] > 400.0) {
+        is_small_force = false;
+      }
+    }
+    
+    if (is_small_force) {
+      write_one_structure(output_small_force, structures[nc]);
+      num1++;
+    }
+  }
+  input_force.close();
+  output_small_force.close();
+  std::cout << "Number of structures written into small_force.xyz = " << num1 << std::endl;
+}
+
 static void write_3component(
   const std::string& input_filename,
   const std::string& e1,
@@ -756,6 +782,7 @@ int main(int argc, char* argv[])
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
   std::cout << "4: get 3-component structures with given elements\n";
   std::cout << "5: count the number of structures\n";
+  std::cout << "6: remove structures with force larger than 20\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -814,6 +841,15 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
+  } else if (option == 6) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    get_small_force(structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
