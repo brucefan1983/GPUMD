@@ -645,6 +645,7 @@ static void split_into_train_and_test(const std::vector<Structure>& structures)
 static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures)
 {
   std::ifstream input_energy("energy_train.out");
+  std::ifstream input_stress("stress_train.out");
   std::ifstream input_force("force_train.out");
   std::ofstream output_accurate("accurate.xyz");
   std::ofstream output_inaccurate("inaccurate.xyz");
@@ -656,8 +657,22 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
     double energy_nep = 0.0;
     double energy_ref = 0.0;
     input_energy >> energy_nep >> energy_ref;
-    if (std::abs(energy_nep - energy_ref) > 1.0) {
+    if (std::abs(energy_nep - energy_ref) > 0.5) {
       is_accurate = false;
+    }
+
+    double stress_nep[6];
+    double stress_ref[6];
+    for (int n = 0; n < 6; ++n) {
+      input_stress >> stress_nep[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      input_stress >> stress_ref[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      if (std::abs(stress_nep[n] - stress_ref[n]) > 10.0) {
+        is_accurate = false;
+      }
     }
 
     double force_nep[3];
@@ -681,6 +696,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
     }
   }
   input_energy.close();
+  input_stress.close();
   input_force.close();
   output_accurate.close();
   output_inaccurate.close();
