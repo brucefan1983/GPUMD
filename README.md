@@ -66,7 +66,7 @@ This software is distributed under the GNU General Public License (GPL) version 
 | [11]                  | NEP + D3 dispersion correction |
 | [12]                  | MSST integrator for shock wave simulation |
 | [13]                  | linear-scaling quantum transport |
-| [14]                  | NEP4/UNEP-v1 (General-purpose machine-learned potential for 16 elemental metals and their alloys)|
+| [14]                  | NEP4 or UNEP-v1 (General-purpose machine-learned potential for 16 elemental metals and their alloys)|
 | [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
 | [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
