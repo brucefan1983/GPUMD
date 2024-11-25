@@ -64,4 +64,9 @@ void print_welcome_information(void)
   printf("*              This is the gpumd executable                   *\n");
   printf("***************************************************************\n");
   printf("\n");
+  time_t now = time(NULL);
+  struct tm *local_time = localtime(&now);
+  char formatted_time[20];
+  strftime(formatted_time, sizeof(formatted_time), "%Y/%m/%d %H:%M:%S", local_time)
+  printf("当前时间: %s\n", formatted_time);
 }
