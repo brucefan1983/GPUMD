@@ -35,4 +35,17 @@
 | vasp2xyz             | Yanzhou Wang | yanzhowang@gmail.com     | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | twtdq@qq.com                | Highlight GPUMD grammar in `vim`.                            |
 | xyz2gro              | Who? |                             | Convert `xyz` file to `gro` file.                            |
-| [NepTrainKit](https://github.com/aboys-cb/NepTrainKit)           | Chengbing Chen| 1747193328@qq.com | NEP data visualization interface program. |
+
+
+
+## Python packages related to GPUMD and/or NEP:
+
+| Package        | link                                           | comment                                                      |
+| -------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| `calorine`     | https://gitlab.com/materials-modeling/calorine | `calorine` is a Python package for running and analyzing molecular dynamics (MD) simulations via GPUMD. It also provides functionality for constructing and sampling neuroevolution potential (NEP) models via GPUMD. |
+| `GPUMD-Wizard` | https://github.com/Jonsnow-willow/GPUMD-Wizard | `GPUMD-Wizard` is a material structure processing software based on ASE (Atomic Simulation Environment) providing automation capabilities for calculating various properties of metals. Additionally, it aims to run and analyze molecular dynamics (MD) simulations using GPUMD. |
+| `gpyumd`       | https://github.com/AlexGabourie/gpyumd         | `gpyumd` is a Python3 interface for GPUMD. It helps users generate input and process output files based on the details provided by the GPUMD documentation. It currently supports up to GPUMD-v3.3.1 and only the gpumd executable. |
+| `mdapy`        | https://github.com/mushroomfire/mdapy          | The `mdapy` python library provides an array of powerful, flexible, and straightforward tools to analyze atomic trajectories generated from Molecular Dynamics (MD) simulations. |
+| `pynep`        | https://github.com/bigd4/PyNEP                 | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
+| `somd`         | https://github.com/initqp/somd                 | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
+| `NepTrainKit`  | https://github.com/aboys-cb/NepTrainKit        | `NepTrainKit` is a Python package for visualizing and manipulating training datasets for NEP. |
