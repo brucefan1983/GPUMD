@@ -39,16 +39,9 @@ This software is distributed under the GNU General Public License (GPL) version 
 * For developers only:
   * [The developer guide](developers)
 
-## Python packages related to GPUMD and/or NEP:
+## Tools
 
-| Package               | link                           | comment |
-| --------------------- | --------------------------------- | ---------------------------------- |
-| `calorine`            | https://gitlab.com/materials-modeling/calorine  | `calorine` is a Python package for running and analyzing molecular dynamics (MD) simulations via GPUMD. It also provides functionality for constructing and sampling neuroevolution potential (NEP) models via GPUMD. |
-| `GPUMD-Wizard`        | https://github.com/Jonsnow-willow/GPUMD-Wizard  | `GPUMD-Wizard` is a material structure processing software based on ASE (Atomic Simulation Environment) providing automation capabilities for calculating various properties of metals. Additionally, it aims to run and analyze molecular dynamics (MD) simulations using GPUMD.  |
-| `gpyumd`              |https://github.com/AlexGabourie/gpyumd   | `gpyumd` is a Python3 interface for GPUMD. It helps users generate input and process output files based on the details provided by the GPUMD documentation. It currently supports up to GPUMD-v3.3.1 and only the gpumd executable. |
-| `mdapy`               | https://github.com/mushroomfire/mdapy | The `mdapy` python library provides an array of powerful, flexible, and straightforward tools to analyze atomic trajectories generated from Molecular Dynamics (MD) simulations. |
-| `pynep`               | https://github.com/bigd4/PyNEP   | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
-| `somd`                | https://github.com/initqp/somd  | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
+Various tools for `GPUMD` and `NEP` can be found in [tools](./tools/readme.md).
 
 ## Citations
 
@@ -123,4 +116,3 @@ arXiv:2404.13694 [cond-mat.mtrl-sci]
 
 [17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Esmée Berger, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Jianbin Xu, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430),
 arXiv:2409.04430 [cond-mat.mtrl-sci]
-
