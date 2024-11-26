@@ -39,7 +39,8 @@ SOURCES_GPUMD =                   \
 	$(wildcard force/*.cu)        \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)    \
+	$(wildcard extrapolation_grade/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard utilities/*.cu)
@@ -70,7 +71,8 @@ HEADERS =                         \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard extrapolation_grade/*.cuh)
 
 
 ###########################################################
@@ -113,6 +115,8 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+extrapolation_grade/%.obj: extrapolation_grade/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
@@ -133,6 +137,8 @@ model/%.o: model/%.cu $(HEADERS)
 phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+extrapolation_grade/%.o: extrapolation_grade/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
