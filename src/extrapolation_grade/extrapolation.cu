@@ -57,11 +57,27 @@ void Extrapolation::parse(const char** params, int num_params)
     if (strcmp(params[i], "asi_file") == 0) {
       load_asi(params[i + 1]);
       i += 1;
+    } else if (strcmp(params[i], "gamma_low") == 0) {
+      if (!is_valid_real(params[i], &gamma_low)) {
+        PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
+      }
+    } else if (strcmp(params[i], "gamma_high") == 0) {
+      if (!is_valid_real(params[i], &gamma_low)) {
+        PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
+      }
+    } else if (strcmp(params[i], "check_interval") == 0) {
+      if (!is_valid_int(params[i], &check_interval)) {
+        PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
+      }
+    } else if (strcmp(params[i], "dump_interval") == 0) {
+      if (!is_valid_int(params[i], &dump_interval)) {
+        PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
+      }
     }
   }
 }
 
-void Extrapolation::allocate_memory(Force& force, Atom& atom)
+void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
 {
   B_size_per_atom = force.potentials[0]->B_projection_size;
   if (B_size_per_atom == 0)
@@ -71,10 +87,11 @@ void Extrapolation::allocate_memory(Force& force, Atom& atom)
   B.resize(B_size_per_atom * atom.number_of_atoms);
   gamma.resize(atom.number_of_atoms);
   gamma_cpu.resize(atom.number_of_atoms);
-  force.potentials[0]->B_projectin = B.data();
+  force.potentials[0]->B_projection = B.data();
   force.potentials[0]->need_B_projection = true;
   this->atom = &atom;
   activated = true;
+  f = my_fopen("extrapolation_dump.xyz", "w");
 }
 
 void Extrapolation::load_asi(std::string asi_file_name)
@@ -119,10 +136,25 @@ void Extrapolation::load_asi(std::string asi_file_name)
 void Extrapolation::process(int step)
 {
   if (activated) {
-    // if skip, do nothing
-    // if calculate gamma
-    // if gamma is large, save exyz
-    calculate_gamma();
+    if (step % check_interval == 0) {
+      calculate_gamma();
+      max_gamma = 0;
+      for (double g : gamma_cpu) {
+        if (g > max_gamma)
+          max_gamma = g;
+      }
+      if (max_gamma > gamma_low) {
+        if (step - last_dump >= dump_interval) {
+          last_dump = step;
+          // dump
+        }
+      }
+      if (max_gamma > gamma_high) {
+        printf("Current step: %d.\n", step);
+        PRINT_RUMTIME_ERROR(
+          "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
+      }
+    }
   }
 }
 
@@ -132,4 +164,65 @@ void Extrapolation::calculate_gamma()
   gpu_calculate_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma.data(), B.data(), atom->type.data(), asi, N, B_size_per_atom);
   gamma.copy_to_host(gamma_cpu.data());
+}
+
+void Extrapolation::dump()
+{
+  const int num_atoms_total = atom->position_per_atom.size() / 3;
+  atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
+
+  // line 1
+  fprintf(f, "%d\n", num_atoms_total);
+
+  // line 2
+  output_line2();
+
+  // other lines
+  for (int n = 0; n < num_atoms_total; n++) {
+    fprintf(f, "%s", atom->cpu_atom_symbol[n].c_str());
+    for (int d = 0; d < 3; ++d) {
+      fprintf(f, " %.8f", atom->cpu_position_per_atom[n + num_atoms_total * d]);
+    }
+    fprintf(f, " %8f", gamma_cpu[n]);
+  }
+  fclose(f);
+}
+
+void Extrapolation::output_line2()
+{
+  // time
+  fprintf(f, "max_gamma=%.8f", max_gamma);
+
+  // PBC
+  fprintf(
+    f, " pbc=\"%c %c %c\"", box->pbc_x ? 'T' : 'F', box->pbc_y ? 'T' : 'F', box->pbc_z ? 'T' : 'F');
+
+  // box
+  if (box->triclinic == 0) {
+    fprintf(
+      f,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box->cpu_h[0],
+      0.0,
+      0.0,
+      0.0,
+      box->cpu_h[1],
+      0.0,
+      0.0,
+      0.0,
+      box->cpu_h[2]);
+  } else {
+    fprintf(
+      f,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box->cpu_h[0],
+      box->cpu_h[3],
+      box->cpu_h[6],
+      box->cpu_h[1],
+      box->cpu_h[4],
+      box->cpu_h[7],
+      box->cpu_h[2],
+      box->cpu_h[5],
+      box->cpu_h[8]);
+  }
 }

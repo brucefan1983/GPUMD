@@ -25,7 +25,7 @@ public:
   int B_projection_size = 0;
   // this points to GPU
   double* B_projection = nullptr;
-  int need_B_projection = false;
+  bool need_B_projection = false;
 
   int N1;
   int N2;
