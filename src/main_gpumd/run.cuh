@@ -74,4 +74,5 @@ private:
   Add_Force add_force;
   Add_Random_Force add_random_force;
   Add_Efield add_efield;
+  Extrapolation extrapolation;
 };

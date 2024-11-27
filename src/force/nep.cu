@@ -356,6 +356,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 #endif
 
   initialize_dftd3();
+  B_projection_size = annmb.dim * (annmb.dim + 2);
 }
 
 NEP::~NEP(void)
@@ -586,7 +587,9 @@ static __global__ void find_descriptor(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_B_projection,
+  double* B_projection)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -694,7 +697,8 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -746,16 +750,29 @@ static __global__ void find_descriptor(
         F,
         Fp);
     } else {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
+      if (!need_B_projection)
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp);
+      else
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp,
+          B_projection);
     }
     g_pe[n1] += F;
 
@@ -978,7 +995,18 @@ static __global__ void find_partial_force_angular(
           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
                       g_gnp_angular[index_right_all] * weight_right;
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #else
       float fc12, fcp12;
@@ -1006,7 +1034,18 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #endif
       g_f12x[index] = f12[0];
@@ -1233,7 +1272,9 @@ void NEP::compute_large_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_B_projection,
+    B_projection);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
@@ -1391,7 +1432,9 @@ void NEP::compute_small_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_B_projection,
+    B_projection);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
@@ -1687,7 +1730,8 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }

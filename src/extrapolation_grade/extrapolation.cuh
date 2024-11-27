@@ -15,9 +15,12 @@
 
 #pragma once
 
+#include "force/force.cuh"
+#include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -29,8 +32,18 @@ class Extrapolation
 {
 public:
   void parse(const char** params, int num_params);
+  void allocate_memory(Force& force, Atom& atom);
+  void calculate_gamma();
+  void process(int step);
   std::vector<GPU_Vector<double>*> asi_data;
   std::map<int, double*> asi;
+  int B_size_per_atom;
+  GPU_Vector<double> B;
+  // max gamma
+  GPU_Vector<double> gamma;
+  std::vector<double> gamma_cpu;
+  Atom* atom;
+  bool activated = false;
 
 private:
   void load_asi(std::string asi_file_name);
