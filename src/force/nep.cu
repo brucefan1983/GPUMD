@@ -589,7 +589,8 @@ static __global__ void find_descriptor(
   double* g_virial,
   float* g_sum_fxyz,
   bool need_B_projection,
-  double* B_projection)
+  double* B_projection,
+  int B_projection_size)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -772,7 +773,7 @@ static __global__ void find_descriptor(
           q,
           F,
           Fp,
-          B_projection);
+          B_projection + n1 * B_projection_size);
     }
     g_pe[n1] += F;
 
@@ -1274,7 +1275,8 @@ void NEP::compute_large_box(
     virial_per_atom.data(),
     nep_data.sum_fxyz.data(),
     need_B_projection,
-    B_projection);
+    B_projection,
+    B_projection_size);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
@@ -1434,7 +1436,8 @@ void NEP::compute_small_box(
     virial_per_atom.data(),
     nep_data.sum_fxyz.data(),
     need_B_projection,
-    B_projection);
+    B_projection,
+    B_projection_size);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;

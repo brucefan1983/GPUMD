@@ -27,7 +27,7 @@ __global__ void gpu_calculate_gamma(
   double* gamma,
   double* B,
   int* atom_type,
-  std::map<int, double*> asi,
+  double** asi,
   int number_of_particles,
   int B_size_per_atom)
 {
@@ -35,16 +35,23 @@ __global__ void gpu_calculate_gamma(
   double current_gamma;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
-    double* current_asi = asi[atom_type[i]];
+    // double* current_asi = asi[atom_type[i] - 1];
+    double* current_asi = asi[13];
     for (int j = 0; j < B_size_per_atom; j++) {
       current_gamma = 0;
       for (int k = 0; k < B_size_per_atom; k++) {
         current_gamma += B[i * B_size_per_atom + k] * current_asi[j * B_size_per_atom + k];
       }
       current_gamma = std::abs(current_gamma);
+      //      if (i == 0 && j == 0)
+      //        printf("%.15e \n", current_gamma);
       if (current_gamma >= max_gamma) {
         max_gamma = current_gamma;
       }
+    }
+    if (i == 0) {
+      for (int p = 0; p < B_size_per_atom; p++)
+        printf("%.15e %.15e\n", B[p], current_asi[p]);
     }
     gamma[i] = max_gamma;
   }
@@ -56,23 +63,29 @@ void Extrapolation::parse(const char** params, int num_params)
   while (i < num_params) {
     if (strcmp(params[i], "asi_file") == 0) {
       load_asi(params[i + 1]);
-      i += 1;
+      i += 2;
     } else if (strcmp(params[i], "gamma_low") == 0) {
-      if (!is_valid_real(params[i], &gamma_low)) {
+      if (!is_valid_real(params[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
       }
+      i += 2;
     } else if (strcmp(params[i], "gamma_high") == 0) {
-      if (!is_valid_real(params[i], &gamma_low)) {
+      if (!is_valid_real(params[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
+      i += 2;
     } else if (strcmp(params[i], "check_interval") == 0) {
-      if (!is_valid_int(params[i], &check_interval)) {
+      if (!is_valid_int(params[i + 1], &check_interval)) {
         PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
       }
+      i += 2;
     } else if (strcmp(params[i], "dump_interval") == 0) {
-      if (!is_valid_int(params[i], &dump_interval)) {
+      if (!is_valid_int(params[i + 1], &dump_interval)) {
         PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
       }
+      i += 2;
+    } else {
+      PRINT_INPUT_ERROR("Wrong input parameter!");
     }
   }
 }
@@ -83,13 +96,15 @@ void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
   if (B_size_per_atom == 0)
     PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
   else
-    printf("The length of B vector for each atom: %d.\n", B_size_per_atom);
+    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
   B.resize(B_size_per_atom * atom.number_of_atoms);
   gamma.resize(atom.number_of_atoms);
   gamma_cpu.resize(atom.number_of_atoms);
   force.potentials[0]->B_projection = B.data();
   force.potentials[0]->need_B_projection = true;
   this->atom = &atom;
+  printf("%d %d\n", atom.cpu_type[0], atom.cpu_type[1]);
+  this->box = &box;
   activated = true;
   f = my_fopen("extrapolation_dump.xyz", "w");
 }
@@ -114,19 +129,24 @@ void Extrapolation::load_asi(std::string asi_file_name)
       f >> token;
       int shape2 = std::stoi(token);
       int B_size = shape1 * shape2;
-      printf("    Loading the ASI of %s (%d): shape %d x %d, ", element, atomic_number, shape2);
-      std::vector<double> B(B_size);
+      printf(
+        "    Loading the ASI of %s (%d): shape %d x %d, ", element, atomic_number, shape1, shape2);
+      std::vector<double> asi_temp(B_size);
       for (int i = 0; i < B_size; ++i) {
-        f >> B[i];
+        f >> asi_temp[i];
       }
-      printf("[%f %f ... %f]\n", B[0], B[1], B[B_size - 1]);
+      printf("[%f %f ... %f]\n", asi_temp[0], asi_temp[1], asi_temp[B_size - 1]);
 
-      GPU_Vector<double>* B_gpu = new GPU_Vector<double>(B_size);
-      B_gpu->copy_from_host(B.data());
-      asi_data.push_back(B_gpu);
-      asi[atomic_number] = B_gpu->data();
+      GPU_Vector<double>* a = new GPU_Vector<double>(B_size);
+      a->copy_from_host(asi_temp.data());
+      asi_data.push_back(a);
+      asi_cpu[atomic_number - 1] = a->data();
+      asi_gpu.copy_from_host(asi_cpu.data());
     }
-    printf("ASI successfully loaded!");
+    printf("ASI successfully loaded!\n");
+    for (int i = 0; i < 94; i++) {
+      printf("%d ", asi_cpu[i]);
+    }
     f.close();
   } else {
     PRINT_INPUT_ERROR("Fail to open ASI file!");
@@ -143,10 +163,10 @@ void Extrapolation::process(int step)
         if (g > max_gamma)
           max_gamma = g;
       }
-      if (max_gamma > gamma_low) {
-        if (step - last_dump >= dump_interval) {
+      if (max_gamma >= gamma_low) {
+        if (step == 0 || step - last_dump >= dump_interval) {
           last_dump = step;
-          // dump
+          dump();
         }
       }
       if (max_gamma > gamma_high) {
@@ -162,7 +182,7 @@ void Extrapolation::calculate_gamma()
 {
   int N = atom->number_of_atoms;
   gpu_calculate_gamma<<<(N - 1) / 128 + 1, 128>>>(
-    gamma.data(), B.data(), atom->type.data(), asi, N, B_size_per_atom);
+    gamma.data(), B.data(), atom->type.data(), asi_gpu.data(), N, B_size_per_atom);
   gamma.copy_to_host(gamma_cpu.data());
 }
 
@@ -183,14 +203,12 @@ void Extrapolation::dump()
     for (int d = 0; d < 3; ++d) {
       fprintf(f, " %.8f", atom->cpu_position_per_atom[n + num_atoms_total * d]);
     }
-    fprintf(f, " %8f", gamma_cpu[n]);
+    fprintf(f, " %8f\n", gamma_cpu[n]);
   }
-  fclose(f);
 }
 
 void Extrapolation::output_line2()
 {
-  // time
   fprintf(f, "max_gamma=%.8f", max_gamma);
 
   // PBC
@@ -225,4 +243,12 @@ void Extrapolation::output_line2()
       box->cpu_h[5],
       box->cpu_h[8]);
   }
+  fprintf(f, " Properties=species:S:1:pos:R:3");
+  fprintf(f, ":gamma:R:1\n");
+}
+
+Extrapolation::~Extrapolation()
+{
+  printf("Closing extrapolation dump file...\n");
+  fclose(f);
 }

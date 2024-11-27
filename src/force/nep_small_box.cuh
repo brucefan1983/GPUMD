@@ -190,7 +190,8 @@ static __global__ void find_descriptor_small_box(
   double* g_virial,
   float* g_sum_fxyz,
   bool need_B_projection,
-  double* B_projection)
+  double* B_projection,
+  int B_projection_size)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -336,7 +337,7 @@ static __global__ void find_descriptor_small_box(
         F,
         Fp);
     } else {
-      if (need_B_projection)
+      if (!need_B_projection)
         apply_ann_one_layer(
           annmb.dim,
           annmb.num_neurons1,
@@ -358,7 +359,7 @@ static __global__ void find_descriptor_small_box(
           q,
           F,
           Fp,
-          B_projection);
+          B_projection + n1 * B_projection_size);
     }
     g_pe[n1] += F;
 

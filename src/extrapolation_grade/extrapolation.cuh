@@ -33,6 +33,7 @@
 class Extrapolation
 {
 public:
+  ~Extrapolation();
   void parse(const char** params, int num_params);
   void allocate_memory(Force& force, Atom& atom, Box& box);
   void calculate_gamma();
@@ -41,9 +42,9 @@ public:
   void output_line2();
   FILE* f;
   std::vector<GPU_Vector<double>*> asi_data;
-  std::map<int, double*> asi;
+  std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
+  GPU_Vector<double*> asi_gpu = GPU_Vector<double*>(NUM_ELEMENTS, nullptr);
   int B_size_per_atom;
-  // points to potential
   GPU_Vector<double> B;
   // max gamma
   GPU_Vector<double> gamma;

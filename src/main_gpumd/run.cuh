@@ -23,6 +23,7 @@ class Measure;
 #include "add_force.cuh"
 #include "add_random_force.cuh"
 #include "electron_stop.cuh"
+#include "extrapolation_grade/extrapolation.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
