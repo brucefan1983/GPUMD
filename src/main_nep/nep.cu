@@ -334,23 +334,6 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   }
   ann.b1 = pointer;
   pointer += 1;
-
-  if (para.train_mode == 2) {
-    for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-        pointer -= (ann.dim + 2) * ann.num_neurons1;
-      }
-      ann.w0_pol[t] = pointer;
-      pointer += ann.num_neurons1 * ann.dim;
-      ann.b0_pol[t] = pointer;
-      pointer += ann.num_neurons1;
-      ann.w1_pol[t] = pointer;
-      pointer += ann.num_neurons1;
-    }
-    ann.b1_pol = pointer;
-    pointer += 1;
-  }
-
   ann.c = pointer;
 }
 
@@ -446,63 +429,6 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void apply_ann_pol(
-  const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
-  float* g_virial,
-  float* g_Fp)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
-  if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-
-    // scalar part
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0_pol[type],
-      annmb.b0_pol[type],
-      annmb.w1_pol[type],
-      annmb.b1_pol,
-      q,
-      F,
-      Fp);
-    g_virial[n1] = F;
-    g_virial[n1 + N] = F;
-    g_virial[n1 + N * 2] = F;
-
-    // tensor part
-    for (int d = 0; d < annmb.dim; ++d) {
-      Fp[d] = 0.0f;
-    }
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
-    }
-  }
-}
-
 static __global__ void apply_ann_temperature(
   const int N,
   const NEP::ParaMB paramb,
@@ -560,7 +486,6 @@ static __global__ void zero_force(
 }
 
 static __global__ void find_force_radial(
-  const bool is_dipole,
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -629,16 +554,9 @@ static __global__ void find_force_radial(
       atomicAdd(&g_fy[n2], -f12[1]);
       atomicAdd(&g_fz[n2], -f12[2]);
 
-      if (is_dipole) {
-        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_virial_xx -= r12_square * f12[0];
-        s_virial_yy -= r12_square * f12[1];
-        s_virial_zz -= r12_square * f12[2];
-      } else {
-        s_virial_xx -= r12[0] * f12[0];
-        s_virial_yy -= r12[1] * f12[1];
-        s_virial_zz -= r12[2] * f12[2];
-      }
+      s_virial_xx -= r12[0] * f12[0];
+      s_virial_yy -= r12[1] * f12[1];
+      s_virial_zz -= r12[2] * f12[2];
       s_virial_xy -= r12[0] * f12[1];
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
@@ -653,7 +571,6 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_force_angular(
-  const bool is_dipole,
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -731,16 +648,9 @@ static __global__ void find_force_angular(
       atomicAdd(&g_fy[n2], -f12[1]);
       atomicAdd(&g_fz[n2], -f12[2]);
 
-      if (is_dipole) {
-        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_virial_xx -= r12_square * f12[0];
-        s_virial_yy -= r12_square * f12[1];
-        s_virial_zz -= r12_square * f12[2];
-      } else {
-        s_virial_xx -= r12[0] * f12[0];
-        s_virial_yy -= r12[1] * f12[1];
-        s_virial_zz -= r12[2] * f12[2];
-      }
+      s_virial_xx -= r12[0] * f12[0];
+      s_virial_yy -= r12[1] * f12[1];
+      s_virial_zz -= r12[2] * f12[2];
       s_virial_xy -= r12[0] * f12[1];
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
@@ -943,18 +853,7 @@ void NEP::find_force(
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
 
-    if (para.train_mode == 2) {
-      apply_ann_pol<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].virial.data(),
-        nep_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
-    } else if (para.train_mode == 3) {
+    if (para.train_mode == 3) {
       apply_ann_temperature<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
@@ -979,9 +878,7 @@ void NEP::find_force(
       GPU_CHECK_KERNEL
     }
 
-    bool is_dipole = para.train_mode == 1;
     find_force_radial<<<grid_size, block_size>>>(
-      is_dipole,
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
@@ -999,7 +896,6 @@ void NEP::find_force(
     GPU_CHECK_KERNEL
 
     find_force_angular<<<grid_size, block_size>>>(
-      is_dipole,
       dataset[device_id].N,
       nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(),

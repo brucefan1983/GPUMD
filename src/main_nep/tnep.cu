@@ -14,15 +14,17 @@
 */
 
 /*----------------------------------------------------------------------------80
-The neuroevolution potential (NEP)
-Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
-Combining high accuracy and low cost in atomistic simulations and application to
-heat transport, Phys. Rev. B. 104, 104309 (2021).
+The tensorial neuroevolution potential (TNEP)
+Ref: Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, 
+Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart, 
+Tensorial properties via the neuroevolution potential framework: 
+Fast simulation of infrared and Raman spectra, 
+J. Chem. Theory Comput. 20, 3273 (2024).
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "nep.cuh"
+#include "tnep.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -31,7 +33,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/nep_utilities.cuh"
 
 static __global__ void gpu_find_neighbor_list(
-  const NEP::ParaMB paramb,
+  const TNEP::ParaMB paramb,
   const int N,
   const int* Na,
   const int* Na_sum,
@@ -123,8 +125,8 @@ static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -178,8 +180,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -239,7 +241,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP::NEP(
+TNEP::TNEP(
   Parameters& para,
   int N,
   int N_times_max_NN_radial,
@@ -276,20 +278,8 @@ NEP::NEP(
   paramb.num_c_radial =
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
-  zbl.enabled = para.enable_zbl;
-  zbl.flexibled = para.flexible_zbl;
-  zbl.rc_inner = para.zbl_rc_inner;
-  zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
     paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
-  }
-  if (zbl.flexibled) {
-    zbl.num_types = para.num_types;
-    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    for (int n = 0; n < num_type_zbl * 10; ++n) {
-      zbl.para[n] = para.zbl_para[n];
-    }
   }
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -315,7 +305,7 @@ NEP::NEP(
   }
 }
 
-void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
+void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -396,8 +386,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 
 static __global__ void apply_ann(
   const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -448,8 +438,8 @@ static __global__ void apply_ann(
 
 static __global__ void apply_ann_pol(
   const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -503,48 +493,6 @@ static __global__ void apply_ann_pol(
   }
 }
 
-static __global__ void apply_ann_temperature(
-  const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_descriptors,
-  float* __restrict__ g_q_scaler,
-  const float* __restrict__ g_temperature,
-  float* g_pe,
-  float* g_Fp)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
-  float temperature = g_temperature[n1];
-  if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim - 1; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    g_q_scaler[annmb.dim - 1] = 0.001; // temperature dimension scaler
-    q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-    g_pe[n1] = F;
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
-    }
-  }
-}
-
 static __global__ void zero_force(
   const int N, float* g_fx, float* g_fy, float* g_fz, float* g_vxx, float* g_vyy, float* g_vzz)
 {
@@ -564,8 +512,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -657,8 +605,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const TNEP::ParaMB paramb,
+  const TNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -754,101 +702,7 @@ static __global__ void find_force_angular(
   }
 }
 
-static __global__ void find_force_ZBL(
-  const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ZBL zbl,
-  const int* g_NN,
-  const int* g_NL,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial,
-  float* g_pe)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_pe = 0.0f;
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    int type1 = g_type[n1];
-    int zi = zbl.atomic_numbers[type1]; // starting from 1
-    float pow_zi = pow(float(zi), 0.23f);
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float f, fp;
-      int type2 = g_type[n2];
-      int zj = zbl.atomic_numbers[type2]; // starting from 1
-      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
-      float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
-        int t1, t2;
-        if (type1 < type2) {
-          t1 = type1;
-          t2 = type2;
-        } else {
-          t1 = type2;
-          t2 = type1;
-        }
-        int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float ZBL_para[10];
-        for (int i = 0; i < 10; ++i) {
-          ZBL_para[i] = zbl.para[10 * zbl_index + i];
-        }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
-      } else {
-        float rc_inner = zbl.rc_inner;
-        float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff_zbl) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
-            rc_outer);
-          rc_inner = rc_outer * 0.5f;
-        }
-        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
-      }
-      float f2 = fp * d12inv * 0.5f;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-      s_pe += f * 0.5f;
-    }
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += s_pe;
-  }
-}
-
-void NEP::find_force(
+void TNEP::find_force(
   Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
@@ -954,18 +808,6 @@ void NEP::find_force(
         dataset[device_id].virial.data(),
         nep_data[device_id].Fp.data());
       GPU_CHECK_KERNEL
-    } else if (para.train_mode == 3) {
-      apply_ann_temperature<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].temperature_ref_gpu.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
     } else {
       apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -1016,24 +858,5 @@ void NEP::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
-
-    if (zbl.enabled) {
-      find_force_ZBL<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        zbl,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data());
-      GPU_CHECK_KERNEL
-    }
   }
 }
