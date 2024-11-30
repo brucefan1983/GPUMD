@@ -49,3 +49,6 @@
 | `pynep`        | https://github.com/bigd4/PyNEP                 | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
 | `somd`         | https://github.com/initqp/somd                 | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
 | `NepTrainKit`  | https://github.com/aboys-cb/NepTrainKit        | `NepTrainKit` is a Python package for visualizing and manipulating training datasets for NEP. |
+
+## CPU version of NEP
+We also provide an interface for [LAMMPS](https://github.com/lammps/lammps), allowing users to utilize NEP on CPUs via [NEP_CPU](https://github.com/brucefan1983/NEP_CPU).
