@@ -44,7 +44,7 @@ This software is distributed under the GNU General Public License (GPL) version 
 Various tools for `GPUMD` and `NEP` can be found in [tools](./tools/readme.md).
 
 ## CPU version of NEP
-We also provide an interface for [LAMMPS](https://github.com/lammps/lammps), allowing users to utilize NEP on CPUs via [NEP_CPU](https://github.com/brucefan1983/NEP_CPU).
+There is a standalone C++ implementation of the neuroevolution potential (NEP) in the [NEP_CPU repository](https://github.com/brucefan1983/NEP_CPU), which serves as the engine for many Python packages and provides an interface to the [LAMMPS package](https://github.com/lammps/lammps).
 
 ## Citations
 
