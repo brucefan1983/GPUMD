@@ -45,10 +45,10 @@ public:
   std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
   GPU_Vector<double*> asi_gpu = GPU_Vector<double*>(NUM_ELEMENTS, nullptr);
   int B_size_per_atom;
-  GPU_Vector<double> B;
+  GPU_Vector<float> B;
   // max gamma
-  GPU_Vector<double> gamma;
-  std::vector<double> gamma_cpu;
+  GPU_Vector<float> gamma;
+  std::vector<float> gamma_cpu;
   double max_gamma;
   Atom* atom;
   Box* box;

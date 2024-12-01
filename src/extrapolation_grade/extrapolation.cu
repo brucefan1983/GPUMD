@@ -15,17 +15,9 @@
 
 #include "extrapolation.cuh"
 
-const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
-  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
-  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
-  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
-  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
-
 __global__ void gpu_calculate_gamma(
-  double* gamma,
-  double* B,
+  float* gamma,
+  float* B,
   int* atom_type,
   double** asi,
   int number_of_particles,
@@ -35,23 +27,16 @@ __global__ void gpu_calculate_gamma(
   double current_gamma;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
-    // double* current_asi = asi[atom_type[i] - 1];
-    double* current_asi = asi[13];
+    double* current_asi = asi[atom_type[i]];
     for (int j = 0; j < B_size_per_atom; j++) {
       current_gamma = 0;
       for (int k = 0; k < B_size_per_atom; k++) {
         current_gamma += B[i * B_size_per_atom + k] * current_asi[j * B_size_per_atom + k];
       }
       current_gamma = std::abs(current_gamma);
-      //      if (i == 0 && j == 0)
-      //        printf("%.15e \n", current_gamma);
       if (current_gamma >= max_gamma) {
         max_gamma = current_gamma;
       }
-    }
-    if (i == 0) {
-      for (int p = 0; p < B_size_per_atom; p++)
-        printf("%.15e %.15e\n", B[p], current_asi[p]);
     }
     gamma[i] = max_gamma;
   }
@@ -103,7 +88,6 @@ void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
   force.potentials[0]->B_projection = B.data();
   force.potentials[0]->need_B_projection = true;
   this->atom = &atom;
-  printf("%d %d\n", atom.cpu_type[0], atom.cpu_type[1]);
   this->box = &box;
   activated = true;
   f = my_fopen("extrapolation_dump.xyz", "w");
@@ -111,16 +95,16 @@ void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
 
 void Extrapolation::load_asi(std::string asi_file_name)
 {
-  printf("Loading the Active Set Inversion file (ASI): %s\n", asi_file_name);
+  printf("Loading the Active Set Inversion file (ASI): %s\n", asi_file_name.c_str());
   std::ifstream f(asi_file_name);
   std::string token;
-  int atomic_number = 0;
+  int type_of_atom = 0;
   if (f.is_open()) {
     while (f >> token) {
       std::string element = token;
-      for (int m = 0; m < NUM_ELEMENTS; ++m) {
-        if (element == ELEMENTS[m]) {
-          atomic_number = m + 1;
+      for (int m = 0; m < atom->number_of_atoms; ++m) {
+        if (element == atom->cpu_atom_symbol[m]) {
+          type_of_atom = atom->cpu_type[m];
           break;
         }
       }
@@ -130,7 +114,11 @@ void Extrapolation::load_asi(std::string asi_file_name)
       int shape2 = std::stoi(token);
       int B_size = shape1 * shape2;
       printf(
-        "    Loading the ASI of %s (%d): shape %d x %d, ", element, atomic_number, shape1, shape2);
+        "    Loading the ASI of %s (%d): shape %d x %d, ",
+        element.c_str(),
+        type_of_atom,
+        shape1,
+        shape2);
       std::vector<double> asi_temp(B_size);
       for (int i = 0; i < B_size; ++i) {
         f >> asi_temp[i];
@@ -140,13 +128,10 @@ void Extrapolation::load_asi(std::string asi_file_name)
       GPU_Vector<double>* a = new GPU_Vector<double>(B_size);
       a->copy_from_host(asi_temp.data());
       asi_data.push_back(a);
-      asi_cpu[atomic_number - 1] = a->data();
+      asi_cpu[type_of_atom] = a->data();
       asi_gpu.copy_from_host(asi_cpu.data());
     }
     printf("ASI successfully loaded!\n");
-    for (int i = 0; i < 94; i++) {
-      printf("%d ", asi_cpu[i]);
-    }
     f.close();
   } else {
     PRINT_INPUT_ERROR("Fail to open ASI file!");

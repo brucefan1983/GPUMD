@@ -164,7 +164,7 @@ static __device__ void apply_ann_one_layer(
   float* q,
   float& energy,
   float* energy_derivative,
-  double* B_projection)
+  float* B_projection)
 {
   for (int n = 0; n < N_neu; ++n) {
     float w0_times_q = 0.0f;

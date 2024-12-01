@@ -347,8 +347,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
   } else if (strcmp(param[0], "compute_extrapolation") == 0) {
-    extrapolation.parse(param, num_param);
     extrapolation.allocate_memory(force, atom, box);
+    extrapolation.parse(param, num_param);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
