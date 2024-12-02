@@ -16,18 +16,13 @@
 #include "extrapolation.cuh"
 
 __global__ void gpu_calculate_gamma(
-  float* gamma,
-  float* B,
-  int* atom_type,
-  double** asi,
-  int number_of_particles,
-  int B_size_per_atom)
+  float* gamma, float* B, int* atom_type, float** asi, int number_of_particles, int B_size_per_atom)
 {
-  double max_gamma = 0;
-  double current_gamma;
+  float max_gamma = 0;
+  float current_gamma;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
-    double* current_asi = asi[atom_type[i]];
+    float* current_asi = asi[atom_type[i]];
     for (int j = 0; j < B_size_per_atom; j++) {
       current_gamma = 0;
       for (int k = 0; k < B_size_per_atom; k++) {
@@ -126,13 +121,13 @@ void Extrapolation::load_asi(std::string asi_file_name)
         type_of_atom,
         shape1,
         shape2);
-      std::vector<double> asi_temp(B_size);
+      std::vector<float> asi_temp(B_size);
       for (int i = 0; i < B_size; ++i) {
         f >> asi_temp[i];
       }
       printf("[%f %f ... %f]\n", asi_temp[0], asi_temp[1], asi_temp[B_size - 1]);
 
-      GPU_Vector<double>* a = new GPU_Vector<double>(B_size);
+      GPU_Vector<float>* a = new GPU_Vector<float>(B_size);
       a->copy_from_host(asi_temp.data());
       asi_data.push_back(a);
       asi_cpu[type_of_atom] = a->data();

@@ -41,9 +41,9 @@ public:
   void dump();
   void output_line2();
   FILE* f;
-  std::vector<GPU_Vector<double>*> asi_data;
-  std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
-  GPU_Vector<double*> asi_gpu = GPU_Vector<double*>(NUM_ELEMENTS, nullptr);
+  std::vector<GPU_Vector<float>*> asi_data;
+  std::vector<float*> asi_cpu = std::vector<float*>(NUM_ELEMENTS, nullptr);
+  GPU_Vector<float*> asi_gpu = GPU_Vector<float*>(NUM_ELEMENTS, nullptr);
   int B_size_per_atom;
   GPU_Vector<float> B;
   // max gamma
