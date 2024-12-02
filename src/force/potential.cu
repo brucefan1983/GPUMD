@@ -208,7 +208,6 @@ static __global__ void gpu_find_force_many_body(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * number_of_particles + n1;
       int n2 = g_neighbor_list[index];
-      int neighbor_number_2 = g_neighbor_number[n2];
 
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
@@ -221,14 +220,30 @@ static __global__ void gpu_find_force_many_body(
       float f12x = g_f12x[index];
       float f12y = g_f12y[index];
       float f12z = g_f12z[index];
-      int offset = 0;
-      for (int k = 0; k < neighbor_number_2; ++k) {
-        if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
-          offset = k;
+      // int offset = 0;
+
+      int l = 0;
+      int r = g_neighbor_number[n2];
+      int m = 0;
+      int tmp_value = 0;
+      while (l < r) {
+        m = (l + r) >> 1;
+        tmp_value = g_neighbor_list[n2 + number_of_particles * m];
+        if (tmp_value < n1) {
+          l = m + 1;
+        } else if (tmp_value > n1) {
+          r = m - 1;
+        } else {
           break;
         }
       }
-      index = offset * number_of_particles + n2;
+      // for (int k = 0; k < neighbor_number_2; ++k) {
+      //   if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+      //     offset = k;
+      //     break;
+      //   }
+      // }
+      index = ((l + r) >> 1) * number_of_particles + n2;
       float f21x = g_f12x[index];
       float f21y = g_f12y[index];
       float f21z = g_f12z[index];

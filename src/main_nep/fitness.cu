@@ -19,6 +19,7 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "nep.cuh"
+#include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -115,8 +116,13 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  potential.reset(
-    new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  if (para.train_mode == 1 || para.train_mode == 2) {
+    potential.reset(
+      new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  } else {
+    potential.reset(
+      new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  }
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
