@@ -55,7 +55,7 @@ void Extrapolation::parse(const char** params, int num_params)
       }
       i += 2;
     } else if (strcmp(params[i], "gamma_high") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_low)) {
+      if (!is_valid_real(params[i + 1], &gamma_high)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
       i += 2;
@@ -73,10 +73,17 @@ void Extrapolation::parse(const char** params, int num_params)
       PRINT_INPUT_ERROR("Wrong input parameter!");
     }
   }
+  printf("gamma_low:      %f\n", gamma_low);
+  printf("gamma_high:     %f\n", gamma_high);
+  printf("check_interval: %d\n", check_interval);
+  printf("dump_interval:  %d\n", dump_interval);
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
 void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
 {
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  printf("Initializing extrapolation grade calculation...\n");
   B_size_per_atom = force.potentials[0]->B_projection_size;
   if (B_size_per_atom == 0)
     PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
@@ -148,16 +155,17 @@ void Extrapolation::process(int step)
         if (g > max_gamma)
           max_gamma = g;
       }
+      if (max_gamma > gamma_high) {
+        dump();
+        printf("Current step: %d, gamma = %f\n", step, max_gamma);
+        PRINT_RUMTIME_ERROR(
+          "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
+      }
       if (max_gamma >= gamma_low) {
         if (step == 0 || step - last_dump >= dump_interval) {
           last_dump = step;
           dump();
         }
-      }
-      if (max_gamma > gamma_high) {
-        printf("Current step: %d.\n", step);
-        PRINT_RUMTIME_ERROR(
-          "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
       }
     }
   }
