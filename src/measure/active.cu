@@ -113,8 +113,8 @@ void Active::parse(const char** param, int num_param)
   check_ = true;
   printf("Active learning.\n");
 
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("active should have 4 parameters.");
+  if (num_param != 6) {
+    PRINT_INPUT_ERROR("active should have 5 parameters.");
   }
   if (!is_valid_int(param[1], &check_interval_)) {
     PRINT_INPUT_ERROR("check interval should be an integer.");
@@ -141,13 +141,16 @@ void Active::parse(const char** param, int num_param)
   } else {
     printf("    with force data.\n");
   }
-  if (!is_valid_real(param[4], &threshold_)) {
+  if (!is_valid_real(param[4], &threshold_lo_)) {
+    PRINT_INPUT_ERROR("threshold should be a real number.\n");
+  }
+  if (!is_valid_real(param[5], &threshold_hi_)) {
     PRINT_INPUT_ERROR("threshold should be a real number.\n");
   }
 
   printf(
-    "    will check if uncertainties exceed %f every %d iterations.\n",
-    threshold_,
+    "    will check if uncertainties exceed %f and %f every %d iterations.\n",
+    threshold_lo_, threshold_hi_,
     check_interval_);
 }
 
@@ -238,7 +241,7 @@ void Active::process(
     }
   }
   write_uncertainty(step, global_time, uncertainty);
-  if (uncertainty > threshold_) {
+  if (threshold_hi_ > uncertainty && uncertainty > threshold_lo_) {
     write_exyz(
       step,
       global_time,
