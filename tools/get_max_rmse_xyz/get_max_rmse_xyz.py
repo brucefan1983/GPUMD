@@ -21,10 +21,10 @@ def Get_rmse_ids(nmax, file_force_loss):
 
     frmse = np.loadtxt(file_force_loss)
     if frmse.shape[1] == 6:
-        rmse = np.sum(np.abs(frmse[:,0:2]-frmse[:,3:5]), axis=1)
+        rmse = np.sum(np.abs(frmse[:,0:3]-frmse[:,3:]), axis=1)
         file_type = "force"
     elif frmse.shape[1] == 12:
-        rmse = np.sum(np.abs(frmse[:,0:5]-frmse[:,6:11]), axis=1)
+        rmse = np.sum(np.abs(frmse[:,0:6]-frmse[:,6:]), axis=1)
         file_type = "virial"
     elif frmse.shape[1] == 2:
         rmse = np.abs(frmse[:,0]-frmse[:,1])
