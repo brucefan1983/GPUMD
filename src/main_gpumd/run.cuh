@@ -34,6 +34,8 @@ class Measure;
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
 #include <vector>
+#include "force/gas-metad.cuh"
+#include <iostream>
 
 class Run
 {
@@ -74,4 +76,5 @@ private:
   Add_Force add_force;
   Add_Random_Force add_random_force;
   Add_Efield add_efield;
+  TorchMetad gas_metad;
 };

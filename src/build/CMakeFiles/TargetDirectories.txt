@@ -1,0 +1,5 @@
+/home/tensor/software/GPUMD-Torch/GPUMD/src/build/CMakeFiles/gpumd.dir
+/home/tensor/software/GPUMD-Torch/GPUMD/src/build/CMakeFiles/nep.dir
+/home/tensor/software/GPUMD-Torch/GPUMD/src/build/CMakeFiles/clean_all.dir
+/home/tensor/software/GPUMD-Torch/GPUMD/src/build/CMakeFiles/edit_cache.dir
+/home/tensor/software/GPUMD-Torch/GPUMD/src/build/CMakeFiles/rebuild_cache.dir

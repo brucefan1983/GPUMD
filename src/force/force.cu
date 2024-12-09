@@ -487,7 +487,8 @@ void Force::compute(
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
-  } else if (multiple_potentials_mode_.compare("average") == 0) {
+  } else if (multiple_potentials_mode_.compare("average") == 0 ||
+             multiple_potentials_mode_.compare("sum") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
@@ -500,23 +501,21 @@ void Force::compute(
           potential_per_atom,
           force_per_atom,
           virial_per_atom);
-      } else if (1 == potentials[i]->ilp_flag) {
-        // compute the potential with ILP
-        potentials[i]->compute_ilp(
-          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
-    // Compute average and copy properties back into original vectors.
-    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      potential_per_atom.data(),
-      force_per_atom.data(),
-      virial_per_atom.data(),
-      (double)potentials.size());
-    CUDA_CHECK_KERNEL
+    if (multiple_potentials_mode_.compare("average") == 0){
+      // Compute average and copy properties back into original vectors.
+      gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms,
+        potential_per_atom.data(),
+        force_per_atom.data(),
+        virial_per_atom.data(),
+        (double)potentials.size());
+      CUDA_CHECK_KERNEL
+    }
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
