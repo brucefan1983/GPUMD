@@ -267,3 +267,14 @@ Bibliography
    | Computational Materials Science **207**, 111275 (2022)
    | DOI: `10.1016/j.commatsci.2022.111275 <https://doi.org/10.1016/j.commatsci.2022.111275>`_
 
+.. [Podryabinkin2023]
+   | Evgeny Podryabinkin, Kamil Garifullin, Alexander Shapeev, and Ivan Novikov
+   | *MLIP-3: Active learning on atomic environments with moment tensor potentials*
+   | J. Chem. Phys. **159**, 084112 (2023)
+   | DOI: `10.1063/5.0155887 <https://doi.org/10.1063/5.0155887>`_
+
+.. [Lysogorskiy2023]
+   | Yury Lysogorskiy, Anton Bochkarev, Matous Mrovec, and Ralf Drautz
+   | *Active learning strategies for atomic cluster expansion models*
+   | Phys. Rev. M **7**, 043801 (2023)
+   | DOI: `10.1103/PhysRevMaterials.7.043801 <https://doi.org/10.1103/PhysRevMaterials.7.043801>`_
