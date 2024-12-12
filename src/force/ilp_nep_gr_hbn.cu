@@ -1201,7 +1201,6 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
-      int neighor_number_2 = g_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
