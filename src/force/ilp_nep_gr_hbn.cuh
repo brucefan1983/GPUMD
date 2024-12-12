@@ -126,6 +126,8 @@ public:
   
 
 private:
+  int ilp_group_method;
+
   ParaMB paramb;
   ANN annmb;
   ILP_GR_HBN_Para ilp_para;

@@ -1323,7 +1323,7 @@ void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
 }
 
 static __global__ void find_neighbor_list_nep(
-  NEP::ParaMB paramb,
+  ILP_NEP_GR_HBN::ParaMB paramb,
   const int N,
   const int N1,
   const int N2,
@@ -1444,8 +1444,8 @@ static __global__ void find_neighbor_list_nep(
 }
 
 static __global__ void find_descriptor(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  ILP_NEP_GR_HBN::ParaMB paramb,
+  ILP_NEP_GR_HBN::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1620,8 +1620,8 @@ static __global__ void find_descriptor(
 }
 
 static __global__ void find_force_radial(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  ILP_NEP_GR_HBN::ParaMB paramb,
+  ILP_NEP_GR_HBN::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -1761,8 +1761,8 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_partial_force_angular(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  ILP_NEP_GR_HBN::ParaMB paramb,
+  ILP_NEP_GR_HBN::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -2006,5 +2006,164 @@ void ILP_NEP_GR_HBN::compute_ilp(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
+  GPU_CHECK_KERNEL
+
+
+
+  // NEP term
+  const int BLOCK_SIZE_nep = 64;
+  const int N = type.size();
+  const int grid_size_nep = (N2 - N1 - 1) / BLOCK_SIZE_nep + 1;
+
+  const double rc_cell_list = 0.5 * rc;
+
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+
+  find_cell_list(
+    rc_cell_list,
+    num_bins,
+    box,
+    position_per_atom,
+    nep_data.cell_count,
+    nep_data.cell_count_sum,
+    nep_data.cell_contents);
+
+  find_neighbor_list_nep<<<grid_size_nep, BLOCK_SIZE_nep>>>(
+    paramb,
+    N,
+    N1,
+    N2,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    box,
+    type.data(),
+    nep_data.cell_count.data(),
+    nep_data.cell_count_sum.data(),
+    nep_data.cell_contents.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data());
+  GPU_CHECK_KERNEL
+
+  static int num_calls_nei = 0;
+  if (num_calls_nei++ % 1000 == 0) {
+    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
+    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < nep_data.cpu_NN_radial[n]) {
+        radial_actual = nep_data.cpu_NN_radial[n];
+      }
+      if (angular_actual < nep_data.cpu_NN_angular[n]) {
+        angular_actual = nep_data.cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls_nei - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
+    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
+  GPU_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
+    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  GPU_CHECK_KERNEL
+
+  find_descriptor<<<grid_size_nep, BLOCK_SIZE_nep>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+#ifdef USE_TABLE
+    nep_data.gn_radial.data(),
+    nep_data.gn_angular.data(),
+#endif
+    potential_per_atom.data(),
+    nep_data.Fp.data(),
+    virial_per_atom.data(),
+    nep_data.sum_fxyz.data());
+  GPU_CHECK_KERNEL
+
+  bool is_dipole = paramb.model_type == 1;
+  find_force_radial<<<grid_size_nep, BLOCK_SIZE_nep>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.Fp.data(),
+#ifdef USE_TABLE
+    nep_data.gnp_radial.data(),
+#endif
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
+    virial_per_atom.data());
+  GPU_CHECK_KERNEL
+
+  find_partial_force_angular<<<grid_size_nep, BLOCK_SIZE_nep>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.Fp.data(),
+    nep_data.sum_fxyz.data(),
+#ifdef USE_TABLE
+    nep_data.gn_angular.data(),
+    nep_data.gnp_angular.data(),
+#endif
+    nep_data.f12x.data(),
+    nep_data.f12y.data(),
+    nep_data.f12z.data());
+  GPU_CHECK_KERNEL
+
+  find_properties_many_body(
+    box,
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    nep_data.f12x.data(),
+    nep_data.f12y.data(),
+    nep_data.f12z.data(),
+    is_dipole,
+    position_per_atom,
+    force_per_atom,
+    virial_per_atom);
   GPU_CHECK_KERNEL
 }
