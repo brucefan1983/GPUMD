@@ -58,6 +58,11 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   }
   printf("\n");
 
+  // read ILP group method
+  PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_group_method), 1, 
+  "Reading error for ILP group method.");
+  printf("Use group method %d to identify molecule for ILP.\n", ilp_group_method);
+
   // read parameters
   float beta, alpha, delta, epsilon, C, d, sR;
   float reff, C6, S, rcut_ilp, rcut_global;
@@ -1874,7 +1879,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   // TODO: assume the first group column is for ILP
-  const int *group_label = group[0].label.data();
+  const int *group_label_ilp = group[ilp_group_method].label.data();
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -1886,7 +1891,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
       rc,
       BIG_ILP_CUTOFF_SQUARE,
       box,
-      group_label,
+      group_label_ilp,
       type,
       position_per_atom,
       ilp_data.cell_count,
@@ -1927,7 +1932,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
-    ilp_NL, group_label);
+    ilp_NL, group_label_ilp);
   GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
@@ -1960,7 +1965,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
     NL,
     ilp_NN,
     ilp_NL,
-    group_label,
+    group_label_ilp,
     type.data(),
     x,
     y,
