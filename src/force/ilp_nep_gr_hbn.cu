@@ -371,3 +371,123 @@ void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+static __global__ void find_neighbor_list_large_box(
+  NEP::ParaMB paramb,
+  const int N,
+  const int N1,
+  const int N2,
+  const int nx,
+  const int ny,
+  const int nz,
+  const Box box,
+  const int* g_type,
+  const int* __restrict__ g_cell_count,
+  const int* __restrict__ g_cell_count_sum,
+  const int* __restrict__ g_cell_contents,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  int* g_NN_radial,
+  int* g_NL_radial,
+  int* g_NN_angular,
+  int* g_NL_angular)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 >= N2) {
+    return;
+  }
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+  int t1 = g_type[n1];
+  int count_radial = 0;
+  int count_angular = 0;
+
+  int cell_id;
+  int cell_id_x;
+  int cell_id_y;
+  int cell_id_z;
+  find_cell_id(
+    box,
+    x1,
+    y1,
+    z1,
+    2.0f * paramb.rcinv_radial,
+    nx,
+    ny,
+    nz,
+    cell_id_x,
+    cell_id_y,
+    cell_id_z,
+    cell_id);
+
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
+
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
+        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+        if (cell_id_x + xx < 0)
+          neighbor_cell += nx;
+        if (cell_id_x + xx >= nx)
+          neighbor_cell -= nx;
+        if (cell_id_y + yy < 0)
+          neighbor_cell += ny * nx;
+        if (cell_id_y + yy >= ny)
+          neighbor_cell -= ny * nx;
+        if (cell_id_z + zz < 0)
+          neighbor_cell += nz * ny * nx;
+        if (cell_id_z + zz >= nz)
+          neighbor_cell -= nz * ny * nx;
+
+        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
+        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
+
+        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
+
+          if (n2 < N1 || n2 >= N2 || n1 == n2) {
+            continue;
+          }
+
+          double x12double = g_x[n2] - x1;
+          double y12double = g_y[n2] - y1;
+          double z12double = g_z[n2] - z1;
+          apply_mic(box, x12double, y12double, z12double);
+          float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+          float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+
+          int t2 = g_type[n2];
+          float rc_radial = paramb.rc_radial;
+          float rc_angular = paramb.rc_angular;
+          if (paramb.use_typewise_cutoff) {
+            int z1 = paramb.atomic_numbers[t1];
+            int z2 = paramb.atomic_numbers[t2];
+            rc_radial = min(
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
+              rc_radial);
+            rc_angular = min(
+              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
+              rc_angular);
+          }
+
+          if (d12_square >= rc_radial * rc_radial) {
+            continue;
+          }
+
+          g_NL_radial[count_radial++ * N + n1] = n2;
+
+          if (d12_square < rc_angular * rc_angular) {
+            g_NL_angular[count_angular++ * N + n1] = n2;
+          }
+        }
+      }
+    }
+  }
+
+  g_NN_radial[n1] = count_radial;
+  g_NN_angular[n1] = count_angular;
+}
