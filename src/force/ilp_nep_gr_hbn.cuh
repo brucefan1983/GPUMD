@@ -133,6 +133,7 @@ private:
   NEP_Data nep_data;
   // rcut for ILP
   double rc_ilp;
+  void update_potential(float* parameters, ANN& ann);
 };
 
 static __constant__ float Tap_coeff_tmd[8];

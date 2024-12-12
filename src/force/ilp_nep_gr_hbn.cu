@@ -347,7 +347,7 @@ ILP_NEP_GR_HBN::~ILP_NEP_GR_HBN(void)
   // nothing
 }
 
-void NEP::update_potential(float* parameters, ANN& ann)
+void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
