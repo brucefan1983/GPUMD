@@ -346,3 +346,28 @@ ILP_NEP_GR_HBN::~ILP_NEP_GR_HBN(void)
 {
   // nothing
 }
+
+void NEP::update_potential(float* parameters, ANN& ann)
+{
+  float* pointer = parameters;
+  for (int t = 0; t < paramb.num_types; ++t) {
+    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
+      pointer -= (ann.dim + 2) * ann.num_neurons1;
+    }
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
+    if (paramb.version == 5) {
+      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
+    }
+  }
+  ann.b1 = pointer;
+  pointer += 1;
+
+
+  ann.c = pointer;
+}
+
