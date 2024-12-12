@@ -23,6 +23,7 @@
 #define MAX_TYPE_ILP_GR_HBN 4
 #define CUDA_MAX_NL_GR_HBN 1024
 #define MAX_ILP_NEIGHBOR_GR_HBN 3
+#define MAX_BIG_ILP_NEIGHBOR_GR_HBN 64
 
 struct ILP_GR_HBN_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_GR_HBN][MAX_TYPE_ILP_GR_HBN];
