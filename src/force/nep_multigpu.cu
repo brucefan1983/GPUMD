@@ -1924,6 +1924,11 @@ void NEP_MULTIGPU::compute(
     }
   }
 
+  for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+    CHECK(gpuSetDevice(gpu));
+    CHECK(gpuDeviceSynchronize());
+  }
+
   CHECK(gpuSetDevice(0));
 
   // serial
