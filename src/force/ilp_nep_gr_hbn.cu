@@ -383,7 +383,66 @@ static __device__ __forceinline__ float calc_dTap(const float r_ij, const float 
   return dTap;
 }
 
+// create ILP neighbor list from main neighbor list to calculate normals
+static __global__ void ILP_neighbor(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  const int *g_type,
+  ILP_GR_HBN_Para ilp_para,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  int *ilp_neighbor_number,
+  int *ilp_neighbor_list,
+  const int *group_label)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
+  if (n1 < N2) {
+    int count = 0;
+    int neighbor_number = g_neighbor_number[n1];
+    int type1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int n2 = g_neighbor_list[n1 + number_of_particles * i1];
+      int type2 = g_type[n2];
+
+      double x12 = g_x[n2] - x1;
+      double y12 = g_y[n2] - y1;
+      double z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+      // TODO: use local memory to save rcutsq to reduce global read
+      double rcutsq = ilp_para.rcutsq_ilp[type1][type2];
+
+
+      if (group_label[n1] == group_label[n2] && d12sq < rcutsq && d12sq != 0) {
+        ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
+      }
+    }
+    ilp_neighbor_number[n1] = count;
+
+    if (count > MAX_ILP_NEIGHBOR_GR_HBN) {
+      // error, there are too many neighbors for some atoms, 
+      printf("\n===== ILP neighbor number[%d] is greater than 3 =====\n", count);
+      
+      int nei1 = ilp_neighbor_list[0 * number_of_particles + n1];
+      int nei2 = ilp_neighbor_list[1 * number_of_particles + n1];
+      int nei3 = ilp_neighbor_list[2 * number_of_particles + n1];
+      int nei4 = ilp_neighbor_list[3 * number_of_particles + n1];
+      printf("===== n1[%d] nei1[%d] nei2 [%d] nei3[%d] nei4[%d] =====\n", n1, nei1, nei2, nei3, nei4);
+      return;
+      // please check your configuration
+    }
+  }
+}
 
 
 
