@@ -2016,6 +2016,9 @@ void ILP_NEP_GR_HBN::compute_ilp(
   const int grid_size_nep = (N2 - N1 - 1) / BLOCK_SIZE_nep + 1;
 
   const double rc_cell_list = 0.5 * rc;
+  nep_data.f12x.fill(0);
+  nep_data.f12y.fill(0);
+  nep_data.f12z.fill(0);
 
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
