@@ -66,7 +66,7 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   // read parameters
   float beta, alpha, delta, epsilon, C, d, sR;
   float reff, C6, S, rcut_ilp, rcut_global;
-  rc = 0.0;
+  ilp_rc = 0.0;
   for (int n = 0; n < num_types; ++n) {
     for (int m = 0; m < num_types; ++m) {
       int count = fscanf(fid_ilp, "%f%f%f%f%f%f%f%f%f%f%f%f", \
@@ -90,8 +90,8 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
       ilp_para.C_6[n][m] *= meV;
       ilp_para.epsilon[n][m] *= meV;
 
-      if (rc < rcut_global)
-        rc = rcut_global;
+      if (rc_ilp < rcut_global)
+        rc_ilp = rcut_global;
     }
   }
 
@@ -1888,7 +1888,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
     find_neighbor_ilp(
       N1,
       N2,
-      rc,
+      rc_ilp,
       BIG_ILP_CUTOFF_SQUARE,
       box,
       group_label_ilp,

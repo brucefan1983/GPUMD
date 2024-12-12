@@ -127,6 +127,7 @@ public:
 
 private:
   int ilp_group_method;
+  double ilp_rc;
 
   ParaMB paramb;
   ANN annmb;
