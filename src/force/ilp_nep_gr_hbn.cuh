@@ -105,7 +105,7 @@ public:
   };
 
   using Potential::compute;
-  ILP_NEP_GR_HBN(FILE*, FILE*, int, int);
+  ILP_NEP_GR_HBN(FILE*, const char*, int, int);
   virtual ~ILP_NEP_GR_HBN(void);
   virtual void compute(
     Box& box,
