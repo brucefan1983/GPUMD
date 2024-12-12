@@ -118,7 +118,7 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   // init constant cutoff coeff
   float h_tap_coeff[8] = \
     {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
-  CHECK(gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float)));
+  CHECK(gpuMemcpyToSymbol(Tap_coeff_gr_hbn, h_tap_coeff, 8 * sizeof(float)));
 
   // set ilp_flag to 1
   ilp_flag = 1;
@@ -346,6 +346,47 @@ ILP_NEP_GR_HBN::~ILP_NEP_GR_HBN(void)
 {
   // nothing
 }
+
+static __device__ __forceinline__ float calc_Tap(const float r_ij, const float Rcutinv)
+{
+  float Tap, r;
+
+  r = r_ij * Rcutinv;
+  if (r >= 1.0f) {
+    Tap = 0.0f;
+  } else {
+    Tap = Tap_coeff_gr_hbn[7];
+    for (int i = 6; i >= 0; --i) {
+      Tap = Tap * r + Tap_coeff_gr_hbn[i];
+    }
+  }
+
+  return Tap;
+}
+
+// calculate the derivatives of long-range cutoff term
+static __device__ __forceinline__ float calc_dTap(const float r_ij, const float Rcut, const float Rcutinv)
+{
+  float dTap, r;
+  
+  r = r_ij * Rcutinv;
+  if (r >= 1.0f) {
+    dTap = 0.0f;
+  } else {
+    dTap = 7.0f * Tap_coeff_gr_hbn[7];
+    for (int i = 6; i > 0; --i) {
+      dTap = dTap * r + i * Tap_coeff_gr_hbn[i];
+    }
+    dTap *= Rcutinv;
+  }
+
+  return dTap;
+}
+
+
+
+
+
 
 void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
 {

@@ -136,4 +136,4 @@ private:
   void update_potential(float* parameters, ANN& ann);
 };
 
-static __constant__ float Tap_coeff_tmd[8];
+static __constant__ float Tap_coeff_gr_hbn[8];
