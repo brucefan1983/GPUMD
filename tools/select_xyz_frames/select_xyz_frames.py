@@ -1,10 +1,8 @@
 #Select frames from the exyz trajectory file.
-#When an atom in a frame experiences a force greater than the force_threshold in any direction, the frame is removed.   eV/A
+#When an atom in a frame experiences a force greater than the force_threshold, the frame is removed.   eV/A
 #When the total energy difference between adjacent frames is less than energy_threshold, only one frame is retained.    eV
 #When the RMSD difference between adjacent frames is less than rmsd_threshold, only one frame is retained.              A^2
 #If set to 'not', do not select based on this condition.
-
-#Author:Zherui Chen (chenzherui0124@foxmail.com)
 
 import numpy as np
 
@@ -34,8 +32,9 @@ def parse_xyz_file(filename):
 def force_exceeds_threshold(atom_line, threshold):
     if threshold == "not":
         return False
-    forces = list(map(float, atom_line.split()[4:7]))  
-    return any(abs(force) > threshold for force in forces)
+    forces = np.array(list(map(float, atom_line.split()[4:7])))  
+    total_force = np.linalg.norm(forces)  # Calculate the resultant force
+    return total_force > threshold
 
 def calculate_rmsd(frame1_atoms, frame2_atoms, lattice):
     num_atoms = len(frame1_atoms)
@@ -55,36 +54,35 @@ def calculate_rmsd(frame1_atoms, frame2_atoms, lattice):
 
 def filter_frames(frames, force_threshold, energy_threshold, rmsd_threshold):
     filtered_frames = []
+    removed_frames_indices = []
 
-    if frames:
-        filtered_frames.append(frames[0])  
-
-    for j in range(1, len(frames)):
-        prev_frame = filtered_frames[-1]
+    for j in range(len(frames)):
         current_frame = frames[j]
-
         num_atoms, frame_info, energy, lattice, atoms = current_frame
 
-
+        # Check the resultant force
         if force_threshold != "not" and any(force_exceeds_threshold(atom, force_threshold) for atom in atoms):
+            removed_frames_indices.append(j + 1)  #Record frame number, starting from 1
             continue
 
-
-        if energy_threshold != "not":
-            prev_energy = prev_frame[2]
+        # Check the energy difference
+        if j > 0 and energy_threshold != "not":
+            prev_energy = frames[j-1][2]
             if abs(energy - prev_energy) < energy_threshold:
+                removed_frames_indices.append(j + 1)  #Record frame number, starting from 1
                 continue
 
-
-        if rmsd_threshold != "not":
-            prev_atoms = prev_frame[4]
+        # Check RMSD
+        if j > 0 and rmsd_threshold != "not":
+            prev_atoms = frames[j-1][4]
             rmsd = calculate_rmsd(prev_atoms, atoms, lattice)
             if rmsd < rmsd_threshold:
+                removed_frames_indices.append(j + 1)  #Record frame number, starting from 1
                 continue
 
         filtered_frames.append(current_frame)
 
-    return filtered_frames
+    return filtered_frames, removed_frames_indices
 
 def write_xyz_file(frames, output_filename):
     with open(output_filename, 'w') as file:
@@ -94,15 +92,15 @@ def write_xyz_file(frames, output_filename):
             for atom in atoms:
                 file.write(f"{atom.strip()}\n")
 
-
-force_threshold = 20.0  
-energy_threshold = "not"  
-rmsd_threshold = "not"  
-input_filename = 'coal-nep.xyz'  
+force_threshold = 30.0  # Force resultant threshold, if you do not want to apply this restriction, set it to "not"
+energy_threshold = "not"  # Energy difference threshold
+rmsd_threshold = "not"  # RMSD threshold
+input_filename = 'merged_xyz.xyz'  
 output_filename = 'output.xyz'  
 
 frames = parse_xyz_file(input_filename)
-filtered_frames = filter_frames(frames, force_threshold, energy_threshold, rmsd_threshold)
+filtered_frames, removed_frames_indices = filter_frames(frames, force_threshold, energy_threshold, rmsd_threshold)
 write_xyz_file(filtered_frames, output_filename)
 
-print(f"Filtered frames written to {output_filename}")
+# Output the frame number that has been removed, starting from 1
+print(f"Removed frame indices: {removed_frames_indices}")
