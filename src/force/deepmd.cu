@@ -98,8 +98,10 @@ DEEPMD::~DEEPMD(void)
 
 void DEEPMD::initialize_deepmd(const char* deep_pot_file)
 {
+  int num_gpus;
+  CHECK(gpuGetDeviceCount(&num_gpus));
   printf("\nUse %s deepmd potential.\n\n", deep_pot_file);
-  deep_pot.init(deep_pot_file, 1);
+  deep_pot.init(deep_pot_file, num_gpus);
   double rc = deep_pot.cutoff();
   int numb_types = deep_pot.numb_types();
   int numb_types_spin = deep_pot.numb_types_spin();
