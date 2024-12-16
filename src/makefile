@@ -16,11 +16,11 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_60
+CUDA_ARCH=-arch=sm_86
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++17 -O3 $(CUDA_ARCH)
 endif
 INC = -I./
 LDFLAGS = 
@@ -43,6 +43,9 @@ SOURCES_GPUMD =                   \
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard utilities/*.cu)
+SOURCES_NEP_ADAM =                     \
+	$(wildcard main_nep_adam/*.cu)     \
+	$(wildcard utilities/*.cu)
 
 
 ###########################################################
@@ -51,9 +54,11 @@ SOURCES_NEP =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+OBJ_NEP_ADAM = $(SOURCES_NEP_ADAM:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_NEP_ADAM = $(SOURCES_NEP_ADAM:.cu=.o)
 endif
 
 
@@ -70,16 +75,19 @@ HEADERS =                         \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_nep_adam/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep
+all: gpumd nep nep_adam
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 nep: $(OBJ_NEP)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+nep_adam: $(OBJ_NEP_ADAM)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 
@@ -107,6 +115,8 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep_adam/%.obj: main_nep_adam/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
@@ -128,6 +138,8 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep_adam/%.o: main_nep_adam/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
 
@@ -138,6 +150,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep
+	rm -f */*.o gpumd nep nep_adam
 endif
 

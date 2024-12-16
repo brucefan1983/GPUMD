@@ -167,6 +167,53 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
+static __device__ void apply_ann_one_layer_w2nd(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q,
+  float& energy,
+  float* energy_derivative,
+  float* energy_derivative2,
+  float* ep_wb,   // derivative of e_wb_grad w.r.t q[n]
+  float* e_wb_grad) // energy w.r.t. w0, b0, w1, b1
+{
+  for (int j = 0; j < N_neu; ++j) {
+    float w0_times_q = 0.0f;
+    for (int n = 0; n < N_des; ++n) {
+      w0_times_q += w0[j * N_des + n] * q[n];
+    }
+    float x1 = tanh(w0_times_q - b0[j]);
+    float tanh_der = 1.0f - x1 * x1;
+    float tanh_der2 = -2.0f * x1 * tanh_der;  // second derivative of tanh
+    float delta_1 = w1[j] * tanh_der;
+    energy += w1[j] * x1;
+    for (int n = 0; n < N_des; ++n) {
+      float tmp1 = tanh_der * w0[j * N_des + n]; // derivative of tanh w.r.t. q[n]
+      float tmp2 = w1[j] * tanh_der2;
+      energy_derivative[n] += w1[j] * tmp1;
+      ep_wb[(N_neu * N_des + N_neu + j) * N_des + n] = tmp1; // derivative of e_wb_grad[w1] w.r.t. q[n]
+      ep_wb[(N_neu * N_des + j) * N_des + n] = -tmp2 * w0[j * N_des + n]; // derivative of e_wb_grad[b0] w.r.t. q[n]
+      // second derivative
+      for (int m = 0; m < N_des; ++m) {
+        // float tmp3 = tanh_der2 * tmp1 * w0[j * N_des + m];
+        float tmp3 = tanh_der2 * w0[j * N_des + n] * w0[j * N_des + m];
+        energy_derivative2[n * N_des + m] += w1[j] * tmp3;
+        ep_wb[(j * N_des + n) * N_des + m] = tmp2 * w0[j * N_des + m] * q[n]; // derivative of e_wb_grad[w0] w.r.t. q[n]
+        ep_wb[(j * N_des + n) * N_des + m] += (m == n) ? delta_1 : 0.0f; 
+      }
+      e_wb_grad[j * N_des + n] += delta_1 * q[n]; // energy w.r.t. w0
+    }
+    e_wb_grad[N_neu * N_des + j] += -delta_1; // energy w.r.t. b0
+    e_wb_grad[N_neu * N_des + N_neu + j] += x1; // energy w.r.t. w1
+    // w0 (N_neu * N_des), b0 (N_neu), w1 (N_neu), b1 (1)
+  }
+  energy -= b1[0];
+}
+
 static __device__ void apply_ann_one_layer_nep5(
   const int N_des,
   const int N_neu,
