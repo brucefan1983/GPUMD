@@ -11,61 +11,8 @@
 #define MAX_STRING_LENGTH 256
 #define MAX_TYPES 100
 
-
-static const char cite_user_deepmd_package[] =
-    "USE Deep Potential in GPUMD package, please cite:\n\n"
-    "@article{Wang_ComputPhysCommun_2018_v228_p178,\n"
-    "  author = {Wang, Han and Zhang, Linfeng and Han, Jiequn and E, Weinan},\n"
-    "  doi = {10.1016/j.cpc.2018.03.016},\n"
-    "  url = {https://doi.org/10.1016/j.cpc.2018.03.016},\n"
-    "  year = 2018,\n"
-    "  month = {jul},\n"
-    "  publisher = {Elsevier {BV}},\n"
-    "  volume = 228,\n"
-    "  journal = {Comput. Phys. Commun.},\n"
-    "  title = {{DeePMD-kit: A deep learning package for many-body potential "
-    "energy representation and molecular dynamics}},\n"
-    "  pages = {178--184}\n"
-    "}\n"
-    "@misc{Zeng_JChemPhys_2023_v159_p054801,\n"
-    "  title  = {{DeePMD-kit v2: A software package for deep potential "
-    "models}},\n"
-    "  author =   {Jinzhe Zeng and Duo Zhang and Denghui Lu and Pinghui Mo and "
-    "Zeyu Li\n"
-    "         and Yixiao Chen and Mari{\\'a}n Rynik and Li'ang Huang and Ziyao "
-    "Li and \n"
-    "         Shaochen Shi and Yingze Wang and Haotian Ye and Ping Tuo and "
-    "Jiabin\n"
-    "         Yang and Ye Ding and Yifan Li and Davide Tisi and Qiyu Zeng and "
-    "Han \n"
-    "         Bao and Yu Xia and Jiameng Huang and Koki Muraoka and Yibo Wang "
-    "and \n"
-    "         Junhan Chang and Fengbo Yuan and Sigbj{\\o}rn L{\\o}land Bore "
-    "and "
-    "Chun\n"
-    "         Cai and Yinnian Lin and Bo Wang and Jiayan Xu and Jia-Xin Zhu "
-    "and \n"
-    "         Chenxing Luo and Yuzhi Zhang and Rhys E A Goodall and Wenshuo "
-    "Liang\n"
-    "         and Anurag Kumar Singh and Sikai Yao and Jingchao Zhang and "
-    "Renata\n"
-    "         Wentzcovitch and Jiequn Han and Jie Liu and Weile Jia and Darrin "
-    "M\n"
-    "         York and Weinan E and Roberto Car and Linfeng Zhang and Han "
-    "Wang},\n"
-    "  journal =  {J. Chem. Phys.},\n"
-    "  volume =   159,\n"
-    "  issue =    5,  \n"
-    "  year =    2023,\n"
-    "  pages  =   054801,\n"
-    "  doi =      {10.1063/5.0155600},\n"
-    "}\n\n";
-
-
 DEEPMD::DEEPMD(const char* deep_pot_file, int num_atoms)
 {
-  std::cout << cite_user_deepmd_package << "\n";
-
   ener_unit_cvt_factor=1;      // 1.0 / 8.617343e-5;
   dist_unit_cvt_factor=1;      // 1;
   force_unit_cvt_factor=1;     // ener_unit_cvt_factor / dist_unit_cvt_factor;
