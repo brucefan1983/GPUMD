@@ -620,12 +620,13 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_out_potential();
 #ifdef USE_TENSORFLOW
   if (filename_potential[0] == "deepmd") {
+    auto filename_potential = get_out_potential();
     atom_symbols = get_atom_symbols_from_deepmd(filename_potential[1]);
   }
 #else
+  auto filename_potential = get_filename_potential();
   atom_symbols = get_atom_symbols(filename_potential);
 #endif
 
