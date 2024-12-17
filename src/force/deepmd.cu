@@ -256,19 +256,22 @@ void DEEPMD::compute(
 
   std::vector<double> gpumd_ene_atom(real_num_of_atoms, 0.0);
   std::vector<double> gpumd_force(real_num_of_atoms * 3, 0.0);
-  std::vector<double> virial_per_atom_cpu(real_num_of_atoms * 6, 0.0);
+  std::vector<double> virial_per_atom_cpu(real_num_of_atoms * 9, 0.0);
   const int const_cell = half_const_cell * 2 + 1;
   for (int i = 0; i < const_cell; i++) {  // read atom position from position
     for (int g = 0; g < real_num_of_atoms; g++) {
       gpumd_ene_atom[g] += dp_ene_atom[i * real_num_of_atoms + g] * ener_unit_cvt_factor;
       for (int o = 0; o < 3; o++)
         gpumd_force.data()[g + o * real_num_of_atoms] += dp_force.data()[i*real_num_of_atoms*3+3*g+o] * force_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 0 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+0] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 1 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+4] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 2 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+8] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+1] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+2] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms*9+9*g+5] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 0 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 0] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 1 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 4] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 2 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 8] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 1] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 2] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 5] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 6 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 3] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 7 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 6] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 8 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 7] * virial_unit_cvt_factor;
     }
   }
 
