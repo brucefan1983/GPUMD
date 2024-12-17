@@ -137,11 +137,11 @@ void DEEPMD::compute(
                        deepmd_data.ghost_type, deepmd_data.ghost_position);
 
   std::vector<int> gpumd_cpu_ghost_type(all_num_of_atoms);
-  cudaMemcpy(gpumd_cpu_ghost_type.data(), deepmd_data.ghost_type.data(),
-             all_num_of_atoms * sizeof(int), cudaMemcpyDeviceToHost);
+  gpuMemcpy(gpumd_cpu_ghost_type.data(), deepmd_data.ghost_type.data(),
+             all_num_of_atoms * sizeof(int), gpuMemcpyDeviceToHost);
   std::vector<double> gpumd_cpu_ghost_position(all_num_of_atoms * 3);
-  cudaMemcpy(gpumd_cpu_ghost_position.data(), deepmd_data.ghost_position.data(),
-             all_num_of_atoms * 3 * sizeof(double), cudaMemcpyDeviceToHost);
+  gpuMemcpy(gpumd_cpu_ghost_position.data(), deepmd_data.ghost_position.data(),
+             all_num_of_atoms * 3 * sizeof(double), gpuMemcpyDeviceToHost);
 
   // Put the real atom to the first
   if (z_lim + y_lim + x_lim > 0) {
@@ -192,9 +192,9 @@ void DEEPMD::compute(
   // Allocate lmp_ilist and lmp_numneigh
   int* lmp_ilist = (int*)malloc(num_of_all_atoms*sizeof(int));
   int* lmp_numneigh = (int*)malloc(num_of_all_atoms*sizeof(int));
-  cudaMemcpy(lmp_numneigh, deepmd_ghost_data.NN.data(), num_of_all_atoms*sizeof(int), cudaMemcpyDeviceToHost);
+  gpuMemcpy(lmp_numneigh, deepmd_ghost_data.NN.data(), num_of_all_atoms*sizeof(int), gpuMemcpyDeviceToHost);
   std::vector<int> cpu_NL(total_all_neighs);
-  cudaMemcpy(cpu_NL.data(), deepmd_ghost_data.NL.data(), total_all_neighs * sizeof(int), cudaMemcpyDeviceToHost);
+  gpuMemcpy(cpu_NL.data(), deepmd_ghost_data.NL.data(), total_all_neighs * sizeof(int), gpuMemcpyDeviceToHost);
 
   int* neigh_storage = (int*)malloc(total_all_neighs*sizeof(int));
   int** lmp_firstneigh = (int**)malloc(num_of_all_atoms*sizeof(int*));
