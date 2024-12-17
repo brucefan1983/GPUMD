@@ -126,7 +126,7 @@ public:
     torch::Tensor _FromCudaMemory(double* d_array, int size);
     void box_to_tri(Box& box);
     void logCV_runtime(void);
-    void appendCVtoTraj(void);
+    void appendCVtoTraj(bool is_opt);
 
     Config config;
 
@@ -135,6 +135,7 @@ private:
     int now_step = 0;
     int n_atoms_=1;
     torch::Tensor torch_now_cvs;
+    torch::Tensor torch_delta_cv_save;
     torch::Tensor torch_cv_traj;
     torch::Tensor torch_bias;
     torch::Tensor torch_NN;

@@ -255,6 +255,7 @@ TorchMetad::TorchMetad(){
 
     torch_cv_traj = torch::empty({config.max_cv_nums,config.cv_size}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_now_cvs = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_delta_cv_save = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_bias = torch::empty({},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
 
     cpu_b_vector = std::vector<double>(9); // Box
@@ -276,6 +277,9 @@ torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
         for (const auto& item : result) {
             auto key = item.key().toStringRef();
             auto value = item.value().toTensor();
+            #ifdef USE_GAS_DEBUG
+            std::cout<<key<<value<<std::endl;
+            #endif
             outputs.insert(key, value);
         }
 
@@ -333,7 +337,9 @@ void TorchMetad::compute(
     //计算和取出输出
     auto output_dict = this->predict(inputs);
     torch::cuda::synchronize();
-    torch_now_cvs = output_dict.at("cv");
+    torch_now_cvs = output_dict.at("cv_now");
+    bool is_opt = output_dict.contains("delta_cv_save");
+    if (is_opt) {torch_delta_cv_save = output_dict.at("delta_cv_save");} 
     torch_bias = output_dict.at("bias");
     torch_force+=output_dict.at("forces");
     auto cell_virial = output_dict.at("virial");
@@ -352,7 +358,7 @@ void TorchMetad::compute(
       // CUDA_CHECK_KERNEL
       torch::cuda::synchronize();
     if(now_step%config.cv_storage_interval==0){
-        this->appendCVtoTraj();
+        this->appendCVtoTraj(is_opt);
     }
     if(now_step%config.cv_log_interval==0){
       this->logCV_runtime();
@@ -366,7 +372,35 @@ torch::Tensor TorchMetad::_FromCudaMemory(double* d_array, int size) {
     return torch::from_blob(d_array, {size}, options);
 }
 //如其名
-void TorchMetad::appendCVtoTraj(void){
+void TorchMetad::appendCVtoTraj(bool is_opt){
+  if(is_opt){
+    if(saved_cv_nums==0){
+        torch_cv_traj[saved_cv_nums]=torch_now_cvs.clone();
+        saved_cv_nums++;
+    }
+    else if(saved_cv_nums>0 && saved_cv_nums<config.max_cv_nums){
+        auto cv_last = torch_cv_traj[saved_cv_nums-1].clone();
+        cv_last+=torch_delta_cv_save;
+        torch_cv_traj[saved_cv_nums]=cv_last.clone();
+        saved_cv_nums++;
+        auto cpu_cv_storage = cv_last.to(torch::kCPU).reshape({-1});
+        auto cpu_cv_data = cpu_cv_storage.accessor<double, 1>();
+
+        std::cout<<"[GAS-Info] MetaOpt Add ND at  ";
+        for (int j = 0; j < cpu_cv_storage.size(0); ++j) {
+            std::cout << cpu_cv_data[j];
+                if (j < cpu_cv_storage.size(0) - 1) {
+                    std::cout << "\t";  // 使用 tab 分隔列
+                }
+        }
+        std::cout<<std::endl;
+    }
+    else{
+        printf("cv_num index out of bounds, may check your code or enlarge your memory set.\n");
+    }
+  }
+  else{
+    // normal version
     if(saved_cv_nums<config.max_cv_nums){
         torch_cv_traj[saved_cv_nums]=torch_now_cvs.clone();
         saved_cv_nums++;
@@ -374,6 +408,7 @@ void TorchMetad::appendCVtoTraj(void){
     else{
         printf("cv_num index out of bounds, may check your code or enlarge your memory set.\n");
     }
+  }
 }
 
 void TorchMetad::logCV_runtime(void){
