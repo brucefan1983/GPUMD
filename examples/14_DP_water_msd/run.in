@@ -1,0 +1,16 @@
+potential       deepmd DNN_seed2.pb
+time_step       0.5
+ensemble        nvt_ber 300 300 100
+dump_thermo     100
+dump_exyz       1000
+run             20000
+
+ensemble        nvt_ber 300 300 100
+compute_sdc     2 5000
+run             50000
+ensemble        nvt_ber 300 300 100
+compute_sdc     2 5000
+run             50000
+ensemble        nvt_ber 300 300 100
+compute_sdc     2 5000
+run             50000
