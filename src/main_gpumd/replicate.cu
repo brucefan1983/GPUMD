@@ -42,6 +42,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   new_atoms.number_of_atoms = N;
   new_atoms.cpu_type.resize(N);
   new_atoms.cpu_mass.resize(N);
+  new_atoms.cpu_charge.resize(N);
   new_atoms.cpu_atom_symbol.resize(N);
   new_atoms.cpu_position_per_atom.resize(N * 3);
   new_atoms.cpu_velocity_per_atom.resize(N * 3);
@@ -53,6 +54,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
         for (int nn = 0; nn < atoms.number_of_atoms; nn++) {
           new_atoms.cpu_type[cur] = atoms.cpu_type[nn];
           new_atoms.cpu_mass[cur] = atoms.cpu_mass[nn];
+          new_atoms.cpu_charge[cur] = atoms.cpu_charge[nn];
           new_atoms.cpu_atom_symbol[cur] = atoms.cpu_atom_symbol[nn];
           for (int m = 0; m < groups.size(); m++)
             new_groups[m].cpu_label[cur] = groups[m].cpu_label[nn];
@@ -94,6 +96,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   atoms.number_of_atoms = N;
   atoms.cpu_type.assign(new_atoms.cpu_type.begin(), new_atoms.cpu_type.end());
   atoms.cpu_mass.assign(new_atoms.cpu_mass.begin(), new_atoms.cpu_mass.end());
+  atoms.cpu_charge.assign(new_atoms.cpu_charge.begin(), new_atoms.cpu_charge.end());
   atoms.cpu_atom_symbol.assign(new_atoms.cpu_atom_symbol.begin(), new_atoms.cpu_atom_symbol.end());
   atoms.cpu_position_per_atom.assign(
     new_atoms.cpu_position_per_atom.begin(), new_atoms.cpu_position_per_atom.end());
