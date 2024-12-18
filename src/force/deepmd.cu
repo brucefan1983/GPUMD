@@ -266,12 +266,12 @@ void DEEPMD::compute(
       virial_per_atom_cpu.data()[g + 0 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 0] * virial_unit_cvt_factor;
       virial_per_atom_cpu.data()[g + 1 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 4] * virial_unit_cvt_factor;
       virial_per_atom_cpu.data()[g + 2 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 8] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 1] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 2] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 5] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 6 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 3] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 7 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 6] * virial_unit_cvt_factor;
-      virial_per_atom_cpu.data()[g + 8 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 7] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 3] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 6] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 7] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 6 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 1] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 7 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 2] * virial_unit_cvt_factor;
+      virial_per_atom_cpu.data()[g + 8 * real_num_of_atoms] += dp_vir_atom.data()[i*real_num_of_atoms * 9 + 9 * g + 5] * virial_unit_cvt_factor;
     }
   }
 
