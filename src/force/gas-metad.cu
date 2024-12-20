@@ -234,17 +234,17 @@ void TorchMetad::get_neighbor_list(Box& box,const GPU_Vector<double>& position_p
 TorchMetad::TorchMetad(){
 
     // 读取文件，设定参数
-    try {
+    // try {
         // torch::jit::GraphOptimizerEnabledGuard guard{true};
         torch::jit::setGraphExecutorOptimize(true);
         // 加载 TorchScript 模型
         model = torch::jit::load("GASCVModel.pt", torch::kCUDA);
         // model->eval(); // 设置为评估模式
         std::cout << "Model loaded successfully from " << "GASCVModel.pt" << std::endl;
-    } catch (const c10::Error& e) {
-        std::cerr << "Error loading the model: " << e.what() << std::endl;
-        throw e;
-    }
+    // } catch (const c10::Error& e) {
+    //     std::cerr << "Error loading the model: " << e.what() << std::endl;
+    //     throw e;
+    // }
     // 接受 GASConfig 参数
     config = Config::fromFile("GAScfg.yaml");
     cell_count.resize(config.n_atoms);
@@ -268,7 +268,7 @@ TorchMetad::TorchMetad(){
 
 torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
     const torch::Dict<std::string, torch::Tensor>& inputs) {
-    try {
+    // try {
         // 将输入传递给模型
         auto result = model.forward({inputs}).toGenericDict();
         // 要花括号吗？
@@ -282,35 +282,35 @@ torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
             #endif
             outputs.insert(key, value);
         }
-
         return outputs;
-    } catch (const c10::Error& e) {
-        std::cerr << "推理失败: " << e.what() << std::endl;
-        throw;
-    }
+    // } catch (const c10::Error& e) {
+    //     std::cerr << "推理失败: " << e.what() << std::endl;
+    //     throw;
+    // }
 }
 
 void TorchMetad::compute(
   Box& box,
   const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force,
+  const GPU_Vector<double>& positions,
+  GPU_Vector<double>& potentials,
+  GPU_Vector<double>& forces,
   GPU_Vector<double>& virial)
 {
-    int dynamic_vector_size = position.size();
+    int dynamic_vector_size = positions.size();
     int n_atoms = dynamic_vector_size/3;
     if(config.n_atoms!=n_atoms){
         throw std::invalid_argument("n_atoms in GAScfg.yaml is inconsistent with the one in model.xyz.");
     }
     this->box_to_tri(box);
-    this->get_neighbor_list(box,position);
+    this->get_neighbor_list(box,positions);
     gpu_sum<<<6, 1024>>>(n_atoms, virial.data(), gpu_v_vector.data());
     torch::cuda::synchronize();
     //下面的两个量在 gpumd 中为列主序，因此调用transpose
     //保留力和位力的引用，生成坐标和晶格的副本
-    torch::Tensor torch_pos = _FromCudaMemory((double*)position.data(),dynamic_vector_size).detach().clone().reshape({3,-1}).transpose(0,1);
-    torch::Tensor torch_force = _FromCudaMemory(force.data(),dynamic_vector_size).reshape({3,-1}).transpose(0,1);
+    torch::Tensor torch_pos = _FromCudaMemory((double*)positions.data(),dynamic_vector_size).detach().clone().reshape({3,-1}).transpose(0,1);
+    torch::Tensor torch_force = _FromCudaMemory(forces.data(),dynamic_vector_size).reshape({3,-1}).transpose(0,1);
+    torch::Tensor torch_potential =_FromCudaMemory(potentials.data(),n_atoms);
     // cell 相关的量
     torch::Tensor torch_virial = _FromCudaMemory(gpu_v_vector.data(),6).reshape({-1});//(0 4 8 1 2 5) 顺序
     // 近邻组
@@ -320,12 +320,6 @@ void TorchMetad::compute(
     torch::cuda::synchronize();
     torch::Tensor side_array = NL2Indices(torch_NL,n_atoms);
 
-    // 准备所需输入
-    // torch::Dict<std::string, torch::Tensor> inputs;
-    // inputs.insert("positions", torch_pos);
-    // inputs.insert("cell", torch_cell);
-    // inputs.insert("side_array",side_array);
-    // inputs.insert("cv_traj",torch_cv_traj);
     torch::Dict<std::string, torch::Tensor> inputs;
 
     inputs.insert("positions", torch_pos);
@@ -341,7 +335,9 @@ void TorchMetad::compute(
     bool is_opt = output_dict.contains("delta_cv_save");
     if (is_opt) {torch_delta_cv_save = output_dict.at("delta_cv_save");} 
     torch_bias = output_dict.at("bias");
+    torch_potential[0]+=torch_bias;
     torch_force+=output_dict.at("forces");
+    mean_bias_force = output_dict.at("forces").mean().clone().detach();
     auto cell_virial = output_dict.at("virial");
     cell_virial = symmetrizeStressTensor(cell_virial);
     cell_virial = convertStressTensor(cell_virial);
@@ -412,7 +408,8 @@ void TorchMetad::appendCVtoTraj(bool is_opt){
 }
 
 void TorchMetad::logCV_runtime(void){
-    torch::Tensor cv_cpu_tensor = this->torch_now_cvs.to(torch::kCPU);
+    auto log_cv_tensor = torch::cat({torch_now_cvs,mean_bias_force.unsqueeze(-1)},0);
+    torch::Tensor cv_cpu_tensor = log_cv_tensor.to(torch::kCPU);
     torch::Tensor bias_cpu_tensor = this->torch_bias.to(torch::kCPU);
     torch::Tensor cpu_tensor = torch::cat({bias_cpu_tensor.squeeze(0).reshape({-1}),cv_cpu_tensor},0).reshape({-1});
 

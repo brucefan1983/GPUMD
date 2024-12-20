@@ -106,21 +106,22 @@ public:
     void compute(
         Box& box,
         const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force,
+        const GPU_Vector<double>& positions,
+        GPU_Vector<double>& potentials,
+        GPU_Vector<double>& forces,
         GPU_Vector<double>& virial);
 
     void compute(
     const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
+    const GPU_Vector<double>& positions,
+    GPU_Vector<double>& potentials,
+    GPU_Vector<double>& forces,
     GPU_Vector<double>& virial){
-       throw std::logic_error("Function not yet implemented");
-    };
+       compute(box, type, positions, potentials, forces, virial);
+       // enable this if opes needed.
+       };
 
     torch::Dict<std::string, torch::Tensor> predict(const torch::Dict<std::string, torch::Tensor>& inputs);
     torch::Tensor _FromCudaMemory(double* d_array, int size);
@@ -153,4 +154,5 @@ private:
     GPU_Vector<int> NL_radial;    // radial neighbor list
     // torch-model
     torch::jit::script::Module model; // TorchScript 模型
+    torch::Tensor mean_bias_force;
 };
