@@ -147,10 +147,10 @@ static void __global__ gpu_scale_virial(
 }
 
 
-torch::Tensor NL2Indices(torch::Tensor& torch_NL,int n_atoms_){
+torch::Tensor NL2Indices(torch::Tensor& torch_NL,int n_atoms_NL){
     int NL_size = torch_NL.size(0);
-    int max_neighbor = NL_size/n_atoms_;
-    torch::Tensor temp = torch::arange(0, n_atoms_,torch::kCUDA);
+    int max_neighbor = NL_size/n_atoms_NL;
+    torch::Tensor temp = torch::arange(0, n_atoms_NL,torch::kCUDA);
     torch::Tensor start_array = temp.repeat({max_neighbor});
     torch::Tensor mask = torch_NL >= 0;
 
@@ -185,7 +185,7 @@ void TorchMetad::compute_large_box(
   const GPU_Vector<double>& position_per_atom)
 {
   const int BLOCK_SIZE = 64;
-  const int N = config.n_atoms;
+  const int N = n_atoms_;
   //N1~N2是要计算的原子的序号
 //   const int grid_size = (this->N2_ - this->N1_ - 1) / BLOCK_SIZE + 1;
   const int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -229,29 +229,36 @@ void TorchMetad::get_neighbor_list(Box& box,const GPU_Vector<double>& position_p
   this->NL_radial.fill(-1);
   this->compute_large_box(box,position_per_atom);
 }
+TorchMetad::TorchMetad(int n_atoms):TorchMetad("GASCVModel.pt","GAScfg.yaml",n_atoms){}
 
-
-TorchMetad::TorchMetad(){
-
+TorchMetad::TorchMetad(std::string model_path,std::string cfg_path,int n_atoms){
+    this->n_atoms_ = n_atoms;
     // 读取文件，设定参数
-    // try {
+    try {
         // torch::jit::GraphOptimizerEnabledGuard guard{true};
         torch::jit::setGraphExecutorOptimize(true);
         // 加载 TorchScript 模型
-        model = torch::jit::load("GASCVModel.pt", torch::kCUDA);
-        // model->eval(); // 设置为评估模式
-        std::cout << "Model loaded successfully from " << "GASCVModel.pt" << std::endl;
-    // } catch (const c10::Error& e) {
-    //     std::cerr << "Error loading the model: " << e.what() << std::endl;
-    //     throw e;
-    // }
+        model = torch::jit::load(model_path, torch::kCUDA);
+        model.eval(); // 设置为评估模式
+        std::cout << "[GAS-Info] GASCVModel loaded successfully from " << model_path << std::endl;
+    } catch (const c10::Error& e) {
+        std::cerr << "Error loading the model: "<< model_path << e.what() << std::endl;
+        throw e;
+    }
     // 接受 GASConfig 参数
-    config = Config::fromFile("GAScfg.yaml");
-    cell_count.resize(config.n_atoms);
-    cell_count_sum.resize(config.n_atoms);
-    cell_contents.resize(config.n_atoms);
-    NN_radial.resize(config.n_atoms);
-    NL_radial.resize(config.n_atoms*config.max_neighbors);
+    try {
+        config = Config::fromFile(cfg_path);
+        std::cout << "[GAS-Info] GASConfig loaded successfully from " << cfg_path << std::endl;
+    } catch (const c10::Error& e) {
+        std::cerr << "Error loading the Config: "<< cfg_path << e.what() << std::endl;
+        throw e;
+    }
+
+    cell_count.resize(n_atoms_);
+    cell_count_sum.resize(n_atoms_);
+    cell_contents.resize(n_atoms_);
+    NN_radial.resize(n_atoms_);
+    NL_radial.resize(n_atoms_*config.max_neighbors);
 
     torch_cv_traj = torch::empty({config.max_cv_nums,config.cv_size}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_now_cvs = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
@@ -259,8 +266,8 @@ TorchMetad::TorchMetad(){
     torch_bias = torch::empty({},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
 
     cpu_b_vector = std::vector<double>(9); // Box
-    gpu_v_vector.resize(6);
-    gpu_v_factor.resize(9);
+    // gpu_v_vector.resize(6);
+    // gpu_v_factor.resize(9);
     torch::cuda::synchronize();
 
 }
@@ -299,22 +306,24 @@ void TorchMetad::compute(
 {
     int dynamic_vector_size = positions.size();
     int n_atoms = dynamic_vector_size/3;
-    if(config.n_atoms!=n_atoms){
-        throw std::invalid_argument("n_atoms in GAScfg.yaml is inconsistent with the one in model.xyz.");
+    if(n_atoms_!=n_atoms){
+        throw std::invalid_argument("n_atoms in GASMD is inconsistent with the one in model.xyz.");
     }
     this->box_to_tri(box);
     this->get_neighbor_list(box,positions);
-    gpu_sum<<<6, 1024>>>(n_atoms, virial.data(), gpu_v_vector.data());
+    // gpu_sum<<<6, 1024>>>(n_atoms, virial.data(), gpu_v_vector.data());
     torch::cuda::synchronize();
     //下面的两个量在 gpumd 中为列主序，因此调用transpose
     //保留力和位力的引用，生成坐标和晶格的副本
     torch::Tensor torch_pos = _FromCudaMemory((double*)positions.data(),dynamic_vector_size).detach().clone().reshape({3,-1}).transpose(0,1);
     torch::Tensor torch_force = _FromCudaMemory(forces.data(),dynamic_vector_size).reshape({3,-1}).transpose(0,1);
     torch::Tensor torch_potential =_FromCudaMemory(potentials.data(),n_atoms);
+
     // cell 相关的量
-    torch::Tensor torch_virial = _FromCudaMemory(gpu_v_vector.data(),6).reshape({-1});//(0 4 8 1 2 5) 顺序
-    // 近邻组
+    // torch::Tensor torch_virial = _FromCudaMemory(gpu_v_vector.data(),6).reshape({-1});//(0 4 8 1 2 5) 顺序
+    torch::Tensor torch_virial  = _FromCudaMemory(virial.data(),dynamic_vector_size*3).detach().clone().reshape({9,-1}).transpose(0,1);//(xx yy zz xy xz yz yx zx zy)
     torch::Tensor torch_cell = torch::from_blob(cpu_b_vector.data(), {9}, torch::dtype(torch::kFloat64)).to(torch::kCUDA).reshape({3,3});
+    // 近邻组
     torch_NN = torch::from_blob(NN_radial.data(), {n_atoms}, torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)).reshape(-1);
     torch_NL = torch::from_blob(NL_radial.data(), {n_atoms*config.max_neighbors}, torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)).reshape(-1);
     torch::cuda::synchronize();
@@ -333,25 +342,29 @@ void TorchMetad::compute(
     torch::cuda::synchronize();
     torch_now_cvs = output_dict.at("cv_now");
     bool is_opt = output_dict.contains("delta_cv_save");
+    bool is_obs = output_dict.contains("cv_obs");
     if (is_opt) {torch_delta_cv_save = output_dict.at("delta_cv_save");} 
     torch_bias = output_dict.at("bias");
     torch_potential[0]+=torch_bias;
     torch_force+=output_dict.at("forces");
-    mean_bias_force = output_dict.at("forces").mean().clone().detach();
-    auto cell_virial = output_dict.at("virial");
-    cell_virial = symmetrizeStressTensor(cell_virial);
-    cell_virial = convertStressTensor(cell_virial);
-    torch::Tensor temp_virial = (torch_virial+cell_virial)/torch_virial;
-    gpu_scale_virial<<<(n_atoms - 1) / 128 + 1, 128>>>(
-        n_atoms,
-        temp_virial.data_ptr<double>(),
-        virial.data() + n_atoms * 0,
-        virial.data() + n_atoms * 1,
-        virial.data() + n_atoms * 2,
-        virial.data() + n_atoms * 3,
-        virial.data() + n_atoms * 4,
-        virial.data() + n_atoms * 5);
+    mean_bias_force = output_dict.at("forces").norm(2,1).mean().clone().detach();
+    auto cell_virial = output_dict.at("virial");//reschedule to xx yy zz xy yz xz yx zx zy
+    torch_virial[0]+=cell_virial;
+
+    // cell_virial = symmetrizeStressTensor(cell_virial);
+    // cell_virial = convertStressTensor(cell_virial);
+    // torch::Tensor temp_virial = (torch_virial+cell_virial)/torch_virial;
+    // gpu_scale_virial<<<(n_atoms - 1) / 128 + 1, 128>>>(
+    //     n_atoms,
+    //     temp_virial.data_ptr<double>(),
+    //     virial.data() + n_atoms * 0,
+    //     virial.data() + n_atoms * 1,
+    //     virial.data() + n_atoms * 2,
+    //     virial.data() + n_atoms * 3,
+    //     virial.data() + n_atoms * 4,
+    //     virial.data() + n_atoms * 5);
       // CUDA_CHECK_KERNEL
+
       torch::cuda::synchronize();
     if(now_step%config.cv_storage_interval==0){
         this->appendCVtoTraj(is_opt);

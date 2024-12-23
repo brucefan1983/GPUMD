@@ -24,6 +24,9 @@ struct Config {
     double neighbor_rc;
     int max_neighbors;
     int n_atoms;
+    bool is_opt_=0;
+    bool is_obs_=0;
+    
 
     // 打印结构体内容
     void print() const {
@@ -78,6 +81,7 @@ struct Config {
         // 创建并初始化结构体实例
         Config config;
         try {
+            // values
             config.max_cv_nums = std::stoi(configMap.at("max_cv_nums"));
             config.cv_size = std::stoi(configMap.at("cv_size"));
             config.cv_storage_interval = std::stoi(configMap.at("cv_storage_interval"));
@@ -86,9 +90,18 @@ struct Config {
             config.neighbor_rc = std::stod(configMap.at("neighbor_rc"));
             config.max_neighbors = std::stoi(configMap.at("max_neighbors"));
             config.n_atoms = std::stoi(configMap.at("n_atoms"));
+
+            // flag
+            config.is_opt_ = (configMap.find("MetaCell")!=configMap.end());
+            config.is_obs_ = (configMap.find("Observe")!=configMap.end());
+
+
         } catch (const std::exception& ex) {
             throw std::runtime_error("Error parsing configuration: " + std::string(ex.what()));
         }
+
+
+
         return config;
     }
 };
@@ -98,8 +111,9 @@ struct Config {
 struct TorchMetad : public Potential
 {
 public:
-    TorchMetad();
 
+    TorchMetad(std::string model_path,std::string cfg_path,int n_atoms);
+    TorchMetad(int n_atoms);
     void compute_large_box(Box& box,const GPU_Vector<double>& position_per_atom);
     void get_neighbor_list(Box& box,const GPU_Vector<double>& position_per_atom);
 
@@ -129,9 +143,34 @@ public:
     void logCV_runtime(void);
     void appendCVtoTraj(bool is_opt);
 
+    static std::unique_ptr<TorchMetad> parse_GASMD(const char** param, int num_param, const int number_of_atoms) {
+       if(num_param==1)
+       {
+        return std::make_unique<TorchMetad>(number_of_atoms);
+       }
+       else if (num_param==2)
+       {
+        throw std::runtime_error("Error parsing GASMD: params shapes like \"GASMD model.pt cfg.yaml\", but found "+ std::string(param[0])+std::string(param[1]));
+       }
+       else if (num_param>=3)
+       {
+        std::string model_path = param[1];
+        std::string cfg_path = param[2];
+        return std::make_unique<TorchMetad>(model_path,cfg_path,number_of_atoms);
+       }
+       else{
+        throw std::runtime_error("Error parsing GASMD: params shapes like \"GASMD model.pt cfg.yaml\"");
+       }
+       
+    }
+
     Config config;
 
 private:
+
+    bool is_opt=0;
+    bool is_obs=0;
+
     int saved_cv_nums=0;
     int now_step = 0;
     int n_atoms_=1;
@@ -142,10 +181,10 @@ private:
     torch::Tensor torch_NN;
     torch::Tensor torch_NL;
     // 存 cell 参数
-    GPU_Vector<double> gpu_v_vector;  // Total Virial (GPU)
-    GPU_Vector<double> gpu_v_factor;  // Scaling factor of the virial (GPU)
+    // GPU_Vector<double> gpu_v_vector;  // Total Virial (GPU)
+    // GPU_Vector<double> gpu_v_factor;  // Scaling factor of the virial (GPU)
     std::vector<double> cpu_b_vector; // Box
-    GPU_Vector<double> gpu_b_vector;  // Box (GPU)
+    // GPU_Vector<double> gpu_b_vector;  // Box (GPU)
     // 找近邻
     GPU_Vector<int> cell_count;
     GPU_Vector<int> cell_count_sum;
