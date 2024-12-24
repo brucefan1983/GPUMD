@@ -1,3 +1,4 @@
+#ifdef USE_GAS
 #include "gas-metad.cuh"
 #include "model/read_xyz.cuh"
 
@@ -321,7 +322,7 @@ void TorchMetad::compute(
 
     // cell 相关的量
     // torch::Tensor torch_virial = _FromCudaMemory(gpu_v_vector.data(),6).reshape({-1});//(0 4 8 1 2 5) 顺序
-    torch::Tensor torch_virial  = _FromCudaMemory(virial.data(),dynamic_vector_size*3).detach().clone().reshape({9,-1}).transpose(0,1);//(xx yy zz xy xz yz yx zx zy)
+    torch::Tensor torch_virial  = _FromCudaMemory(virial.data(),dynamic_vector_size*3).reshape({9,-1}).transpose(0,1);//(xx yy zz xy xz yz yx zx zy)
     torch::Tensor torch_cell = torch::from_blob(cpu_b_vector.data(), {9}, torch::dtype(torch::kFloat64)).to(torch::kCUDA).reshape({3,3});
     // 近邻组
     torch_NN = torch::from_blob(NN_radial.data(), {n_atoms}, torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)).reshape(-1);
@@ -345,11 +346,12 @@ void TorchMetad::compute(
     bool is_obs = output_dict.contains("cv_obs");
     if (is_opt) {torch_delta_cv_save = output_dict.at("delta_cv_save");} 
     torch_bias = output_dict.at("bias");
-    torch_potential[0]+=torch_bias;
+    torch_potential+=(torch_bias.unsqueeze(0)/n_atoms);
     torch_force+=output_dict.at("forces");
     mean_bias_force = output_dict.at("forces").norm(2,1).mean().clone().detach();
     auto cell_virial = output_dict.at("virial");//reschedule to xx yy zz xy yz xz yx zx zy
-    torch_virial[0]+=cell_virial;
+    torch_virial+=(cell_virial.unsqueeze(0)/n_atoms);
+
 
     // cell_virial = symmetrizeStressTensor(cell_virial);
     // cell_virial = convertStressTensor(cell_virial);
@@ -473,3 +475,7 @@ void TorchMetad::box_to_tri(Box& box){
       }
 
 }
+
+
+
+#endif

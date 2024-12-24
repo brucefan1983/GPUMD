@@ -259,7 +259,6 @@ void Run::perform_a_run()
         atom.velocity_per_atom,
         atom.mass);
     }
-    // gas_metad.compute(box,atom.type,atom.position_per_atom,atom.position_per_atom,atom.force_per_atom,atom.virial_per_atom);
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
       measure.plmd.process(
@@ -339,8 +338,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
   if (strcmp(param[0], "potential") == 0) {
     force.parse_potential(param, num_param, box, atom.type.size());
+#ifdef USE_GAS
   } else if (strcmp(param[0], "GASMD") == 0) {
-    TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
+    std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
+    force.potentials.emplace_back(std::move(p_gas_metad));
     // if(num_param==1){
     //   std::unique_ptr<TorchMetad> p_gas_metad = std::make_unique<TorchMetad>();
     //   force.potentials.emplace_back(std::move(p_gas_metad));
@@ -350,6 +351,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     //   force.potentials.emplace_back(std::move(p_gas_metad));
     // }
     force.set_multiple_potentials_mode("sum");
+#endif
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);

@@ -23,7 +23,7 @@ list(APPEND CMAKE_PREFIX_PATH "/home/tensor/software/libtorch/share/cmake/Torch"
 if(WIN32)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_80 -Xcompiler \"/wd 4819\" -I${PYTHON_INCLUDE}")
 else()
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_80 -I${PYTHON_INCLUDE} -DUSE_GAS")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_80 -I${PYTHON_INCLUDE} -DUSE_GAS -DTORCH_USE_CUDA_DSA=ON")
 endif()
 
 set(INC -I./)
@@ -43,7 +43,7 @@ file(GLOB SOURCES_GPUMD
     "${CMAKE_SOURCE_DIR}/measure/*.cu"
     "${CMAKE_SOURCE_DIR}/model/*.cu"
     "${CMAKE_SOURCE_DIR}/utilities/*.cu"
-    "${CMAKE_SOURCE_DIR}/measure/gasCV/*.cu"
+    # "${CMAKE_SOURCE_DIR}/measure/gasCV/*.cu" for libtorch version
 )
 
 file(GLOB SOURCES_NEP
@@ -64,7 +64,7 @@ file(GLOB HEADERS
     "${CMAKE_SOURCE_DIR}/phonon/*.cuh"
     "${CMAKE_SOURCE_DIR}/main_nep/*.cuh"
     #gas file
-    "${CMAKE_SOURCE_DIR}/measure/gasCV/*.cuh"
+    # "${CMAKE_SOURCE_DIR}/measure/gasCV/*.cuh"
 )
 
 # Include directories
@@ -82,7 +82,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/utilities
     ${CMAKE_SOURCE_DIR}/main_nep
     #gas file
-    ${CMAKE_SOURCE_DIR}/measure/gasCV
+    # ${CMAKE_SOURCE_DIR}/measure/gasCV
 )
 
 # Create executables
