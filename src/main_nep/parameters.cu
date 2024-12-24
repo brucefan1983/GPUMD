@@ -104,6 +104,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  output_descriptor = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -1052,5 +1053,20 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
 
   if (typewise_cutoff_zbl_factor < 0.5f) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
+  }
+}
+
+void Parameters::parse_output_descriptor(const char** param, int num_param)
+{
+  output_descriptor = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_descriptor should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_descriptor)) {
+    PRINT_INPUT_ERROR("output_descriptor should be an integer.\n");
+  }
+  if (output_descriptor != 0 && output_descriptor != 1) {
+    PRINT_INPUT_ERROR("output_descriptor should = 0 or 1.");
   }
 }
