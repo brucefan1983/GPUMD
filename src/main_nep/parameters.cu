@@ -494,6 +494,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "output_descriptor") == 0) {
+    parse_output_descriptor(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
