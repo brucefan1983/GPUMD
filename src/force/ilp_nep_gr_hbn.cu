@@ -50,11 +50,14 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_GR_HBN)) {
     PRINT_INPUT_ERROR("Incorrect type number of ILP_NEP_GR_HBN parameters.\n");
   }
+  std::vector<std::string> ilp_elements(num_types);
   for (int n = 0; n < num_types; ++n) {
     char atom_symbol[10];
     int count = fscanf(fid_ilp, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "Reading error for ILP_NEP_GR_HBN potential.");
     printf(" %s", atom_symbol);
+    
+    ilp_elements[n] = atom_symbol;
   }
   printf("\n");
 
@@ -167,6 +170,12 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
+    if (tokens[2 + n] != ilp_elements[n] || paramb.num_types != num_types) {
+      std::cout << "ILP and NEP potential files must have the same element list\n"
+                << "Element list size of ILP is " << num_types << " NEP is " << paramb.num_types << std::endl
+                << "Element " << n << " in ILP is " << ilp_elements[n] << " in NEP is " << tokens[2 + n] << std::endl;
+      exit(1);
+    }
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
       if (tokens[2 + n] == ELEMENTS[m]) {
