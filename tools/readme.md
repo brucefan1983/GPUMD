@@ -34,7 +34,7 @@
 | split_xyz            | Yong Wang    | yongw@princeton.edu | Some functionalities for training/test data.         |
 | vasp2xyz             | Yanzhou Wang | yanzhowang@gmail.com     | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | twtdq@qq.com                | Highlight GPUMD grammar in `vim`.                            |
-| xtd2exyz | Zherui Chen | chenzherui0124@foxmail.com | Convert XTD files into XYZ format. |
+| xtd2exyz | Zherui Chen | chenzherui0124@foxmail.com | Get train.xyz from Materials Studio outputs. |
 | xyz2gro              | Who? |                             | Convert `xyz` file to `gro` file.                            |
 
 
