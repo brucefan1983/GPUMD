@@ -34,3 +34,4 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    batch
    population
    generation
+   output_descriptor
