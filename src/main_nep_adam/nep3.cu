@@ -496,7 +496,7 @@ static __global__ void apply_ann(
         }
       }
     } else {
-      apply_ann_one_layer(
+      one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[type],
@@ -562,7 +562,7 @@ static __global__ void apply_ann_pol(
         }
       }
     } else {
-      apply_ann_one_layer(
+      one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0_pol[type],
@@ -602,7 +602,7 @@ static __global__ void apply_ann_pol(
         }
       }
       } else {
-        apply_ann_one_layer(
+        one_layer(
           annmb.dim,
           annmb.num_neurons1,
           annmb.w0[type],
@@ -671,7 +671,7 @@ static __global__ void apply_ann_temperature(
         }
       }
     } else {
-      apply_ann_one_layer(
+      one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[type],
