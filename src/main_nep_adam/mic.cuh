@@ -18,11 +18,11 @@ mininum image convention
 ------------------------------------------------------------------------------*/
 
 static __device__ void
-dev_apply_mic(const float* __restrict__ h, float& x12, float& y12, float& z12)
+dev_apply_mic(const double* __restrict__ h, double& x12, double& y12, double& z12)
 {
-  float sx12 = h[9] * x12 + h[10] * y12 + h[11] * z12;
-  float sy12 = h[12] * x12 + h[13] * y12 + h[14] * z12;
-  float sz12 = h[15] * x12 + h[16] * y12 + h[17] * z12;
+  double sx12 = h[9] * x12 + h[10] * y12 + h[11] * z12;
+  double sy12 = h[12] * x12 + h[13] * y12 + h[14] * z12;
+  double sz12 = h[15] * x12 + h[16] * y12 + h[17] * z12;
   sx12 -= nearbyint(sx12);
   sy12 -= nearbyint(sy12);
   sz12 -= nearbyint(sz12);

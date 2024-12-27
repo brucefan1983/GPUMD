@@ -29,15 +29,20 @@ class Fitness
 public:
   Fitness(Parameters& para, Adam* adam);
   ~Fitness();
-  void update_learning_rate(float& lr, const int step); // Update learning rate
+  void update_learning_rate(double& lr, const int step); // Update learning rate
   void compute(
     Parameters& para);
   void report_error(
     Parameters& para,
     const int generation,
-    const float loss_total,
-    float* step_parameters);
-  void predict(Parameters& para, float* step_parameters);
+    const double loss_total,
+    const double rmse_energy_train,
+    const double rmse_force_train,
+    const double rmse_virial_train,
+    const double energy_shift_per_structure,
+    const double lr,
+    double* step_parameters);
+  void predict(Parameters& para, double* step_parameters);
 
 protected:
   bool has_test_set = false;
@@ -47,17 +52,16 @@ protected:
   int number_of_variables_ann = 0; // number of variables in ANN
   int number_of_variables_descriptor = 0; // number of variables in descriptor
   int maximum_generation = 10000; // maximum number of iterations
-  float lr = 1e-3f; // learning rate
-  float start_lr = 1e-3f;     // start learning rate
-  float stop_lr = 3.51e-08f; // stop learning rate
-  int stop_step = 1000000; // stop step
+  double lr = 1e-3; // learning rate
+  double start_lr = 1e-3;     // start learning rate
+  double stop_lr = 3.51e-08; // stop learning rate
   int decay_step = 5000; // decay 
-  float decay_rate; // decay rate
+  double decay_rate; // decay rate
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;
-  GPU_Vector<float> gpu_gradients; // Gradients of parameters g
-  std::vector<float> fitness_loss;
+  GPU_Vector<double> gpu_gradients; // Gradients of parameters g
+  std::vector<double> total_loss; // Total loss
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
@@ -66,12 +70,12 @@ protected:
     bool is_stress,
     int num_components,
     FILE* fid,
-    float* prediction,
-    float* reference,
+    double* prediction,
+    double* reference,
     Dataset& dataset);
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
   void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* step_parameters);
+  void write_nep_txt(FILE* fid_nep, Parameters& para, double* step_parameters);
 };

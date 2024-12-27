@@ -25,7 +25,7 @@ public:
   virtual ~Potential() = default;
   virtual void find_force(
     Parameters& para,
-    const float* parameters,
+    const double* parameters,
     bool require_grad,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,

@@ -21,7 +21,6 @@ doi: 10.48550/arXiv.1412.6980
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include <chrono>
-#include <cmath>
 
 static __global__ void initialize_curand_states(curandState* state, int N, int seed)
 {
@@ -33,39 +32,39 @@ static __global__ void initialize_curand_states(curandState* state, int N, int s
 
 static __global__ void update_moments(
   const int N,
-  const float beta1,
-  const float beta2,
-  const float* __restrict__ gradients,
-  float* __restrict__ m,
-  float* __restrict__ v)
+  const double beta1,
+  const double beta2,
+  const double* __restrict__ gradients,
+  double* __restrict__ m,
+  double* __restrict__ v)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    const float g = gradients[i];
-    m[i] = beta1 * m[i] + (1.0f - beta1) * g;
-    v[i] = beta2 * v[i] + (1.0f - beta2) * g * g;
+    const double g = gradients[i];
+    m[i] = beta1 * m[i] + (1.0 - beta1) * g;
+    v[i] = beta2 * v[i] + (1.0 - beta2) * g * g;
   }
 }
 
 static __global__ void apply_updates(
   const int N,
-  const float lr,
-  const float beta1_t,
-  const float beta2_t,
-  const float eps,
-  const float weight_decay,
-  const float* __restrict__ m,
-  const float* __restrict__ v,
-  float* __restrict__ parameters)
+  const double lr,
+  const double beta1_t,
+  const double beta2_t,
+  const double eps,
+  const double weight_decay,
+  const double* __restrict__ m,
+  const double* __restrict__ v,
+  double* __restrict__ parameters)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     // calculate bias correction
-    const float m_hat = m[i] / (1.0f - beta1_t);
-    const float v_hat = v[i] / (1.0f - beta2_t);
+    const double m_hat = m[i] / (1.0 - beta1_t);
+    const double v_hat = v[i] / (1.0 - beta2_t);
     
     // update parameters
-    parameters[i] -= lr * m_hat / (sqrtf(v_hat) + eps);
+    parameters[i] -= lr * m_hat / (sqrt(v_hat) + eps);
     parameters[i] -= lr * weight_decay * parameters[i];
   }
 }
@@ -73,18 +72,14 @@ static __global__ void apply_updates(
 Adam::Adam(Parameters& para)
 {
   // initialize the parameters
-  step = 0;
   number_of_variables = para.number_of_variables;
-  input_dim = para.dim;
-  num_neurons1 = para.num_neurons1;
-  number_of_variables_descriptor = para.number_of_variables_descriptor;
   weight_decay = para.lambda_2;
 
   // initialize the CPU vectors
   parameters.resize(number_of_variables);
   // gradients.resize(number_of_variables);
-  m.resize(number_of_variables, 0.0f);
-  v.resize(number_of_variables, 0.0f);
+  m.resize(number_of_variables, 0.0);
+  v.resize(number_of_variables, 0.0);
 
   // initialize the GPU vectors
   cudaSetDevice(0);
@@ -97,75 +92,106 @@ Adam::Adam(Parameters& para)
   CUDA_CHECK_KERNEL
 
   // initialize the optimizer parameters
-  initialize_parameters(para);
+  // initialize_parameters(para);
 }
 
 static __global__ void gpu_create_paramters(
+  const int dim,
+  const int num_types,
+  const int num_neurons1,
+  const int number_of_variables_ann,
   const int number_of_variables,
+  const double* energy_shift,
   curandState* g_state,
-  float* g_parameters)
+  double* g_parameters)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_variables) {
+
+  if (n < number_of_variables_ann) {
     curandState state = g_state[n];
-    float r1 = curand_normal(&state);
-    float r2 = curand_uniform(&state) - 0.5f;
-    g_parameters[n] = 0.1f * r1 + r2;
+    int type_idx = (n * num_types) / number_of_variables_ann;
+    int param_idx = n % ((dim + 2) * num_neurons1 + 1);
+    if (param_idx < dim * num_neurons1) {
+      double std = 1.0 / sqrt(static_cast<double>(dim + num_neurons1));
+      g_parameters[n] = curand_normal(&state) * std;
+    } else if (param_idx < (dim + 1) * num_neurons1) {
+      g_parameters[n] = curand_normal(&state);
+    } else if (param_idx < (dim + 2) * num_neurons1) {
+      double std = 1.0 / sqrt(static_cast<double>(num_neurons1 + 1));
+      g_parameters[n] = curand_normal(&state) * std;
+    } else {
+      double mean = energy_shift[type_idx];
+      g_parameters[n] = mean + curand_normal(&state);
+    }
+  } else if (n < number_of_variables) {
+    curandState state = g_state[n];
+    double r1 = curand_normal(&state);
+    double r2 = curand_uniform(&state) - 0.5;
+    g_parameters[n] = 0.1 * r1 + r2;
   }
 }
 
 void Adam::initialize_parameters(Parameters& para)
 {
-    FILE* fid_restart = fopen("nep.restart", "r");
+  FILE* fid_restart = fopen("nep.restart", "r");
   if (fid_restart == NULL) {
     cudaSetDevice(0); // normally use GPU-0
-    gpu_create_paramters<<<(number_of_variables - 1) / 128 + 1, 128>>>(
-      number_of_variables,
-      curand_states.data(),
-      gpu_parameters.data());
-    CUDA_CHECK_KERNEL
-    gpu_parameters.copy_to_host(parameters.data());
-    // parameters[0] = 1.292796015739f;
-    // parameters[1] = 0.127129867673f;
-    // parameters[2] = -0.939973294735f;
-    // parameters[3] = 1.164981842041f;
-    // parameters[4] = -0.251407504082f;
-    // parameters[5] = 0.220846444368f;
-    // parameters[6] = 0.137968629599f;
-    // parameters[7] = 0.417271614075f;
-    // parameters[8] = -1.099964499474f;
-    // parameters[9] = -0.935172498226f;
-    // parameters[10] = -0.386360764503f;
-    // parameters[11] = 0.230891421437f;
-    // parameters[12] = -0.555047988892f;
-    // parameters[13] = -0.133708223701f;
-    // parameters[14] = -0.538717210293f;
-    // parameters[15] = 0.024417329580f;
-    // parameters[16] = -0.559446573257f;
-    // parameters[17] = 0.393686383963f;
-    // parameters[18] = 1.184152245522f;
-    // parameters[19] = -0.355633169413f;
-    // parameters[20] = -0.174412131310f;
-    // parameters[21] = 0.086221024394f;
-    // parameters[22] = 0.196279138327f;
-    // parameters[23] = 1.336585521698f;
-    // parameters[24] = -0.298980683088f;
-    // parameters[25] = -0.357109396509f; // c
-    // parameters[26] = -0.382208127700f;
-    // parameters[27] = 0.005223161488f;
-    // parameters[28] = -0.279997548693f;
-    // parameters[29] = -0.129192845901f;
-    // parameters[30] = 0.311555036837f;
-    // parameters[31] = 0.444509547752f;
-    // parameters[32] = -0.308477275866f;
-    // parameters[33] = 0.021276300562f;
-    // parameters[34] = 0.334129622248f;
-    // parameters[35] = -0.168401458536f;
-    // parameters[36] = -0.102445381562f; //11
-    // parameters[37] = -0.280292335715f;
-    // parameters[38] = 0.592506792960f;
-    // parameters[39] = -0.490981270350f;
-    // parameters[40] = 0.423874505255f;
+    // gpu_create_paramters<<<(number_of_variables - 1) / 128 + 1, 128>>>(
+    //   para.dim,
+    //   para.num_types,
+    //   para.num_neurons1,
+    //   para.number_of_variables_ann,
+    //   para.number_of_variables,
+    //   para.energy_shift_gpu.data(),
+    //   curand_states.data(),
+    //   gpu_parameters.data());
+    // CUDA_CHECK_KERNEL
+    // gpu_parameters.copy_to_host(parameters.data());
+    // for (int i = 0; i < number_of_variables; ++i) {
+    //   printf("parameters[%d] = %f\n", i, parameters[i]);
+    // }
+    parameters[0] = 0.442027390003;
+    parameters[1] = -0.114872045815;
+    parameters[2] = 0.594669640064;
+    parameters[3] = -0.302220880985;
+    parameters[4] = 0.180428802967;
+    parameters[5] = 0.181583940983;
+    parameters[6] = 1.395557761192;
+    parameters[7] = -0.996886909008;
+    parameters[8] = 2.890779733658;
+    parameters[9] = 1.302489280701;
+    parameters[10] = 0.246913835406;
+    parameters[11] = 0.068984314799;
+    parameters[12] = -14.030391693115; // bias1
+    parameters[13] = 0.564685225487;
+    parameters[14] = -0.836443722248;
+    parameters[15] = -0.681497931480;
+    parameters[16] = -0.345571577549;
+    parameters[17] = 0.633350133896;
+    parameters[18] = 0.206515565515;
+    parameters[19] = -0.565002620220;
+    parameters[20] = -0.658045351505;
+    parameters[21] = -1.241125106812;
+    parameters[22] = 0.027299404144;
+    parameters[23] = 0.440154761076;
+    parameters[24] = 0.592076122761;
+    parameters[25] = -51.896118164062; 
+    parameters[26] = -0.359654529203;  // c[0,0,0,0],0
+    parameters[27] = 0.076675398038;   // c[0,1,0,0],1
+    parameters[28] = 0.031677418640; // c[1,0,0,0],2
+    parameters[29] = 0.099766372147; // c[1,1,0,0],3
+    parameters[30] = 0.503399248922; // c[0,0,0,1],4
+    parameters[31] = 0.402137601819; // c[0,1,0,1],5
+    parameters[32] = -0.250388690935; // c[1,0,0,1],6
+    parameters[33] = 0.273757521254; // c[1,1,0,1],7
+    parameters[34] = 0.216046105857; // c[0,0,1,0],8
+    parameters[35] = -0.047669816146; // c[0,1,1,0],9
+    parameters[36] = -0.272421504828; // c[1,0,1,0],10
+    parameters[37] = -0.297049618754; // c[1,1,1,0],11
+    parameters[38] = 0.529698182479; // c[0,0,1,1],12
+    parameters[39] = -0.488307326645; // c[0,1,1,1],13
+    parameters[40] = 0.490723012081; // c[1,0,1,1],14
+    parameters[41] = 0.077293731498; // c[1,1,1,1],15
     // parameters[0] = 0.135209426284f;
     // parameters[1] = -0.511071622372f;
     // parameters[2] = 0.710385501385f;
@@ -207,21 +233,21 @@ void Adam::initialize_parameters(Parameters& para)
     // parameters[38] = 0.158546864986f;// c[0,1,1,1],13
     // parameters[39] = 0.073974691331f;// c[1,0,1,1],14
     // parameters[40] = 0.488178819418f;// c[1,1,1,1],15
-    // parameters[41] = 1.0f;
-    // parameters[42] = 1.0f;
-    // parameters[43] = 1.0f;
-    // parameters[44] = 1.0f;
-    // gpu_parameters.copy_from_host(parameters.data());
+    parameters[42] = 1.0;
+    parameters[43] = 1.0;
+    parameters[44] = 1.0;
+    parameters[45] = 1.0;
+    gpu_parameters.copy_from_host(parameters.data());
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
-        int count = fscanf(fid_restart, "%f", &parameters[n]);
+        int count = fscanf(fid_restart, "%lf", &parameters[n]);
         PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
     fclose(fid_restart);
   }
 }
 
-void Adam::update(float lr, float* gradients) {
+void Adam::update(double lr, double* gradients) {
   const int block_size = 256;
   const int grid_size = (number_of_variables - 1) / block_size + 1;
 
@@ -236,8 +262,8 @@ void Adam::update(float lr, float* gradients) {
   CUDA_CHECK_KERNEL
   
   // calculate bias correction
-  const float beta1_t = powf(beta1, step + 1);
-  const float beta2_t = powf(beta2, step + 1);
+  const double beta1_t = pow(beta1, step + 1);
+  const double beta2_t = pow(beta2, step + 1);
   
   // apply parameter updates
   apply_updates<<<grid_size, block_size>>>(
@@ -272,7 +298,7 @@ void Adam::output_parameters(Parameters& para) {
   fclose(fid);
 }
 
-float* Adam::get_parameters()
+double* Adam::get_parameters()
 {
   return parameters.data();
 }

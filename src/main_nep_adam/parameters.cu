@@ -76,7 +76,7 @@ void Parameters::set_default_parameters()
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
-  version = 4;                 // NEP4 is the best
+  version = 0;                 // NEP4 is the best
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
@@ -87,27 +87,27 @@ void Parameters::set_default_parameters()
   L_max_4body = 2;             // default is to include 4body
   L_max_5body = 0;             // default is not to include 5body
   num_neurons1 = 30;           // a relatively small value to achieve high speed
-  lambda_1 = lambda_2 = -1.0f; // automatic regularization
-  lambda_e = lambda_f = 1.0f;  // energy and force are more important
-  lambda_v = 0.1f;             // virial is less important
-  lambda_shear = 1.0f;         // do not weight shear virial more by default
-  force_delta = 0.0f;          // no modification of force loss
+  lambda_1 = lambda_2 = -1.0; // automatic regularization
+  lambda_e = lambda_f = 1.0;  // energy and force are more important
+  lambda_v = 0.1;             // virial is less important
+  lambda_shear = 1.0;         // do not weight shear virial more by default
+  force_delta = 0.0;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
-  initial_para = 1.0f;
-  sigma0 = 0.1f;
+  initial_para = 1.0;
+  sigma0 = 0.1;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
-  typewise_cutoff_radial_factor = -1.0f;
-  typewise_cutoff_angular_factor = -1.0f;
-  typewise_cutoff_zbl_factor = -1.0f;
+  typewise_cutoff_radial_factor = -1.0;
+  typewise_cutoff_angular_factor = -1.0;
+  typewise_cutoff_zbl_factor = -1.0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
-    type_weight_cpu[n] = 1.0f; // uniform weight by default
+    type_weight_cpu[n] = 1.0; // uniform weight by default
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
@@ -187,12 +187,8 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  if (version == 3) {
-    number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  } else if (version == 4) {
-    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-  } else if (version == 5) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
+  if (version == 0) {
+    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types;
   }
 
   number_of_variables_descriptor =
@@ -226,6 +222,7 @@ void Parameters::calculate_parameters()
     CHECK(cudaSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
+    energy_shift_gpu.resize(num_types, 0.0);
   }
 }
 
@@ -536,9 +533,6 @@ void Parameters::parse_version(const char** param, int num_param)
   }
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
-  }
-  if (version < 3 || version > 5) {
-    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
   }
 }
 
@@ -886,7 +880,7 @@ void Parameters::parse_lambda_shear(const char** param, int num_param)
   }
   lambda_shear = lambda_shear_tmp;
 
-  if (lambda_shear < 0.0f) {
+  if (lambda_shear < 0.0) {
     PRINT_INPUT_ERROR("Shear virial weight should >= 0.");
   }
 }
@@ -977,7 +971,7 @@ void Parameters::parse_initial_para(const char** param, int num_param)
   }
   initial_para = initial_para_tmp;
 
-  if (initial_para < 0.1f || initial_para > 1.0f) {
+  if (initial_para < 0.1 || initial_para > 1.0) {
     PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
   }
 }
@@ -994,7 +988,7 @@ void Parameters::parse_sigma0(const char** param, int num_param)
   }
   sigma0 = sigma0_tmp;
 
-  if (sigma0 < 0.01f || sigma0 > 0.1f) {
+  if (sigma0 < 0.01 || sigma0 > 0.1) {
     PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
   }
 }
@@ -1006,8 +1000,8 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
   }
   use_typewise_cutoff = true;
   is_use_typewise_cutoff_set = true;
-  typewise_cutoff_radial_factor = 2.5f;
-  typewise_cutoff_angular_factor = 2.0f;
+  typewise_cutoff_radial_factor = 2.5;
+  typewise_cutoff_angular_factor = 2.0;
 
   if (num_param == 3) {
     double typewise_cutoff_radial_factor_temp = 0.0;
@@ -1023,7 +1017,7 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
     typewise_cutoff_angular_factor = typewise_cutoff_angular_factor_temp;
   }
 
-  if (typewise_cutoff_angular_factor < 1.5f) {
+  if (typewise_cutoff_angular_factor < 1.5) {
     PRINT_INPUT_ERROR("typewise_cutoff_angular_factor must >= 1.5.\n");
   }
 
@@ -1039,7 +1033,7 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   }
   use_typewise_cutoff_zbl = true;
   is_use_typewise_cutoff_zbl_set = true;
-  typewise_cutoff_zbl_factor = 0.65f;
+  typewise_cutoff_zbl_factor = 0.65;
 
   if (num_param == 2) {
     double typewise_cutoff_zbl_factor_temp = 0.0;
@@ -1049,7 +1043,7 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
     typewise_cutoff_zbl_factor = typewise_cutoff_zbl_factor_temp;
   }
 
-  if (typewise_cutoff_zbl_factor < 0.5f) {
+  if (typewise_cutoff_zbl_factor < 0.5) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
   }
 }

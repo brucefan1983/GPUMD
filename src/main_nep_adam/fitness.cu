@@ -40,10 +40,9 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   number_of_variables_descriptor = para.number_of_variables_descriptor;
   // start_lr = para.start_lr;
   // stop_lr = para.stop_lr;
-  // stop_step = para.stop_step;
   // decay_step = para.decay_step;
   gpu_gradients.resize(number_of_variables);
-  fitness_loss.resize(4 * (para.num_types + 1));
+  total_loss.resize(4 * (para.num_types + 1));
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -128,6 +127,8 @@ Fitness::Fitness(Parameters& para, Adam* adam)
 
   potential.reset(
     new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    
+  optimizer->initialize_parameters(para);
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
@@ -156,7 +157,7 @@ void Fitness::compute(Parameters& para)
 
     if (para.train_mode == 0 || para.train_mode == 3) {
       printf(
-        "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+        "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-14s\n",
         "Step",
         "Total-Loss",
         "RMSE-E-Train",
@@ -164,97 +165,105 @@ void Fitness::compute(Parameters& para)
         "RMSE-V-Train",
         "RMSE-E-Test",
         "RMSE-F-Test",
-        "RMSE-V-Test");
+        "RMSE-V-Test",
+        "Learning-Rate");
     } else {
       printf(
-        "%-8s%-11s%-13s%-13s\n",
+        "%-8s%-11s%-13s%-13s%-14s\n",
         "Step",
         "Total-Loss",
         "RMSE-P-Train",
-        "RMSE-P-Test");
+        "RMSE-P-Test",
+        "Learning-Rate");
     }
   }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
 
   if (para.prediction == 0) {
+    std::vector<double> dummy_solution(para.number_of_variables, para.initial_para);
+    for (int n = 0; n < num_batches; ++n) {
+      potential->find_force(
+        para,
+        dummy_solution.data(),
+        false,
+        train_set[n],
+#ifdef USE_FIXED_SCALER
+        false,
+#else
+        true,
+#endif
+        true,
+        1);
+    }
     for (int step = 0; step < maximum_generation; ++step) {
-      std::fill(fitness_loss.begin(), fitness_loss.end(), 0.0f);
-      if (step == 0) {
-        std::vector<float> dummy_solution(para.number_of_variables, para.initial_para);
-        for (int n = 0; n < num_batches; ++n) {
-          // optimizer->zero_gradients();
-          potential->find_force(
-            para,
-            dummy_solution.data(),
-            false,
-            train_set[n],
-  #ifdef USE_FIXED_SCALER
-            false,
-  #else
-            true,
-  #endif
-            true,
-            1);
-        }
-      } else {
-        for (int n = 0; n < num_batches; ++n) {
-          // optimizer->zero_gradients();
-          gpu_gradients.fill(0.0f);
-          update_learning_rate(lr, step);
-          potential->find_force(
-          para,
-          optimizer->get_parameters(),
-          true,
-          train_set[n],
-          false,
-          true,
-          deviceCount);
-          float energy_shift_per_structure_not_used;
-          auto rmse_energy_array = train_set[n][0].get_rmse_energy(
-            para, energy_shift_per_structure_not_used, true, true, true, 0);
-          auto rmse_force_array = train_set[n][0].get_rmse_force(para, true, true, 0);
-          auto rmse_virial_array = train_set[n][0].get_rmse_virial(para, true, true, 0);
-          CHECK(cudaMemcpy(gpu_gradients.data(), train_set[n][0].gradients.grad_wb_sum.data(), 
-                      number_of_variables_ann * sizeof(float), cudaMemcpyDeviceToDevice));
-          CHECK(cudaMemcpy(gpu_gradients.data() + number_of_variables_ann, 
-                    train_set[n][0].gradients.grad_c_sum.data(), 
-                    number_of_variables_descriptor * sizeof(float), cudaMemcpyDeviceToDevice));
-          for (int t = 0; t <= para.num_types; ++t) {
-            fitness_loss[4 * t + 1] += para.lambda_e * rmse_energy_array[t];
-            fitness_loss[4 * t + 2] += para.lambda_f * rmse_force_array[t];
-            fitness_loss[4 * t + 3] += para.lambda_v * rmse_virial_array[t];
-            fitness_loss[4 * t + 0] += fitness_loss[4 * t + 1] + fitness_loss[4 * t + 2] + fitness_loss[4 * t + 3];
-          }
-          // std::vector<float> gradients(number_of_variables);
-          // CHECK(cudaMemcpy(gradients.data(), gpu_gradients.data(), number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
-          // std::cout << "Gradients: \n";
-          // for (int n = 0; n < number_of_variables; ++n) {
-          //   std::cout << n << " " << gradients[n] << std::endl;
-          // }
-          // std::cout << std::endl;
-          optimizer->update(lr, gpu_gradients.data());
-        } // end of batch loop
-        float count_sample = 1 / num_batches;
-        float fitness_total = fitness_loss[4 * para.num_types + 0] * count_sample;  // total error
+      // std::fill(total_loss.begin(), total_loss.end(), 0.0);
+      int batch_id = step % num_batches;
+      // printf("Finding force for batch %d\n", batch_id);
+      // bool calculate_neighbor = (num_batches > 1) || (step % 100 == 0);
+      gpu_gradients.fill(0.0);
+      update_learning_rate(lr, step);
+      potential->find_force(
+      para,
+      optimizer->get_parameters(),
+      true,
+      train_set[batch_id],
+      false,
+      true,
+      deviceCount);
+      double energy_shift_per_structure;
+      // auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(
+      //   para, energy_shift_per_structure, true, true, true, 0);
+      // auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, true, 0);
+      auto rmse_virial_array = train_set[batch_id][0].get_rmse_virial(para, true, true, 0);
+      CHECK(cudaMemcpy(gpu_gradients.data(), train_set[batch_id][0].gradients.grad_wb_sum.data(), 
+                  number_of_variables_ann * sizeof(double), cudaMemcpyDeviceToDevice));
+      CHECK(cudaMemcpy(gpu_gradients.data() + number_of_variables_ann, 
+                train_set[batch_id][0].gradients.grad_c_sum.data(), 
+                number_of_variables_descriptor * sizeof(double), cudaMemcpyDeviceToDevice));
+      // std::vector<double> gradients(number_of_variables);
+      // CHECK(cudaMemcpy(gradients.data(), gpu_gradients.data(), number_of_variables * sizeof(double), cudaMemcpyDeviceToHost));
+      // std::cout << "Gradients: \n";
+      // for (int n = 0; n < number_of_variables; ++n) {
+      //   std::cout << n << " " << gradients[n] << std::endl;
+      // }
+      // std::cout << std::endl;
+      optimizer->update(lr, gpu_gradients.data());
+      if ((step + 1) % 100 == 0) {
+      // if (1) {
+        // for (int t = 0; t <= para.num_types; ++t) {
+        //   total_loss[4 * t + 1] += para.lambda_e * rmse_energy_array[t];
+        //   total_loss[4 * t + 2] += para.lambda_f * rmse_force_array[t];
+        //   total_loss[4 * t + 3] += para.lambda_v * rmse_virial_array[t];
+        //   total_loss[4 * t + 0] += total_loss[4 * t + 1] + total_loss[4 * t + 2] + total_loss[4 * t + 3];
+        // }
+        // double rmse_energy_train = rmse_energy_array.back();
+        // double rmse_force_train = rmse_force_array.back();
+        double rmse_energy_train = 0.0;
+        double rmse_force_train = 0.0;
+        double rmse_virial_train = rmse_virial_array.back();
+        double total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
         report_error(
           para,
           step,
-          fitness_total,
+          total_loss_train,
+          rmse_energy_train,
+          rmse_force_train,
+          rmse_virial_train,
+          energy_shift_per_structure,
+          lr,
           optimizer->get_parameters()
         );
-        if ((step + 1) % 100 == 0) {
-          optimizer->output_parameters(para);
-        }
-      } // end of step loop
-    }
+        optimizer->output_parameters(para);
+      }
+    } // end of step loop
   } else {
     std::ifstream input("nep.txt");
     if (!input.is_open()) {
       PRINT_INPUT_ERROR("Failed to open nep.txt.");
     }
     std::vector<std::string> tokens;
-    float parameters[number_of_variables];
+    double parameters[number_of_variables];
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
@@ -279,12 +288,12 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-void Fitness::update_learning_rate(float& lr, const int step) {
-  if (step >= stop_step) {
+void Fitness::update_learning_rate(double& lr, const int step) {
+  if (step >= maximum_generation) {
     lr = stop_lr;
   } else if (step % decay_step == 0 && step != 0) {
-    decay_rate = expf(logf(stop_lr / start_lr) / (stop_step / decay_step));
-    lr = start_lr * powf(decay_rate, step / decay_step);
+    decay_rate = exp(log(stop_lr / start_lr) / (maximum_generation / decay_step));
+    lr = start_lr * pow(decay_rate, step / decay_step);
   }
 }
 
@@ -292,14 +301,14 @@ void Fitness::output(
   bool is_stress,
   int num_components,
   FILE* fid,
-  float* prediction,
-  float* reference,
+  double* prediction,
+  double* reference,
   Dataset& dataset)
 {
   for (int nc = 0; nc < dataset.Nc; ++nc) {
     for (int n = 0; n < num_components; ++n) {
       int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
-      float data_nc = 0.0f;
+      double data_nc = 0.0;
       for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
         data_nc += prediction[offset + m];
       }
@@ -310,7 +319,7 @@ void Fitness::output(
       }
     }
     for (int n = 0; n < num_components; ++n) {
-      float ref_value = reference[n * dataset.Nc + nc];
+      double ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
         ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
       }
@@ -323,7 +332,7 @@ void Fitness::output(
   }
 }
 
-void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
+void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, double* parameters)
 {
   if (para.train_mode == 0) { // potential model
     if (para.version == 3) {
@@ -427,125 +436,117 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
 void Fitness::report_error(
   Parameters& para,
   const int generation,
-  const float loss_total,
-  float* parameters)
+  const double loss_total,
+  const double rmse_energy_train,
+  const double rmse_force_train,
+  const double rmse_virial_train,
+  const double energy_shift_per_structure,
+  const double lr,
+  double* parameters)
 {
-  if (0 == (generation + 1) % 100) {
-  // if (1) {
-    int batch_id = generation % num_batches;
-    potential->find_force(para, parameters, false, train_set[batch_id], false, true, 1);
-    float energy_shift_per_structure;
-    auto rmse_energy_train_array =
-      train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, false, true, 0);
-    auto rmse_force_train_array = train_set[batch_id][0].get_rmse_force(para, false, false, 0);
-    auto rmse_virial_train_array = train_set[batch_id][0].get_rmse_virial(para, false, false, 0);
+  // correct the last bias parameter in the NN
+  if (para.train_mode == 0 || para.train_mode == 3) {
+    parameters[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+  }
 
-    float rmse_energy_train = rmse_energy_train_array.back();
-    float rmse_force_train = rmse_force_train_array.back();
-    float rmse_virial_train = rmse_virial_train_array.back();
+  double rmse_energy_test = 0.0;
+  double rmse_force_test = 0.0;
+  double rmse_virial_test = 0.0;
+  potential->find_force(para, parameters, false, test_set, false, true, 1);
+  double energy_shift_per_structure_not_used;
+  auto rmse_energy_test_array =
+    test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, false, 0);
+  auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
+  auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
+  rmse_energy_test = rmse_energy_test_array.back();
+  rmse_force_test = rmse_force_test_array.back();
+  rmse_virial_test = rmse_virial_test_array.back(); 
 
-    // correct the last bias parameter in the NN
-    if (para.train_mode == 0 || para.train_mode == 3) {
-      parameters[para.number_of_variables_ann - 1] += energy_shift_per_structure;
-    }
+  FILE* fid_nep = my_fopen("nep.txt", "w");
+  write_nep_txt(fid_nep, para, parameters);
+  fclose(fid_nep);
 
-    float rmse_energy_test = 0.0f;
-    float rmse_force_test = 0.0f;
-    float rmse_virial_test = 0.0f;
-    if (has_test_set) {
-      potential->find_force(para, parameters, false, test_set, false, true, 1);
-      float energy_shift_per_structure_not_used;
-      auto rmse_energy_test_array =
-        test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, false, 0);
-      auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
-      auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
-      rmse_energy_test = rmse_energy_test_array.back();
-      rmse_force_test = rmse_force_test_array.back();
-      rmse_virial_test = rmse_virial_test_array.back();
-    }
+  if (0 == (generation + 1) % 100000) {
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* timeinfo = localtime(&rawtime);
+    char buffer[200];
+    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
+    std::string filename(buffer + std::to_string(generation + 1) + ".txt");
 
-    FILE* fid_nep = my_fopen("nep.txt", "w");
+    FILE* fid_nep = my_fopen(filename.c_str(), "w");
     write_nep_txt(fid_nep, para, parameters);
     fclose(fid_nep);
+  }
 
-    if (0 == (generation + 1) % 100000) {
-      time_t rawtime;
-      time(&rawtime);
-      struct tm* timeinfo = localtime(&rawtime);
-      char buffer[200];
-      strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
-      std::string filename(buffer + std::to_string(generation + 1) + ".txt");
+  if (para.train_mode == 0 || para.train_mode == 3) {
+    printf(
+      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-14.5f\n",
+      generation + 1,
+      loss_total,
+      rmse_energy_train,
+      rmse_force_train,
+      rmse_virial_train,
+      rmse_energy_test,
+      rmse_force_test,
+      rmse_virial_test,
+      lr);
+    fprintf(
+      fid_loss_out,
+      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-14.5f\n",
+      generation + 1,
+      loss_total,
+      rmse_energy_train,
+      rmse_force_train,
+      rmse_virial_train,
+      rmse_energy_test,
+      rmse_force_test,
+      rmse_virial_test,
+      lr);
+  } else {
+    printf(
+      "%-8d%-11.5f%-13.5f%-13.5f%-14.5f\n",
+      generation + 1,
+      loss_total,
+      rmse_virial_train,
+      rmse_virial_test,
+      lr);
+    fprintf(
+      fid_loss_out,
+      "%-8d%-11.5f%-13.5f%-13.5f%-14.5f\n",
+      generation + 1,
+      loss_total,
+      rmse_virial_train,
+      rmse_virial_test,
+      lr);
+  }
+  fflush(stdout);
+  fflush(fid_loss_out);
 
-      FILE* fid_nep = my_fopen(filename.c_str(), "w");
-      write_nep_txt(fid_nep, para, parameters);
-      fclose(fid_nep);
-    }
-
+  if (has_test_set) {
     if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
-    } else {
-      printf(
-        "%-8d%-11.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        rmse_virial_train,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d%-11.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        rmse_virial_train,
-        rmse_virial_test);
+      FILE* fid_force = my_fopen("force_test.out", "w");
+      FILE* fid_energy = my_fopen("energy_test.out", "w");
+      FILE* fid_virial = my_fopen("virial_test.out", "w");
+      FILE* fid_stress = my_fopen("stress_test.out", "w");
+      update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
+      fclose(fid_energy);
+      fclose(fid_force);
+      fclose(fid_virial);
+      fclose(fid_stress);
+    } else if (para.train_mode == 1) {
+      FILE* fid_dipole = my_fopen("dipole_test.out", "w");
+      update_dipole(fid_dipole, test_set[0]);
+      fclose(fid_dipole);
+    } else if (para.train_mode == 2) {
+      FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
+      update_polarizability(fid_polarizability, test_set[0]);
+      fclose(fid_polarizability);
     }
-    fflush(stdout);
-    fflush(fid_loss_out);
+  }
 
-    if (has_test_set) {
-      if (para.train_mode == 0 || para.train_mode == 3) {
-        FILE* fid_force = my_fopen("force_test.out", "w");
-        FILE* fid_energy = my_fopen("energy_test.out", "w");
-        FILE* fid_virial = my_fopen("virial_test.out", "w");
-        FILE* fid_stress = my_fopen("stress_test.out", "w");
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
-        fclose(fid_energy);
-        fclose(fid_force);
-        fclose(fid_virial);
-        fclose(fid_stress);
-      } else if (para.train_mode == 1) {
-        FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0]);
-        fclose(fid_dipole);
-      } else if (para.train_mode == 2) {
-        FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0]);
-        fclose(fid_polarizability);
-      }
-    }
-
-    if (0 == (generation + 1) % 1000) {
-      predict(para, parameters);
-    }
+  if (0 == (generation + 1) % 1000) {
+    predict(para, parameters);
   }
 }
 
@@ -595,7 +596,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
     dataset);
 }
 
-void Fitness::predict(Parameters& para, float* parameters)
+void Fitness::predict(Parameters& para, double* parameters)
 {
   if (para.train_mode == 0 || para.train_mode == 3) {
     FILE* fid_force = my_fopen("force_train.out", "w");

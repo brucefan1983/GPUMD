@@ -38,27 +38,27 @@ public:
   int L_max;              // maximum order of the 3body spherical harmonics
   int L_max_4body;        // maximum order of the 4body spherical harmonics
   int L_max_5body;        // maximum order of the 5body spherical harmonics
-  float rc_radial;        // radial cutoff distance
-  float rc_angular;       // angular cutoff distance
-  float lambda_1;         // weight parameter for L1 regularization loss
-  float lambda_2;         // weight parameter for L2 regularization loss
-  float lambda_e;         // weight parameter for energy RMSE loss
-  float lambda_f;         // weight parameter for force RMSE loss
-  float lambda_v;         // weight parameter for virial RMSE loss
-  float lambda_shear;     // extra weight parameter for shear virial
-  float force_delta;      // a parameters used to modify the force loss
+  double rc_radial;        // radial cutoff distance
+  double rc_angular;       // angular cutoff distance
+  double lambda_1;         // weight parameter for L1 regularization loss
+  double lambda_2;         // weight parameter for L2 regularization loss
+  double lambda_e;         // weight parameter for energy RMSE loss
+  double lambda_f;         // weight parameter for force RMSE loss
+  double lambda_v;         // weight parameter for virial RMSE loss
+  double lambda_shear;     // extra weight parameter for shear virial
+  double force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
-  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
-  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  double zbl_rc_inner;     // inner cutoff for the universal ZBL potential
+  double zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
-  float initial_para;
-  float sigma0;
+  double initial_para;
+  double sigma0;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
-  float typewise_cutoff_radial_factor;
-  float typewise_cutoff_angular_factor;
+  double typewise_cutoff_radial_factor;
+  double typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
 
   // check if a parameter has been set:
@@ -85,6 +85,7 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
+  bool calculate_energy_shift = true;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -96,13 +97,14 @@ public:
 
   // some arrays
 
-  std::vector<float> type_weight_cpu; // relative force weight for different atom types (CPU)
-  std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
+  std::vector<double> type_weight_cpu; // relative force weight for different atom types (CPU)
+  std::vector<double> q_scaler_cpu;    // used to scale some descriptor components (CPU)
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
-  std::vector<float> zbl_para;        // parameters of zbl potential
+  std::vector<double> zbl_para;        // parameters of zbl potential
 
-  GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
+  GPU_Vector<double> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
+  GPU_Vector<double> energy_shift_gpu; // Energy shift for biased initialization of neural networks (GPU)
 
 private:
   void set_default_parameters();
