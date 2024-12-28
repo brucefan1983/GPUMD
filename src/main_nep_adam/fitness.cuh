@@ -52,6 +52,7 @@ protected:
   int number_of_variables_descriptor = 0; // number of variables in descriptor
   int maximum_generation = 10000; // maximum number of iterations
   double lr = 1e-3; // learning rate
+  double real_lr = 1e-3; // real learning rate
   double start_lr = 1e-3;     // start learning rate
   double stop_lr = 3.51e-08; // stop learning rate
   int decay_step = 5000; // decay 

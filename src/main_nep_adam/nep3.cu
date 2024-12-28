@@ -1547,6 +1547,8 @@ void NEP3::find_force(
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(cudaSetDevice(device_id));
+    CHECK(cudaMemset(nep_data[device_id].Fp2.data(), 0, nep_data[device_id].Fp2.size() * sizeof(double)));
+    CHECK(cudaMemset(nep_data[device_id].Fp_wb.data(), 0, nep_data[device_id].Fp_wb.size() * sizeof(double))); // Actually it doesn't seem needed
     nep_data[device_id].parameters.copy_from_host(parameters);
     update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
   }

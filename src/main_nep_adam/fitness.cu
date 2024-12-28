@@ -225,7 +225,7 @@ void Fitness::compute(Parameters& para)
       //   std::cout << n << " " << gradients[n] << std::endl;
       // }
       // std::cout << std::endl;
-      optimizer->update(lr, gpu_gradients.data());
+      optimizer->update(real_lr, gpu_gradients.data());
 
       if ((step + 1) % 100 == 0) {
       // if (1) {
@@ -285,7 +285,9 @@ void Fitness::update_learning_rate(double& lr, int step, int Nc) {
     lr = start_lr * pow(decay_rate, step / decay_step);
   }
   if (Nc > 1) {
-    lr *= sqrt(Nc);
+    real_lr = lr * sqrt(Nc);
+  } else {
+    real_lr = lr;
   }
 }
 
@@ -438,13 +440,15 @@ void Fitness::report_error(
   double rmse_energy_test = 0.0;
   double rmse_force_test = 0.0;
   double rmse_virial_test = 0.0;
-  potential->find_force(para, parameters, false, test_set, false, true, 1);
-  auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, false, 0);
-  auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
-  auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
-  rmse_energy_test = rmse_energy_test_array.back();
-  rmse_force_test = rmse_force_test_array.back();
-  rmse_virial_test = rmse_virial_test_array.back(); 
+  if (has_test_set) {
+    potential->find_force(para, parameters, false, test_set, false, true, 1);
+    auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, false, 0);
+    auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
+    auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
+    rmse_energy_test = rmse_energy_test_array.back();
+    rmse_force_test = rmse_force_test_array.back();
+    rmse_virial_test = rmse_virial_test_array.back(); 
+  }
 
   FILE* fid_nep = my_fopen("nep.txt", "w");
   write_nep_txt(fid_nep, para, parameters);
