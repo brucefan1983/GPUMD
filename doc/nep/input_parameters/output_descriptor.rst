@@ -17,5 +17,6 @@ where :attr:`<mode>` must be an integer that can assume one of the following val
 Value  Mode 
 -----  -----------------------------------------------------
 0      not to output descriptors during prediction (default)
-1      output descriptors during prediction
+1      output per-structure descriptors during prediction
+2      output per-atom descriptors during prediction
 =====  =====================================================
