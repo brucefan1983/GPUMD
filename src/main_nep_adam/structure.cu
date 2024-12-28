@@ -161,7 +161,7 @@ static void read_one_structure(
       has_energy_in_exyz = true;
       structure.energy = get_float_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      structure.energy /= structure.num_atom;
+      // structure.energy /= structure.num_atom;
     }
   }
   if (para.train_mode == 0 && !has_energy_in_exyz) {
@@ -232,7 +232,7 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        structure.virial[reduced_index[m]] /= structure.num_atom;
+        // structure.virial[reduced_index[m]] /= structure.num_atom;
       }
     }
   }
@@ -300,7 +300,7 @@ static void read_one_structure(
               (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
             xyz_filename.c_str(),
             line_number);
-          structure.virial[m] /= structure.num_atom;
+          // structure.virial[m] /= structure.num_atom;
         }
       }
     }
@@ -330,7 +330,7 @@ static void read_one_structure(
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
             xyz_filename.c_str(),
             line_number);
-          structure.virial[reduced_index[m]] /= structure.num_atom;
+          // structure.virial[reduced_index[m]] /= structure.num_atom;
         }
       }
     }
@@ -440,19 +440,19 @@ static void read_exyz(
   }
   printf("Number of configurations = %d.\n", Nc);
 
-  for (const auto& s : structures) {
-    if (s.energy < -100.0f) {
-      std::cout << "Warning: \n";
-      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
-      std::cout << "    Because we use single precision in NEP training\n";
-      std::cout << "    it means that the reference and calculated energies\n";
-      std::cout << "    might only be accurate up to 1 meV/atom\n";
-      std::cout << "    which can effectively introduce noises.\n";
-      std::cout << "    We suggest you preprocess (using double precision)\n";
-      std::cout << "    your data to make the energies closer to 0." << std::endl;
-      break;
-    }
-  }
+  // for (const auto& s : structures) {
+  //   if (s.energy < -100.0f) {
+  //     std::cout << "Warning: \n";
+  //     std::cout << "    There is energy < -100 eV/atom in the data set.\n";
+  //     std::cout << "    Because we use single precision in NEP training\n";
+  //     std::cout << "    it means that the reference and calculated energies\n";
+  //     std::cout << "    might only be accurate up to 1 meV/atom\n";
+  //     std::cout << "    which can effectively introduce noises.\n";
+  //     std::cout << "    We suggest you preprocess (using double precision)\n";
+  //     std::cout << "    your data to make the energies closer to 0." << std::endl;
+  //     break;
+  //   }
+  // }
 }
 
 static void find_permuted_indices(

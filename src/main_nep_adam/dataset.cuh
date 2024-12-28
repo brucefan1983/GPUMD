@@ -78,10 +78,8 @@ public:
   std::vector<double> get_rmse_force(Parameters& para, const bool use_weight, const bool require_grad, int device_id);
   std::vector<double> get_rmse_energy(
     Parameters& para,
-    double& energy_shift_per_structure,
     const bool use_weight,
     const bool require_grad,
-    const bool do_shift,
     int device_id);
   std::vector<double> get_rmse_virial(Parameters& para, const bool use_weight, const bool require_grad, int device_id);
 

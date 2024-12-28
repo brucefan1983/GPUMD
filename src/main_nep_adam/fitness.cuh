@@ -29,7 +29,7 @@ class Fitness
 public:
   Fitness(Parameters& para, Adam* adam);
   ~Fitness();
-  void update_learning_rate(double& lr, const int step); // Update learning rate
+  void update_learning_rate(double& lr, int step, int Nc); // Update learning rate
   void compute(
     Parameters& para);
   void report_error(
@@ -39,7 +39,6 @@ public:
     const double rmse_energy_train,
     const double rmse_force_train,
     const double rmse_virial_train,
-    const double energy_shift_per_structure,
     const double lr,
     double* step_parameters);
   void predict(Parameters& para, double* step_parameters);
@@ -61,7 +60,6 @@ protected:
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;
   GPU_Vector<double> gpu_gradients; // Gradients of parameters g
-  std::vector<double> total_loss; // Total loss
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;

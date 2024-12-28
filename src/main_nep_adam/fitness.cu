@@ -42,7 +42,6 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   // stop_lr = para.stop_lr;
   // decay_step = para.decay_step;
   gpu_gradients.resize(number_of_variables);
-  total_loss.resize(4 * (para.num_types + 1));
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -197,12 +196,12 @@ void Fitness::compute(Parameters& para)
         1);
     }
     for (int step = 0; step < maximum_generation; ++step) {
-      // std::fill(total_loss.begin(), total_loss.end(), 0.0);
       int batch_id = step % num_batches;
+      int Nc = train_set[batch_id][0].Nc;
       // printf("Finding force for batch %d\n", batch_id);
       // bool calculate_neighbor = (num_batches > 1) || (step % 100 == 0);
       gpu_gradients.fill(0.0);
-      update_learning_rate(lr, step);
+      update_learning_rate(lr, step, Nc);
       potential->find_force(
       para,
       optimizer->get_parameters(),
@@ -211,10 +210,8 @@ void Fitness::compute(Parameters& para)
       false,
       true,
       deviceCount);
-      double energy_shift_per_structure;
-      // auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(
-      //   para, energy_shift_per_structure, true, true, true, 0);
-      // auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, true, 0);
+      auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(para, true, true, 0);
+      auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, true, 0);
       auto rmse_virial_array = train_set[batch_id][0].get_rmse_virial(para, true, true, 0);
       CHECK(cudaMemcpy(gpu_gradients.data(), train_set[batch_id][0].gradients.grad_wb_sum.data(), 
                   number_of_variables_ann * sizeof(double), cudaMemcpyDeviceToDevice));
@@ -229,18 +226,11 @@ void Fitness::compute(Parameters& para)
       // }
       // std::cout << std::endl;
       optimizer->update(lr, gpu_gradients.data());
+
       if ((step + 1) % 100 == 0) {
       // if (1) {
-        // for (int t = 0; t <= para.num_types; ++t) {
-        //   total_loss[4 * t + 1] += para.lambda_e * rmse_energy_array[t];
-        //   total_loss[4 * t + 2] += para.lambda_f * rmse_force_array[t];
-        //   total_loss[4 * t + 3] += para.lambda_v * rmse_virial_array[t];
-        //   total_loss[4 * t + 0] += total_loss[4 * t + 1] + total_loss[4 * t + 2] + total_loss[4 * t + 3];
-        // }
-        // double rmse_energy_train = rmse_energy_array.back();
-        // double rmse_force_train = rmse_force_array.back();
-        double rmse_energy_train = 0.0;
-        double rmse_force_train = 0.0;
+        double rmse_energy_train = rmse_energy_array.back();
+        double rmse_force_train = rmse_force_array.back();
         double rmse_virial_train = rmse_virial_array.back();
         double total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
         report_error(
@@ -250,7 +240,6 @@ void Fitness::compute(Parameters& para)
           rmse_energy_train,
           rmse_force_train,
           rmse_virial_train,
-          energy_shift_per_structure,
           lr,
           optimizer->get_parameters()
         );
@@ -288,12 +277,15 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-void Fitness::update_learning_rate(double& lr, const int step) {
+void Fitness::update_learning_rate(double& lr, int step, int Nc) {
   if (step >= maximum_generation) {
     lr = stop_lr;
   } else if (step % decay_step == 0 && step != 0) {
     decay_rate = exp(log(stop_lr / start_lr) / (maximum_generation / decay_step));
     lr = start_lr * pow(decay_rate, step / decay_step);
+  }
+  if (Nc > 1) {
+    lr *= sqrt(Nc);
   }
 }
 
@@ -440,22 +432,14 @@ void Fitness::report_error(
   const double rmse_energy_train,
   const double rmse_force_train,
   const double rmse_virial_train,
-  const double energy_shift_per_structure,
   const double lr,
   double* parameters)
 {
-  // correct the last bias parameter in the NN
-  if (para.train_mode == 0 || para.train_mode == 3) {
-    parameters[para.number_of_variables_ann - 1] += energy_shift_per_structure;
-  }
-
   double rmse_energy_test = 0.0;
   double rmse_force_test = 0.0;
   double rmse_virial_test = 0.0;
   potential->find_force(para, parameters, false, test_set, false, true, 1);
-  double energy_shift_per_structure_not_used;
-  auto rmse_energy_test_array =
-    test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, false, 0);
+  auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, false, 0);
   auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
   auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
   rmse_energy_test = rmse_energy_test_array.back();

@@ -163,8 +163,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
     energy_ref_cpu[n] = structures[n].energy;
-    // sum_energy_ref += structures[n].energy;  // need test
-    sum_energy_ref += structures[n].energy * structures[n].num_atom;
+    sum_energy_ref += structures[n].energy; 
     for (int k = 0; k < 6; ++k) {
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
@@ -501,7 +500,7 @@ static __global__ void sum_gradients_f(
   int N1 = g_Na_sum[bid];  
   int N2 = N1 + Na;        
   double weight = g_weight[bid];
-  const double per_Nc = 2.0 * lambda_f / N / 3;
+  const double per_Nc = 2.0 * lambda_f / Na / 3 / Nc;
 
   for (int c_idx = start_var + tid; c_idx < end_var; c_idx += blockDim.x) {
     if (c_idx >= num_var) continue;
@@ -630,44 +629,8 @@ std::vector<double> Dataset::get_rmse_force(Parameters& para, const bool use_wei
   return rmse_array;
 }
 
-static __global__ void
-gpu_get_energy_shift(int* g_Na, int* g_Na_sum, double* g_pe, double* g_pe_ref, double* g_energy_shift)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int Na = g_Na[bid];
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + Na;
-  extern __shared__ double s_pe[];
-  s_pe[tid] = 0.0;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    s_pe[tid] += g_pe[n];
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
-  }
-
-  if (tid == 0) {
-    double diff = s_pe[0] / Na - g_pe_ref[bid];
-    g_energy_shift[bid] = diff;
-  }
-}
-
 static __global__ void gpu_sum_pe_error(
-  double energy_shift, int* g_Na, int* g_Na_sum, double* g_pe, double* g_pe_ref, double* diff_gpu, double* error_gpu)
+  int* g_Na, int* g_Na_sum, double* g_pe, double* g_pe_ref, double* diff_gpu, double* error_gpu)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -697,8 +660,7 @@ static __global__ void gpu_sum_pe_error(
   }
 
   if (tid == 0) {
-    double diff = s_pe[0] / Na - g_pe_ref[bid];
-    // printf("s_pe[0] = %f, spe/na = %f, g_pe_ref[bid] = %f, diff = %f\n", s_pe[0], s_pe[0] / Na, g_pe_ref[bid], diff);
+    double diff = (s_pe[0] - g_pe_ref[bid]) / Na;
     diff_gpu[bid] = diff;
     error_gpu[bid] = diff * diff;
   }
@@ -734,7 +696,7 @@ static __global__ void sum_gradients_e(
   int N1 = g_Na_sum[bid]; // 当前结构在全局原子数组中的原子起始索引
   int N2 = N1 + Na;      // 当前结构在全局原子数组中的原子结束索引（不包括）
   double weight_diff = g_diff[bid] * g_weight[bid];
-  const double per_Nc = 2.0 * lambda_e / Na;
+  const double per_Nc = 2.0 * lambda_e / Nc;
 
   for (int c_idx = start_var + tid; c_idx < end_var; c_idx += blockDim.x) {
     if (c_idx >= num_var) continue;
@@ -750,27 +712,14 @@ static __global__ void sum_gradients_e(
 
 std::vector<double> Dataset::get_rmse_energy(
   Parameters& para,
-  double& energy_shift_per_structure,
   const bool use_weight,
   const bool require_grad,
-  const bool do_shift,
   int device_id)
 {
   CHECK(cudaSetDevice(device_id));
-  energy_shift_per_structure = 0.0;
 
   const int block_size = 256;
   int mem = sizeof(double) * Nc;
-
-  if (do_shift) {
-    gpu_get_energy_shift<<<Nc, block_size, sizeof(double) * block_size>>>(
-      Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
-    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-    for (int n = 0; n < Nc; ++n) {
-      energy_shift_per_structure += error_cpu[n];
-    }
-    energy_shift_per_structure /= Nc;
-  }
 
   /*
   Nc = 3
@@ -782,7 +731,6 @@ std::vector<double> Dataset::get_rmse_energy(
   threadIdx.x = 0, 1, 2, ..., 255
   */
   gpu_sum_pe_error<<<Nc, block_size, sizeof(double) * block_size>>>(
-    energy_shift_per_structure,
     Na.data(),
     Na_sum.data(),
     energy.data(),
@@ -886,8 +834,8 @@ static __global__ void gpu_sum_virial_error(
   if (tid == 0) {
     double error_sum = 0.0;
     for (int d = 0; d < 6; ++d) {
-      double diff = s_virial[d * blockDim.x + 0] / Na - g_virial_ref[d * gridDim.x + bid];
-      // printf("s_virial[%d * %d + 0] = %f, g_virial_ref[%d * %d + %d] = %f, diff = %f\n", d, blockDim.x, s_virial[d * blockDim.x + 0], d, gridDim.x, bid, g_virial_ref[d * gridDim.x + bid], diff);
+      double diff = (s_virial[d * blockDim.x + 0] - g_virial_ref[d * gridDim.x + bid]) / Na;
+      // printf("s_virial[%d * %d + 0] = %f, g_virial_ref[%d * %d + %d] = %f, diff^2 = %f\n", d, blockDim.x, s_virial[d * blockDim.x + 0], d, gridDim.x, bid, g_virial_ref[d * gridDim.x + bid], diff * diff);
       error_sum += (d >= 3) ? (shear_weight * diff * diff) : (diff * diff);
       diff_gpu[bid * 6 + d] = (d >= 3) ? shear_weight * diff : diff;
       // diff_gpu[d * gridDim.x + bid] = (d >= 3) ? shear_weight * diff : diff;
@@ -1043,7 +991,7 @@ std::vector<double> Dataset::get_rmse_virial(Parameters& para, const bool use_we
         gradients.grad_wb_sum.data(),
         false);
       CUDA_CHECK_KERNEL
-    //       std::vector<double>grad_wb_sum(para.number_of_variables_ann);
+    // std::vector<double>grad_wb_sum(para.number_of_variables_ann);
     // CHECK(cudaMemcpy(grad_wb_sum.data(), gradients.grad_wb_sum.data(), para.number_of_variables_ann * sizeof(double), cudaMemcpyDeviceToHost));
     // for (int j = 0; j < para.number_of_variables_ann; ++j) {
     //     printf("grad_wb_sum[%d] = %f\n", j, grad_wb_sum[j]);

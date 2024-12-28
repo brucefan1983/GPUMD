@@ -411,8 +411,8 @@ static void __global__ find_max_min(const int N, const double* g_q, double* g_q_
   }
   if (tid == 0) {
     g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
-    g_q_scaler[0] = 1.189886166102;
-    g_q_scaler[1] = 1.236767687471;
+    // g_q_scaler[0] = 1.189886166102;
+    // g_q_scaler[1] = 1.236767687471;
   }
 }
 
