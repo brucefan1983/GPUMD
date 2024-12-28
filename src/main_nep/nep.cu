@@ -835,6 +835,19 @@ void NEP::find_force(
       nep_data[device_id].sum_fxyz.data());
     GPU_CHECK_KERNEL
 
+    if (para.prediction == 1 && para.output_descriptor == 1) {
+      FILE* fid_descriptor = my_fopen("descriptor.out", "a");
+      std::vector<float> descriptor_cpu(nep_data[device_id].descriptors.size());
+      nep_data[device_id].descriptors.copy_to_host(descriptor_cpu.data());
+      for (int n = 0; n < dataset[device_id].N; ++ n) {
+        for (int d = 0; d < annmb[device_id].dim; ++ d) {
+          fprintf(fid_descriptor, "%g ", descriptor_cpu[n + d * dataset[device_id].N] * para.q_scaler_cpu[d]);
+        }
+        fprintf(fid_descriptor, "\n");
+      }
+      fclose(fid_descriptor);
+    }
+
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
         dataset[device_id].N,
