@@ -1068,7 +1068,7 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
   if (!is_valid_int(param[1], &output_descriptor)) {
     PRINT_INPUT_ERROR("output_descriptor should be an integer.\n");
   }
-  if (output_descriptor != 0 && output_descriptor != 1) {
-    PRINT_INPUT_ERROR("output_descriptor should = 0 or 1.");
+  if (output_descriptor < 0 || output_descriptor > 2) {
+    PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
 }

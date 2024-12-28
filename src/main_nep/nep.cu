@@ -835,13 +835,26 @@ void NEP::find_force(
       nep_data[device_id].sum_fxyz.data());
     GPU_CHECK_KERNEL
 
-    if (para.prediction == 1 && para.output_descriptor == 1) {
+    if (para.prediction == 1 && para.output_descriptor >= 1) {
       FILE* fid_descriptor = my_fopen("descriptor.out", "a");
       std::vector<float> descriptor_cpu(nep_data[device_id].descriptors.size());
       nep_data[device_id].descriptors.copy_to_host(descriptor_cpu.data());
-      for (int n = 0; n < dataset[device_id].N; ++ n) {
-        for (int d = 0; d < annmb[device_id].dim; ++ d) {
-          fprintf(fid_descriptor, "%g ", descriptor_cpu[n + d * dataset[device_id].N] * para.q_scaler_cpu[d]);
+      for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
+        float q_structure[MAX_DIM] = {0.0f};
+        for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
+          int n = dataset[device_id].Na_sum_cpu[nc] + na;
+          for (int d = 0; d < annmb[device_id].dim; ++d) {
+            float q = descriptor_cpu[n + d * dataset[device_id].N] * para.q_scaler_cpu[d];
+            q_structure[d] += q;
+            if (para.output_descriptor == 2) {
+              fprintf(fid_descriptor, "%g ", q);
+            }
+          }
+        }
+        if (para.output_descriptor == 1) {
+          for (int d = 0; d < annmb[device_id].dim; ++d) {
+            fprintf(fid_descriptor, "%g ", q_structure[d]);
+          }
         }
         fprintf(fid_descriptor, "\n");
       }
