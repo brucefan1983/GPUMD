@@ -853,7 +853,7 @@ void NEP::find_force(
         }
         if (para.output_descriptor == 1) {
           for (int d = 0; d < annmb[device_id].dim; ++d) {
-            fprintf(fid_descriptor, "%g ", q_structure[d]);
+            fprintf(fid_descriptor, "%g ", q_structure[d] / dataset[device_id].Na_cpu[nc]);
           }
         }
         fprintf(fid_descriptor, "\n");
