@@ -1,4 +1,4 @@
-.. _nep_descriptor_out:
+.. _descriptor_out:
 .. index::
    single: descriptor.out (output file)
 
