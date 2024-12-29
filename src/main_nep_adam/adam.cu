@@ -259,6 +259,11 @@ void Adam::update(double lr, double* gradients) {
   CUDA_CHECK_KERNEL
 
   gpu_parameters.copy_to_host(parameters.data());
+  // printf("Parameters: \n");
+  // for (int n = 0; n < number_of_variables; ++n) {
+  //   printf("%d %f\n", n, parameters[n]);
+  // }
+  // printf("\n");
   step++; 
 }
 

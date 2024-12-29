@@ -903,14 +903,14 @@ static __global__ void sum_gradients_v(
     
     for (int n = N1; n < N2; ++n) {
       int index = is_descriptor ? c_idx * N + n : num_var * n + c_idx;
-      V_xx += g_V_xx[index];
-      V_yy += g_V_yy[index];
-      V_zz += g_V_zz[index];
-      V_xy += g_V_xy[index];
-      V_yz += g_V_yz[index];
-      V_zx += g_V_zx[index];
+      V_xx -= g_V_xx[index];
+      V_yy -= g_V_yy[index];
+      V_zz -= g_V_zz[index];
+      V_xy -= g_V_xy[index];
+      V_yz -= g_V_yz[index];
+      V_zx -= g_V_zx[index];
     }
-    
+
     double temp = (V_xx * diff[0] + V_yy * diff[1] + V_zz * diff[2] +
                   V_xy * diff[3] + V_yz * diff[4] + V_zx * diff[5]) * weight * per_Nc;
     

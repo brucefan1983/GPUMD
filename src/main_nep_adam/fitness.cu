@@ -225,7 +225,7 @@ void Fitness::compute(Parameters& para)
       //   std::cout << n << " " << gradients[n] << std::endl;
       // }
       // std::cout << std::endl;
-      optimizer->update(real_lr, gpu_gradients.data());
+      optimizer->update(lr, gpu_gradients.data());
 
       if ((step + 1) % 100 == 0) {
       // if (1) {
@@ -284,11 +284,11 @@ void Fitness::update_learning_rate(double& lr, int step, int Nc) {
     decay_rate = exp(log(stop_lr / start_lr) / (maximum_generation / decay_step));
     lr = start_lr * pow(decay_rate, step / decay_step);
   }
-  if (Nc > 1) {
-    real_lr = lr * sqrt(Nc);
-  } else {
-    real_lr = lr;
-  }
+  // if (Nc > 1) {
+  //   real_lr = lr * sqrt(Nc);
+  // } else {
+  //   real_lr = lr;
+  // }
 }
 
 void Fitness::output(
