@@ -165,6 +165,14 @@ void Ensemble_MSST::find_thermo()
 
 void Ensemble_MSST::init()
 {
+  if (box->triclinic == 1)
+    if (
+      (shock_direction == 0 && !(box->cpu_h[3] == 0 && box->cpu_h[6] == 0)) ||
+      (shock_direction == 1 && !(box->cpu_h[1] == 0 && box->cpu_h[7] == 0)) ||
+      (shock_direction == 2 && !(box->cpu_h[2] == 0 && box->cpu_h[5] == 0)))
+      PRINT_INPUT_ERROR("You are using a trilinic box. The axis in the shock direction must be "
+                        "perpendicular to the plane.\n");
+
   N = atom->number_of_atoms;
   dthalf = time_step / 2;
   thermo_cpu.resize(thermo->size());
@@ -194,8 +202,14 @@ void Ensemble_MSST::get_vsum()
 
 void Ensemble_MSST::remap(double dilation)
 {
-  box->cpu_h[shock_direction] *= dilation;
-  box->cpu_h[shock_direction + 3] = 0.5 * box->cpu_h[shock_direction];
+  if (box->triclinic == 0) {
+    box->cpu_h[shock_direction] *= dilation;
+    box->cpu_h[shock_direction + 3] = 0.5 * box->cpu_h[shock_direction];
+  } else {
+    box->cpu_h[shock_direction * 4] *= dilation;
+    box->get_inverse();
+  }
+
   gpu_remap<<<(N - 1) / 128 + 1, 128>>>(
     N,
     dilation,
