@@ -674,8 +674,8 @@ static void fps(std::vector<Structure>& structures, double distance_square_min, 
   std::ifstream input_descriptor("descriptor.out");
   std::ofstream output_selected("selected.xyz");
   std::ofstream output_not_selected("not_selected.xyz");
-  std::ofstream output_index_selected("index_selected.xyz");
-  std::ofstream output_index_not_selected("index_not_selected.xyz");
+  std::ofstream output_index_selected("indices_selected.txt");
+  std::ofstream output_index_not_selected("indices_not_selected.txt");
   std::vector<Structure> structures_selected;
 
   int num1 = 0;
