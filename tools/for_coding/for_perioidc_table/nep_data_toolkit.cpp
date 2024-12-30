@@ -394,7 +394,7 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
 static void write_one_structure(std::ofstream& output, const Structure& structure)
 {
   output << structure.num_atom << "\n";
-  output << "lattice=\"";
+  output << "Lattice=\"";
   for (int m = 0; m < 9; ++m) {
     output << structure.box[m];
     if (m != 8) {
