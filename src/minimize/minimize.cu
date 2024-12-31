@@ -153,7 +153,7 @@ void Minimize::parse_minimize(
     case 2:
       printf("\nStart to do an energy minimization.\n");
       printf("    using the fast inertial relaxation engine (FIRE) method.\n");
-      printf("    with changed box.\n");
+      printf("    with variable box.\n");
       if (hydrostatic_strain == 1) {
         printf("    with hydrostatic pressure.\n");
       }
