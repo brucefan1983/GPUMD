@@ -20,6 +20,7 @@ The driver class for minimizers.
 #include "force/force.cuh"
 #include "minimize.cuh"
 #include "minimizer_fire.cuh"
+#include "minimizer_fire_box_change.cuh"
 #include "minimizer_sd.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -43,6 +44,8 @@ void Minimize::parse_minimize(
   int minimizer_type = 0;
   int number_of_steps = 0;
   double force_tolerance = 0.0;
+  int box_change = 0;
+  int hydrostatic_strain = 0;
   std::unique_ptr<Minimizer> minimizer;
   const int number_of_atoms = type.size();
 
@@ -66,8 +69,8 @@ void Minimize::parse_minimize(
   } else if (strcmp(param[1], "fire") == 0) {
     minimizer_type = 1;
 
-    if (num_param != 4) {
-      PRINT_INPUT_ERROR("minimize fire should have 2 parameters.");
+    if (num_param < 4) {
+      PRINT_INPUT_ERROR("minimize fire should have at least 2 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {
@@ -79,6 +82,27 @@ void Minimize::parse_minimize(
     }
     if (number_of_steps <= 0) {
       PRINT_INPUT_ERROR("Number of steps should > 0.");
+    }
+
+    if (num_param >= 5) {
+      if (!is_valid_int(param[4], &box_change)) {
+        PRINT_INPUT_ERROR("Box_change should be 1 or 0.");
+      }
+      if (!(box_change == 0 || box_change == 1)) {
+        PRINT_INPUT_ERROR("Box_change should be 1 or 0.");
+      }
+
+      if (box_change == 1)
+        minimizer_type = 2;
+    }
+
+    if (num_param >= 6) {
+      if (!is_valid_int(param[5], &hydrostatic_strain)) {
+        PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
+      }
+      if (!(hydrostatic_strain == 0 || hydrostatic_strain == 1)) {
+        PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
+      }
     }
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
@@ -124,6 +148,26 @@ void Minimize::parse_minimize(
         force_per_atom,
         virial_per_atom);
 
+      break;
+    case 2:
+      printf("\nStart to do an energy minimization.\n");
+      printf("    using the fast inertial relaxation engine (FIRE) method.\n");
+      printf("    with changed box.\n");
+      printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
+      printf("    for maximally %d steps.\n", number_of_steps);
+
+      minimizer.reset(new Minimizer_FIRE_Box_Change(
+        number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+
+      minimizer->compute(
+        force,
+        box,
+        position_per_atom,
+        type,
+        group,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom);
       break;
     default:
       PRINT_INPUT_ERROR("Invalid minimizer.");
