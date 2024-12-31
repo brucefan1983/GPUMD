@@ -42,6 +42,13 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_data.cell_count.resize(num_atoms);
   dp_data.cell_count_sum.resize(num_atoms);
   dp_data.cell_contents.resize(num_atoms);
+
+  // init dp neighbor list
+  dp_nl.inum = num_atoms;
+  dp_nl.ilist = (int*) malloc(num_atoms * sizeof(int));
+  dp_nl.numneigh = (int*) malloc(num_atoms * sizeof(int));
+  dp_nl.firstneigh = (int**) malloc(num_atoms * sizeof(int*));
+
 }
 
 
@@ -85,7 +92,12 @@ void DP::initialize_dp(const char* filename_dp)
 
 DP::~DP(void)
 {
-  // nothing
+  free(dp_nl.ilist);
+  free(dp_nl.numneigh);
+  free(dp_nl.firstneigh);
+  dp_nl.ilist = nullptr;
+  dp_nl.numneigh = nullptr;
+  dp_nl.firstneigh = nullptr;
 }
 
 void DP::set_dp_coeff(void) {
