@@ -270,9 +270,9 @@ static __device__ __forceinline__ void find_fc(double rc, double rcinv, double d
 {
   if (d12 < rc) {
     double x = d12 * rcinv;
-    fc = 0.5f * cos(3.1415927f * x) + 0.5f;
+    fc = 0.5 * cos(PI * x) + 0.5;
   } else {
-    fc = 0.0f;
+    fc = 0.0;
   }
 }
 
@@ -281,12 +281,12 @@ find_fc_and_fcp(double rc, double rcinv, double d12, double& fc, double& fcp)
 {
   if (d12 < rc) {
     double x = d12 * rcinv;
-    fc = 0.5f * cos(3.1415927f * x) + 0.5f;
-    fcp = -1.5707963f * sin(3.1415927f * x);
+    fc = 0.5 * cos(PI * x) + 0.5;
+    fcp = -1.5707963 * sin(PI * x);
     fcp *= rcinv;
   } else {
-    fc = 0.0f;
-    fcp = 0.0f;
+    fc = 0.0;
+    fcp = 0.0;
   }
 }
 
@@ -295,9 +295,9 @@ find_fc_and_fcp_zbl(double r1, double r2, double d12, double& fc, double& fcp)
 {
   if (d12 < r1) {
     fc = 1.0;
-    fcp = 0.0f;
+    fcp = 0.0;
   } else if (d12 < r2) {
-    double pi_factor = 3.1415927 / (r2 - r1);
+    double pi_factor = PI / (r2 - r1);
     fc = cos(pi_factor * (d12 - r1)) * 0.5 + 0.5;
     fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5;
   } else {
@@ -381,7 +381,7 @@ find_fn(const int n, const double rcinv, const double d12, const double fc12, do
     double t1 = x;
     double t2;
     for (int m = 2; m <= n; ++m) {
-      t2 = 2.0f * x * t1 - t0;
+      t2 = 2.0 * x * t1 - t0;
       t0 = t1;
       t1 = t2;
     }
@@ -460,7 +460,7 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   double x = 2.0 * (d12_mul_rcinv - 1.0) * (d12_mul_rcinv - 1.0) - 1.0;
   fn[0] = fc12;
   fnp[0] = fcp12;
-  fn[1] = (x + 1.0f) * 0.5f * fc12;
+  fn[1] = (x + 1.0) * 0.5 * fc12;
   fnp[1] = 2.0 * (d12_mul_rcinv - 1.0) * rcinv * fc12 + (x + 1.0) * 0.5 * fcp12;
   double u0 = 1.0;
   double u1 = 2.0 * x;

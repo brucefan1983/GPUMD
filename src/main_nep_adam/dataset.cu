@@ -570,7 +570,8 @@ std::vector<double> Dataset::get_rmse_force(Parameters& para, const bool use_wei
 
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 3));
+      // rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 3));
+      rmse_array[t] = rmse_array[t] / (count_array[t] * 3);
     }
   }
   if (require_grad) {
@@ -752,7 +753,8 @@ std::vector<double> Dataset::get_rmse_energy(
   }
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      // rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      rmse_array[t] = rmse_array[t] / count_array[t];
     }
   }
 
@@ -954,7 +956,8 @@ std::vector<double> Dataset::get_rmse_virial(Parameters& para, const bool use_we
 
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      // rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      rmse_array[t] = rmse_array[t] / count_array[t];
     }
   }
   if (count_array[para.num_types] > 0) {
