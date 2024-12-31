@@ -70,7 +70,7 @@ void Minimize::parse_minimize(
     minimizer_type = 1;
 
     if (!((num_param >= 4) && (num_param <= 6))) {
-      PRINT_INPUT_ERROR("minimize fire should have 4 to 6 parameters.");
+      PRINT_INPUT_ERROR("minimize fire should have 2 to 4 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {
