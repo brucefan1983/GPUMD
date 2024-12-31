@@ -22,6 +22,7 @@ The class dealing with the Deep Potential(DP).
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <sstream>
 
 
 
@@ -29,7 +30,11 @@ The class dealing with the Deep Potential(DP).
 
 DP::DP(const char* filename_dp, int num_atoms)
 {
+  // DP setting
   set_dp_coeff();
+
+  // init DP from potential file
+  initialize_dp(filename_dp);
 
 
   dp_data.NN.resize(num_atoms);
@@ -37,6 +42,45 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_data.cell_count.resize(num_atoms);
   dp_data.cell_count_sum.resize(num_atoms);
   dp_data.cell_contents.resize(num_atoms);
+}
+
+
+void DP::initialize_dp(const char* filename_dp)
+{
+  int num_gpus;
+  CHECK(gpuGetDeviceCount(&num_gpus));
+  printf("\nInitialize deep potential by the file: %s.\n\n", filename_dp);
+  deep_pot.init(filename_dp, num_gpus);
+  rc = deep_pot.cutoff();
+  int numb_types = deep_pot.numb_types();
+  int numb_types_spin = deep_pot.numb_types_spin();
+  int dim_fparam = deep_pot.dim_fparam();
+  int dim_aparam = deep_pot.dim_aparam();
+
+  char* type_map[numb_types];
+  std::string type_map_str;
+  deep_pot.get_type_map(type_map_str);
+  // convert the string to a vector of strings
+  std::istringstream iss(type_map_str);
+  std::string type_name;
+  int i = 0;
+  while (iss >> type_name) {
+    if (i >= numb_types) break;
+    type_map[i] = strdup(type_name.c_str());
+    i++;
+  }
+
+  printf("=======================================================\n");
+  printf("  ++ cutoff: %f ++ \n", rc);
+  printf("  ++ numb_types: %d ++ \n", numb_types);
+  printf("  ++ numb_types_spin: %d ++ \n", numb_types_spin);
+  printf("  ++ dim_fparam: %d ++ \n", dim_fparam);
+  printf("  ++ dim_aparam: %d ++ \n  ++ ", dim_aparam);
+  for (int i = 0; i < numb_types; ++i)
+  {
+    printf("%s ", type_map[i]);
+  }
+  printf("++\n=======================================================\n");
 }
 
 DP::~DP(void)
@@ -51,7 +95,7 @@ void DP::set_dp_coeff(void) {
   virial_unit_cvt_factor=1;    // ener_unit_cvt_factor
   single_model = true;
   atom_spin_flag = false;
-};
+}
 
 
 
