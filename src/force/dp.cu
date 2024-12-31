@@ -110,6 +110,19 @@ void DP::set_dp_coeff(void) {
 }
 
 
+static __global__ void create_dp_position(
+  const double* gpumd_position,
+  const double* dp_position,
+  int N)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+  if (n1 < N) {
+    dp_position[n1 * 3] = gpumd_position[n1];
+    dp_position[n1 * 3 + 1] = gpumd_position[n1 + N];
+    dp_position[n1 * 3 + 2] = gpumd_position[n1 + 2 * N];
+  }
+}
+
 
 void DP::compute(
   Box& box,
