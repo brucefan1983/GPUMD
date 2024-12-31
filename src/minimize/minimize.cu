@@ -69,8 +69,8 @@ void Minimize::parse_minimize(
   } else if (strcmp(param[1], "fire") == 0) {
     minimizer_type = 1;
 
-    if (num_param < 4) {
-      PRINT_INPUT_ERROR("minimize fire should have at least 2 parameters.");
+    if (!((num_param >= 4) && (num_param <= 6))) {
+      PRINT_INPUT_ERROR("minimize fire should have 4 to 6 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {
@@ -86,19 +86,20 @@ void Minimize::parse_minimize(
 
     if (num_param >= 5) {
       if (!is_valid_int(param[4], &box_change)) {
-        PRINT_INPUT_ERROR("Box_change should be 1 or 0.");
+        PRINT_INPUT_ERROR("Box_change should be an integer.");
       }
       if (!(box_change == 0 || box_change == 1)) {
         PRINT_INPUT_ERROR("Box_change should be 1 or 0.");
       }
 
-      if (box_change == 1)
+      if (box_change == 1) {
         minimizer_type = 2;
+      }
     }
 
     if (num_param >= 6) {
       if (!is_valid_int(param[5], &hydrostatic_strain)) {
-        PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
+        PRINT_INPUT_ERROR("Hydrostatic_strain should be an integer.");
       }
       if (!(hydrostatic_strain == 0 || hydrostatic_strain == 1)) {
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
@@ -153,6 +154,9 @@ void Minimize::parse_minimize(
       printf("\nStart to do an energy minimization.\n");
       printf("    using the fast inertial relaxation engine (FIRE) method.\n");
       printf("    with changed box.\n");
+      if (hydrostatic_strain == 1) {
+        printf("    with hydrostatic pressure.\n");
+      }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
