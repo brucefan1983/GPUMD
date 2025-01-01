@@ -18,6 +18,7 @@ The driver class calculating force and related quantities.
 #ifdef USE_TENSORFLOW
 #include "deepmd.cuh"
 #endif
+#include "dp.cuh"
 #include "eam.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
@@ -82,6 +83,17 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("Unsupported potential keyword!");
   }
 #else
+  if (strcmp(param[1], "dp") == 0) {
+    number_of_atoms_ = number_of_atoms;
+    potential.reset(new DP(param[2], number_of_atoms));
+    potential->N1 = 0;
+    potential->N2 = number_of_atoms;
+
+    // Move the pointer into the list of potentials
+    potentials.push_back(std::move(potential));
+
+    return;
+  }
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
