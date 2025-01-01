@@ -83,17 +83,6 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("Unsupported potential keyword!");
   }
 #else
-  if (strcmp(param[1], "dp") == 0) {
-    number_of_atoms_ = number_of_atoms;
-    potential.reset(new DP(param[2], number_of_atoms));
-    potential->N1 = 0;
-    potential->N2 = number_of_atoms;
-
-    // Move the pointer into the list of potentials
-    potentials.push_back(std::move(potential));
-
-    return;
-  }
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -156,6 +145,11 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
+  } else if (strcmp(potential_name, "dp") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain DP potential file behind setting file.\n");
+    }
+    potential.reset(new DP(param[2], number_of_atoms));
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
