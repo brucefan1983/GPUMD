@@ -65,6 +65,10 @@ protected:
 
   DP_Data dp_data;
   DP_NL dp_nl;
+  GPU_Vector<double> dp_position_gpu;
+  std::vector<int> type_cpu;
+  GPU_Vector<double> e_f_v_gpu;     // a temporary variable to save dp energy, force and virial
+
   // dp instance
   deepmd_compat::DeepPot deep_pot;
 

@@ -40,10 +40,13 @@ DP::DP(const char* filename_dp, int num_atoms)
 
 
   dp_data.NN.resize(num_atoms);
-  dp_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
+  dp_data.NL.resize(num_atoms * MAX_NEIGH_NUM_DP); // the largest supported by CUDA
   dp_data.cell_count.resize(num_atoms);
   dp_data.cell_count_sum.resize(num_atoms);
   dp_data.cell_contents.resize(num_atoms);
+  dp_position_gpu.resize(num_atoms * 3);
+  type_cpu.resize(num_atoms);
+  e_f_v_gpu.resize(num_atoms * (1 + 3 + 9));    // energy: 1; force: 3; virial: 9
 
   // init dp neighbor list
   dp_nl.inum = num_atoms;
@@ -101,8 +104,8 @@ DP::~DP(void)
 
 void DP::set_dp_coeff(void) {
   ener_unit_cvt_factor=1;      // 1.0 / 8.617343e-5;
-  dist_unit_cvt_factor=1;      // 1;
-  force_unit_cvt_factor=1;     // ener_unit_cvt_factor / dist_unit_cvt_factor;
+  dist_unit_cvt_factor=1;      // gpumd: angstrom, dp: angstrom;
+  force_unit_cvt_factor=ener_unit_cvt_factor / dist_unit_cvt_factor;
   virial_unit_cvt_factor=1;    // ener_unit_cvt_factor
   single_model = true;
   atom_spin_flag = false;
@@ -111,7 +114,7 @@ void DP::set_dp_coeff(void) {
 
 static __global__ void create_dp_position(
   const double* gpumd_position,
-  const double* dp_position,
+  double* dp_position,
   int N)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
@@ -166,5 +169,139 @@ void DP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  return;
+  const int number_of_atoms = type.size();
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+#ifdef USE_FIXED_NEIGHBOR
+  static int num_calls = 0;
+#endif
+#ifdef USE_FIXED_NEIGHBOR
+  if (num_calls++ == 0) {
+#endif
+    find_neighbor(
+      N1,
+      N2,
+      rc,
+      box,
+      type,
+      position_per_atom,
+      dp_data.cell_count,
+      dp_data.cell_count_sum,
+      dp_data.cell_contents,
+      dp_data.NN,
+      dp_data.NL);
+#ifdef USE_FIXED_NEIGHBOR
+  }
+#endif
+
+  // create dp position from gpumd
+  create_dp_position<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    position_per_atom.data(),
+    dp_position_gpu.data(),
+    number_of_atoms
+  );
+  GPU_CHECK_KERNEL
+
+  // Initialize DeepPot computation variables
+  std::vector<double> dp_ene_all(1, 0.0);
+  std::vector<double> dp_ene_atom(number_of_atoms, 0.0);
+  std::vector<double> dp_force(number_of_atoms * 3, 0.0);
+  std::vector<double> dp_vir_all(9, 0.0);
+  std::vector<double> dp_vir_atom(number_of_atoms * 9, 0.0);
+
+
+  // copy position and type to CPU
+  std::vector<double> dp_position_cpu(number_of_atoms * 3);
+  dp_position_gpu.copy_to_host(dp_position_cpu.data());
+  // TODO: BUG! argument list does not match, because type is const int?
+  // type.copy_to_host(type_cpu.data(), number_of_atoms);
+  CHECK(gpuMemcpy(type_cpu.data(), type.data(), number_of_atoms * sizeof(int), gpuMemcpyDeviceToHost));
+
+
+  // create dp box
+  std::vector<double> dp_box(9, 0.0);
+  if (box.triclinic == 0) {
+    dp_box[0] = box.cpu_h[0];
+    dp_box[4] = box.cpu_h[1];
+    dp_box[8] = box.cpu_h[2];
+  } else {
+    dp_box[0] = box.cpu_h[0];
+    dp_box[4] = box.cpu_h[1];
+    dp_box[8] = box.cpu_h[2];
+    dp_box[7] = box.cpu_h[7];
+    dp_box[6] = box.cpu_h[6];
+    dp_box[3] = box.cpu_h[3];
+  }
+
+  // Allocate lmp_ilist and lmp_numneigh
+  dp_data.NN.copy_to_host(dp_nl.numneigh.data());
+  // gpuMemcpy(lmp_numneigh, deepmd_ghost_data.NN.data(), num_of_all_atoms*sizeof(int), gpuMemcpyDeviceToHost);
+  std::vector<int> cpu_NL(dp_data.NL.size());
+  dp_data.NL.copy_to_host(cpu_NL.data());
+  // gpuMemcpy(cpu_NL.data(), deepmd_ghost_data.NL.data(), total_all_neighs * sizeof(int), gpuMemcpyDeviceToHost);
+
+  int offset = 0;
+  for (int i = 0; i < number_of_atoms; ++i) {
+    dp_nl.ilist[i] = i;
+    dp_nl.firstneigh[i] = dp_nl.neigh_storage.data() + offset;
+    for (int j = 0; j < dp_nl.numneigh[i]; ++j) {
+        dp_nl.neigh_storage[offset + j] = cpu_NL[i + j * number_of_atoms]; // Copy in column-major order
+    }
+    offset += dp_nl.numneigh[i];
+  }
+
+  // Constructing a neighbor list in LAMMPS format
+  // deepmd_compat::InputNlist lmp_list(num_of_all_atoms, lmp_ilist, lmp_numneigh, lmp_firstneigh);
+  deepmd_compat::InputNlist lmp_list(dp_nl.inum, dp_nl.ilist.data(), dp_nl.numneigh.data(), dp_nl.firstneigh.data());
+
+
+
+  // to calculate the atomic force and energy from deepot
+  if (single_model) {
+    if (! atom_spin_flag) {
+        //deep_pot.compute(dp_ene_all, dp_force, dp_vir_all,dp_cpu_ghost_position, gpumd_cpu_ghost_type,dp_box);
+        deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom, 
+            dp_position_cpu, type_cpu, dp_box,
+            0, lmp_list, 0);
+    }
+  }
+
+
+  // copy dp output energy, force, and virial to gpu
+  size_t size_tmp = number_of_atoms * sizeof(double); // size of number_of_atom * 1 in double
+  // memory distribution of e_f_v_gpu: e1, e2 ... en, fx1, fy1, fz1, fx2 ... fzn, vxx1 ...
+  e_f_v_gpu.copy_from_host(dp_ene_atom.data(), size_tmp, 0);
+  e_f_v_gpu.copy_from_host(dp_force.data(), size_tmp * 3, number_of_atoms);
+  e_f_v_gpu.copy_from_host(dp_vir_atom.data(), size_tmp * 9, number_of_atoms * 4);
+
+  // std::vector<double> gpumd_ene_atom(number_of_atoms, 0.0);
+  // std::vector<double> gpumd_force(number_of_atoms * 3, 0.0);
+  // std::vector<double> virial_per_atom_cpu(number_of_atoms * 9, 0.0);
+  // const int const_cell = half_const_cell * 2 + 1;
+  // for (int g = 0; g < number_of_atoms; g++) {
+  //   gpumd_ene_atom[g] += dp_ene_atom[i * real_num_of_atoms + g] * ener_unit_cvt_factor;
+  //   for (int o = 0; o < 3; o++)
+  //     gpumd_force.data()[g + o * real_num_of_atoms] += dp_force.data()[3*g+o] * force_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 0 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 0] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 1 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 4] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 2 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 8] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 3] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 6] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 7] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 6 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 1] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 7 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 2] * virial_unit_cvt_factor;
+  //   virial_per_atom_cpu.data()[g + 8 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 5] * virial_unit_cvt_factor;
+  // }
+  transpose_and_update_unit<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    e_f_v_gpu.data(),
+    potential_per_atom.data(),
+    force_per_atom.data(),
+    virial_per_atom.data(),
+    ener_unit_cvt_factor,
+    force_unit_cvt_factor,
+    virial_unit_cvt_factor,
+    number_of_atoms
+  );
+  GPU_CHECK_KERNEL
+
 }
