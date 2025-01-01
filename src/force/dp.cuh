@@ -33,9 +33,10 @@ struct DP_Data {
 // DP neighbor list, which is the same as lammps neighbor list
 struct DP_NL {
   int inum;
-  int* ilist;
-  int* numneigh;
-  int** firstneigh;
+  std::vector<int> ilist;
+  std::vector<int> numneigh;
+  std::vector<int*> firstneigh;
+  std::vector<int> neigh_storage;
 };
 
 class DP : public Potential
