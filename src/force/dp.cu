@@ -63,7 +63,7 @@ void DP::initialize_dp(const char* filename_dp)
 {
   int num_gpus;
   CHECK(gpuGetDeviceCount(&num_gpus));
-  printf("\nInitialize deep potential by the file: %s.\n\n", filename_dp);
+  printf("\nInitialize deep potential by the file: %s and %d gpu(s).\n\n", filename_dp, num_gpus);
   deep_pot.init(filename_dp, num_gpus);
   rc = deep_pot.cutoff();
   int numb_types = deep_pot.numb_types();
@@ -268,7 +268,7 @@ void DP::compute(
 
 
   // copy dp output energy, force, and virial to gpu
-  size_t size_tmp = number_of_atoms * sizeof(double); // size of number_of_atom * 1 in double
+  size_t size_tmp = number_of_atoms; // size of number_of_atom * 1 in double
   // memory distribution of e_f_v_gpu: e1, e2 ... en, fx1, fy1, fz1, fx2 ... fzn, vxx1 ...
   e_f_v_gpu.copy_from_host(dp_ene_atom.data(), size_tmp, 0);
   e_f_v_gpu.copy_from_host(dp_force.data(), size_tmp * 3, number_of_atoms);
