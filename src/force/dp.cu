@@ -123,6 +123,41 @@ static __global__ void create_dp_position(
 }
 
 
+// force and virial need transpose from dp to gpumd
+// TODO: use share memory to speed up
+static __global__ void transpose_and_update_unit(
+  const double* e_f_v_in,
+  double* e_out,
+  double* f_out,
+  double* v_out,
+  double e_factor,
+  double f_factor,
+  double v_factor,
+  const int N)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+  if (n1 < N) {
+    const int f_in_offset = N;
+    const int v_in_offset = N * 4;
+    e_out[n1] = e_f_v_in[n1] * e_factor;
+    f_out[n1] = e_f_v_in[f_in_offset + n1 * 3] * f_factor;                // fx
+    f_out[n1 + N] = e_f_v_in[f_in_offset + n1 * 3 + 1] * f_factor;        // fy
+    f_out[n1 + N * 2] = e_f_v_in[f_in_offset + n1 * 3 + 2] * f_factor;    // fz
+    // virial
+    v_out[n1] = e_f_v_in[v_in_offset + n1 * 9] * v_factor;
+    v_out[n1 + N] = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
+    v_out[n1 + N * 2] = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
+    v_out[n1 + N * 3] = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
+    v_out[n1 + N * 4] = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
+    v_out[n1 + N * 5] = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
+    v_out[n1 + N * 6] = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
+    v_out[n1 + N * 7] = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
+    v_out[n1 + N * 8] = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
+  }
+}
+
+
+
 void DP::compute(
   Box& box,
   const GPU_Vector<int>& type,
