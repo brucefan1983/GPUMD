@@ -401,8 +401,8 @@ static __global__ void create_ghost_map(
       // TODO: may use less threads? use more memory to save messages
     }
     int ghost_id = N + ghost_sum[n1];
+    int ghost_id_minus_N = ghost_id - N;
     int ghost_idx = ghost_list[n1];
-    type_ghost[ghost_idx] = type[n1];
     int ghost_x_flag = 0;
     int ghost_y_flag = 0;
     if (box.triclinic == 0) {
@@ -410,57 +410,79 @@ static __global__ void create_ghost_map(
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         // x
         ghost_x_flag = 1;
-        ghost_id_map[ghost_idx + nghost * GHOST_X] = ghost_id++;
-        dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-        dp_position[ghost_idx * 3 + 1] = y1;
-        dp_position[ghost_idx * 3 + 2] = z1;
+        ghost_id_map[ghost_idx + nghost * GHOST_X] = ghost_id;
+        type_ghost[ghost_id_minus_N] = type[n1];
+        dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+        dp_position[ghost_id_minus_N * 3 + 1] = y1;
+        dp_position[ghost_id_minus_N * 3 + 2] = z1;
+        ++ghost_id;
+        ++ghost_id_minus_N;
       }
 
       if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
         // y
         ghost_y_flag = 1;
-        ghost_id_map[ghost_idx + nghost * GHOST_Y] = ghost_id++;
-        dp_position[ghost_idx * 3] = x1;
-        dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-        dp_position[ghost_idx * 3 + 2] = z1;
+        ghost_id_map[ghost_idx + nghost * GHOST_Y] = ghost_id;
+        type_ghost[ghost_id_minus_N] = type[n1];
+        dp_position[ghost_id_minus_N * 3] = x1;
+        dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+        dp_position[ghost_id_minus_N * 3 + 2] = z1;
+        ++ghost_id;
+        ++ghost_id_minus_N;
+
         if (ghost_x_flag == 1) {
           // xy
-          ghost_id_map[ghost_idx + nghost * GHOST_XY] = ghost_id++;
-          dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-          dp_position[ghost_idx * 3 + 2] = z1;
+          ghost_id_map[ghost_idx + nghost * GHOST_XY] = ghost_id;
+          type_ghost[ghost_id_minus_N] = type[n1];
+          dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_id_minus_N * 3 + 2] = z1;
+          ++ghost_id;
+        ++ghost_id_minus_N;
         }
       }
 
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         // z
-        ghost_id_map[ghost_idx + nghost * GHOST_Z] = ghost_id++;
-        dp_position[ghost_idx * 3] = x1;
-        dp_position[ghost_idx * 3 + 1] = y1;
-        dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+        ghost_id_map[ghost_idx + nghost * GHOST_Z] = ghost_id;
+        type_ghost[ghost_id_minus_N] = type[n1];
+        dp_position[ghost_id_minus_N * 3] = x1;
+        dp_position[ghost_id_minus_N * 3 + 1] = y1;
+        dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+        ++ghost_id;
+        ++ghost_id_minus_N;
 
         if (ghost_x_flag == 1) {
           // xz
-          ghost_id_map[ghost_idx + nghost * GHOST_XZ] = ghost_id++;
-          dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_idx * 3 + 1] = y1;
-          dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          ghost_id_map[ghost_idx + nghost * GHOST_XZ] = ghost_id;
+          type_ghost[ghost_id_minus_N] = type[n1];
+          dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_id_minus_N * 3 + 1] = y1;
+          dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          ++ghost_id;
+        ++ghost_id_minus_N;
 
           if (ghost_y_flag == 1) {
             // xyz
-            ghost_id_map[ghost_idx + nghost * GHOST_XYZ] = ghost_id++;
-            dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-            dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-            dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+            ghost_id_map[ghost_idx + nghost * GHOST_XYZ] = ghost_id;
+            type_ghost[ghost_id_minus_N] = type[n1];
+            dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+            dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+            dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+            ++ghost_id;
+        ++ghost_id_minus_N;
           }
         }
 
         if (ghost_y_flag == 1) {
           // yz
-          ghost_id_map[ghost_idx + nghost * GHOST_YZ] = ghost_id++;
-          dp_position[ghost_idx * 3] = x1;
-          dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-          dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          ghost_id_map[ghost_idx + nghost * GHOST_YZ] = ghost_id;
+          type_ghost[ghost_id_minus_N] = type[n1];
+          dp_position[ghost_id_minus_N * 3] = x1;
+          dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          ++ghost_id;
+        ++ghost_id_minus_N;
         }
       }
     } else {
@@ -762,11 +784,12 @@ void DP::compute(
 
 
   // copy position and type to CPU
-  std::vector<double> dp_position_cpu(number_of_atoms * 3);
+  std::vector<double> dp_position_cpu(num_all_atoms * 3);
   dp_position_gpu.copy_to_host(dp_position_cpu.data());
   // TODO: BUG! argument list does not match, because type is const int?
   // type.copy_to_host(type_cpu.data(), number_of_atoms);
   CHECK(gpuMemcpy(type_cpu.data(), type.data(), number_of_atoms * sizeof(int), gpuMemcpyDeviceToHost));
+  type_ghost.copy_to_host(type_cpu.data() + number_of_atoms);
 
 
   // create dp box
@@ -813,7 +836,7 @@ void DP::compute(
         //deep_pot.compute(dp_ene_all, dp_force, dp_vir_all,dp_cpu_ghost_position, gpumd_cpu_ghost_type,dp_box);
         deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom, 
             dp_position_cpu, type_cpu, dp_box,
-            0, lmp_list, 0);
+            nghost, lmp_list, 0);
     }
   }
 
