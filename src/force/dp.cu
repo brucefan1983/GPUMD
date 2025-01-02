@@ -203,13 +203,13 @@ static __global__ void calc_ghost_atom_number_each_block(
     double z1 = z[n1];
     if (box.triclinic == 0) {
       // orthogonal box
-      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[3] - rc)) {
+      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         ++nghost;
       }
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
         ++nghost;
       }
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[5] - rc)) {
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         ++nghost;
       }
     } else {
@@ -392,23 +392,23 @@ static __global__ void create_ghost_map(
     type_ghost[ghost_idx] = type[n1];
     if (box.triclinic == 0) {
       // orthogonal box
-      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[3] - rc)) {
+      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         ghost_id_map[ghost_idx] = ghost_id++;
-        dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[3] : x1 - box.cpu_h[3];
+        dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
         dp_position[ghost_idx * 3 + 1] = y1;
         dp_position[ghost_idx * 3 + 2] = z1;
       }
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
         ghost_id_map[ghost_idx + nghost] = ghost_id++;
         dp_position[ghost_idx * 3] = x1;
-        dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
+        dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
         dp_position[ghost_idx * 3 + 2] = z1;
       }
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[5] - rc)) {
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         ghost_id_map[ghost_idx + nghost * 2] = ghost_id++;
         dp_position[ghost_idx * 3] = x1;
         dp_position[ghost_idx * 3 + 1] = y1;
-        dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[5] : z1 - box.cpu_h[5];
+        dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
       }
     } else {
       // triclinic box
