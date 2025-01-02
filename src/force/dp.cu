@@ -55,6 +55,10 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_nl.firstneigh.resize(num_atoms);
   dp_nl.neigh_storage.resize(num_atoms * MAX_NEIGH_NUM_DP);
   
+  // init dp nghost temporary vector
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+  nghost_tmp.resize(grid_size);
+  
 
 }
 
@@ -160,6 +164,187 @@ static __global__ void transpose_and_update_unit(
 }
 
 
+static __device__ void warp_reduce(volatile int* sdata, int tid) {
+  sdata[tid] += sdata[tid + 32];
+  sdata[tid] += sdata[tid + 16];
+  sdata[tid] += sdata[tid + 8];
+  sdata[tid] += sdata[tid + 4];
+  sdata[tid] += sdata[tid + 2];
+  sdata[tid] += sdata[tid + 1];
+}
+
+static __global__ void calc_ghost_atom_number_each_block(
+  const int N,
+  const double rc,
+  const double* x,
+  const double* y,
+  const double* z,
+  int* nghost_tmp,
+  const Box& box)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+  int tid = threadIdx.x;
+  extern __shared__ int nghost_block[];
+  // init shared memory
+  nghost_block[tid] = 0;
+  if (n1 < N) {
+    int nghost = 0;
+    double x1 = x[n1];
+    double y1 = y[n1];
+    double z1 = z[n1];
+    if (box.triclinic == 0) {
+      // orthogonal box
+      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[3] - rc)) {
+        ++nghost;
+      }
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
+        ++nghost;
+      }
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[5] - rc)) {
+        ++nghost;
+      }
+    } else {
+      // triclinic box
+      // TODO
+      printf("TODO: triclinc box\n");
+      return;
+    }
+    nghost_block[tid] = nghost;
+    
+  }
+  __syncthreads();
+
+  // reduce
+  for (int s = blockDim.x >> 1; s > 32; s >>= 1) {
+    if (tid < s) {
+      nghost_block[tid] += nghost_block[tid + s];
+    }
+    __syncthreads();
+  }
+  if (tid < 32) {
+    warp_reduce(nghost_block, tid);
+  }
+
+  // save to nghost_tmp
+  if (tid == 0) {
+    nghost_tmp[blockIdx.x] = nghost_block[0];
+  }
+  
+}
+
+static __global__ void reduce_nghost(int* idata, int* odata) {
+  extern __shared__ int sdata[];
+  int tid = threadIdx.x;
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  sdata[tid] = i < gridDim.x ? idata[i] : 0;
+  __syncthreads();
+
+  // reduce
+  for (int s = blockDim.x >> 1; s > 32; s >>= 1) {
+    if (tid < s) {
+      sdata[tid] += sdata[tid + s];
+    }
+    __syncthreads();
+  }
+  if (tid < 32) {
+    warp_reduce(sdata, tid);
+  }
+
+  // save to nghost_tmp
+  if (tid == 0) {
+    odata[blockIdx.x] = sdata[0];
+  }
+}
+
+
+// this function has two step to calculate ghost atom number
+// step 1: calculate nghost for each atom and reduce in each block
+// step 2: reduce the nghost_tmp to get the total nghost
+static int calc_ghost_atom_number(
+  const int block_size,
+  const int grid_size,
+  const int N,
+  const double rc,
+  const double* position,
+  GPU_Vector<int>& nghost_tmp,
+  const Box& box)
+{
+  calc_ghost_atom_number_each_block<<<grid_size, block_size, block_size * sizeof(int)>>>(
+    N,
+    rc,
+    position,
+    position + N,
+    position + 2 * N,
+    nghost_tmp.data(),
+    box);
+  GPU_CHECK_KERNEL
+
+  int nghost = 0;
+  if (grid_size == 1) {
+    nghost_tmp.copy_to_host(&nghost, 1);
+    return nghost;
+  }
+
+  // more than 128 atoms
+  int new_grid_size = (grid_size - 1) / block_size + 1;
+  GPU_Vector<int> tmp1(new_grid_size);
+  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
+    nghost_tmp.data(),
+    tmp1.data());
+  GPU_CHECK_KERNEL
+
+  if (new_grid_size == 1) {
+    tmp1.copy_to_host(&nghost, 1);
+    return nghost;
+  }
+
+  // more than 128x128 atoms
+  new_grid_size = (new_grid_size - 1) / block_size + 1;
+  GPU_Vector<int> tmp2(new_grid_size);
+  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
+    tmp1.data(),
+    tmp2.data());
+  GPU_CHECK_KERNEL
+
+  if (new_grid_size == 1) {
+    int nghost = 0;
+    tmp2.copy_to_host(&nghost, 1);
+    return nghost;
+  }
+
+  // more than 128x128x128 atoms
+  new_grid_size = (new_grid_size - 1) / block_size + 1;
+  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
+    tmp2.data(),
+    tmp1.data());
+  GPU_CHECK_KERNEL
+
+  if (new_grid_size == 1) {
+    int nghost = 0;
+    tmp1.copy_to_host(&nghost, 1);
+    return nghost;
+  }
+
+  // more than 128x128x128x128 atoms
+  new_grid_size = (new_grid_size - 1) / block_size + 1;
+  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
+    tmp1.data(),
+    tmp2.data());
+  GPU_CHECK_KERNEL
+
+  if (new_grid_size == 1) {
+    int nghost = 0;
+    tmp2.copy_to_host(&nghost, 1);
+    return nghost;
+  }
+
+  return 0;
+
+
+}
+
+
+
 
 void DP::compute(
   Box& box,
@@ -171,6 +356,16 @@ void DP::compute(
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+  // get ghost atom number
+  calc_ghost_atom_number(
+    BLOCK_SIZE_FORCE,
+    grid_size,
+    number_of_atoms,
+    rc,
+    position_per_atom.data(),
+    nghost_tmp,
+    box);
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;

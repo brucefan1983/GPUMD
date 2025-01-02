@@ -69,6 +69,10 @@ protected:
   std::vector<int> type_cpu;
   GPU_Vector<double> e_f_v_gpu;     // a temporary variable to save dp energy, force and virial
 
+  int nghost;
+  GPU_Vector<int> type_ghost;
+  GPU_Vector<int> nghost_tmp;       // a temporary vector to save ghost atom number
+
   // dp instance
   deepmd_compat::DeepPot deep_pot;
 
