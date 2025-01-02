@@ -248,11 +248,11 @@ static __global__ void calc_ghost_atom_number_each_block(
   
 }
 
-static __global__ void reduce_nghost(int* idata, int* odata) {
+static __global__ void reduce_nghost(int* idata, int* odata, int N) {
   extern __shared__ int sdata[];
   int tid = threadIdx.x;
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  sdata[tid] = i < gridDim.x ? idata[i] : 0;
+  sdata[tid] = i < N ? idata[i] : 0;
   __syncthreads();
 
   // reduce
@@ -307,10 +307,12 @@ static int calc_ghost_atom_number(
 
   // more than 128 atoms
   int new_grid_size = (grid_size - 1) / block_size + 1;
+  int old_grid_size = grid_size;
   GPU_Vector<int> tmp1(new_grid_size);
   reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
     nghost_tmp.data(),
-    tmp1.data());
+    tmp1.data(),
+    old_grid_size);
   GPU_CHECK_KERNEL
 
   if (new_grid_size == 1) {
@@ -319,11 +321,13 @@ static int calc_ghost_atom_number(
   }
 
   // more than 128x128 atoms
+  old_grid_size = new_grid_size;
   new_grid_size = (new_grid_size - 1) / block_size + 1;
   GPU_Vector<int> tmp2(new_grid_size);
   reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
     tmp1.data(),
-    tmp2.data());
+    tmp2.data(),
+    old_grid_size);
   GPU_CHECK_KERNEL
 
   if (new_grid_size == 1) {
@@ -333,10 +337,12 @@ static int calc_ghost_atom_number(
   }
 
   // more than 128x128x128 atoms
+  old_grid_size = new_grid_size;
   new_grid_size = (new_grid_size - 1) / block_size + 1;
   reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
     tmp2.data(),
-    tmp1.data());
+    tmp1.data(),
+    old_grid_size);
   GPU_CHECK_KERNEL
 
   if (new_grid_size == 1) {
@@ -346,10 +352,12 @@ static int calc_ghost_atom_number(
   }
 
   // more than 128x128x128x128 atoms
+  old_grid_size = new_grid_size;
   new_grid_size = (new_grid_size - 1) / block_size + 1;
   reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
     tmp1.data(),
-    tmp2.data());
+    tmp2.data(),
+    old_grid_size);
   GPU_CHECK_KERNEL
 
   if (new_grid_size == 1) {
@@ -379,7 +387,7 @@ static __global__ void create_ghost_map(
   const double* y,
   const double* z,
   double* dp_position,
-  Box& box)
+  Box box)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
