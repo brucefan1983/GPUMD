@@ -197,20 +197,20 @@ static __global__ void calc_ghost_atom_number_each_block(
   // init shared memory
   nghost_block[tid] = 0;
   if (n1 < N) {
-    int nghost = 0;
+    int nghost = 1;
     double x1 = x[n1];
     double y1 = y[n1];
     double z1 = z[n1];
     if (box.triclinic == 0) {
       // orthogonal box
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
-        ++nghost;
+        nghost <<= 1;
       }
       if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
-        ++nghost;
+        nghost <<= 1;
       }
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
-        ++nghost;
+        nghost <<= 1;
       }
     } else {
       // triclinic box
@@ -218,6 +218,11 @@ static __global__ void calc_ghost_atom_number_each_block(
       printf("TODO: triclinc box\n");
       return;
     }
+    // ghost boudary | nghost
+    // x, y, z       | 1
+    // xy, xz, yz    | 3
+    // xyz           | 7
+    --nghost;
     nghost_block[tid] = nghost;
     ghost_count[n1] = nghost;
     ghost_flag[n1] = nghost != 0;
@@ -383,32 +388,72 @@ static __global__ void create_ghost_map(
     double z1 = z[n1];
 
     if (ghost_count[n1] == 0) {
-      ghost_list[n1] = 0;
+      ghost_list[n1] = -1;
       return;
       // TODO: may use less threads? use more memory to save messages
     }
     int ghost_id = N + ghost_sum[n1];
     int ghost_idx = ghost_list[n1];
     type_ghost[ghost_idx] = type[n1];
+    int ghost_x_flag = 0;
+    int ghost_y_flag = 0;
     if (box.triclinic == 0) {
       // orthogonal box
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
-        ghost_id_map[ghost_idx] = ghost_id++;
+        // x
+        ghost_x_flag = 1;
+        ghost_id_map[ghost_idx + nghost * GHOST_X] = ghost_id++;
         dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
         dp_position[ghost_idx * 3 + 1] = y1;
         dp_position[ghost_idx * 3 + 2] = z1;
       }
+
       if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
-        ghost_id_map[ghost_idx + nghost] = ghost_id++;
+        // y
+        ghost_y_flag = 1;
+        ghost_id_map[ghost_idx + nghost * GHOST_Y] = ghost_id++;
         dp_position[ghost_idx * 3] = x1;
         dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
         dp_position[ghost_idx * 3 + 2] = z1;
+        if (ghost_x_flag == 1) {
+          // xy
+          ghost_id_map[ghost_idx + nghost * GHOST_XY] = ghost_id++;
+          dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_idx * 3 + 2] = z1;
+        }
       }
+
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
-        ghost_id_map[ghost_idx + nghost * 2] = ghost_id++;
+        // z
+        ghost_id_map[ghost_idx + nghost * GHOST_Z] = ghost_id++;
         dp_position[ghost_idx * 3] = x1;
         dp_position[ghost_idx * 3 + 1] = y1;
         dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+
+        if (ghost_x_flag == 1) {
+          // xz
+          ghost_id_map[ghost_idx + nghost * GHOST_XZ] = ghost_id++;
+          dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_idx * 3 + 1] = y1;
+          dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+
+          if (ghost_y_flag == 1) {
+            // xyz
+            ghost_id_map[ghost_idx + nghost * GHOST_XYZ] = ghost_id++;
+            dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+            dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+            dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          }
+        }
+
+        if (ghost_y_flag == 1) {
+          // yz
+          ghost_id_map[ghost_idx + nghost * GHOST_YZ] = ghost_id++;
+          dp_position[ghost_idx * 3] = x1;
+          dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+        }
       }
     } else {
       // triclinic box

@@ -39,6 +39,16 @@ struct DP_NL {
   std::vector<int> neigh_storage;
 };
 
+enum {
+  GHOST_X = 0,
+  GHOST_Y = 1,
+  GHOST_XY = 2,
+  GHOST_Z = 3,
+  GHOST_XZ = 4,
+  GHOST_XYZ = 5,
+  GHOST_YZ = 6
+};
+
 class DP : public Potential
 {
 public:
@@ -74,7 +84,7 @@ protected:
   GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom
   GPU_Vector<int> ghost_sum;        // exclusive the ghost_count
   GPU_Vector<int> nghost_tmp;       // a temporary vector to save ghost atom number
-  GPU_Vector<int> ghost_id_map;    // a map to find the real ghost id of each ghost atom, nghost x 3
+  GPU_Vector<int> ghost_id_map;    // a map to find the real ghost id of each ghost atom, nghost x 7
   GPU_Vector<int> ghost_flag;       // 1 if ghost atom, 0 if not
   GPU_Vector<int> ghost_list;       // a list to find the index in ghost_id_map, number_of_atoms x 1
 
