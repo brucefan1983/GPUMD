@@ -16,7 +16,7 @@
 | deep2nep             | Ke Xu        | twtdq@qq.com                                     | Oudated?                                                     |
 | doc_3.3.1            | Zheyong Fan  | brucenju@gmail.com | Documentation for some parts of GPUMD-v3.3.1.                |
 | dp2xyz               | Ke Xu        | twtdq@qq.com        | Convert `DP` training data to `xyz` format.                  |
-| exyz2pdb             | Zherui Chem  | chenzherui0124@foxmail.com  | Convert `exyz` to `pdb`. |
+| exyz2pdb             | Zherui Chen | chenzherui0124@foxmail.com  | Convert `exyz` to `pdb`. |
 | for_coding           | Zheyong Fan  | brucenju@gmail.com     | Something useful for Zheyong Fan only.                       |
 | get_max_rmse_xyz     | Ke Xu  | twtdq@qq.com | Identify structures with the largest errors.          |
 | gmx2exyz             | Zherui Chen  | chenzherui0124@foxmail.com  | Convert the `trr` trajectory of `gmx` to the `exyz` trajectory. |
@@ -34,6 +34,7 @@
 | split_xyz            | Yong Wang    | yongw@princeton.edu | Some functionalities for training/test data.         |
 | vasp2xyz             | Yanzhou Wang | yanzhowang@gmail.com     | Get `train.xyz` from `VASP` outputs.                         |
 | vim                  | Ke Xu        | twtdq@qq.com                | Highlight GPUMD grammar in `vim`.                            |
+| xtd2exyz | Zherui Chen | chenzherui0124@foxmail.com | Get train.xyz from Materials Studio outputs. |
 | xyz2gro              | Who? |                             | Convert `xyz` file to `gro` file.                            |
 
 
