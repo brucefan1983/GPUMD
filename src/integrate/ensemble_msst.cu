@@ -115,13 +115,13 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
 
   int i = 4;
   while (i < num_params) {
-    if (strcmp(params[i], "q")) {
+    if (strcmp(params[i], "qmass")) {
       if (!is_valid_real(params[i + 1], &qmass))
         PRINT_INPUT_ERROR("Invalid qmass value.");
       i += 2;
     } else if (strcmp(params[i], "mu")) {
       if (!is_valid_real(params[i + 1], &mu))
-        PRINT_INPUT_ERROR("Invalid qmass value.");
+        PRINT_INPUT_ERROR("Invalid mu value.");
       i += 2;
     } else if (strcmp(params[i], "tscale")) {
       if (!is_valid_real(params[i + 1], &tscale))
@@ -143,6 +143,8 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
       i += 2;
+    } else {
+      PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
 
