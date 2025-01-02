@@ -473,12 +473,15 @@ static __global__ void gpu_find_neighbor_ON1_dp(
   const int N,
   const int N1,
   const int N2,
+  const int nghost,
   const int* __restrict__ type,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
   const int* __restrict__ cell_contents,
   int* NN,
   int* NL,
+  const int* ghost_list,
+  const int* ghost_id_map,
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
@@ -526,16 +529,63 @@ static __global__ void gpu_find_neighbor_ON1_dp(
           const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
 
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-            const int n2 = cell_contents[num_atoms_previous_cells + m];
+            int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= N1 && n2 < N2 && n1 != n2) {
 
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
-              apply_mic(box, x12, y12, z12);
+
+              int ghost_x_flag = 0;
+              int ghost_y_flag = 0;
+              int ghost_z_flag = 0;
+              
+              if (box.triclinic == 0) {
+                // orthogonal box
+                if (box.pbc_x == 1 && x12 < -box.cpu_h[3]) {
+                  x12 += box.cpu_h[0];
+                  ghost_x_flag = 0b001;
+                } else if (box.pbc_x == 1 && x12 > +box.cpu_h[3]) {
+                  x12 -= box.cpu_h[0];
+                  ghost_x_flag = 0b001;
+                }
+                if (box.pbc_y == 1 && y12 < -box.cpu_h[4]) {
+                  y12 += box.cpu_h[1];
+                  ghost_y_flag = 0b010;
+                } else if (box.pbc_y == 1 && y12 > +box.cpu_h[4]) {
+                  y12 -= box.cpu_h[1];
+                  ghost_y_flag = 0b010;
+                }
+                if (box.pbc_z == 1 && z12 < -box.cpu_h[5]) {
+                  z12 += box.cpu_h[2];
+                  ghost_z_flag = 0b100;
+                } else if (box.pbc_z == 1 && z12 > +box.cpu_h[5]) {
+                  z12 -= box.cpu_h[2];
+                  ghost_z_flag = 0b100;
+                }
+              } else {
+                // triclinic box
+                // TODO
+                double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
+                double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
+                double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
+                if (box.pbc_x == 1)
+                  sx12 -= nearbyint(sx12);
+                if (box.pbc_y == 1)
+                  sy12 -= nearbyint(sy12);
+                if (box.pbc_z == 1)
+                  sz12 -= nearbyint(sz12);
+                x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
+                y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
+                z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
+              }
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square) {
+                int ghost_xyz_flag = ghost_x_flag | ghost_y_flag | ghost_z_flag;
+                if (ghost_xyz_flag != 0) {
+                  n2 = ghost_id_map[ghost_list[n2] + nghost * (ghost_xyz_flag - 1)];
+                }
                 NL[count++ * N + n1] = n2;
               }
             }
@@ -551,6 +601,7 @@ static __global__ void gpu_find_neighbor_ON1_dp(
 static void find_neighbor_dp(
   const int N1,
   const int N2,
+  const int nghost,
   double rc,
   Box& box,
   const GPU_Vector<int>& type,
@@ -560,10 +611,8 @@ static void find_neighbor_dp(
   GPU_Vector<int>& cell_contents,
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL,
-  GPU_Vector<double>& dp_position_gpu,
   int* ghost_id_map,
-  int* ghost_list,
-  int* type_ghost)
+  int* ghost_list)
 {
   const int N = NN.size();
   const int block_size = 256;
@@ -585,12 +634,15 @@ static void find_neighbor_dp(
     N,
     N1,
     N2,
+    nghost,
     type.data(),
     cell_count.data(),
     cell_count_sum.data(),
     cell_contents.data(),
     NN.data(),
     NL.data(),
+    ghost_list,
+    ghost_id_map,
     x,
     y,
     z,
@@ -638,7 +690,7 @@ void DP::compute(
 
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
-  ghost_id_map.resize(nghost * 3, -1);
+  ghost_id_map.resize(nghost * 7, -1);
   type_ghost.resize(nghost);
   dp_position_gpu.resize(num_all_atoms * 3);
   create_ghost_map<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -669,6 +721,7 @@ void DP::compute(
     find_neighbor_dp(
       N1,
       N2,
+      nghost,
       rc,
       box,
       type,
@@ -678,10 +731,8 @@ void DP::compute(
       dp_data.cell_contents,
       dp_data.NN,
       dp_data.NL,
-      dp_position_gpu,
       ghost_id_map.data(),
-      ghost_list.data(),
-      type_ghost.data());
+      ghost_list.data());
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif

@@ -40,13 +40,13 @@ struct DP_NL {
 };
 
 enum {
-  GHOST_X = 0,
-  GHOST_Y = 1,
-  GHOST_XY = 2,
-  GHOST_Z = 3,
-  GHOST_XZ = 4,
-  GHOST_XYZ = 5,
-  GHOST_YZ = 6
+  GHOST_X = 0,      // 0b001
+  GHOST_Y = 1,      // 0b010
+  GHOST_XY = 2,     // 0b011
+  GHOST_Z = 3,      // 0b100
+  GHOST_XZ = 4,     // 0b101
+  GHOST_YZ = 5,     // 0b110
+  GHOST_XYZ = 6     // 0b111
 };
 
 class DP : public Potential
