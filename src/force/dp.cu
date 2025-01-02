@@ -22,6 +22,8 @@ The class dealing with the Deep Potential(DP).
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 #include <sstream>
 
 
@@ -44,7 +46,6 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_data.cell_count.resize(num_atoms);
   dp_data.cell_count_sum.resize(num_atoms);
   dp_data.cell_contents.resize(num_atoms);
-  dp_position_gpu.resize(num_atoms * 3);
   type_cpu.resize(num_atoms);
   e_f_v_gpu.resize(num_atoms * (1 + 3 + 9));    // energy: 1; force: 3; virial: 9
 
@@ -55,6 +56,12 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_nl.firstneigh.resize(num_atoms);
   dp_nl.neigh_storage.resize(num_atoms * MAX_NEIGH_NUM_DP);
   
+  // init ghost lists
+  ghost_list.resize(num_atoms);
+  ghost_count.resize(num_atoms);
+  ghost_sum.resize(num_atoms);
+  ghost_flag.resize(num_atoms);
+
   // init dp nghost temporary vector
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
   nghost_tmp.resize(grid_size);
@@ -180,6 +187,7 @@ static __global__ void calc_ghost_atom_number_each_block(
   const double* y,
   const double* z,
   int* ghost_count,
+  int* ghost_flag,
   int* nghost_tmp,
   const Box& box)
 {
@@ -212,6 +220,7 @@ static __global__ void calc_ghost_atom_number_each_block(
     }
     nghost_block[tid] = nghost;
     ghost_count[n1] = nghost;
+    ghost_flag[n1] = nghost != 0;
     
   }
   __syncthreads();
@@ -269,6 +278,7 @@ static int calc_ghost_atom_number(
   const double rc,
   const double* position,
   int* ghost_count,
+  int* ghost_flag,
   GPU_Vector<int>& nghost_tmp,
   const Box& box)
 {
@@ -279,6 +289,7 @@ static int calc_ghost_atom_number(
     position + N,
     position + 2 * N,
     ghost_count,
+    ghost_flag,
     nghost_tmp.data(),
     box);
   GPU_CHECK_KERNEL
@@ -345,6 +356,69 @@ static int calc_ghost_atom_number(
   printf("\nTO MANY ATOMS!!!\n\n");
   return 0;
 
+
+}
+
+
+static __global__ void create_ghost_map(
+  const int N,
+  const int nghost,
+  const double rc,
+  const int* ghost_count,
+  const int* ghost_sum,
+  int* ghost_list,
+  int* ghost_id_map,
+  int* type_ghost,
+  const int* type,
+  const double* x,
+  const double* y,
+  const double* z,
+  double* dp_position,
+  Box& box)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    double x1 = x[n1];
+    double y1 = y[n1];
+    double z1 = z[n1];
+
+    if (ghost_count[n1] == 0) {
+      ghost_list[n1] = 0;
+      return;
+      // TODO: may use less threads? use more memory to save messages
+    }
+    int ghost_id = N + ghost_sum[n1];
+    int ghost_idx = ghost_list[n1];
+    type_ghost[ghost_idx] = type[n1];
+    if (box.triclinic == 0) {
+      // orthogonal box
+      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[3] - rc)) {
+        ghost_id_map[ghost_idx] = ghost_id++;
+        dp_position[ghost_idx * 3] = x1 < rc ? x1 + box.cpu_h[3] : x1 - box.cpu_h[3];
+        dp_position[ghost_idx * 3 + 1] = y1;
+        dp_position[ghost_idx * 3 + 2] = z1;
+      }
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
+        ghost_id_map[ghost_idx + nghost] = ghost_id++;
+        dp_position[ghost_idx * 3] = x1;
+        dp_position[ghost_idx * 3 + 1] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
+        dp_position[ghost_idx * 3 + 2] = z1;
+      }
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[5] - rc)) {
+        ghost_id_map[ghost_idx + nghost * 2] = ghost_id++;
+        dp_position[ghost_idx * 3] = x1;
+        dp_position[ghost_idx * 3 + 1] = y1;
+        dp_position[ghost_idx * 3 + 2] = z1 < rc ? z1 + box.cpu_h[5] : z1 - box.cpu_h[5];
+      }
+    } else {
+      // triclinic box
+      // TODO
+      printf("TODO: triclinc box\n");
+      return;
+    }
+
+
+  }
 
 }
 
@@ -507,15 +581,38 @@ void DP::compute(
     rc,
     position_per_atom.data(),
     ghost_count.data(),
+    ghost_flag.data(),
     nghost_tmp,
     box);
 
+  thrust::exclusive_scan(
+    thrust::device, ghost_count.data(), ghost_count.data() + number_of_atoms, ghost_sum.data());
+
+  thrust::exclusive_scan(
+    thrust::device, ghost_flag.data(), ghost_flag.data() + number_of_atoms, ghost_list.data());
+
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
+  ghost_id_map.resize(nghost * 3, -1);
   type_ghost.resize(nghost);
   dp_position_gpu.resize(num_all_atoms * 3);
-  ghost_id_map.resize(nghost * 3, -1);
-  ghost_list.fill(-1);
+  create_ghost_map<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    number_of_atoms,
+    nghost,
+    rc,
+    ghost_count.data(),
+    ghost_sum.data(),
+    ghost_list.data(),
+    ghost_id_map.data(),
+    type_ghost.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    dp_position_gpu.data() + number_of_atoms * 3,
+    box);
+  GPU_CHECK_KERNEL
+
 
 
 #ifdef USE_FIXED_NEIGHBOR
