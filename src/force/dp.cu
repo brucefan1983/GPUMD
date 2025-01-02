@@ -179,6 +179,7 @@ static __global__ void calc_ghost_atom_number_each_block(
   const double* x,
   const double* y,
   const double* z,
+  int* ghost_count,
   int* nghost_tmp,
   const Box& box)
 {
@@ -210,6 +211,7 @@ static __global__ void calc_ghost_atom_number_each_block(
       return;
     }
     nghost_block[tid] = nghost;
+    ghost_count[n1] = nghost;
     
   }
   __syncthreads();
@@ -266,6 +268,7 @@ static int calc_ghost_atom_number(
   const int N,
   const double rc,
   const double* position,
+  int* ghost_count,
   GPU_Vector<int>& nghost_tmp,
   const Box& box)
 {
@@ -275,6 +278,7 @@ static int calc_ghost_atom_number(
     position,
     position + N,
     position + 2 * N,
+    ghost_count,
     nghost_tmp.data(),
     box);
   GPU_CHECK_KERNEL
@@ -338,6 +342,7 @@ static int calc_ghost_atom_number(
     return nghost;
   }
 
+  printf("\nTO MANY ATOMS!!!\n\n");
   return 0;
 
 
@@ -495,12 +500,13 @@ void DP::compute(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   // get ghost atom number
-  calc_ghost_atom_number(
+  nghost = calc_ghost_atom_number(
     BLOCK_SIZE_FORCE,
     grid_size,
     number_of_atoms,
     rc,
     position_per_atom.data(),
+    ghost_count.data(),
     nghost_tmp,
     box);
 
