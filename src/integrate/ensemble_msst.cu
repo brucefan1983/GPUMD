@@ -100,14 +100,7 @@ gpu_remap(const int N, const double dilation, double* g_position, double* g_velo
 
 Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
 {
-  // 0: ensemble
-  // 1: msst
-  // 2: x/y/z
-  // 3: vs (km/h)
-  // 4-5: q q_value
-  // 6-7: mu mu_value
-  // 8-9: tscale tscale_value (optional)
-
+  // the first 2 keywords must be <direction> <vs>
   if (strcmp(params[2], "x") == 0) {
     shock_direction = 0;
   } else if (strcmp(params[2], "y") == 0) {
@@ -120,15 +113,39 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
   if (!is_valid_real(params[3], &vs))
     PRINT_INPUT_ERROR("Invalid shock velocity value.");
 
-  if (!is_valid_real(params[5], &qmass))
-    PRINT_INPUT_ERROR("Invalid qmass value.");
-  if (!is_valid_real(params[7], &mu))
-    PRINT_INPUT_ERROR("Invalid mu value.");
-  if (num_params == 10) {
-    if (!is_valid_real(params[9], &tscale)) {
-      PRINT_INPUT_ERROR("Invalid tscale value.");
+  int i = 4;
+  while (i < num_params) {
+    if (strcmp(params[i], "q")) {
+      if (!is_valid_real(params[i + 1], &qmass))
+        PRINT_INPUT_ERROR("Invalid qmass value.");
+      i += 2;
+    } else if (strcmp(params[i], "mu")) {
+      if (!is_valid_real(params[i + 1], &mu))
+        PRINT_INPUT_ERROR("Invalid qmass value.");
+      i += 2;
+    } else if (strcmp(params[i], "tscale")) {
+      if (!is_valid_real(params[i + 1], &tscale))
+        PRINT_INPUT_ERROR("Invalid tscale value.");
+      i += 2;
+    } else if (strcmp(params[i], "p0")) {
+      if (!is_valid_real(params[i + 1], &p0))
+        PRINT_INPUT_ERROR("Invalid p0 value.");
+      p0 /= PRESSURE_UNIT_CONVERSION;
+      p0_given = true;
+      i += 2;
+    } else if (strcmp(params[i], "v0")) {
+      if (!is_valid_real(params[i + 1], &v0))
+        PRINT_INPUT_ERROR("Invalid v0 value.");
+      v0_given = true;
+      i += 2;
+    } else if (strcmp(params[i], "e0")) {
+      if (!is_valid_real(params[i + 1], &e0))
+        PRINT_INPUT_ERROR("Invalid e0 value.");
+      e0_given = true;
+      i += 2;
     }
   }
+
   printf(
     "Performing MSST simulation in direction %d with shock velocity = %f, qmass = %f, mu = %f\n",
     shock_direction,
@@ -178,9 +195,12 @@ void Ensemble_MSST::init()
   thermo_cpu.resize(thermo->size());
   gpu_v_backup.resize(atom->cpu_velocity_per_atom.size());
   find_thermo();
-  v0 = vol;
-  e0 = etotal;
-  p0 = p_current;
+  if (!v0_given)
+    v0 = vol;
+  if (!e0_given)
+    e0 = etotal;
+  if (!p0_given)
+    p0 = p_current;
   printf("    MSST V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 
   // compute total mass
