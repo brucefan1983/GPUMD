@@ -189,7 +189,7 @@ static __global__ void calc_ghost_atom_number_each_block(
   int* ghost_count,
   int* ghost_flag,
   int* nghost_tmp,
-  const Box& box)
+  const Box box)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   int tid = threadIdx.x;
