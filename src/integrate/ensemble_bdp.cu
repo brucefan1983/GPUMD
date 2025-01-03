@@ -23,6 +23,7 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
+#include <cstring>
 #define DIM 3
 
 void Ensemble_BDP::initialize_rng()

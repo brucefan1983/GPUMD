@@ -21,6 +21,7 @@ The Berendsen thermostat and barostat:
 #include "ensemble_ber.cuh"
 #include "npt_utilities.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 Ensemble_BER::Ensemble_BER(int t, int mg, double* mv, double T, double Tc)
 {

@@ -27,6 +27,7 @@ Compute the cohesive energy curve with different deformations.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 static void __global__ deform_position(
   const int N,

@@ -21,6 +21,7 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128

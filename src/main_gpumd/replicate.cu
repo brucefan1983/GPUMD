@@ -15,6 +15,7 @@
 
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups)
 {

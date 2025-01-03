@@ -22,6 +22,7 @@ neighbor list.
 #include "utilities/gpu_macro.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
+#include <cstring>
 
 static __device__ void find_cell_id(
   const Box& box,

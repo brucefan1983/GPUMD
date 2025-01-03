@@ -32,6 +32,7 @@ Get the fitness
 #include <random>
 #include <sstream>
 #include <vector>
+#include <cstring>
 
 Fitness::Fitness(Parameters& para)
 {
