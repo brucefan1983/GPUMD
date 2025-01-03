@@ -3,8 +3,7 @@
 ### SYNTAX: ./singleFrame-abacus2nep-exyz.sh dire_name   
 ###     NOTE: 1).'dire_name' is the directory containing running_scf.logs
 ### Email: tang070205@proton.me if have questions
-### Modified by Yanzhou Wang 
-### Modified by Shunda Chen 
+### Modified by Yanzhou Wang Shunda Chen 
 ### Modified by Benrui Tang
 ################################################################################################
 #--- DEFAULT ASSIGNMENTSts ---------------------------------------------------------------------
