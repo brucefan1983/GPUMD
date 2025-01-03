@@ -115,30 +115,30 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
 
   int i = 4;
   while (i < num_params) {
-    if (strcmp(params[i], "qmass")) {
+    if (strcmp(params[i], "qmass") == 0) {
       if (!is_valid_real(params[i + 1], &qmass))
         PRINT_INPUT_ERROR("Invalid qmass value.");
       i += 2;
-    } else if (strcmp(params[i], "mu")) {
+    } else if (strcmp(params[i], "mu") == 0) {
       if (!is_valid_real(params[i + 1], &mu))
         PRINT_INPUT_ERROR("Invalid mu value.");
       i += 2;
-    } else if (strcmp(params[i], "tscale")) {
+    } else if (strcmp(params[i], "tscale") == 0) {
       if (!is_valid_real(params[i + 1], &tscale))
         PRINT_INPUT_ERROR("Invalid tscale value.");
       i += 2;
-    } else if (strcmp(params[i], "p0")) {
+    } else if (strcmp(params[i], "p0") == 0) {
       if (!is_valid_real(params[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "v0")) {
+    } else if (strcmp(params[i], "v0") == 0) {
       if (!is_valid_real(params[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "e0")) {
+    } else if (strcmp(params[i], "e0") == 0) {
       if (!is_valid_real(params[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
