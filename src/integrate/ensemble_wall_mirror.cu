@@ -15,6 +15,7 @@
 
 #include "ensemble_wall_mirror.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {

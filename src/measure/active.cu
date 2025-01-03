@@ -27,6 +27,7 @@ Run active learning on-the-fly during MD
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {

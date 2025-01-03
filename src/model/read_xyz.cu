@@ -31,6 +31,7 @@ The class defining the simulation model.
 #include <map>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},

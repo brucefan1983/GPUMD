@@ -21,6 +21,7 @@ The class defining the simulation box.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
+#include <cstring>
 
 static float get_area_one_direction(const double* a, const double* b)
 {

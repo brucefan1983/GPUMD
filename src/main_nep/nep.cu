@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 
 static __global__ void gpu_find_neighbor_list(
   const NEP::ParaMB paramb,

@@ -38,6 +38,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 namespace
 {

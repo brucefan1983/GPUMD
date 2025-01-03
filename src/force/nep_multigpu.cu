@@ -33,6 +33,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <vector>
+#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",

@@ -19,6 +19,7 @@
 #include <chrono>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 void print_compile_information(void)
 {

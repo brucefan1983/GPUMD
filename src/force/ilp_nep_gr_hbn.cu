@@ -28,6 +28,7 @@ TODO:
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
 

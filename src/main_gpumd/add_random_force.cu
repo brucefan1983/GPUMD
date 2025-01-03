@@ -24,6 +24,7 @@ Add random forces with zero mean and specified variance.
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {

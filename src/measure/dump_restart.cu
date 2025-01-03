@@ -26,6 +26,7 @@ Dump a restart file
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
 
 void Dump_Restart::parse(const char** param, int num_param)
 {

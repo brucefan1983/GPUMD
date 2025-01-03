@@ -40,6 +40,7 @@ The driver class for the various integrators.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void Integrate::initialize(
   double time_step,

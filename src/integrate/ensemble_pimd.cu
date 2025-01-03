@@ -30,6 +30,7 @@ References for implementation:
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 
 void Ensemble_PIMD::initialize_rng()
 {
