@@ -1,0 +1,20 @@
+potential       dp.setting DNN_seed2.pb
+time_step       0
+ensemble        nve
+dump_thermo     1
+dump_exyz       1 0 1 1
+run             10000
+
+run             20
+run             50
+
+#time_step       0.5
+#ensemble        nve
+#run             1
+#run             1
+
+#velocity        9000    
+#ensemble        nvt_lan 9000 9000 100
+#dump_thermo     10
+#dump_position   1000
+#run             30000  

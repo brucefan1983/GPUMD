@@ -40,6 +40,20 @@ void find_neighbor(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL);
 
+#ifdef USE_TENSORFLOW
+// For deepmd
+void find_neighbor_deepmd(
+  const int N1,
+  const int N2,
+  const int const_cell,
+  double rc,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& ghost_type,
+  GPU_Vector<double>& ghost_position);
+#endif
+
 // For ILP
 void find_neighbor_ilp(
   const int N1,
