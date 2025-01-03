@@ -121,25 +121,23 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "p0")) {
+    } else if (strcmp(params[i], "p0") == 0) {
       if (!is_valid_real(params[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "v0")) {
+    } else if (strcmp(params[i], "v0") == 0) {
       if (!is_valid_real(params[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "e0")) {
+    } else if (strcmp(params[i], "e0") == 0) {
       if (!is_valid_real(params[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
       i += 2;
-    }
-
-    else {
+    } else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
