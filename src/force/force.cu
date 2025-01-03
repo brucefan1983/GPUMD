@@ -18,7 +18,9 @@ The driver class calculating force and related quantities.
 #ifdef USE_TENSORFLOW
 #include "deepmd.cuh"
 #endif
+#ifdef DP_BHK
 #include "dp.cuh"
+#endif
 #include "eam.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
@@ -145,11 +147,13 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
+  #ifdef DP_BHK
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain DP potential file behind setting file.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
+  #endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {

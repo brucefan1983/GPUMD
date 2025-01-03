@@ -18,6 +18,7 @@ The class dealing with the Deep Potential(DP).
 ------------------------------------------------------------------------------*/
 
 
+#ifdef DP_BHK
 #include "dp.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
@@ -771,16 +772,15 @@ void DP::compute(
   create_dp_position<<<grid_size, BLOCK_SIZE_FORCE>>>(
     position_per_atom.data(),
     dp_position_gpu.data(),
-    number_of_atoms
-  );
+    number_of_atoms);
   GPU_CHECK_KERNEL
 
   // Initialize DeepPot computation variables
   std::vector<double> dp_ene_all(1, 0.0);
-  std::vector<double> dp_ene_atom(number_of_atoms, 0.0);
-  std::vector<double> dp_force(number_of_atoms * 3, 0.0);
+  std::vector<double> dp_ene_atom(num_all_atoms, 0.0);
+  std::vector<double> dp_force(num_all_atoms * 3, 0.0);
   std::vector<double> dp_vir_all(9, 0.0);
-  std::vector<double> dp_vir_atom(number_of_atoms * 9, 0.0);
+  std::vector<double> dp_vir_atom(num_all_atoms * 9, 0.0);
 
 
   // copy position and type to CPU
@@ -879,3 +879,4 @@ void DP::compute(
   GPU_CHECK_KERNEL
 
 }
+#endif
