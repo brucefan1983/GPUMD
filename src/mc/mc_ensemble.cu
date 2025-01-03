@@ -25,6 +25,7 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 static std::string get_potential_file_name()
 {

@@ -28,6 +28,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 3
 #define FILE_NAME_LENGTH 200

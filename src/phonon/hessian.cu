@@ -28,6 +28,7 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
 
 void Hessian::compute(
   Force& force,

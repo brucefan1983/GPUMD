@@ -24,6 +24,7 @@ Dump thermo data to a file at a given interval.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void Dump_Thermo::parse(const char** param, int num_param)
 {
