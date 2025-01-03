@@ -291,7 +291,12 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
 
 Ensemble_MTTK::~Ensemble_MTTK(void)
 {
-  delete[] Q, eta_dot, eta_dotdot, Q_p, eta_p_dot, eta_p_dotdot;
+  delete[] Q;
+  delete[] eta_dot;
+  delete[] eta_dotdot;
+  delete[] Q_p;
+  delete[] eta_p_dot;
+  delete[] eta_p_dotdot;
 }
 
 void Ensemble_MTTK::init_mttk()
