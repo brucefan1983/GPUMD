@@ -30,6 +30,7 @@ The class dealing with the Deep Potential(DP).
 
 #define BLOCK_SIZE_FORCE 128
 #define MAX_NEIGH_NUM_DP 512    // max neighbor number of an atom for DP
+#define MAX_GHOST_NUM_EACH_DANGER 7
 
 
 
@@ -124,16 +125,18 @@ void DP::set_dp_coeff(void) {
 }
 
 
-static __global__ void create_dp_position(
-  const double* gpumd_position,
-  double* dp_position,
+
+
+static __global__ void dp_position_transpose(
+  const double* position,
+  double* position_trans,
   int N)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
-    dp_position[n1 * 3] = gpumd_position[n1];
-    dp_position[n1 * 3 + 1] = gpumd_position[n1 + N];
-    dp_position[n1 * 3 + 2] = gpumd_position[n1 + 2 * N];
+    position_trans[n1 * 3] = position[n1];
+    position_trans[n1 * 3 + 1] = position[n1 + N];
+    position_trans[n1 * 3 + 2] = position[n1 + 2 * N];
   }
 }
 
@@ -145,29 +148,74 @@ static __global__ void transpose_and_update_unit(
   double* e_out,
   double* f_out,
   double* v_out,
+  double* f_ghost_in,
+  double* v_ghost_in,
+  int* danger_list,
+  int* ghost_id_map,
   double e_factor,
   double f_factor,
   double v_factor,
-  const int N)
+  const int N,
+  const int ndanger)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
     const int f_in_offset = N;
     const int v_in_offset = N * 4;
     e_out[n1] = e_f_v_in[n1] * e_factor;
-    f_out[n1] = e_f_v_in[f_in_offset + n1 * 3] * f_factor;                // fx
-    f_out[n1 + N] = e_f_v_in[f_in_offset + n1 * 3 + 1] * f_factor;        // fy
-    f_out[n1 + N * 2] = e_f_v_in[f_in_offset + n1 * 3 + 2] * f_factor;    // fz
-    // virial
-    v_out[n1] = e_f_v_in[v_in_offset + n1 * 9] * v_factor;
-    v_out[n1 + N] = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
-    v_out[n1 + N * 2] = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
-    v_out[n1 + N * 3] = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
-    v_out[n1 + N * 4] = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
-    v_out[n1 + N * 5] = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
-    v_out[n1 + N * 6] = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
-    v_out[n1 + N * 7] = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
-    v_out[n1 + N * 8] = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
+
+    double fx = e_f_v_in[f_in_offset + n1 * 3];
+    double fy = e_f_v_in[f_in_offset + n1 * 3 + 1];
+    double fz = e_f_v_in[f_in_offset + n1 * 3 + 2];
+
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    double vxx = e_f_v_in[v_in_offset + n1 * 9] * v_factor;
+    double vyy = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
+    double vzz = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
+    double vxy = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
+    double vxz = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
+    double vyz = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
+    double vyx = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
+    double vzx = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
+    double vzy = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
+    int ghost_idx = danger_list[n1];
+    if (ghost_idx != -1) {
+      for (int i = 0; i < MAX_GHOST_NUM_EACH_DANGER; ++i) {
+        int ghost_id = ghost_id_map[ghost_idx + ndanger * i];
+        if (ghost_id != -1) {
+          ghost_id -= N;
+          fx += f_ghost_in[ghost_id * 3];
+          fy += f_ghost_in[ghost_id * 3 + 1];
+          fz += f_ghost_in[ghost_id * 3 + 2];
+
+          vxx +=  v_ghost_in[ghost_id * 9];
+          vyy +=  v_ghost_in[ghost_id * 9 + 4];
+          vzz +=  v_ghost_in[ghost_id * 9 + 8];
+          vxy +=  v_ghost_in[ghost_id * 9 + 3];
+          vxz +=  v_ghost_in[ghost_id * 9 + 6];
+          vyz +=  v_ghost_in[ghost_id * 9 + 7];
+          vyx +=  v_ghost_in[ghost_id * 9 + 1];
+          vzx +=  v_ghost_in[ghost_id * 9 + 2];
+          vzy +=  v_ghost_in[ghost_id * 9 + 5];
+        }
+      }
+    }
+    f_out[n1] = fx * f_factor;            // fx
+    f_out[n1 + N] = fy * f_factor;        // fy
+    f_out[n1 + N * 2] = fz * f_factor;    // fz
+
+    v_out[n1] = vxx * v_factor;
+    v_out[n1 + N] = vyy * v_factor;
+    v_out[n1 + N * 2] = vzz * v_factor;
+    v_out[n1 + N * 3] = vxy * v_factor;
+    v_out[n1 + N * 4] = vxz * v_factor;
+    v_out[n1 + N * 5] = vyz * v_factor;
+    v_out[n1 + N * 6] = vyx * v_factor;
+    v_out[n1 + N * 7] = vzx * v_factor;
+    v_out[n1 + N * 8] = vzy * v_factor;
   }
 }
 
@@ -396,14 +444,19 @@ static __global__ void create_ghost_map(
     double x1 = x[n1];
     double y1 = y[n1];
     double z1 = z[n1];
+    int nall = N + nghost;
+    int nall_2 = nall * 2;
 
+    dp_position[n1] = x1;
+    dp_position[n1 + nall] = y1;
+    dp_position[n1 + nall_2] = z1;
+    type_ghost[n1] = type[n1];
     if (ghost_count[n1] == 0) {
       danger_list[n1] = -1;
       return;
       // TODO: may use less threads? use more memory to save messages
     }
     int ghost_id = N + ghost_sum[n1];
-    int ghost_id_minus_N = ghost_id - N;
     int ghost_idx = danger_list[n1];
     int ghost_x_flag = 0;
     int ghost_y_flag = 0;
@@ -413,78 +466,71 @@ static __global__ void create_ghost_map(
         // x
         ghost_x_flag = 1;
         ghost_id_map[ghost_idx + ndanger * GHOST_X] = ghost_id;
-        type_ghost[ghost_id_minus_N] = type[n1];
-        dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-        dp_position[ghost_id_minus_N * 3 + 1] = y1;
-        dp_position[ghost_id_minus_N * 3 + 2] = z1;
+        type_ghost[ghost_id] = type[n1];
+        dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+        dp_position[ghost_id + nall] = y1;
+        dp_position[ghost_id + nall_2] = z1;
         ++ghost_id;
-        ++ghost_id_minus_N;
       }
 
       if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
         // y
         ghost_y_flag = 1;
         ghost_id_map[ghost_idx + ndanger * GHOST_Y] = ghost_id;
-        type_ghost[ghost_id_minus_N] = type[n1];
-        dp_position[ghost_id_minus_N * 3] = x1;
-        dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-        dp_position[ghost_id_minus_N * 3 + 2] = z1;
+        type_ghost[ghost_id] = type[n1];
+        dp_position[ghost_id] = x1;
+        dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+        dp_position[ghost_id + nall_2] = z1;
         ++ghost_id;
-        ++ghost_id_minus_N;
 
         if (ghost_x_flag == 1) {
           // xy
           ghost_id_map[ghost_idx + ndanger * GHOST_XY] = ghost_id;
-          type_ghost[ghost_id_minus_N] = type[n1];
-          dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-          dp_position[ghost_id_minus_N * 3 + 2] = z1;
+          type_ghost[ghost_id] = type[n1];
+          dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_id + nall_2] = z1;
           ++ghost_id;
-        ++ghost_id_minus_N;
         }
       }
 
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         // z
         ghost_id_map[ghost_idx + ndanger * GHOST_Z] = ghost_id;
-        type_ghost[ghost_id_minus_N] = type[n1];
-        dp_position[ghost_id_minus_N * 3] = x1;
-        dp_position[ghost_id_minus_N * 3 + 1] = y1;
-        dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+        type_ghost[ghost_id] = type[n1];
+        dp_position[ghost_id] = x1;
+        dp_position[ghost_id + nall] = y1;
+        dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
         ++ghost_id;
-        ++ghost_id_minus_N;
 
         if (ghost_x_flag == 1) {
           // xz
           ghost_id_map[ghost_idx + ndanger * GHOST_XZ] = ghost_id;
-          type_ghost[ghost_id_minus_N] = type[n1];
-          dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_id_minus_N * 3 + 1] = y1;
-          dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          type_ghost[ghost_id] = type[n1];
+          dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+          dp_position[ghost_id + nall] = y1;
+          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
           ++ghost_id;
-        ++ghost_id_minus_N;
 
           if (ghost_y_flag == 1) {
             // xyz
             ghost_id_map[ghost_idx + ndanger * GHOST_XYZ] = ghost_id;
-            type_ghost[ghost_id_minus_N] = type[n1];
-            dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-            dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-            dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+            type_ghost[ghost_id] = type[n1];
+            dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
+            dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+            dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
             ++ghost_id;
-        ++ghost_id_minus_N;
           }
         }
 
         if (ghost_y_flag == 1) {
           // yz
           ghost_id_map[ghost_idx + ndanger * GHOST_YZ] = ghost_id;
-          type_ghost[ghost_id_minus_N] = type[n1];
-          dp_position[ghost_id_minus_N * 3] = x1;
-          dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-          dp_position[ghost_id_minus_N * 3 + 2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          type_ghost[ghost_id] = type[n1];
+          dp_position[ghost_id] = x1;
+          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
           ++ghost_id;
-        ++ghost_id_minus_N;
         }
       }
     } else {
@@ -493,205 +539,9 @@ static __global__ void create_ghost_map(
       printf("TODO: triclinc box\n");
       return;
     }
-
-
-  }
-
-}
-
-
-static __global__ void gpu_find_neighbor_ON1_dp(
-  const Box box,
-  const int N,
-  const int N1,
-  const int N2,
-  const int nghost,
-  const int ndanger,
-  const int* __restrict__ type,
-  const int* __restrict__ cell_counts,
-  const int* __restrict__ cell_count_sum,
-  const int* __restrict__ cell_contents,
-  int* NN,
-  int* NL,
-  const int* danger_list,
-  const int* ghost_id_map,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z,
-  const int nx,
-  const int ny,
-  const int nz,
-  const double rc_inv,
-  const double cutoff_square)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  int count = 0;
-  if (n1 < N2) {
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    int cell_id;
-    int cell_id_x;
-    int cell_id_y;
-    int cell_id_z;
-    find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
-
-    // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
-          int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
-          if (cell_id_x + i < 0)
-            neighbor_cell += nx;
-          if (cell_id_x + i >= nx)
-            neighbor_cell -= nx;
-          if (cell_id_y + j < 0)
-            neighbor_cell += ny * nx;
-          if (cell_id_y + j >= ny)
-            neighbor_cell -= ny * nx;
-          if (cell_id_z + k < 0)
-            neighbor_cell += nz * ny * nx;
-          if (cell_id_z + k >= nz)
-            neighbor_cell -= nz * ny * nx;
-
-          const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
-          const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
-
-          for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-            int n2 = cell_contents[num_atoms_previous_cells + m];
-            if (n2 >= N1 && n2 < N2 && n1 != n2) {
-
-              double x12 = x[n2] - x1;
-              double y12 = y[n2] - y1;
-              double z12 = z[n2] - z1;
-
-              int ghost_x_flag = 0;
-              int ghost_y_flag = 0;
-              int ghost_z_flag = 0;
-              
-              if (box.triclinic == 0) {
-                // orthogonal box
-                if (box.pbc_x == 1 && x12 < -box.cpu_h[3]) {
-                  x12 += box.cpu_h[0];
-                  ghost_x_flag = 0b001;
-                } else if (box.pbc_x == 1 && x12 > +box.cpu_h[3]) {
-                  x12 -= box.cpu_h[0];
-                  ghost_x_flag = 0b001;
-                }
-                if (box.pbc_y == 1 && y12 < -box.cpu_h[4]) {
-                  y12 += box.cpu_h[1];
-                  ghost_y_flag = 0b010;
-                } else if (box.pbc_y == 1 && y12 > +box.cpu_h[4]) {
-                  y12 -= box.cpu_h[1];
-                  ghost_y_flag = 0b010;
-                }
-                if (box.pbc_z == 1 && z12 < -box.cpu_h[5]) {
-                  z12 += box.cpu_h[2];
-                  ghost_z_flag = 0b100;
-                } else if (box.pbc_z == 1 && z12 > +box.cpu_h[5]) {
-                  z12 -= box.cpu_h[2];
-                  ghost_z_flag = 0b100;
-                }
-              } else {
-                // triclinic box
-                // TODO
-                double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
-                double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
-                double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
-                if (box.pbc_x == 1)
-                  sx12 -= nearbyint(sx12);
-                if (box.pbc_y == 1)
-                  sy12 -= nearbyint(sy12);
-                if (box.pbc_z == 1)
-                  sz12 -= nearbyint(sz12);
-                x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
-                y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
-                z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
-              }
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-
-              if (d2 < cutoff_square) {
-                int ghost_xyz_flag = ghost_x_flag | ghost_y_flag | ghost_z_flag;
-                if (ghost_xyz_flag != 0) {
-                  n2 = ghost_id_map[danger_list[n2] + ndanger * (ghost_xyz_flag - 1)];
-                }
-                NL[count++ * N + n1] = n2;
-              }
-            }
-          }
-        }
-      }
-    }
-    NN[n1] = count;
   }
 }
 
-
-static void find_neighbor_dp(
-  const int N1,
-  const int N2,
-  const int nghost,
-  const int ndanger,
-  double rc,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& cell_count,
-  GPU_Vector<int>& cell_count_sum,
-  GPU_Vector<int>& cell_contents,
-  GPU_Vector<int>& NN,
-  GPU_Vector<int>& NL,
-  int* ghost_id_map,
-  int* danger_list)
-{
-  const int N = NN.size();
-  const int block_size = 256;
-  const int grid_size = (N2 - N1 - 1) / block_size + 1;
-  const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + N;
-  const double* z = position_per_atom.data() + N * 2;
-  const double rc_cell_list = 0.5 * rc;
-  const double rc_inv_cell_list = 2.0 / rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
-
-  gpu_find_neighbor_ON1_dp<<<grid_size, block_size>>>(
-    box,
-    N,
-    N1,
-    N2,
-    nghost,
-    ndanger,
-    type.data(),
-    cell_count.data(),
-    cell_count_sum.data(),
-    cell_contents.data(),
-    NN.data(),
-    NL.data(),
-    danger_list,
-    ghost_id_map,
-    x,
-    y,
-    z,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
-    rc_inv_cell_list,
-    rc * rc);
-  GPU_CHECK_KERNEL
-
-  const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  GPU_CHECK_KERNEL
-}
 
 
 void DP::compute(
@@ -734,9 +584,11 @@ void DP::compute(
 
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
+  int grid_size_ghost = (num_all_atoms - 1) / BLOCK_SIZE_FORCE + 1;
   ghost_id_map.resize(ndanger * 7, -1);
-  type_ghost.resize(nghost);
+  type_ghost.resize(num_all_atoms);
   dp_position_gpu.resize(num_all_atoms * 3);
+  
   create_ghost_map<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
     nghost,
@@ -751,68 +603,69 @@ void DP::compute(
     position_per_atom.data(),
     position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2,
-    dp_position_gpu.data() + number_of_atoms * 3,
+    dp_position_gpu.data(),
     box);
   GPU_CHECK_KERNEL
 
 
 
-#ifdef USE_FIXED_NEIGHBOR
-  static int num_calls = 0;
-#endif
-#ifdef USE_FIXED_NEIGHBOR
-  if (num_calls++ == 0) {
-#endif
-    find_neighbor_dp(
-      N1,
-      N2,
-      nghost,
-      ndanger,
-      rc,
-      box,
-      type,
-      position_per_atom,
-      dp_data.cell_count,
-      dp_data.cell_count_sum,
-      dp_data.cell_contents,
-      dp_data.NN,
-      dp_data.NL,
-      ghost_id_map.data(),
-      danger_list.data());
-#ifdef USE_FIXED_NEIGHBOR
-  }
-#endif
+  dp_data.NN.resize(num_all_atoms);
+  dp_data.NL.resize(num_all_atoms * MAX_NEIGH_NUM_DP);
+  dp_data.cell_contents.resize(num_all_atoms);
+  dp_data.cell_count.resize(num_all_atoms);
+  dp_data.cell_count_sum.resize(num_all_atoms);
 
-  // create dp position from gpumd
-  create_dp_position<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    position_per_atom.data(),
-    dp_position_gpu.data(),
-    number_of_atoms);
-  GPU_CHECK_KERNEL
+  Box box_ghost;
+  box_ghost.pbc_x = 0;
+  box_ghost.pbc_y = 0;
+  box_ghost.pbc_z = 0;
+  // TODO: triclinic
+  box_ghost.triclinic = box.triclinic;
+  box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+  box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
+  box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
+
+
+  find_neighbor(
+    N1,
+    num_all_atoms,
+    rc,
+    box_ghost,
+    type_ghost,
+    dp_position_gpu,
+    dp_data.cell_count,
+    dp_data.cell_count_sum,
+    dp_data.cell_contents,
+    dp_data.NN,
+    dp_data.NL);
+
 
   // Initialize DeepPot computation variables
-  std::vector<double> dp_ene_all(1, 0.0);
-  std::vector<double> dp_ene_atom(num_all_atoms, 0.0);
-  std::vector<double> dp_force(num_all_atoms * 3, 0.0);
-  std::vector<double> dp_vir_all(9, 0.0);
-  std::vector<double> dp_vir_atom(num_all_atoms * 9, 0.0);
+  dp_ene_all.resize(1, 0.0);
+  dp_ene_atom.resize(num_all_atoms, 0.0);
+  dp_force.resize(num_all_atoms * 3, 0.0);
+  dp_vir_all.resize(9, 0.0);
+  dp_vir_atom.resize(num_all_atoms * 9, 0.0);
 
 
   // copy position and type to CPU
-  std::vector<double> dp_position_cpu(num_all_atoms * 3);
-  dp_position_gpu.copy_to_host(dp_position_cpu.data());
-  // TODO: BUG! argument list does not match, because type is const int?
-  // type.copy_to_host(type_cpu.data(), number_of_atoms);
-  CHECK(gpuMemcpy(type_cpu.data(), type.data(), number_of_atoms * sizeof(int), gpuMemcpyDeviceToHost));
-  type_ghost.copy_to_host(type_cpu.data() + number_of_atoms);
+  dp_position_gpu_trans.resize(num_all_atoms * 3);
+  dp_position_transpose<<<grid_size_ghost, BLOCK_SIZE_FORCE>>>(
+    dp_position_gpu.data(),
+    dp_position_gpu_trans.data(),
+    num_all_atoms);
+  dp_position_cpu.resize(num_all_atoms * 3);
+  dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
+  type_cpu.resize(num_all_atoms);
+  type_ghost.copy_to_host(type_cpu.data());
 
 
   // create dp box
   std::vector<double> dp_box(9, 0.0);
   if (box.triclinic == 0) {
-    dp_box[0] = box.cpu_h[0];
-    dp_box[4] = box.cpu_h[1];
-    dp_box[8] = box.cpu_h[2];
+    dp_box[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+    dp_box[4] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
+    dp_box[8] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
   } else {
     dp_box[0] = box.cpu_h[0];
     dp_box[4] = box.cpu_h[1];
@@ -822,25 +675,50 @@ void DP::compute(
     dp_box[3] = box.cpu_h[3];
   }
 
+  dp_nl.ilist.resize(num_all_atoms, 0);
+  dp_nl.numneigh.resize(num_all_atoms, 0);
+  dp_nl.firstneigh.resize(num_all_atoms, nullptr);
+
   // Allocate lmp_ilist and lmp_numneigh
   dp_data.NN.copy_to_host(dp_nl.numneigh.data());
-  // gpuMemcpy(lmp_numneigh, deepmd_ghost_data.NN.data(), num_of_all_atoms*sizeof(int), gpuMemcpyDeviceToHost);
-  std::vector<int> cpu_NL(dp_data.NL.size());
+  cpu_NL.resize(dp_data.NL.size());
   dp_data.NL.copy_to_host(cpu_NL.data());
-  // gpuMemcpy(cpu_NL.data(), deepmd_ghost_data.NL.data(), total_all_neighs * sizeof(int), gpuMemcpyDeviceToHost);
 
   int offset = 0;
-  for (int i = 0; i < number_of_atoms; ++i) {
+  dp_nl.neigh_storage.resize(dp_data.NL.size());
+  for (int i = 0; i < num_all_atoms; ++i) {
     dp_nl.ilist[i] = i;
     dp_nl.firstneigh[i] = dp_nl.neigh_storage.data() + offset;
     for (int j = 0; j < dp_nl.numneigh[i]; ++j) {
-        dp_nl.neigh_storage[offset + j] = cpu_NL[i + j * number_of_atoms]; // Copy in column-major order
+        dp_nl.neigh_storage[offset + j] = cpu_NL[i + j * num_all_atoms]; // Copy in column-major order
     }
     offset += dp_nl.numneigh[i];
   }
 
+  
+  // printf("\n\n!!!!! CHECK TYPE AND POSITION !!!!!\n");
+  // for (int ii = 0; ii < num_all_atoms; ++ii) {
+  //   if (ii < number_of_atoms) printf("local "); else printf ("ghost ");
+  //   printf("id[%d] type[%d] pos[%f %f %f]\n", ii, type_cpu[ii], dp_position_cpu[3*ii],  dp_position_cpu[3*ii+1], dp_position_cpu[3*ii+2]);
+  // }
+  // printf("!!!!! CHECK TYPE AND POSITION !!!!!\n\n");
+  // fflush(stdout);
+  // printf("!!!!! CHECK LIST !!!!!\n");
+  // printf("inum[%d]\n", dp_nl.inum);
+  // for (int i = 0; i < number_of_atoms; ++i) {
+  //   printf("i[%d] numneigh[%d] neighs: ", dp_nl.ilist[i], dp_nl.numneigh[i]);
+  //   for (int j = 0; j < dp_nl.numneigh[i]; ++j) {
+  //     printf("%d ", dp_nl.firstneigh[i][j]);
+  //   }
+  //   printf("\n");
+  // }
+  // printf("!!!!! CHECK LIST !!!!!\n");
+  // fflush(stdout);
+
   // Constructing a neighbor list in LAMMPS format
-  // deepmd_compat::InputNlist lmp_list(num_of_all_atoms, lmp_ilist, lmp_numneigh, lmp_firstneigh);
+  // inum: number of local atoms
+  // the neighbor list record the message of ghost atoms, so len(numneigh) = nlocal + nghost 
+  // deepmd_compat::InputNlist lmp_list(nlocal, lmp_ilist, lmp_numneigh, lmp_firstneigh);
   deepmd_compat::InputNlist lmp_list(dp_nl.inum, dp_nl.ilist.data(), dp_nl.numneigh.data(), dp_nl.firstneigh.data());
 
 
@@ -848,7 +726,6 @@ void DP::compute(
   // to calculate the atomic force and energy from deepot
   if (single_model) {
     if (! atom_spin_flag) {
-        //deep_pot.compute(dp_ene_all, dp_force, dp_vir_all,dp_cpu_ghost_position, gpumd_cpu_ghost_type,dp_box);
         deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom, 
             dp_position_cpu, type_cpu, dp_box,
             nghost, lmp_list, 0);
@@ -857,40 +734,32 @@ void DP::compute(
 
 
   // copy dp output energy, force, and virial to gpu
-  size_t size_tmp = number_of_atoms; // size of number_of_atom * 1 in double
   // memory distribution of e_f_v_gpu: e1, e2 ... en, fx1, fy1, fz1, fx2 ... fzn, vxx1 ...
-  e_f_v_gpu.copy_from_host(dp_ene_atom.data(), size_tmp, 0);
-  e_f_v_gpu.copy_from_host(dp_force.data(), size_tmp * 3, number_of_atoms);
-  e_f_v_gpu.copy_from_host(dp_vir_atom.data(), size_tmp * 9, number_of_atoms * 4);
+  e_f_v_gpu.copy_from_host(dp_ene_atom.data(), number_of_atoms, 0);
+  e_f_v_gpu.copy_from_host(dp_force.data(), number_of_atoms * 3, number_of_atoms);
+  e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
+  
+  // copy ghost atom force and virial to modify the local atoms' force and virial
+  f_ghost.resize(nghost * 3);
+  v_ghost.resize(nghost * 9);
+  f_ghost.copy_from_host(dp_force.data() + number_of_atoms * 3, nghost * 3);
+  v_ghost.copy_from_host(dp_vir_atom.data() + number_of_atoms * 9, nghost * 9);
 
-  // std::vector<double> gpumd_ene_atom(number_of_atoms, 0.0);
-  // std::vector<double> gpumd_force(number_of_atoms * 3, 0.0);
-  // std::vector<double> virial_per_atom_cpu(number_of_atoms * 9, 0.0);
-  // const int const_cell = half_const_cell * 2 + 1;
-  // for (int g = 0; g < number_of_atoms; g++) {
-  //   gpumd_ene_atom[g] += dp_ene_atom[i * real_num_of_atoms + g] * ener_unit_cvt_factor;
-  //   for (int o = 0; o < 3; o++)
-  //     gpumd_force.data()[g + o * real_num_of_atoms] += dp_force.data()[3*g+o] * force_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 0 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 0] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 1 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 4] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 2 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 8] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 3 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 3] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 4 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 6] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 5 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 7] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 6 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 1] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 7 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 2] * virial_unit_cvt_factor;
-  //   virial_per_atom_cpu.data()[g + 8 * real_num_of_atoms] += dp_vir_atom.data()[9 * g + 5] * virial_unit_cvt_factor;
-  // }
+  // transpose dp vectors
   transpose_and_update_unit<<<grid_size, BLOCK_SIZE_FORCE>>>(
     e_f_v_gpu.data(),
     potential_per_atom.data(),
     force_per_atom.data(),
     virial_per_atom.data(),
+    f_ghost.data(),
+    v_ghost.data(),
+    danger_list.data(),
+    ghost_id_map.data(),
     ener_unit_cvt_factor,
     force_unit_cvt_factor,
     virial_unit_cvt_factor,
-    number_of_atoms
-  );
+    number_of_atoms,
+    ndanger);
   GPU_CHECK_KERNEL
 
 }

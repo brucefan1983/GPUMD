@@ -91,13 +91,23 @@ protected:
   GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
   GPU_Vector<int> danger_list;      // the dangerous atom index list, according to ghost_id_map, number_of_atoms x 1
 
-  // these vectors are used to get the neighbors of the ghost atoms
-  GPU_Vector<int> ghost_numneigh;   // save the neighbor number of ghost atoms, nghost x 1
-  GPU_Vector<int> ghost_numneigh_sum; // exclusive the ghost_numneigh
-  GPU_Vector<int> ghost_neigh_pair; // each pair save (ghost id, neigh), nghost x max_neigh x 2
 
   // dp instance
   deepmd_compat::DeepPot deep_pot;
+
+  GPU_Vector<double> f_ghost;
+  GPU_Vector<double> v_ghost;
+  std::vector<int> cpu_NL;
+  GPU_Vector<double> dp_position_gpu_trans;
+  std::vector<double> dp_position_cpu;
+
+
+  // dp output vectors
+  std::vector<double> dp_ene_all;
+  std::vector<double> dp_ene_atom;
+  std::vector<double> dp_force;
+  std::vector<double> dp_vir_all;
+  std::vector<double> dp_vir_atom;
 
   void set_dp_coeff();
 };
