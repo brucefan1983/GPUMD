@@ -616,14 +616,14 @@ void DP::compute(
   dp_data.cell_count_sum.resize(num_all_atoms);
 
   Box box_ghost;
-  box_ghost.pbc_x = 0;
-  box_ghost.pbc_y = 0;
-  box_ghost.pbc_z = 0;
+  box_ghost.pbc_x = 1;
+  box_ghost.pbc_y = 1;
+  box_ghost.pbc_z = 1;
   // TODO: triclinic
   box_ghost.triclinic = box.triclinic;
-  box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
-  box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
-  box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
+  box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 3 * rc : rc;
+  box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 3 * rc : rc;
+  box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 3 * rc : rc;
 
 
   find_neighbor(
