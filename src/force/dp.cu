@@ -58,10 +58,10 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_nl.neigh_storage.resize(num_atoms * MAX_NEIGH_NUM_DP);
   
   // init ghost lists
-  ghost_list.resize(num_atoms);
+  danger_list.resize(num_atoms);
   ghost_count.resize(num_atoms);
   ghost_sum.resize(num_atoms);
-  ghost_flag.resize(num_atoms);
+  danger_flag.resize(num_atoms);
 
   // init dp nghost temporary vector
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -188,7 +188,7 @@ static __global__ void calc_ghost_atom_number_each_block(
   const double* y,
   const double* z,
   int* ghost_count,
-  int* ghost_flag,
+  int* danger_flag,
   int* nghost_tmp,
   const Box box)
 {
@@ -226,7 +226,7 @@ static __global__ void calc_ghost_atom_number_each_block(
     --nghost;
     nghost_block[tid] = nghost;
     ghost_count[n1] = nghost;
-    ghost_flag[n1] = nghost != 0;
+    danger_flag[n1] = nghost != 0;
     
   }
   __syncthreads();
@@ -284,7 +284,7 @@ static int calc_ghost_atom_number(
   const double rc,
   const double* position,
   int* ghost_count,
-  int* ghost_flag,
+  int* danger_flag,
   GPU_Vector<int>& nghost_tmp,
   const Box& box)
 {
@@ -295,7 +295,7 @@ static int calc_ghost_atom_number(
     position + N,
     position + 2 * N,
     ghost_count,
-    ghost_flag,
+    danger_flag,
     nghost_tmp.data(),
     box);
   GPU_CHECK_KERNEL
@@ -377,10 +377,11 @@ static int calc_ghost_atom_number(
 static __global__ void create_ghost_map(
   const int N,
   const int nghost,
+  const int ndanger,
   const double rc,
   const int* ghost_count,
   const int* ghost_sum,
-  int* ghost_list,
+  int* danger_list,
   int* ghost_id_map,
   int* type_ghost,
   const int* type,
@@ -397,13 +398,13 @@ static __global__ void create_ghost_map(
     double z1 = z[n1];
 
     if (ghost_count[n1] == 0) {
-      ghost_list[n1] = -1;
+      danger_list[n1] = -1;
       return;
       // TODO: may use less threads? use more memory to save messages
     }
     int ghost_id = N + ghost_sum[n1];
     int ghost_id_minus_N = ghost_id - N;
-    int ghost_idx = ghost_list[n1];
+    int ghost_idx = danger_list[n1];
     int ghost_x_flag = 0;
     int ghost_y_flag = 0;
     if (box.triclinic == 0) {
@@ -411,7 +412,7 @@ static __global__ void create_ghost_map(
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         // x
         ghost_x_flag = 1;
-        ghost_id_map[ghost_idx + nghost * GHOST_X] = ghost_id;
+        ghost_id_map[ghost_idx + ndanger * GHOST_X] = ghost_id;
         type_ghost[ghost_id_minus_N] = type[n1];
         dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
         dp_position[ghost_id_minus_N * 3 + 1] = y1;
@@ -423,7 +424,7 @@ static __global__ void create_ghost_map(
       if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
         // y
         ghost_y_flag = 1;
-        ghost_id_map[ghost_idx + nghost * GHOST_Y] = ghost_id;
+        ghost_id_map[ghost_idx + ndanger * GHOST_Y] = ghost_id;
         type_ghost[ghost_id_minus_N] = type[n1];
         dp_position[ghost_id_minus_N * 3] = x1;
         dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
@@ -433,7 +434,7 @@ static __global__ void create_ghost_map(
 
         if (ghost_x_flag == 1) {
           // xy
-          ghost_id_map[ghost_idx + nghost * GHOST_XY] = ghost_id;
+          ghost_id_map[ghost_idx + ndanger * GHOST_XY] = ghost_id;
           type_ghost[ghost_id_minus_N] = type[n1];
           dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
           dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
@@ -445,7 +446,7 @@ static __global__ void create_ghost_map(
 
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         // z
-        ghost_id_map[ghost_idx + nghost * GHOST_Z] = ghost_id;
+        ghost_id_map[ghost_idx + ndanger * GHOST_Z] = ghost_id;
         type_ghost[ghost_id_minus_N] = type[n1];
         dp_position[ghost_id_minus_N * 3] = x1;
         dp_position[ghost_id_minus_N * 3 + 1] = y1;
@@ -455,7 +456,7 @@ static __global__ void create_ghost_map(
 
         if (ghost_x_flag == 1) {
           // xz
-          ghost_id_map[ghost_idx + nghost * GHOST_XZ] = ghost_id;
+          ghost_id_map[ghost_idx + ndanger * GHOST_XZ] = ghost_id;
           type_ghost[ghost_id_minus_N] = type[n1];
           dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
           dp_position[ghost_id_minus_N * 3 + 1] = y1;
@@ -465,7 +466,7 @@ static __global__ void create_ghost_map(
 
           if (ghost_y_flag == 1) {
             // xyz
-            ghost_id_map[ghost_idx + nghost * GHOST_XYZ] = ghost_id;
+            ghost_id_map[ghost_idx + ndanger * GHOST_XYZ] = ghost_id;
             type_ghost[ghost_id_minus_N] = type[n1];
             dp_position[ghost_id_minus_N * 3] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
             dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
@@ -477,7 +478,7 @@ static __global__ void create_ghost_map(
 
         if (ghost_y_flag == 1) {
           // yz
-          ghost_id_map[ghost_idx + nghost * GHOST_YZ] = ghost_id;
+          ghost_id_map[ghost_idx + ndanger * GHOST_YZ] = ghost_id;
           type_ghost[ghost_id_minus_N] = type[n1];
           dp_position[ghost_id_minus_N * 3] = x1;
           dp_position[ghost_id_minus_N * 3 + 1] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
@@ -505,13 +506,14 @@ static __global__ void gpu_find_neighbor_ON1_dp(
   const int N1,
   const int N2,
   const int nghost,
+  const int ndanger,
   const int* __restrict__ type,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
   const int* __restrict__ cell_contents,
   int* NN,
   int* NL,
-  const int* ghost_list,
+  const int* danger_list,
   const int* ghost_id_map,
   const double* __restrict__ x,
   const double* __restrict__ y,
@@ -615,7 +617,7 @@ static __global__ void gpu_find_neighbor_ON1_dp(
               if (d2 < cutoff_square) {
                 int ghost_xyz_flag = ghost_x_flag | ghost_y_flag | ghost_z_flag;
                 if (ghost_xyz_flag != 0) {
-                  n2 = ghost_id_map[ghost_list[n2] + nghost * (ghost_xyz_flag - 1)];
+                  n2 = ghost_id_map[danger_list[n2] + ndanger * (ghost_xyz_flag - 1)];
                 }
                 NL[count++ * N + n1] = n2;
               }
@@ -633,6 +635,7 @@ static void find_neighbor_dp(
   const int N1,
   const int N2,
   const int nghost,
+  const int ndanger,
   double rc,
   Box& box,
   const GPU_Vector<int>& type,
@@ -643,7 +646,7 @@ static void find_neighbor_dp(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL,
   int* ghost_id_map,
-  int* ghost_list)
+  int* danger_list)
 {
   const int N = NN.size();
   const int block_size = 256;
@@ -666,13 +669,14 @@ static void find_neighbor_dp(
     N1,
     N2,
     nghost,
+    ndanger,
     type.data(),
     cell_count.data(),
     cell_count_sum.data(),
     cell_contents.data(),
     NN.data(),
     NL.data(),
-    ghost_list,
+    danger_list,
     ghost_id_map,
     x,
     y,
@@ -709,7 +713,7 @@ void DP::compute(
     rc,
     position_per_atom.data(),
     ghost_count.data(),
-    ghost_flag.data(),
+    danger_flag.data(),
     nghost_tmp,
     box);
 
@@ -717,20 +721,30 @@ void DP::compute(
     thrust::device, ghost_count.data(), ghost_count.data() + number_of_atoms, ghost_sum.data());
 
   thrust::exclusive_scan(
-    thrust::device, ghost_flag.data(), ghost_flag.data() + number_of_atoms, ghost_list.data());
+    thrust::device, danger_flag.data(), danger_flag.data() + number_of_atoms, danger_list.data());
+
+  // get the number of dangerous atoms from the last number of danger_list
+  int last_atom_danger_flag = 0;
+  danger_flag.copy_to_host(&last_atom_danger_flag, 1, number_of_atoms - 1);
+  danger_list.copy_to_host(&ndanger, 1, number_of_atoms - 1);
+  ndanger += last_atom_danger_flag;
+
+
+  // check_ghost<<<grid_size, BLOCK_SIZE_FORCE>>>(ghost_count.data(), ghost_sum.data(), ghost_flag.data(), ghost_list.data(), number_of_atoms);
 
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
-  ghost_id_map.resize(nghost * 7, -1);
+  ghost_id_map.resize(ndanger * 7, -1);
   type_ghost.resize(nghost);
   dp_position_gpu.resize(num_all_atoms * 3);
   create_ghost_map<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
     nghost,
+    ndanger,
     rc,
     ghost_count.data(),
     ghost_sum.data(),
-    ghost_list.data(),
+    danger_list.data(),
     ghost_id_map.data(),
     type_ghost.data(),
     type.data(),
@@ -753,6 +767,7 @@ void DP::compute(
       N1,
       N2,
       nghost,
+      ndanger,
       rc,
       box,
       type,
@@ -763,7 +778,7 @@ void DP::compute(
       dp_data.NN,
       dp_data.NL,
       ghost_id_map.data(),
-      ghost_list.data());
+      danger_list.data());
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif

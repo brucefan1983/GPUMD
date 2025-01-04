@@ -79,14 +79,22 @@ protected:
   std::vector<int> type_cpu;
   GPU_Vector<double> e_f_v_gpu;     // a temporary variable to save dp energy, force and virial
 
-  int nghost;
-  GPU_Vector<int> type_ghost;
-  GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom
+  // the atoms whose distance to boundaries is less than rcut are dangerous
+  // the atoms mirrored by dangerous atoms are ghost atoms
+  int nghost;                       // number of ghost atoms
+  int ndanger;                      // number of dangerous atoms
+  GPU_Vector<int> type_ghost;       // type of ghost atoms, nghost x 1
+  GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom, number_of_atoms x 1
   GPU_Vector<int> ghost_sum;        // exclusive the ghost_count
   GPU_Vector<int> nghost_tmp;       // a temporary vector to save ghost atom number
-  GPU_Vector<int> ghost_id_map;    // a map to find the real ghost id of each ghost atom, nghost x 7
-  GPU_Vector<int> ghost_flag;       // 1 if ghost atom, 0 if not
-  GPU_Vector<int> ghost_list;       // a list to find the index in ghost_id_map, number_of_atoms x 1
+  GPU_Vector<int> ghost_id_map;     // a map to find the ghost id of each dangerous atom, ndanger x 7
+  GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
+  GPU_Vector<int> danger_list;      // the dangerous atom index list, according to ghost_id_map, number_of_atoms x 1
+
+  // these vectors are used to get the neighbors of the ghost atoms
+  GPU_Vector<int> ghost_numneigh;   // save the neighbor number of ghost atoms, nghost x 1
+  GPU_Vector<int> ghost_numneigh_sum; // exclusive the ghost_numneigh
+  GPU_Vector<int> ghost_neigh_pair; // each pair save (ghost id, neigh), nghost x max_neigh x 2
 
   // dp instance
   deepmd_compat::DeepPot deep_pot;
