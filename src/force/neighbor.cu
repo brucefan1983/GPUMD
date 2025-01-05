@@ -160,54 +160,6 @@ static __global__ void gpu_find_neighbor_ON1(
   }
 }
 
-#ifdef USE_TENSORFLOW
-static __global__ void gpu_find_deepmd_neighbor_ON1(
-  const Box box,
-  const int N,
-  const int N1,
-  const int N2,
-  const int* __restrict__ type,
-  int* ghost_type,
-  double* __restrict__ gx,
-  double* __restrict__ gy,
-  double* __restrict__ gz,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    const int type1 = type[n1];
-
-    const int z_lim = box.pbc_z ? 1 : 0;
-    const int y_lim = box.pbc_y ? 1 : 0;
-    const int x_lim = box.pbc_x ? 1 : 0;
-    // const int x = 3^(z_lim + y_lim + x_lim) / 2 + 1;
-
-
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
-          // if (i == -x_lim and j == -y_lim and k == -z_lim) num_ghost = 13;
-          // if (i == 0 and j == 0 and k == 0) num_ghost = 0;
-          int num_ghost = (k + z_lim) * ((2 * y_lim + 1) * (2 * x_lim + 1)) + 
-                          (j + y_lim) * (2 * x_lim + 1) + 
-                          (i + x_lim);
-          int n_ghost = (N2 - N1) * num_ghost + n1;
-          gx[n_ghost] = x1 + box.thickness_x * i;
-          gy[n_ghost] = y1 + box.thickness_y * j;
-          gz[n_ghost] = z1 + box.thickness_z * k;
-          ghost_type[n_ghost] = type1;
-        }
-      }
-    }
-  }
-}
-#endif
-
 void find_cell_list(
   const double rc,
   const int* num_bins,
@@ -340,49 +292,6 @@ void find_cell_list(
     rc_inv);
   GPU_CHECK_KERNEL
 }
-
-#ifdef USE_TENSORFLOW
-void find_neighbor_deepmd(
-  const int N1,
-  const int N2,
-  const int const_cell,
-  double rc,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& ghost_type,
-  GPU_Vector<double>& ghost_position)
-{
-  const int N = N2 - N1;
-  const int block_size = 256;
-  const int grid_size = (N2 - N1 - 1) / block_size + 1;
-  const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + N;
-  const double* z = position_per_atom.data() + N * 2;
-  double* gx = ghost_position.data();
-  double* gy = ghost_position.data() + N*(const_cell*2+1);
-  double* gz = ghost_position.data() + N*(const_cell*2+1) * 2;
-  const double rc_cell_list = 0.5 * rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  gpu_find_deepmd_neighbor_ON1<<<grid_size, block_size>>>(
-    box,
-    N,
-    N1,
-    N2,
-    type.data(),
-    ghost_type.data(),
-    gx,
-    gy,
-    gz,
-    x,
-    y,
-    z);
-  GPU_CHECK_KERNEL
-}
-#endif
 
 void find_neighbor(
   const int N1,
