@@ -24,7 +24,7 @@ CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
 endif
-INC = -I./ # if use -DUSE_TENSORFLOW, please make sure:
+INC = -I./ # \ if use -DUSE_TENSORFLOW in CFLAGS, please make sure:
            # -I${deepmd_source_dir}/source/api_cc/include \
            # -I${deepmd_source_dir}/source/lib/include \
            # -I${deepmd_source_dir}/source/api_c/include
