@@ -16,9 +16,6 @@ The driver class calculating force and related quantities.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_TENSORFLOW
-#include "deepmd.cuh"
-#endif
-#ifdef DP_BHK
 #include "dp.cuh"
 #endif
 #include "eam.cuh"
@@ -76,15 +73,6 @@ void Force::parse_potential(
   std::unique_ptr<Potential> potential;
   bool is_nep = false;
 
-#ifdef USE_TENSORFLOW
-  if (strcmp(param[1], "deepmd") == 0) {
-    number_of_atoms_ = number_of_atoms;
-    potential.reset(new DEEPMD(param[2], number_of_atoms));
-  } else {
-    printf("Potentia keyword: %s\n", param[1]);
-    PRINT_INPUT_ERROR("Unsupported potential keyword!");
-  }
-#else
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -147,7 +135,7 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
-  #ifdef DP_BHK
+  #ifdef USE_TENSORFLOW
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain DP potential file behind setting file.\n");
@@ -167,7 +155,6 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
   fclose(fid_potential);
-#endif
 
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
