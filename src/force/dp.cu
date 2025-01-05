@@ -17,8 +17,7 @@
 The class dealing with the Deep Potential(DP).
 ------------------------------------------------------------------------------*/
 
-
-#ifdef DP_BHK
+#ifdef USE_TENSORFLOW
 #include "dp.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
@@ -27,12 +26,9 @@ The class dealing with the Deep Potential(DP).
 #include <thrust/scan.h>
 #include <sstream>
 
-
 #define BLOCK_SIZE_FORCE 128
 #define MAX_NEIGH_NUM_DP 512    // max neighbor number of an atom for DP
 #define MAX_GHOST_NUM_EACH_DANGER 7
-
-
 
 DP::DP(const char* filename_dp, int num_atoms)
 {
@@ -67,10 +63,7 @@ DP::DP(const char* filename_dp, int num_atoms)
   // init dp nghost temporary vector
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
   nghost_tmp.resize(grid_size);
-  
-
 }
-
 
 void DP::initialize_dp(const char* filename_dp)
 {
@@ -97,7 +90,7 @@ void DP::initialize_dp(const char* filename_dp)
     i++;
   }
 
-  printf("=======================================================\n");
+  printf("---------------------------------------------------------------\n");
   printf("  ++ cutoff: %f ++ \n", rc);
   printf("  ++ numb_types: %d ++ \n", numb_types);
   printf("  ++ numb_types_spin: %d ++ \n", numb_types_spin);
@@ -107,7 +100,7 @@ void DP::initialize_dp(const char* filename_dp)
   {
     printf("%s ", type_map[i]);
   }
-  printf("++\n=======================================================\n");
+  printf("++\n---------------------------------------------------------------\n");
 }
 
 DP::~DP(void)
@@ -124,9 +117,6 @@ void DP::set_dp_coeff(void) {
   atom_spin_flag = false;
 }
 
-
-
-
 static __global__ void dp_position_transpose(
   const double* position,
   double* position_trans,
@@ -139,7 +129,6 @@ static __global__ void dp_position_transpose(
     position_trans[n1 * 3 + 2] = position[n1 + 2 * N];
   }
 }
-
 
 // force and virial need transpose from dp to gpumd
 // TODO: use share memory to speed up
@@ -294,7 +283,6 @@ static __global__ void calc_ghost_atom_number_each_block(
   if (tid == 0) {
     nghost_tmp[blockIdx.x] = nghost_block[0];
   }
-  
 }
 
 static __global__ void reduce_nghost(int* idata, int* odata, int N) {
@@ -320,7 +308,6 @@ static __global__ void reduce_nghost(int* idata, int* odata, int N) {
     odata[blockIdx.x] = sdata[0];
   }
 }
-
 
 // this function has two step to calculate ghost atom number
 // step 1: calculate nghost for each atom and reduce in each block
@@ -417,10 +404,7 @@ static int calc_ghost_atom_number(
 
   printf("\nTO MANY ATOMS!!!\n\n");
   return 0;
-
-
 }
-
 
 static __global__ void create_ghost_map(
   const int N,
@@ -542,8 +526,6 @@ static __global__ void create_ghost_map(
   }
 }
 
-
-
 void DP::compute(
   Box& box,
   const GPU_Vector<int>& type,
@@ -569,7 +551,6 @@ void DP::compute(
 
   thrust::exclusive_scan(
     thrust::device, ghost_count.data(), ghost_count.data() + number_of_atoms, ghost_sum.data());
-
   thrust::exclusive_scan(
     thrust::device, danger_flag.data(), danger_flag.data() + number_of_atoms, danger_list.data());
 
@@ -579,9 +560,7 @@ void DP::compute(
   danger_list.copy_to_host(&ndanger, 1, number_of_atoms - 1);
   ndanger += last_atom_danger_flag;
 
-
   // check_ghost<<<grid_size, BLOCK_SIZE_FORCE>>>(ghost_count.data(), ghost_sum.data(), ghost_flag.data(), ghost_list.data(), number_of_atoms);
-
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
   int grid_size_ghost = (num_all_atoms - 1) / BLOCK_SIZE_FORCE + 1;
@@ -607,8 +586,6 @@ void DP::compute(
     box);
   GPU_CHECK_KERNEL
 
-
-
   dp_data.NN.resize(num_all_atoms);
   dp_data.NL.resize(num_all_atoms * MAX_NEIGH_NUM_DP);
   dp_data.cell_contents.resize(num_all_atoms);
@@ -625,7 +602,6 @@ void DP::compute(
   box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 3 * rc : rc;
   box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 3 * rc : rc;
 
-
   find_neighbor(
     N1,
     num_all_atoms,
@@ -639,14 +615,12 @@ void DP::compute(
     dp_data.NN,
     dp_data.NL);
 
-
   // Initialize DeepPot computation variables
   dp_ene_all.resize(1, 0.0);
   dp_ene_atom.resize(num_all_atoms, 0.0);
   dp_force.resize(num_all_atoms * 3, 0.0);
   dp_vir_all.resize(9, 0.0);
   dp_vir_atom.resize(num_all_atoms * 9, 0.0);
-
 
   // copy position and type to CPU
   dp_position_gpu_trans.resize(num_all_atoms * 3);
@@ -658,7 +632,6 @@ void DP::compute(
   dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
   type_cpu.resize(num_all_atoms);
   type_ghost.copy_to_host(type_cpu.data());
-
 
   // create dp box
   std::vector<double> dp_box(9, 0.0);
@@ -695,33 +668,11 @@ void DP::compute(
     offset += dp_nl.numneigh[i];
   }
 
-  
-  // printf("\n\n!!!!! CHECK TYPE AND POSITION !!!!!\n");
-  // for (int ii = 0; ii < num_all_atoms; ++ii) {
-  //   if (ii < number_of_atoms) printf("local "); else printf ("ghost ");
-  //   printf("id[%d] type[%d] pos[%f %f %f]\n", ii, type_cpu[ii], dp_position_cpu[3*ii],  dp_position_cpu[3*ii+1], dp_position_cpu[3*ii+2]);
-  // }
-  // printf("!!!!! CHECK TYPE AND POSITION !!!!!\n\n");
-  // fflush(stdout);
-  // printf("!!!!! CHECK LIST !!!!!\n");
-  // printf("inum[%d]\n", dp_nl.inum);
-  // for (int i = 0; i < number_of_atoms; ++i) {
-  //   printf("i[%d] numneigh[%d] neighs: ", dp_nl.ilist[i], dp_nl.numneigh[i]);
-  //   for (int j = 0; j < dp_nl.numneigh[i]; ++j) {
-  //     printf("%d ", dp_nl.firstneigh[i][j]);
-  //   }
-  //   printf("\n");
-  // }
-  // printf("!!!!! CHECK LIST !!!!!\n");
-  // fflush(stdout);
-
   // Constructing a neighbor list in LAMMPS format
   // inum: number of local atoms
   // the neighbor list record the message of ghost atoms, so len(numneigh) = nlocal + nghost 
   // deepmd_compat::InputNlist lmp_list(nlocal, lmp_ilist, lmp_numneigh, lmp_firstneigh);
   deepmd_compat::InputNlist lmp_list(dp_nl.inum, dp_nl.ilist.data(), dp_nl.numneigh.data(), dp_nl.firstneigh.data());
-
-
 
   // to calculate the atomic force and energy from deepot
   if (single_model) {
@@ -731,7 +682,6 @@ void DP::compute(
             nghost, lmp_list, 0);
     }
   }
-
 
   // copy dp output energy, force, and virial to gpu
   // memory distribution of e_f_v_gpu: e1, e2 ... en, fx1, fy1, fz1, fx2 ... fzn, vxx1 ...
@@ -761,6 +711,5 @@ void DP::compute(
     number_of_atoms,
     ndanger);
   GPU_CHECK_KERNEL
-
 }
 #endif
