@@ -17,9 +17,6 @@
 The class defining the simulation model.
 ------------------------------------------------------------------------------*/
 
-#ifdef USE_TENSORFLOW
-#include "DeepPot.h"
-#endif
 #include "atom.cuh"
 #include "box.cuh"
 #include "group.cuh"
@@ -485,38 +482,6 @@ void find_type_size(
   }
 }
 
-#ifdef USE_TENSORFLOW
-static std::vector<std::string> get_out_potential()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
-  std::string line;
-  std::vector<std::string> filename_potential = {"", ""};
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 2) {
-      if (tokens[0] == "potential") {
-        if (tokens[1] == "deepmd") {
-          filename_potential[0] = "deepmd";
-          filename_potential[1] = tokens[2];
-        } else {
-          std::cout << "Potentia keyword: " + filename_potential[0] << std::endl;
-          PRINT_INPUT_ERROR("Unsupported potential keyword!");
-        }
-      }
-    }
-  }
-  input_run.close();
-  if (filename_potential[0].empty()) {
-    PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
-  } else {
-    return filename_potential;
-  }
-}
-#else
 static std::string get_filename_potential()
 {
   std::ifstream input_run("run.in");
@@ -541,43 +506,7 @@ static std::string get_filename_potential()
     return filename_potential;
   }
 }
-#endif
 
-#ifdef USE_TENSORFLOW
-static std::vector<std::string> get_atom_symbols_from_deepmd(std::string& filename_potential)
-{
-  std::ifstream input_potential(filename_potential);
-  if (!input_potential.is_open()) {
-    std::cout << "Error: cannot open " + filename_potential << std::endl;
-    exit(1);
-  }
-  deepmd::DeepPot dp;
-  dp.init(filename_potential);
-
-  int number_of_types = dp.numb_types();
-  std::vector<std::string> atom_symbols;
-  std::string type_map_str;
-  dp.get_type_map(type_map_str);
-  std::istringstream iss(type_map_str);
-  std::string type_name;
-  while (iss >> type_name) {
-    atom_symbols.push_back(type_name);
-  }
-  std::cout << "Use deepmd potential in this simulation.\n" << std::endl;
-  std::cout << "Atom symbols count: " << number_of_types << std::endl;
-  for (const auto &type : atom_symbols) {
-      std::cout << type << std::endl;
-  }
-  
-  if (atom_symbols.size() != number_of_types) {
-    std::cerr << "Warning: Mismatch between declared and parsed number of types!" << std::endl;
-  } else {
-    std::cout << "Pass: between declared and parsed number of types!" << std::endl;
-  }
-  input_potential.close();
-  return atom_symbols;
-}
-#else
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
@@ -607,7 +536,6 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
   input_potential.close();
   return atom_symbols;
 }
-#endif
 
 void initialize_position(
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
@@ -620,13 +548,8 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-#ifdef USE_TENSORFLOW
-    auto filename_potential = get_out_potential();
-    atom_symbols = get_atom_symbols_from_deepmd(filename_potential[1]);
-#else
   auto filename_potential = get_filename_potential();
   atom_symbols = get_atom_symbols(filename_potential);
-#endif
 
   read_xyz_line_1(input, atom.number_of_atoms);
   int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
