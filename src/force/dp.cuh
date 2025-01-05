@@ -13,7 +13,6 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"
@@ -21,7 +20,6 @@
 #include <vector>
 
 namespace deepmd_compat = deepmd;
-
 
 struct DP_Data {
   GPU_Vector<int> NN, NL;
@@ -91,7 +89,6 @@ protected:
   GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
   GPU_Vector<int> danger_list;      // the dangerous atom index list, according to ghost_id_map, number_of_atoms x 1
 
-
   // dp instance
   deepmd_compat::DeepPot deep_pot;
 
@@ -100,7 +97,6 @@ protected:
   std::vector<int> cpu_NL;
   GPU_Vector<double> dp_position_gpu_trans;
   std::vector<double> dp_position_cpu;
-
 
   // dp output vectors
   std::vector<double> dp_ene_all;
