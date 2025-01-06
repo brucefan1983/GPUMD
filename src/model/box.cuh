@@ -33,36 +33,16 @@ public:
 
 inline __host__ __device__ void apply_mic(const Box& box, double& x12, double& y12, double& z12)
 {
-  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0)
-  {
-    double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
-    double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
-    double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
-    if (box.pbc_x == 1)
-      sx12 -= nearbyint(sx12);
-    if (box.pbc_y == 1)
-      sy12 -= nearbyint(sy12);
-    if (box.pbc_z == 1)
-      sz12 -= nearbyint(sz12);
-    x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
-    y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
-    z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
-  } else {
-    if (box.pbc_x == 1 && x12 < -box.cpu_h[3]) {
-      x12 += box.cpu_h[0];
-    } else if (box.pbc_x == 1 && x12 > +box.cpu_h[3]) {
-      x12 -= box.cpu_h[0];
-    }
-    if (box.pbc_y == 1 && y12 < -box.cpu_h[4]) {
-      y12 += box.cpu_h[1];
-    } else if (box.pbc_y == 1 && y12 > +box.cpu_h[4]) {
-      y12 -= box.cpu_h[1];
-    }
-    if (box.pbc_z == 1 && z12 < -box.cpu_h[5]) {
-      z12 += box.cpu_h[2];
-    } else if (box.pbc_z == 1 && z12 > +box.cpu_h[5]) {
-      z12 -= box.cpu_h[2];
-    }
-  }
+  double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
+  double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
+  double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
+  if (box.pbc_x == 1)
+    sx12 -= nearbyint(sx12);
+  if (box.pbc_y == 1)
+    sy12 -= nearbyint(sy12);
+  if (box.pbc_z == 1)
+    sz12 -= nearbyint(sz12);
+  x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
+  y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
+  z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
 }
