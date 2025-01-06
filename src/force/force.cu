@@ -364,63 +364,36 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    if (box.triclinic == 0) {
-      double lx = box.cpu_h[0];
-      double ly = box.cpu_h[1];
-      double lz = box.cpu_h[2];
-      if (box.pbc_x == 1) {
-        if (g_x[n] < 0) {
-          g_x[n] += lx;
-        } else if (g_x[n] > lx) {
-          g_x[n] -= lx;
-        }
+    double x = g_x[n];
+    double y = g_y[n];
+    double z = g_z[n];
+    double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    if (box.pbc_x == 1) {
+      if (sx < 0.0) {
+        sx += 1.0;
+      } else if (sx > 1.0) {
+        sx -= 1.0;
       }
-      if (box.pbc_y == 1) {
-        if (g_y[n] < 0) {
-          g_y[n] += ly;
-        } else if (g_y[n] > ly) {
-          g_y[n] -= ly;
-        }
-      }
-      if (box.pbc_z == 1) {
-        if (g_z[n] < 0) {
-          g_z[n] += lz;
-        } else if (g_z[n] > lz) {
-          g_z[n] -= lz;
-        }
-      }
-    } else {
-      double x = g_x[n];
-      double y = g_y[n];
-      double z = g_z[n];
-      double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-      double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-      double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-      if (box.pbc_x == 1) {
-        if (sx < 0.0) {
-          sx += 1.0;
-        } else if (sx > 1.0) {
-          sx -= 1.0;
-        }
-      }
-      if (box.pbc_y == 1) {
-        if (sy < 0.0) {
-          sy += 1.0;
-        } else if (sy > 1.0) {
-          sy -= 1.0;
-        }
-      }
-      if (box.pbc_z == 1) {
-        if (sz < 0.0) {
-          sz += 1.0;
-        } else if (sz > 1.0) {
-          sz -= 1.0;
-        }
-      }
-      g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
-      g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
-      g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
     }
+    if (box.pbc_y == 1) {
+      if (sy < 0.0) {
+        sy += 1.0;
+      } else if (sy > 1.0) {
+        sy -= 1.0;
+      }
+    }
+    if (box.pbc_z == 1) {
+      if (sz < 0.0) {
+        sz += 1.0;
+      } else if (sz > 1.0) {
+        sz -= 1.0;
+      }
+    }
+    g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
+    g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
+    g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
   }
 }
 
