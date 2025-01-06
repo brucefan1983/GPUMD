@@ -66,9 +66,9 @@ void update_box(double* box, const double* d_v, int N)
   double processed_v[9];
   double* d_processed_v;
 
-  cudaMalloc(&d_processed_v, 9 * sizeof(double));
+  gpuMalloc(&d_processed_v, 9 * sizeof(double));
   process_matrix<<<1, 9>>>(d_v, d_processed_v, N);
-  cudaMemcpy(processed_v, d_processed_v, 9 * sizeof(double), cudaMemcpyDeviceToHost);
+  gpuMemcpy(processed_v, d_processed_v, 9 * sizeof(double), gpuMemcpyDeviceToHost);
   transpose9(processed_v);
 
   for (int i = 0; i < 9; i++) {
@@ -82,7 +82,7 @@ void update_box(double* box, const double* d_v, int N)
     box[i] += result[i];
   }
 
-  cudaFree(d_processed_v);
+  gpuFree(d_processed_v);
 }
 
 __global__ void get_force_temp_kernel(
@@ -127,8 +127,8 @@ void get_force_temp(
 {
 
   double* d_deform;
-  cudaMalloc(&d_deform, 9 * sizeof(double));
-  cudaMemcpy(d_deform, deform, 9 * sizeof(double), cudaMemcpyHostToDevice);
+  gpuMalloc(&d_deform, 9 * sizeof(double));
+  gpuMemcpy(d_deform, deform, 9 * sizeof(double), gpuMemcpyHostToDevice);
 
   int threadsPerBlock = 256;
   int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
@@ -139,13 +139,13 @@ void get_force_temp(
     virial_cpu_deform[m] = virial_cpu_deform[m] / N;
   }
 
-  cudaMemcpy(force_temp + N, virial_cpu_deform, 3 * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(
-    force_temp + 2 * N + 3, virial_cpu_deform + 3, 3 * sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(
-    force_temp + 3 * N + 6, virial_cpu_deform + 6, 3 * sizeof(double), cudaMemcpyHostToDevice);
+  gpuMemcpy(force_temp + N, virial_cpu_deform, 3 * sizeof(double), gpuMemcpyHostToDevice);
+  gpuMemcpy(
+    force_temp + 2 * N + 3, virial_cpu_deform + 3, 3 * sizeof(double), gpuMemcpyHostToDevice);
+  gpuMemcpy(
+    force_temp + 3 * N + 6, virial_cpu_deform + 6, 3 * sizeof(double), gpuMemcpyHostToDevice);
 
-  cudaFree(d_deform);
+  gpuFree(d_deform);
 }
 
 template <int N>
