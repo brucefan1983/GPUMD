@@ -29,7 +29,6 @@ class Fitness
 public:
   Fitness(Parameters& para, Adam* adam);
   ~Fitness();
-  void update_learning_rate(double& lr, int step, int Nc); // Update learning rate
   void compute(
     Parameters& para);
   void report_error(
@@ -52,7 +51,6 @@ protected:
   int number_of_variables_descriptor = 0; // number of variables in descriptor
   int maximum_generation = 10000; // maximum number of iterations
   double lr = 1e-3; // learning rate
-  double real_lr = 1e-3; // real learning rate
   double start_lr = 1e-3;     // start learning rate
   double stop_lr = 3.51e-08; // stop learning rate
   int decay_step = 5000; // decay 
@@ -60,7 +58,6 @@ protected:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;
-  GPU_Vector<double> gpu_gradients; // Gradients of parameters g
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
@@ -72,6 +69,7 @@ protected:
     double* prediction,
     double* reference,
     Dataset& dataset);
+  void update_learning_rate(double& lr, int step); // Update learning rate
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);

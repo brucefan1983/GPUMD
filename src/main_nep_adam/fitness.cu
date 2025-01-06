@@ -41,7 +41,6 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   // start_lr = para.start_lr;
   // stop_lr = para.stop_lr;
   // decay_step = para.decay_step;
-  gpu_gradients.resize(number_of_variables);
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -180,7 +179,6 @@ void Fitness::compute(Parameters& para)
   CHECK(cudaGetDeviceCount(&deviceCount));
 
   if (para.prediction == 0) {
-    // std::vector<double> dummy_solution(para.number_of_variables, para.initial_para);
     double* parameters = optimizer->get_parameters();
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(
@@ -210,9 +208,7 @@ void Fitness::compute(Parameters& para)
         count = 0;
       }
       // printf("Finding force for batch %d\n", batch_id);
-      // bool calculate_neighbor = (num_batches > 1) || (step % 100 == 0);
-      gpu_gradients.fill(0.0);
-      update_learning_rate(lr, step, Nc);
+      update_learning_rate(lr, step);
       para.lambda_e = 1.0 + (0.02 - 1.0) * lr / start_lr;
       para.lambda_f = 1.0 + (1000.0 - 1.0) * lr / start_lr;
       para.lambda_v = 1.0 + (50.0 - 1.0) * lr / start_lr;
@@ -224,21 +220,9 @@ void Fitness::compute(Parameters& para)
       false,
       true,
       deviceCount);
-      auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(para, true, true, 0);
-      auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, true, 0);
-      auto rmse_virial_array = train_set[batch_id][0].get_rmse_virial(para, true, true, 0);
-      CHECK(cudaMemcpy(gpu_gradients.data(), train_set[batch_id][0].gradients.grad_wb_sum.data(), 
-                  number_of_variables_ann * sizeof(double), cudaMemcpyDeviceToDevice));
-      CHECK(cudaMemcpy(gpu_gradients.data() + number_of_variables_ann, 
-                train_set[batch_id][0].gradients.grad_c_sum.data(), 
-                number_of_variables_descriptor * sizeof(double), cudaMemcpyDeviceToDevice));
-      // std::vector<double> gradients(number_of_variables);
-      // CHECK(cudaMemcpy(gradients.data(), gpu_gradients.data(), number_of_variables * sizeof(double), cudaMemcpyDeviceToHost));
-      // std::cout << "Gradients: \n";
-      // for (int n = 0; n < number_of_variables; ++n) {
-      //   std::cout << n << " " << gradients[n] << std::endl;
-      // }
-      // std::cout << std::endl;
+      auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(para, true, 0);
+      auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, 0);
+      auto rmse_virial_array = train_set[batch_id][0].get_rmse_virial(para, true, 0);
       double mse_energy_train = rmse_energy_array.back();
       double mse_force_train = rmse_force_array.back();
       double mse_virial_train = rmse_virial_array.back();
@@ -246,10 +230,9 @@ void Fitness::compute(Parameters& para)
       mse_force += mse_force_train * Nc;
       mse_virial += mse_virial_train * Nc;
       count += Nc;
-      optimizer->update(lr, gpu_gradients.data());
+      optimizer->update(lr, train_set[batch_id][0].gradients.grad_sum.data());
 
       if ((step + 1) % num_batches == 0) {
-      // if (1) {
         double rmse_energy_train = sqrt(mse_energy / count);
         double rmse_force_train = sqrt(mse_force / count);
         double rmse_virial_train = sqrt(mse_virial / count);
@@ -298,17 +281,12 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-void Fitness::update_learning_rate(double& lr, int step, int Nc) {
+void Fitness::update_learning_rate(double& lr, int step) {
   if (step >= maximum_generation) {
     lr = stop_lr;
   } else if (step % decay_step == 0 && step != 0) {
     decay_rate = exp(log(stop_lr / start_lr) / (maximum_generation / decay_step));
     lr = start_lr * pow(decay_rate, step / decay_step);
-  }
-  if (Nc > 1) {
-    real_lr = lr * sqrt(Nc);
-  } else {
-    real_lr = lr;
   }
 }
 
@@ -336,7 +314,8 @@ void Fitness::output(
     for (int n = 0; n < num_components; ++n) {
       double ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
-        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        // ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        ref_value /= dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
       }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
@@ -463,9 +442,9 @@ void Fitness::report_error(
   double rmse_virial_test = 0.0;
   if (has_test_set) {
     potential->find_force(para, parameters, false, test_set, false, true, 1);
-    auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, false, 0);
-    auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, false, 0);
-    auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, false, 0);
+    auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, 0);
+    auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, 0);
+    auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, 0);
     rmse_energy_test = sqrt(rmse_energy_test_array.back());
     rmse_force_test = sqrt(rmse_force_test_array.back());
     rmse_virial_test = sqrt(rmse_virial_test_array.back()); 

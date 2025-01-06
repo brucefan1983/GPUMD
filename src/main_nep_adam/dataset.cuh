@@ -36,6 +36,7 @@ public:
   GPU_Vector<int> Na_sum;      // prefix sum of Na
   std::vector<int> Na_cpu;     // number of atoms in each configuration
   std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
+  GPU_Vector<int> batch_idx;   // batch index for each configuration
 
   GPU_Vector<int> type;           // atom type (0, 1, 2, 3, ...)
   GPU_Vector<int> type_sum;      // prefix sum of type
@@ -64,24 +65,26 @@ public:
 
   GPU_Vector<double> type_weight_gpu; // relative force weight for different atom types (GPU)
 
-  std::vector<double> error_cpu; // error in energy, virial, or force (squared)
+  std::vector<double> error_cpu_e; // error in energy (squared)
+  std::vector<double> error_cpu_v; // error in virial (squared)
+  std::vector<double> error_cpu_f; // error in force (squared)
   GPU_Vector<double> error_gpu;  // error in energy, virial, or force (squared)
-  GPU_Vector<double> diff_gpu; // error in energy or force (before squared)
-  GPU_Vector<double> diff_gpu_virial; // error in virial (before squared)
+  GPU_Vector<double> diff_gpu_e; // error in energy (before squared)
+  GPU_Vector<double> diff_gpu_v; // error in virial (before squared)
   std::vector<bool> has_type;
+  std::vector<bool> has_virial;
 
   std::vector<Structure> structures;
   Gradients gradients;
 
   void
   construct(Parameters& para, std::vector<Structure>& structures, bool require_grad, int n1, int n2, int device_id);
-  std::vector<double> get_rmse_force(Parameters& para, const bool use_weight, const bool require_grad, int device_id);
+  std::vector<double> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
   std::vector<double> get_rmse_energy(
     Parameters& para,
     const bool use_weight,
-    const bool require_grad,
     int device_id);
-  std::vector<double> get_rmse_virial(Parameters& para, const bool use_weight, const bool require_grad, int device_id);
+  std::vector<double> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);

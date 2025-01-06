@@ -252,7 +252,8 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+        // virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+        virials_from_stress[reduced_index[m]] *= -volume;
       }
     }
   }

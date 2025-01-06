@@ -32,11 +32,8 @@ struct NEP3_Data {
   GPU_Vector<double> y12_angular;
   GPU_Vector<double> z12_angular;
   GPU_Vector<double> descriptors; // descriptors
-  GPU_Vector<double> q_c;        // partial descriptors / partial C
-  GPU_Vector<double> q_c_scaler;  // scaler for q_c
   GPU_Vector<double> Fp;          // gradient of descriptors
   GPU_Vector<double> Fp2;         // second gradient of descriptors
-  GPU_Vector<double> Fp_wb;      // gradient of descriptors w.r.t. w0, b0, w1, b1
   GPU_Vector<double> sum_fxyz;
   GPU_Vector<double> parameters; // parameters to be optimized
 };
