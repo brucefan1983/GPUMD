@@ -1497,39 +1497,30 @@ static bool get_expanded_box(const double rc, const Box& box, NEP::ExpandedBox& 
       exit(1);
     }
 
-    if (box.triclinic) {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
 
-      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-      for (int n = 9; n < 18; n++) {
-        ebox.h[n] /= det;
-      }
-    } else {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[3] = ebox.h[0] * 0.5;
-      ebox.h[4] = ebox.h[1] * 0.5;
-      ebox.h[5] = ebox.h[2] * 0.5;
+    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+    for (int n = 9; n < 18; n++) {
+      ebox.h[n] /= det;
     }
   }
 
