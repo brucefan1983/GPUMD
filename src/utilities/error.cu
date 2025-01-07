@@ -165,29 +165,6 @@ int get_int_from_token(const std::string& token, const char* filename, const int
   return value;
 }
 
-float get_float_from_token(const std::string& token, const char* filename, const int line)
-{
-  float value = 0;
-  try {
-    value = std::stof(token);
-  } catch (const std::exception& e) {
-    std::cout << "Standard exception:\n";
-    std::cout << "    File:          " << filename << std::endl;
-    std::cout << "    Line:          " << line << std::endl;
-    std::cout << "    Error message: " << e.what() << std::endl;
-    exit(1);
-  }
-  if (std::isinf(value)) {
-    std::cout << "This number is inf.\n";
-    exit(1);
-  }
-  if (std::isnan(value)) {
-    std::cout << "This number is nan.\n";
-    exit(1);
-  }
-  return value;
-}
-
 double get_double_from_token(const std::string& token, const char* filename, const int line)
 {
   double value = 0;
