@@ -1331,6 +1331,45 @@ void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+#ifdef USE_TABLE
+void ILP_NEP_GR_HBN::construct_table(float* parameters)
+{
+  nep_data.gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gnp_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gn_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  nep_data.gnp_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gn_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  float* c_pointer = parameters + annmb.num_para_ann;
+  construct_table_radial_or_angular(
+    paramb.num_types,
+    paramb.num_types_sq,
+    paramb.n_max_radial,
+    paramb.basis_size_radial,
+    paramb.rc_radial,
+    paramb.rcinv_radial,
+    c_pointer,
+    gn_radial.data(),
+    gnp_radial.data());
+  construct_table_radial_or_angular(
+    paramb.num_types,
+    paramb.num_types_sq,
+    paramb.n_max_angular,
+    paramb.basis_size_angular,
+    paramb.rc_angular,
+    paramb.rcinv_angular,
+    c_pointer + paramb.num_c_radial,
+    gn_angular.data(),
+    gnp_angular.data());
+  nep_data.gn_radial.copy_from_host(gn_radial.data());
+  nep_data.gnp_radial.copy_from_host(gnp_radial.data());
+  nep_data.gn_angular.copy_from_host(gn_angular.data());
+  nep_data.gnp_angular.copy_from_host(gnp_angular.data());
+}
+#endif
+
 static __global__ void find_neighbor_list_nep(
   ILP_NEP_GR_HBN::ParaMB paramb,
   const int N,

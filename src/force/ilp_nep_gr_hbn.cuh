@@ -128,6 +128,9 @@ public:
 private:
   int ilp_group_method;
   double ilp_rc;
+#ifdef USE_TABLE
+  void construct_table(float* parameters);
+#endif
 
   ParaMB paramb;
   ANN annmb;
