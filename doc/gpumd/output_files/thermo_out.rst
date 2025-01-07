@@ -11,12 +11,7 @@ The frequency of the output is controlled via the :ref:`dump_thermo keyword <kw_
 File format
 -----------
 
-If the simulation box is orthogonal, there are 12 columns in this output file, each containing the values of a quantity at increasing time points::
-  
-  column   1 2 3 4  5  6  7   8   9   10 11 12
-  quantity T K U Px Py Pz Pyz Pxz Pxy Lx Ly Lz
-
-If the simulation box is triclinic, there are 18 columns in this output file, each containing the values of a quantity at increasing time points::
+There are 18 columns in this output file, each containing the values of a quantity at increasing time points::
 
   column   1 2 3 4  5  6  7   8   9   10 11 12 13 14 15 16 17 18
   quantity T K U Px Py Pz Pyz Pxz Pxy ax ay az bx by bz cx cy cz

@@ -402,20 +402,6 @@ void Minimizer_FIRE_Box_Change::compute(
   GPU_Vector<double> force_temp(size + 9);
   GPU_Vector<double> virialtot(9); // total virial vector of the system
 
-  if (box.triclinic == 0) { // orthogonal box to triclinic box
-    double a = box.cpu_h[0];
-    double b = box.cpu_h[1];
-    double c = box.cpu_h[2];
-    box.triclinic = 1;
-    for (int i = 0; i < 18; i++) {
-      box.cpu_h[i] = 0.0;
-    }
-    box.cpu_h[0] = a;
-    box.cpu_h[4] = b;
-    box.cpu_h[8] = c;
-    box.get_inverse();
-  }
-
   double initial_box[9] = {0.0};
   for (int i = 0; i < 9; i++) {
     initial_box[i] = box.cpu_h[i];
@@ -520,35 +506,6 @@ void Minimizer_FIRE_Box_Change::compute(
       number_of_atoms_, position_per_atom.data(), temp1.data());
     update_box(box.cpu_h, v.data(), number_of_atoms_);
     box.get_inverse();
-  }
-
-  int triclinic = 0;
-  for (int i = 0; i < 9; i++) {
-    if ((i != 0) & (i != 4) & (i != 8)) {
-      if (abs(box.cpu_h[i]) > 1e-9) {
-        triclinic = 1;
-        break;
-      }
-    }
-  }
-  if (triclinic == 0) {
-    box.triclinic = 0;
-    double a = box.cpu_h[0];
-    double b = box.cpu_h[4];
-    double c = box.cpu_h[8];
-    for (int i = 0; i < 18; i++)
-      box.cpu_h[i] = 0.0;
-    box.cpu_h[0] = a;
-    box.cpu_h[1] = b;
-    box.cpu_h[2] = c;
-    box.cpu_h[3] = a * 0.5;
-    box.cpu_h[4] = b * 0.5;
-    box.cpu_h[5] = c * 0.5;
-    box.get_inverse();
-    // printf("box triclinic is: %d\n", box.triclinic);
-    // printf("current box is: \n");
-    // for (int i = 0; i < 18; i++)
-    //   printf("%.5f ", box.cpu_h[i]);
   }
 
   printf("Energy minimization finished.\n");
