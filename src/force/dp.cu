@@ -250,10 +250,10 @@ static __global__ void calc_ghost_atom_number_each_block(
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         nghost <<= 1;
       }
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
         nghost <<= 1;
       }
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[8] - rc)) {
         nghost <<= 1;
       }
     }
@@ -464,13 +464,13 @@ static __global__ void create_ghost_map(
         ++ghost_id;
       }
 
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[1] - rc)) {
+      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
         // y
         ghost_y_flag = 1;
         ghost_id_map[ghost_idx + ndanger * GHOST_Y] = ghost_id;
         type_ghost[ghost_id] = type[n1];
         dp_position[ghost_id] = x1;
-        dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+        dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
         dp_position[ghost_id + nall_2] = z1;
         ++ghost_id;
 
@@ -479,19 +479,19 @@ static __global__ void create_ghost_map(
           ghost_id_map[ghost_idx + ndanger * GHOST_XY] = ghost_id;
           type_ghost[ghost_id] = type[n1];
           dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
+          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
           dp_position[ghost_id + nall_2] = z1;
           ++ghost_id;
         }
       }
 
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
+      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[8] - rc)) {
         // z
         ghost_id_map[ghost_idx + ndanger * GHOST_Z] = ghost_id;
         type_ghost[ghost_id] = type[n1];
         dp_position[ghost_id] = x1;
         dp_position[ghost_id + nall] = y1;
-        dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+        dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
         ++ghost_id;
 
         if (ghost_x_flag == 1) {
@@ -500,7 +500,7 @@ static __global__ void create_ghost_map(
           type_ghost[ghost_id] = type[n1];
           dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
           dp_position[ghost_id + nall] = y1;
-          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
           ++ghost_id;
 
           if (ghost_y_flag == 1) {
@@ -508,8 +508,8 @@ static __global__ void create_ghost_map(
             ghost_id_map[ghost_idx + ndanger * GHOST_XYZ] = ghost_id;
             type_ghost[ghost_id] = type[n1];
             dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-            dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-            dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+            dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
+            dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
             ++ghost_id;
           }
         }
@@ -519,8 +519,8 @@ static __global__ void create_ghost_map(
           ghost_id_map[ghost_idx + ndanger * GHOST_YZ] = ghost_id;
           type_ghost[ghost_id] = type[n1];
           dp_position[ghost_id] = x1;
-          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[1] : y1 - box.cpu_h[1];
-          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[2] : z1 - box.cpu_h[2];
+          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
+          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
           ++ghost_id;
         }
       }
@@ -601,9 +601,19 @@ void DP::compute(
   // TODO: triclinic
   // TODO: use periodic box when find neigh
   // box_ghost.triclinic = box.triclinic;
-  box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
-  box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
-  box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
+  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+    box_ghost.cpu_h[0] = box.cpu_h[0];
+    box_ghost.cpu_h[4] = box.cpu_h[4];
+    box_ghost.cpu_h[8] = box.cpu_h[8];
+    box_ghost.cpu_h[7] = box.cpu_h[7];
+    box_ghost.cpu_h[6] = box.cpu_h[6];
+    box_ghost.cpu_h[3] = box.cpu_h[3];
+  } else {
+    box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+    box_ghost.cpu_h[4] = box.cpu_h[4] + box.pbc_y ? 2 * rc : 0;
+    box_ghost.cpu_h[8] = box.cpu_h[8] + box.pbc_z ? 2 * rc : 0;
+  }
 
   find_neighbor(
     N1,
@@ -642,15 +652,15 @@ void DP::compute(
   if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
       box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
     dp_box[0] = box.cpu_h[0];
-    dp_box[4] = box.cpu_h[1];
-    dp_box[8] = box.cpu_h[2];
+    dp_box[4] = box.cpu_h[4];
+    dp_box[8] = box.cpu_h[8];
     dp_box[7] = box.cpu_h[7];
     dp_box[6] = box.cpu_h[6];
     dp_box[3] = box.cpu_h[3];
   } else {
     dp_box[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
-    dp_box[4] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
-    dp_box[8] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
+    dp_box[4] = box.cpu_h[4] + box.pbc_y ? 2 * rc : 0;
+    dp_box[8] = box.cpu_h[8] + box.pbc_z ? 2 * rc : 0;
   }
 
   dp_nl.ilist.resize(num_all_atoms, 0);
