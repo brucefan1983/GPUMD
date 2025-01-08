@@ -570,6 +570,46 @@ static __global__ void get_displacement(
   }
 }
 
+
+__global__ void gpu_calculate_max(
+  const int size,
+  const int number_of_rounds,
+  const double* array,
+  double* max)
+{
+  const int tid = threadIdx.x;
+
+  __shared__ double s_max[1024]; // Shared memory for max values
+  s_max[tid] = 0;         
+
+  double max_value = 0;   // Initialize local max
+
+  for (int round = 0; round < number_of_rounds; ++round) {
+    const int n = tid + round * 1024;
+    if (n < size) {
+      const double f = array[n];
+      if (f > max_value)
+        max_value = f;           // Update local max
+    }
+  }
+
+  s_max[tid] = max_value;        // Write local max to shared memory
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      if (s_max[tid + offset] > s_max[tid]) {
+        s_max[tid] = s_max[tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    max[0] = s_max[0]; // Block's final max written to global memory
+  }
+}
+
 double get_outer_average_displacement(
   const Box box,
   double* global_position,
@@ -577,7 +617,8 @@ double get_outer_average_displacement(
   int global_N,
   int local_N,
   int* local_index,
-  double* outer_atoms_flags)
+  double* outer_atoms_flags,
+  double* max)
 {
   GPU_Vector<double> displacement(local_N);
   get_displacement<<<(local_N - 1) / 64 + 1, 64>>>(
@@ -592,6 +633,9 @@ double get_outer_average_displacement(
   gpuDeviceSynchronize();
   
   //calculate the average displacement
+  const int number_of_rounds = (local_N - 1) / 1024 + 1;
+  gpu_calculate_max<<<1, 1024>>>(local_N, number_of_rounds, displacement.data(), max);
+
   GPU_Vector<double> result(1);
   gpu_sum<<<1, 1024>>>(local_N, displacement.data(), result.data());
   GPU_Vector<double> outer_number(1);
@@ -604,7 +648,6 @@ double get_outer_average_displacement(
   ans /= number;
   return ans;
 }
-
 
 void build_all_atoms(
   Atom& atom,
@@ -695,7 +738,14 @@ void MC_Ensemble_Canonical::compute_local(
             : r1(rng);
       type_j = atom.cpu_type[j];
     }
-    mc_output << "Maximum displacement" << "  " << "Average displacement" << "  " <<  "Accept ratio" << std::endl;
+    static bool isFirstCall = true;
+    
+    if (isFirstCall)
+    {
+      mc_output << "Maximum displacement" << "  " << "Average displacement" << "  " <<  "Accept ratio" << std::endl;
+      isFirstCall = false;
+    }
+    
     CHECK(gpuMemset(NN_ij.data(), 0, sizeof(int)));
     NL_ij.resize(atom.number_of_atoms);
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
@@ -940,6 +990,7 @@ void MC_Ensemble_Canonical::compute_local(
         outer_atoms_flags.data());
       gpuDeviceSynchronize();
 
+      GPU_Vector<double> max_displacement(1);
       double output = get_outer_average_displacement(
         box,
         atom.position_per_atom.data(),
@@ -947,8 +998,12 @@ void MC_Ensemble_Canonical::compute_local(
         atom.number_of_atoms,
         local_atoms.number_of_atoms,
         local_index.data(),
-        outer_atoms_flags.data());
-      mc_output << output << "  " << num_accepted / (double(step) + 1) << std::endl;
+        outer_atoms_flags.data(),
+        max_displacement.data());
+      double max_value;
+      max_displacement.copy_to_host(&max_value);
+
+      mc_output << max_value << "  " << output << "  " << num_accepted / (double(step) + 1) << std::endl;
 
       //copy the relaxed local structure to the global structure
       build_all_atoms(
