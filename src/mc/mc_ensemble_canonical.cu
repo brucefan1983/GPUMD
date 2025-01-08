@@ -387,6 +387,92 @@ void MC_Ensemble_Canonical::compute(
   mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << std::endl;
 }
 
+static __global__ void get_shpere_atoms(
+  const int N,
+  const int local_N,
+  const int* local_index,
+  const Box box,
+  const int i,
+  const int j,
+  const float rc_radial_square,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* local_sphere_flags)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < local_N) {
+    int index = local_index[n];
+    double x0 = g_x[index];
+    double y0 = g_y[index];
+    double z0 = g_z[index];
+    double x0i = g_x[i] - x0;
+    double y0i = g_y[i] - y0;
+    double z0i = g_z[i] - z0;
+    double x0j = g_x[j] - x0;
+    double y0j = g_y[j] - y0;
+    double z0j = g_z[j] - z0;
+
+    apply_mic(box, x0i, y0i, z0i);
+    float distance_square_i = float(x0i * x0i + y0i * y0i + z0i * z0i);
+    apply_mic(box, x0j, y0j, z0j);
+    float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
+
+    if (distance_square_i < rc_radial_square) {
+      local_sphere_flags[n] = 1;
+      local_sphere_flags[n + local_N] = 1;
+      local_sphere_flags[n + 2 * local_N] = 1;
+    } else {
+      if (distance_square_j < rc_radial_square) {
+        local_sphere_flags[n] = 1;
+        local_sphere_flags[n + local_N] = 1;
+        local_sphere_flags[n + 2 * local_N] = 1;
+      }
+    }
+  }
+}
+
+static __global__ void get_outer_atoms(
+  const int N,
+  const int local_N,
+  const int* local_index,
+  const Box box,
+  const int i,
+  const int j,
+  const float rcmin_radial_square,
+  const float rcmax_radial_square,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* outer_atoms_flags)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < local_N) {
+    int index = local_index[n];
+    double x0 = g_x[index];
+    double y0 = g_y[index];
+    double z0 = g_z[index];
+    double x0i = g_x[i] - x0;
+    double y0i = g_y[i] - y0;
+    double z0i = g_z[i] - z0;
+    double x0j = g_x[j] - x0;
+    double y0j = g_y[j] - y0;
+    double z0j = g_z[j] - z0;
+
+    apply_mic(box, x0i, y0i, z0i);
+    float distance_square_i = float(x0i * x0i + y0i * y0i + z0i * z0i);
+    apply_mic(box, x0j, y0j, z0j);
+    float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
+
+    if (distance_square_i < rcmax_radial_square && distance_square_i > rcmin_radial_square) {
+      outer_atoms_flags[n] += 1;
+    } else {
+      if (distance_square_j < rcmax_radial_square && distance_square_j > rcmin_radial_square) {
+        outer_atoms_flags[n] += 1;
+      }
+    }
+  }
+}
 
 //copy from a to b
 template <typename T>
