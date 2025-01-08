@@ -695,7 +695,7 @@ void MC_Ensemble_Canonical::compute_local(
             : r1(rng);
       type_j = atom.cpu_type[j];
     }
-
+    mc_output << "Maximum displacement" << "  " << "Average displacement" << "  " <<  "Accept ratio" << std::endl;
     CHECK(gpuMemset(NN_ij.data(), 0, sizeof(int)));
     NL_ij.resize(atom.number_of_atoms);
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
