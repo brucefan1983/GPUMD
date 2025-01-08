@@ -239,7 +239,13 @@ static __global__ void calc_ghost_atom_number_each_block(
     double x1 = x[n1];
     double y1 = y[n1];
     double z1 = z[n1];
-    if (box.triclinic == 0) {
+    if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+        box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      // triclinic box
+      // TODO
+      printf("TODO: triclinc box\n");
+      return;
+    } else {
       // orthogonal box
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         nghost <<= 1;
@@ -250,11 +256,6 @@ static __global__ void calc_ghost_atom_number_each_block(
       if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[2] - rc)) {
         nghost <<= 1;
       }
-    } else {
-      // triclinic box
-      // TODO
-      printf("TODO: triclinc box\n");
-      return;
     }
     // ghost boudary | nghost
     // x, y, z       | 1
@@ -264,7 +265,6 @@ static __global__ void calc_ghost_atom_number_each_block(
     nghost_block[tid] = nghost;
     ghost_count[n1] = nghost;
     danger_flag[n1] = nghost != 0;
-    
   }
   __syncthreads();
 
@@ -444,7 +444,14 @@ static __global__ void create_ghost_map(
     int ghost_idx = danger_list[n1];
     int ghost_x_flag = 0;
     int ghost_y_flag = 0;
-    if (box.triclinic == 0) {
+
+    if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+        box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      // triclinic box
+      // TODO
+      printf("TODO: triclinc box\n");
+      return;
+    } else {
       // orthogonal box
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         // x
@@ -517,11 +524,6 @@ static __global__ void create_ghost_map(
           ++ghost_id;
         }
       }
-    } else {
-      // triclinic box
-      // TODO
-      printf("TODO: triclinc box\n");
-      return;
     }
   }
 }
@@ -598,7 +600,7 @@ void DP::compute(
   box_ghost.pbc_z = 0;
   // TODO: triclinic
   // TODO: use periodic box when find neigh
-  box_ghost.triclinic = box.triclinic;
+  // box_ghost.triclinic = box.triclinic;
   box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
   box_ghost.cpu_h[1] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
   box_ghost.cpu_h[2] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
@@ -636,17 +638,19 @@ void DP::compute(
 
   // create dp box
   std::vector<double> dp_box(9, 0.0);
-  if (box.triclinic == 0) {
-    dp_box[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
-    dp_box[4] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
-    dp_box[8] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
-  } else {
+
+  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
     dp_box[0] = box.cpu_h[0];
     dp_box[4] = box.cpu_h[1];
     dp_box[8] = box.cpu_h[2];
     dp_box[7] = box.cpu_h[7];
     dp_box[6] = box.cpu_h[6];
     dp_box[3] = box.cpu_h[3];
+  } else {
+    dp_box[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+    dp_box[4] = box.cpu_h[1] + box.pbc_y ? 2 * rc : 0;
+    dp_box[8] = box.cpu_h[2] + box.pbc_z ? 2 * rc : 0;
   }
 
   dp_nl.ilist.resize(num_all_atoms, 0);
