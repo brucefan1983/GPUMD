@@ -30,6 +30,18 @@ public:
     std::vector<Group>& group,
     int grouping_method,
     int group_id);
+  
+  virtual void compute_local(
+    double scale_factor,
+    double temperature,
+    Force& force,
+    int max_relaxation_step,
+    double force_tolerance,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    int grouping_method,
+    int group_id);
 
 private:
   GPU_Vector<int> NN_ij;
