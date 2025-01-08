@@ -20,8 +20,8 @@
 #include <vector>
 
 // IN as prefix means ILP + NEP
-// Mo S W Se
-#define IN_MAX_TYPE_ILP_TMD 4
+// Mo S W Se Te
+#define IN_MAX_TYPE_ILP_TMD 5
 #define IN_CUDA_MAX_NL_TMD 2048
 #define IN_MAX_ILP_NEIGHBOR_TMD 6
 #define IN_MAX_BIG_ILP_NEIGHBOR_TMD 128
@@ -128,6 +128,7 @@ public:
 
 private:
   int ilp_group_method;
+  int ilp_sub_group_method;
   double ilp_rc;
 #ifdef USE_TABLE
   void construct_table(float* parameters);

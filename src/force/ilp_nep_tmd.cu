@@ -64,8 +64,11 @@ ILP_NEP_TMD::ILP_NEP_TMD(FILE* fid_ilp, const char* file_nep, int num_types, int
 
   // read ILP group method
   PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_group_method), 1, 
-  "Reading error for ILP group method.");
+  "Reading error for ILP group method of molecular layer.");
   printf("Use group method %d to identify molecule for ILP.\n", ilp_group_method);
+  PRINT_SCANF_ERROR(fscanf(fid_ilp, "%d", &ilp_sub_group_method), 1, 
+  "Reading error for ILP group method of sublayer.");
+  printf("Use group method %d to identify molecule(sublayer) for ILP.\n", ilp_sub_group_method);
 
   // read parameters
   float beta, alpha, delta, epsilon, C, d, sR;
@@ -1958,6 +1961,7 @@ void ILP_NEP_TMD::compute_ilp(
 
   // TODO: assume the first group column is for ILP
   const int *group_label_ilp = group[ilp_group_method].label.data();
+  const int *sublayer_group_label_ilp = group[ilp_sub_group_method].label.data();
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -2010,7 +2014,7 @@ void ILP_NEP_TMD::compute_ilp(
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
-    ilp_NL, group_label_ilp); // TODO
+    ilp_NL, sublayer_group_label_ilp);
   GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
