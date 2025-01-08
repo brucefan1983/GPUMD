@@ -24,6 +24,7 @@ Apply electron stopping.
 #include "utilities/gpu_macro.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static void __global__ find_stopping_force(
   const int num_atoms,

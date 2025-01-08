@@ -60,6 +60,7 @@ public:
   float typewise_cutoff_radial_factor;
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
+  int output_descriptor;
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -138,4 +139,5 @@ private:
   void parse_sigma0(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
+  void parse_output_descriptor(const char** param, int num_param);
 };

@@ -21,6 +21,7 @@ Reference: PhysRevLett 97, 170201 (2006)
 
 #include "minimizer_fire.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {

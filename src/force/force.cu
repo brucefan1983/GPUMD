@@ -29,6 +29,7 @@ The driver class calculating force and related quantities.
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
 #include "ilp_tmd_sw.cuh"
+#include "ilp_nep_gr_hbn.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -144,6 +145,11 @@ void Force::parse_potential(
   #endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "ilp_nep_gr_hbn") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain ILP potential file and NEP potential file.\n");
+    }
+    potential.reset(new ILP_NEP_GR_HBN(fid_potential, param[2], num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
@@ -369,63 +375,36 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
-    if (box.triclinic == 0) {
-      double lx = box.cpu_h[0];
-      double ly = box.cpu_h[1];
-      double lz = box.cpu_h[2];
-      if (box.pbc_x == 1) {
-        if (g_x[n] < 0) {
-          g_x[n] += lx;
-        } else if (g_x[n] > lx) {
-          g_x[n] -= lx;
-        }
+    double x = g_x[n];
+    double y = g_y[n];
+    double z = g_z[n];
+    double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    if (box.pbc_x == 1) {
+      if (sx < 0.0) {
+        sx += 1.0;
+      } else if (sx > 1.0) {
+        sx -= 1.0;
       }
-      if (box.pbc_y == 1) {
-        if (g_y[n] < 0) {
-          g_y[n] += ly;
-        } else if (g_y[n] > ly) {
-          g_y[n] -= ly;
-        }
-      }
-      if (box.pbc_z == 1) {
-        if (g_z[n] < 0) {
-          g_z[n] += lz;
-        } else if (g_z[n] > lz) {
-          g_z[n] -= lz;
-        }
-      }
-    } else {
-      double x = g_x[n];
-      double y = g_y[n];
-      double z = g_z[n];
-      double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-      double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-      double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-      if (box.pbc_x == 1) {
-        if (sx < 0.0) {
-          sx += 1.0;
-        } else if (sx > 1.0) {
-          sx -= 1.0;
-        }
-      }
-      if (box.pbc_y == 1) {
-        if (sy < 0.0) {
-          sy += 1.0;
-        } else if (sy > 1.0) {
-          sy -= 1.0;
-        }
-      }
-      if (box.pbc_z == 1) {
-        if (sz < 0.0) {
-          sz += 1.0;
-        } else if (sz > 1.0) {
-          sz -= 1.0;
-        }
-      }
-      g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
-      g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
-      g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
     }
+    if (box.pbc_y == 1) {
+      if (sy < 0.0) {
+        sy += 1.0;
+      } else if (sy > 1.0) {
+        sy -= 1.0;
+      }
+    }
+    if (box.pbc_z == 1) {
+      if (sz < 0.0) {
+        sz += 1.0;
+      } else if (sz > 1.0) {
+        sz -= 1.0;
+      }
+    }
+    g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
+    g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
+    g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
   }
 }
 

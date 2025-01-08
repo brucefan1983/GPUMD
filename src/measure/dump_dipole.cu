@@ -28,6 +28,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void sum_dipole(
   const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_dipole)

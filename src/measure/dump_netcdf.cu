@@ -40,6 +40,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <unistd.h>
+#include <cstring>
 
 const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "3.9"

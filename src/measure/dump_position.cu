@@ -25,6 +25,7 @@ Dump position data to movie.xyz.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void Dump_Position::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -93,35 +94,19 @@ __global__ void copy_position(
 
 void Dump_Position::output_line2(const Box& box, const std::vector<std::string>& cpu_atom_symbol)
 {
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+    "Properties=species:S:1:pos:R:3\n",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 }
 
 void Dump_Position::process(

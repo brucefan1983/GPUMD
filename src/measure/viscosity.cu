@@ -22,6 +22,7 @@ Calculate the stress autocorrelation function and viscosity.
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>
+#include <cstring>
 
 #define NUM_OF_COMPONENTS 9
 
