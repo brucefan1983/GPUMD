@@ -28,6 +28,12 @@ MC_Minimizer_Global::MC_Minimizer_Global(
   max_relax_steps = max_relax_steps_input;
 }
 
+MC_Minimizer_Global::~MC_Minimizer_Global()
+{
+  //default destructor
+}
+
+
 // a kernel with a single thread <<<1, 1>>>
 static __global__ void exchange(
   const int i,

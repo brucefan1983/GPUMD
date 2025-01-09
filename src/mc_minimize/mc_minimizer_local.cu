@@ -30,6 +30,11 @@ MC_Minimizer_Local::MC_Minimizer_Local(
   max_relax_steps = max_relax_steps_input;
 }
 
+MC_Minimizer_Local::~MC_Minimizer_Local()
+{
+  //default destructor
+}
+
 /*
 this function can find out the atoms whose distance from two atom centers is within rc_radial
 */
