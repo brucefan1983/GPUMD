@@ -181,7 +181,7 @@ void Minimizer_FIRE::compute(
   printf("Energy minimization finished.\n");
 }
 
-void Minimizer_FIRE::compute_local(
+void Minimizer_FIRE::compute_label_atoms(
     Force& force,
     Box& box,
     GPU_Vector<double>& position_per_atom,

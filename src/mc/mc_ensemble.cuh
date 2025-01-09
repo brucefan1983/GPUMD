@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "nep_energy.cuh"
-#include "../minimize/minimizer_fire.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <fstream>
 #include <iostream>

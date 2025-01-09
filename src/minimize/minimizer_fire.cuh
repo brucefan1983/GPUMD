@@ -51,7 +51,12 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  void compute_local(
+
+/*
+the additional array, local_flags is needed. The length of the array should be same with atom total number.
+With 1 means need to update and 0 means keep static
+*/
+  void compute_label_atoms(
     Force& force,
     Box& box,
     GPU_Vector<double>& position_per_atom,

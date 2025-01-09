@@ -480,14 +480,11 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "add_efield") == 0) {
     add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
-    if (strcmp(param[1], "local_minimize") == 0)
-    {
-      mc.parse_mc_local(param, num_param, group, atom, box, force);
-    }
-    else
-    {
-      mc.parse_mc(param, num_param, group, atom);
-    }
+    mc.parse_mc(param, num_param, group, atom);
+  } else if (strcmp(param[0], "mc_minimize") == 0) {
+    MC_Minimize mc_minimize;
+    mc_minimize.parse_mc_minimize(param, num_param, group, atom, box, force);
+    mc_minimize.compute(force, atom, box, group);
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {

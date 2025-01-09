@@ -26,6 +26,7 @@ class Measure;
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
+#include "mc_minimize/mc_minimize.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"

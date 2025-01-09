@@ -331,36 +331,3 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
 
   do_mcmd = true;
 }
-
-
-void MC::parse_mc_local(const char** param, int num_param, std::vector<Group>& group, Atom& atom, Box& box, Force& force)
-{
-  printf("Perform simple MC with local relaxation:\n");
-  int num_param_before_group = 7;
-  if (num_param > num_param_before_group)
-  {
-    parse_group(param, num_param, group, num_param_before_group);
-    printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
-  }
-  is_valid_int(param[2], &num_steps_mc);
-  MC_Ensemble_Canonical mc_local_relax(param, num_param, num_steps_mc);
-  double scale_factor;
-  double temperature;
-  double force_tolerance;
-  int max_relaxation_steps;
-  is_valid_real(param[3], &temperature);
-  is_valid_real(param[4], &scale_factor);
-  is_valid_real(param[5], &force_tolerance);
-  is_valid_int(param[6], &max_relaxation_steps);
-  mc_local_relax.compute_local(
-    scale_factor,
-    temperature,
-    force,
-    max_relaxation_steps,
-    force_tolerance,
-    atom,
-    box,
-    group,
-    grouping_method,
-    group_id);
-}

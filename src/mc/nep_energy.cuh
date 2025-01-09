@@ -91,21 +91,6 @@ public:
     const float* g_z12_angular,
     float* g_pe);
 
-  void find_energy(
-    const int N,
-    const int* g_NN_radial,
-    const int* g_NN_angular,
-    const int* g_type,
-    const int* g_t2_radial,
-    const int* g_t2_angular,
-    const float* g_x12_radial,
-    const float* g_y12_radial,
-    const float* g_z12_radial,
-    const float* g_x12_angular,
-    const float* g_y12_angular,
-    const float* g_z12_angular,
-    double* g_pe);
-
 private:
   GPU_Vector<float> nep_parameters; // parameters to be optimized
   void update_potential(float* parameters, ANN& ann);

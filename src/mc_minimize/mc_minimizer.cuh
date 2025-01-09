@@ -14,24 +14,31 @@
 */
 
 #pragma once
-#include "mc_ensemble.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
+#include "force/force.cuh"
+#include <random>
+#include "minimize/minimizer_fire.cuh"
 
-class MC_Ensemble_Canonical : public MC_Ensemble
+class MC_Minimizer
 {
+private:
+
 public:
-  MC_Ensemble_Canonical(const char** param, int num_param, int num_steps_mc);
-  virtual ~MC_Ensemble_Canonical(void);
+  MC_Minimizer(const char** param, int num_param);
+  virtual ~MC_Minimizer();
 
   virtual void compute(
-    int md_step,
-    double temperature,
+    int trials,
+    Force& force,
     Atom& atom,
     Box& box,
     std::vector<Group>& group,
     int grouping_method,
-    int group_id);
+    int group_id) = 0;
 
-private:
-  GPU_Vector<int> NN_ij;
-  GPU_Vector<int> NL_ij;
+protected:
+  std::mt19937 rng;
+  std::ofstream mc_output;
 };
+

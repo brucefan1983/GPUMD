@@ -14,24 +14,31 @@
 */
 
 #pragma once
-#include "mc_ensemble.cuh"
 
-class MC_Ensemble_Canonical : public MC_Ensemble
+#include "mc_minimizer.cuh"
+
+class MC_Minimizer_Local : public MC_Minimizer
 {
+private:
+  double scale_factor;
+  double temperature;
+  double force_tolerance;
+  int max_relax_steps;
 public:
-  MC_Ensemble_Canonical(const char** param, int num_param, int num_steps_mc);
-  virtual ~MC_Ensemble_Canonical(void);
+    MC_Minimizer_Local(const char** param, int num_param,
+    double scale_factor_input,
+    double temperature_input,
+    double force_tolerance_input,
+    int max_relax_steps_input);
+    ~MC_Minimizer_Local();
 
-  virtual void compute(
-    int md_step,
-    double temperature,
+    virtual void compute(
+    int trials,
+    Force& force,
     Atom& atom,
     Box& box,
     std::vector<Group>& group,
     int grouping_method,
     int group_id);
-
-private:
-  GPU_Vector<int> NN_ij;
-  GPU_Vector<int> NL_ij;
 };
+
