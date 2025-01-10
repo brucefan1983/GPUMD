@@ -566,7 +566,11 @@ void DP::compute(
   // resize the ghost vectors
   int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
   int grid_size_ghost = (num_all_atoms - 1) / BLOCK_SIZE_FORCE + 1;
-  ghost_id_map.resize(ndanger * 7, -1);
+
+  // Prevent ndanger == 0 from causing an error.
+  if ( ndanger == 0 ) ghost_id_map.resize(1, -1);
+  else ghost_id_map.resize(ndanger * 7, -1);
+
   type_ghost.resize(num_all_atoms);
   dp_position_gpu.resize(num_all_atoms * 3);
   
