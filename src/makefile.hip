@@ -29,6 +29,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
 	$(wildcard mc/*.cu)           \
+	$(wildcard mc_minimize/*.cu)  \
 	$(wildcard force/*.cu)        \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
@@ -53,6 +54,7 @@ HEADERS =                         \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
+	$(wildcard mc_minimize/*.cuh) \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
 	$(wildcard measure/*.cuh)     \
@@ -83,6 +85,8 @@ nep: $(OBJ_NEP)
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 mc/%.o: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc_minimize/%.o: mc_minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
