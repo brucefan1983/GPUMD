@@ -454,7 +454,7 @@ double get_outer_average_displacement(
     local_index,
     outer_atoms_flags,
     displacement.data());
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
   
   //calculate the average displacement
   const int number_of_rounds = (local_N - 1) / 1024 + 1;
@@ -464,7 +464,7 @@ double get_outer_average_displacement(
   gpu_sum<<<1, 1024>>>(local_N, displacement.data(), result.data());
   GPU_Vector<double> outer_number(1);
   gpu_sum<<<1, 1024>>>(local_N, outer_atoms_flags, outer_number.data());
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
   double number;
   outer_number.copy_to_host(&number, 1);
   double ans;
@@ -487,7 +487,7 @@ void build_all_atoms(
     atom.number_of_atoms,
     local_N,
     3);
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
 }
 
 //construct a local structure
@@ -518,7 +518,7 @@ void build_local_atoms(
     atom.number_of_atoms,
     local_N,
     3);
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
 }
 
 //implement the local simple MC
