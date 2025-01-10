@@ -10,8 +10,6 @@
 #    and remove it otherwise.
 # 4) Add -DUSE_TABLE to speed up MD simulations with NEP
 #    using pre-computed radial functions in the descriptors
-# 5) Add -DUSE_TENSORFLOW to use Deep Potential
-#    (endwith .pb) that supports tensorflow version.
 ###########################################################
 
 
@@ -25,13 +23,9 @@ CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
 endif
-INC = -I./ # \ if use -DUSE_TENSORFLOW in CFLAGS, please make sure:
-           # -I${deepmd_source_dir}/source/api_cc/include \
-           # -I${deepmd_source_dir}/source/lib/include \
-           # -I${deepmd_source_dir}/source/api_c/include
+INC = -I./
 LDFLAGS = 
-LIBS = -lcublas -lcusolver # if use -DUSE_TENSORFLOW,
-                           # -ldeepmd_cc
+LIBS = -lcublas -lcusolver
 
 
 ###########################################################
