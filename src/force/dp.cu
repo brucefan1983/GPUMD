@@ -603,17 +603,20 @@ void DP::compute(
   // box_ghost.triclinic = box.triclinic;
   if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
       box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-    box_ghost.cpu_h[0] = box.cpu_h[0];
-    box_ghost.cpu_h[4] = box.cpu_h[4];
-    box_ghost.cpu_h[8] = box.cpu_h[8];
-    box_ghost.cpu_h[7] = box.cpu_h[7];
-    box_ghost.cpu_h[6] = box.cpu_h[6];
-    box_ghost.cpu_h[3] = box.cpu_h[3];
+    std::cout << "Error: Currently, the DP potential in GPUMD only supports simulations of orthogonal systems!" << std::endl;
+    exit(1);
   } else {
     box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+    box_ghost.cpu_h[1] = 0;
+    box_ghost.cpu_h[2] = 0;
+    box_ghost.cpu_h[3] = 0;
     box_ghost.cpu_h[4] = box.cpu_h[4] + box.pbc_y ? 2 * rc : 0;
+    box_ghost.cpu_h[5] = 0;
+    box_ghost.cpu_h[6] = 0;
+    box_ghost.cpu_h[7] = 0;
     box_ghost.cpu_h[8] = box.cpu_h[8] + box.pbc_z ? 2 * rc : 0;
   }
+  box_ghost.get_inverse();
 
   find_neighbor(
     N1,
