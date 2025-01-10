@@ -639,5 +639,4 @@ void find_neighbor_SW(
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
-
 }
