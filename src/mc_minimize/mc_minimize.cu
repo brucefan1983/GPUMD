@@ -17,6 +17,7 @@
 #include "mc_minimize.cuh"
 #include "utilities/read_file.cuh"
 #include "mc_minimizer_local.cuh"
+#include "mc_minimizer_global.cuh"
 
 void MC_Minimize::parse_group(
   const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group)
@@ -149,7 +150,6 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   }
   if (mc_minimizer_type == 1)
   {
-    /* code */
+    mc_minimizer.reset(new MC_Minimizer_Global(param, num_param, temperature, force_tolerance, max_relax_steps));
   }
-  
 }

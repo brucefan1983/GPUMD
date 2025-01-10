@@ -35,6 +35,63 @@ MC_Minimizer_Local::~MC_Minimizer_Local()
   //default destructor
 }
 
+//test
+
+#include "iostream"
+void write_gpu_array_to_file(double* d_array, size_t length, const std::string& filename) {
+
+    double* h_array = new double[length];
+
+
+    cudaMemcpy(h_array, d_array, length * sizeof(double), cudaMemcpyDeviceToHost);
+
+
+    std::ofstream output_file(filename);
+    if (!output_file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
+        delete[] h_array;
+        return;
+    }
+
+    for (size_t i = 0; i < length; ++i) {
+        output_file << h_array[i] << std::endl;
+    }
+
+    output_file.close();
+
+    delete[] h_array;
+
+    std::cout << "Data written to " << filename << std::endl;
+}
+
+void write_gpu_array_to_file(int* d_array, size_t length, const std::string& filename) {
+
+    int* h_array = new int[length];
+
+
+    cudaMemcpy(h_array, d_array, length * sizeof(int), cudaMemcpyDeviceToHost);
+
+
+    std::ofstream output_file(filename);
+    if (!output_file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
+        delete[] h_array;
+        return;
+    }
+
+    for (size_t i = 0; i < length; ++i) {
+        output_file << h_array[i] << std::endl;
+    }
+
+    output_file.close();
+
+    delete[] h_array;
+
+    std::cout << "Data written to " << filename << std::endl;
+}
+
+
+
 /*
 this function can find out the atoms whose distance from two atom centers is within rc_radial
 */
@@ -136,7 +193,7 @@ static __global__ void find_local_ij(
 this function is used for label the atoms within the rc_radial, which will return an array of [0, 1, 0, 0......].
 1 stands for inside, and 0 stands for outside.
 */
-static __global__ void get_shpere_atoms(
+static __global__ void get_sphere_atoms(
   const int N,
   const int local_N,
   const int* local_index,
@@ -430,13 +487,6 @@ void build_all_atoms(
     atom.number_of_atoms,
     local_N,
     3);
-  copy_back<<<(local_N - 1) / 64 + 1, 64>>>(
-    atom.type.data(),
-    local_atoms.type.data(),
-    local_index,
-    atom.number_of_atoms,
-    local_N,
-    1);
   gpuDeviceSynchronize();
 }
 
@@ -486,7 +536,8 @@ void MC_Minimizer_Local::compute(
   std::uniform_int_distribution<int> r1(0, group_size - 1);
 
   int num_accepted = 0;
-  for (int step = 0; step < trials; ++step) {
+  float rc_radius = force.potentials[0]->rc;
+  for (int step = 1; step <= trials; ++step) {
 
     int i = grouping_method >= 0
               ? group[grouping_method]
@@ -502,14 +553,13 @@ void MC_Minimizer_Local::compute(
       type_j = atom.cpu_type[j];
     }
 
-    double rc_radius = force.potentials[0]->rc;
     Atom local_atoms;
     //find local atoms
     GPU_Vector<int> local_i;  //the local index of i atom
     GPU_Vector<int> local_j;  //the local index of j atom
     GPU_Vector<int> local_N; //the length of local_index
     GPU_Vector<int> local_index; // an array contains the index of the local atoms
-    GPU_Vector<double> local_sphere_flags; // an array labels the shell atom
+    GPU_Vector<double> local_sphere_flags; // an array labels the atoms inside shell
     local_N.resize(1);
     local_i.resize(1);
     local_j.resize(1);
@@ -548,7 +598,7 @@ void MC_Minimizer_Local::compute(
     local_j.copy_to_host(&local_j_cpu);
 
     //get sphere atoms
-    get_shpere_atoms<<<(local_N_cpu - 1) / 64 + 1, 64>>>(
+    get_sphere_atoms<<<(local_N_cpu - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       local_N_cpu,
       local_index.data(),
@@ -609,12 +659,12 @@ void MC_Minimizer_Local::compute(
       local_atoms.type.data(),
       local_atoms.mass.data(),
       local_atoms.velocity_per_atom.data(),
-      local_atoms.velocity_per_atom.data() + atom.number_of_atoms,
-      local_atoms.velocity_per_atom.data() + atom.number_of_atoms * 2);
+      local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms,
+      local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms * 2);
 
     Minimizer_FIRE Minimizer(
       local_N_cpu,
-       max_relax_steps,
+      max_relax_steps,
       force_tolerance);
 
     Minimizer.compute_label_atoms(
@@ -691,7 +741,7 @@ void MC_Minimizer_Local::compute(
       max_displacement.copy_to_host(&max_value);
 
       mc_output<< step << "\t" << max_value << "\t" << average_displacement 
-      << "\t" << pe_before_total << "\t" << pe_after_total << "\t" << num_accepted / (double(step) + 1) << std::endl;
+      << "\t" << pe_before_total << "\t" << pe_after_total << "\t" << num_accepted / double(step) << std::endl;
 
       //copy the relaxed local structure to the global structure
       build_all_atoms(
@@ -699,6 +749,16 @@ void MC_Minimizer_Local::compute(
         local_atoms,
         local_N_cpu,
         local_index.data());
+      exchange<<<1, 1>>>(
+      i,
+      j,
+      type_i,
+      type_j,
+      atom.type.data(),
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + atom.number_of_atoms,
+      atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
     }
     //need modification
     force.potentials[0]->N2 = atom.number_of_atoms;

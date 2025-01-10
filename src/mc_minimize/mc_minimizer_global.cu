@@ -82,7 +82,7 @@ void MC_Minimizer_Global::compute(
 
   int num_accepted = 0;
   int N = atom.number_of_atoms;
-  for (int step = 0; step < trials; ++step) {
+  for (int step = 1; step <= trials; ++step) {
 
     int i = grouping_method >= 0
               ? group[grouping_method]
@@ -98,7 +98,7 @@ void MC_Minimizer_Global::compute(
       type_j = atom.cpu_type[j];
     }
   //initialize
-  if (step == 0)
+  if (step == 1)
   {
     energy_last_step = 0;
     force.compute(
@@ -155,7 +155,7 @@ void MC_Minimizer_Global::compute(
     atom_copy.virial_per_atom);
   double pe_after_total = 0;
   std::vector<double> pe_after_cpu(N);
-  atom.potential_per_atom.copy_to_host(pe_after_cpu.data(), N);
+  atom_copy.potential_per_atom.copy_to_host(pe_after_cpu.data(), N);
   for (int n = 0; n < N; ++n) {
     pe_after_total += pe_after_cpu[n];
   }
@@ -164,6 +164,7 @@ void MC_Minimizer_Global::compute(
   std::uniform_real_distribution<float> r2(0, 1);
   float random_number = r2(rng);
   double probability = exp(-energy_difference / (K_B * temperature));
+  printf("%.8f\n", probability);
 
   if (random_number < probability) {
     ++num_accepted;
@@ -193,7 +194,7 @@ void MC_Minimizer_Global::compute(
       atom.velocity_per_atom.data() + N,
       atom.velocity_per_atom.data() + N * 2);
 
-    mc_output << step << "\t" << energy_last_step << "\t" << pe_after_total << "\t" << num_accepted / (double(step) + 1) << std::endl;
+    mc_output << step << "\t" << energy_last_step << "\t" << pe_after_total << "\t" << num_accepted / double(step) << std::endl;
 
     energy_last_step = pe_after_total;
     }
