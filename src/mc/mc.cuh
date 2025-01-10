@@ -33,7 +33,7 @@ public:
   void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
 
   void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
-  
+
 private:
   bool do_mcmd = false;
   int num_steps_md = 0;
