@@ -30,6 +30,7 @@ The driver class calculating force and related quantities.
 #include "tersoff_mini.cuh"
 #include "ilp_tmd_sw.cuh"
 #include "ilp_nep_gr_hbn.cuh"
+#include "ilp_nep_tmd.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -150,6 +151,11 @@ void Force::parse_potential(
       PRINT_INPUT_ERROR("potential should contain ILP potential file and NEP potential file.\n");
     }
     potential.reset(new ILP_NEP_GR_HBN(fid_potential, param[2], num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "ilp_nep_tmd") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain ILP potential file and NEP potential file.\n");
+    }
+    potential.reset(new ILP_NEP_TMD(fid_potential, param[2], num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
