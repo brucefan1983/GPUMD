@@ -76,12 +76,12 @@ void Force::parse_potential(
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
-  bool is_nep = false;
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
   number_of_atoms_ = number_of_atoms;
+  bool is_nep = false;
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
     potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
