@@ -139,7 +139,7 @@ void Force::parse_potential(
   #ifdef USE_TENSORFLOW
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR("The potential command should contain two parameters, the settings file and the DP potential file name.\n");
+      PRINT_INPUT_ERROR("The potential command should contain two parameters, the setting file and the DP potential file name.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
   #endif
