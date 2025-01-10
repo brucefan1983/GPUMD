@@ -73,11 +73,10 @@ void Force::parse_potential(
   }
 
   std::unique_ptr<Potential> potential;
-  bool is_nep = false;
-
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
+  bool is_nep = false;
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
