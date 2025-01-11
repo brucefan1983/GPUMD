@@ -157,4 +157,7 @@ This DP interface need two files: setting file and DP potential file. The first 
 >> $ bash run-test.sh
 ```
 
-Notice: This speed is inaccurate. The actual computing speed can only be reflected when the number of CPU cores is limited to 1.
+Notice:
+
+- This speed is inaccurate. The actual computing speed can only be reflected when the number of CPU cores is limited to 1.
+- The DP potential file is from [ref](https://doi.org/10.1063/5.0142843), the download link is: (https://zenodo.org/records/7577034), one can find it from the [link](https://github.com/Kick-H/NEP-water/blob/main/GPUMD-DP/compare_with_lammps/Models/DNN_seed2.pb)(https://github.com/Kick-H/NEP-water/blob/main/GPUMD-DP/)
