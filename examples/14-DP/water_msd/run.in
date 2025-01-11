@@ -1,0 +1,10 @@
+potential       dp.txt DNN_seed2.pb
+time_step       0.5
+ensemble        nvt_ber 330 330 100
+dump_thermo     10
+dump_exyz       1000
+run             10000
+
+ensemble        nvt_ber 330 330 100
+compute_sdc     2 5000
+run             10000

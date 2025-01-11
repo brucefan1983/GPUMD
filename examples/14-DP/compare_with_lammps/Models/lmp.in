@@ -1,0 +1,48 @@
+
+units           metal
+boundary        p p p
+atom_style      atomic
+atom_modify map yes
+
+neighbor        0.0 bin
+neigh_modify    every 50 delay 0 check no
+
+read_data       water.data
+mass            1 16
+mass            2 2
+
+pair_style      deepmd ../Models/DNN_seed2.pb
+pair_coeff * *
+
+# velocity        all create 1 23456789
+
+timestep        0.0005
+
+
+compute pe all pe/atom
+compute cs all centroid/stress/atom NULL virial
+variable bar_A3toeV equal 6.242e-7  # 1bar*1A3 to eV
+variable xx atom c_cs[1] # *${bar_A3toeV} # vol
+variable yy atom c_cs[2] # *${bar_A3toeV} # vol
+variable zz atom c_cs[3] # *${bar_A3toeV} # vol
+variable xy atom c_cs[4] # *${bar_A3toeV} # vol
+variable xz atom c_cs[5] # *${bar_A3toeV} # vol
+variable yz atom c_cs[6] # *${bar_A3toeV} # vol
+variable yx atom c_cs[7] # *${bar_A3toeV} # vol
+variable zx atom c_cs[8] # *${bar_A3toeV} # vol
+variable zy atom c_cs[9] # *${bar_A3toeV} # vol
+
+# dump 4a all custom 1 dump.lammpstrj id type x y z fx fy fz c_pe
+# dump_modify 4a element O H format line "%d %d %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g" sort id 
+
+dump jp all custom 1 dump.lammpstrj id type element x y z fx fy fz c_pe v_xx v_yy v_zz v_xy v_xz v_yz v_yx v_zx v_zy
+dump_modify jp element O H format line "%d %d %s %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g %12.8g" sort id 
+
+thermo_style    custom step pe ke etotal temp press vol pxx pyy pzz pyz pxz pxy
+thermo          1
+run             0
+run             1
+quit
+timestep       0.0005
+run             20
+run             20

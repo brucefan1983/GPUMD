@@ -1,0 +1,11 @@
+potential       dp.txt ../Models/DNN_seed2.pb
+time_step       0
+ensemble        nve
+dump_thermo     1
+dump_exyz       1 0 1 1
+compute         0 1 1 virial
+run             1000
+
+run             20
+run             50
+
