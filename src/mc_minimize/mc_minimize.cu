@@ -136,15 +136,21 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   if (!is_valid_real(param[6], &scale_factor)) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
   }
+  if (scale_factor <= 0) {
+    PRINT_INPUT_ERROR("scale factor for MC Minimize should be positive.\n");
+  }
+  }
   if (mc_minimizer_type == 2)
   {
   if (!is_valid_real(param[6], &scale_factor)) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
   }
-  if (max_relax_steps <= 0) {
+  if (scale_factor <= 0) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be positive.\n");
   }
   }
+
+  
 
   int num_param_before_group;
   if (mc_minimizer_type == 0)
