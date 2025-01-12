@@ -259,6 +259,13 @@ void Run::perform_a_run()
         atom.velocity_per_atom,
         atom.mass);
     }
+
+#ifdef USE_GAS
+    if(is_metacell){
+      p_gasmc->process(box,atom.virial_per_atom);
+    }
+#endif
+
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
       measure.plmd.process(
@@ -342,15 +349,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "GASMD") == 0) {
     std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
     force.potentials.emplace_back(std::move(p_gas_metad));
-    // if(num_param==1){
-    //   std::unique_ptr<TorchMetad> p_gas_metad = std::make_unique<TorchMetad>();
-    //   force.potentials.emplace_back(std::move(p_gas_metad));
-    // }else{
-    //   std::string model_path = param[1];
-    //   std::unique_ptr<TorchMetad> p_gas_metad = std::make_unique<TorchMetad>(model_path);
-    //   force.potentials.emplace_back(std::move(p_gas_metad));
-    // }
     force.set_multiple_potentials_mode("sum");
+  } else if (strcmp(param[0], "GASMetaCell") == 0) {
+     p_gasmc = TorchMetaCell::parse_GASMETACELL(param,num_param,atom.number_of_atoms);
+     is_metacell = true;
 #endif
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);

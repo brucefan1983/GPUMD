@@ -103,49 +103,49 @@ static __global__ void find_neighbor_list_large_box_gas(
 
 
 
-static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
-{
-  int number_of_rounds = (N - 1) / 1024 + 1;
-  __shared__ double s_data[1024];
-  s_data[threadIdx.x] = 0.0;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = threadIdx.x + round * 1024;
-    if (n < N) {
-      s_data[threadIdx.x] += g_data[n + blockIdx.x * N];
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (threadIdx.x < offset) {
-      s_data[threadIdx.x] += s_data[threadIdx.x + offset];
-    }
-    __syncthreads();
-  }
-  if (threadIdx.x == 0) {
-    g_data_sum[blockIdx.x] = s_data[0];
-  }
-}
+// static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
+// {
+//   int number_of_rounds = (N - 1) / 1024 + 1;
+//   __shared__ double s_data[1024];
+//   s_data[threadIdx.x] = 0.0;
+//   for (int round = 0; round < number_of_rounds; ++round) {
+//     int n = threadIdx.x + round * 1024;
+//     if (n < N) {
+//       s_data[threadIdx.x] += g_data[n + blockIdx.x * N];
+//     }
+//   }
+//   __syncthreads();
+//   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+//     if (threadIdx.x < offset) {
+//       s_data[threadIdx.x] += s_data[threadIdx.x + offset];
+//     }
+//     __syncthreads();
+//   }
+//   if (threadIdx.x == 0) {
+//     g_data_sum[blockIdx.x] = s_data[0];
+//   }
+// }
 
-static void __global__ gpu_scale_virial(
-  const int N,
-  const double* factors,
-  double* g_sxx,
-  double* g_syy,
-  double* g_szz,
-  double* g_sxy,
-  double* g_sxz,
-  double* g_syz)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N) {
-    g_sxx[i] *= factors[0];
-    g_syy[i] *= factors[1];
-    g_szz[i] *= factors[2];
-    g_sxy[i] *= factors[3];
-    g_sxz[i] *= factors[4];
-    g_syz[i] *= factors[5];
-  }
-}
+// static void __global__ gpu_scale_virial(
+//   const int N,
+//   const double* factors,
+//   double* g_sxx,
+//   double* g_syy,
+//   double* g_szz,
+//   double* g_sxy,
+//   double* g_sxz,
+//   double* g_syz)
+// {
+//   const int i = blockIdx.x * blockDim.x + threadIdx.x;
+//   if (i < N) {
+//     g_sxx[i] *= factors[0];
+//     g_syy[i] *= factors[1];
+//     g_szz[i] *= factors[2];
+//     g_sxy[i] *= factors[3];
+//     g_sxz[i] *= factors[4];
+//     g_syz[i] *= factors[5];
+//   }
+// }
 
 
 torch::Tensor NL2Indices(torch::Tensor& torch_NL,int n_atoms_NL){
@@ -350,26 +350,11 @@ void TorchMetad::compute(
     torch_force+=output_dict.at("forces");
     mean_bias_force = output_dict.at("forces").norm(2,1).mean().clone().detach();
     auto cell_virial = output_dict.at("virial");//reschedule to xx yy zz xy yz xz yx zx zy
+    // std::cout<<cell_virial<<std::endl;
     torch_virial+=(cell_virial.unsqueeze(0)/n_atoms);
-
-
-    // cell_virial = symmetrizeStressTensor(cell_virial);
-    // cell_virial = convertStressTensor(cell_virial);
-    // torch::Tensor temp_virial = (torch_virial+cell_virial)/torch_virial;
-    // gpu_scale_virial<<<(n_atoms - 1) / 128 + 1, 128>>>(
-    //     n_atoms,
-    //     temp_virial.data_ptr<double>(),
-    //     virial.data() + n_atoms * 0,
-    //     virial.data() + n_atoms * 1,
-    //     virial.data() + n_atoms * 2,
-    //     virial.data() + n_atoms * 3,
-    //     virial.data() + n_atoms * 4,
-    //     virial.data() + n_atoms * 5);
-      // CUDA_CHECK_KERNEL
-
-      torch::cuda::synchronize();
+    torch::cuda::synchronize();
     if(now_step%config.cv_storage_interval==0){
-        this->appendCVtoTraj(is_opt);
+      this->appendCVtoTraj(is_opt);
     }
     if(now_step%config.cv_log_interval==0){
       this->logCV_runtime();
@@ -472,8 +457,16 @@ void TorchMetad::box_to_tri(Box& box){
         cpu_b_vector[6] = box.cpu_h[2];
         cpu_b_vector[7] = box.cpu_h[5];
         cpu_b_vector[8] = box.cpu_h[8];
+        // cpu_b_vector[0] = box.cpu_h[0];
+        // cpu_b_vector[1] = box.cpu_h[1];
+        // cpu_b_vector[2] = box.cpu_h[2];
+        // cpu_b_vector[3] = box.cpu_h[3];
+        // cpu_b_vector[4] = box.cpu_h[4];
+        // cpu_b_vector[5] = box.cpu_h[5];
+        // cpu_b_vector[6] = box.cpu_h[6];
+        // cpu_b_vector[7] = box.cpu_h[7];
+        // cpu_b_vector[8] = box.cpu_h[8];
       }
-
 }
 
 
