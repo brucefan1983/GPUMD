@@ -34,63 +34,8 @@ MC_Minimizer_Local::~MC_Minimizer_Local()
   //default destructor
 }
 
-//test
-
-#include "iostream"
-void write_gpu_array_to_file(double* d_array, size_t length, const std::string& filename) {
-
-    double* h_array = new double[length];
-
-
-    cudaMemcpy(h_array, d_array, length * sizeof(double), cudaMemcpyDeviceToHost);
-
-
-    std::ofstream output_file(filename);
-    if (!output_file.is_open()) {
-        std::cerr << "Failed to open file for writing: " << filename << std::endl;
-        delete[] h_array;
-        return;
-    }
-
-    for (size_t i = 0; i < length; ++i) {
-        output_file << h_array[i] << std::endl;
-    }
-
-    output_file.close();
-
-    delete[] h_array;
-
-    std::cout << "Data written to " << filename << std::endl;
-}
-
-void write_gpu_array_to_file(int* d_array, size_t length, const std::string& filename) {
-
-    int* h_array = new int[length];
-
-
-    cudaMemcpy(h_array, d_array, length * sizeof(int), cudaMemcpyDeviceToHost);
-
-
-    std::ofstream output_file(filename);
-    if (!output_file.is_open()) {
-        std::cerr << "Failed to open file for writing: " << filename << std::endl;
-        delete[] h_array;
-        return;
-    }
-
-    for (size_t i = 0; i < length; ++i) {
-        output_file << h_array[i] << std::endl;
-    }
-
-    output_file.close();
-
-    delete[] h_array;
-
-    std::cout << "Data written to " << filename << std::endl;
-}
-
-
-
+namespace
+{
 /*
 this function can find out the atoms whose distance from two atom centers is within rc_radial
 */
@@ -518,6 +463,7 @@ void build_local_atoms(
     local_N,
     3);
   CHECK(gpuDeviceSynchronize());
+}
 }
 
 //implement the local simple MC

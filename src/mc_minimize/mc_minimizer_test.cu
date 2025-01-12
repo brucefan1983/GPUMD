@@ -34,6 +34,8 @@ MC_Minimizer_Test::~MC_Minimizer_Test()
   //default destructor
 }
 
+namespace
+{
 /*
 this function can find out the atoms whose distance from two atom centers is within rc_radial
 */
@@ -461,6 +463,7 @@ void build_local_atoms(
     local_N,
     3);
   CHECK(gpuDeviceSynchronize());
+}
 }
 
 //implement the test
