@@ -77,7 +77,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
     printf("Perform simple MC with global relaxation:\n");
     mc_minimizer_type = 1;
   } else if (strcmp(param[1], "test") == 0) {
-    printf("Perform simple MC with global relaxation:\n");
+    printf("Perform simple MC test:\n");
     mc_minimizer_type = 2;
   } else {
     PRINT_INPUT_ERROR("invalid MC Minimizer type for MC.\n");
@@ -87,7 +87,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
       PRINT_INPUT_ERROR("reading error for local relaxation, missing parameter\n");
     }
   }
-  if (mc_minimizer_type == 0) {
+  if (mc_minimizer_type == 1) {
     if (num_param < 6) {
       PRINT_INPUT_ERROR("reading error for global relaxation, missing parameter\n");
     }
@@ -132,6 +132,11 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
 
   //check if scale factor reasonable 
   if (mc_minimizer_type == 0)
+  {
+  if (!is_valid_real(param[6], &scale_factor)) {
+    PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
+  }
+  if (mc_minimizer_type == 2)
   {
   if (!is_valid_real(param[6], &scale_factor)) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
