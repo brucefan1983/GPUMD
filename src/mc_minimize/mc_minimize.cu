@@ -12,12 +12,12 @@
     You should have received a copy of the GNU General Public License
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
-#pragma once
 
 #include "mc_minimize.cuh"
 #include "utilities/read_file.cuh"
 #include "mc_minimizer_local.cuh"
 #include "mc_minimizer_global.cuh"
+#include "mc_minimizer_test.cuh"
 
 void MC_Minimize::parse_group(
   const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group)
@@ -68,7 +68,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
     PRINT_INPUT_ERROR("mc_minimize should have at least 5 parameters.\n");
   }
 
-  //0 for local, 1 for global
+  //0 for local, 1 for global, 2 for test
   int mc_minimizer_type = 0;
   if (strcmp(param[1], "local") == 0) {
     printf("Perform simple MC with local relaxation:\n");
@@ -76,12 +76,25 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   } else if (strcmp(param[1], "global") == 0) {
     printf("Perform simple MC with global relaxation:\n");
     mc_minimizer_type = 1;
+  } else if (strcmp(param[1], "test") == 0) {
+    printf("Perform simple MC with global relaxation:\n");
+    mc_minimizer_type = 2;
   } else {
     PRINT_INPUT_ERROR("invalid MC Minimizer type for MC.\n");
   }
   if (mc_minimizer_type == 0) {
     if (num_param < 7) {
       PRINT_INPUT_ERROR("reading error for local relaxation, missing parameter\n");
+    }
+  }
+  if (mc_minimizer_type == 0) {
+    if (num_param < 6) {
+      PRINT_INPUT_ERROR("reading error for global relaxation, missing parameter\n");
+    }
+  }
+  if (mc_minimizer_type == 2) {
+    if (num_param < 7) {
+      PRINT_INPUT_ERROR("reading error for test, missing parameter\n");
     }
   }
 
@@ -137,6 +150,10 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   {
     num_param_before_group = 6;
   }
+  if (mc_minimizer_type == 2)
+  {
+    num_param_before_group = 7;
+  }
 
   if (num_param > num_param_before_group)
   {
@@ -151,5 +168,9 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   if (mc_minimizer_type == 1)
   {
     mc_minimizer.reset(new MC_Minimizer_Global(param, num_param, temperature, force_tolerance, max_relax_steps));
+  }
+  if (mc_minimizer_type == 2)
+  {
+    mc_minimizer.reset(new MC_Minimizer_Test(param, num_param, scale_factor, temperature, force_tolerance, max_relax_steps));
   }
 }

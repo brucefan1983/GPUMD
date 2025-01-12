@@ -12,7 +12,6 @@
     You should have received a copy of the GNU General Public License
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
-#pragma once
 
 #include "mc_minimizer.cuh"
 #include <iostream>
@@ -29,9 +28,13 @@ MC_Minimizer::MC_Minimizer(const char** param, int num_param)
   mc_output << "\n";
   if (strcmp(param[1], "local") == 0) {
     mc_output << "Step" << "\t" << "Maximum displacement" << "\t" << "Average displacement" 
-    << "\t" << "Energy before" << "\t" << "Energy after" << "\t" <<  "Accept ratio" << std::endl;
+    << "\t" << "Energy difference" << "\t" <<  "Accept ratio" << std::endl;
   } else if (strcmp(param[1], "global") == 0) {
     mc_output << "Step" << "\t" << "Energy before" << "\t" << "Energy after" << "\t" <<  "Accept ratio" << std::endl;
+  } else if (strcmp(param[1], "test") == 0) {
+    mc_output << "Step" << "\t" << "Maximum displacement" << "\t" << "Average displacement" 
+    << "\t" << "Local energy difference" << "\t" << "Global energy difference" << "\t" <<  "Accept ratio"
+    << "\t" << "Local probability" << "\t" << "Global probability" << std::endl;
   }
 
 

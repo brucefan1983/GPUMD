@@ -13,9 +13,9 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "mc_minimizer_local.cuh"
+#include "mc_minimizer_test.cuh"
 
-MC_Minimizer_Local::MC_Minimizer_Local(
+MC_Minimizer_Test::MC_Minimizer_Test(
   const char** param, int num_param,
     double scale_factor_input,
     double temperature_input,
@@ -29,67 +29,10 @@ MC_Minimizer_Local::MC_Minimizer_Local(
   max_relax_steps = max_relax_steps_input;
 }
 
-MC_Minimizer_Local::~MC_Minimizer_Local()
+MC_Minimizer_Test::~MC_Minimizer_Test()
 {
   //default destructor
 }
-
-//test
-
-#include "iostream"
-void write_gpu_array_to_file(double* d_array, size_t length, const std::string& filename) {
-
-    double* h_array = new double[length];
-
-
-    cudaMemcpy(h_array, d_array, length * sizeof(double), cudaMemcpyDeviceToHost);
-
-
-    std::ofstream output_file(filename);
-    if (!output_file.is_open()) {
-        std::cerr << "Failed to open file for writing: " << filename << std::endl;
-        delete[] h_array;
-        return;
-    }
-
-    for (size_t i = 0; i < length; ++i) {
-        output_file << h_array[i] << std::endl;
-    }
-
-    output_file.close();
-
-    delete[] h_array;
-
-    std::cout << "Data written to " << filename << std::endl;
-}
-
-void write_gpu_array_to_file(int* d_array, size_t length, const std::string& filename) {
-
-    int* h_array = new int[length];
-
-
-    cudaMemcpy(h_array, d_array, length * sizeof(int), cudaMemcpyDeviceToHost);
-
-
-    std::ofstream output_file(filename);
-    if (!output_file.is_open()) {
-        std::cerr << "Failed to open file for writing: " << filename << std::endl;
-        delete[] h_array;
-        return;
-    }
-
-    for (size_t i = 0; i < length; ++i) {
-        output_file << h_array[i] << std::endl;
-    }
-
-    output_file.close();
-
-    delete[] h_array;
-
-    std::cout << "Data written to " << filename << std::endl;
-}
-
-
 
 /*
 this function can find out the atoms whose distance from two atom centers is within rc_radial
@@ -520,8 +463,8 @@ void build_local_atoms(
   CHECK(gpuDeviceSynchronize());
 }
 
-//implement the local simple MC
-void MC_Minimizer_Local::compute(
+//implement the test
+void MC_Minimizer_Test::compute(
     int trials,
     Force& force,
     Atom& atom,
@@ -536,6 +479,23 @@ void MC_Minimizer_Local::compute(
 
   int num_accepted = 0;
   float rc_radius = force.potentials[0]->rc;
+
+  //Construct an atom object and perform independent global relaxation calculations to compare with local relaxation. The same atoms are exchanged between global and local relaxation in each iteration.
+  Atom atom_global;
+  int N = atom.number_of_atoms;
+  atom_global.number_of_atoms = N;
+  atom_global.mass.resize(N);
+  atom_global.type.resize(N);
+  atom_global.potential_per_atom.resize(N, 0);
+  atom_global.force_per_atom.resize(3 * N, 0);
+  atom_global.velocity_per_atom.resize(3 * N, 0);
+  atom_global.position_per_atom.resize(3 * N);
+  atom_global.virial_per_atom.resize(9 * N, 0);
+
+  atom_global.mass.copy_from_device(atom.mass.data(), N);
+  atom_global.type.copy_from_device(atom.type.data(), N);
+  atom_global.position_per_atom.copy_from_device(atom.position_per_atom.data(), 3 * N);
+
   for (int step = 1; step <= trials; ++step) {
 
     int i = grouping_method >= 0
@@ -694,6 +654,99 @@ void MC_Minimizer_Local::compute(
     float random_number = r2(rng);
     double probability = exp(-energy_difference / (K_B * temperature));
 
+    //calculate the global relaxation energy after swap
+    force.potentials[0]->N2 = atom.number_of_atoms;
+    Atom atom_global_copy;
+    atom_global_copy.number_of_atoms = N;
+    atom_global_copy.mass.resize(N);
+    atom_global_copy.type.resize(N);
+    atom_global_copy.potential_per_atom.resize(N, 0);
+    atom_global_copy.force_per_atom.resize(3 * N, 0);
+    atom_global_copy.velocity_per_atom.resize(3 * N, 0);
+    atom_global_copy.position_per_atom.resize(3 * N);
+    atom_global_copy.virial_per_atom.resize(9 * N, 0);
+
+    atom_global_copy.mass.copy_from_device(atom_global.mass.data(), N);
+    atom_global_copy.type.copy_from_device(atom_global.type.data(), N);
+    atom_global_copy.position_per_atom.copy_from_device(atom_global.position_per_atom.data(), 3 * N);
+    //calculate the global energy before swap
+    force.compute(
+      box,
+      atom_global.position_per_atom,
+      atom_global.type,
+      group,
+      atom_global.potential_per_atom,
+      atom_global.force_per_atom,
+      atom_global.virial_per_atom);
+    double pe_before_total_global = 0;
+    std::vector<double> pe_before_cpu_global(N);
+    atom_global.potential_per_atom.copy_to_host(pe_before_cpu_global.data(), N);
+    //calculate the energy after swap
+    exchange<<<1, 1>>>(
+      i,
+      j,
+      type_i,
+      type_j,
+      atom_global_copy.type.data(),
+      atom_global_copy.mass.data(),
+      atom_global_copy.velocity_per_atom.data(),
+      atom_global_copy.velocity_per_atom.data() + N,
+      atom_global_copy.velocity_per_atom.data() + N * 2);
+
+    Minimizer_FIRE minimizer_compare_global(N, max_relax_steps, force_tolerance);
+    minimizer_compare_global.compute(
+      force,
+      box,
+      atom_global_copy.position_per_atom,
+      atom_global_copy.type,
+      group,
+      atom_global_copy.potential_per_atom,
+      atom_global_copy.force_per_atom,
+      atom_global_copy.virial_per_atom);
+    double pe_after_total_global = 0;
+    std::vector<double> pe_after_cpu_global(N);
+    atom_global_copy.potential_per_atom.copy_to_host(pe_after_cpu_global.data(), N);
+    for (int n = 0; n < N; ++n) {
+      pe_after_total_global += pe_after_cpu_global[n];
+      pe_before_total_global += pe_before_cpu_global[n];
+    }
+
+      //get the output data
+    GPU_Vector<double> outer_atoms_flags(local_N_cpu);
+    outer_atoms_flags.fill(0);
+    get_outer_atoms<<<(local_N_cpu - 1) / 64 + 1, 64>>>(
+      atom.number_of_atoms,
+      local_N_cpu,
+      local_index.data(),
+      box,
+      i,
+      j,
+      rc_radius * rc_radius * (scale_factor - 1) * (scale_factor - 1),
+      rc_radius * rc_radius * scale_factor * scale_factor,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + atom.number_of_atoms,
+      atom.position_per_atom.data() + atom.number_of_atoms * 2,
+      outer_atoms_flags.data());
+    CHECK(gpuDeviceSynchronize());
+
+    GPU_Vector<double> max_displacement(1);
+    double average_displacement = get_outer_average_displacement(
+      box,
+      atom.position_per_atom.data(),
+      local_atoms.position_per_atom.data(),
+      atom.number_of_atoms,
+      local_atoms.number_of_atoms,
+      local_index.data(),
+      outer_atoms_flags.data(),
+      max_displacement.data());
+    double max_value;
+    max_displacement.copy_to_host(&max_value);
+    double energy_difference_global = pe_after_total_global - pe_before_total_global;
+    double probability_global = exp(-energy_difference_global / (K_B * temperature));
+      mc_output<< step << "\t" << max_value << "\t" << average_displacement 
+      << "\t" << energy_difference << "\t" << energy_difference_global << "\t" << num_accepted / double(step)
+      << "\t" << probability << "\t" << probability_global << std::endl;
+
     if (random_number < probability) {
       ++num_accepted;
 
@@ -708,39 +761,17 @@ void MC_Minimizer_Local::compute(
       atom.cpu_mass[i] = atom.cpu_mass[j];
       atom.cpu_mass[j] = mass_i;
 
-      //get the output data
-      GPU_Vector<double> outer_atoms_flags(local_N_cpu);
-      outer_atoms_flags.fill(0);
-      get_outer_atoms<<<(local_N_cpu - 1) / 64 + 1, 64>>>(
-        atom.number_of_atoms,
-        local_N_cpu,
-        local_index.data(),
-        box,
+      atom_global.position_per_atom.copy_from_device(atom_global_copy.position_per_atom.data(), 3*N);
+      exchange<<<1, 1>>>(
         i,
         j,
-        rc_radius * rc_radius * (scale_factor - 1) * (scale_factor - 1),
-        rc_radius * rc_radius * scale_factor * scale_factor,
-        atom.position_per_atom.data(),
-        atom.position_per_atom.data() + atom.number_of_atoms,
-        atom.position_per_atom.data() + atom.number_of_atoms * 2,
-        outer_atoms_flags.data());
-      CHECK(gpuDeviceSynchronize());
-
-      GPU_Vector<double> max_displacement(1);
-      double average_displacement = get_outer_average_displacement(
-        box,
-        atom.position_per_atom.data(),
-        local_atoms.position_per_atom.data(),
-        atom.number_of_atoms,
-        local_atoms.number_of_atoms,
-        local_index.data(),
-        outer_atoms_flags.data(),
-        max_displacement.data());
-      double max_value;
-      max_displacement.copy_to_host(&max_value);
-
-      mc_output<< step << "\t" << max_value << "\t" << average_displacement 
-      << "\t" << energy_difference << "\t" << num_accepted / double(step) << std::endl;
+        type_i,
+        type_j,
+        atom_global.type.data(),
+        atom_global.mass.data(),
+        atom_global.velocity_per_atom.data(),
+        atom_global.velocity_per_atom.data() + atom_global.number_of_atoms,
+        atom_global.velocity_per_atom.data() + atom_global.number_of_atoms * 2);
 
       //copy the relaxed local structure to the global structure
       build_all_atoms(
@@ -749,17 +780,15 @@ void MC_Minimizer_Local::compute(
         local_N_cpu,
         local_index.data());
       exchange<<<1, 1>>>(
-      i,
-      j,
-      type_i,
-      type_j,
-      atom.type.data(),
-      atom.mass.data(),
-      atom.velocity_per_atom.data(),
-      atom.velocity_per_atom.data() + atom.number_of_atoms,
-      atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
+        i,
+        j,
+        type_i,
+        type_j,
+        atom.type.data(),
+        atom.mass.data(),
+        atom.velocity_per_atom.data(),
+        atom.velocity_per_atom.data() + atom.number_of_atoms,
+        atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
     }
-    //need modification
-    force.potentials[0]->N2 = atom.number_of_atoms;
   }
 }
