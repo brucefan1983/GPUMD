@@ -194,7 +194,7 @@ void Minimizer_FIRE::compute_label_atoms(
 {
   double next_dt;
   const int size = number_of_atoms_ * 3;
-  int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
+  //int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
   // create a velocity vector in GPU
   GPU_Vector<double> v(size, 0);
   GPU_Vector<double> temp1(size);
