@@ -1412,6 +1412,7 @@ static __global__ void find_neighbor_list_nep(
   const int nz,
   const Box box,
   const int* g_type,
+  const int* group_label_ilp,
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
@@ -1481,6 +1482,11 @@ static __global__ void find_neighbor_list_nep(
           const int n2 = g_cell_contents[num_atoms_previous_cells + m];
 
           if (n2 < N1 || n2 >= N2 || n1 == n2) {
+            continue;
+          }
+
+          // check if the same layer
+          if (group_label_ilp[n1] != group_label_ilp[n2]) {
             continue;
           }
 
@@ -2124,6 +2130,7 @@ void ILP_NEP_TMD::compute_ilp(
     num_bins[2],
     box,
     type.data(),
+    group_label_ilp,
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),
