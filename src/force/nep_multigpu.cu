@@ -33,6 +33,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <vector>
+#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -169,8 +170,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
       std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
       exit(1);
     }
-    zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
       zbl.flexibled = true;
       printf("    has the flexible ZBL potential\n");
@@ -189,8 +190,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
                  "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
-  paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
@@ -209,9 +210,9 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_radial_factor > 0.0f) {
       paramb.use_typewise_cutoff = true;
     }
@@ -319,11 +320,11 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   std::vector<float> parameters(annmb[0].num_para);
   for (int n = 0; n < annmb[0].num_para; ++n) {
     tokens = get_tokens(input);
-    parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   for (int d = 0; d < annmb[0].dim; ++d) {
     tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
   // flexible zbl potential parameters
@@ -331,7 +332,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
-      zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     zbl.num_types = paramb.num_types;
   }
@@ -510,18 +511,13 @@ static __device__ void find_cell_id(
   int& cell_id_z,
   int& cell_id)
 {
-  if (box.triclinic == 0) {
-    cell_id_x = floor(x * rc_inv);
-    cell_id_y = floor(y * rc_inv);
-    cell_id_z = floor(z * rc_inv);
-  } else {
-    const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-    const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-    const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-    cell_id_x = floor(sx * box.thickness_x * rc_inv);
-    cell_id_y = floor(sy * box.thickness_y * rc_inv);
-    cell_id_z = floor(sz * box.thickness_z * rc_inv);
-  }
+  const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+  const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+  const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+  cell_id_x = floor(sx * box.thickness_x * rc_inv);
+  cell_id_y = floor(sy * box.thickness_y * rc_inv);
+  cell_id_z = floor(sz * box.thickness_z * rc_inv);
+
   while (cell_id_x < 0)
     cell_id_x += nx;
   while (cell_id_x >= nx)

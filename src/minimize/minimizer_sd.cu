@@ -20,6 +20,7 @@ The SD (steepest decent) minimizer.
 #include "force/force.cuh"
 #include "minimizer_sd.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 const double decreasing_factor = 0.2;
 const double increasing_factor = 1.2;

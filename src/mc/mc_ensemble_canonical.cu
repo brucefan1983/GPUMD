@@ -19,6 +19,7 @@ The canonical ensemble for MCMD.
 
 #include "mc_ensemble_canonical.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 MC_Ensemble_Canonical::MC_Ensemble_Canonical(
   const char** param, int num_param, int num_steps_mc_input)

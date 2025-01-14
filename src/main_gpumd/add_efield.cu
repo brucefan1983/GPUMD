@@ -24,6 +24,7 @@ Add electric field to a group of atoms.
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static void __global__ add_efield(
   const int group_size,

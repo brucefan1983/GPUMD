@@ -25,6 +25,7 @@ The Langevin thermostat with the BAOAB splitting:
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstdlib>
+#include <cstring>
 
 Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
 {

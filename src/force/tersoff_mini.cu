@@ -27,6 +27,7 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 #define BLOCK_SIZE_FORCE 64
 

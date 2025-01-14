@@ -25,6 +25,7 @@ Interface to the PLUMED plugin: https://www.plumed.org
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 #define E_C 1.602176634E-19 // Elementary charge
 #define N_A 6.0221367E23    // Avogadro constant
