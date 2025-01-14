@@ -19,6 +19,10 @@
 #include "force/force.cuh"
 #include <random>
 #include "minimize/minimizer_fire.cuh"
+#include <iostream>
+#include <fstream>
+#include <chrono>
+#include <iomanip>
 
 class MC_Minimizer
 {

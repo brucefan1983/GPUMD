@@ -14,9 +14,6 @@
 */
 
 #include "mc_minimizer.cuh"
-#include <iostream>
-#include <fstream>
-#include <chrono>
 
 MC_Minimizer::MC_Minimizer(const char** param, int num_param)
 {
@@ -26,6 +23,7 @@ MC_Minimizer::MC_Minimizer(const char** param, int num_param)
     mc_output << param[n] << " ";
   }
   mc_output << "\n";
+  mc_output << std::defaultfloat << std::setprecision(12);
   if (strcmp(param[1], "local") == 0) {
     mc_output << "Step" << "\t" << "Maximum displacement" << "\t" << "Average displacement" 
     << "\t" << "Energy difference" << "\t" <<  "Accept ratio" << std::endl;
