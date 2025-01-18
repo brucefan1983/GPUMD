@@ -20,7 +20,7 @@ Bibliography
    | Erik Bitzek, Pekka Koskinen, Franz Gähler, Michael Moseler, and Peter Gumbsch
    | *Structural Relaxation Made Simple*
    | Phys. Rev. Lett. **97**, 170201 (2006)
-   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_
+   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevLett.97.170201>`_
 
 .. [Brorsson2021]
    | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, and Paul Erhart
