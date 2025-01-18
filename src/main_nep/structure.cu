@@ -157,10 +157,10 @@ static void read_one_structure(
 
   // get energy_weight (optional)
   for (const auto& token : tokens) {
-    const std::string energy_string = "energy_weight=";
-    if (token.substr(0, energy_string.length()) == energy_string) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
       structure.energy_weight = get_double_from_token(
-        token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
+        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
     }
   }
 
