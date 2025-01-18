@@ -333,7 +333,7 @@ void ADF::postprocess()
 };
 
 // compute_adf <interval> <num_bins> <rc_min> <rc_max>
-// compute_adf <interval> <num_bins> <itype1> <jtype1> <ktype1> <rc_min_j1> <rc_max_k1> <rc_min_k1>
+// compute_adf <interval> <num_bins> <itype1> <jtype1> <ktype1> <rc_min_j1> <rc_max_j1> <rc_min_k1>
 // <rc_max_k1> ...
 void ADF::parse(const char** param, const int num_param, Box& box, const int number_of_types)
 {
