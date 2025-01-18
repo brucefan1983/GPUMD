@@ -23,6 +23,7 @@ TODO:
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
 

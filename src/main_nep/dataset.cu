@@ -20,6 +20,7 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {

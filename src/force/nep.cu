@@ -31,6 +31,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -59,8 +60,8 @@ void NEP::initialize_dftd3()
           exit(1);
         }
         std::string xc_functional = tokens[1];
-        float rc_potential = get_float_from_token(tokens[2], __FILE__, __LINE__);
-        float rc_coordination_number = get_float_from_token(tokens[3], __FILE__, __LINE__);
+        float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
+        float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
         dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
         break;
       }
@@ -167,8 +168,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
       std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
       exit(1);
     }
-    zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
       zbl.flexibled = true;
       printf("    has the flexible ZBL potential\n");
@@ -187,8 +188,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
                  "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
-  paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
@@ -206,9 +207,9 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_radial_factor > 0.0f) {
       paramb.use_typewise_cutoff = true;
     }
@@ -315,14 +316,14 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   std::vector<float> parameters(annmb.num_para);
   for (int n = 0; n < annmb.num_para; ++n) {
     tokens = get_tokens(input);
-    parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   nep_data.parameters.resize(annmb.num_para);
   nep_data.parameters.copy_from_host(parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
   for (int d = 0; d < annmb.dim; ++d) {
     tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
   // flexible zbl potential parameters
@@ -330,7 +331,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
-      zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     zbl.num_types = paramb.num_types;
   }
@@ -1496,39 +1497,30 @@ static bool get_expanded_box(const double rc, const Box& box, NEP::ExpandedBox& 
       exit(1);
     }
 
-    if (box.triclinic) {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
 
-      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-      for (int n = 9; n < 18; n++) {
-        ebox.h[n] /= det;
-      }
-    } else {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[3] = ebox.h[0] * 0.5;
-      ebox.h[4] = ebox.h[1] * 0.5;
-      ebox.h[5] = ebox.h[2] * 0.5;
+    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+    for (int n = 9; n < 18; n++) {
+      ebox.h[n] /= det;
     }
   }
 

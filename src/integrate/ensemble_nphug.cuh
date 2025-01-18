@@ -24,6 +24,9 @@ public:
   virtual ~Ensemble_NPHug(void);
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;
+  bool p0_given = false;
+  bool v0_given = false;
+  bool e0_given = false;
   double thermo_info[8];
   int uniaxial_compress;
   double dhugo;

@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 
 static __global__ void gpu_find_neighbor_list(
   const NEP::ParaMB paramb,
@@ -834,6 +835,37 @@ void NEP::find_force(
       nep_data[device_id].descriptors.data(),
       nep_data[device_id].sum_fxyz.data());
     GPU_CHECK_KERNEL
+
+    if (para.prediction == 1 && para.output_descriptor >= 1) {
+      FILE* fid_descriptor = my_fopen("descriptor.out", "a");
+      std::vector<float> descriptor_cpu(nep_data[device_id].descriptors.size());
+      nep_data[device_id].descriptors.copy_to_host(descriptor_cpu.data());
+      for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
+        float q_structure[MAX_DIM] = {0.0f};
+        for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
+          int n = dataset[device_id].Na_sum_cpu[nc] + na;
+          for (int d = 0; d < annmb[device_id].dim; ++d) {
+            float q = descriptor_cpu[n + d * dataset[device_id].N] * para.q_scaler_cpu[d];
+            q_structure[d] += q;
+            if (para.output_descriptor == 2) {
+              fprintf(fid_descriptor, "%g ", q);
+            }
+          }
+          if (para.output_descriptor == 2) {
+            fprintf(fid_descriptor, "\n");
+          }
+        }
+        if (para.output_descriptor == 1) {
+          for (int d = 0; d < annmb[device_id].dim; ++d) {
+            fprintf(fid_descriptor, "%g ", q_structure[d] / dataset[device_id].Na_cpu[nc]);
+          }
+        }
+        if (para.output_descriptor == 1) {
+          fprintf(fid_descriptor, "\n");
+        }
+      }
+      fclose(fid_descriptor);
+    }
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(

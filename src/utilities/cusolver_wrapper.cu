@@ -27,6 +27,7 @@ Some wrappers for the cuSOLVER library
   #include <cusolverDn.h>
 #endif
 #include <vector>
+#include <cstring>
 
 void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 {

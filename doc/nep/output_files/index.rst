@@ -49,6 +49,8 @@ All the files are plain text files.
      - target and predicted polarizability values for training data set
    * - :ref:`polarizability_test.out <nep_polarizability_out>`
      - target and predicted polarizability values for test data set
+   * - :ref:`descriptor.out <descriptor_out>`
+     - descriptor values for training data set in prediction mode
 
 .. toctree::
    :maxdepth: 0
@@ -63,3 +65,4 @@ All the files are plain text files.
    stress_out
    dipole_out
    polarizability_out
+   descriptor_out

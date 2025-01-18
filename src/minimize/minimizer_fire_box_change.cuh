@@ -1,0 +1,65 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+#include "force/force.cuh"
+#include "minimizer.cuh"
+#include "utilities/common.cuh"
+
+class Minimizer_FIRE_Box_Change : public Minimizer
+{
+private:
+  const double f_inc = 1.1;
+  const double f_dec = 0.5;
+  const double alpha_start = 0.25;
+  const double f_alpha = 0.99;
+  const double dt_0 = 1 / TIME_UNIT_CONVERSION; // Time step of 1 fs.
+  const double dt_max = 10 * dt_0;
+  const double dt_min = 0.02 * dt_0;
+  const int N_min = 20;
+  const double m = 5; // The mass of atoms. Doesn't matter in minimization.
+  double dt = dt_0;
+  double alpha = alpha_start;
+  int N_neg = 0;
+  double P;
+  int hydrostatic_strain = 0;
+
+public:
+  Minimizer_FIRE_Box_Change(
+    const int number_of_atoms, const int number_of_steps, const double force_tolerance)
+    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
+  {
+  }
+
+  Minimizer_FIRE_Box_Change(
+    const int number_of_atoms,
+    const int number_of_steps,
+    const double force_tolerance,
+    const int _hydrostatic_strain)
+    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
+  {
+    hydrostatic_strain = _hydrostatic_strain;
+  }
+
+  void compute(
+    Force& force,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+};

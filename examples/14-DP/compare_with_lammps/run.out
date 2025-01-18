@@ -1,0 +1,40 @@
+Run in gmd-wat-0, model 0.xyz
+Run in lmp-wat-0, model 0-h2o
+ >> There are the same number of atoms: 6
+ >> There are the same types of atoms: ['O', 'H', 'H', 'O', 'H'] (showing first 5).
+ >> Atomic positions are nearly identical.
+ >> Atomic forces are nearly identical.
+ >> Atomic energies are nearly identical.
+ >> Atomic virials are nearly identical. _v3
+GPUMD with gpumd-gpu Speed of this run = 647.144 atom*step/second.
+LAMMPS with dp-cpu Performance: 12.579 ns/day, 1.908 hours/ns, 291.189 timesteps/s, 1.747 katom-step/s
+Run in gmd-wat-1, model 1.xyz
+Run in lmp-wat-1, model 1-h2o
+ >> There are the same number of atoms: 192
+ >> There are the same types of atoms: ['O', 'H', 'H', 'O', 'H'] (showing first 5).
+ >> Atomic positions are nearly identical.
+ >> Atomic forces are nearly identical.
+ >> Atomic energies are nearly identical.
+ >> Atomic virials are nearly identical. _v3
+GPUMD with gpumd-gpu Speed of this run = 831.979 atom*step/second.
+LAMMPS with dp-cpu Performance: 4.019 ns/day, 5.972 hours/ns, 93.024 timesteps/s, 17.861 katom-step/s
+Run in gmd-wat-2, model 2.xyz
+Run in lmp-wat-2, model 2-h2o
+ >> There are the same number of atoms: 1536
+ >> There are the same types of atoms: ['O', 'H', 'H', 'O', 'H'] (showing first 5).
+ >> Atomic positions are nearly identical.
+ >> Atomic forces are nearly identical.
+ >> Atomic energies are nearly identical.
+ >> Atomic virials are nearly identical. _v3
+GPUMD with gpumd-gpu Speed of this run = 813.814 atom*step/second.
+LAMMPS with dp-cpu Performance: 0.773 ns/day, 31.052 hours/ns, 17.891 timesteps/s, 27.480 katom-step/s
+Run in gmd-wat-3, model 3.xyz
+Run in lmp-wat-3, model 3-h2o
+ >> There are the same number of atoms: 5184
+ >> There are the same types of atoms: ['O', 'H', 'H', 'O', 'H'] (showing first 5).
+ >> Atomic positions are nearly identical.
+ >> Atomic forces are nearly identical.
+ >> Atomic energies are nearly identical.
+ >> Atomic virials are nearly identical. _v3
+GPUMD with gpumd-gpu Speed of this run = 783.62 atom*step/second.
+LAMMPS with dp-cpu Performance: 0.293 ns/day, 81.881 hours/ns, 6.785 timesteps/s, 35.173 katom-step/s

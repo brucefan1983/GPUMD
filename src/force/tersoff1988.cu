@@ -25,6 +25,7 @@ The version of the Tersoff potential as described in
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <vector>
+#include <cstring>
 
 #define LDG(a, n) __ldg(a + n)
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
