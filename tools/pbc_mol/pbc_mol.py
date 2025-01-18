@@ -15,13 +15,18 @@
 #    across periodic boundaries.
 # 7. **Parallel Processing**: Utilizes Python's multiprocessing module to process trajectory frames in parallel, increasing computational efficiency.
 
-# 
-
 import numpy as np
 import re
 from multiprocessing import Pool, cpu_count
 
+#Input and output file paths
+INPUT_FILE = "dump.xyz"
+OUTPUT_FILE = "output.xyz"
+
 #If the distance between atoms is less than 1.15 times the sum of covalent radii, it is considered a bond.
+COVALENT_BOND_MULTIPLIER = 1.5
+
+#Covalent radius table (more elements can be added as needed)
 #https://doi.org/10.1039/B801115J
 COVALENT_RADII = {
 "H"	     :   0.31,	
@@ -121,6 +126,7 @@ COVALENT_RADII = {
 "Am"	 :   1.80,	
 "Cm"	 :   1.69,	
 }
+# ==========================================
 
 def read_xyz_trajectory(file_path):
     """
@@ -141,7 +147,7 @@ def read_xyz_trajectory(file_path):
         for j in range(n_atoms):
             atom_line = lines[i + 2 + j].strip().split()
             atom_type = atom_line[0]
-            position = list(map(float, atom_line[1:4]))  # Always assume 2nd, 3rd, 4th columns are coordinates
+            position = list(map(float, atom_line[1:4]))  # Assume 2nd, 3rd, 4th columns are coordinates
             extra_info = atom_line[4:]  # Keep additional columns (e.g., force, velocity)
             atoms.append((atom_type, np.array(position), extra_info))
         trajectory.append((box_info, atoms))
@@ -213,7 +219,7 @@ def is_bonded(atom1, atom2, lattice):
     type2, pos2, _ = atom2
     radius1 = COVALENT_RADII.get(type1, 0)
     radius2 = COVALENT_RADII.get(type2, 0)
-    bond_threshold = 1.15 * (radius1 + radius2)
+    bond_threshold = COVALENT_BOND_MULTIPLIER * (radius1 + radius2)
 
     delta = pos1 - pos2
     for i in range(3):
@@ -285,9 +291,5 @@ def process_xyz_trajectory_parallel(input_file, output_file):
     write_xyz_trajectory(output_file, processed_trajectory)
 
 if __name__ == "__main__":
-    # Input and output file paths (modify as needed)
-    input_file = "dump.xyz"
-    output_file = "output.xyz"
-    
     # Run the main function
-    process_xyz_trajectory_parallel(input_file, output_file)
+    process_xyz_trajectory_parallel(INPUT_FILE, OUTPUT_FILE)
