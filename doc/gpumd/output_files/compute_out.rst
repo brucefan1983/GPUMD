@@ -19,7 +19,7 @@ Assuming that the system is divided into :math:`M` groups according to the group
       
       fx_1 ... fx_M fy_1 ... fy_M fz_1 ... fz_M
 
-  * if virial is computed, there are :math:`3M` columns of group virials (in units of eV) from left to right in a form similar to that for force
+  * if virial is computed, there are :math:`9M` columns of group virials (in units of eV) from left to right in the order of xx, xy, xz, yx, yy, yz, zx, zy, zz.
   * if the potential part of the heat current is computed, there are :math:`3M` columns of group potential heat currents (in units of eV\ :math:`^{3/2}` amu\ :math:`^{-1/2}`) from left to right in a form similar to that for force
   * if the kinetic part of the heat current is computed, there are :math:`3M` columns of group kinetic heat currents (in units of eV\ :math:`^{3/2}` amu\ :math:`^{-1/2}`) from left to right in a form similar to that for force
   * if momentum is computed, there are :math:`3M` columns of group momenta (in units of amu\ :math:`^{1/2}` eV\ :math:`^{1/2}`) from left to right in a form similar to that for force
