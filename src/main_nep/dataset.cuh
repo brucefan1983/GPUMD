@@ -58,6 +58,10 @@ public:
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
+  // used to ignore energy reference for a given structure
+  GPU_Vector<float> energy_weight_gpu;
+  std::vector<float> energy_weight_cpu;
+
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
 
