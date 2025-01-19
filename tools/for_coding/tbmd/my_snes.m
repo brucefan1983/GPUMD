@@ -1,8 +1,8 @@
 function [best_fitness, elite] = my_snes(number_of_variables, maximal_generation)
-population_size = 30;
+population_size = 20;
 best_fitness = ones(maximal_generation, 1);
 elite = zeros(maximal_generation, number_of_variables);
-mu = 10*rand(1, number_of_variables)-5; % initial mean
+mu = 2*rand(1, number_of_variables)-1; % initial mean
 sigma = 0.2*ones(1, number_of_variables); % initial variance
 learn_rates = [1, (3 + log(number_of_variables))/(5 * sqrt(number_of_variables)) / 2];
 utility = max(0, log(population_size/2+1)-log(1:population_size));
