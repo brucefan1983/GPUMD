@@ -1,10 +1,12 @@
 clear; close all;
 
+para=[-2.99, 3.71, -5.0, 4.7, 5.5, -1.55];
+
 [N,L,r]=find_graphene(1.42);
 r=r+rand(N,3)*0.1;
 [NN,NL]=find_neighbor(N,L,3,r);
 tic
-[energy,f_analytical]=find_force(N,NN,NL,L,r);
+[energy,f_analytical]=find_force(N,NN,NL,L,r,para);
 toc
 
 f_finite=zeros(N,3);
@@ -14,8 +16,8 @@ for n=1:N
     for d=1:3
     rpx=r;rpx(n,d)=rpx(n,d)+delta;
     rmx=r;rmx(n,d)=rmx(n,d)-delta;
-    [ep]=find_force(N,NN,NL,L,rpx);
-    [em]=find_force(N,NN,NL,L,rmx);
+    [ep]=find_force(N,NN,NL,L,rpx,para);
+    [em]=find_force(N,NN,NL,L,rmx,para);
     f_finite(n,d)=(em-ep)/(2*delta);
     end
     toc

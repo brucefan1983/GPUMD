@@ -1,12 +1,13 @@
-function [energy, force] = find_force_band(N, neighbor_number, neighbor_list, box, r)
+function [energy, force] = find_force_band(N, neighbor_number, neighbor_list, box, r, para)
     D=3;
     N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
     energy = 0; force = zeros(N, D);
-    on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
-    v_sss = -5.0;
-    v_sps = 4.7;
-    v_pps = 5.5;
-    v_ppp = -1.55;
+    %on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
+    on_site_matrix = diag([para(1), para(2), para(2), para(2)]);
+    v_sss = para(3); %-5.0;
+    v_sps = para(4); %4.7;
+    v_pps = para(5); %5.5;
+    v_ppp = para(6); %-1.55;
     for n1 = 1 : N
         H(4*n1 - 3 : 4*n1, 4*n1 - 3 : 4*n1) = on_site_matrix;
         for k = 1 : neighbor_number(n1)

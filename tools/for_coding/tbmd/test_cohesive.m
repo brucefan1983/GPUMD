@@ -5,14 +5,16 @@ bond_graphene=linspace(1.25,1.6,Ne);
 energy_diamond=zeros(Ne,1);
 energy_graphene=zeros(Ne,1);
 
+para=[-2.99, 3.71, -5.0, 4.7, 5.5, -1.55];
+
 tic;
 for n=1:Ne
 [N_diamond,L,r]=find_diamond(2,bond_diamond(n));
 [NN,NL]=find_neighbor(N_diamond,L,3,r);
-[energy_diamond(n)]=find_force(N_diamond,NN,NL,L,r);
+[energy_diamond(n)]=find_force(N_diamond,NN,NL,L,r,para);
 [N_graphene,L,r]=find_graphene(bond_graphene(n));
 [NN,NL]=find_neighbor(N_graphene,L,3,r);
-[energy_graphene(n)]=find_force(N_graphene,NN,NL,L,r);
+[energy_graphene(n)]=find_force(N_graphene,NN,NL,L,r,para);
 end
 toc
 

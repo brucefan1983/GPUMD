@@ -1,5 +1,5 @@
 function [best_fitness, elite] = my_snes(number_of_variables, maximal_generation)
-population_size = 20;
+population_size = 30;
 best_fitness = ones(maximal_generation, 1);
 elite = zeros(maximal_generation, number_of_variables);
 mu = 10*rand(1, number_of_variables)-5; % initial mean
