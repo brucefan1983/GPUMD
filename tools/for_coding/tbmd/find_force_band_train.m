@@ -20,10 +20,12 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             sin_xx=1-cos_xx; sin_yy=1-cos_yy; sin_zz=1-cos_zz;
             cos_xy=cos_x*cos_y; cos_yz=cos_y*cos_z; cos_zx=cos_z*cos_x;
 
-            v_sss = v_sss0 * hopping_scaling(d12,para(7:10));
-            v_sps = v_sps0 * hopping_scaling(d12,para(11:14));
-            v_pps = v_pps0 * hopping_scaling(d12,para(15:18));
-            v_ppp = v_ppp0 * hopping_scaling(d12,para(19:22));
+            [s,sd]=hopping_scaling(d12,para(7:end));
+
+            v_sss = v_sss0 * s(1);
+            v_sps = v_sps0 * s(2);
+            v_pps = v_pps0 * s(3);
+            v_ppp = v_ppp0 * s(4);
 
             H12(1, 1) = v_sss;
             H12(2, 2) = v_pps * cos_xx + v_ppp * sin_xx;
@@ -44,10 +46,10 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             H(n1*4-3 : n1*4, n2*4-3 : n2*4) = H12;
 
             % redefine
-            v_sss = v_sss0 * hopping_scaling_d(d12,para(7:10));
-            v_sps = v_sps0 * hopping_scaling_d(d12,para(11:14));
-            v_pps = v_pps0 * hopping_scaling_d(d12,para(15:18));
-            v_ppp = v_ppp0 * hopping_scaling_d(d12,para(19:22));
+            v_sss = v_sss0 * sd(1);
+            v_sps = v_sps0 * sd(2);
+            v_pps = v_pps0 * sd(3);
+            v_ppp = v_ppp0 * sd(4);
 
             H12(1, 1) = v_sss;
             H12(2, 2) = v_pps * cos_xx + v_ppp * sin_xx;
@@ -101,10 +103,10 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             K1 = zeros(4, 4, D);
             K  = zeros(4, 4, D);
 
-            v_sps = v_sps0 * hopping_scaling(d12,para(11:14));
-            v_pps = v_pps0 * hopping_scaling(d12,para(15:18));
-            v_ppp = v_ppp0 * hopping_scaling(d12,para(19:22));
-
+            [s]=hopping_scaling(d12,para(7:end));
+            v_sps = v_sps0 * s(2);
+            v_pps = v_pps0 * s(3);
+            v_ppp = v_ppp0 * s(4);
 
             for d = 1 : D
                 K1(:, :, d) = H0(4*(n1-1)+1:4*n1, 4*(n2-1)+1:4*n2);
@@ -133,18 +135,23 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
     end
 end
 
-function y = hopping_scaling(r,para)
-    n=abs(para(1));
-    nc=abs(para(2));
-    rc=abs(para(3));
-    r0=abs(para(4));
-    y=(r0/r)^n*exp(n*(-(r/rc)^nc+(r0/rc)^nc));
+function [y,yp] = hopping_scaling(r,para)
+    N_neurons = 10;
+    w0 = para(1:N_neurons);
+    offset = N_neurons;
+    b0 = para(offset+1 : offset + N_neurons);
+    offset = offset + N_neurons;
+    w1 = reshape(para(offset+1 : offset + N_neurons*4), N_neurons, 4);
+    x = tanh(w0 .* r - b0);
+    y = x * w1(:,:);
+    yp=zeros(4,1);
+    for k = 1:4
+        y(k)=0;
+        yp(k)=0;
+        for n=1:N_neurons
+            xn=tanh(w0(n)*r-b0(n));
+            y(k)=y(k)+w1(n,k)*xn;
+            yp(k)=yp(k)+w1(n,k)*(1-xn*xn)*w0(n);
+        end
+    end
 end
-function y = hopping_scaling_d(r,para)
-    n=abs(para(1));
-    nc=abs(para(2));
-    rc=abs(para(3));
-    y=-n*hopping_scaling(r,para)*(1+nc*(r/rc)^nc)/r;
-end
-
-

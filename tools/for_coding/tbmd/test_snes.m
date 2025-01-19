@@ -1,8 +1,8 @@
 clear; close all;
 
 % Call my_snes to evolve
-dim = 22;
-[best_fitness, elite] = my_snes(dim, 1000);
+dim = 66;
+[best_fitness, elite] = my_snes(dim, 500);
 num_generations = length(best_fitness);
 
 % Evolution of the best fitness:
