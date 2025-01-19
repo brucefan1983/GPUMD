@@ -7,7 +7,7 @@ energy_graphene=zeros(Ne,1);
 
 tic;
 for n=1:Ne
-[N_diamond,L,r]=find_diamond(bond_diamond(n));
+[N_diamond,L,r]=find_diamond(2,bond_diamond(n));
 [NN,NL]=find_neighbor(N_diamond,L,[1 1 1],3,r);
 [energy_diamond(n)]=find_force(N_diamond,3,NN,NL,L,[1 1 1],r);
 [N_graphene,L,r]=find_graphene(bond_graphene(n));

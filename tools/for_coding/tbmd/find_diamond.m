@@ -1,10 +1,10 @@
-function [N,L,r]=find_diamond(bond_length)
+function [N,L,r]=find_diamond(nx,bond_length)
 
 r0 = [0.0, 0.0, 0.5, 0.5, 0.25, 0.25, 0.75, 0.75; ...
       0.0, 0.5, 0.0, 0.5, 0.25, 0.75, 0.25, 0.75; ...
       0.0, 0.5, 0.5, 0.0, 0.25, 0.75, 0.75, 0.25].';
 n0 = size(r0, 1);
-nxyz = 2 * [1, 1, 1];
+nxyz = nx * [1, 1, 1];
 a = bond_length*4/sqrt(3) * [1, 1, 1];
 N=n0*nxyz(1)*nxyz(2)*nxyz(3); % number of atoms
 L=a.*nxyz; % box size (Angstrom)
