@@ -8,7 +8,7 @@ tic
 toc
 
 f_finite=zeros(N,3);
-delta=1e-5;
+delta=2e-5;
 for n=1:N
     tic;
     for d=1:3
@@ -29,3 +29,12 @@ xlabel('Atom index');
 ylabel('Force difference (eV/A)');
 legend('x','y','z');
 set(gca,'fontsize',15);
+
+figure;
+plot(f_analytical(:,:), f_finite(:,:),'.','linewidth',2,'MarkerSize',20);hold on;
+plot(linspace(-10,10,100),linspace(-10,10,100));
+xlabel('analytical (eV/A)');
+ylabel('finite difference (eV/A)');
+legend('x','y','z');
+set(gca,'fontsize',15);
+
