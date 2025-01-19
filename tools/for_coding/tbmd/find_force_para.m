@@ -1,18 +1,20 @@
-function [energy, force] = find_force(N, neighbor_number, neighbor_list, box, r)
-    D=3;
+function [force,energy] = find_force(N, D, neighbor_number, neighbor_list, L, pbc, r, para)
     N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
+    L_times_pbc=L.*pbc;
     energy = 0; force = zeros(N, D);
-    on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
-    v_sss = -5.0;
-    v_sps = 4.7;
-    v_pps = 5.5;
-    v_ppp = -1.55;
+
+    on_site_matrix = diag([para(1), para(2), para(2), para(2)]);
+    %on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
+    v_sss = para(3); %-5.0;
+    v_sps = para(4); %4.7;
+    v_pps = para(5); %5.5;
+    v_ppp = para(6); %-1.55;
     sum_of_phi = zeros(N, 1);
     for n1 = 1 : N
         for k = 1 : neighbor_number(n1)
             n2 = neighbor_list(n1, k);
             r12 = r(n2, :) - r(n1, :);
-            r12 = r12 - round(r12./box).*box; % minimum image convention
+            r12 = r12 - round(r12./L).*L_times_pbc; % minimum image convention
             d12 = sqrt(sum(r12.*r12));
             sum_of_phi(n1) = sum_of_phi(n1) + phi(d12);
         end
@@ -22,7 +24,7 @@ function [energy, force] = find_force(N, neighbor_number, neighbor_list, box, r)
         for k = 1 : neighbor_number(n1)
             n2 = neighbor_list(n1, k);
             r12 = r(n2, :) - r(n1, :);
-            r12 = r12 - round(r12./box).*box; % minimum image convention
+            r12 = r12 - round(r12./L).*L_times_pbc; % minimum image convention
             d12 = sqrt(sum(r12.*r12));
             cos_x=r12(1)/d12; cos_y=r12(2)/d12; cos_z=r12(3)/d12;
             cos_xx=cos_x*cos_x; cos_yy=cos_y*cos_y; cos_zz=cos_z*cos_z;
@@ -45,7 +47,7 @@ function [energy, force] = find_force(N, neighbor_number, neighbor_list, box, r)
             H12(4, 3) = H12(3, 4);
             H12(2, 4) = H12(4, 2);
             H0(n1*4-3 : n1*4, n2*4-3 : n2*4) = H12;
-            H(n1*4-3 : n1*4, n2*4-3 : n2*4) = s(d12) * H12;
+            H(n1*4-3 : n1*4, n2*4-3 : n2*4) = hopping_scaling(d12,para) * H12;
             temp = phi_d(d12)*(f_d(sum_of_phi(n1))+f_d(sum_of_phi(n2)))/d12;
             force(n1, :) = force(n1, :) + r12 * temp;
         end
@@ -58,7 +60,7 @@ function [energy, force] = find_force(N, neighbor_number, neighbor_list, box, r)
         for k = 1 : neighbor_number(n1)
             n2 = neighbor_list(n1, k);
             r12 = r(n2, :) - r(n1, :);
-            r12 = r12 - round(r12./box).*box; % minimum image convention
+            r12 = r12 - round(r12./L).*L_times_pbc; % minimum image convention
             d12 = sqrt(sum(r12.*r12));
             cos_x=r12(1)/d12; cos_y=r12(2)/d12; cos_z=r12(3)/d12;
             cos_xx=cos_x*cos_x; cos_yy=cos_y*cos_y; cos_zz=cos_z*cos_z;
@@ -84,22 +86,23 @@ function [energy, force] = find_force(N, neighbor_number, neighbor_list, box, r)
             K  = zeros(4, 4, D);
             for d = 1 : D
                 K1(:, :, d) = H0(4*(n1-1)+1:4*n1, 4*(n2-1)+1:4*n2);
-                K1(:, :, d) = K1(:, :, d) * (s_d(d12) * r12(d) / d12);
-                K(2, 2, d) = s(d12)/d12*(v_pps - v_ppp)*e_xx(d);
-                K(3, 3, d) = s(d12)/d12*(v_pps - v_ppp)*e_yy(d);
-                K(4, 4, d) = s(d12)/d12*(v_pps - v_ppp)*e_zz(d);
-                K(1, 2, d) = s(d12)/d12 * v_sps * e_sx(d);
-                K(1, 3, d) = s(d12)/d12 * v_sps * e_sy(d);
-                K(1, 4, d) = s(d12)/d12 * v_sps * e_sz(d);
-                K(2, 3, d) = s(d12)/d12 * (v_pps - v_ppp) * e_xy(d);
-                K(3, 4, d) = s(d12)/d12 * (v_pps - v_ppp) * e_yz(d);
-                K(4, 2, d) = s(d12)/d12 * (v_pps - v_ppp) * e_zx(d);
+                K1(:, :, d) = K1(:, :, d) * (hopping_scaling_d(d12,para) * r12(d) / d12);
+                K(2, 2, d) = (v_pps - v_ppp)*e_xx(d);
+                K(3, 3, d) = (v_pps - v_ppp)*e_yy(d);
+                K(4, 4, d) = (v_pps - v_ppp)*e_zz(d);
+                K(1, 2, d) = v_sps * e_sx(d);
+                K(1, 3, d) = v_sps * e_sy(d);
+                K(1, 4, d) = v_sps * e_sz(d);
+                K(2, 3, d) = (v_pps - v_ppp) * e_xy(d);
+                K(3, 4, d) = (v_pps - v_ppp) * e_yz(d);
+                K(4, 2, d) = (v_pps - v_ppp) * e_zx(d);
                 K(2, 1, d) = - K(1, 2, d);
                 K(3, 1, d) = - K(1, 3, d);
                 K(4, 1, d) = - K(1, 4, d);
                 K(3, 2, d) = + K(2, 3, d);
                 K(4, 3, d) = + K(3, 4, d);
                 K(2, 4, d) = + K(4, 2, d);
+                K(:,:,d)=K(:,:,d)*hopping_scaling(d12,para)/d12;
             end
             K = K + K1;
             for d = 1 : D
@@ -123,18 +126,15 @@ function y = f_d(x)
     c4=-1.2425116955159e-7;
     y=c1+x*(2*c2+x*(3*c3+x*4*c4));
 end
-function y = s(r)
-    n=2.0;
-    nc=6.5;
-    rc=2.18;
+function y = hopping_scaling(r,para)
+    q=para(7);
     r0=1.536329;
-    y=(r0/r)^2*exp(n*(-(r/rc)^nc+(r0/rc)^nc));
+    y=exp(-q*(r/r0-1));
 end
-function y = s_d(r)
-    n=2.0;
-    nc=6.5;
-    rc=2.18;
-    y=-n*s(r)*(1+nc*(r/rc)^nc)/r;
+function y = hopping_scaling_d(r,para)
+    q=para(7);
+    r0=1.536329;
+    y=-q/r0*hopping_scaling(r,para);
 end
 function y = phi(r)
 	phi0=8.18555;
