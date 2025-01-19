@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "adf.cuh"
 #include "active.cuh"
 #include "compute.cuh"
 #include "dos.cuh"
@@ -94,6 +95,7 @@ public:
   SDC sdc;
   MSD msd;
   HAC hac;
+  ADF adf;
   RDF rdf;
   Viscosity viscosity;
   SHC shc;
