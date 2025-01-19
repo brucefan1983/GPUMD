@@ -2,12 +2,7 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
     D=3;
     N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
     energy = 0; force = zeros(N, D);
-    %on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
-    on_site_matrix = diag([para(1), para(2), para(2), para(2)]);
-    v_sss0 = para(3); %-5.0;
-    v_sps0 = para(4); %4.7;
-    v_pps0 = para(5); %5.5;
-    v_ppp0 = para(6); %-1.55;
+    on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
     for n1 = 1 : N
         H(4*n1 - 3 : 4*n1, 4*n1 - 3 : 4*n1) = on_site_matrix;
         for k = 1 : neighbor_number(n1)
@@ -20,12 +15,12 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             sin_xx=1-cos_xx; sin_yy=1-cos_yy; sin_zz=1-cos_zz;
             cos_xy=cos_x*cos_y; cos_yz=cos_y*cos_z; cos_zx=cos_z*cos_x;
 
-            [s,sd]=hopping_scaling(d12,para(7:end));
+            [s,sd]=hopping_scaling(d12,para);
 
-            v_sss = v_sss0 * s(1);
-            v_sps = v_sps0 * s(2);
-            v_pps = v_pps0 * s(3);
-            v_ppp = v_ppp0 * s(4);
+            v_sss = s(1);
+            v_sps = s(2);
+            v_pps = s(3);
+            v_ppp = s(4);
 
             H12(1, 1) = v_sss;
             H12(2, 2) = v_pps * cos_xx + v_ppp * sin_xx;
@@ -46,10 +41,10 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             H(n1*4-3 : n1*4, n2*4-3 : n2*4) = H12;
 
             % redefine
-            v_sss = v_sss0 * sd(1);
-            v_sps = v_sps0 * sd(2);
-            v_pps = v_pps0 * sd(3);
-            v_ppp = v_ppp0 * sd(4);
+            v_sss = sd(1);
+            v_sps = sd(2);
+            v_pps = sd(3);
+            v_ppp = sd(4);
 
             H12(1, 1) = v_sss;
             H12(2, 2) = v_pps * cos_xx + v_ppp * sin_xx;
@@ -103,10 +98,10 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             K1 = zeros(4, 4, D);
             K  = zeros(4, 4, D);
 
-            [s]=hopping_scaling(d12,para(7:end));
-            v_sps = v_sps0 * s(2);
-            v_pps = v_pps0 * s(3);
-            v_ppp = v_ppp0 * s(4);
+            [s]=hopping_scaling(d12,para);
+            v_sps = s(2);
+            v_pps = s(3);
+            v_ppp = s(4);
 
             for d = 1 : D
                 K1(:, :, d) = H0(4*(n1-1)+1:4*n1, 4*(n2-1)+1:4*n2);
