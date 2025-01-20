@@ -4,13 +4,11 @@ clear; close all;
 
 load elite;
 para=elite(end,:);
-rc=4;
 
 [N,L,r]=find_graphene(1.42);
 r=r+rand(N,3)*0.1;
-[NN,NL]=find_neighbor(N,L,rc,r);
 tic
-[energy,f_analytical]=find_force_train(N,NN,NL,L,rc,r,para);
+[energy,f_analytical]=find_force_train(N,L,r,para);
 toc
 
 f_finite=zeros(N,3);
@@ -20,8 +18,8 @@ for n=1:N
     for d=1:3
     rpx=r;rpx(n,d)=rpx(n,d)+delta;
     rmx=r;rmx(n,d)=rmx(n,d)-delta;
-    [ep]=find_force_train(N,NN,NL,L,rc,rpx,para);
-    [em]=find_force_train(N,NN,NL,L,rc,rmx,para);
+    [ep]=find_force_train(N,L,rpx,para);
+    [em]=find_force_train(N,L,rmx,para);
     f_finite(n,d)=(em-ep)/(2*delta);
     end
     toc
