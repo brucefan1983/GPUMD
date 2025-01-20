@@ -1,6 +1,6 @@
 function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_list, box, rc, r, para)
 D=3;
-N_des=3;
+N_des=5;
 N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
 energy = 0; force = zeros(N, D);
 
@@ -225,9 +225,9 @@ for n1 = 1 : N
         r12 = r(n2, :) - r(n1, :);
         r12 = r12 - round(r12./box).*box; % minimum image convention
         d12 = sqrt(sum(r12.*r12));
-        sum_g(n1,1) = sum_g(n1,1) + (d12/rc-1).^2;
-        sum_g(n1,2) = sum_g(n1,2) + (d12/rc-1).^4;
-        sum_g(n1,3) = sum_g(n1,3) + (d12/rc-1).^6;
+        for d = 1 : N_des
+            sum_g(n1,d) = sum_g(n1,d) + (d12/rc-1).^(2*d);
+        end
     end
 end
 end
