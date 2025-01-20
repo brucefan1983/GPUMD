@@ -2,8 +2,7 @@ clear; close all;
 
 %para=[-2.99, 3.71, -5.0, 4.7, 5.5, -1.55];
 
-load elite;
-para=elite(end,:);
+load para;
 
 [N,L,r]=find_graphene(1.42);
 r=r+rand(N,3)*0.1;
