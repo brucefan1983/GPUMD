@@ -1,4 +1,4 @@
-function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_list, box, r, para)
+function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_list, box, rc, r, para)
     D=3;
     N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
     energy = 0; force = zeros(N, D);
@@ -15,7 +15,7 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             sin_xx=1-cos_xx; sin_yy=1-cos_yy; sin_zz=1-cos_zz;
             cos_xy=cos_x*cos_y; cos_yz=cos_y*cos_z; cos_zx=cos_z*cos_x;
 
-            [s,sd]=hopping_scaling(d12,para);
+            [s,sd]=hopping_scaling(rc, d12,para);
 
             v_sss = s(1);
             v_sps = s(2);
@@ -98,7 +98,7 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
             K1 = zeros(4, 4, D);
             K  = zeros(4, 4, D);
 
-            [s]=hopping_scaling(d12,para);
+            [s]=hopping_scaling(rc, d12,para);
             v_sps = s(2);
             v_pps = s(3);
             v_ppp = s(4);
@@ -130,23 +130,24 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
     end
 end
 
-function [y,yp] = hopping_scaling(r,para)
+function [y,yp] = hopping_scaling(rc, r,para)
+    r_reduced=(r/rc-1)^2;
     N_neurons = 10;
     w0 = para(1:N_neurons);
     offset = N_neurons;
     b0 = para(offset+1 : offset + N_neurons);
     offset = offset + N_neurons;
     w1 = reshape(para(offset+1 : offset + N_neurons*4), N_neurons, 4);
-    x = tanh(w0 .* r - b0);
-    y = x * w1(:,:);
+    y=zeros(4,1);
     yp=zeros(4,1);
     for k = 1:4
         y(k)=0;
         yp(k)=0;
         for n=1:N_neurons
-            xn=tanh(w0(n)*r-b0(n));
+            xn=tanh(w0(n)*r_reduced-b0(n));
             y(k)=y(k)+w1(n,k)*xn;
             yp(k)=yp(k)+w1(n,k)*(1-xn*xn)*w0(n);
         end
+        yp(k)=yp(k)*2*(r/rc-1)/rc;
     end
 end
