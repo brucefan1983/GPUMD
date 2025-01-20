@@ -2,9 +2,16 @@ function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_li
 D=3;
 N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
 energy = 0; force = zeros(N, D);
-on_site_matrix = diag([-2.99, 3.71, 3.71, 3.71]);
+
+[sum_g] = find_sum_g(N, neighbor_number, neighbor_list, box, rc, r);
+onsite=zeros(2,N);
+onsite_p=zeros(2,N);
 for n1 = 1 : N
-    H(4*n1 - 3 : 4*n1, 4*n1 - 3 : 4*n1) = on_site_matrix;
+    [onsite(:,n1), onsite_p(:,n1)] = onsite_ann(sum_g(n1), para(1:50));
+end
+
+for n1 = 1 : N
+    H(4*n1 - 3 : 4*n1, 4*n1 - 3 : 4*n1) = diag([onsite(1,n1), onsite(2,n1), onsite(2,n1), onsite(2,n1)]);
     for k = 1 : neighbor_number(n1)
         n2 = neighbor_list(n1, k);
         r12 = r(n2, :) - r(n1, :);
@@ -15,7 +22,7 @@ for n1 = 1 : N
         sin_xx=1-cos_xx; sin_yy=1-cos_yy; sin_zz=1-cos_zz;
         cos_xy=cos_x*cos_y; cos_yz=cos_y*cos_z; cos_zx=cos_z*cos_x;
 
-        [s,sd]=hopping_scaling(rc, d12,para);
+        [s,sd]=hopping_scaling(rc, d12,para(51:end));
 
         v_sss = s(1);
         v_sps = s(2);
@@ -70,6 +77,16 @@ end
 E_diag=diag(E);
 energy = energy + 2*sum(E_diag(1:N2)); % 2 = spin degeneracy
 for n1 = 1 : N
+    F_onsite_n1 = zeros(4, 4);
+    for a = 1 : 4
+        for b = 1 : 4
+            for n = 1 : N2
+                F_onsite_n1(a, b)=F_onsite_n1(a, b)+C(4*(n1-1)+a, n)*C(4*(n1-1)+b, n);
+            end
+        end
+    end
+    onsite_p_n1_diag = diag([onsite_p(1,n1), onsite_p(2,n1), onsite_p(2,n1), onsite_p(2,n1)]);
+
     for k = 1 : neighbor_number(n1)
         n2 = neighbor_list(n1, k);
         r12 = r(n2, :) - r(n1, :);
@@ -98,7 +115,7 @@ for n1 = 1 : N
         K1 = zeros(4, 4, D);
         K  = zeros(4, 4, D);
 
-        [s]=hopping_scaling(rc, d12,para);
+        [s]=hopping_scaling(rc, d12,para(51:end));
         v_sps = s(2);
         v_pps = s(3);
         v_ppp = s(4);
@@ -125,6 +142,21 @@ for n1 = 1 : N
         K = K + K1;
         for d = 1 : D
             force(n1, d) = force(n1, d) + 4 * sum(sum(F .* K(:, :, d)));
+        end
+
+        F_onsite_n2 = zeros(4, 4);
+        for a = 1 : 4
+            for b = 1 : 4
+                for n = 1 : N2
+                    F_onsite_n2(a, b)=F_onsite_n2(a, b)+C(4*(n2-1)+a, n)*C(4*(n2-1)+b, n);
+                end
+            end
+        end
+        onsite_p_n2_diag = diag([onsite_p(1,n2), onsite_p(2,n2), onsite_p(2,n2), onsite_p(2,n2)]);
+
+        dgdr = 2 * (d12 / rc - 1) / rc / d12;
+        for d = 1 : D
+            force(n1, d) = force(n1, d) + 2 * sum(sum(F_onsite_n1 .* onsite_p_n1_diag + F_onsite_n2 .* onsite_p_n2_diag)) * dgdr * r12(d);
         end
     end
 end
@@ -180,3 +212,68 @@ for k = 1 : 4
 end
 
 end
+
+
+function [sum_g] = find_sum_g(N, neighbor_number, neighbor_list, box, rc, r)
+sum_g = zeros(N,1);
+for n1 = 1 : N
+    for k = 1 : neighbor_number(n1)
+        n2 = neighbor_list(n1, k);
+        r12 = r(n2, :) - r(n1, :);
+        r12 = r12 - round(r12./box).*box; % minimum image convention
+        d12 = sqrt(sum(r12.*r12));
+        sum_g(n1) = sum_g(n1) + (d12/rc-1).^2;
+    end
+end
+end
+
+function [y, yp] = onsite_ann(q, para)
+N_neurons = 5;
+w0 = para(1 : N_neurons);
+offset = N_neurons;
+b0 = para(offset+1 : offset + N_neurons);
+offset = offset + N_neurons;
+w1 = reshape(para(offset+1 : offset + N_neurons*N_neurons), N_neurons, N_neurons);
+offset = offset + N_neurons*N_neurons;
+b1 = para(offset+1 : offset + N_neurons);
+offset = offset + N_neurons;
+w2 = reshape(para(offset+1 : offset + N_neurons*2), 2, N_neurons);
+y = zeros(2, 1);
+yp = zeros(2, 1);
+x1 = zeros(1, N_neurons);
+x2 = zeros(1, N_neurons);
+for n0 = 1 : N_neurons
+    x1(n0) = tanh(w0(n0) * q - b0(n0));
+end
+for n1 = 1 : N_neurons
+    w1_times_x1 = 0.0;
+    for n0 = 1 : N_neurons
+        w1_times_x1 = w1_times_x1 + w1(n1, n0) * x1(n0);
+    end
+    x2(n1) = tanh(w1_times_x1 - b1(n1));
+    for k = 1 : 2
+        y(k) = y(k) + w2(k, n1) * x2(n1);
+    end
+end
+
+dydx1 = zeros(4, N_neurons);
+for n0 = 1 : N_neurons
+    for k = 1 : 2
+        temp_sum = 0.0;
+        for n1 = 1 : N_neurons
+            temp_sum = temp_sum + w2(k, n1) * (1 - x2(n1) * x2(n1)) * w1(n1, n0);
+        end
+        dydx1(k, n0) = temp_sum;
+    end
+end
+
+for k = 1 : 2
+    temp_sum = 0.0;
+    for n0 = 1 : N_neurons
+        temp_sum = temp_sum + dydx1(k, n0) * (1.0 - x1(n0) * x1(n0)) * w0(n0);
+    end
+    yp(k) = temp_sum;
+end
+
+end
+
