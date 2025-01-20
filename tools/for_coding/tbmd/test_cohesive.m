@@ -10,11 +10,9 @@ para=[-2.99, 3.71, -5.0, 4.7, 5.5, -1.55];
 tic;
 for n=1:Ne
 [N_diamond,L,r]=find_diamond(2,bond_diamond(n));
-[NN,NL]=find_neighbor(N_diamond,L,3,r);
-[energy_diamond(n)]=find_force(N_diamond,NN,NL,L,r,para);
+[energy_diamond(n)]=find_force(N_diamond,L,r,para);
 [N_graphene,L,r]=find_graphene(bond_graphene(n));
-[NN,NL]=find_neighbor(N_graphene,L,3,r);
-[energy_graphene(n)]=find_force(N_graphene,NN,NL,L,r,para);
+[energy_graphene(n)]=find_force(N_graphene,L,r,para);
 end
 toc
 
