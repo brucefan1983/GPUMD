@@ -1,13 +1,14 @@
 function [energy, force] = find_force_band_train(N, neighbor_number, neighbor_list, box, rc, r, para)
 D=3;
+N_des=3;
 N4 = N*4; N2 = N4/2; H0 = zeros(N4, N4); H  = zeros(N4, N4);
 energy = 0; force = zeros(N, D);
 
 [sum_g] = find_sum_g(N, neighbor_number, neighbor_list, box, rc, r);
 onsite=zeros(2,N);
-onsite_p=zeros(2,N);
+onsite_p=zeros(2,N_des,N);
 for n1 = 1 : N
-    [onsite(:,n1), onsite_p(:,n1)] = onsite_ann(sum_g(n1), para(1:50));
+    [onsite(:,n1), onsite_p(:,:,n1)] = onsite_ann(sum_g(n1,:), para(1:60));
 end
 
 for n1 = 1 : N
@@ -22,7 +23,7 @@ for n1 = 1 : N
         sin_xx=1-cos_xx; sin_yy=1-cos_yy; sin_zz=1-cos_zz;
         cos_xy=cos_x*cos_y; cos_yz=cos_y*cos_z; cos_zx=cos_z*cos_x;
 
-        [s,sd]=hopping_scaling(rc, d12,para(51:end));
+        [s,sd]=hopping_scaling(rc, d12,para(61:end));
 
         v_sss = s(1);
         v_sps = s(2);
@@ -85,7 +86,9 @@ for n1 = 1 : N
             end
         end
     end
-    onsite_p_n1_diag = diag([onsite_p(1,n1), onsite_p(2,n1), onsite_p(2,n1), onsite_p(2,n1)]);
+    onsite_p_n1_diag1 = diag([onsite_p(1,1,n1), onsite_p(2,1,n1), onsite_p(2,1,n1), onsite_p(2,1,n1)]);
+    onsite_p_n1_diag2 = diag([onsite_p(1,2,n1), onsite_p(2,2,n1), onsite_p(2,2,n1), onsite_p(2,2,n1)]);
+    onsite_p_n1_diag3 = diag([onsite_p(1,3,n1), onsite_p(2,3,n1), onsite_p(2,3,n1), onsite_p(2,3,n1)]);
 
     for k = 1 : neighbor_number(n1)
         n2 = neighbor_list(n1, k);
@@ -115,7 +118,7 @@ for n1 = 1 : N
         K1 = zeros(4, 4, D);
         K  = zeros(4, 4, D);
 
-        [s]=hopping_scaling(rc, d12,para(51:end));
+        [s]=hopping_scaling(rc, d12,para(61:end));
         v_sps = s(2);
         v_pps = s(3);
         v_ppp = s(4);
@@ -152,11 +155,17 @@ for n1 = 1 : N
                 end
             end
         end
-        onsite_p_n2_diag = diag([onsite_p(1,n2), onsite_p(2,n2), onsite_p(2,n2), onsite_p(2,n2)]);
+        onsite_p_n2_diag1 = diag([onsite_p(1,1,n2), onsite_p(2,1,n2), onsite_p(2,1,n2), onsite_p(2,1,n2)]);
+        onsite_p_n2_diag2 = diag([onsite_p(1,2,n2), onsite_p(2,2,n2), onsite_p(2,2,n2), onsite_p(2,2,n2)]);
+        onsite_p_n2_diag3 = diag([onsite_p(1,3,n2), onsite_p(2,3,n2), onsite_p(2,3,n2), onsite_p(2,3,n2)]);
 
-        dgdr = 2 * (d12 / rc - 1) / rc / d12;
+        dgdr1 = 2 * (d12 / rc - 1) / rc / d12;
+        dgdr2 = 4 * (d12 / rc - 1)^3 / rc / d12;
+        dgdr3 = 6 * (d12 / rc - 1)^5 / rc / d12;
         for d = 1 : D
-            force(n1, d) = force(n1, d) + 2 * sum(sum(F_onsite_n1 .* onsite_p_n1_diag + F_onsite_n2 .* onsite_p_n2_diag)) * dgdr * r12(d);
+            force(n1, d) = force(n1, d) + 2 * sum(sum(F_onsite_n1 .* onsite_p_n1_diag1 + F_onsite_n2 .* onsite_p_n2_diag1)) * dgdr1 * r12(d);
+            force(n1, d) = force(n1, d) + 2 * sum(sum(F_onsite_n1 .* onsite_p_n1_diag2 + F_onsite_n2 .* onsite_p_n2_diag2)) * dgdr2 * r12(d);
+            force(n1, d) = force(n1, d) + 2 * sum(sum(F_onsite_n1 .* onsite_p_n1_diag3 + F_onsite_n2 .* onsite_p_n2_diag3)) * dgdr3 * r12(d);
         end
     end
 end
@@ -215,22 +224,26 @@ end
 
 
 function [sum_g] = find_sum_g(N, neighbor_number, neighbor_list, box, rc, r)
-sum_g = zeros(N,1);
+N_des=3;
+sum_g = zeros(N,N_des);
 for n1 = 1 : N
     for k = 1 : neighbor_number(n1)
         n2 = neighbor_list(n1, k);
         r12 = r(n2, :) - r(n1, :);
         r12 = r12 - round(r12./box).*box; % minimum image convention
         d12 = sqrt(sum(r12.*r12));
-        sum_g(n1) = sum_g(n1) + (d12/rc-1).^2;
+        sum_g(n1,1) = sum_g(n1,1) + (d12/rc-1).^2;
+        sum_g(n1,2) = sum_g(n1,2) + (d12/rc-1).^4;
+        sum_g(n1,3) = sum_g(n1,3) + (d12/rc-1).^6;
     end
 end
 end
 
 function [y, yp] = onsite_ann(q, para)
 N_neurons = 5;
-w0 = para(1 : N_neurons);
-offset = N_neurons;
+N_des=3;
+w0 = reshape(para(1 : N_neurons*N_des),N_neurons,N_des);
+offset = N_neurons*N_des;
 b0 = para(offset+1 : offset + N_neurons);
 offset = offset + N_neurons;
 w1 = reshape(para(offset+1 : offset + N_neurons*N_neurons), N_neurons, N_neurons);
@@ -239,11 +252,15 @@ b1 = para(offset+1 : offset + N_neurons);
 offset = offset + N_neurons;
 w2 = reshape(para(offset+1 : offset + N_neurons*2), 2, N_neurons);
 y = zeros(2, 1);
-yp = zeros(2, 1);
+yp = zeros(2, N_des);
 x1 = zeros(1, N_neurons);
 x2 = zeros(1, N_neurons);
 for n0 = 1 : N_neurons
-    x1(n0) = tanh(w0(n0) * q - b0(n0));
+    w0_times_q = 0.0;
+    for d = 1 : N_des
+      w0_times_q = w0_times_q + w0(n0, d) * q(d);
+    end
+    x1(n0) = tanh(w0_times_q - b0(n0));
 end
 for n1 = 1 : N_neurons
     w1_times_x1 = 0.0;
@@ -268,11 +285,13 @@ for n0 = 1 : N_neurons
 end
 
 for k = 1 : 2
-    temp_sum = 0.0;
-    for n0 = 1 : N_neurons
-        temp_sum = temp_sum + dydx1(k, n0) * (1.0 - x1(n0) * x1(n0)) * w0(n0);
+    for d = 1 : N_des
+        temp_sum = 0.0;
+        for n0 = 1 : N_neurons
+            temp_sum = temp_sum + dydx1(k, n0) * (1.0 - x1(n0) * x1(n0)) * w0(n0, d);
+        end
+        yp(k,d) = temp_sum;
     end
-    yp(k) = temp_sum;
 end
 
 end
