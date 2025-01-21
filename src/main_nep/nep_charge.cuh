@@ -20,7 +20,7 @@
 class Parameters;
 class Dataset;
 
-struct NEP_Data {
+struct NEP_Charge_Data {
   GPU_Vector<int> NN_radial;  // radial neighbor number
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
@@ -103,7 +103,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP_Data nep_data[16];
+  NEP_Charge_Data nep_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };

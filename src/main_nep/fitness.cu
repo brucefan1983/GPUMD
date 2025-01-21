@@ -19,6 +19,7 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "nep.cuh"
+#include "nep_charge.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
@@ -121,8 +122,13 @@ Fitness::Fitness(Parameters& para)
     potential.reset(
       new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
   } else {
-    potential.reset(
-      new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    if (para.has_charge) {
+      potential.reset(
+        new NEP_Charge(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    } else {
+      potential.reset(
+        new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    }
   }
 
   if (para.prediction == 0) {

@@ -61,6 +61,7 @@ public:
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
+  bool has_charge = true; // for quick test; to be changed
 
   // check if a parameter has been set:
   bool is_train_mode_set;
