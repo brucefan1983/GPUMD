@@ -215,9 +215,11 @@ static __device__ void apply_ann_one_layer_charge(
     float x1 = tanh(w0_times_q - b0[n]);
     float tanh_der = 1.0f - x1 * x1;
     energy += w1[n] * x1;
+    charge += w1[n + N_neu] * x1;
     for (int d = 0; d < N_des; ++d) {
       float y1 = tanh_der * w0[n * N_des + d];
       energy_derivative[d] += w1[n] * y1;
+      charge_derivative[d] += w1[n + N_neu] * y1;
     }
   }
   energy -= b1[0];
