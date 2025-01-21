@@ -712,6 +712,52 @@ static __global__ void find_force_ZBL(
   }
 }
 
+static __global__ void gpu_sum_q_factor(
+  const int N,
+  const float* g_x,
+  const float* g_y,
+  const float* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_charge,
+  float* g_q_factor_real,
+  float* g_q_factor_imag)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x; // k-point index
+  int number_of_batches = (N - 1) / 1024 + 1;
+  __shared__ float s_q_factor_real[1024];
+  __shared__ float s_q_factor_imag[1024];
+  float q_factor_real = 0.0f;
+  float q_factor_imag = 0.0f;
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < N) {
+      float kr = g_kx[bid] * g_x[n] + g_ky[bid] * g_y[n] + g_kz[bid] * g_z[n];
+      q_factor_real += g_charge[n] * cos(kr);
+      q_factor_imag -= g_charge[n] * sin(kr);
+    }
+  }
+  s_q_factor_real[tid] = q_factor_real;
+  s_q_factor_imag[tid] = q_factor_imag;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_q_factor_real[tid] += s_q_factor_real[tid + offset];
+      s_q_factor_imag[tid] += s_q_factor_imag[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_q_factor_real[bid] = s_q_factor_real[0];
+    g_q_factor_imag[bid] = s_q_factor_imag[0];
+  }
+}
+
 void NEP_Charge::find_force(
   Parameters& para,
   const float* parameters,
@@ -885,6 +931,8 @@ void NEP_Charge::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
+
+    // ewald summation for long-range force
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
