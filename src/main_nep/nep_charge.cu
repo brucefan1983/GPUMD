@@ -388,7 +388,9 @@ static __global__ void apply_ann(
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
   float* g_pe,
-  float* g_Fp)
+  float* g_Fp,
+  float* g_charge,
+  float* g_charge_derivative)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   int type = g_type[n1];
@@ -401,29 +403,17 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[type],
-        annmb.b0[type],
-        annmb.w1[type],
-        annmb.b1,
-        q,
-        F,
-        Fp);
-    } else {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[type],
-        annmb.b0[type],
-        annmb.w1[type],
-        annmb.b1,
-        q,
-        F,
-        Fp);
-    }
+    apply_ann_one_layer_charge(
+      paramb.version == 5,
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
+      q,
+      F,
+      Fp);
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -853,7 +843,9 @@ void NEP_Charge::find_force(
       nep_data[device_id].descriptors.data(),
       para.q_scaler_gpu[device_id].data(),
       dataset[device_id].energy.data(),
-      nep_data[device_id].Fp.data());
+      nep_data[device_id].Fp.data(),
+      nep_data[device_id].charge.data(),
+      nep_data[device_id].charge_derivative.data());
     GPU_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
