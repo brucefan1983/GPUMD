@@ -158,15 +158,10 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  // only allow for NEP4 potential with charge (to be simple)
   if (has_charge) {
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
-  }
-
-  if (version == 5 && train_mode != 0) {
-    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
   }
 
   if (train_mode != 0 && train_mode != 3) {
@@ -206,8 +201,6 @@ void Parameters::calculate_parameters()
     if (has_charge) {
       number_of_variables_ann += num_neurons1 * num_types;
     }
-  } else if (version == 5) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
   }
 
   number_of_variables_descriptor =
@@ -554,8 +547,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 5) {
-    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
