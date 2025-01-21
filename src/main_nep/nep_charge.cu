@@ -713,20 +713,20 @@ static __global__ void find_force_ZBL(
 }
 
 static __global__ void gpu_sum_q_factor(
-  const int N,
+  const int num_atoms,
+  const float* g_charge,
   const float* g_x,
   const float* g_y,
   const float* g_z,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
-  const float* g_charge,
   float* g_q_factor_real,
   float* g_q_factor_imag)
 {
   int tid = threadIdx.x;
-  int bid = blockIdx.x; // k-point index
-  int number_of_batches = (N - 1) / 1024 + 1;
+  int nk = blockIdx.x; // k-point index
+  int number_of_batches = (num_atoms - 1) / 1024 + 1;
   __shared__ float s_q_factor_real[1024];
   __shared__ float s_q_factor_imag[1024];
   float q_factor_real = 0.0f;
@@ -734,10 +734,12 @@ static __global__ void gpu_sum_q_factor(
 
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024;
-    if (n < N) {
-      float kr = g_kx[bid] * g_x[n] + g_ky[bid] * g_y[n] + g_kz[bid] * g_z[n];
-      q_factor_real += g_charge[n] * cos(kr);
-      q_factor_imag -= g_charge[n] * sin(kr);
+    if (n < num_atoms) {
+      float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
+      const float charge = g_charge[n];
+      // TODO: consider using sincos() later;
+      q_factor_real += charge * cos(kr);
+      q_factor_imag -= charge * sin(kr);
     }
   }
   s_q_factor_real[tid] = q_factor_real;
@@ -753,8 +755,50 @@ static __global__ void gpu_sum_q_factor(
   }
 
   if (tid == 0) {
-    g_q_factor_real[bid] = s_q_factor_real[0];
-    g_q_factor_imag[bid] = s_q_factor_imag[0];
+    g_q_factor_real[nk] = s_q_factor_real[0];
+    g_q_factor_imag[nk] = s_q_factor_imag[0];
+  }
+}
+
+static __global__ void gpu_find_force_charge(
+  const int num_atoms,
+  const int num_kpoints,
+  const float* g_charge,
+  const float* g_x,
+  const float* g_y,
+  const float* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_g_factor,
+  const float* g_q_factor_real,
+  const float* g_q_factor_imag,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_pe)
+{
+  int n = threadIdx.x + blockIdx.x * blockDim.x; // particle index
+  if (n < num_atoms) {
+    float temp_energy_sum = 0.0f;
+    float temp_force_sum[3] = {0.0f};
+    for (int nk = 0; nk < num_kpoints; ++nk) {
+      const float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
+      // TODO: consider using sincos() later;
+      const float g_factor = g_g_factor[nk];
+      const float q_factor_real = g_q_factor_real[nk];
+      const float q_factor_imag = g_q_factor_imag[nk];
+      const float imag_term = g_factor * (q_factor_real * sin(kr) + q_factor_imag * cos(kr));
+      temp_energy_sum += g_factor * (q_factor_real * q_factor_real + q_factor_imag * q_factor_imag);
+      temp_force_sum[0] += g_kx[nk] * imag_term;
+      temp_force_sum[1] += g_ky[nk] * imag_term;
+      temp_force_sum[2] += g_kz[nk] * imag_term;
+    }
+    g_pe[n] += K_C * temp_energy_sum;
+    const float charge_factor = K_C * 2.0f * g_charge[n];
+    g_fx[n] += charge_factor * temp_force_sum[0];
+    g_fy[n] += charge_factor * temp_force_sum[1];
+    g_fz[n] += charge_factor * temp_force_sum[2];
   }
 }
 
