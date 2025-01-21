@@ -20,23 +20,6 @@
 class Parameters;
 class Dataset;
 
-struct NEP_Charge_Data {
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
-  GPU_Vector<int> NN_angular; // angular neighbor number
-  GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
-  GPU_Vector<float> descriptors; // descriptors
-  GPU_Vector<float> Fp;          // gradient of descriptors
-  GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> parameters; // parameters to be optimized
-};
-
 class NEP_Charge : public Potential
 {
 public:
@@ -73,6 +56,23 @@ public:
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* b1;               // bias for the output layer
     const float* c;                // for elements in descriptor
+  };
+
+  struct NEP_Charge_Data {
+    GPU_Vector<int> NN_radial;  // radial neighbor number
+    GPU_Vector<int> NL_radial;  // radial neighbor list
+    GPU_Vector<int> NN_angular; // angular neighbor number
+    GPU_Vector<int> NL_angular; // angular neighbor list
+    GPU_Vector<float> x12_radial;
+    GPU_Vector<float> y12_radial;
+    GPU_Vector<float> z12_radial;
+    GPU_Vector<float> x12_angular;
+    GPU_Vector<float> y12_angular;
+    GPU_Vector<float> z12_angular;
+    GPU_Vector<float> descriptors; // descriptors
+    GPU_Vector<float> Fp;          // gradient of descriptors
+    GPU_Vector<float> sum_fxyz;
+    GPU_Vector<float> parameters; // parameters to be optimized
   };
 
   struct ZBL {
