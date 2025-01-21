@@ -158,6 +158,13 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
+  // only allow for NEP4 potential with charge (to be simple)
+  if (has_charge) {
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
+    }
+  }
+
   if (version == 5 && train_mode != 0) {
     PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
   }
@@ -191,8 +198,14 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+    if (has_charge) {
+      number_of_variables_ann += num_neurons1;
+    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+    if (has_charge) {
+      number_of_variables_ann += num_neurons1 * num_types;
+    }
   } else if (version == 5) {
     number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
   }
