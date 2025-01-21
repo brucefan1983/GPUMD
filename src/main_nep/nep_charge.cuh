@@ -69,8 +69,10 @@ public:
     GPU_Vector<float> x12_angular;
     GPU_Vector<float> y12_angular;
     GPU_Vector<float> z12_angular;
-    GPU_Vector<float> descriptors; // descriptors
-    GPU_Vector<float> Fp;          // gradient of descriptors
+    GPU_Vector<float> descriptors;       // descriptors
+    GPU_Vector<float> charge;            // per-atom charge
+    GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
+    GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
   };
