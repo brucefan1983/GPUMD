@@ -195,7 +195,6 @@ static __device__ void apply_ann_one_layer_nep5(
 }
 
 static __device__ void apply_ann_one_layer_charge(
-  const bool is_nep5,
   const int N_des,
   const int N_neu,
   const float* w0,
@@ -204,7 +203,9 @@ static __device__ void apply_ann_one_layer_charge(
   const float* b1,
   float* q,
   float& energy,
-  float* energy_derivative)
+  float* energy_derivative,
+  float& charge,
+  float* charge_derivative)
 {
   for (int n = 0; n < N_neu; ++n) {
     float w0_times_q = 0.0f;
@@ -219,11 +220,7 @@ static __device__ void apply_ann_one_layer_charge(
       energy_derivative[d] += w1[n] * y1;
     }
   }
-  if (is_nep5) {
-    energy -= w1[N_neu] + b1[0]; // typewise bias + common bias
-  } else {
-    energy -= b1[0];
-  }
+  energy -= b1[0];
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)

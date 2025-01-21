@@ -331,9 +331,6 @@ void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
-    if (para.version == 5) {
-      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
-    }
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -402,9 +399,10 @@ static __global__ void apply_ann(
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
 
     apply_ann_one_layer_charge(
-      paramb.version == 5,
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[type],
@@ -413,11 +411,16 @@ static __global__ void apply_ann(
       annmb.b1,
       q,
       F,
-      Fp);
+      Fp,
+      charge,
+      charge_derivative);
+
     g_pe[n1] = F;
+    g_charge[n1] = charge;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
+      g_charge_derivative[n1 + d * N] = charge_derivative[d] * g_q_scaler[d];
     }
   }
 }
