@@ -75,6 +75,18 @@ public:
     GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
+    GPU_Vector<float> kx;
+    GPU_Vector<float> ky;
+    GPU_Vector<float> kz;
+    GPU_Vector<float> g_factor;
+    GPU_Vector<float> q_factor_real;
+    GPU_Vector<float> q_factor_imag;
+  };
+
+  struct Charge_Para {
+    int kmax = 6;
+    int num_kpoints = 0;
+    float alpha = 1.0f;
   };
 
   struct ZBL {
@@ -107,5 +119,6 @@ private:
   ANN annmb[16];
   NEP_Charge_Data nep_data[16];
   ZBL zbl;
+  Charge_Para charge_para;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };

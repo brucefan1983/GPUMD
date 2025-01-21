@@ -977,6 +977,18 @@ void NEP_Charge::find_force(
     GPU_CHECK_KERNEL
 
     // ewald summation for long-range force
+    gpu_sum_q_factor<<<charge_para.num_kpoints, 1024>>>(
+      dataset[device_id].N,
+      nep_data[device_id].charge.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].q_factor_real.data(),
+      nep_data[device_id].q_factor_imag.data());
+    GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
