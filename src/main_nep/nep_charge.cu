@@ -747,7 +747,9 @@ static __global__ void find_force_ZBL(
 }
 
 static __global__ void gpu_sum_q_factor(
-  const int num_atoms,
+  const int num_kpoints,
+  const int* Na,
+  const int* Na_sum,
   const float* g_charge,
   const float* g_x,
   const float* g_y,
@@ -759,16 +761,19 @@ static __global__ void gpu_sum_q_factor(
   float* g_q_factor_imag)
 {
   int tid = threadIdx.x;
-  int nk = blockIdx.x; // k-point index
-  int number_of_batches = (num_atoms - 1) / 1024 + 1;
+  int nc = blockIdx.x / num_kpoints; // structure index
+  int N1 = Na_sum[nc];
+  int N2 = N1 + Na[nc];
+  int nk = blockIdx.x % num_kpoints; // k-point index
+  int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
   __shared__ float s_q_factor_real[1024];
   __shared__ float s_q_factor_imag[1024];
   float q_factor_real = 0.0f;
   float q_factor_imag = 0.0f;
 
   for (int batch = 0; batch < number_of_batches; ++batch) {
-    int n = tid + batch * 1024;
-    if (n < num_atoms) {
+    int n = tid + batch * 1024 + N1;
+    if (n < N2) {
       float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
       const float charge = g_charge[n];
       // TODO: consider using sincos() later;
@@ -1085,7 +1090,9 @@ void NEP_Charge::find_force(
     GPU_CHECK_KERNEL
 
     gpu_sum_q_factor<<<dataset[device_id].Nc * charge_para.num_kpoints, 1024>>>(
-      dataset[device_id].N,
+      charge_para.num_kpoints,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
       nep_data[device_id].charge.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
