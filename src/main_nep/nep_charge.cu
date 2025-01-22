@@ -890,7 +890,8 @@ static __global__ void gpu_find_k_and_g_factor(
       g_ky[nc_nk] = ky;
       g_kz[nc_nk] = kz;
       const float ksq = kx * kx + ky * ky + kz * kz;
-      g_g_factor[nc * num_kpoints + nk] = abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+      const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
+      g_g_factor[nc * num_kpoints + nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
     }
   }
 }
@@ -1083,8 +1084,7 @@ void NEP_Charge::find_force(
       nep_data[device_id].g_factor.data());
     GPU_CHECK_KERNEL
 
-    // ewald summation for long-range force
-    gpu_sum_q_factor<<<charge_para.num_kpoints, 1024>>>(
+    gpu_sum_q_factor<<<dataset[device_id].Nc * charge_para.num_kpoints, 1024>>>(
       dataset[device_id].N,
       nep_data[device_id].charge.data(),
       dataset[device_id].r.data(),
