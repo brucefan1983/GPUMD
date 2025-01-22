@@ -830,6 +830,66 @@ static __global__ void gpu_find_force_charge(
   }
 }
 
+static __device__ void cross_product(const float a[3], const float b[3], float c[3])
+{
+  c[0] =  a[1] * b [2] - a[2] * b [1];
+  c[1] =  a[2] * b [0] - a[0] * b [2];
+  c[2] =  a[0] * b [1] - a[1] * b [0];
+}
+
+static __global__ void gpu_find_k_and_g_factor(
+  const int Nc,
+  const int num_kpoints,
+  const float alpha_factor,
+  const float* g_box,
+  const int* g_k1,
+  const int* g_k2,
+  const int* g_k3,
+  float* g_kx,
+  float* g_ky,
+  float* g_kz,
+  float* g_g_factor)
+{
+  int nc = threadIdx.x + blockIdx.x * blockDim.x; // structure index
+  if (nc < Nc) {
+    const float* box = g_box + 9 * nc;
+    const float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+                      box[1] * (box[5] * box[6] - box[3] * box[8]) +
+                      box[2] * (box[3] * box[7] - box[4] * box[6]);
+    const float a1[3] = {box[0], box[3], box[6]};
+    const float a2[3] = {box[1], box[4], box[7]};
+    const float a3[3] = {box[2], box[5], box[8]};
+    float b1[3] = {0.0f};
+    float b2[3] = {0.0f};
+    float b3[3] = {0.0f};
+    cross_product(a2, a3, b1);
+    cross_product(a3, a1, b2);
+    cross_product(a1, a2, b3);
+    const float two_pi = 6.2831853f;
+    const float two_pi_over_det = two_pi / det;
+    for (int d = 0; d < 3; ++d) {
+      b1[d] *= two_pi_over_det;
+      b2[d] *= two_pi_over_det;
+      b3[d] *= two_pi_over_det;
+    }
+    for (int nk = 0; nk < num_kpoints; ++nk) {
+      const float k1 = g_k1[nk];
+      const float k2 = g_k2[nk];
+      const float k3 = g_k3[nk];
+      const float kx = k1 * b1[0] + k2 * b2[0] + k3 * b3[0];
+      const float ky = k1 * b1[1] + k2 * b2[1] + k3 * b3[1];
+      const float kz = k1 * b1[2] + k2 * b2[2] + k3 * b3[2];
+      const int nc_nk = nc * num_kpoints + nk;
+      g_kx[nc_nk] = kx;
+      g_ky[nc_nk] = ky;
+      g_kz[nc_nk] = kz;
+      const float ksq = kx * kx + ky * ky + kz * kz;
+      g_g_factor[nc * num_kpoints + nk] = abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+    }
+
+  }
+}
+
 void NEP_Charge::find_force(
   Parameters& para,
   const float* parameters,
@@ -1003,6 +1063,9 @@ void NEP_Charge::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
+
+    // calculate the k-points and g_factor
+
 
     // ewald summation for long-range force
     gpu_sum_q_factor<<<charge_para.num_kpoints, 1024>>>(

@@ -89,7 +89,7 @@ public:
     std::vector<int> k1;
     std::vector<int> k2;
     std::vector<int> k3;
-    float alpha = 0.5f;
+    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha) with alpha = 0.5
   };
 
   struct ZBL {
