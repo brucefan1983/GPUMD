@@ -776,9 +776,10 @@ static __global__ void gpu_sum_q_factor(
     if (n < N2) {
       float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
       const float charge = g_charge[n];
-      // TODO: consider using sincos() later;
-      q_factor_real += charge * cos(kr);
-      q_factor_imag -= charge * sin(kr);
+      float sin_kr, cos_kr;
+      sincos(kr, &sin_kr, &cos_kr);
+      q_factor_real += charge * cos_kr;
+      q_factor_imag -= charge * sin_kr;
     }
   }
   s_q_factor_real[tid] = q_factor_real;
@@ -794,14 +795,15 @@ static __global__ void gpu_sum_q_factor(
   }
 
   if (tid == 0) {
-    g_q_factor_real[nk] = s_q_factor_real[0];
-    g_q_factor_imag[nk] = s_q_factor_imag[0];
+    g_q_factor_real[blockIdx.x] = s_q_factor_real[0];
+    g_q_factor_imag[blockIdx.x] = s_q_factor_imag[0];
   }
 }
 
 static __global__ void gpu_find_force_charge(
-  const int num_atoms,
   const int num_kpoints,
+  const int* Na,
+  const int* Na_sum,
   const float* g_charge,
   const float* g_x,
   const float* g_y,
@@ -817,27 +819,37 @@ static __global__ void gpu_find_force_charge(
   float* g_fz,
   float* g_pe)
 {
-  int n = threadIdx.x + blockIdx.x * blockDim.x; // particle index
-  if (n < num_atoms) {
-    float temp_energy_sum = 0.0f;
-    float temp_force_sum[3] = {0.0f};
-    for (int nk = 0; nk < num_kpoints; ++nk) {
-      const float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
-      // TODO: consider using sincos() later;
-      const float g_factor = g_g_factor[nk];
-      const float q_factor_real = g_q_factor_real[nk];
-      const float q_factor_imag = g_q_factor_imag[nk];
-      const float imag_term = g_factor * (q_factor_real * sin(kr) + q_factor_imag * cos(kr));
-      temp_energy_sum += g_factor * (q_factor_real * q_factor_real + q_factor_imag * q_factor_imag);
-      temp_force_sum[0] += g_kx[nk] * imag_term;
-      temp_force_sum[1] += g_ky[nk] * imag_term;
-      temp_force_sum[2] += g_kz[nk] * imag_term;
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = threadIdx.x + batch * 1024 + N1;
+    if (n < N2) {
+      float temp_energy_sum = 0.0f;
+      float temp_force_sum[3] = {0.0f};
+      for (int nk = 0; nk < num_kpoints; ++nk) {
+        const int nc_nk = blockIdx.x * num_kpoints + nk;
+        const float kx = g_kx[nc_nk];
+        const float ky = g_ky[nc_nk];
+        const float kz = g_kz[nc_nk];
+        const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
+        const float g_factor = g_g_factor[nc_nk];
+        const float q_factor_real = g_q_factor_real[nc_nk];
+        const float q_factor_imag = g_q_factor_imag[nc_nk];
+        float sin_kr, cos_kr;
+        sincos(kr, &sin_kr, &cos_kr);
+        const float imag_term = g_factor * (q_factor_real * sin_kr + q_factor_imag * cos_kr);
+        temp_energy_sum += g_factor * (q_factor_real * q_factor_real + q_factor_imag * q_factor_imag);
+        temp_force_sum[0] += kx * imag_term;
+        temp_force_sum[1] += ky * imag_term;
+        temp_force_sum[2] += kz * imag_term;
+      }
+      g_pe[n] += K_C * temp_energy_sum;
+      const float charge_factor = K_C * 2.0f * g_charge[n];
+      g_fx[n] += charge_factor * temp_force_sum[0];
+      g_fy[n] += charge_factor * temp_force_sum[1];
+      g_fz[n] += charge_factor * temp_force_sum[2];
     }
-    g_pe[n] += K_C * temp_energy_sum;
-    const float charge_factor = K_C * 2.0f * g_charge[n];
-    g_fx[n] += charge_factor * temp_force_sum[0];
-    g_fy[n] += charge_factor * temp_force_sum[1];
-    g_fz[n] += charge_factor * temp_force_sum[2];
   }
 }
 
@@ -896,7 +908,7 @@ static __global__ void gpu_find_k_and_g_factor(
       g_kz[nc_nk] = kz;
       const float ksq = kx * kx + ky * ky + kz * kz;
       const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
-      g_g_factor[nc * num_kpoints + nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+      g_g_factor[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
     }
   }
 }
@@ -1102,6 +1114,26 @@ void NEP_Charge::find_force(
       nep_data[device_id].kz.data(),
       nep_data[device_id].q_factor_real.data(),
       nep_data[device_id].q_factor_imag.data());
+    GPU_CHECK_KERNEL
+
+    gpu_find_force_charge<<<dataset[device_id].Nc, 1024>>>(
+      charge_para.num_kpoints,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      nep_data[device_id].charge.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].g_factor.data(),
+      nep_data[device_id].q_factor_real.data(),
+      nep_data[device_id].q_factor_imag.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
     if (zbl.enabled) {
