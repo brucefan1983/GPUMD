@@ -764,17 +764,15 @@ static __global__ void gpu_sum_q_factor(
   int nc = blockIdx.x / num_kpoints; // structure index
   int N1 = Na_sum[nc];
   int N2 = N1 + Na[nc];
-  int nk = blockIdx.x % num_kpoints; // k-point index
   int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
   __shared__ float s_q_factor_real[1024];
   __shared__ float s_q_factor_imag[1024];
   float q_factor_real = 0.0f;
   float q_factor_imag = 0.0f;
-
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024 + N1;
     if (n < N2) {
-      float kr = g_kx[nk] * g_x[n] + g_ky[nk] * g_y[n] + g_kz[nk] * g_z[n];
+      float kr = g_kx[blockIdx.x] * g_x[n] + g_ky[blockIdx.x] * g_y[n] + g_kz[blockIdx.x] * g_z[n];
       const float charge = g_charge[n];
       float sin_kr, cos_kr;
       sincos(kr, &sin_kr, &cos_kr);
@@ -844,7 +842,7 @@ static __global__ void gpu_find_force_charge(
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
-      g_pe[n] += K_C * temp_energy_sum;
+      g_pe[n] += K_C * temp_energy_sum / (N2 - N1);
       const float charge_factor = K_C * 2.0f * g_charge[n];
       g_fx[n] += charge_factor * temp_force_sum[0];
       g_fy[n] += charge_factor * temp_force_sum[1];
@@ -888,6 +886,7 @@ static __global__ void gpu_find_k_and_g_factor(
     cross_product(a2, a3, b1);
     cross_product(a3, a1, b2);
     cross_product(a1, a2, b3);
+    
     const float two_pi = 6.2831853f;
     const float two_pi_over_det = two_pi / det;
     for (int d = 0; d < 3; ++d) {
