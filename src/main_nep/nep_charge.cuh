@@ -89,6 +89,9 @@ public:
     std::vector<int> k1;
     std::vector<int> k2;
     std::vector<int> k3;
+    GPU_Vector<int> k1_gpu;
+    GPU_Vector<int> k2_gpu;
+    GPU_Vector<int> k3_gpu;
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha) with alpha = 0.5
   };
 

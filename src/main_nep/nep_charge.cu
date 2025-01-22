@@ -257,6 +257,12 @@ void NEP_Charge::find_k1k2k3()
       }
     }
   }
+  charge_para.k1_gpu.resize(charge_para.k1.size());
+  charge_para.k2_gpu.resize(charge_para.k2.size());
+  charge_para.k3_gpu.resize(charge_para.k3.size());
+  charge_para.k1_gpu.copy_from_host(charge_para.k1.data());
+  charge_para.k2_gpu.copy_from_host(charge_para.k2.data());
+  charge_para.k3_gpu.copy_from_host(charge_para.k3.data());
 }
 
 NEP_Charge::NEP_Charge(
@@ -886,7 +892,6 @@ static __global__ void gpu_find_k_and_g_factor(
       const float ksq = kx * kx + ky * ky + kz * kz;
       g_g_factor[nc * num_kpoints + nk] = abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
     }
-
   }
 }
 
@@ -1064,8 +1069,19 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
-    // calculate the k-points and g_factor
-
+    gpu_find_k_and_g_factor<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
+      dataset[device_id].Nc,
+      charge_para.num_kpoints,
+      charge_para.alpha_factor,
+      dataset[device_id].box_original.data(),
+      charge_para.k1_gpu.data(),
+      charge_para.k2_gpu.data(),
+      charge_para.k3_gpu.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].g_factor.data());
+    GPU_CHECK_KERNEL
 
     // ewald summation for long-range force
     gpu_sum_q_factor<<<charge_para.num_kpoints, 1024>>>(
