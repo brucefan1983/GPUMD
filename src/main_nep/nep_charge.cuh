@@ -84,9 +84,12 @@ public:
   };
 
   struct Charge_Para {
-    int kmax = 6;
+    int kmax = 5;
     int num_kpoints = 0;
-    float alpha = 1.0f;
+    std::vector<int> k1;
+    std::vector<int> k2;
+    std::vector<int> k3;
+    float alpha = 0.5f;
   };
 
   struct ZBL {
@@ -102,6 +105,7 @@ public:
   NEP_Charge(
     Parameters& para,
     int N,
+    int Nc,
     int N_times_max_NN_radial,
     int N_times_max_NN_angular,
     int version,
@@ -113,6 +117,7 @@ public:
     bool calculate_q_scaler,
     bool calculate_neighbor,
     int deviceCount);
+  void find_k1k2k3();
 
 private:
   ParaMB paramb;

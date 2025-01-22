@@ -88,12 +88,14 @@ Fitness::Fitness(Parameters& para)
   }
 
   int N = -1;
+  int Nc = -1;
   int N_times_max_NN_radial = -1;
   int N_times_max_NN_angular = -1;
   max_NN_radial = -1;
   max_NN_angular = -1;
   if (has_test_set) {
     N = test_set[0].N;
+    Nc = test_set[0].Nc;
     N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
     N_times_max_NN_angular = test_set[0].N * test_set[0].max_NN_angular;
     max_NN_radial = test_set[0].max_NN_radial;
@@ -102,6 +104,9 @@ Fitness::Fitness(Parameters& para)
   for (int n = 0; n < num_batches; ++n) {
     if (train_set[n][0].N > N) {
       N = train_set[n][0].N;
+    };
+    if (train_set[n][0].Nc > Nc) {
+      Nc = train_set[n][0].Nc;
     };
     if (train_set[n][0].N * train_set[n][0].max_NN_radial > N_times_max_NN_radial) {
       N_times_max_NN_radial = train_set[n][0].N * train_set[n][0].max_NN_radial;
@@ -124,7 +129,7 @@ Fitness::Fitness(Parameters& para)
   } else {
     if (para.has_charge) {
       potential.reset(
-        new NEP_Charge(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+        new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
     } else {
       potential.reset(
         new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));

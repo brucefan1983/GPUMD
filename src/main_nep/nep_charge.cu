@@ -240,9 +240,29 @@ static __global__ void find_descriptors_angular(
   }
 }
 
+void NEP_Charge::find_k1k2k3()
+{
+  charge_para.num_kpoints = 0;
+  for (int kx = 0; kx <= charge_para.kmax; ++kx) {
+    for (int ky = - charge_para.kmax; ky <= charge_para.kmax; ++ky) {
+      for (int kz = - charge_para.kmax; kz <= charge_para.kmax; ++kz) {
+        const int ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq <= charge_para.kmax * charge_para.kmax && ksq > 0) {
+          ++charge_para.num_kpoints;
+          charge_para.k1.emplace_back(kx);
+          charge_para.k2.emplace_back(ky);
+          charge_para.k3.emplace_back(kz);
+          printf("%d (%d %d %d) \n", charge_para.num_kpoints, kx, ky, kz);
+        }
+      }
+    }
+  }
+}
+
 NEP_Charge::NEP_Charge(
   Parameters& para,
   int N,
+  int Nc,
   int N_times_max_NN_radial,
   int N_times_max_NN_angular,
   int version,
@@ -293,6 +313,8 @@ NEP_Charge::NEP_Charge(
     }
   }
 
+  find_k1k2k3();
+
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
@@ -315,6 +337,12 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+    nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].g_factor.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].q_factor_real.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].q_factor_imag.resize(Nc * charge_para.num_kpoints);
   }
 }
 
