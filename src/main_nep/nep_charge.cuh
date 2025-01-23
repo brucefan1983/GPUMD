@@ -84,7 +84,7 @@ public:
   };
 
   struct Charge_Para {
-    int kmax = 5;
+    int kmax = 6;
     int num_kpoints = 0;
     std::vector<int> k1;
     std::vector<int> k2;
@@ -92,7 +92,7 @@ public:
     GPU_Vector<int> k1_gpu;
     GPU_Vector<int> k2_gpu;
     GPU_Vector<int> k3_gpu;
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha) with alpha = 0.5
+    float alpha_factor = 0.25f; // 1 / (4 * alpha * alpha) with alpha = 0.5
   };
 
   struct ZBL {

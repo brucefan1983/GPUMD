@@ -1051,6 +1051,19 @@ void NEP_Charge::find_force(
       nep_data[device_id].charge_derivative.data());
     GPU_CHECK_KERNEL
 
+    if (para.prediction == 1 && true) {
+      FILE* fid_charge = my_fopen("charge.out", "a");
+      std::vector<float> charge_cpu(nep_data[device_id].charge.size());
+      nep_data[device_id].charge.copy_to_host(charge_cpu.data());
+      for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
+        for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
+          int n = dataset[device_id].Na_sum_cpu[nc] + na;
+          fprintf(fid_charge, "%g\n", charge_cpu[n]);
+        }
+      }
+      fclose(fid_charge);
+    }
+
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
