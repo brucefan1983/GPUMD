@@ -842,12 +842,76 @@ static __global__ void gpu_find_force_charge(
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
-      g_pe[n] += K_C * temp_energy_sum / (N2 - N1);
-      const float charge_factor = K_C * 2.0f * g_charge[n];
+      const float charge = g_charge[n];
+      g_pe[n] += K_C * (temp_energy_sum / (N2 - N1) - charge * charge * 0.5f * 0.564189583547756f);
+      const float charge_factor = K_C * 2.0f * charge;
       g_fx[n] += charge_factor * temp_force_sum[0];
       g_fy[n] += charge_factor * temp_force_sum[1];
       g_fz[n] += charge_factor * temp_force_sum[2];
     }
+  }
+}
+
+static __global__ void find_force_charge_real_space(
+  const int N,
+  const float alpha,
+  const int* g_NN,
+  const int* g_NL,
+  const float* __restrict__ g_charge,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial,
+  float* g_pe)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    float s_pe = 0.0f;
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+    int q1 = g_charge[n1];
+    int neighbor_number = g_NN[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float qq = q1 * g_charge[n2];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+
+      float erfc_r = erfc(alpha * d12) * d12inv;
+      float f2 = -erfc_r * d12inv - alpha * 1.128379167095513f * d12inv * exp(-alpha * alpha * d12 * d12);
+      f2 *= 0.5f * K_C_SP * qq * d12inv;
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+
+      s_pe += 0.5f * K_C_SP * qq * erfc_r;
+      atomicAdd(&g_fx[n1], f12[0]);
+      atomicAdd(&g_fy[n1], f12[1]);
+      atomicAdd(&g_fz[n1], f12[2]);
+      atomicAdd(&g_fx[n2], -f12[0]);
+      atomicAdd(&g_fy[n2], -f12[1]);
+      atomicAdd(&g_fz[n2], -f12[2]);
+      s_virial_xx -= r12[0] * f12[0];
+      s_virial_yy -= r12[1] * f12[1];
+      s_virial_zz -= r12[2] * f12[2];
+      s_virial_xy -= r12[0] * f12[1];
+      s_virial_yz -= r12[1] * f12[2];
+      s_virial_zx -= r12[2] * f12[0];
+    }
+    g_virial[n1 + N * 0] += s_virial_xx;
+    g_virial[n1 + N * 1] += s_virial_yy;
+    g_virial[n1 + N * 2] += s_virial_zz;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
+    g_pe[n1] += s_pe;
   }
 }
 
@@ -1145,6 +1209,22 @@ void NEP_Charge::find_force(
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].energy.data());
+    GPU_CHECK_KERNEL
+
+    find_force_charge_real_space<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      charge_para.alpha,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      nep_data[device_id].charge.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data(),
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
