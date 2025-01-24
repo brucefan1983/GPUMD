@@ -175,11 +175,11 @@ void Fitness::compute(
 
         for (int t = 0; t <= para.num_types; ++t) {
           fitness[deviceCount * n + m + (6 * t + 3) * para.population_size] =
-            para.lambda_e * rmse_energy_array[t];
+            para.lambda_e * rmse_energy_array[t] * rmse_energy_array[t];
           fitness[deviceCount * n + m + (6 * t + 4) * para.population_size] =
-            para.lambda_f * rmse_force_array[t];
+            para.lambda_f * rmse_force_array[t] * rmse_force_array[t];
           fitness[deviceCount * n + m + (6 * t + 5) * para.population_size] =
-            para.lambda_v * rmse_virial_array[t];
+            para.lambda_v * rmse_virial_array[t] * rmse_virial_array[t];
         }
       }
     }

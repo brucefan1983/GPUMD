@@ -89,8 +89,9 @@ void Parameters::set_default_parameters()
   L_max_5body = 0;             // default is not to include 5body
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
-  lambda_e = lambda_f = 1.0f;  // energy and force are more important
-  lambda_v = 0.1f;             // virial is less important
+  lambda_e = 10.0f;            // energy and force are more important
+  lambda_f = 1.0f;             // energy and force are more important
+  lambda_v = 1.0f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
@@ -202,17 +203,17 @@ void Parameters::calculate_parameters()
 
   if (version != 3) {
     if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
+      lambda_1 = sqrt(number_of_variables * 1.0e-8f / num_types);
     }
     if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
+      lambda_2 = sqrt(number_of_variables * 1.0e-8f / num_types);
     }
   } else {
     if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
+      lambda_1 = sqrt(number_of_variables * 1.0e-8f);
     }
     if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
+      lambda_2 = sqrt(number_of_variables * 1.0e-8f);
     }
   }
 
