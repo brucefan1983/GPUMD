@@ -203,17 +203,17 @@ void Parameters::calculate_parameters()
 
   if (version != 3) {
     if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-10f / num_types);
+      lambda_1 = sqrt(number_of_variables * 1.0e-9f / num_types);
     }
     if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-10f / num_types);
+      lambda_2 = sqrt(number_of_variables * 1.0e-9f / num_types);
     }
   } else {
     if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-10f);
+      lambda_1 = sqrt(number_of_variables * 1.0e-9f);
     }
     if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-10f);
+      lambda_2 = sqrt(number_of_variables * 1.0e-9f);
     }
   }
 
