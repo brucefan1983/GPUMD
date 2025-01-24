@@ -25,6 +25,8 @@
 | mtp2nep              | Who? |                                                     | Outdated?                                                    |
 | mtp2xyz              | Ke Xu | twtdq@qq.com       | Convert `MTP` training data to xyz format.                   |
 | nep2xyz              | Ke Xu        | twtdq@qq.com                                        | Outdated?                                                    |
+| orca2xyz | Zherui Chen | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
+| pbc_mol | Zherui Chen | chenzherui0124@foxmail.com | It processes XYZ trajectory files of molecular simulations to ensure that molecules remain intact across periodic boundaries in the simulation box. |
 | pca_sampling         | Penghua Ying | hityingph@163.com | Farthest-point sampling based on `calorine`.                 |
 | perturbed2poscar     | Who?         |                                                         | What?                                                        |
 | rdf_adf              | Ke Xu        | twtdq@qq.com             | Calculate RDF and ADF using `OVITO`.                         |
