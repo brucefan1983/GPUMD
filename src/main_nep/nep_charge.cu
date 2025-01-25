@@ -479,11 +479,13 @@ static __global__ void find_force_radial(
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
   const NEP_Charge::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  const float* __restrict__ g_Fp,
+  const int* g_type,
+  const float* g_x12,
+  const float* g_y12,
+  const float* g_z12,
+  const float* g_Fp,
+  const float* g_charge_derivative,
+  const float* g_D_real,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -529,7 +531,7 @@ static __global__ void find_force_radial(
           c_index += t1 * paramb.num_types + t2;
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+        const float tmp12 = (g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1]) * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
         }
@@ -564,12 +566,14 @@ static __global__ void find_force_angular(
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
   const NEP_Charge::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  const float* __restrict__ g_Fp,
-  const float* __restrict__ g_sum_fxyz,
+  const int* g_type,
+  const float* g_x12,
+  const float* g_y12,
+  const float* g_z12,
+  const float* g_Fp,
+  const float* g_charge_derivative,
+  const float* g_D_real,
+  const float* g_sum_fxyz,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -588,7 +592,8 @@ static __global__ void find_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
+        + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
@@ -1194,6 +1199,8 @@ void NEP_Charge::find_force(
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
       nep_data[device_id].Fp.data(),
+      nep_data[device_id].charge_derivative.data(),
+      nep_data[device_id].D_real.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
@@ -1211,6 +1218,8 @@ void NEP_Charge::find_force(
       nep_data[device_id].y12_angular.data(),
       nep_data[device_id].z12_angular.data(),
       nep_data[device_id].Fp.data(),
+      nep_data[device_id].charge_derivative.data(),
+      nep_data[device_id].D_real.data(),
       nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
