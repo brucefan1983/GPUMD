@@ -841,9 +841,8 @@ static __global__ void find_force_charge_reciprocal_space(
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
-      const float charge = g_charge[n];
-      g_pe[n] += K_C * (temp_energy_sum / (N2 - N1) - charge * charge * 0.5f * 0.564189583547756f);
-      const float charge_factor = K_C * 2.0f * charge;
+      g_pe[n] += K_C_SP * temp_energy_sum / (N2 - N1);
+      const float charge_factor = K_C_SP * 2.0f * g_charge[n];
       g_fx[n] += charge_factor * temp_force_sum[0];
       g_fy[n] += charge_factor * temp_force_sum[1];
       g_fz[n] += charge_factor * temp_force_sum[2];
