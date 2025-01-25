@@ -346,9 +346,9 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].g_factor.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].q_factor_real.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].q_factor_imag.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].G.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints);
   }
 }
 
@@ -746,7 +746,7 @@ static __global__ void find_force_ZBL(
   }
 }
 
-static __global__ void gpu_sum_q_factor(
+static __global__ void find_structure_factor(
   const int num_kpoints,
   const int* Na,
   const int* Na_sum,
@@ -757,18 +757,18 @@ static __global__ void gpu_sum_q_factor(
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
-  float* g_q_factor_real,
-  float* g_q_factor_imag)
+  float* g_S_real,
+  float* g_S_imag)
 {
   int tid = threadIdx.x;
   int nc = blockIdx.x / num_kpoints; // structure index
   int N1 = Na_sum[nc];
   int N2 = N1 + Na[nc];
   int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
-  __shared__ float s_q_factor_real[1024];
-  __shared__ float s_q_factor_imag[1024];
-  float q_factor_real = 0.0f;
-  float q_factor_imag = 0.0f;
+  __shared__ float s_S_real[1024];
+  __shared__ float s_S_imag[1024];
+  float S_real = 0.0f;
+  float S_imag = 0.0f;
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024 + N1;
     if (n < N2) {
@@ -776,29 +776,29 @@ static __global__ void gpu_sum_q_factor(
       const float charge = g_charge[n];
       float sin_kr, cos_kr;
       sincos(kr, &sin_kr, &cos_kr);
-      q_factor_real += charge * cos_kr;
-      q_factor_imag -= charge * sin_kr;
+      S_real += charge * cos_kr;
+      S_imag -= charge * sin_kr;
     }
   }
-  s_q_factor_real[tid] = q_factor_real;
-  s_q_factor_imag[tid] = q_factor_imag;
+  s_S_real[tid] = S_real;
+  s_S_imag[tid] = S_imag;
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
-      s_q_factor_real[tid] += s_q_factor_real[tid + offset];
-      s_q_factor_imag[tid] += s_q_factor_imag[tid + offset];
+      s_S_real[tid] += s_S_real[tid + offset];
+      s_S_imag[tid] += s_S_imag[tid + offset];
     }
     __syncthreads();
   }
 
   if (tid == 0) {
-    g_q_factor_real[blockIdx.x] = s_q_factor_real[0];
-    g_q_factor_imag[blockIdx.x] = s_q_factor_imag[0];
+    g_S_real[blockIdx.x] = s_S_real[0];
+    g_S_imag[blockIdx.x] = s_S_imag[0];
   }
 }
 
-static __global__ void gpu_find_force_charge(
+static __global__ void find_force_charge_reciprocal_space(
   const int num_kpoints,
   const int* Na,
   const int* Na_sum,
@@ -809,9 +809,9 @@ static __global__ void gpu_find_force_charge(
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
-  const float* g_g_factor,
-  const float* g_q_factor_real,
-  const float* g_q_factor_imag,
+  const float* g_G,
+  const float* g_S_real,
+  const float* g_S_imag,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -831,13 +831,13 @@ static __global__ void gpu_find_force_charge(
         const float ky = g_ky[nc_nk];
         const float kz = g_kz[nc_nk];
         const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
-        const float g_factor = g_g_factor[nc_nk];
-        const float q_factor_real = g_q_factor_real[nc_nk];
-        const float q_factor_imag = g_q_factor_imag[nc_nk];
+        const float G = g_G[nc_nk];
+        const float S_real = g_S_real[nc_nk];
+        const float S_imag = g_S_imag[nc_nk];
         float sin_kr, cos_kr;
         sincos(kr, &sin_kr, &cos_kr);
-        const float imag_term = g_factor * (q_factor_real * sin_kr + q_factor_imag * cos_kr);
-        temp_energy_sum += g_factor * (q_factor_real * q_factor_real + q_factor_imag * q_factor_imag);
+        const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+        temp_energy_sum += G * (S_real * S_real + S_imag * S_imag);
         temp_force_sum[0] += kx * imag_term;
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
@@ -922,7 +922,7 @@ static __device__ void cross_product(const float a[3], const float b[3], float c
   c[2] =  a[0] * b [1] - a[1] * b [0];
 }
 
-static __global__ void gpu_find_k_and_g_factor(
+static __global__ void find_k_and_G(
   const int Nc,
   const int num_kpoints,
   const float alpha_factor,
@@ -933,7 +933,7 @@ static __global__ void gpu_find_k_and_g_factor(
   float* g_kx,
   float* g_ky,
   float* g_kz,
-  float* g_g_factor)
+  float* g_G)
 {
   int nc = threadIdx.x + blockIdx.x * blockDim.x; // structure index
   if (nc < Nc) {
@@ -971,7 +971,7 @@ static __global__ void gpu_find_k_and_g_factor(
       g_kz[nc_nk] = kz;
       const float ksq = kx * kx + ky * ky + kz * kz;
       const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
-      g_g_factor[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+      g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
     }
   }
 }
@@ -1163,7 +1163,7 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
-    gpu_find_k_and_g_factor<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
+    find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
       dataset[device_id].Nc,
       charge_para.num_kpoints,
       charge_para.alpha_factor,
@@ -1174,10 +1174,10 @@ void NEP_Charge::find_force(
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
-      nep_data[device_id].g_factor.data());
+      nep_data[device_id].G.data());
     GPU_CHECK_KERNEL
 
-    gpu_sum_q_factor<<<dataset[device_id].Nc * charge_para.num_kpoints, 1024>>>(
+    find_structure_factor<<<dataset[device_id].Nc * charge_para.num_kpoints, 1024>>>(
       charge_para.num_kpoints,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
@@ -1188,11 +1188,11 @@ void NEP_Charge::find_force(
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
-      nep_data[device_id].q_factor_real.data(),
-      nep_data[device_id].q_factor_imag.data());
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data());
     GPU_CHECK_KERNEL
 
-    gpu_find_force_charge<<<dataset[device_id].Nc, 1024>>>(
+    find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
       charge_para.num_kpoints,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
@@ -1203,9 +1203,9 @@ void NEP_Charge::find_force(
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
-      nep_data[device_id].g_factor.data(),
-      nep_data[device_id].q_factor_real.data(),
-      nep_data[device_id].q_factor_imag.data(),
+      nep_data[device_id].G.data(),
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,

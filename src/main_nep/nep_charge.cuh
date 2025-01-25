@@ -78,9 +78,9 @@ public:
     GPU_Vector<float> kx;
     GPU_Vector<float> ky;
     GPU_Vector<float> kz;
-    GPU_Vector<float> g_factor;
-    GPU_Vector<float> q_factor_real;
-    GPU_Vector<float> q_factor_imag;
+    GPU_Vector<float> G;
+    GPU_Vector<float> S_real;
+    GPU_Vector<float> S_imag;
   };
 
   struct Charge_Para {
