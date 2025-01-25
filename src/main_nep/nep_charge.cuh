@@ -81,6 +81,7 @@ public:
     GPU_Vector<float> G;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
+    GPU_Vector<float> D_real;
   };
 
   struct Charge_Para {

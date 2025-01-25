@@ -348,6 +348,7 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].G.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].D_real.resize(N);
   }
 }
 
@@ -811,6 +812,7 @@ static __global__ void find_force_charge_reciprocal_space(
   const float* g_G,
   const float* g_S_real,
   const float* g_S_imag,
+  float* g_D_real,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -824,6 +826,7 @@ static __global__ void find_force_charge_reciprocal_space(
     if (n < N2) {
       float temp_energy_sum = 0.0f;
       float temp_force_sum[3] = {0.0f};
+      float temp_D_real_sum = 0.0f;
       for (int nk = 0; nk < num_kpoints; ++nk) {
         const int nc_nk = blockIdx.x * num_kpoints + nk;
         const float kx = g_kx[nc_nk];
@@ -837,11 +840,13 @@ static __global__ void find_force_charge_reciprocal_space(
         sincos(kr, &sin_kr, &cos_kr);
         const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
         temp_energy_sum += G * (S_real * S_real + S_imag * S_imag);
+        temp_D_real_sum += G * (S_real * cos_kr - S_imag * sin_kr);
         temp_force_sum[0] += kx * imag_term;
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
       g_pe[n] += K_C_SP * temp_energy_sum / (N2 - N1);
+      g_D_real[n] = 2.0f * K_C_SP * temp_D_real_sum;
       const float charge_factor = K_C_SP * 2.0f * g_charge[n];
       g_fx[n] += charge_factor * temp_force_sum[0];
       g_fy[n] += charge_factor * temp_force_sum[1];
@@ -1206,6 +1211,7 @@ void NEP_Charge::find_force(
       nep_data[device_id].G.data(),
       nep_data[device_id].S_real.data(),
       nep_data[device_id].S_imag.data(),
+      nep_data[device_id].D_real.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
