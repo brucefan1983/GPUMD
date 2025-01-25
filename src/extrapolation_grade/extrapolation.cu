@@ -204,33 +204,19 @@ void Extrapolation::output_line2()
     f, " pbc=\"%c %c %c\"", box->pbc_x ? 'T' : 'F', box->pbc_y ? 'T' : 'F', box->pbc_z ? 'T' : 'F');
 
   // box
-  if (box->triclinic == 0) {
-    fprintf(
-      f,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box->cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box->cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box->cpu_h[2]);
-  } else {
-    fprintf(
-      f,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box->cpu_h[0],
-      box->cpu_h[3],
-      box->cpu_h[6],
-      box->cpu_h[1],
-      box->cpu_h[4],
-      box->cpu_h[7],
-      box->cpu_h[2],
-      box->cpu_h[5],
-      box->cpu_h[8]);
-  }
+  fprintf(
+    f,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box->cpu_h[0],
+    box->cpu_h[3],
+    box->cpu_h[6],
+    box->cpu_h[1],
+    box->cpu_h[4],
+    box->cpu_h[7],
+    box->cpu_h[2],
+    box->cpu_h[5],
+    box->cpu_h[8]);
+
   fprintf(f, " Properties=species:S:1:pos:R:3");
   fprintf(f, ":gamma:R:1\n");
 }
