@@ -252,7 +252,6 @@ void NEP_Charge::find_k1k2k3()
           charge_para.k1.emplace_back(kx);
           charge_para.k2.emplace_back(ky);
           charge_para.k3.emplace_back(kz);
-          printf("%d (%d %d %d) \n", charge_para.num_kpoints, kx, ky, kz);
         }
       }
     }
