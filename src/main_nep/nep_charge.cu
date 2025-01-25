@@ -850,6 +850,7 @@ static __global__ void find_force_charge_reciprocal_space(
   }
 }
 
+/*
 static __global__ void find_force_charge_real_space(
   const int N,
   const float alpha,
@@ -912,6 +913,7 @@ static __global__ void find_force_charge_real_space(
     g_pe[n1] += s_pe;
   }
 }
+*/
 
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
@@ -1210,6 +1212,7 @@ void NEP_Charge::find_force(
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
+/*
     find_force_charge_real_space<<<grid_size, block_size>>>(
       dataset[device_id].N,
       charge_para.alpha,
@@ -1225,6 +1228,7 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data(),
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
+*/
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
