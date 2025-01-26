@@ -118,7 +118,6 @@ static __global__ void gpu_find_neighbor_list(
   }
 }
 
-template <bool IsTraining>
 static __global__ void find_descriptors_radial(
   const int N,
   const int max_NN_radial,
@@ -130,8 +129,7 @@ static __global__ void find_descriptors_radial(
   const double* __restrict__ g_x12,
   const double* __restrict__ g_y12,
   const double* __restrict__ g_z12,
-  double* g_descriptors,
-  double* g_q_c = nullptr)
+  double* g_descriptors)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -166,29 +164,6 @@ static __global__ void find_descriptors_radial(
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
           gn12 += fn12[k] * annmb.c[c_index];
-          if constexpr (IsTraining) {
-            int g_q_c_index = n1 +
-                              N * i1 +
-                              N * max_NN_radial * n +
-                              N * max_NN_radial * (paramb.n_max_radial + 1) * k;
-            g_q_c[g_q_c_index] = fn12[k];
-          }
-          // 假设:
-          // - N = 1000 (总原子数)
-          // - basis_size_radial = 5 (6阶)
-          // - n_max_radial = 3 (4个径向描述符)
-          // - max_NN_radial = 50 (每个原子最多50个邻居)
-
-          // 访问:
-          // - 第2个原子(n1=2)
-          // - 第30个邻居(i1=30)
-          // - 第1个描述符(n=1)
-          // - 第3阶基函数(k=3)
-
-          // index = 2 + 
-          //         1000 * 30
-          //         1000 * 50 * 1
-          //         1000 * 50 * 4 * 3
         }
         q[n] += gn12;
       }
@@ -408,6 +383,8 @@ static void __global__ find_max_min(const int N, const double* g_q, double* g_q_
   }
   if (tid == 0) {
     g_q_scaler[bid] = min(g_q_scaler[bid], 1.0 / (s_max[0] - s_min[0]));
+    // g_q_scaler[0] = 1.189886166102;
+    // g_q_scaler[1] = 1.236767687471;
   }
 }
 
@@ -935,11 +912,7 @@ static __global__ void compute_grad_radial(
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
           gnp12 += fnp12[k] * annmb.c[c_index];
-
-          int q_c_index = n1 +
-                        N * i1 +
-                        N * max_NN_radial * n +
-                        N * max_NN_radial * (paramb.n_max_radial + 1) * k;
+          int q_c_index = n1 + N * i1 + N * max_NN_radial * k;
           // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij 
           double qp_c_tmp[3] = {
                     fnp12[k] * fp_xyz[0],
@@ -951,7 +924,7 @@ static __global__ void compute_grad_radial(
           int grad_c_index = c_index + annmb.num_ann;
           atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
           atomicAdd(&g_grad_sum[grad_c_index], -f_c_n2 * per_Nc);
-      
+
           atomicAdd(&g_grad_sum[grad_c_index], g_Fp[n1 + n * N] * g_q_c[q_c_index] * per_Nc_e);
 
           // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij * α_ij
@@ -1038,10 +1011,7 @@ static __global__ void compute_grad_radial(
             int index = j * N + n1;
             int n2_tmp = g_NL[index];
             int t2_tmp = g_type[n2_tmp];
-            int q_c_index = n1 +
-                          N * j +
-                          N * max_NN_radial * n +
-                          N * max_NN_radial * (paramb.n_max_radial + 1) * k;
+            int q_c_index = n1 + N * j + N * max_NN_radial * k;
             int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2_tmp; 
             double q_c_scaler = g_q_c[q_c_index] * g_q_scaler[n];
@@ -1127,10 +1097,7 @@ static __global__ void compute_grad_radial(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;  
-          int q_c_index = n1 +
-                        N * i1 +
-                        N * max_NN_radial * n +
-                        N * max_NN_radial * (paramb.n_max_radial + 1) * k;
+          int q_c_index = n1 + N * i1 + N * max_NN_radial * k;
           double q_c_scaler = g_q_c[q_c_index] * g_q_scaler[n];
           double f_c_n1_sum = feat_x_sum[n] * q_c_scaler * dx_n1 + feat_y_sum[n] * q_c_scaler * dy_n1 + feat_z_sum[n] * q_c_scaler * dz_n1;
           int grad_c_index = c_index + annmb.num_ann;
@@ -1157,11 +1124,13 @@ static __global__ void find_force_radial(
   const int* g_NL,
   const NEP3::ParaMB paramb,
   const NEP3::ANN annmb,
+  const int max_NN_radial,
   const int* __restrict__ g_type,
   const double* __restrict__ g_x12,
   const double* __restrict__ g_y12,
   const double* __restrict__ g_z12,
   const double* __restrict__ g_Fp,
+  double* g_q_c,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1196,7 +1165,6 @@ static __global__ void find_force_radial(
       }
       double rcinv = 1.0 / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-      double fn12[MAX_NUM_N];
       double fnp12[MAX_NUM_N];
       double f12[3] = {0.0};
       double tmp_xyz[3] = {d12inv * r12[0], d12inv * r12[1], d12inv * r12[2]};
@@ -1204,7 +1172,7 @@ static __global__ void find_force_radial(
       double feat_y[MAX_NUM_N] = {0.0};
       double feat_z[MAX_NUM_N] = {0.0};
 
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(N, max_NN_radial, paramb.basis_size_radial, rcinv, d12, fc12, fcp12, &g_q_c[n1 + N * i1], fnp12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         double gnp12 = 0.0;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -1500,64 +1468,34 @@ void NEP3::find_force(
         nep_data[device_id].z12_angular.data());
       CUDA_CHECK_KERNEL
     }
-    if (require_grad) {
-      find_descriptors_radial<true><<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].max_NN_radial,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].descriptors.data(),
-        dataset[device_id].gradients.q_c.data());
-      CUDA_CHECK_KERNEL
 
-      find_descriptors_angular<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
-        nep_data[device_id].descriptors.data(),
-        nep_data[device_id].sum_fxyz.data());
-      CUDA_CHECK_KERNEL
-    } else {
-      find_descriptors_radial<false><<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].max_NN_radial,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].descriptors.data());
-      CUDA_CHECK_KERNEL
+    find_descriptors_radial<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      dataset[device_id].max_NN_radial,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].descriptors.data());
+    CUDA_CHECK_KERNEL
 
-      find_descriptors_angular<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
-        nep_data[device_id].descriptors.data(),
-        nep_data[device_id].sum_fxyz.data());
-      CUDA_CHECK_KERNEL
-    }
+    find_descriptors_angular<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
+      nep_data[device_id].descriptors.data(),
+      nep_data[device_id].sum_fxyz.data());
+    CUDA_CHECK_KERNEL
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
@@ -1683,11 +1621,13 @@ void NEP3::find_force(
       nep_data[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
+      dataset[device_id].max_NN_radial,
       dataset[device_id].type.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
       nep_data[device_id].Fp.data(),
+      dataset[device_id].gradients.q_c.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
