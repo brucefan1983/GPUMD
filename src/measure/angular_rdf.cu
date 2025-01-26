@@ -50,9 +50,12 @@ static __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ y,       // 原子y坐标
   const double* __restrict__ z,       // 原子z坐标
   const double* __restrict__ radial_, // 径向距离数组
+  const double* __restrict__ theta_,  // 角度距离数组
   double* rdf_,                       // RDF结果数组
   const int rdf_bins_,                // bin数量
-  const double r_step_)               // 步长
+  const int rdf_theta_bins_,          // bin数量
+  const double r_step_,               // 步长
+  const double theta_step_)           // 步长
 {
   // 获取当前线程处理的原子索引
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -107,16 +110,38 @@ static __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12); // 最小镜像约定
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              double theta = atan2(y12, x12);
 
               // 更新RDF直方图
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
-                if (d2 > r_low && d2 <= r_up) {
-                  // RDF归一化因子计算
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (N * density * r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = radial_[w] - r_step_ / 2;
+                double r_up = radial_[w] + r_step_ / 2;
+                if (d2 > r_low * r_low && d2 <= r_up * r_up) {
+                  printf(
+                    "d2: %f, r_low: %f, r_up: %f, theta: %f\n", d2, r_low, r_up, theta); // DEBUG
+                  printf("x[n2]: %f, y[n2]: %f, z[n2]: %f\n", x[n2], y[n2], z[n2]);      // DEBUG
+                  printf("x[n1]: %f, y[n1]: %f, z[n1]: %f\n", x[n1], y[n1], z[n1]);      // DEBUG
+                  printf("x12: %f, y12: %f, z12: %f\n", x12, y12, z12);                  // DEBUG
+                  printf(
+                    "d2: %f, r_low: %f, r_up: %f, theta: %f\n", d2, r_low, r_up, theta); // DEBUG
+                  for (int t = 0; t < rdf_theta_bins_; t++) {
+                    double theta_low = theta_[t] - theta_step_ / 2;
+                    double theta_up = theta_[t] + theta_step_ / 2;
+                    if (theta > theta_low && theta <= theta_up) {
+                      printf(
+                        "theta: %f, theta_low: %f, theta_up: %f\n",
+                        theta,
+                        theta_low,
+                        theta_up); // DEBUG
+                      // RDF归一化因子计算
+                      double shell_volume =
+                        4.0 / 3.0 * rdf_PI * (r_up * r_up * r_up - r_low * r_low * r_low);
+                      double theta_area = (theta_up - theta_low) / (2 * rdf_PI);
+                      double bin_volume = theta_area * shell_volume;
+                      rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t] +=
+                        1 / (N * density * bin_volume);
+                    }
+                  }
                 }
               }
             }
@@ -148,9 +173,12 @@ static __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ z,
   const int* __restrict__ type,
   const double* __restrict__ radial_,
+  const double* __restrict__ theta_,
   double* rdf_,
   const int rdf_bins_,
-  const double r_step_)
+  const int rdf_theta_bins_,
+  const double r_step_,
+  const double theta_step_)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   double rdf_PI = 3.14159265358979323846;
@@ -197,13 +225,35 @@ static __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              double theta = atan2(y12, x12);
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
-                if (d2 > r_low && d2 <= r_up) {
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = radial_[w] - r_step_ / 2;
+                double r_up = radial_[w] + r_step_ / 2;
+                if (d2 > r_low * r_low && d2 <= r_up * r_up) {
+                  for (int t = 0; t < rdf_theta_bins_; t++) {
+                    double theta_low = theta_[t] - theta_step_ / 2;
+                    double theta_up = theta_[t] + theta_step_ / 2;
+                    if (theta > theta_low && theta <= theta_up) {
+                      printf("theta_low: %f, theta_up: %f\n", theta_low, theta_up); // DEBUG
+                      double shell_volume =
+                        4.0 / 3.0 * rdf_PI * (r_up * r_up * r_up - r_low * r_low * r_low);
+                      double theta_area = (theta_up - theta_low) / (2 * rdf_PI);
+                      double bin_volume = theta_area * shell_volume;
+                      rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t] +=
+                        1 / (num_atom1_ * density2 * bin_volume);
+                      printf("shell_volume: %f\n", shell_volume); // DEBUG
+                      printf("theta_area: %f\n", theta_area);     // DEBUG
+                      printf("density2: %f\n", density2);         // DEBUG
+                      printf("bin_volume: %f\n", bin_volume);     // DEBUG
+                      printf("n1: %d, w: %d, t: %d\n", n1, w, t); // DEBUG
+                      printf(
+                        "rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t]: %f\n",
+                        rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t]); // DEBUG
+                      printf(
+                        "n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t  : %d\n",
+                        n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t); // DEBUG
+                    }
+                  }
                 }
               }
             }
@@ -249,18 +299,39 @@ static __global__ void gpu_find_rdf_ON1(
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= 0 && n2 < N && n1 != n2 && type[n2] == atom_id1_) {
-              double x12 = x[n2] - x1;
-              double y12 = y[n2] - y1;
-              double z12 = z[n2] - z1;
+              double x12 = x1 - x[n2];
+              double y12 = y1 - y[n2];
+              double z12 = z1 - z[n2];
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              double theta = atan2(y12, x12);
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
-                if (d2 > r_low && d2 <= r_up) {
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (num_atom2_ * density1 * r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = radial_[w] - r_step_ / 2;
+                double r_up = radial_[w] + r_step_ / 2;
+                if (d2 > r_low * r_low && d2 <= r_up * r_up) {
+                  for (int t = 0; t < rdf_theta_bins_; t++) {
+                    double theta_low = theta_[t] - theta_step_ / 2;
+                    double theta_up = theta_[t] + theta_step_ / 2;
+                    if (theta > theta_low && theta <= theta_up) {
+                      double shell_volume =
+                        4.0 / 3.0 * rdf_PI * (r_up * r_up * r_up - r_low * r_low * r_low);
+                      double theta_area = (theta_up - theta_low) / (2 * rdf_PI);
+                      double bin_volume = theta_area * shell_volume;
+                      rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t] +=
+                        1 / (num_atom2_ * density1 * bin_volume);
+                      printf("shell_volume: %f\n", shell_volume); // DEBUG
+                      printf("theta_area: %f\n", theta_area);     // DEBUG
+                      printf("density2: %f\n", density2);         // DEBUG
+                      printf("bin_volume: %f\n", bin_volume);     // DEBUG
+                      printf("n1: %d, w: %d, t: %d\n", n1, w, t); // DEBUG
+                      printf(
+                        "rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t]: %f\n",
+                        rdf_[n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t]); // DEBUG
+                      printf(
+                        "n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t  : %d\n",
+                        n1 * rdf_bins_ * rdf_theta_bins_ + w * rdf_theta_bins_ + t); // DEBUG
+                    }
+                  }
                 }
               }
             }
@@ -299,7 +370,7 @@ static __global__ void gpu_find_rdf_ON1(
 void AngularRDF::find_angular_rdf(
   const int bead,
   const int rdf_atom_count,
-  const int rdf_atom_,
+  const int rdf_atom_, // 当前原子对的编号
   int* atom_id1_,
   int* atom_id2_,
   std::vector<int>& atom_id1_typesize,
@@ -317,10 +388,13 @@ void AngularRDF::find_angular_rdf(
   int num_bins_1,
   int num_bins_2,
   const double rc_inv_cell_list,
-  GPU_Vector<double>& radial_,
+  GPU_Vector<double>& radial_, // num_atoms_ * rdf_r_bins_ * rdf_theta_bins_,
+  GPU_Vector<double>& theta_,
   GPU_Vector<double>& rdf_g_,
   const int rdf_r_bins_,
-  const double r_step_)
+  const int rdf_theta_bins_,
+  const double r_step_,
+  const double theta_step_)
 {
   const int N = position_per_atom.size() / 3;
   const int block_size = 256;
@@ -329,8 +403,7 @@ void AngularRDF::find_angular_rdf(
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
 
-  double* rdf_g_ind =
-    rdf_g_.data() + bead * rdf_atom_count * N * rdf_r_bins_ + rdf_atom_ * N * rdf_r_bins_;
+  double* rdf_g_ind = rdf_g_.data() + rdf_atom_ * N * rdf_r_bins_ * rdf_theta_bins_;
 
   if (rdf_atom_ == 0) {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -348,9 +421,12 @@ void AngularRDF::find_angular_rdf(
       y,
       z,
       radial_.data(),
+      theta_.data(),
       rdf_g_ind,
       rdf_r_bins_,
-      r_step_);
+      rdf_theta_bins_,
+      r_step_,
+      theta_step_);
     GPU_CHECK_KERNEL
     // GPU_CHECK_KERNEL 是一个用于检查CUDA核函数执行是否成功的宏定义。
 
@@ -376,9 +452,12 @@ void AngularRDF::find_angular_rdf(
       z,
       type.data(),
       radial_.data(),
+      theta_.data(),
       rdf_g_ind,
       rdf_r_bins_,
-      r_step_);
+      rdf_theta_bins_,
+      r_step_,
+      theta_step_);
     GPU_CHECK_KERNEL
   }
 }
@@ -403,7 +482,7 @@ void AngularRDF::preprocess(
   r_step_ = r_cut_ / rdf_r_bins_;
 
   // 计算角度步长
-  theta_step_ = M_PI / rdf_theta_bins_; // 由于对称性，总角度为180度，角度步长为180度除以角度bin数量
+  theta_step_ = 2 * M_PI / rdf_theta_bins_; // 总角度为360度，角度步长为360度除以角度bin数量
 
   // 初始化径向距离数组
   std::vector<double> radial_cpu(rdf_r_bins_);
@@ -416,7 +495,8 @@ void AngularRDF::preprocess(
   // 初始化角度距离数组
   std::vector<double> theta_cpu(rdf_theta_bins_);
   for (int i = 0; i < rdf_theta_bins_; i++) {
-    theta_cpu[i] = i * theta_step_ + theta_step_ / 2; // 每个bin的中心位置
+    theta_cpu[i] =
+      -M_PI + i * theta_step_ + theta_step_ / 2; // 每个bin的中心位置, atan2 返回值范围为-pi到pi
   }
   theta_.resize(rdf_theta_bins_);
   theta_.copy_from_host(theta_cpu.data()); // 将数据复制到GPU
@@ -442,9 +522,9 @@ void AngularRDF::preprocess(
   }
 
   rdf_g_.resize(
-    num_atoms_ * rdf_r_bins_,
-    0); // 注意这里实际是一个二维数组，rdf_g_的维度为num_atoms_ * rdf_r_bins_
-  rdf_.resize(num_atoms_ * rdf_r_bins_, 0);
+    num_atoms_ * rdf_r_bins_ * rdf_theta_bins_,
+    0); // 注意这里实际是一个三维数组，rdf_g_的维度为num_atoms_ * rdf_r_bins_
+  rdf_.resize(num_atoms_ * rdf_r_bins_ * rdf_theta_bins_, 0);
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
@@ -509,9 +589,12 @@ void AngularRDF::process(
       num_bins[2],
       rc_inv_cell_list,
       radial_,
+      theta_,
       rdf_g_,
       rdf_r_bins_,
-      r_step_);
+      rdf_theta_bins_,
+      r_step_,
+      theta_step_);
   }
 }
 
@@ -519,114 +602,90 @@ void AngularRDF::postprocess(const bool is_pimd, const int number_of_beads)
 {
   if (!compute_)
     return;
+  if (is_pimd)
+    return;
 
-  if (is_pimd) {
+  CHECK(gpuMemcpy(
+    rdf_.data(),
+    rdf_g_.data(),
+    sizeof(double) * num_atoms_ * rdf_r_bins_ * rdf_theta_bins_,
+    gpuMemcpyDeviceToHost));
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
-    CHECK(gpuMemcpy(
-      rdf_.data(),
-      rdf_g_.data(),
-      sizeof(double) * number_of_beads * num_atoms_ * rdf_r_bins_,
-      gpuMemcpyDeviceToHost));
-    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
+  printf(
+    "rdf_[2,0,33,74]1: %f\n",
+    rdf_
+      [2 * rdf_N_ * rdf_r_bins_ * rdf_theta_bins_ + 0 * rdf_r_bins_ * rdf_theta_bins_ +
+       33 * rdf_theta_bins_ + 74]);
+  printf(
+    "rdf_[3,1,33,24]2: %f\n",
+    rdf_
+      [3 * rdf_N_ * rdf_r_bins_ * rdf_theta_bins_ + 1 * rdf_r_bins_ * rdf_theta_bins_ +
+       33 * rdf_theta_bins_ + 24]);
+  printf(
+    "rdf_[2,1,33,74]1: %f\n",
+    rdf_
+      [2 * rdf_N_ * rdf_r_bins_ * rdf_theta_bins_ + 1 * rdf_r_bins_ * rdf_theta_bins_ +
+       33 * rdf_theta_bins_ + 74]);
+  printf(
+    "rdf_[3,0,33,24]2: %f\n",
+    rdf_
+      [3 * rdf_N_ * rdf_r_bins_ * rdf_theta_bins_ + 0 * rdf_r_bins_ * rdf_theta_bins_ +
+       33 * rdf_theta_bins_ + 24]);
 
-    std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_r_bins_, 0.0);
-    for (int k = 0; k < number_of_beads; k++) {
-      for (int a = 0; a < rdf_atom_count; a++) {
-        for (int m = 0; m < rdf_N_; m++) {
-          for (int x = 0; x < rdf_r_bins_; x++) {
-            rdf_average[k * rdf_atom_count * rdf_r_bins_ + a * rdf_r_bins_ + x] +=
-              rdf_[k * num_atoms_ * rdf_r_bins_ + a * rdf_N_ * rdf_r_bins_ + m * rdf_r_bins_ + x] /
-              num_repeat_;
-          }
+  std::vector<double> rdf_average(rdf_atom_count * rdf_r_bins_ * rdf_theta_bins_, 0.0);
+  for (int a = 0; a < rdf_atom_count; a++) {
+    for (int m = 0; m < rdf_N_; m++) {
+      for (int x = 0; x < rdf_r_bins_; x++) {
+        for (int t = 0; t < rdf_theta_bins_; t++) {
+          rdf_average[a * rdf_r_bins_ * rdf_theta_bins_ + x * rdf_theta_bins_ + t] +=
+            rdf_
+              [a * rdf_N_ * rdf_r_bins_ * rdf_theta_bins_ + m * rdf_r_bins_ * rdf_theta_bins_ +
+               x * rdf_theta_bins_ + t] /
+            num_repeat_;
         }
       }
     }
-
-    std::vector<double> rdf_centroid(rdf_atom_count * rdf_r_bins_, 0.0);
-    for (int k = 0; k < number_of_beads; k++) {
-      for (int a = 0; a < rdf_atom_count; a++) {
-        for (int x = 0; x < rdf_r_bins_; x++) {
-          rdf_centroid[a * rdf_r_bins_ + x] +=
-            rdf_average[k * rdf_atom_count * rdf_r_bins_ + a * rdf_r_bins_ + x] / number_of_beads;
-        }
-      }
-    }
-
-    FILE* fid = fopen("rdf.out", "a");
-    fprintf(fid, "#radius");
-    for (int a = 0; a < rdf_atom_count; a++) {
-      if (a == 0) {
-        fprintf(fid, " total");
-      } else {
-        fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
-      }
-    }
-    fprintf(fid, "\n");
-    for (int nc = 0; nc < rdf_r_bins_; nc++) {
-      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
-      for (int a = 0; a < rdf_atom_count; a++) {
-        if (a == 0) {
-          fprintf(fid, " %.5f", rdf_centroid[nc]);
-        } else {
-          fprintf(
-            fid,
-            " %.5f",
-            (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_centroid[a * rdf_r_bins_ + nc]
-                                                   : rdf_centroid[a * rdf_r_bins_ + nc] / 2);
-        }
-      }
-      fprintf(fid, "\n");
-    }
-    fflush(fid);
-    fclose(fid);
-
-  } else {
-
-    CHECK(gpuMemcpy(
-      rdf_.data(),
-      rdf_g_.data(),
-      sizeof(double) * num_atoms_ * rdf_r_bins_,
-      gpuMemcpyDeviceToHost));
-    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
-
-    std::vector<double> rdf_average(rdf_atom_count * rdf_r_bins_, 0.0);
-    for (int a = 0; a < rdf_atom_count; a++) {
-      for (int m = 0; m < rdf_N_; m++) {
-        for (int x = 0; x < rdf_r_bins_; x++) {
-          rdf_average[a * rdf_r_bins_ + x] +=
-            rdf_[a * rdf_N_ * rdf_r_bins_ + m * rdf_r_bins_ + x] / num_repeat_;
-        }
-      }
-    }
-
-    FILE* fid = fopen("rdf.out", "a");
-    fprintf(fid, "#radius");
-    for (int a = 0; a < rdf_atom_count; a++) {
-      if (a == 0) {
-        fprintf(fid, " total");
-      } else {
-        fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
-      }
-    }
-    fprintf(fid, "\n");
-    for (int nc = 0; nc < rdf_r_bins_; nc++) {
-      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
-      for (int a = 0; a < rdf_atom_count; a++) {
-        if (a == 0) {
-          fprintf(fid, " %.5f", rdf_average[nc]);
-        } else {
-          fprintf(
-            fid,
-            " %.5f",
-            (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_average[a * rdf_r_bins_ + nc]
-                                                   : rdf_average[a * rdf_r_bins_ + nc] / 2);
-        }
-      }
-      fprintf(fid, "\n");
-    }
-    fflush(fid);
-    fclose(fid);
   }
+  printf(
+    "rdf_average[special]1: %f\n",
+    rdf_average[2 * rdf_r_bins_ * rdf_theta_bins_ + 33 * rdf_theta_bins_ + 74]);
+  printf(
+    "rdf_average[special]2: %f\n",
+    rdf_average[3 * rdf_r_bins_ * rdf_theta_bins_ + 33 * rdf_theta_bins_ + 24]);
+  FILE* fid = fopen("angular_rdf.out", "a");
+  fprintf(fid, "#radius theta");
+  // print the header
+  for (int a = 0; a < rdf_atom_count; a++) {
+    if (a == 0) {
+      fprintf(fid, " total");
+    } else {
+      fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
+    }
+  }
+  fprintf(fid, "\n");
+  // print the data
+  for (int nc = 0; nc < rdf_r_bins_; nc++) {
+    for (int tc = 0; tc < rdf_theta_bins_; tc++) {
+      fprintf(
+        fid, "%.5f %.5f", nc * r_step_ + r_step_ / 2, -M_PI + tc * theta_step_ + theta_step_ / 2);
+      for (int a = 0; a < rdf_atom_count; a++) {
+        if (a == 0) {
+          fprintf(fid, " %.5f", rdf_average[nc * rdf_theta_bins_ + tc]);
+        } else {
+          fprintf(
+            fid,
+            " %.5f",
+            (atom_id1_[a - 1] == atom_id2_[a - 1])
+              ? rdf_average[a * rdf_r_bins_ * rdf_theta_bins_ + nc * rdf_theta_bins_ + tc]
+              : rdf_average[a * rdf_r_bins_ * rdf_theta_bins_ + nc * rdf_theta_bins_ + tc] / 2);
+        }
+      }
+      fprintf(fid, "\n");
+    }
+  }
+  fflush(fid);
+  fclose(fid);
 
   compute_ = false;
   for (int s = 0; s < 6; s++) {

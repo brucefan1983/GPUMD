@@ -122,8 +122,11 @@ private:
     int num_bins_2,
     const double rc_inv_cell_list, // 截断半径倒数
     GPU_Vector<double>& radial_,   // 径向距离数组
+    GPU_Vector<double>& theta_,    // 角度距离数组
     GPU_Vector<double>& rdf_g_,    // RDF结果
-    const int rdf_bins_,           // bin数量
-    const double r_step_           // 步长
+    const int rdf_r_bins_,         // bin数量
+    const int rdf_theta_bins_,     // bin数量
+    const double r_step_,          // 步长
+    const double theta_step_       // 步长
   );
 };
