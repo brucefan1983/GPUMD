@@ -85,7 +85,7 @@ public:
   };
 
   struct Charge_Para {
-    int kmax = 6;
+    int kmax = 8;
     int num_kpoints = 0;
     std::vector<int> k1;
     std::vector<int> k2;
