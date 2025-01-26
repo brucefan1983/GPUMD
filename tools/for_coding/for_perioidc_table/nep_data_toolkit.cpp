@@ -650,7 +650,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       }
     }
 
-    if (is_considered) {
+    //if (is_considered) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -658,7 +658,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    }
+    //}
   }
   input_energy.close();
   input_stress.close();

@@ -66,6 +66,7 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
 | [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
+| [18]                  | NEMD and NPHug shock methods |
 
 ## References
 
@@ -119,3 +120,6 @@ arXiv:2404.13694 [cond-mat.mtrl-sci]
 
 [17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Esmée Berger, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Jianbin Xu, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430),
 arXiv:2409.04430 [cond-mat.mtrl-sci]
+
+[18] Shuning Pan, Jiuyang Shi, Zhixin Liang, Cong Liu, Junjie Wang, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun, [Shock compression pathways to pyrite silica from machine learning simulations](https://doi.org/10.1103/PhysRevB.110.224101),
+Phys. Rev. B **110**, 224101 (2024).

@@ -134,6 +134,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   weight_cpu.resize(Nc);
   energy_ref_cpu.resize(Nc);
+  energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
   temperature_ref_cpu.resize(N);
@@ -141,6 +142,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
     energy_ref_cpu[n] = structures[n].energy;
+    energy_weight_cpu[n] = structures[n].energy_weight;
     for (int k = 0; k < 6; ++k) {
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
@@ -167,11 +169,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   type_weight_gpu.resize(NUM_ELEMENTS);
   energy_ref_gpu.resize(Nc);
+  energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
+  energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
   temperature_ref_gpu.copy_from_host(temperature_ref_cpu.data());
@@ -436,7 +440,13 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
 }
 
 static __global__ void
-gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
+gpu_get_energy_shift(
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_pe, 
+  float* g_pe_ref, 
+  float* g_pe_weight, 
+  float* g_energy_shift)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -460,12 +470,18 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
 
   if (tid == 0) {
     float diff = s_pe[0] / Na - g_pe_ref[bid];
-    g_energy_shift[bid] = diff;
+    g_energy_shift[bid] = diff * g_pe_weight[bid];
   }
 }
 
 static __global__ void gpu_sum_pe_error(
-  float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
+  float energy_shift, 
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_pe, 
+  float* g_pe_ref, 
+  float* g_pe_weight, 
+  float* error_gpu)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -489,7 +505,7 @@ static __global__ void gpu_sum_pe_error(
 
   if (tid == 0) {
     float diff = s_pe[0] / Na - g_pe_ref[bid] - energy_shift;
-    error_gpu[bid] = diff * diff;
+    error_gpu[bid] = diff * diff * g_pe_weight[bid];
   }
 }
 
@@ -508,12 +524,21 @@ std::vector<float> Dataset::get_rmse_energy(
 
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
-      Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
+      Na.data(), 
+      Na_sum.data(), 
+      energy.data(), 
+      energy_ref_gpu.data(), 
+      energy_weight_gpu.data(), 
+      error_gpu.data());
     CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+    float Nc_with_weight = 0.0f;
     for (int n = 0; n < Nc; ++n) {
+      Nc_with_weight += energy_weight_cpu[n];
       energy_shift_per_structure += error_cpu[n];
     }
-    energy_shift_per_structure /= Nc;
+    if (Nc_with_weight > 0.0f) {
+      energy_shift_per_structure /= Nc_with_weight;
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
@@ -522,6 +547,7 @@ std::vector<float> Dataset::get_rmse_energy(
     Na_sum.data(),
     energy.data(),
     energy_ref_gpu.data(),
+    energy_weight_gpu.data(), 
     error_gpu.data());
   CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 

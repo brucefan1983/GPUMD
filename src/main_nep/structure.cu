@@ -155,6 +155,15 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
+    }
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
@@ -496,6 +505,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].weight = structures[nc].weight;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
+    structures_copy[nc].energy_weight = structures[nc].energy_weight;
     structures_copy[nc].has_temperature = structures[nc].has_temperature;
     structures_copy[nc].temperature = structures[nc].temperature;
     structures_copy[nc].volume = structures[nc].volume;
@@ -534,6 +544,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].weight = structures_copy[configuration_id[nc]].weight;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
+    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
     structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
     structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
     structures[nc].volume = structures_copy[configuration_id[nc]].volume;

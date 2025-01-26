@@ -158,10 +158,6 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (version == 5 && train_mode != 0) {
-    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
-  }
-
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -193,8 +189,6 @@ void Parameters::calculate_parameters()
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-  } else if (version == 5) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
   }
 
   number_of_variables_descriptor =
@@ -541,8 +535,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 5) {
-    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
