@@ -5,6 +5,9 @@ Glossary
 
 .. glossary::
 
+   ARDF
+        :ref:`angular-dependent radial distribution function <angular_rdf>`
+
    ACE
         atomic cluster expansion [Drautz2019]_
 
