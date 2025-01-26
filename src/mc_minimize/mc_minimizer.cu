@@ -32,7 +32,7 @@ MC_Minimizer::MC_Minimizer(const char** param, int num_param)
   } else if (strcmp(param[1], "test") == 0) {
     mc_output << "Step" << "\t" << "Maximum displacement" << "\t" << "Average displacement" 
     << "\t" << "Local energy difference" << "\t" << "Global energy difference" << "\t" <<  "Accept ratio"
-    << "\t" << "Local probability" << "\t" << "Global probability" << std::endl;
+    << "\t" << "Local probability" << "\t" << "Global probability" << "\t" << "Accelerate ratio" << std::endl;
   }
 
 

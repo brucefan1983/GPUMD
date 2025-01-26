@@ -515,6 +515,68 @@ void MC_Minimizer_Test::compute(
       type_j = atom.cpu_type[j];
     }
 
+    //measure the running time
+    auto start_time_global = std::chrono::high_resolution_clock::now();
+    //calculate the global relaxation energy after swap
+    force.potentials[0]->N2 = atom.number_of_atoms;
+    Atom atom_global_copy;
+    atom_global_copy.number_of_atoms = N;
+    atom_global_copy.mass.resize(N);
+    atom_global_copy.type.resize(N);
+    atom_global_copy.potential_per_atom.resize(N, 0);
+    atom_global_copy.force_per_atom.resize(3 * N, 0);
+    atom_global_copy.velocity_per_atom.resize(3 * N, 0);
+    atom_global_copy.position_per_atom.resize(3 * N);
+    atom_global_copy.virial_per_atom.resize(9 * N, 0);
+
+    atom_global_copy.mass.copy_from_device(atom_global.mass.data(), N);
+    atom_global_copy.type.copy_from_device(atom_global.type.data(), N);
+    atom_global_copy.position_per_atom.copy_from_device(atom_global.position_per_atom.data(), 3 * N);
+    //calculate the global energy before swap
+    force.compute(
+      box,
+      atom_global.position_per_atom,
+      atom_global.type,
+      group,
+      atom_global.potential_per_atom,
+      atom_global.force_per_atom,
+      atom_global.virial_per_atom);
+    double pe_before_total_global = 0;
+    std::vector<double> pe_before_cpu_global(N);
+    atom_global.potential_per_atom.copy_to_host(pe_before_cpu_global.data(), N);
+    //calculate the energy after swap
+    exchange<<<1, 1>>>(
+      i,
+      j,
+      type_i,
+      type_j,
+      atom_global_copy.type.data(),
+      atom_global_copy.mass.data(),
+      atom_global_copy.velocity_per_atom.data(),
+      atom_global_copy.velocity_per_atom.data() + N,
+      atom_global_copy.velocity_per_atom.data() + N * 2);
+
+    Minimizer_FIRE minimizer_compare_global(N, max_relax_steps, force_tolerance);
+    minimizer_compare_global.compute(
+      force,
+      box,
+      atom_global_copy.position_per_atom,
+      atom_global_copy.type,
+      group,
+      atom_global_copy.potential_per_atom,
+      atom_global_copy.force_per_atom,
+      atom_global_copy.virial_per_atom);
+    double pe_after_total_global = 0;
+    std::vector<double> pe_after_cpu_global(N);
+    atom_global_copy.potential_per_atom.copy_to_host(pe_after_cpu_global.data(), N);
+    for (int n = 0; n < N; ++n) {
+      pe_after_total_global += pe_after_cpu_global[n];
+      pe_before_total_global += pe_before_cpu_global[n];
+    }
+    auto end_time_global = std::chrono::high_resolution_clock::now();
+    auto duration_global = std::chrono::duration_cast<std::chrono::microseconds>(end_time_global - start_time_global).count();
+    //measure the local running time
+    auto start_time_local = std::chrono::high_resolution_clock::now();
     Atom local_atoms;
     //find local atoms
     GPU_Vector<int> local_i;  //the local index of i atom
@@ -650,69 +712,16 @@ void MC_Minimizer_Test::compute(
     for (int n = 0; n < local_N_cpu; ++n) {
       pe_after_total += pe_after_cpu[n];
     }
+    auto end_time_local = std::chrono::high_resolution_clock::now();
+    auto duration_local = std::chrono::duration_cast<std::chrono::microseconds>(end_time_local - start_time_local).count();
+
+    //determine if change or not
     //printf("        energy before swapping = %g.10 eV.\n", pe_before_total);
     //printf("        energy after swapping = %g.10 eV.\n", pe_after_total);
     double energy_difference = pe_after_total - pe_before_total;
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
     double probability = exp(-energy_difference / (K_B * temperature));
-
-    //calculate the global relaxation energy after swap
-    force.potentials[0]->N2 = atom.number_of_atoms;
-    Atom atom_global_copy;
-    atom_global_copy.number_of_atoms = N;
-    atom_global_copy.mass.resize(N);
-    atom_global_copy.type.resize(N);
-    atom_global_copy.potential_per_atom.resize(N, 0);
-    atom_global_copy.force_per_atom.resize(3 * N, 0);
-    atom_global_copy.velocity_per_atom.resize(3 * N, 0);
-    atom_global_copy.position_per_atom.resize(3 * N);
-    atom_global_copy.virial_per_atom.resize(9 * N, 0);
-
-    atom_global_copy.mass.copy_from_device(atom_global.mass.data(), N);
-    atom_global_copy.type.copy_from_device(atom_global.type.data(), N);
-    atom_global_copy.position_per_atom.copy_from_device(atom_global.position_per_atom.data(), 3 * N);
-    //calculate the global energy before swap
-    force.compute(
-      box,
-      atom_global.position_per_atom,
-      atom_global.type,
-      group,
-      atom_global.potential_per_atom,
-      atom_global.force_per_atom,
-      atom_global.virial_per_atom);
-    double pe_before_total_global = 0;
-    std::vector<double> pe_before_cpu_global(N);
-    atom_global.potential_per_atom.copy_to_host(pe_before_cpu_global.data(), N);
-    //calculate the energy after swap
-    exchange<<<1, 1>>>(
-      i,
-      j,
-      type_i,
-      type_j,
-      atom_global_copy.type.data(),
-      atom_global_copy.mass.data(),
-      atom_global_copy.velocity_per_atom.data(),
-      atom_global_copy.velocity_per_atom.data() + N,
-      atom_global_copy.velocity_per_atom.data() + N * 2);
-
-    Minimizer_FIRE minimizer_compare_global(N, max_relax_steps, force_tolerance);
-    minimizer_compare_global.compute(
-      force,
-      box,
-      atom_global_copy.position_per_atom,
-      atom_global_copy.type,
-      group,
-      atom_global_copy.potential_per_atom,
-      atom_global_copy.force_per_atom,
-      atom_global_copy.virial_per_atom);
-    double pe_after_total_global = 0;
-    std::vector<double> pe_after_cpu_global(N);
-    atom_global_copy.potential_per_atom.copy_to_host(pe_after_cpu_global.data(), N);
-    for (int n = 0; n < N; ++n) {
-      pe_after_total_global += pe_after_cpu_global[n];
-      pe_before_total_global += pe_before_cpu_global[n];
-    }
 
       //get the output data
     GPU_Vector<double> outer_atoms_flags(local_N_cpu);
@@ -746,9 +755,10 @@ void MC_Minimizer_Test::compute(
     max_displacement.copy_to_host(&max_value);
     double energy_difference_global = pe_after_total_global - pe_before_total_global;
     double probability_global = exp(-energy_difference_global / (K_B * temperature));
+    double accelerate_ratio = (double)(duration_global - duration_local) / duration_global;
       mc_output<< step << "\t" << max_value << "\t" << average_displacement 
       << "\t" << energy_difference << "\t" << energy_difference_global << "\t" << num_accepted / double(step)
-      << "\t" << probability << "\t" << probability_global << std::endl;
+      << "\t" << probability << "\t" << probability_global << "\t" << accelerate_ratio << std::endl;
 
     if (random_number < probability) {
       ++num_accepted;
