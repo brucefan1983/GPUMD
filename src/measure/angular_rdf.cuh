@@ -42,7 +42,7 @@ public:
   // 每个bin的径向步长
   double r_step_;
 
-  // 每个bin的角度步长
+  // 每个angular bin的角度步长
   double theta_step_;
 
   // 采样间隔步数（默认为100步采样一次）
