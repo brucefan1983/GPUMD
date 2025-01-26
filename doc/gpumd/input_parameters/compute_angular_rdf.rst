@@ -9,6 +9,17 @@ This keyword is used to compute the angular-dependent radial distribution functi
 It works for classical :term:`MD`.
 The results will be written to the :ref:`angular_rdf.out <angular_rdf_out>` file.
 
+Mathematical details
+--------------------
+
+The ARDF is defined as
+
+.. math::
+   
+   g (r, \theta) = \frac{n (r, \theta)}{rho 2 r^2 \Delta r \Delta \theta}
+
+where :math:`n (r, \theta)` is the number of pairs of atoms at a distance :math:`r` and an angle :math:`\theta` from each other, :math:`\rho` is the number density, :math:`r` is the distance between the atoms, :math:`\theta` is the angle between the atoms, :math:`\Delta r` is the bin width in distance, and :math:`\Delta \theta` is the bin width in angle.
+
 Syntax
 ------
 
