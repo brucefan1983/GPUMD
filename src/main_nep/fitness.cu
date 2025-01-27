@@ -195,6 +195,8 @@ void Fitness::compute(
           if (para.has_charge) {
             fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] =
               para.lambda_q * rmse_charge_array[t];
+          } else {
+            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = 0.0f;
           }
         }
       }

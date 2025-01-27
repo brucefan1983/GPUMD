@@ -92,8 +92,8 @@ public:
     GPU_Vector<int> k1_gpu;
     GPU_Vector<int> k2_gpu;
     GPU_Vector<int> k3_gpu;
-    float alpha = 1.0f; // 1 / (2 Angstrom)
-    float alpha_factor = 0.25f; // 1 / (4 * alpha * alpha)
+    float alpha = 0.5f; // 1 / (2 Angstrom)
+    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   };
 
   struct ZBL {
