@@ -179,3 +179,4 @@ Output files
    lsqt_dos_out
    lsqt_velocity_out
    lsqt_sigma_out
+   angular_rdf_out
