@@ -520,14 +520,14 @@ static void check_min_distance(const Atom& atom, const Box& box)
     }
   }
 
-  if (min_distance < 2.0) {
-    printf("Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 2 Å.\n",
+  if (min_distance < 1.0) {
+    printf("Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 1 Å.\n",
            min_distance,
            min_i,
            atom.cpu_atom_symbol[min_i].c_str(),
            min_j,
            atom.cpu_atom_symbol[min_j].c_str());
-    PRINT_INPUT_ERROR("There are two atoms with a distance less than 2 Å.");
+    PRINT_INPUT_ERROR("There are two atoms with a distance less than 1 Å.");
   } else if (min_i != -1 && min_j != -1) {
     printf("Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
            min_i,
