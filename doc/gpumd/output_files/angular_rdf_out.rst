@@ -8,7 +8,7 @@
 This file contains the angular-dependent radial distribution function (:term:`ARDF`) data.
 
 File Format
-----------
+-----------
 
 The file has the following columns:
 
