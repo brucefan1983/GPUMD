@@ -23,50 +23,36 @@
 class Group;
 class Atom;
 
-// 角度相关的径向分布函数（Angular-dependent RDF）计算类
 class AngularRDF
 {
 public:
-  // 控制是否执行AngularRDF计算的标志
   bool compute_ = false;
 
-  // 截断半径（默认为8.0）
   double r_cut_ = 8.0;
 
-  // 径向方向的bin数量（默认为100）
   int rdf_r_bins_ = 100;
 
-  // 角度方向的bin数量（默认为100）
   int rdf_theta_bins_ = 100;
 
-  // 每个bin的径向步长
   double r_step_;
 
-  // 每个angular bin的角度步长
-  double theta_step_;
+  double theta_step_; // angular step size
 
-  // 采样间隔步数（默认为100步采样一次）
-  int num_interval_ = 100;
+  int num_interval_ = 100; // sampling interval step
 
-  // 用于存储原子类型对的数组（最多支持6对）
-  // -1表示未指定
   int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
   int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
 
-  // 预处理函数：初始化计算所需的数据结构
   void preprocess(
     const bool is_pimd,
-    const int number_of_beads, // PIMD珠子数量
-    const int num_atoms,       // 原子总数
+    const int number_of_beads,
+    const int num_atoms,
     std::vector<int>& cpu_type_size);
 
-  // 处理函数：执行RDF计算
   void process(const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom);
 
-  // 后处理函数：输出计算结果
   void postprocess(const bool is_pimd, const int number_of_beads);
 
-  // 解析输入参数
   void parse(
     const char** param,
     const int num_param,
