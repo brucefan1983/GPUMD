@@ -17,15 +17,16 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_75
+CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
 endif
-INC = -I./ -I${HOME}/repos/netcdf/include
-LDFLAGS = -L${HOME}/repos/netcdf/lib
-LIBS = -lcublas -lcusolver -l:libnetcdf.a
+INC = -I./
+LDFLAGS = 
+LIBS = -lcublas -lcusolver
+
 
 ###########################################################
 # source files
