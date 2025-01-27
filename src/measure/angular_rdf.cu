@@ -444,8 +444,8 @@ void AngularRDF::preprocess(
   r_step_ = r_cut_ / rdf_r_bins_;
 
   // calculate theta step size
-  theta_step_ = 2 * M_PI / rdf_theta_bins_; // total angle is 360 degrees, theta step size is 360
-                                            // degrees divided by theta bin number
+  theta_step_ = 2 * PI / rdf_theta_bins_; // total angle is 360 degrees, theta step size is 360
+                                          // degrees divided by theta bin number
 
   // initialize radial distance array
   std::vector<double> radial_cpu(rdf_r_bins_);
@@ -458,7 +458,7 @@ void AngularRDF::preprocess(
   // initialize theta distance array
   std::vector<double> theta_cpu(rdf_theta_bins_);
   for (int i = 0; i < rdf_theta_bins_; i++) {
-    theta_cpu[i] = -M_PI + i * theta_step_ +
+    theta_cpu[i] = -PI + i * theta_step_ +
                    theta_step_ / 2; // center of each bin, atan2 returns value range is -pi to pi
   }
   theta_.resize(rdf_theta_bins_);
@@ -598,7 +598,7 @@ void AngularRDF::postprocess(const bool is_pimd, const int number_of_beads)
   for (int nc = 0; nc < rdf_r_bins_; nc++) {
     for (int tc = 0; tc < rdf_theta_bins_; tc++) {
       fprintf(
-        fid, "%.5f %.5f", nc * r_step_ + r_step_ / 2, -M_PI + tc * theta_step_ + theta_step_ / 2);
+        fid, "%.5f %.5f", nc * r_step_ + r_step_ / 2, -PI + tc * theta_step_ + theta_step_ / 2);
       for (int a = 0; a < rdf_atom_count; a++) {
         if (a == 0) {
           fprintf(fid, " %.5f", rdf_average[nc * rdf_theta_bins_ + tc]);
