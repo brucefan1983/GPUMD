@@ -61,6 +61,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_viscosity
    compute_lsqt
    compute_rdf
+   compute_angular_rdf
 
 .. toctree::
    :maxdepth: 1

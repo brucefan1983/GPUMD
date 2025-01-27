@@ -5,6 +5,9 @@ Glossary
 
 .. glossary::
 
+   ARDF
+        angular-dependent radial distribution function
+
    ACE
         atomic cluster expansion [Drautz2019]_
 

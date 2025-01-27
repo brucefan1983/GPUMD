@@ -40,6 +40,7 @@
 #include "model/group.cuh"
 #include "msd.cuh"
 #include "rdf.cuh"
+#include "angular_rdf.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -97,6 +98,7 @@ public:
   HAC hac;
   ADF adf;
   RDF rdf;
+  AngularRDF angular_rdf;
   Viscosity viscosity;
   SHC shc;
   HNEMD hnemd;
