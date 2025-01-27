@@ -33,58 +33,55 @@ Calculate:
 
 namespace
 {
-// GPU核函数：计算单一原子类型的RDF
 static __global__ void gpu_find_rdf_ON1(
-  //__global__,  CPU调用，GPU执行; __device__, 只能在GPU上调用和执行;
-  //__host__, 只能在CPU上调用和执行.
-  const int N,                            // 总原子数
-  const double density,                   // 系统密度
-  const Box box,                          // 模拟盒子
-  const int* __restrict__ cell_counts,    // 每个晶胞的原子数
-  const int* __restrict__ cell_count_sum, // 晶胞原子数累积和
-  const int* __restrict__ cell_contents,  // 晶胞中的原子索引
+  const int N,                            // total number of atoms
+  const double density,                   // system density
+  const Box box,                          // simulation box
+  const int* __restrict__ cell_counts,    // number of atoms in each cell
+  const int* __restrict__ cell_count_sum, // cumulative sum of atoms in cells
+  const int* __restrict__ cell_contents,  // atom indices in each cell
   const int nx,
   const int ny,
-  const int nz,                       // 晶胞网格维度
-  const double rc_inv,                // 截断半径倒数
-  const double* __restrict__ x,       // 原子x坐标
-  const double* __restrict__ y,       // 原子y坐标
-  const double* __restrict__ z,       // 原子z坐标
-  const double* __restrict__ radial_, // 径向距离数组
-  const double* __restrict__ theta_,  // 角度距离数组
-  double* rdf_,                       // RDF结果数组
-  const int rdf_bins_,                // bin数量
-  const int rdf_theta_bins_,          // bin数量
-  const double r_step_,               // 步长
-  const double theta_step_)           // 步长
+  const int nz,
+  const double rc_inv,                // cutoff radius inverse
+  const double* __restrict__ x,       // atom x coordinates
+  const double* __restrict__ y,       // atom y coordinates
+  const double* __restrict__ z,       // atom z coordinates
+  const double* __restrict__ radial_, // radial distance array
+  const double* __restrict__ theta_,  // angular distance array
+  double* rdf_,                       // RDF results array
+  const int rdf_bins_,                // number of bins
+  const int rdf_theta_bins_,          // number of bins
+  const double r_step_,               // radial step size
+  const double theta_step_)           // theta step size
 {
-  // 获取当前线程处理的原子索引
+  // get current atom index
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   double rdf_PI = 3.14159265358979323846;
 
   if (n1 < N) {
-    // 获取当前原子的坐标
+    // get current atom coordinates
     const double x1 = x[n1];
     const double y1 = y[n1];
     const double z1 = z[n1];
 
-    // 计算当前原子所在的晶胞ID
+    // calculate current atom cell ID
     int cell_id;
     int cell_id_x, cell_id_y, cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    // 根据周期性边界条件设置搜索范围
+    // set search range according to periodic boundary conditions
     const int z_lim = box.pbc_z ? 2 : 0;
     const int y_lim = box.pbc_y ? 2 : 0;
     const int x_lim = box.pbc_x ? 2 : 0;
 
-    // 遍历邻近晶胞
+    // loop over neighboring cells
     for (int k = -z_lim; k <= z_lim; ++k) {
       for (int j = -y_lim; j <= y_lim; ++j) {
         for (int i = -x_lim; i <= x_lim; ++i) {
-          // 计算邻近晶胞ID并处理周期性边界
+          // calculate neighboring cell ID and handle periodic boundary conditions
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
-          // 周期性边界处理代码
+          // handle periodic boundary conditions
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
           if (cell_id_x + i >= nx)
@@ -98,22 +95,22 @@ static __global__ void gpu_find_rdf_ON1(
           if (cell_id_z + k >= nz)
             neighbor_cell -= nz * ny * nx;
 
-          // 遍历邻近晶胞中的原子
+          // loop over atoms in neighboring cell
           const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
           const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
 
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= 0 && n2 < N && n1 != n2) {
-              // 计算原子对之间的距离
+              // calculate distance between atom pairs
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
-              apply_mic(box, x12, y12, z12); // 最小镜像约定
+              apply_mic(box, x12, y12, z12); // minimum image convention
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               double theta = atan2(y12, x12);
 
-              // 更新angular RDF直方图
+              // update angular RDF histogram
               for (int w = 0; w < rdf_bins_; w++) {
                 double r_low = radial_[w] - r_step_ / 2;
                 double r_up = radial_[w] + r_step_ / 2;
@@ -122,7 +119,7 @@ static __global__ void gpu_find_rdf_ON1(
                     double theta_low = theta_[t] - theta_step_ / 2;
                     double theta_up = theta_[t] + theta_step_ / 2;
                     if (theta > theta_low && theta <= theta_up) {
-                      //  RDF归一化因子计算
+                      //  RDF normalization factor calculation
                       double shell_volume =
                         4.0 / 3.0 * rdf_PI * (r_up * r_up * r_up - r_low * r_low * r_low);
                       double theta_area = (theta_up - theta_low) / (2 * rdf_PI);
@@ -336,7 +333,7 @@ static __global__ void gpu_find_rdf_ON1(
 void AngularRDF::find_angular_rdf(
   const int bead,
   const int rdf_atom_count,
-  const int rdf_atom_, // 当前原子对的编号
+  const int rdf_atom_, // Current atom pair index
   int* atom_id1_,
   int* atom_id2_,
   std::vector<int>& atom_id1_typesize,
@@ -354,7 +351,7 @@ void AngularRDF::find_angular_rdf(
   int num_bins_1,
   int num_bins_2,
   const double rc_inv_cell_list,
-  GPU_Vector<double>& radial_, // num_atoms_ * rdf_r_bins_ * rdf_theta_bins_,
+  GPU_Vector<double>& radial_, // Size: num_atoms_ * rdf_r_bins_ * rdf_theta_bins_
   GPU_Vector<double>& theta_,
   GPU_Vector<double>& rdf_g_,
   const int rdf_r_bins_,
@@ -394,7 +391,7 @@ void AngularRDF::find_angular_rdf(
       r_step_,
       theta_step_);
     GPU_CHECK_KERNEL
-    // GPU_CHECK_KERNEL 是一个用于检查CUDA核函数执行是否成功的宏定义。
+    // GPU_CHECK_KERNEL is a macro for checking if the CUDA kernel execution is successful.
 
   } else {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -428,60 +425,56 @@ void AngularRDF::find_angular_rdf(
   }
 }
 
-// 预处理函数:初始化角度相关RDF计算所需的数据结构
 void AngularRDF::preprocess(
-  const bool is_pimd,              // 是否为路径积分分子动力学
-  const int number_of_beads,       // PIMD珠子数量
-  const int num_atoms,             // 系统总原子数
-  std::vector<int>& cpu_type_size) // 每种原子类型的数量
+  const bool is_pimd,              // whether PIMD
+  const int number_of_beads,       // number of beads in PIMD
+  const int num_atoms,             // total number of atoms
+  std::vector<int>& cpu_type_size) // number of atoms for each type
 {
-  // 如果不需要计算RDF则直接返回
+  // if not compute RDF, return directly
   if (!compute_)
     return;
 
-  // 如果为PIMD则直接返回, 当前不支持PIMD
+  // if PIMD, return directly, currently not support PIMD
   if (is_pimd) {
     return;
   }
 
-  // 计算径向步长
+  // calculate radial step size
   r_step_ = r_cut_ / rdf_r_bins_;
 
-  // 计算角度步长
-  theta_step_ = 2 * M_PI / rdf_theta_bins_; // 总角度为360度，角度步长为360度除以角度bin数量
+  // calculate theta step size
+  theta_step_ = 2 * M_PI / rdf_theta_bins_; // total angle is 360 degrees, theta step size is 360
+                                            // degrees divided by theta bin number
 
-  // 初始化径向距离数组
+  // initialize radial distance array
   std::vector<double> radial_cpu(rdf_r_bins_);
   for (int i = 0; i < rdf_r_bins_; i++) {
-    radial_cpu[i] = i * r_step_ + r_step_ / 2; // 每个bin的中心位置
+    radial_cpu[i] = i * r_step_ + r_step_ / 2; // center of each bin
   }
   radial_.resize(rdf_r_bins_);
-  radial_.copy_from_host(radial_cpu.data()); // 将数据复制到GPU
+  radial_.copy_from_host(radial_cpu.data()); // copy data to GPU
 
-  // 初始化角度距离数组
+  // initialize theta distance array
   std::vector<double> theta_cpu(rdf_theta_bins_);
   for (int i = 0; i < rdf_theta_bins_; i++) {
-    theta_cpu[i] =
-      -M_PI + i * theta_step_ + theta_step_ / 2; // 每个bin的中心位置, atan2 返回值范围为-pi到pi
+    theta_cpu[i] = -M_PI + i * theta_step_ +
+                   theta_step_ / 2; // center of each bin, atan2 returns value range is -pi to pi
   }
   theta_.resize(rdf_theta_bins_);
-  theta_.copy_from_host(theta_cpu.data()); // 将数据复制到GPU
+  theta_.copy_from_host(theta_cpu.data());
 
-  // 设置原子数相关参数
-  rdf_N_ = num_atoms;
-  num_atoms_ =
-    num_atoms * rdf_atom_count; // rdf_atom_count为原子对数量, num_atoms_为考虑所有原子对后的原子数
+  num_atoms_ = num_atoms * rdf_atom_count;
 
-  // 分配密度数组空间
   density1.resize(rdf_atom_count);
   density2.resize(rdf_atom_count);
 
-  // 分配原子类型大小数组空间
   atom_id1_typesize.resize(
-    rdf_atom_count - 1); // 我们总是考虑计算所有原子间的Angular RDF，这里只存储Partial AngularRDF
+    rdf_atom_count -
+    1); // we always consider the calculation of all atom pairs, here only store Partial AngularRDF
   atom_id2_typesize.resize(rdf_atom_count - 1);
 
-  // 初始化原子类型数目数组
+  // initialize atom type size array
   for (int a = 0; a < rdf_atom_count - 1; a++) {
     atom_id1_typesize[a] = cpu_type_size[atom_id1_[a]];
     atom_id2_typesize[a] = cpu_type_size[atom_id2_[a]];
@@ -497,24 +490,24 @@ void AngularRDF::preprocess(
 void AngularRDF::process(
   const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom)
 {
-  // 如果为PIMD则直接返回, 当前不支持PIMD
+  // if PIMD, return directly, currently not support PIMD
   if (is_pimd) {
     return;
   }
 
-  // 如果不需要计算RDF则直接返回
+  // if not compute RDF, return directly
   if (!compute_)
     return;
 
-  // 如果步数不是采样间隔的倍数则直接返回
+  // if step is not a multiple of num_interval_, return directly
   if ((step + 1) % num_interval_ != 0) {
     return;
   }
 
-  // 重复次数
+  // repeat times
   num_repeat_++;
 
-  // 计算数密度
+  // calculate number density
   density1[0] = rdf_N_ / box.get_volume();
   density2[0] = rdf_N_ / box.get_volume();
   for (int a = 0; a < rdf_atom_count - 1; a++) {

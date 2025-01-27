@@ -99,34 +99,34 @@ private:
   GPU_Vector<int> cell_count_sum; // 晶胞原子数的累积和
   GPU_Vector<int> cell_contents;  // 晶胞中的原子索引
 
-  // 计算角度相关RDF的核心函数
+  // Core function to calculate angular-dependent RDF
   void find_angular_rdf(
-    const int bead,           // PIMD珠子索引
-    const int rdf_atom_count, // 原子对数量
-    const int rdf_atom_,      // 当前原子对索引
-    int* atom_id1_,           // 第一种原子类型数组
-    int* atom_id2_,           // 第二种原子类型数组
+    const int bead,           // PIMD bead index
+    const int rdf_atom_count, // Number of atom pairs
+    const int rdf_atom_,      // Current atom pair index
+    int* atom_id1_,           // Array of first atom type IDs
+    int* atom_id2_,           // Array of second atom type IDs
     std::vector<int>& atom_id1_typesize,
     std::vector<int>& atom_id2_typesize,
     std::vector<double>& density1,
     std::vector<double>& density2,
-    double rc,                                   // 截断半径
-    Box& box,                                    // 模拟盒子
-    const GPU_Vector<int>& type,                 // 原子类型
-    const GPU_Vector<double>& position_per_atom, // 原子位置
+    double rc,                                   // Cutoff radius
+    Box& box,                                    // Simulation box
+    const GPU_Vector<int>& type,                 // Atom types
+    const GPU_Vector<double>& position_per_atom, // Atom positions
     GPU_Vector<int>& cell_count,
     GPU_Vector<int>& cell_count_sum,
     GPU_Vector<int>& cell_contents,
     int num_bins_0,
     int num_bins_1,
     int num_bins_2,
-    const double rc_inv_cell_list, // 截断半径倒数
-    GPU_Vector<double>& radial_,   // 径向距离数组
-    GPU_Vector<double>& theta_,    // 角度距离数组
-    GPU_Vector<double>& rdf_g_,    // RDF结果
-    const int rdf_r_bins_,         // bin数量
-    const int rdf_theta_bins_,     // bin数量
-    const double r_step_,          // 步长
-    const double theta_step_       // 步长
+    const double rc_inv_cell_list, // Inverse of cell list cutoff
+    GPU_Vector<double>& radial_,   // Radial distance array
+    GPU_Vector<double>& theta_,    // Angular distance array
+    GPU_Vector<double>& rdf_g_,    // RDF results
+    const int rdf_r_bins_,         // Number of radial bins
+    const int rdf_theta_bins_,     // Number of angular bins
+    const double r_step_,          // Radial step size
+    const double theta_step_       // Angular step size
   );
 };
