@@ -464,6 +464,7 @@ void AngularRDF::preprocess(
   theta_.resize(rdf_theta_bins_);
   theta_.copy_from_host(theta_cpu.data());
 
+  rdf_N_ = num_atoms;
   num_atoms_ = num_atoms * rdf_atom_count;
 
   density1.resize(rdf_atom_count);
