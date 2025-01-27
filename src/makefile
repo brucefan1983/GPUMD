@@ -1,7 +1,8 @@
 ###########################################################
 # Note: 
 # 1) You can modify -arch=sm_60 according to 
-#    your GPU architecture.
+#    your GPU architecture. For compute capability < 6.0,
+#    need to add -DUSE_KEPLER to CFLAGS.
 # 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
@@ -16,16 +17,15 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_60
+CUDA_ARCH=-arch=sm_75
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
 endif
-INC = -I./
-LDFLAGS = 
-LIBS = -lcublas -lcusolver
-
+INC = -I./ -I${HOME}/repos/netcdf/include
+LDFLAGS = -L${HOME}/repos/netcdf/lib
+LIBS = -lcublas -lcusolver -l:libnetcdf.a
 
 ###########################################################
 # source files

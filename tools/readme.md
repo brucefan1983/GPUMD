@@ -25,6 +25,8 @@
 | mtp2nep              | Who? |                                                     | Outdated?                                                    |
 | mtp2xyz              | Ke Xu | twtdq@qq.com       | Convert `MTP` training data to xyz format.                   |
 | nep2xyz              | Ke Xu        | twtdq@qq.com                                        | Outdated?                                                    |
+| orca2xyz | Zherui Chen | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
+| pbc_mol | Zherui Chen | chenzherui0124@foxmail.com | It processes XYZ trajectory files of molecular simulations to ensure that molecules remain intact across periodic boundaries in the simulation box. |
 | pca_sampling         | Penghua Ying | hityingph@163.com | Farthest-point sampling based on `calorine`.                 |
 | perturbed2poscar     | Who?         |                                                         | What?                                                        |
 | rdf_adf              | Ke Xu        | twtdq@qq.com             | Calculate RDF and ADF using `OVITO`.                         |
@@ -50,3 +52,4 @@
 | `pynep`        | https://github.com/bigd4/PyNEP                 | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
 | `somd`         | https://github.com/initqp/somd                 | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
 | `NepTrainKit`  | https://github.com/aboys-cb/NepTrainKit        | `NepTrainKit` is a Python package for visualizing and manipulating training datasets for NEP. |
+| `NEP_Active`   | https://github.com/psn417/NEP_Active           | `NEP_Active` is a python package for building the training set using active learning strategy. It follows the method of Moment Tensor Potential (MTP). |

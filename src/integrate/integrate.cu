@@ -490,7 +490,8 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 3;
-      if (box.triclinic == 1) {
+      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
       }
     } else if (num_param == 8) { // isotropic
@@ -504,7 +505,8 @@ void Integrate::parse_ensemble(
         PRINT_INPUT_ERROR("elastic modulus should > 0.");
       }
       num_target_pressure_components = 1;
-      if (box.triclinic == 1) {
+      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
       }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -526,9 +528,6 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 6;
-      if (box.triclinic == 0) {
-        PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-      }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
         PRINT_INPUT_ERROR(
           "Cannot use 6 pressure components with non-periodic boundary in any direction.");
@@ -670,7 +669,8 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 3;
-          if (box.triclinic == 1) {
+          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
           }
         } else if (num_param == 9) { // isotropic
@@ -684,7 +684,8 @@ void Integrate::parse_ensemble(
             PRINT_INPUT_ERROR("elastic modulus should > 0.");
           }
           num_target_pressure_components = 1;
-          if (box.triclinic == 1) {
+          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
           }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -706,9 +707,6 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 6;
-          if (box.triclinic == 0) {
-            PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-          }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
             PRINT_INPUT_ERROR(
               "Cannot use 6 pressure components with non-periodic boundary in any direction.");

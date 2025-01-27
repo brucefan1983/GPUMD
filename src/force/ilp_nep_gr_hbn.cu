@@ -196,8 +196,8 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
                  "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
-  paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
@@ -215,9 +215,9 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_radial_factor > 0.0f) {
       paramb.use_typewise_cutoff = true;
     }
@@ -324,14 +324,14 @@ ILP_NEP_GR_HBN::ILP_NEP_GR_HBN(FILE* fid_ilp, const char* file_nep, int num_type
   std::vector<float> parameters(annmb.num_para);
   for (int n = 0; n < annmb.num_para; ++n) {
     tokens = get_tokens(input);
-    parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   nep_data.parameters.resize(annmb.num_para);
   nep_data.parameters.copy_from_host(parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
   for (int d = 0; d < annmb.dim; ++d) {
     tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
 
@@ -1331,6 +1331,45 @@ void ILP_NEP_GR_HBN::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+#ifdef USE_TABLE
+void ILP_NEP_GR_HBN::construct_table(float* parameters)
+{
+  nep_data.gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gnp_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gn_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  nep_data.gnp_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gn_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  float* c_pointer = parameters + annmb.num_para_ann;
+  construct_table_radial_or_angular(
+    paramb.num_types,
+    paramb.num_types_sq,
+    paramb.n_max_radial,
+    paramb.basis_size_radial,
+    paramb.rc_radial,
+    paramb.rcinv_radial,
+    c_pointer,
+    gn_radial.data(),
+    gnp_radial.data());
+  construct_table_radial_or_angular(
+    paramb.num_types,
+    paramb.num_types_sq,
+    paramb.n_max_angular,
+    paramb.basis_size_angular,
+    paramb.rc_angular,
+    paramb.rcinv_angular,
+    c_pointer + paramb.num_c_radial,
+    gn_angular.data(),
+    gnp_angular.data());
+  nep_data.gn_radial.copy_from_host(gn_radial.data());
+  nep_data.gnp_radial.copy_from_host(gnp_radial.data());
+  nep_data.gn_angular.copy_from_host(gn_angular.data());
+  nep_data.gnp_angular.copy_from_host(gnp_angular.data());
+}
+#endif
+
 static __global__ void find_neighbor_list_nep(
   ILP_NEP_GR_HBN::ParaMB paramb,
   const int N,
@@ -1341,6 +1380,7 @@ static __global__ void find_neighbor_list_nep(
   const int nz,
   const Box box,
   const int* g_type,
+  const int* group_label_ilp,
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
@@ -1410,6 +1450,11 @@ static __global__ void find_neighbor_list_nep(
           const int n2 = g_cell_contents[num_atoms_previous_cells + m];
 
           if (n2 < N1 || n2 >= N2 || n1 == n2) {
+            continue;
+          }
+
+          // check if the same layer
+          if (group_label_ilp[n1] != group_label_ilp[n2]) {
             continue;
           }
 
@@ -2051,6 +2096,7 @@ void ILP_NEP_GR_HBN::compute_ilp(
     num_bins[2],
     box,
     type.data(),
+    group_label_ilp,
     nep_data.cell_count.data(),
     nep_data.cell_count_sum.data(),
     nep_data.cell_contents.data(),

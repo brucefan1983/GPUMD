@@ -151,33 +151,18 @@ void Dump_EXYZ::output_line2(
     fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];

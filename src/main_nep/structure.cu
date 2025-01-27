@@ -109,18 +109,18 @@ static void read_force(
     }
     std::string atom_symbol(tokens[0 + species_offset]);
     structure.x[na] =
-      get_float_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
+      get_double_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
     structure.y[na] =
-      get_float_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
+      get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
-      get_float_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
+      get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
     if (num_columns > 4) {
       structure.fx[na] =
-        get_float_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
+        get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
-        get_float_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
+        get_double_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
       structure.fz[na] =
-        get_float_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
+        get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
     }
 
     bool is_allowed_element = false;
@@ -155,12 +155,21 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
+    }
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_float_from_token(
+      structure.energy = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
       structure.energy /= structure.num_atom;
     }
@@ -174,7 +183,7 @@ static void read_one_structure(
     const std::string temperature_string = "temperature=";
     if (token.substr(0, temperature_string.length()) == temperature_string) {
       structure.has_temperature = true;
-      structure.temperature = get_float_from_token(
+      structure.temperature = get_double_from_token(
         token.substr(temperature_string.length(), token.length()),
         xyz_filename.c_str(),
         line_number);
@@ -191,7 +200,7 @@ static void read_one_structure(
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
     if (token.substr(0, weight_string.length()) == weight_string) {
-      structure.weight = get_float_from_token(
+      structure.weight = get_double_from_token(
         token.substr(weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
       if (structure.weight <= 0.0f || structure.weight > 100.0f) {
         PRINT_INPUT_ERROR("Configuration weight should > 0 and <= 100.");
@@ -206,7 +215,7 @@ static void read_one_structure(
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
-        structure.box_original[transpose_index[m]] = get_float_from_token(
+        structure.box_original[transpose_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -227,7 +236,7 @@ static void read_one_structure(
       structure.has_virial = true;
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
-        structure.virial[reduced_index[m]] = get_float_from_token(
+        structure.virial[reduced_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -247,7 +256,7 @@ static void read_one_structure(
       float volume = abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
-        virials_from_stress[reduced_index[m]] = get_float_from_token(
+        virials_from_stress[reduced_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (stress_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -295,7 +304,7 @@ static void read_one_structure(
           structure.virial[m] = 0.0f;
         }
         for (int m = 0; m < 3; ++m) {
-          structure.virial[m] = get_float_from_token(
+          structure.virial[m] = get_double_from_token(
             tokens[n + m].substr(
               (m == 0) ? (dipole_string.length() + 1) : 0,
               (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -325,7 +334,7 @@ static void read_one_structure(
         structure.has_virial = true;
         const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
         for (int m = 0; m < 9; ++m) {
-          structure.virial[reduced_index[m]] = get_float_from_token(
+          structure.virial[reduced_index[m]] = get_double_from_token(
             tokens[n + m].substr(
               (m == 0) ? (pol_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
@@ -496,6 +505,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].weight = structures[nc].weight;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
+    structures_copy[nc].energy_weight = structures[nc].energy_weight;
     structures_copy[nc].has_temperature = structures[nc].has_temperature;
     structures_copy[nc].temperature = structures[nc].temperature;
     structures_copy[nc].volume = structures[nc].volume;
@@ -534,6 +544,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].weight = structures_copy[configuration_id[nc]].weight;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
+    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
     structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
     structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
     structures[nc].volume = structures_copy[configuration_id[nc]].volume;

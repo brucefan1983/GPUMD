@@ -367,31 +367,19 @@ void Ensemble_MTTK::get_target_pressure()
 void Ensemble_MTTK::get_h_matrix_from_box()
 {
   box->get_inverse();
-  if (box->triclinic) {
-    for (int x = 0; x < 3; x++) {
-      for (int y = 0; y < 3; y++) {
-        h[x][y] = box->cpu_h[y + x * 3];
-        h_inv[x][y] = box->cpu_h[9 + y + x * 3];
-      }
-    }
-  } else {
-    for (int i = 0; i < 3; i++) {
-      h[i][i] = box->cpu_h[i];
-      h_inv[i][i] = box->cpu_h[9 + i];
+  for (int x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+      h[x][y] = box->cpu_h[y + x * 3];
+      h_inv[x][y] = box->cpu_h[9 + y + x * 3];
     }
   }
 }
 
 void Ensemble_MTTK::copy_h_matrix_to_box()
 {
-  if (box->triclinic) {
-    for (int x = 0; x < 3; x++) {
-      for (int y = 0; y < 3; y++)
-        box->cpu_h[y + x * 3] = h[x][y];
-    }
-  } else {
-    for (int i = 0; i < 3; i++)
-      box->cpu_h[i] = h[i][i];
+  for (int x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++)
+      box->cpu_h[y + x * 3] = h[x][y];
   }
   box->get_inverse();
 }

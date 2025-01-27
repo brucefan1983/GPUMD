@@ -598,33 +598,24 @@ static void cpu_pressure_orthogonal(
 
   if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
-    const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[0] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
-    scale_factor[0] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+    scale_factor[0] = scale_factor_Berendsen;
     box.cpu_h[0] *= scale_factor[0];
-    box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else {
     scale_factor[0] = 1.0;
   }
 
   if (box.pbc_y == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
-    const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[1] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
-    scale_factor[1] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
-    box.cpu_h[1] *= scale_factor[1];
-    box.cpu_h[4] = box.cpu_h[1] * 0.5;
+    scale_factor[1] = scale_factor_Berendsen;
+    box.cpu_h[4] *= scale_factor[1];
   } else {
     scale_factor[1] = 1.0;
   }
 
   if (box.pbc_z == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
-    const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[2] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
-    scale_factor[2] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
-    box.cpu_h[2] *= scale_factor[2];
-    box.cpu_h[5] = box.cpu_h[2] * 0.5;
+    scale_factor[2] = scale_factor_Berendsen;
+    box.cpu_h[8] *= scale_factor[2];
   } else {
     scale_factor[2] = 1.0;
   }

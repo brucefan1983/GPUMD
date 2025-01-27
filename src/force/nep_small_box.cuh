@@ -39,36 +39,18 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 static __device__ void apply_mic_small_box(
   const Box& box, const NEP::ExpandedBox& ebox, double& x12, double& y12, double& z12)
 {
-  if (box.triclinic == 0) {
-    if (box.pbc_x == 1 && x12 < -ebox.h[3]) {
-      x12 += ebox.h[0];
-    } else if (box.pbc_x == 1 && x12 > +ebox.h[3]) {
-      x12 -= ebox.h[0];
-    }
-    if (box.pbc_y == 1 && y12 < -ebox.h[4]) {
-      y12 += ebox.h[1];
-    } else if (box.pbc_y == 1 && y12 > +ebox.h[4]) {
-      y12 -= ebox.h[1];
-    }
-    if (box.pbc_z == 1 && z12 < -ebox.h[5]) {
-      z12 += ebox.h[2];
-    } else if (box.pbc_z == 1 && z12 > +ebox.h[5]) {
-      z12 -= ebox.h[2];
-    }
-  } else {
-    double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-    double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-    double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
-    if (box.pbc_x == 1)
-      sx12 -= nearbyint(sx12);
-    if (box.pbc_y == 1)
-      sy12 -= nearbyint(sy12);
-    if (box.pbc_z == 1)
-      sz12 -= nearbyint(sz12);
-    x12 = ebox.h[0] * sx12 + ebox.h[1] * sy12 + ebox.h[2] * sz12;
-    y12 = ebox.h[3] * sx12 + ebox.h[4] * sy12 + ebox.h[5] * sz12;
-    z12 = ebox.h[6] * sx12 + ebox.h[7] * sy12 + ebox.h[8] * sz12;
-  }
+  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
+  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
+  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
+  if (box.pbc_x == 1)
+    sx12 -= nearbyint(sx12);
+  if (box.pbc_y == 1)
+    sy12 -= nearbyint(sy12);
+  if (box.pbc_z == 1)
+    sz12 -= nearbyint(sz12);
+  x12 = ebox.h[0] * sx12 + ebox.h[1] * sy12 + ebox.h[2] * sz12;
+  y12 = ebox.h[3] * sx12 + ebox.h[4] * sy12 + ebox.h[5] * sz12;
+  z12 = ebox.h[6] * sx12 + ebox.h[7] * sy12 + ebox.h[8] * sz12;
 }
 
 static __global__ void find_neighbor_list_small_box(
@@ -110,15 +92,9 @@ static __global__ void find_neighbor_list_small_box(
             }
 
             double delta[3];
-            if (box.triclinic) {
-              delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
-              delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
-              delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
-            } else {
-              delta[0] = box.cpu_h[0] * ia;
-              delta[1] = box.cpu_h[1] * ib;
-              delta[2] = box.cpu_h[2] * ic;
-            }
+            delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
+            delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
+            delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
 
             double x12 = g_x[n2] + delta[0] - x1;
             double y12 = g_y[n2] + delta[1] - y1;

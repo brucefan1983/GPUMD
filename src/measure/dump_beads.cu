@@ -96,33 +96,18 @@ void Dump_Beads::output_line2(FILE* fid, const double time, const Box& box)
     fid, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
-  if (box.triclinic == 0) {
-    fprintf(
-      fid,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3");

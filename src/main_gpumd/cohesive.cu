@@ -53,27 +53,17 @@ void Cohesive::deform_box(
   new_box.pbc_x = old_box.pbc_x;
   new_box.pbc_y = old_box.pbc_y;
   new_box.pbc_z = old_box.pbc_z;
-  new_box.triclinic = old_box.triclinic;
 
-  if (new_box.triclinic == 0) {
-    new_box.cpu_h[0] = cpu_d.data[0] * old_box.cpu_h[0];
-    new_box.cpu_h[1] = cpu_d.data[4] * old_box.cpu_h[1];
-    new_box.cpu_h[2] = cpu_d.data[8] * old_box.cpu_h[2];
-    for (int k = 0; k < 3; ++k) {
-      new_box.cpu_h[k + 3] = new_box.cpu_h[k] * 0.5;
-    }
-  } else {
-    for (int r = 0; r < 3; ++r) {
-      for (int c = 0; c < 3; ++c) {
-        double tmp = 0.0f;
-        for (int k = 0; k < 3; ++k) {
-          tmp += cpu_d.data[r * 3 + k] * old_box.cpu_h[k * 3 + c];
-        }
-        new_box.cpu_h[r * 3 + c] = tmp;
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      double tmp = 0.0f;
+      for (int k = 0; k < 3; ++k) {
+        tmp += cpu_d.data[r * 3 + k] * old_box.cpu_h[k * 3 + c];
       }
+      new_box.cpu_h[r * 3 + c] = tmp;
     }
-    new_box.get_inverse();
   }
+  new_box.get_inverse();
 
   deform_position<<<(N - 1) / 128 + 1, 128>>>(
     N,
@@ -242,9 +232,6 @@ void Cohesive::compute(
   GPU_Vector<double>& virial_per_atom,
   Force& force)
 {
-  if (deformation_type == 1 && box.triclinic == 0) {
-    PRINT_INPUT_ERROR("Please use triclinic box in xyz.in to compute elastic constants.");
-  }
   const int num_atoms = potential_per_atom.size();
   allocate_memory(num_atoms);
   compute_D();
