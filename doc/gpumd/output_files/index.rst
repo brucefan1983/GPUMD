@@ -174,6 +174,7 @@ Output files
    viscosity_out
    onsager_out
    rdf_out
+   adf_out
    mcmd_out
    lsqt_dos_out
    lsqt_velocity_out
