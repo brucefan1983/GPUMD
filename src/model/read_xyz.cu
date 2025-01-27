@@ -32,6 +32,7 @@ The class defining the simulation model.
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <cmath>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},
@@ -479,6 +480,64 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
   return atom_symbols;
 }
 
+static double calculate_distance(
+  const double* position_per_atom, int n1, int n2, int N, const Box& box)
+{
+  double dx = position_per_atom[n1] - position_per_atom[n2];
+  double dy = position_per_atom[n1 + N] - position_per_atom[n2 + N];
+  double dz = position_per_atom[n1 + 2 * N] - position_per_atom[n2 + 2 * N];
+
+  // 考虑周期性边界条件
+  if (box.pbc_x) {
+    dx -= box.cpu_h[0] * std::round(box.cpu_h[9] * dx + box.cpu_h[10] * dy + box.cpu_h[11] * dz);
+  }
+  if (box.pbc_y) {
+    dy -= box.cpu_h[3] * std::round(box.cpu_h[12] * dx + box.cpu_h[13] * dy + box.cpu_h[14] * dz);
+  }
+  if (box.pbc_z) {
+    dz -= box.cpu_h[6] * std::round(box.cpu_h[15] * dx + box.cpu_h[16] * dy + box.cpu_h[17] * dz);
+  }
+
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+static void check_min_distance(const Atom& atom, const Box& box)
+{
+  const int N = atom.number_of_atoms;
+  const double* position_per_atom = atom.cpu_position_per_atom.data();
+
+  double min_distance = 2.0;
+  int min_i = -1, min_j = -1;
+
+  for (int i = 0; i < N; ++i) {
+    for (int j = i + 1; j < N; ++j) {
+      double distance = calculate_distance(position_per_atom, i, j, N, box);
+      if (distance < min_distance) {
+        min_distance = distance;
+        min_i = i;
+        min_j = j;
+      }
+    }
+  }
+
+  if (min_distance < 2.0) {
+    printf("Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 2 Å.\n",
+           min_distance,
+           min_i,
+           atom.cpu_atom_symbol[min_i].c_str(),
+           min_j,
+           atom.cpu_atom_symbol[min_j].c_str());
+    PRINT_INPUT_ERROR("There are two atoms with a distance less than 2 Å.");
+  } else if (min_i != -1 && min_j != -1) {
+    printf("Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
+           min_i,
+           atom.cpu_atom_symbol[min_i].c_str(),
+           min_j,
+           atom.cpu_atom_symbol[min_j].c_str(),
+           min_distance);
+  }
+}
+
 void initialize_position(
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
@@ -527,6 +586,7 @@ void initialize_position(
   }
 
   find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
+  check_min_distance(atom, box);
 }
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
