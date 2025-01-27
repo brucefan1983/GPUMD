@@ -75,29 +75,25 @@ public:
     const int number_of_steps);
 
 private:
-  int num_atoms_;         // 原子总数
-  int rdf_atom_count = 1; // AngularRDF计算中的原子对数量
-  int rdf_N_;             // 用于归一化的原子数
-  int num_repeat_ = 0;    // 重复计算次数
+  int num_atoms_;
+  int rdf_atom_count = 1;
+  int rdf_N_;
+  int num_repeat_ = 0;
 
-  // 存储每种原子类型的数量
   std::vector<int> atom_id1_typesize;
   std::vector<int> atom_id2_typesize;
 
-  // 存储密度信息
   std::vector<double> density1;
   std::vector<double> density2;
 
-  // 存储最终的AngularRDF结果
   std::vector<double> rdf_;
 
-  // GPU向量：用于存储计算过程中的数据
-  GPU_Vector<double> rdf_g_;      // AngularRDF在GPU上的临时存储
-  GPU_Vector<double> radial_;     // 径向距离数组
-  GPU_Vector<double> theta_;      // 角度距离数组
-  GPU_Vector<int> cell_count;     // 每个晶胞中的原子数
-  GPU_Vector<int> cell_count_sum; // 晶胞原子数的累积和
-  GPU_Vector<int> cell_contents;  // 晶胞中的原子索引
+  GPU_Vector<double> rdf_g_;
+  GPU_Vector<double> radial_;
+  GPU_Vector<double> theta_;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 
   // Core function to calculate angular-dependent RDF
   void find_angular_rdf(
