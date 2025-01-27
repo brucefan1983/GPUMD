@@ -125,6 +125,10 @@ Output files
      - :ref:`compute_adf <kw_compute_adf>`
      - Angular distribution function (:term:`ADF`)
      - Append
+   * - :ref:`angular_rdf.out <angular_rdf_out>`
+     - :ref:`compute_angular_rdf <kw_compute_angular_rdf>`
+     - Angular-dependent radial distribution function (:term:`ARDF`)
+     - Append
    * - :ref:`mcmd.out <mcmd_out>`
      - :ref:`mc <kw_mc>`
      - Acceptance ratio and species concentrations
