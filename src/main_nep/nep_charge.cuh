@@ -70,7 +70,6 @@ public:
     GPU_Vector<float> y12_angular;
     GPU_Vector<float> z12_angular;
     GPU_Vector<float> descriptors;       // descriptors
-    GPU_Vector<float> charge;            // per-atom charge
     GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
     GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
@@ -93,8 +92,8 @@ public:
     GPU_Vector<int> k1_gpu;
     GPU_Vector<int> k2_gpu;
     GPU_Vector<int> k3_gpu;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+    float alpha = 1.0f; // 1 / (2 Angstrom)
+    float alpha_factor = 0.25f; // 1 / (4 * alpha * alpha)
   };
 
   struct ZBL {

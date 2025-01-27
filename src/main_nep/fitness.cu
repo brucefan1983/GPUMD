@@ -183,14 +183,19 @@ void Fitness::compute(
           para, energy_shift_per_structure_not_used, true, true, m);
         auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
         auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
+        auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
 
         for (int t = 0; t <= para.num_types; ++t) {
-          fitness[deviceCount * n + m + (6 * t + 3) * para.population_size] =
+          fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] =
             para.lambda_e * rmse_energy_array[t];
-          fitness[deviceCount * n + m + (6 * t + 4) * para.population_size] =
+          fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] =
             para.lambda_f * rmse_force_array[t];
-          fitness[deviceCount * n + m + (6 * t + 5) * para.population_size] =
+          fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] =
             para.lambda_v * rmse_virial_array[t];
+          if (para.has_charge) {
+            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] =
+              para.lambda_q * rmse_charge_array[t];
+          }
         }
       }
     }
@@ -214,23 +219,23 @@ void Fitness::compute(
             auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
-              float old_value = fitness[deviceCount * n + m + (6 * t + 3) * para.population_size];
+              float old_value = fitness[deviceCount * n + m + (7 * t + 3) * para.population_size];
               float new_value = para.lambda_e * rmse_energy_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (6 * t + 3) * para.population_size] = new_value;
+              fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] = new_value;
               // force
-              old_value = fitness[deviceCount * n + m + (6 * t + 4) * para.population_size];
+              old_value = fitness[deviceCount * n + m + (7 * t + 4) * para.population_size];
               new_value = para.lambda_f * rmse_force_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (6 * t + 4) * para.population_size] = new_value;
+              fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] = new_value;
               // virial
-              old_value = fitness[deviceCount * n + m + (6 * t + 5) * para.population_size];
+              old_value = fitness[deviceCount * n + m + (7 * t + 5) * para.population_size];
               new_value = para.lambda_v * rmse_virial_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (6 * t + 5) * para.population_size] = new_value;
+              fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] = new_value;
             }
           }
         }

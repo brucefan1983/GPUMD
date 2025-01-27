@@ -51,7 +51,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
-  fitness.resize(population_size * 6 * (para.num_types + 1));
+  fitness.resize(population_size * 7 * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
   mu.resize(number_of_variables);
@@ -229,9 +229,9 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       sort_population(para);
 
       int best_index = index[para.num_types * population_size];
-      float fitness_total = fitness[0 + (6 * para.num_types + 0) * population_size];
-      float fitness_L1 = fitness[best_index + (6 * para.num_types + 1) * population_size];
-      float fitness_L2 = fitness[best_index + (6 * para.num_types + 2) * population_size];
+      float fitness_total = fitness[0 + (7 * para.num_types + 0) * population_size];
+      float fitness_L1 = fitness[best_index + (7 * para.num_types + 1) * population_size];
+      float fitness_L2 = fitness[best_index + (7 * para.num_types + 2) * population_size];
       fitness_function->report_error(
         para,
         n,
@@ -375,11 +375,12 @@ void SNES::regularize_NEP4(Parameters& para)
     for (int p = 0; p < population_size; ++p) {
       float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
       float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
-      fitness[p + (6 * t + 0) * population_size] =
-        cost_L1 + cost_L2 + fitness[p + (6 * t + 3) * population_size] +
-        fitness[p + (6 * t + 4) * population_size] + fitness[p + (6 * t + 5) * population_size];
-      fitness[p + (6 * t + 1) * population_size] = cost_L1;
-      fitness[p + (6 * t + 2) * population_size] = cost_L2;
+      fitness[p + (7 * t + 0) * population_size] =
+        cost_L1 + cost_L2 + fitness[p + (7 * t + 3) * population_size] +
+        fitness[p + (7 * t + 4) * population_size] + fitness[p + (7 * t + 5) * population_size] +
+        fitness[p + (7 * t + 6) * population_size];
+      fitness[p + (7 * t + 1) * population_size] = cost_L1;
+      fitness[p + (7 * t + 2) * population_size] = cost_L2;
     }
   }
 }
@@ -431,11 +432,12 @@ void SNES::regularize(Parameters& para)
     float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / number_of_variables);
 
     for (int t = 0; t <= para.num_types; ++t) {
-      fitness[p + (6 * t + 0) * population_size] =
-        cost_L1 + cost_L2 + fitness[p + (6 * t + 3) * population_size] +
-        fitness[p + (6 * t + 4) * population_size] + fitness[p + (6 * t + 5) * population_size];
-      fitness[p + (6 * t + 1) * population_size] = cost_L1;
-      fitness[p + (6 * t + 2) * population_size] = cost_L2;
+      fitness[p + (7 * t + 0) * population_size] =
+        cost_L1 + cost_L2 + fitness[p + (7 * t + 3) * population_size] +
+        fitness[p + (7 * t + 4) * population_size] + fitness[p + (7 * t + 5) * population_size] +
+        fitness[p + (7 * t + 6) * population_size];
+      fitness[p + (7 * t + 1) * population_size] = cost_L1;
+      fitness[p + (7 * t + 2) * population_size] = cost_L2;
     }
   }
 }
@@ -463,7 +465,7 @@ void SNES::sort_population(Parameters& para)
     }
 
     insertion_sort(
-      fitness.data() + t * population_size * 6,
+      fitness.data() + t * population_size * 7,
       index.data() + t * population_size,
       population_size);
   }

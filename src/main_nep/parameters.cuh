@@ -46,6 +46,7 @@ public:
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
+  float lambda_q;         // weight for global charge
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential

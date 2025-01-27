@@ -337,7 +337,6 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
-    nep_data[device_id].charge.resize(N);
     nep_data[device_id].charge_derivative.resize(N * annmb[device_id].dim);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
@@ -1136,14 +1135,14 @@ void NEP_Charge::find_force(
       para.q_scaler_gpu[device_id].data(),
       dataset[device_id].energy.data(),
       nep_data[device_id].Fp.data(),
-      nep_data[device_id].charge.data(),
+      dataset[device_id].charge.data(),
       nep_data[device_id].charge_derivative.data());
     GPU_CHECK_KERNEL
 
     if (para.prediction == 1 && true) {
       FILE* fid_charge = my_fopen("charge.out", "a");
-      std::vector<float> charge_cpu(nep_data[device_id].charge.size());
-      nep_data[device_id].charge.copy_to_host(charge_cpu.data());
+      std::vector<float> charge_cpu(dataset[device_id].charge.size());
+      dataset[device_id].charge.copy_to_host(charge_cpu.data());
       for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
         for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
           int n = dataset[device_id].Na_sum_cpu[nc] + na;
@@ -1171,7 +1170,7 @@ void NEP_Charge::find_force(
       charge_para.num_kpoints,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
-      nep_data[device_id].charge.data(),
+      dataset[device_id].charge.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
@@ -1188,7 +1187,7 @@ void NEP_Charge::find_force(
       charge_para.alpha_factor,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
-      nep_data[device_id].charge.data(),
+      dataset[device_id].charge.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,

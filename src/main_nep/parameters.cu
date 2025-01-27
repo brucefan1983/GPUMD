@@ -92,6 +92,7 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
+  lambda_q = 0.01f;            // need to test
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
