@@ -3,7 +3,7 @@
    single: compute_angular_rdf (keyword in run.in)
 
 :attr:`compute_angular_rdf`
-==========================
+===========================
 
 This keyword is used to compute the angular-dependent radial distribution function (:term:`ARDF`) for all atoms or pairs of species. 
 It works for classical :term:`MD`.

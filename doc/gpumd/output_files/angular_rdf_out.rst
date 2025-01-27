@@ -1,4 +1,4 @@
-.. _rdf_out:
+.. _angular_rdf_out:
 .. index::
    single: angular_rdf.out (output file)
 
