@@ -893,7 +893,6 @@ static __global__ void find_force_charge_real_space(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
-    float s_pe = 0.0f;
     float s_virial_xx = 0.0f;
     float s_virial_yy = 0.0f;
     float s_virial_zz = 0.0f;
@@ -901,8 +900,10 @@ static __global__ void find_force_charge_real_space(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     int q1 = g_charge[n1];
+    float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
+    float D_real = -q1 * two_alpha_over_sqrt_pi; // self energy part
+
     int neighbor_number = g_NN[n1];
-    float D_real = 0.0f;
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
@@ -918,7 +919,7 @@ static __global__ void find_force_charge_real_space(
       f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      s_pe += 0.5f * K_C_SP * qq * erfc_r;
+      s_pe += 0.5f * qq * erfc_r;
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);
@@ -939,7 +940,7 @@ static __global__ void find_force_charge_real_space(
     g_virial[n1 + N * 3] += s_virial_xy;
     g_virial[n1 + N * 4] += s_virial_yz;
     g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += s_pe;
+    g_pe[n1] += K_C_SP * s_pe;
   }
 }
 
