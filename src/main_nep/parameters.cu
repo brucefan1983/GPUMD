@@ -74,6 +74,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
+  is_has_charge_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -106,6 +107,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
+  has_charge = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -310,6 +312,16 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
+  if (is_has_charge_set) {
+    if (has_charge) {
+      printf("    (input)   use NEP-Charge and consider dynamic charges.\n");
+    } else {
+      printf("    (input)   use pure NEP without considering charges.\n");
+    }
+  } else {
+    printf("    (default) use pure NEP without considering charges.\n");
+  }
+
   if (is_cutoff_set) {
     printf("    (input)   radial cutoff = %g A.\n", rc_radial);
     printf("    (input)   angular cutoff = %g A.\n", rc_angular);
@@ -503,6 +515,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
+  } else if (strcmp(param[0], "has_charge") == 0) {
+    parse_has_charge(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1079,3 +1093,19 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
     PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
 }
+
+void Parameters::parse_has_charge(const char** param, int num_param)
+{
+  is_has_charge_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("has_charge should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &has_charge)) {
+    PRINT_INPUT_ERROR("has_charge should be an integer.\n");
+  }
+  if (has_charge != 0 && has_charge != 1) {
+    PRINT_INPUT_ERROR("has_charge should be 0 or 1.");
+  }
+}
+
