@@ -874,10 +874,10 @@ static __global__ void find_force_charge_reciprocal_space(
   }
 }
 
-/*
 static __global__ void find_force_charge_real_space(
   const int N,
   const float alpha,
+  const float two_alpha_over_sqrt_pi,
   const int* g_NN,
   const int* g_NL,
   const float* __restrict__ g_charge,
@@ -910,8 +910,8 @@ static __global__ void find_force_charge_real_space(
       float d12inv = 1.0f / d12;
 
       float erfc_r = erfc(alpha * d12) * d12inv;
-      float f2 = -erfc_r * d12inv - alpha * 1.128379167095513f * d12inv * exp(-alpha * alpha * d12 * d12);
-      f2 *= 0.5f * K_C_SP * qq * d12inv;
+      float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
+      f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
       s_pe += 0.5f * K_C_SP * qq * erfc_r;
@@ -937,7 +937,6 @@ static __global__ void find_force_charge_real_space(
     g_pe[n1] += s_pe;
   }
 }
-*/
 
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
@@ -1244,13 +1243,13 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
-/*
     find_force_charge_real_space<<<grid_size, block_size>>>(
       dataset[device_id].N,
       charge_para.alpha,
+      charge_para.two_alpha_over_sqrt_pi,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
-      nep_data[device_id].charge.data(),
+      dataset[device_id].charge.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
@@ -1260,7 +1259,6 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data(),
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
-*/
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(

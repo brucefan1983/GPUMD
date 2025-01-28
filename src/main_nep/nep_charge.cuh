@@ -94,6 +94,7 @@ public:
     GPU_Vector<int> k3_gpu;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+    float two_alpha_over_sqrt_pi = 0.564189583547756f;
   };
 
   struct ZBL {
