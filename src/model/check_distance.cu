@@ -32,9 +32,9 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box) {
     double min_distance = 5.0;
     int min_i = -1, min_j = -1;
 
-    double Lx = sqrt(box.cpu_h[0]*box.cpu_h[0] + box.cpu_h[1]*box.cpu_h[1] + box.cpu_h[2]*box.cpu_h[2]);
-    double Ly = sqrt(box.cpu_h[3]*box.cpu_h[3] + box.cpu_h[4]*box.cpu_h[4] + box.cpu_h[5]*box.cpu_h[5]);
-    double Lz = sqrt(box.cpu_h[6]*box.cpu_h[6] + box.cpu_h[7]*box.cpu_h[7] + box.cpu_h[8]*box.cpu_h[8]);
+    double Lx = sqrt(box.cpu_h[0]*box.cpu_h[0] + box.cpu_h[3]*box.cpu_h[3] + box.cpu_h[6]*box.cpu_h[6]);
+    double Ly = sqrt(box.cpu_h[1]*box.cpu_h[1] + box.cpu_h[4]*box.cpu_h[4] + box.cpu_h[7]*box.cpu_h[7]);
+    double Lz = sqrt(box.cpu_h[2]*box.cpu_h[2] + box.cpu_h[5]*box.cpu_h[5] + box.cpu_h[8]*box.cpu_h[8]);
 
     int nx = std::max(1, static_cast<int>(ceil(Lx * 0.2)));
     int ny = std::max(1, static_cast<int>(ceil(Ly * 0.2)));
