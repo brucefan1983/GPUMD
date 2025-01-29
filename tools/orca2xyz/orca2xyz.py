@@ -31,16 +31,18 @@ import subprocess
 #H     10.62000000    6.76000000    6.10000000
 #*
 
+import os
+import subprocess
 
 # ------------------ Input and Output Configuration ------------------ #
-orca_path = "D:\\program\\orca"  # Path to ORCA executable directory
+orca_path = "/home/chen/software/orca_6_0_0"  # Path to ORCA executable directory
 xyz_file = "template.xyz"               # Input multi-frame .xyz file
-template_inp = "template.inp"           # ORCA input template file
+template_inp = "templateinp"           # ORCA input template file
 output_dir = "orca_calculations" # Directory for ORCA input/output files
 combined_xyz = "output_trajectory.xyz"  # Output combined .xyz trajectory file
 box_size = 50.0                  # Size of the box for the lattice
-center_molecule = False           # Set to False if no centering is needed
-create_molden = False              # Set to False to skip creation of molden files
+center_molecule = True           # Set to False if no centering is needed
+create_molden = False            # Set to False to skip creation of molden files
 
 # ------------------ Function Definitions ------------------ #
 def read_multi_xyz(filename):
@@ -110,6 +112,9 @@ def write_inp_file(template_inp, atoms, output_inp):
 
 def parse_engrad(engrad_file):
     """Parse the ORCA .engrad file and extract energy, gradients, and atomic coordinates."""
+    if not os.path.exists(engrad_file):
+        raise FileNotFoundError(f"Engrad file not found: {engrad_file}")
+        
     with open(engrad_file, 'r') as file:
         lines = [line.strip() for line in file if line.strip() and not line.startswith("#")]
 
@@ -187,30 +192,46 @@ def main():
     frames = read_multi_xyz(xyz_file)
     print(f"Detected {len(frames)} frames in {xyz_file}")
 
+    problematic_frames = []  # To record frames with issues
+
     with open(combined_xyz, 'w') as combined_file:
         for frame_idx, frame in enumerate(frames):
             frame_number = frame_idx + 1
             output_inp = os.path.join(output_dir, f"frame{frame_number}.inp")
             output_engrad = os.path.join(output_dir, f"frame{frame_number}.engrad")
 
-             # Step 1: Run ORCA
-            write_inp_file(template_inp, frame["atoms"], output_inp)
-            orca_command = os.path.join(orca_path, "orca")  # Construct the full path to ORCA executable
-            subprocess.run(f"{orca_command} {output_inp} > {output_inp.replace('.inp', '.out')}", shell=True, check=True)
+            try:
+                # Step 1: Run ORCA
+                write_inp_file(template_inp, frame["atoms"], output_inp)
+                orca_command = os.path.join(orca_path, "orca")  # Construct the full path to ORCA executable
+                subprocess.run(f"{orca_command} {output_inp} > {output_inp.replace('.inp', '.out')}", shell=True, check=True)
 
+                # Step 2 (Optional): Run orca_2mkl and rename molden file
+                if create_molden:
+                    orca_2mkl_command = os.path.join(orca_path, "orca_2mkl")
+                    subprocess.run(f"{orca_2mkl_command} frame{frame_number} -molden", shell=True, check=True, cwd=output_dir)
+                    molden_input_file = os.path.join(output_dir, f"frame{frame_number}.molden.input")
+                    molden_output_file = os.path.join(output_dir, f"frame{frame_number}.molden")
+                    os.rename(molden_input_file, molden_output_file)
 
-            # Step 2 (Conditional): Run orca_2mkl and rename molden file
-            if create_molden:
-                orca_2mkl_command = os.path.join(orca_path, "orca_2mkl")  # Construct the full path to orca_2mkl
-                subprocess.run(f"{orca_2mkl_command} frame{frame_number} -molden", shell=True, check=True, cwd=output_dir)
-                molden_input_file = os.path.join(output_dir, f"frame{frame_number}.molden.input")
-                molden_output_file = os.path.join(output_dir, f"frame{frame_number}.molden")
-                os.rename(molden_input_file, molden_output_file)
+                # Parse the .engrad file
+                num_atoms, energy_hartree, gradients, atoms = parse_engrad(output_engrad)
+                energy_eV = energy_hartree * 27.211386245988
 
-            num_atoms, energy_hartree, gradients, atoms = parse_engrad(output_engrad)
-            energy_eV = energy_hartree * 27.211386245988
-            frame_lines = write_xyz_frame(num_atoms, energy_eV, gradients, atoms, box_size, center_molecule)
-            combined_file.writelines(frame_lines)
+                # Write the current frame to the combined .xyz file
+                frame_lines = write_xyz_frame(num_atoms, energy_eV, gradients, atoms, box_size, center_molecule)
+                combined_file.writelines(frame_lines)
+
+            except Exception as e:
+                print(f"Error processing frame {frame_number}: {e}")
+                problematic_frames.append(frame_number)  # Record problematic frame number
+
+    # Print summary of problematic frames
+    if problematic_frames:
+        print("\nThe following frames encountered issues and were skipped:")
+        print(", ".join(map(str, problematic_frames)))
+    else:
+        print("\nAll frames processed successfully!")
 
 
 if __name__ == "__main__":
