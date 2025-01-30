@@ -16,7 +16,12 @@
 #include "extrapolation.cuh"
 
 __global__ void gpu_calculate_gamma(
-  float* gamma, float* B, int* atom_type, double** asi, int number_of_particles, int B_size_per_atom)
+  float* gamma,
+  float* B,
+  int* atom_type,
+  double** asi,
+  int number_of_particles,
+  int B_size_per_atom)
 {
   float max_gamma = 0;
   double current_gamma;
@@ -223,6 +228,8 @@ void Extrapolation::output_line2()
 
 Extrapolation::~Extrapolation()
 {
-  printf("Closing extrapolation dump file...\n");
-  fclose(f);
+  if (activated) {
+    printf("Closing extrapolation dump file...\n");
+    fclose(f);
+  }
 }
