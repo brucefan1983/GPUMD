@@ -51,7 +51,8 @@ void applyMic(const Box& box, double& x12, double& y12, double& z12)
   z12 = box.cpu_h[2] * sx + box.cpu_h[5] * sy + box.cpu_h[8] * sz;
 }
 
-void findCell(const Box& box, const double* thickness, const double* r, const int* numCells, int* cell)
+void findCell(
+  const Box& box, const double* thickness, const double* r, const int* numCells, int* cell)
 {
   double s[3];
   s[0] = box.cpu_h[9] * r[0] + box.cpu_h[10] * r[1] + box.cpu_h[11] * r[2];
@@ -76,9 +77,12 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   int min_n1 = -1, min_n2 = -1;
 
   double thickness[3];
-  thickness[0] = sqrt(box.cpu_h[0] * box.cpu_h[0] + box.cpu_h[3] * box.cpu_h[3] + box.cpu_h[6] * box.cpu_h[6]);
-  thickness[1] = sqrt(box.cpu_h[1] * box.cpu_h[1] + box.cpu_h[4] * box.cpu_h[4] + box.cpu_h[7] * box.cpu_h[7]);
-  thickness[2] = sqrt(box.cpu_h[2] * box.cpu_h[2] + box.cpu_h[5] * box.cpu_h[5] + box.cpu_h[8] * box.cpu_h[8]);
+  thickness[0] =
+    sqrt(box.cpu_h[0] * box.cpu_h[0] + box.cpu_h[3] * box.cpu_h[3] + box.cpu_h[6] * box.cpu_h[6]);
+  thickness[1] =
+    sqrt(box.cpu_h[1] * box.cpu_h[1] + box.cpu_h[4] * box.cpu_h[4] + box.cpu_h[7] * box.cpu_h[7]);
+  thickness[2] =
+    sqrt(box.cpu_h[2] * box.cpu_h[2] + box.cpu_h[5] * box.cpu_h[5] + box.cpu_h[8] * box.cpu_h[8]);
 
   int numCells[4];
   numCells[0] = std::max(1, static_cast<int>(ceil(thickness[0] * 0.2)));
@@ -137,7 +141,8 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
               double y12 = pos[n2 + N] - r1[1];
               double z12 = pos[n2 + 2 * N] - r1[2];
               applyMic(box, x12, y12, z12);
-              if (fabs(x12) > 2.0 || fabs(y12) > 2.0 || fabs(z12) > 2.0) continue;
+              if (fabs(x12) > 2.0 || fabs(y12) > 2.0 || fabs(z12) > 2.0)
+                continue;
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               if (d2 >= 4.0)
                 continue;
@@ -155,7 +160,7 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
     }
   }
 
-  if (min_distance < 2.0) {
+  if (min_distance < 1.0) {
     printf(
       "Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 1 Å.\n",
       min_distance,
