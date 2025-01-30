@@ -256,12 +256,6 @@ void NEP_Charge::find_k1k2k3()
       }
     }
   }
-  charge_para.k1_gpu.resize(charge_para.k1.size());
-  charge_para.k2_gpu.resize(charge_para.k2.size());
-  charge_para.k3_gpu.resize(charge_para.k3.size());
-  charge_para.k1_gpu.copy_from_host(charge_para.k1.data());
-  charge_para.k2_gpu.copy_from_host(charge_para.k2.data());
-  charge_para.k3_gpu.copy_from_host(charge_para.k3.data());
 }
 
 NEP_Charge::NEP_Charge(
@@ -348,6 +342,12 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints);
     nep_data[device_id].D_real.resize(N);
+    nep_data[device_id].k1_gpu.resize(charge_para.k1.size());
+    nep_data[device_id].k2_gpu.resize(charge_para.k2.size());
+    nep_data[device_id].k3_gpu.resize(charge_para.k3.size());
+    nep_data[device_id].k1_gpu.copy_from_host(charge_para.k1.data());
+    nep_data[device_id].k2_gpu.copy_from_host(charge_para.k2.data());
+    nep_data[device_id].k3_gpu.copy_from_host(charge_para.k3.data());
   }
 }
 
@@ -1162,9 +1162,9 @@ void NEP_Charge::find_force(
       charge_para.num_kpoints,
       charge_para.alpha_factor,
       dataset[device_id].box_original.data(),
-      charge_para.k1_gpu.data(),
-      charge_para.k2_gpu.data(),
-      charge_para.k3_gpu.data(),
+      nep_data[device_id].k1_gpu.data(),
+      nep_data[device_id].k2_gpu.data(),
+      nep_data[device_id].k3_gpu.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
