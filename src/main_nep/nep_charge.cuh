@@ -81,17 +81,12 @@ public:
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
     GPU_Vector<float> D_real;
-    GPU_Vector<int> k1_gpu;
-    GPU_Vector<int> k2_gpu;
-    GPU_Vector<int> k3_gpu;
+    GPU_Vector<int> num_kpoints;
   };
 
   struct Charge_Para {
     int kmax = 8;
-    int num_kpoints = 0;
-    std::vector<int> k1;
-    std::vector<int> k2;
-    std::vector<int> k3;
+    int num_kpoints_max = 10000;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;

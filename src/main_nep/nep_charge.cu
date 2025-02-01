@@ -240,24 +240,6 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void NEP_Charge::find_k1k2k3()
-{
-  charge_para.num_kpoints = 0;
-  for (int kx = 0; kx <= charge_para.kmax; ++kx) {
-    for (int ky = - charge_para.kmax; ky <= charge_para.kmax; ++ky) {
-      for (int kz = - charge_para.kmax; kz <= charge_para.kmax; ++kz) {
-        const int ksq = kx * kx + ky * ky + kz * kz;
-        if (ksq <= charge_para.kmax * charge_para.kmax && ksq > 0) {
-          ++charge_para.num_kpoints;
-          charge_para.k1.emplace_back(kx);
-          charge_para.k2.emplace_back(ky);
-          charge_para.k3.emplace_back(kz);
-        }
-      }
-    }
-  }
-}
-
 NEP_Charge::NEP_Charge(
   Parameters& para,
   int N,
@@ -312,8 +294,6 @@ NEP_Charge::NEP_Charge(
     }
   }
 
-  find_k1k2k3();
-
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
@@ -335,19 +315,14 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
-    nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].G.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints);
-    nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints);
+    nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].G.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
-    nep_data[device_id].k1_gpu.resize(charge_para.k1.size());
-    nep_data[device_id].k2_gpu.resize(charge_para.k2.size());
-    nep_data[device_id].k3_gpu.resize(charge_para.k3.size());
-    nep_data[device_id].k1_gpu.copy_from_host(charge_para.k1.data());
-    nep_data[device_id].k2_gpu.copy_from_host(charge_para.k2.data());
-    nep_data[device_id].k3_gpu.copy_from_host(charge_para.k3.data());
+    nep_data[device_id].num_kpoints.resize(Nc);
   }
 }
 
@@ -751,60 +726,48 @@ static __global__ void find_force_ZBL(
 }
 
 static __global__ void find_structure_factor(
-  const int num_kpoints,
+  const int num_kpoints_max,
   const int* Na,
   const int* Na_sum,
   const float* g_charge,
   const float* g_x,
   const float* g_y,
   const float* g_z,
+  const int* g_num_kpoints,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
   float* g_S_real,
   float* g_S_imag)
 {
-  int tid = threadIdx.x;
-  int nc = blockIdx.x / num_kpoints; // structure index
-  int N1 = Na_sum[nc];
-  int N2 = N1 + Na[nc];
-  int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
-  __shared__ float s_S_real[1024];
-  __shared__ float s_S_imag[1024];
-  float S_real = 0.0f;
-  float S_imag = 0.0f;
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int num_kpoints = g_num_kpoints[blockIdx.x];
+  int number_of_batches = (num_kpoints - 1) / 1024 + 1;
+
   for (int batch = 0; batch < number_of_batches; ++batch) {
-    int n = tid + batch * 1024 + N1;
-    if (n < N2) {
-      float kr = g_kx[blockIdx.x] * g_x[n] + g_ky[blockIdx.x] * g_y[n] + g_kz[blockIdx.x] * g_z[n];
-      const float charge = g_charge[n];
-      float sin_kr, cos_kr;
-      sincos(kr, &sin_kr, &cos_kr);
-      S_real += charge * cos_kr;
-      S_imag -= charge * sin_kr;
+    int nk = threadIdx.x + batch * 1024;
+    if (nk < num_kpoints) {
+      int nc_nk = blockIdx.x * num_kpoints_max + nk;
+      float S_real = 0.0f;
+      float S_imag = 0.0f;
+      for (int n = N1; n < N2; ++n) {
+        float kr = g_kx[nc_nk] * g_x[n] + g_ky[nc_nk] * g_y[n] + g_kz[nc_nk] * g_z[n];
+        const float charge = g_charge[n];
+        float sin_kr, cos_kr;
+        sincos(kr, &sin_kr, &cos_kr);
+        S_real += charge * cos_kr;
+        S_imag -= charge * sin_kr;
+      }
+      g_S_real[nc_nk] = S_real;
+      g_S_imag[nc_nk] = S_imag;
     }
-  }
-  s_S_real[tid] = S_real;
-  s_S_imag[tid] = S_imag;
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_S_real[tid] += s_S_real[tid + offset];
-      s_S_imag[tid] += s_S_imag[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    g_S_real[blockIdx.x] = s_S_real[0];
-    g_S_imag[blockIdx.x] = s_S_imag[0];
   }
 }
 
 static __global__ void find_force_charge_reciprocal_space(
   const int N,
-  const int num_kpoints,
+  const int num_kpoints_max,
   const float alpha_factor,
   const int* Na,
   const int* Na_sum,
@@ -812,6 +775,7 @@ static __global__ void find_force_charge_reciprocal_space(
   const float* g_x,
   const float* g_y,
   const float* g_z,
+  const int* g_num_kpoints,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -827,7 +791,8 @@ static __global__ void find_force_charge_reciprocal_space(
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
-  int number_of_batches = (N2 - N1 + 1) / 1024 + 1;
+  int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  int num_kpoints = g_num_kpoints[blockIdx.x];
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
@@ -836,7 +801,7 @@ static __global__ void find_force_charge_reciprocal_space(
       float temp_force_sum[3] = {0.0f};
       float temp_D_real_sum = 0.0f;
       for (int nk = 0; nk < num_kpoints; ++nk) {
-        const int nc_nk = blockIdx.x * num_kpoints + nk;
+        const int nc_nk = blockIdx.x * num_kpoints_max + nk;
         const float kx = g_kx[nc_nk];
         const float ky = g_ky[nc_nk];
         const float kz = g_kz[nc_nk];
@@ -953,12 +918,10 @@ static __device__ void cross_product(const float a[3], const float b[3], float c
 
 static __global__ void find_k_and_G(
   const int Nc,
-  const int num_kpoints,
+  const int num_kpoints_max,
   const float alpha_factor,
   const float* g_box,
-  const int* g_k1,
-  const int* g_k2,
-  const int* g_k3,
+  int* g_num_kpoints,
   float* g_kx,
   float* g_ky,
   float* g_kz,
@@ -987,21 +950,28 @@ static __global__ void find_k_and_G(
       b2[d] *= two_pi_over_det;
       b3[d] *= two_pi_over_det;
     }
-    for (int nk = 0; nk < num_kpoints; ++nk) {
-      const float k1 = g_k1[nk];
-      const float k2 = g_k2[nk];
-      const float k3 = g_k3[nk];
-      const float kx = k1 * b1[0] + k2 * b2[0] + k3 * b3[0];
-      const float ky = k1 * b1[1] + k2 * b2[1] + k3 * b3[1];
-      const float kz = k1 * b1[2] + k2 * b2[2] + k3 * b3[2];
-      const int nc_nk = nc * num_kpoints + nk;
-      g_kx[nc_nk] = kx;
-      g_ky[nc_nk] = ky;
-      g_kz[nc_nk] = kz;
-      const float ksq = kx * kx + ky * ky + kz * kz;
-      const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
-      g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+
+    int nk = 0;
+    for (int k1 = 0; k1 <= 8; ++k1) {
+      for (int k2 = - 8; k2 <= 8; ++k2) {
+        for (int k3 = - 8; k3 <= 8; ++k3) {
+        const int ksq = k1 * k1 + k2 * k2 + k3 * k3;
+          if (ksq <= 64 && ksq > 0) {
+            const float kx = k1 * b1[0] + k2 * b2[0] + k3 * b3[0];
+            const float ky = k1 * b1[1] + k2 * b2[1] + k3 * b3[1];
+            const float kz = k1 * b1[2] + k2 * b2[2] + k3 * b3[2];
+            const int nc_nk = nc * num_kpoints_max + (nk++);
+            g_kx[nc_nk] = kx;
+            g_ky[nc_nk] = ky;
+            g_kz[nc_nk] = kz;
+            const float ksq = kx * kx + ky * ky + kz * kz;
+            const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
+            g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+          }
+        }
+      }
     }
+    g_num_kpoints[nc] = nk;
   }
 }
 
@@ -1159,26 +1129,25 @@ void NEP_Charge::find_force(
 
     find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
       dataset[device_id].Nc,
-      charge_para.num_kpoints,
+      charge_para.num_kpoints_max,
       charge_para.alpha_factor,
       dataset[device_id].box_original.data(),
-      nep_data[device_id].k1_gpu.data(),
-      nep_data[device_id].k2_gpu.data(),
-      nep_data[device_id].k3_gpu.data(),
+      nep_data[device_id].num_kpoints.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
       nep_data[device_id].G.data());
     GPU_CHECK_KERNEL
 
-    find_structure_factor<<<dataset[device_id].Nc * charge_para.num_kpoints, 1024>>>(
-      charge_para.num_kpoints,
+    find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
+      charge_para.num_kpoints_max,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
       dataset[device_id].charge.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
@@ -1188,7 +1157,7 @@ void NEP_Charge::find_force(
 
     find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].N,
-      charge_para.num_kpoints,
+      charge_para.num_kpoints_max,
       charge_para.alpha_factor,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
@@ -1196,6 +1165,7 @@ void NEP_Charge::find_force(
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
