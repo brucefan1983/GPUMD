@@ -916,6 +916,15 @@ static __device__ void cross_product(const float a[3], const float b[3], float c
   c[2] =  a[0] * b [1] - a[1] * b [0];
 }
 
+static __device__ float get_area(const float* a, const float* b)
+{
+  const float s1 = a[1] * b[2] - a[2] * b[1];
+  const float s2 = a[2] * b[0] - a[0] * b[2];
+  const float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+
 static __global__ void find_k_and_G(
   const int Nc,
   const int num_kpoints_max,
@@ -952,10 +961,10 @@ static __global__ void find_k_and_G(
       b3[d] *= two_pi_over_det;
     }
 
-    // The factor of 2 is a safe buffer
-    int n1_max = 2.0f * alpha * two_pi / sqrt(b1[0] * b1[0] + b1[1] * b1[1] + b1[2] * b1[2]);
-    int n2_max = 2.0f * alpha * two_pi / sqrt(b2[0] * b2[0] + b2[1] * b2[1] + b2[2] * b2[2]);
-    int n3_max = 2.0f * alpha * two_pi / sqrt(b3[0] * b3[0] + b3[1] * b3[1] + b3[2] * b3[2]);
+    const float volume_k = two_pi * two_pi * two_pi / abs(det);
+    int n1_max = alpha * two_pi * get_area(b2, b3) / volume_k;
+    int n2_max = alpha * two_pi * get_area(b3, b1) / volume_k;
+    int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
     float ksq_max = two_pi * two_pi * alpha * alpha;
 
     int nk = 0;
