@@ -68,6 +68,14 @@ void findCell(
   cell[3] = cell[0] + numCells[0] * (cell[1] + numCells[1] * cell[2]);
 }
 
+float getArea(const double* a, const double* b)
+{
+  const double s1 = a[1] * b[2] - a[2] * b[1];
+  const double s2 = a[2] * b[0] - a[0] * b[2];
+  const double s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
 void calculate_min_atomic_distance(const Atom& atom, const Box& box)
 {
   const int N = atom.number_of_atoms;
@@ -77,12 +85,16 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   int min_n1 = -1, min_n2 = -1;
 
   double thickness[3];
-  thickness[0] =
-    sqrt(box.cpu_h[0] * box.cpu_h[0] + box.cpu_h[3] * box.cpu_h[3] + box.cpu_h[6] * box.cpu_h[6]);
-  thickness[1] =
-    sqrt(box.cpu_h[1] * box.cpu_h[1] + box.cpu_h[4] * box.cpu_h[4] + box.cpu_h[7] * box.cpu_h[7]);
-  thickness[2] =
-    sqrt(box.cpu_h[2] * box.cpu_h[2] + box.cpu_h[5] * box.cpu_h[5] + box.cpu_h[8] * box.cpu_h[8]);
+  double volume = abs(
+    box.cpu_h[0] * (box.cpu_h[4] * box.cpu_h[8] - box.cpu_h[5] * box.cpu_h[7]) +
+    box.cpu_h[1] * (box.cpu_h[5] * box.cpu_h[6] - box.cpu_h[3] * box.cpu_h[8]) +
+    box.cpu_h[2] * (box.cpu_h[3] * box.cpu_h[7] - box.cpu_h[4] * box.cpu_h[6]));
+  const double a[3] = {box.cpu_h[0], box.cpu_h[3], box.cpu_h[6]};
+  const double b[3] = {box.cpu_h[1], box.cpu_h[4], box.cpu_h[7]};
+  const double c[3] = {box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]};
+  thickness[0] = volume / getArea(b, c);
+  thickness[1] = volume / getArea(c, a);
+  thickness[2] = volume / getArea(a, b);
 
   int numCells[4];
   numCells[0] = std::max(1, static_cast<int>(ceil(thickness[0] * 0.2)));
