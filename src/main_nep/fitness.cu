@@ -587,7 +587,6 @@ void Fitness::predict(Parameters& para, float* elite)
       update_energy_force_virial(
         fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
       if (para.has_charge) {
-        FILE* fid_charge = my_fopen("charge_train.out", "w");
         update_charge(fid_charge, train_set[batch_id][0]);
       }
     }
