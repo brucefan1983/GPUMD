@@ -5,6 +5,9 @@ Glossary
 
 .. glossary::
 
+   ADF
+        angle distribution function
+
    ARDF
         angular-dependent radial distribution function
 
