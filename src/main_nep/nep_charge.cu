@@ -993,6 +993,41 @@ static __global__ void find_k_and_G(
   }
 }
 
+static __global__ void zero_total_charge(
+  const int* Na,
+  const int* Na_sum,
+  float* g_charge)
+{
+  int tid = threadIdx.x;
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  __shared__ float s_charge[1024];
+  float charge = 0.0f;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024 + N1;
+    if (n < N2) {
+      charge += g_charge[n];
+    }
+  }
+  s_charge[tid] = charge;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_charge[tid] += s_charge[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024 + N1;
+    if (n < N2) {
+      g_charge[n] -= s_charge[0] / (N2 - N1);
+    }
+  }
+}
+
 void NEP_Charge::find_force(
   Parameters& para,
   const float* parameters,
@@ -1130,6 +1165,13 @@ void NEP_Charge::find_force(
       nep_data[device_id].Fp.data(),
       dataset[device_id].charge.data(),
       nep_data[device_id].charge_derivative.data());
+    GPU_CHECK_KERNEL
+
+    // enforce charge neutrality
+    zero_total_charge<<<dataset[device_id].Nc, 1024>>>(
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      dataset[device_id].charge.data());
     GPU_CHECK_KERNEL
 
     if (para.prediction == 1 && true) {
