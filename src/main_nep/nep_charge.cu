@@ -919,6 +919,7 @@ static __device__ void cross_product(const float a[3], const float b[3], float c
 static __global__ void find_k_and_G(
   const int Nc,
   const int num_kpoints_max,
+  const float alpha,
   const float alpha_factor,
   const float* g_box,
   int* g_num_kpoints,
@@ -951,22 +952,29 @@ static __global__ void find_k_and_G(
       b3[d] *= two_pi_over_det;
     }
 
+    int n1_max = alpha * two_pi / sqrt(b1[0] * b1[0] + b1[1] * b1[1] + b1[2] * b1[2]);
+    int n2_max = alpha * two_pi / sqrt(b2[0] * b2[0] + b2[1] * b2[1] + b2[2] * b2[2]);
+    int n3_max = alpha * two_pi / sqrt(b3[0] * b3[0] + b3[1] * b3[1] + b3[2] * b3[2]);
+    float ksq_max = two_pi * two_pi * alpha * alpha;
+
     int nk = 0;
-    for (int k1 = 0; k1 <= 8; ++k1) {
-      for (int k2 = - 8; k2 <= 8; ++k2) {
-        for (int k3 = - 8; k3 <= 8; ++k3) {
-        const int ksq = k1 * k1 + k2 * k2 + k3 * k3;
-          if (ksq <= 64 && ksq > 0) {
-            const float kx = k1 * b1[0] + k2 * b2[0] + k3 * b3[0];
-            const float ky = k1 * b1[1] + k2 * b2[1] + k3 * b3[1];
-            const float kz = k1 * b1[2] + k2 * b2[2] + k3 * b3[2];
-            const int nc_nk = nc * num_kpoints_max + (nk++);
-            g_kx[nc_nk] = kx;
-            g_ky[nc_nk] = ky;
-            g_kz[nc_nk] = kz;
+    for (int n1 = 0; n1 <= n1_max; ++n1) {
+      for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
+        for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+          const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
+          if (nsq > 0) {
+            const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+            const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+            const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
             const float ksq = kx * kx + ky * ky + kz * kz;
-            const float symmetry_factor = (k1 > 0) ? 2.0f : 1.0f;
-            g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+            if (ksq < ksq_max) {
+              const int nc_nk = nc * num_kpoints_max + (nk++);
+              g_kx[nc_nk] = kx;
+              g_ky[nc_nk] = ky;
+              g_kz[nc_nk] = kz;
+              const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
+              g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+            }
           }
         }
       }
@@ -1130,6 +1138,7 @@ void NEP_Charge::find_force(
     find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
       dataset[device_id].Nc,
       charge_para.num_kpoints_max,
+      charge_para.alpha,
       charge_para.alpha_factor,
       dataset[device_id].box_original.data(),
       nep_data[device_id].num_kpoints.data(),
