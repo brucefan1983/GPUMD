@@ -1178,19 +1178,6 @@ void NEP_Charge::find_force(
       dataset[device_id].charge.data());
     GPU_CHECK_KERNEL
 
-    if (para.prediction == 1 && true) {
-      FILE* fid_charge = my_fopen("charge.out", "a");
-      std::vector<float> charge_cpu(dataset[device_id].charge.size());
-      dataset[device_id].charge.copy_to_host(charge_cpu.data());
-      for (int nc = 0; nc < dataset[device_id].Nc; ++nc) {
-        for (int na = 0; na < dataset[device_id].Na_cpu[nc]; ++na) {
-          int n = dataset[device_id].Na_sum_cpu[nc] + na;
-          fprintf(fid_charge, "%g\n", charge_cpu[n]);
-        }
-      }
-      fclose(fid_charge);
-    }
-
     find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
       dataset[device_id].Nc,
       charge_para.num_kpoints_max,

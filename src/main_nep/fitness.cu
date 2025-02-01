@@ -493,6 +493,11 @@ void Fitness::report_error(
         fclose(fid_force);
         fclose(fid_virial);
         fclose(fid_stress);
+        if (para.has_charge) {
+          FILE* fid_charge = my_fopen("charge_test.out", "w");
+          update_charge(fid_charge, test_set[0]);
+          fclose(fid_charge);
+        }
       } else if (para.train_mode == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
         update_dipole(fid_dipole, test_set[0]);
@@ -538,6 +543,16 @@ void Fitness::update_energy_force_virial(
   output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
 
+void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
+{
+  dataset.charge.copy_to_host(dataset.charge_cpu.data());
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+      fprintf(fid_charge, "%g\n", dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
+    }
+  }
+}
+
 void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
@@ -563,15 +578,26 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_energy = my_fopen("energy_train.out", "w");
     FILE* fid_virial = my_fopen("virial_train.out", "w");
     FILE* fid_stress = my_fopen("stress_train.out", "w");
+    FILE* fid_charge;
+    if (para.has_charge) {
+      fid_charge = my_fopen("charge_train.out", "w");
+    }
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_energy_force_virial(
         fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
+      if (para.has_charge) {
+        FILE* fid_charge = my_fopen("charge_train.out", "w");
+        update_charge(fid_charge, train_set[batch_id][0]);
+      }
     }
     fclose(fid_energy);
     fclose(fid_force);
     fclose(fid_virial);
     fclose(fid_stress);
+    if (para.has_charge) {
+      fclose(fid_charge);
+    }
   } else if (para.train_mode == 1) {
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
