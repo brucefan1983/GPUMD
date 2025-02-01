@@ -952,9 +952,10 @@ static __global__ void find_k_and_G(
       b3[d] *= two_pi_over_det;
     }
 
-    int n1_max = alpha * two_pi / sqrt(b1[0] * b1[0] + b1[1] * b1[1] + b1[2] * b1[2]);
-    int n2_max = alpha * two_pi / sqrt(b2[0] * b2[0] + b2[1] * b2[1] + b2[2] * b2[2]);
-    int n3_max = alpha * two_pi / sqrt(b3[0] * b3[0] + b3[1] * b3[1] + b3[2] * b3[2]);
+    // The factor of 2 is a safe buffer
+    int n1_max = 2.0f * alpha * two_pi / sqrt(b1[0] * b1[0] + b1[1] * b1[1] + b1[2] * b1[2]);
+    int n2_max = 2.0f * alpha * two_pi / sqrt(b2[0] * b2[0] + b2[1] * b2[1] + b2[2] * b2[2]);
+    int n3_max = 2.0f * alpha * two_pi / sqrt(b3[0] * b3[0] + b3[1] * b3[1] + b3[2] * b3[2]);
     float ksq_max = two_pi * two_pi * alpha * alpha;
 
     int nk = 0;
