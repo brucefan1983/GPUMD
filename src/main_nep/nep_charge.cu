@@ -294,6 +294,10 @@ NEP_Charge::NEP_Charge(
     }
   }
 
+  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
+  charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
+  charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
+
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
