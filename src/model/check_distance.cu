@@ -93,7 +93,6 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   std::vector<int> cellContents(N, 0);
   std::vector<int> cellCount(numCells[3], 0);
   std::vector<int> cellCountSum(numCells[3], 0);
-  std::fill(cellCount.begin(), cellCount.end(), 0);
 
   for (int n = 0; n < N; ++n) {
     const double r[3] = {pos[n], pos[n + N], pos[n + 2 * N]};
@@ -104,7 +103,7 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   for (int i = 1; i < numCells[3]; ++i) {
     cellCountSum[i] = cellCountSum[i - 1] + cellCount[i - 1];
   }
-
+  std::fill(cellCount.begin(), cellCount.end(), 0);
   for (int n = 0; n < N; ++n) {
     const double r[3] = {pos[n], pos[n + N], pos[n + 2 * N]};
     findCell(box, thickness, r, numCells, cell);
