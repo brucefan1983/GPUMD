@@ -34,31 +34,25 @@ void applyMicOne(double& x12)
 
 void applyMic(const Box& box, double& x12, double& y12, double& z12)
 {
-
-  double sx = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
-  double sy = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
-  double sz = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
-
-  if (box.pbc_x)
-    applyMicOne(sx);
-  if (box.pbc_y)
-    applyMicOne(sy);
-  if (box.pbc_z)
-    applyMicOne(sz);
-
-  x12 = box.cpu_h[0] * sx + box.cpu_h[3] * sy + box.cpu_h[6] * sz;
-  y12 = box.cpu_h[1] * sx + box.cpu_h[4] * sy + box.cpu_h[7] * sz;
-  z12 = box.cpu_h[2] * sx + box.cpu_h[5] * sy + box.cpu_h[8] * sz;
+  int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+  double s[3];
+  for (int i = 0; i < 3; ++i) {
+    s[i] = box.cpu_h[9 + i * 3] * x12 + box.cpu_h[10 + i * 3] * y12 + box.cpu_h[11 + i * 3] * z12;
+    if (pbc[i])
+      applyMicOne(s[i]);
+  }
+  x12 = box.cpu_h[0] * s[0] + box.cpu_h[3] * s[1] + box.cpu_h[6] * s[2];
+  y12 = box.cpu_h[1] * s[0] + box.cpu_h[4] * s[1] + box.cpu_h[7] * s[2];
+  z12 = box.cpu_h[2] * s[0] + box.cpu_h[5] * s[1] + box.cpu_h[8] * s[2];
 }
 
 void findCell(
   const Box& box, const double* thickness, const double* r, const int* numCells, int* cell)
 {
   double s[3];
-  s[0] = box.cpu_h[9] * r[0] + box.cpu_h[10] * r[1] + box.cpu_h[11] * r[2];
-  s[1] = box.cpu_h[12] * r[0] + box.cpu_h[13] * r[1] + box.cpu_h[14] * r[2];
-  s[2] = box.cpu_h[15] * r[0] + box.cpu_h[16] * r[1] + box.cpu_h[17] * r[2];
   for (int d = 0; d < 3; ++d) {
+    s[d] =
+      box.cpu_h[9 + d * 3] * r[0] + box.cpu_h[10 + d * 3] * r[1] + box.cpu_h[11 + d * 3] * r[2];
     cell[d] = floor(s[d] * thickness[d] * 0.2);
     if (cell[d] < 0)
       cell[d] += numCells[d];
@@ -66,14 +60,6 @@ void findCell(
       cell[d] -= numCells[d];
   }
   cell[3] = cell[0] + numCells[0] * (cell[1] + numCells[1] * cell[2]);
-}
-
-float getArea(const double* a, const double* b)
-{
-  const double s1 = a[1] * b[2] - a[2] * b[1];
-  const double s2 = a[2] * b[0] - a[0] * b[2];
-  const double s3 = a[0] * b[1] - a[1] * b[0];
-  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
 void calculate_min_atomic_distance(const Atom& atom, const Box& box)
@@ -84,28 +70,20 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   double min_distance = 5.0;
   int min_n1 = -1, min_n2 = -1;
 
+  int cell[4], numCells[4];
   double thickness[3];
-  double volume = abs(
-    box.cpu_h[0] * (box.cpu_h[4] * box.cpu_h[8] - box.cpu_h[5] * box.cpu_h[7]) +
-    box.cpu_h[1] * (box.cpu_h[5] * box.cpu_h[6] - box.cpu_h[3] * box.cpu_h[8]) +
-    box.cpu_h[2] * (box.cpu_h[3] * box.cpu_h[7] - box.cpu_h[4] * box.cpu_h[6]));
-  const double a[3] = {box.cpu_h[0], box.cpu_h[3], box.cpu_h[6]};
-  const double b[3] = {box.cpu_h[1], box.cpu_h[4], box.cpu_h[7]};
-  const double c[3] = {box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]};
-  thickness[0] = volume / getArea(b, c);
-  thickness[1] = volume / getArea(c, a);
-  thickness[2] = volume / getArea(a, b);
-
-  int numCells[4];
-  numCells[0] = std::max(1, static_cast<int>(ceil(thickness[0] * 0.2)));
-  numCells[1] = std::max(1, static_cast<int>(ceil(thickness[1] * 0.2)));
-  numCells[2] = std::max(1, static_cast<int>(ceil(thickness[2] * 0.2)));
+  for (int i = 0; i < 3; ++i) {
+    thickness[i] = sqrt(
+      box.cpu_h[i] * box.cpu_h[i] + box.cpu_h[i + 3] * box.cpu_h[i + 3] +
+      box.cpu_h[i + 6] * box.cpu_h[i + 6]);
+    numCells[i] = std::max(1, static_cast<int>(ceil(thickness[i] * 0.2)));
+  }
   numCells[3] = numCells[0] * numCells[1] * numCells[2];
 
-  int cell[4];
-
+  std::vector<int> cellContents(N, 0);
   std::vector<int> cellCount(numCells[3], 0);
   std::vector<int> cellCountSum(numCells[3], 0);
+  std::fill(cellCount.begin(), cellCount.end(), 0);
 
   for (int n = 0; n < N; ++n) {
     const double r[3] = {pos[n], pos[n + N], pos[n + 2 * N]};
@@ -116,9 +94,6 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   for (int i = 1; i < numCells[3]; ++i) {
     cellCountSum[i] = cellCountSum[i - 1] + cellCount[i - 1];
   }
-
-  std::fill(cellCount.begin(), cellCount.end(), 0);
-  std::vector<int> cellContents(N, 0);
 
   for (int n = 0; n < N; ++n) {
     const double r[3] = {pos[n], pos[n + N], pos[n + 2 * N]};
@@ -159,9 +134,9 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
               if (d2 >= 4.0)
                 continue;
 
-              double dist = sqrt(d2);
-              if (dist < min_distance) {
-                min_distance = dist;
+              double distance = d2;
+              if (distance < min_distance) {
+                min_distance = distance;
                 min_n1 = n1;
                 min_n2 = n2;
               }
@@ -171,11 +146,12 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       }
     }
   }
+  double mini_distance = sqrt(min_distance);
 
-  if (min_distance < 1.0) {
+  if (mini_distance < 1.0) {
     printf(
       "Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 1 Å.\n",
-      min_distance,
+      mini_distance,
       min_n1,
       atom.cpu_atom_symbol[min_n1].c_str(),
       min_n2,
@@ -188,6 +164,6 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       atom.cpu_atom_symbol[min_n1].c_str(),
       min_n2,
       atom.cpu_atom_symbol[min_n2].c_str(),
-      min_distance);
+      mini_distance);
   }
 }
