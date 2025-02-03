@@ -45,9 +45,9 @@ void applyMic(const Box& box, double& x12, double& y12, double& z12)
   if (box.pbc_z)
     applyMicOne(sz);
 
-  x12 = box.cpu_h[0] * s[0] + box.cpu_h[3] * s[1] + box.cpu_h[6] * s[2];
-  y12 = box.cpu_h[1] * s[0] + box.cpu_h[4] * s[1] + box.cpu_h[7] * s[2];
-  z12 = box.cpu_h[2] * s[0] + box.cpu_h[5] * s[1] + box.cpu_h[8] * s[2];
+  x12 = box.cpu_h[0] * sx + box.cpu_h[3] * sy + box.cpu_h[6] * sz;
+  y12 = box.cpu_h[1] * sx + box.cpu_h[4] * sy + box.cpu_h[7] * sz;
+  z12 = box.cpu_h[2] * sx + box.cpu_h[5] * sy + box.cpu_h[8] * sz;
 }
 
 void findCell(
@@ -143,8 +143,8 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
                 continue;
 
               double dist = d2;
-              if (dist < dist_sq) {
-                dist = dist_sq;
+              if (dist_sq < dist) {
+                dist_sq = dist;
                 min_n1 = n1;
                 min_n2 = n2;
               }
