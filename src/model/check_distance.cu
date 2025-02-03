@@ -46,9 +46,9 @@ void applyMic(const Box& box, double& x12, double& y12, double& z12)
   if (box.pbc_z)
     applyMicOne(sz);
 
-  x12 = box.cpu_h[0] * sx + box.cpu_h[3] * sy + box.cpu_h[6] * sz;
-  y12 = box.cpu_h[1] * sx + box.cpu_h[4] * sy + box.cpu_h[7] * sz;
-  z12 = box.cpu_h[2] * sx + box.cpu_h[5] * sy + box.cpu_h[8] * sz;
+  x12 = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
+  y12 = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
+  z12 = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
 }
 
 void findCell(
@@ -166,7 +166,7 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       min_n2,
       atom.cpu_atom_symbol[min_n2].c_str());
     PRINT_INPUT_ERROR("There are two atoms with a distance less than 1 Å.");
-  } else if (min_n1 != -1 && min_n2 != -1) {
+  } else {
     printf(
       "Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
       min_n1,
