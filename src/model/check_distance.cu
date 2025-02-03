@@ -154,7 +154,7 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       }
     }
   }
-  double min_distance = sqrt(dist);
+  double min_distance = sqrt(dist_sq);
 
   if (min_distance < 1.0) {
     printf(
