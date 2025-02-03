@@ -34,13 +34,17 @@ void applyMicOne(double& x12)
 
 void applyMic(const Box& box, double& x12, double& y12, double& z12)
 {
-  int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
-  double s[3];
-  for (int i = 0; i < 3; ++i) {
-    s[i] = box.cpu_h[9 + i * 3] * x12 + box.cpu_h[10 + i * 3] * y12 + box.cpu_h[11 + i * 3] * z12;
-    if (pbc[i])
-      applyMicOne(s[i]);
-  }
+  double sx = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
+  double sy = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
+  double sz = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
+
+  if (box.pbc_x)
+    applyMicOne(sx);
+  if (box.pbc_y)
+    applyMicOne(sy);
+  if (box.pbc_z)
+    applyMicOne(sz);
+
   x12 = box.cpu_h[0] * s[0] + box.cpu_h[3] * s[1] + box.cpu_h[6] * s[2];
   y12 = box.cpu_h[1] * s[0] + box.cpu_h[4] * s[1] + box.cpu_h[7] * s[2];
   z12 = box.cpu_h[2] * s[0] + box.cpu_h[5] * s[1] + box.cpu_h[8] * s[2];
@@ -50,9 +54,10 @@ void findCell(
   const Box& box, const double* thickness, const double* r, const int* numCells, int* cell)
 {
   double s[3];
+  s[0] = box.cpu_h[9] * r[0] + box.cpu_h[10] * r[1] + box.cpu_h[11] * r[2];
+  s[1] = box.cpu_h[12] * r[0] + box.cpu_h[13] * r[1] + box.cpu_h[14] * r[2];
+  s[2] = box.cpu_h[15] * r[0] + box.cpu_h[16] * r[1] + box.cpu_h[17] * r[2];
   for (int d = 0; d < 3; ++d) {
-    s[d] =
-      box.cpu_h[9 + d * 3] * r[0] + box.cpu_h[10 + d * 3] * r[1] + box.cpu_h[11 + d * 3] * r[2];
     cell[d] = floor(s[d] * thickness[d] * 0.2);
     if (cell[d] < 0)
       cell[d] += numCells[d];
@@ -67,17 +72,21 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   const int N = atom.number_of_atoms;
   const double* pos = atom.cpu_position_per_atom.data();
 
-  double min_distance = 5.0;
+  double dist_sq = 5.0;
   int min_n1 = -1, min_n2 = -1;
 
-  int cell[4], numCells[4];
   double thickness[3];
-  for (int i = 0; i < 3; ++i) {
-    thickness[i] = sqrt(
-      box.cpu_h[i] * box.cpu_h[i] + box.cpu_h[i + 3] * box.cpu_h[i + 3] +
-      box.cpu_h[i + 6] * box.cpu_h[i + 6]);
-    numCells[i] = std::max(1, static_cast<int>(ceil(thickness[i] * 0.2)));
-  }
+  thickness[0] =
+    sqrt(box.cpu_h[0] * box.cpu_h[0] + box.cpu_h[3] * box.cpu_h[3] + box.cpu_h[6] * box.cpu_h[6]);
+  thickness[1] =
+    sqrt(box.cpu_h[1] * box.cpu_h[1] + box.cpu_h[4] * box.cpu_h[4] + box.cpu_h[7] * box.cpu_h[7]);
+  thickness[2] =
+    sqrt(box.cpu_h[2] * box.cpu_h[2] + box.cpu_h[5] * box.cpu_h[5] + box.cpu_h[8] * box.cpu_h[8]);
+
+  int cell[4], numCells[4];
+  numCells[0] = std::max(1, static_cast<int>(ceil(thickness[0] * 0.2)));
+  numCells[1] = std::max(1, static_cast<int>(ceil(thickness[1] * 0.2)));
+  numCells[2] = std::max(1, static_cast<int>(ceil(thickness[2] * 0.2)));
   numCells[3] = numCells[0] * numCells[1] * numCells[2];
 
   std::vector<int> cellContents(N, 0);
@@ -133,9 +142,9 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
               if (d2 >= 4.0)
                 continue;
 
-              double distance = d2;
-              if (distance < min_distance) {
-                min_distance = distance;
+              double dist = d2;
+              if (dist < dist_sq) {
+                dist = dist_sq;
                 min_n1 = n1;
                 min_n2 = n2;
               }
@@ -145,12 +154,12 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       }
     }
   }
-  double mini_distance = sqrt(min_distance);
+  double min_distance = sqrt(dist);
 
-  if (mini_distance < 1.0) {
+  if (min_distance < 1.0) {
     printf(
       "Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 1 Å.\n",
-      mini_distance,
+      min_distance,
       min_n1,
       atom.cpu_atom_symbol[min_n1].c_str(),
       min_n2,
@@ -163,6 +172,6 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       atom.cpu_atom_symbol[min_n1].c_str(),
       min_n2,
       atom.cpu_atom_symbol[min_n2].c_str(),
-      mini_distance);
+      min_distance);
   }
 }
