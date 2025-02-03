@@ -157,22 +157,12 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
   }
   double min_distance = sqrt(dist_sq);
 
-  if (min_distance < 1.0) {
-    printf(
-      "Error: Minimum distance (%f Å) between atoms %d (%s) and %d (%s) is less than 1 Å.\n",
-      min_distance,
-      min_n1,
-      atom.cpu_atom_symbol[min_n1].c_str(),
-      min_n2,
-      atom.cpu_atom_symbol[min_n2].c_str());
-    PRINT_INPUT_ERROR("There are two atoms with a distance less than 1 Å.");
-  } else {
-    printf(
-      "Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
-      min_n1,
-      atom.cpu_atom_symbol[min_n1].c_str(),
-      min_n2,
-      atom.cpu_atom_symbol[min_n2].c_str(),
-      min_distance);
-  }
+  printf(
+    "Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
+    min_n1,
+    atom.cpu_atom_symbol[min_n1].c_str(),
+    min_n2,
+    atom.cpu_atom_symbol[min_n2].c_str(),
+    min_distance);
+  
 }
