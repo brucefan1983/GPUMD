@@ -34,6 +34,7 @@ void applyMicOne(double& x12)
 
 void applyMic(const Box& box, double& x12, double& y12, double& z12)
 {
+
   double sx = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
   double sy = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
   double sz = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
@@ -143,7 +144,7 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
                 continue;
 
               double dist = d2;
-              if (dist_sq < dist) {
+              if (dist < dist_sq) {
                 dist_sq = dist;
                 min_n1 = n1;
                 min_n2 = n2;
