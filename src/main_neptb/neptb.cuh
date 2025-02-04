@@ -20,23 +20,6 @@
 class Parameters;
 class Dataset;
 
-struct NEPTB_Data {
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
-  GPU_Vector<int> NN_angular; // angular neighbor number
-  GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
-  GPU_Vector<float> descriptors; // descriptors
-  GPU_Vector<float> Fp;          // gradient of descriptors
-  GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> parameters; // parameters to be optimized
-};
-
 class NEPTB : public Potential
 {
 public:
@@ -61,6 +44,23 @@ public:
     int num_types_sq = 0;
     int num_c_radial = 0;
     int atomic_numbers[NUM_ELEMENTS];
+  };
+
+  struct NEPTB_Data {
+    GPU_Vector<int> NN_radial;  // radial neighbor number
+    GPU_Vector<int> NL_radial;  // radial neighbor list
+    GPU_Vector<int> NN_angular; // angular neighbor number
+    GPU_Vector<int> NL_angular; // angular neighbor list
+    GPU_Vector<float> x12_radial;
+    GPU_Vector<float> y12_radial;
+    GPU_Vector<float> z12_radial;
+    GPU_Vector<float> x12_angular;
+    GPU_Vector<float> y12_angular;
+    GPU_Vector<float> z12_angular;
+    GPU_Vector<float> descriptors; // descriptors
+    GPU_Vector<float> Fp;          // gradient of descriptors
+    GPU_Vector<float> sum_fxyz;
+    GPU_Vector<float> parameters; // parameters to be optimized
   };
 
   struct ANN {
