@@ -116,8 +116,7 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  potential.reset(
-    new NEPTB(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  potential.reset(new NEPTB(para, N, N_times_max_NN_radial, N_times_max_NN_angular, deviceCount));
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
@@ -259,19 +258,13 @@ void Fitness::output(
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
-  if (para.version == 3) {
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep3 %d ", para.num_types);
-    }
-  } else if (para.version == 4) {
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep4 %d ", para.num_types);
-    }
-  } 
+
+  if (para.enable_zbl) {
+    fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+  } else {
+    fprintf(fid_nep, "nep4 %d ", para.num_types);
+  }
+
   for (int n = 0; n < para.num_types; ++n) {
     fprintf(fid_nep, "%s ", para.elements[n].c_str());
   }

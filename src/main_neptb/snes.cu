@@ -47,9 +47,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   const int N = population_size * number_of_variables;
   int num = number_of_variables;
-  if (para.version != 3) {
-    num /= para.num_types;
-  }
+  num /= para.num_types;
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
   fitness.resize(population_size * 6 * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
@@ -129,17 +127,13 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  if (para.version != 3) {
-    for (int t = 0; t < para.num_types; ++t) {
-      for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
-        type_of_variable[n + offset] = t;
-      }
-      offset += (para.dim + 2) * para.num_neurons1;
+  for (int t = 0; t < para.num_types; ++t) {
+    for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
+      type_of_variable[n + offset] = t;
     }
-    ++offset; // the bias
-  } else {
-    offset += (para.dim + 2) * para.num_neurons1 + 1;
+    offset += (para.dim + 2) * para.num_neurons1;
   }
+  ++offset; // the bias
 
   // descriptor part
   for (int n = 0; n <= para.n_max_radial; ++n) {
@@ -200,11 +194,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data());
 
-      if (para.version != 3) {
-        regularize_NEP4(para);
-      } else {
-        regularize(para);
-      }
+      regularize_NEP4(para);
 
       sort_population(para);
 

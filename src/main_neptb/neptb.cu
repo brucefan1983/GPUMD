@@ -245,10 +245,8 @@ NEPTB::NEPTB(
   int N,
   int N_times_max_NN_radial,
   int N_times_max_NN_angular,
-  int version,
   int deviceCount)
 {
-  paramb.version = version;
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
@@ -320,9 +318,6 @@ void NEPTB::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
-    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
