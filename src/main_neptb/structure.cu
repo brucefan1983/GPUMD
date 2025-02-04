@@ -174,26 +174,8 @@ static void read_one_structure(
       structure.energy /= structure.num_atom;
     }
   }
-  if (para.train_mode == 0 && !has_energy_in_exyz) {
+  if (!has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
-  }
-
-  structure.has_temperature = false;
-  for (const auto& token : tokens) {
-    const std::string temperature_string = "temperature=";
-    if (token.substr(0, temperature_string.length()) == temperature_string) {
-      structure.has_temperature = true;
-      structure.temperature = get_double_from_token(
-        token.substr(temperature_string.length(), token.length()),
-        xyz_filename.c_str(),
-        line_number);
-    }
-  }
-  if (para.train_mode == 3 && !structure.has_temperature) {
-    PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
-  }
-  if (!structure.has_temperature) {
-    structure.temperature = 0;
   }
 
   structure.weight = 1.0f;
@@ -293,68 +275,6 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the dipole data
-  if (para.train_mode == 1) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string dipole_string = "dipole=";
-      if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
-        structure.has_virial = true;
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = 0.0f;
-        }
-        for (int m = 0; m < 3; ++m) {
-          structure.virial[m] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (dipole_string.length() + 1) : 0,
-              (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[m] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
-  }
-
-  // use the virial viriable to keep the polarizability data
-  if (para.train_mode == 2) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string pol_string = "pol=";
-      if (tokens[n].substr(0, pol_string.length()) == pol_string) {
-        structure.has_virial = true;
-        const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
-        for (int m = 0; m < 9; ++m) {
-          structure.virial[reduced_index[m]] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (pol_string.length() + 1) : 0,
-              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[reduced_index[m]] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
-  }
-
   int species_offset = 0;
   int pos_offset = 0;
   int force_offset = 0;
@@ -389,7 +309,7 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && para.train_mode == 0) {
+      if (force_position < 0) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {

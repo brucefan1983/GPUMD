@@ -130,16 +130,13 @@ void SNES::find_type_of_variable(Parameters& para)
 
   // NN part
   if (para.version != 3) {
-    int num_ann = (para.train_mode == 2) ? 2 : 1;
-    for (int ann = 0; ann < num_ann; ++ann) {
-      for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
-          type_of_variable[n + offset] = t;
-        }
-        offset += (para.dim + 2) * para.num_neurons1;
+    for (int t = 0; t < para.num_types; ++t) {
+      for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
+        type_of_variable[n + offset] = t;
       }
-      ++offset; // the bias
+      offset += (para.dim + 2) * para.num_neurons1;
     }
+    ++offset; // the bias
   } else {
     offset += (para.dim + 2) * para.num_neurons1 + 1;
   }
@@ -184,30 +181,18 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   print_line_2();
 
   if (para.prediction == 0) {
-
-    if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-E-Train",
-        "RMSE-F-Train",
-        "RMSE-V-Train",
-        "RMSE-E-Test",
-        "RMSE-F-Test",
-        "RMSE-V-Test");
-    } else {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-P-Train",
-        "RMSE-P-Test");
-    }
+    printf(
+      "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+      "Step",
+      "Total-Loss",
+      "L1Reg-Loss",
+      "L2Reg-Loss",
+      "RMSE-E-Train",
+      "RMSE-F-Train",
+      "RMSE-V-Train",
+      "RMSE-E-Test",
+      "RMSE-F-Test",
+      "RMSE-V-Test");
   }
 
   if (para.prediction == 0) {

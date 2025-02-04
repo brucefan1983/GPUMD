@@ -51,7 +51,6 @@ Parameters::Parameters()
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
   is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
@@ -75,7 +74,6 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
 
-  train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
   version = 4;                 // NEP4 is the best
   rc_radial = 8.0f;            // large enough for vdw/coulomb
@@ -158,14 +156,6 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (train_mode != 0 && train_mode != 3) {
-    // take virial as dipole or polarizability
-    lambda_e = lambda_f = 0.0f;
-    enable_zbl = false;
-    if (!is_lambda_v_set) {
-      lambda_v = 1.0f;
-    }
-  }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
   if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
@@ -175,9 +165,6 @@ void Parameters::calculate_parameters()
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
-  if (train_mode == 3) {
-    dim += 1; // concatenate temeprature with descriptors
-  }
   q_scaler_cpu.resize(dim, 1.0e10f);
 #ifdef USE_FIXED_SCALER
   for (int n = 0; n < q_scaler_cpu.size(); ++n) {
@@ -196,9 +183,6 @@ void Parameters::calculate_parameters()
     (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
-    number_of_variables += number_of_variables_ann;
-  }
 
   if (version != 3) {
     if (!is_lambda_1_set) {
@@ -232,20 +216,6 @@ void Parameters::report_inputs()
   }
 
   printf("Input or default parameters:\n");
-
-  std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
-  }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
-  } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
-  }
 
   std::string calculation_mode_name = "train";
   if (prediction == 1) {
@@ -424,8 +394,7 @@ void Parameters::report_inputs()
   printf("    total number of descriptor components = %d.\n", dim);
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
-    "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    "    number of NN parameters to be optimized = %d.\n", number_of_variables_ann);
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -438,9 +407,7 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
-  } else if (strcmp(param[0], "prediction") == 0) {
+  if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
     parse_version(param, num_param);
@@ -492,21 +459,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
-  }
-}
-
-void Parameters::parse_mode(const char** param, int num_param)
-{
-  is_train_mode_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
-  }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
-    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
 

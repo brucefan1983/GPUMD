@@ -259,48 +259,19 @@ void Fitness::output(
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
-  if (para.train_mode == 0) { // potential model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3 %d ", para.num_types);
-      }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4 %d ", para.num_types);
-      }
-    } 
-  } else if (para.train_mode == 1) { // dipole model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
-    } else if (para.version == 4) {
-      fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
+  if (para.version == 3) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep3 %d ", para.num_types);
     }
-  } else if (para.train_mode == 2) { // polarizability model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
-    } else if (para.version == 4) {
-      fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
+  } else if (para.version == 4) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep4 %d ", para.num_types);
     }
-  } else if (para.train_mode == 3) { // temperature model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);
-      }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
-      }
-    }
-  }
-
+  } 
   for (int n = 0; n < para.num_types; ++n) {
     fprintf(fid_nep, "%s ", para.elements[n].c_str());
   }
@@ -374,9 +345,7 @@ void Fitness::report_error(
     float rmse_virial_train = rmse_virial_train_array.back();
 
     // correct the last bias parameter in the NN
-    if (para.train_mode == 0 || para.train_mode == 3) {
-      elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
-    }
+    elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
 
     float rmse_energy_test = 0.0f;
     float rmse_force_test = 0.0f;
@@ -410,74 +379,45 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
-    if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
-    } else {
-      printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_virial_train,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_virial_train,
-        rmse_virial_test);
-    }
+    printf(
+      "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+      generation + 1,
+      loss_total,
+      loss_L1,
+      loss_L2,
+      rmse_energy_train,
+      rmse_force_train,
+      rmse_virial_train,
+      rmse_energy_test,
+      rmse_force_test,
+      rmse_virial_test);
+    fprintf(
+      fid_loss_out,
+      "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+      generation + 1,
+      loss_total,
+      loss_L1,
+      loss_L2,
+      rmse_energy_train,
+      rmse_force_train,
+      rmse_virial_train,
+      rmse_energy_test,
+      rmse_force_test,
+      rmse_virial_test);
+
     fflush(stdout);
     fflush(fid_loss_out);
 
     if (has_test_set) {
-      if (para.train_mode == 0 || para.train_mode == 3) {
-        FILE* fid_force = my_fopen("force_test.out", "w");
-        FILE* fid_energy = my_fopen("energy_test.out", "w");
-        FILE* fid_virial = my_fopen("virial_test.out", "w");
-        FILE* fid_stress = my_fopen("stress_test.out", "w");
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
-        fclose(fid_energy);
-        fclose(fid_force);
-        fclose(fid_virial);
-        fclose(fid_stress);
-      } else if (para.train_mode == 1) {
-        FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0]);
-        fclose(fid_dipole);
-      } else if (para.train_mode == 2) {
-        FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0]);
-        fclose(fid_polarizability);
-      }
+      FILE* fid_force = my_fopen("force_test.out", "w");
+      FILE* fid_energy = my_fopen("energy_test.out", "w");
+      FILE* fid_virial = my_fopen("virial_test.out", "w");
+      FILE* fid_stress = my_fopen("stress_test.out", "w");
+      update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
+      fclose(fid_energy);
+      fclose(fid_force);
+      fclose(fid_virial);
+      fclose(fid_stress);
     }
 
     if (0 == (generation + 1) % 1000) {
@@ -534,33 +474,17 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
 
 void Fitness::predict(Parameters& para, float* elite)
 {
-  if (para.train_mode == 0 || para.train_mode == 3) {
-    FILE* fid_force = my_fopen("force_train.out", "w");
-    FILE* fid_energy = my_fopen("energy_train.out", "w");
-    FILE* fid_virial = my_fopen("virial_train.out", "w");
-    FILE* fid_stress = my_fopen("stress_train.out", "w");
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_energy_force_virial(
-        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
-    }
-    fclose(fid_energy);
-    fclose(fid_force);
-    fclose(fid_virial);
-    fclose(fid_stress);
-  } else if (para.train_mode == 1) {
-    FILE* fid_dipole = my_fopen("dipole_train.out", "w");
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_dipole(fid_dipole, train_set[batch_id][0]);
-    }
-    fclose(fid_dipole);
-  } else if (para.train_mode == 2) {
-    FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_polarizability(fid_polarizability, train_set[batch_id][0]);
-    }
-    fclose(fid_polarizability);
+  FILE* fid_force = my_fopen("force_train.out", "w");
+  FILE* fid_energy = my_fopen("energy_train.out", "w");
+  FILE* fid_virial = my_fopen("virial_train.out", "w");
+  FILE* fid_stress = my_fopen("stress_train.out", "w");
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    potential->find_force(para, elite, train_set[batch_id], false, true, 1);
+    update_energy_force_virial(
+      fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
   }
+  fclose(fid_energy);
+  fclose(fid_force);
+  fclose(fid_virial);
+  fclose(fid_stress);
 }

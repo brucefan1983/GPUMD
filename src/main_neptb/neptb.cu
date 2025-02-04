@@ -414,48 +414,6 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void apply_ann_temperature(
-  const int N,
-  const NEPTB::ParaMB paramb,
-  const NEPTB::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_descriptors,
-  float* __restrict__ g_q_scaler,
-  const float* __restrict__ g_temperature,
-  float* g_pe,
-  float* g_Fp)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
-  float temperature = g_temperature[n1];
-  if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim - 1; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    g_q_scaler[annmb.dim - 1] = 0.001; // temperature dimension scaler
-    q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-    g_pe[n1] = F;
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
-    }
-  }
-}
-
 static __global__ void zero_force(
   const int N, float* g_fx, float* g_fy, float* g_fz, float* g_vxx, float* g_vyy, float* g_vzz)
 {
@@ -869,30 +827,16 @@ void NEPTB::find_force(
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
 
-    if (para.train_mode == 3) {
-      apply_ann_temperature<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        neptb_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].temperature_ref_gpu.data(),
-        dataset[device_id].energy.data(),
-        neptb_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
-    } else {
-      apply_ann<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        neptb_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].energy.data(),
-        neptb_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
-    }
+    apply_ann<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      neptb_data[device_id].descriptors.data(),
+      para.q_scaler_gpu[device_id].data(),
+      dataset[device_id].energy.data(),
+      neptb_data[device_id].Fp.data());
+    GPU_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
