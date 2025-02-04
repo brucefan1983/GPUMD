@@ -61,6 +61,7 @@ public:
     GPU_Vector<float> Fp;          // gradient of descriptors
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
+    GPU_Vector<float> hamiltonian;
   };
 
   struct ANN {
@@ -84,6 +85,17 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
+  struct TB {
+    float onsite[4] = {-2.99, 3.71, 3.71, 3.71};
+    float v_sss = -5.0;
+    float v_sps = 4.7;
+    float v_pps = 5.5;
+    float v_ppp = -1.55;
+    float nc = 6.5;
+    float rc = 2.18;
+    float r0 = 1.536329;
+  };
+
   NEPTB(
     Parameters& para,
     int N,
@@ -103,5 +115,6 @@ private:
   ANN annmb[16];
   NEPTB_Data neptb_data[16];
   ZBL zbl;
+  TB tb;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };
