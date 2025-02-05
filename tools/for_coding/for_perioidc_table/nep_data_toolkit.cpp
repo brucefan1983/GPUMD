@@ -158,6 +158,7 @@ struct Structure {
   bool has_sid = false;
   bool has_virial = false;
   bool has_stress = false;
+  double energy_weight = 1.0;
   double energy;
   double weight;
   double virial[9];
@@ -225,6 +226,15 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (token.substr(0, sid_string.length()) == sid_string) {
       structure.has_sid = true;
       structure.sid = token.substr(sid_string.length(), token.length());
+    }
+  }
+
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), __FILE__, __LINE__);
     }
   }
 
@@ -394,6 +404,11 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
 static void write_one_structure(std::ofstream& output, const Structure& structure)
 {
   output << structure.num_atom << "\n";
+
+  if (structure.energy_weight != 1.0) {
+    output << "energy_weight=" << structure.energy_weight << " ";
+  }
+
   output << "Lattice=\"";
   for (int m = 0; m < 9; ++m) {
     output << structure.box[m];
