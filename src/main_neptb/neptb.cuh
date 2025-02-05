@@ -62,6 +62,7 @@ public:
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
     GPU_Vector<float> hamiltonian;
+    GPU_Vector<float> eigenvalue;
   };
 
   struct ANN {

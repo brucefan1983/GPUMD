@@ -29,6 +29,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
+#ifdef USE_HIP
+  #include <hipsolver.h>
+#else
+  #include <cusolverDn.h>
+#endif
 #include <cstring>
 
 const int number_of_orbitals_per_atom = 4;
@@ -314,6 +319,7 @@ NEPTB::NEPTB(
     neptb_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
     neptb_data[device_id].hamiltonian.resize(N * 4 * N * 4);
+    neptb_data[device_id].eigenvalue.resize(N * 4);
   }
 }
 
@@ -769,6 +775,32 @@ static __global__ void find_hamiltonian(
   }
 }
 
+static void eigenvectors_symmetric_Jacobi(const int N, float* A, float* W)
+{
+  // get handle
+  gpusolverDnHandle_t handle = NULL;
+  gpusolverDnCreate(&handle);
+  gpusolverEigMode_t jobz = GPUSOLVER_EIG_MODE_VECTOR;
+  gpusolverFillMode_t uplo = GPUSOLVER_FILL_MODE_LOWER;
+
+  // some parameters for the Jacobi method
+  gpusolverSyevjInfo_t para = NULL;
+  gpusolverDnCreateSyevjInfo(&para);
+
+  // get work
+  int lwork = 0;
+  gpusolverDnSsyevj_bufferSize(handle, jobz, uplo, N, A, N, W, &lwork, para);
+  GPU_Vector<float> work(lwork);
+
+  // get W
+  GPU_Vector<int> info(1);
+  gpusolverDnSsyevj(
+    handle, jobz, uplo, N, A, N, W, work.data(), lwork, info.data(), para);
+
+  // free
+  gpusolverDnDestroy(handle);
+  gpusolverDnDestroySyevjInfo(para);
+}
 
 void NEPTB::find_force(
   Parameters& para,
@@ -907,15 +939,27 @@ void NEPTB::find_force(
       neptb_data[device_id].hamiltonian.data());
     GPU_CHECK_KERNEL
 
+    // hamiltonian will become eigenvector
+    eigenvectors_symmetric_Jacobi(
+      dataset[device_id].N * number_of_orbitals_per_atom, 
+      neptb_data[device_id].hamiltonian.data(),
+      neptb_data[device_id].eigenvalue.data());
+
+    // now hamiltonian is eigenvector
+    FILE* fid_eigenvalue = my_fopen("eigenvalue.out", "w");
     FILE* fid_hamiltonian = my_fopen("hamiltonian.out", "w");
+    std::vector<float> eigenvalue_cpu(neptb_data[device_id].eigenvalue.size());
     std::vector<float> hamiltonian_cpu(neptb_data[device_id].hamiltonian.size());
+    neptb_data[device_id].eigenvalue.copy_to_host(eigenvalue_cpu.data());
     neptb_data[device_id].hamiltonian.copy_to_host(hamiltonian_cpu.data());
     for (int n1 = 0; n1 < dataset[device_id].N * 4; ++n1) {
+      fprintf(fid_eigenvalue, "%g\n", eigenvalue_cpu[n1]);
       for (int n2 = 0; n2 < dataset[device_id].N * 4; ++n2) {
         fprintf(fid_hamiltonian, "%g ", hamiltonian_cpu[n1 * dataset[device_id].N * 4 + n2]);
       }
       fprintf(fid_hamiltonian, "\n");
     }
+    fclose(fid_eigenvalue);
     fclose(fid_hamiltonian);
     exit(1);
 
