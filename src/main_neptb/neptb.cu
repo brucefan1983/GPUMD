@@ -38,6 +38,88 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 const int NUM_ORBITALS = 4;
 
+NEPTB::NEPTB(
+  Parameters& para,
+  int N,
+  int N_times_max_NN_radial,
+  int N_times_max_NN_angular,
+  int deviceCount)
+{
+  paramb.rc_radial = para.rc_radial;
+  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
+  paramb.rc_angular = para.rc_angular;
+  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+  paramb.use_typewise_cutoff = para.use_typewise_cutoff;
+  paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
+  paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
+  paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
+  paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
+  paramb.num_types = para.num_types;
+  paramb.n_max_radial = para.n_max_radial;
+
+  paramb.basis_size_radial = para.basis_size_radial;
+  paramb.num_types_sq = para.num_types * para.num_types;
+  paramb.num_c_radial =
+    paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+
+  zbl.enabled = para.enable_zbl;
+  zbl.flexibled = para.flexible_zbl;
+  zbl.rc_inner = para.zbl_rc_inner;
+  zbl.rc_outer = para.zbl_rc_outer;
+  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+    zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
+    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
+  }
+  if (zbl.flexibled) {
+    zbl.num_types = para.num_types;
+    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
+    for (int n = 0; n < num_type_zbl * 10; ++n) {
+      zbl.para[n] = para.zbl_para[n];
+    }
+  }
+
+  for (int device_id = 0; device_id < deviceCount; device_id++) {
+    gpuSetDevice(device_id);
+    annmb[device_id].dim = para.dim;
+    annmb[device_id].num_neurons1 = para.num_neurons1;
+    annmb[device_id].num_para = para.number_of_variables;
+
+    neptb_data[device_id].NN_radial.resize(N);
+    neptb_data[device_id].NN_angular.resize(N);
+    neptb_data[device_id].NL_radial.resize(N_times_max_NN_radial);
+    neptb_data[device_id].NL_angular.resize(N_times_max_NN_angular);
+    neptb_data[device_id].x12_radial.resize(N_times_max_NN_radial);
+    neptb_data[device_id].y12_radial.resize(N_times_max_NN_radial);
+    neptb_data[device_id].z12_radial.resize(N_times_max_NN_radial);
+    neptb_data[device_id].x12_angular.resize(N_times_max_NN_angular);
+    neptb_data[device_id].y12_angular.resize(N_times_max_NN_angular);
+    neptb_data[device_id].z12_angular.resize(N_times_max_NN_angular);
+    neptb_data[device_id].descriptors.resize(N * annmb[device_id].dim);
+    neptb_data[device_id].Fp.resize(N * annmb[device_id].dim);
+    neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
+    neptb_data[device_id].hamiltonian.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
+    neptb_data[device_id].hamiltonian_unscaled.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
+    neptb_data[device_id].eigenvalue.resize(N * NUM_ORBITALS);
+  }
+}
+
+void NEPTB::update_potential(Parameters& para, float* parameters, ANN& ann)
+{
+  float* pointer = parameters;
+  for (int t = 0; t < paramb.num_types; ++t) {
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
+  }
+  ann.b1 = pointer;
+  pointer += 1;
+  ann.c = pointer;
+}
+
+
 static __global__ void gpu_find_neighbor_list(
   const NEPTB::ParaMB paramb,
   const int N,
@@ -127,85 +209,59 @@ static __global__ void gpu_find_neighbor_list(
   }
 }
 
-NEPTB::NEPTB(
-  Parameters& para,
-  int N,
-  int N_times_max_NN_radial,
-  int N_times_max_NN_angular,
-  int deviceCount)
+static __global__ void find_descriptors_radial(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEPTB::ParaMB paramb,
+  const NEPTB::ANN annmb,
+  const int* __restrict__ g_type,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* g_descriptors)
 {
-  paramb.rc_radial = para.rc_radial;
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rc_angular = para.rc_angular;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  paramb.use_typewise_cutoff = para.use_typewise_cutoff;
-  paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
-  paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
-  paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
-  paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
-  paramb.num_types = para.num_types;
-  paramb.n_max_radial = para.n_max_radial;
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int t1 = g_type[n1];
+    int neighbor_number = g_NN[n1];
+    float q[MAX_NUM_N] = {0.0f};
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + N * i1;
+      int n2 = g_NL[index];
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      int t2 = g_type[n2];
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc(rc, rcinv, d12, fc12);
 
-  paramb.basis_size_radial = para.basis_size_radial;
-  paramb.num_types_sq = para.num_types * para.num_types;
-  paramb.num_c_radial =
-    paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-
-  zbl.enabled = para.enable_zbl;
-  zbl.flexibled = para.flexible_zbl;
-  zbl.rc_inner = para.zbl_rc_inner;
-  zbl.rc_outer = para.zbl_rc_outer;
-  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
-    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
-  }
-  if (zbl.flexibled) {
-    zbl.num_types = para.num_types;
-    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    for (int n = 0; n < num_type_zbl * 10; ++n) {
-      zbl.para[n] = para.zbl_para[n];
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        q[n] += gn12;
+      }
+    }
+    for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      g_descriptors[n1 + n * N] = q[n];
     }
   }
-
-  for (int device_id = 0; device_id < deviceCount; device_id++) {
-    gpuSetDevice(device_id);
-    annmb[device_id].dim = para.dim;
-    annmb[device_id].num_neurons1 = para.num_neurons1;
-    annmb[device_id].num_para = para.number_of_variables;
-
-    neptb_data[device_id].NN_radial.resize(N);
-    neptb_data[device_id].NN_angular.resize(N);
-    neptb_data[device_id].NL_radial.resize(N_times_max_NN_radial);
-    neptb_data[device_id].NL_angular.resize(N_times_max_NN_angular);
-    neptb_data[device_id].x12_radial.resize(N_times_max_NN_radial);
-    neptb_data[device_id].y12_radial.resize(N_times_max_NN_radial);
-    neptb_data[device_id].z12_radial.resize(N_times_max_NN_radial);
-    neptb_data[device_id].x12_angular.resize(N_times_max_NN_angular);
-    neptb_data[device_id].y12_angular.resize(N_times_max_NN_angular);
-    neptb_data[device_id].z12_angular.resize(N_times_max_NN_angular);
-    neptb_data[device_id].descriptors.resize(N * annmb[device_id].dim);
-    neptb_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
-    neptb_data[device_id].hamiltonian.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
-    neptb_data[device_id].hamiltonian_unscaled.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
-    neptb_data[device_id].eigenvalue.resize(N * NUM_ORBITALS);
-  }
-}
-
-void NEPTB::update_potential(Parameters& para, float* parameters, ANN& ann)
-{
-  float* pointer = parameters;
-  for (int t = 0; t < paramb.num_types; ++t) {
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
-  }
-  ann.b1 = pointer;
-  pointer += 1;
-  ann.c = pointer;
 }
 
 static __global__ void apply_ann(
@@ -517,6 +573,19 @@ void NEPTB::find_force(
         neptb_data[device_id].z12_angular.data());
       GPU_CHECK_KERNEL
     }
+
+    find_descriptors_radial<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      neptb_data[device_id].NN_radial.data(),
+      neptb_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      neptb_data[device_id].x12_radial.data(),
+      neptb_data[device_id].y12_radial.data(),
+      neptb_data[device_id].z12_radial.data(),
+      neptb_data[device_id].descriptors.data());
+    GPU_CHECK_KERNEL
 
     zero_force<<<grid_size, block_size>>>(
       dataset[device_id].N,
