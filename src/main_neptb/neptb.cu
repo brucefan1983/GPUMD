@@ -36,7 +36,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #endif
 #include <cstring>
 
-const int number_of_orbitals_per_atom = 4;
+const int NUM_ORBITALS = 4;
 
 static __global__ void gpu_find_neighbor_list(
   const NEPTB::ParaMB paramb,
@@ -198,9 +198,9 @@ NEPTB::NEPTB(
     neptb_data[device_id].Fp.resize(N * annmb[device_id].dim);
     neptb_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
-    neptb_data[device_id].hamiltonian.resize(N * 4 * N * 4);
-    neptb_data[device_id].hamiltonian_unscaled.resize(N * 4 * N * 4);
-    neptb_data[device_id].eigenvalue.resize(N * 4);
+    neptb_data[device_id].hamiltonian.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
+    neptb_data[device_id].hamiltonian_unscaled.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
+    neptb_data[device_id].eigenvalue.resize(N * NUM_ORBITALS);
   }
 }
 
@@ -303,9 +303,9 @@ static __global__ void find_hamiltonian(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    for (int k = 0; k < number_of_orbitals_per_atom; ++k) {
-      int nk = n1 * number_of_orbitals_per_atom + k;
-      g_hamiltonian[nk * N * number_of_orbitals_per_atom + nk] = tb.onsite[k];
+    for (int k = 0; k < NUM_ORBITALS; ++k) {
+      int nk = n1 * NUM_ORBITALS + k;
+      g_hamiltonian[nk * N * NUM_ORBITALS + nk] = tb.onsite[k];
     }
 
     int neighbor_number = g_NN[n1];
@@ -329,7 +329,7 @@ static __global__ void find_hamiltonian(
       float cos_yz = cos_y * cos_z;
       float cos_zx = cos_z * cos_x;
 
-      float H12[number_of_orbitals_per_atom][number_of_orbitals_per_atom];
+      float H12[NUM_ORBITALS][NUM_ORBITALS];
       H12[0][0] = tb.v_sss;
       H12[1][1] = tb.v_pps * cos_xx + tb.v_ppp * sin_xx;
       H12[2][2] = tb.v_pps * cos_yy + tb.v_ppp * sin_yy;
@@ -348,12 +348,12 @@ static __global__ void find_hamiltonian(
       H12[1][3] = H12[3][1];
 
       const float s12 = s(d12);
-      for (int k1 = 0; k1 < number_of_orbitals_per_atom; ++k1) {
-        for (int k2 = 0; k2 < number_of_orbitals_per_atom; ++k2) {
-          int n1k1 = n1 * number_of_orbitals_per_atom + k1;
-          int n2k2 = n2 * number_of_orbitals_per_atom + k2;
-          g_hamiltonian[n1k1 * N * number_of_orbitals_per_atom + n2k2] = H12[k1][k2] * s12;
-          g_hamiltonian_unscaled[n1k1 * N * number_of_orbitals_per_atom + n2k2] = H12[k1][k2];
+      for (int k1 = 0; k1 < NUM_ORBITALS; ++k1) {
+        for (int k2 = 0; k2 < NUM_ORBITALS; ++k2) {
+          int n1k1 = n1 * NUM_ORBITALS + k1;
+          int n2k2 = n2 * NUM_ORBITALS + k2;
+          g_hamiltonian[n1k1 * N * NUM_ORBITALS + n2k2] = H12[k1][k2] * s12;
+          g_hamiltonian_unscaled[n1k1 * N * NUM_ORBITALS + n2k2] = H12[k1][k2];
         }
       }
     }
@@ -409,19 +409,19 @@ static __global__ void find_force_from_eigenvectors(
       float e_xy[3] = {cos_y*(1.0f-2.0f*cos_xx), cos_x*(1.0f-2.0f*cos_yy), -2.0f*cos_xyz};
       float e_yz[3] = {-2.0f*cos_xyz, cos_z*(1.0f-2.0f*cos_yy), cos_y*(1.0f-2.0f*cos_zz)};
       float e_zx[3] = {cos_z*(1.0f-2.0f*cos_xx), -2.0f*cos_xyz, cos_x*(1.0f-2.0f*cos_zz)};
-      float F[number_of_orbitals_per_atom][number_of_orbitals_per_atom] = {0.0f};
-      for (int a = 0; a < number_of_orbitals_per_atom; ++a) {
-        for (int b = 0; b < number_of_orbitals_per_atom; ++b) {
-          for (int n = 0; n < N * number_of_orbitals_per_atom/2; ++ n) {
+      float F[NUM_ORBITALS][NUM_ORBITALS] = {0.0f};
+      for (int a = 0; a < NUM_ORBITALS; ++a) {
+        for (int b = 0; b < NUM_ORBITALS; ++b) {
+          for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
             F[a][b] += 
-            g_eigenvector[n * N*number_of_orbitals_per_atom + n1*number_of_orbitals_per_atom+a] *
-            g_eigenvector[n * N*number_of_orbitals_per_atom + n2*number_of_orbitals_per_atom+b];
+            g_eigenvector[n * N*NUM_ORBITALS + n1*NUM_ORBITALS+a] *
+            g_eigenvector[n * N*NUM_ORBITALS + n2*NUM_ORBITALS+b];
           }
         }
       }
 
       for (int d = 0; d < 3; ++d) {
-        float K[4][4]  = {0.0f};
+        float K[NUM_ORBITALS][NUM_ORBITALS]  = {0.0f};
         K[1][1] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_xx[d];
         K[2][2] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_yy[d];
         K[3][3] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_zz[d];
@@ -437,11 +437,11 @@ static __global__ void find_force_from_eigenvectors(
         K[2][1] = + K[1][2];
         K[3][2] = + K[2][3];
         K[1][3] = + K[3][1];
-        for (int a = 0; a < number_of_orbitals_per_atom; ++a) {
-          for (int b = 0; b < number_of_orbitals_per_atom; ++b) {
-            int n1a = n1 * number_of_orbitals_per_atom + a;
-            int n2b = n2 * number_of_orbitals_per_atom + b;
-            K[a][b] += g_hamiltonian_unscaled[n1a * N*number_of_orbitals_per_atom + n2b] * s_d(d12) * r12[d] * d12inv;
+        for (int a = 0; a < NUM_ORBITALS; ++a) {
+          for (int b = 0; b < NUM_ORBITALS; ++b) {
+            int n1a = n1 * NUM_ORBITALS + a;
+            int n2b = n2 * NUM_ORBITALS + b;
+            K[a][b] += g_hamiltonian_unscaled[n1a * N*NUM_ORBITALS + n2b] * s_d(d12) * r12[d] * d12inv;
             force[d] += 4.0f * F[a][b] * K[a][b];
           }
         }
@@ -554,7 +554,7 @@ void NEPTB::find_force(
 
     // hamiltonian will become eigenvector
     eigenvectors_symmetric_Jacobi(
-      dataset[device_id].N * number_of_orbitals_per_atom, 
+      dataset[device_id].N * NUM_ORBITALS, 
       neptb_data[device_id].hamiltonian.data(),
       neptb_data[device_id].eigenvalue.data());
 
@@ -584,10 +584,10 @@ void NEPTB::find_force(
     neptb_data[device_id].eigenvalue.copy_to_host(eigenvalue_cpu.data());
     neptb_data[device_id].hamiltonian.copy_to_host(hamiltonian_cpu.data());
     dataset[device_id].force.copy_to_host(force_cpu.data());
-    for (int n1 = 0; n1 < dataset[device_id].N * 4; ++n1) {
+    for (int n1 = 0; n1 < dataset[device_id].N * NUM_ORBITALS; ++n1) {
       fprintf(fid_eigenvalue, "%g\n", eigenvalue_cpu[n1]);
-      for (int n2 = 0; n2 < dataset[device_id].N * 4; ++n2) {
-        fprintf(fid_hamiltonian, "%g ", hamiltonian_cpu[n1 * dataset[device_id].N * 4 + n2]);
+      for (int n2 = 0; n2 < dataset[device_id].N * NUM_ORBITALS; ++n2) {
+        fprintf(fid_hamiltonian, "%g ", hamiltonian_cpu[n1 * dataset[device_id].N * NUM_ORBITALS + n2]);
       }
       fprintf(fid_hamiltonian, "\n");
     }
