@@ -95,7 +95,10 @@ NEPTB::NEPTB(
     neptb_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     neptb_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     neptb_data[device_id].descriptors.resize(N * annmb[device_id].dim);
-    neptb_data[device_id].Fp.resize(N * annmb[device_id].dim);
+    neptb_data[device_id].onsite_s.resize(N);
+    neptb_data[device_id].onsite_p.resize(N);
+    neptb_data[device_id].onsite_derivative_s.resize(N * annmb[device_id].dim);
+    neptb_data[device_id].onsite_derivative_p.resize(N * annmb[device_id].dim);
     neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
     neptb_data[device_id].hamiltonian.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
     neptb_data[device_id].hamiltonian_unscaled.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
@@ -264,14 +267,45 @@ static __global__ void find_descriptors_radial(
   }
 }
 
+static __device__ void apply_ann_one_layer_tb(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  float* q,
+  float& onsite_s,
+  float& onsite_p,
+  float* onsite_derivative_s,
+  float* onsite_derivative_p)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - b0[n]);
+    float tanh_der = 1.0f - x1 * x1;
+    onsite_s += w1[n] * x1;
+    onsite_p += w1[n + N_neu] * x1;
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = tanh_der * w0[n * N_des + d];
+      onsite_derivative_s[d] += w1[n] * y1;
+      onsite_derivative_p[d] += w1[n + N_neu] * y1;
+    }
+  }
+}
+
 static __global__ void apply_ann(
   const int N,
   const NEPTB::ParaMB paramb,
   const NEPTB::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
-  float* g_pe,
-  float* g_Fp)
+  float* g_onsite_s,
+  float* g_onsite_p,
+  float* g_onsite_derivative_s,
+  float* g_onsite_derivative_p)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   int type = g_type[n1];
@@ -284,22 +318,29 @@ static __global__ void apply_ann(
       q[d] = g_descriptors[n1 + d * N] * q_scaler;
     }
     // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float onsite_s = 0.0f;
+    float onsite_p = 0.0f;
+    float onsite_derivative_s[MAX_DIM] = {0.0f};
+    float onsite_derivative_p[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer(
+    apply_ann_one_layer_tb(
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[type],
       annmb.b0[type],
       annmb.w1[type],
-      annmb.b1,
       q,
-      F,
-      Fp);
-    g_pe[n1] = F;
+      onsite_s,
+      onsite_p,
+      onsite_derivative_s,
+      onsite_derivative_p);
+
+    g_onsite_s[n1] = onsite_s;
+    g_onsite_p[n1] = onsite_p;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * q_scaler;
+      g_onsite_derivative_s[n1 + d * N] = onsite_derivative_s[d] * q_scaler;
+      g_onsite_derivative_p[n1 + d * N] = onsite_derivative_p[d] * q_scaler;
     }
   }
 }
@@ -665,8 +706,10 @@ void NEPTB::find_force(
       annmb[device_id],
       dataset[device_id].type.data(),
       neptb_data[device_id].descriptors.data(),
-      dataset[device_id].energy.data(),
-      neptb_data[device_id].Fp.data());
+      neptb_data[device_id].onsite_s.data(),
+      neptb_data[device_id].onsite_p.data(),
+      neptb_data[device_id].onsite_derivative_s.data(),
+      neptb_data[device_id].onsite_derivative_p.data());
     GPU_CHECK_KERNEL
   }
 }

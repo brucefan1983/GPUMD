@@ -53,7 +53,10 @@ public:
     GPU_Vector<float> y12_angular;
     GPU_Vector<float> z12_angular;
     GPU_Vector<float> descriptors; // descriptors
-    GPU_Vector<float> Fp;          // gradient of descriptors
+    GPU_Vector<float> onsite_s;
+    GPU_Vector<float> onsite_p;
+    GPU_Vector<float> onsite_derivative_s;
+    GPU_Vector<float> onsite_derivative_p;
     GPU_Vector<float> parameters; // parameters to be optimized
     GPU_Vector<float> hamiltonian;
     GPU_Vector<float> hamiltonian_unscaled;
