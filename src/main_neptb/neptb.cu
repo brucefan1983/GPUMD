@@ -214,17 +214,18 @@ static __global__ void apply_ann(
   const NEPTB::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
   float* g_pe,
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   int type = g_type[n1];
   if (n1 < N) {
+    const float q_scaler = 0.01f;
+
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+      q[d] = g_descriptors[n1 + d * N] * q_scaler;
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -242,7 +243,7 @@ static __global__ void apply_ann(
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
+      g_Fp[n1 + d * N] = Fp[d] * q_scaler;
     }
   }
 }
@@ -472,7 +473,6 @@ void NEPTB::find_force(
   Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
-  bool calculate_q_scaler,
   bool calculate_neighbor,
   int device_in_this_iter)
 {
@@ -596,7 +596,6 @@ void NEPTB::find_force(
       annmb[device_id],
       dataset[device_id].type.data(),
       neptb_data[device_id].descriptors.data(),
-      para.q_scaler_gpu[device_id].data(),
       dataset[device_id].energy.data(),
       neptb_data[device_id].Fp.data());
     GPU_CHECK_KERNEL

@@ -223,11 +223,6 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    for (int d = 0; d < para.dim; ++d) {
-      tokens = get_tokens(input);
-      para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
     fitness_function->predict(para, population.data());
   }
 }

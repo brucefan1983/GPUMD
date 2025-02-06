@@ -144,11 +144,6 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-#ifdef USE_FIXED_SCALER
-        false,
-#else
-        true,
-#endif
         true,
         deviceCount);
     }
@@ -158,7 +153,7 @@ void Fitness::compute(
     for (int n = 0; n < population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(
-        para, individual, train_set[batch_id], false, calculate_neighbor, deviceCount);
+        para, individual, train_set[batch_id], calculate_neighbor, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
         auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
@@ -187,7 +182,7 @@ void Fitness::compute(
         for (int n = 0; n < population_iter; ++n) {
           const float* individual = population + deviceCount * n * para.number_of_variables;
           potential->find_force(
-            para, individual, train_set[batch_id], false, calculate_neighbor, deviceCount);
+            para, individual, train_set[batch_id], calculate_neighbor, deviceCount);
           for (int m = 0; m < deviceCount; ++m) {
             float energy_shift_per_structure_not_used;
             auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
@@ -303,11 +298,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
   }
-  CHECK(gpuSetDevice(0));
-  para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
-  }
+  
   if (para.flexible_zbl) {
     for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
@@ -325,7 +316,7 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
-    potential->find_force(para, elite, train_set[batch_id], false, true, 1);
+    potential->find_force(para, elite, train_set[batch_id], true, 1);
     float energy_shift_per_structure;
     auto rmse_energy_train_array =
       train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
@@ -343,7 +334,7 @@ void Fitness::report_error(
     float rmse_force_test = 0.0f;
     float rmse_virial_test = 0.0f;
     if (has_test_set) {
-      potential->find_force(para, elite, test_set, false, true, 1);
+      potential->find_force(para, elite, test_set, true, 1);
       float energy_shift_per_structure_not_used;
       auto rmse_energy_test_array =
         test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
@@ -471,7 +462,7 @@ void Fitness::predict(Parameters& para, float* elite)
   FILE* fid_virial = my_fopen("virial_train.out", "w");
   FILE* fid_stress = my_fopen("stress_train.out", "w");
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    potential->find_force(para, elite, train_set[batch_id], false, true, 1);
+    potential->find_force(para, elite, train_set[batch_id], true, 1);
     update_energy_force_virial(
       fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
   }

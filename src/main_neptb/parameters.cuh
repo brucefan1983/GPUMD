@@ -88,12 +88,9 @@ public:
   // some arrays
 
   std::vector<float> type_weight_cpu; // relative force weight for different atom types (CPU)
-  std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
   std::vector<float> zbl_para;        // parameters of zbl potential
-
-  GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
 
 private:
   void set_default_parameters();

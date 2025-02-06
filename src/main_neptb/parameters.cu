@@ -151,12 +151,6 @@ void Parameters::calculate_parameters()
 {
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim = dim_radial;
-  q_scaler_cpu.resize(dim, 1.0e10f);
-#ifdef USE_FIXED_SCALER
-  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-    q_scaler_cpu[n] = 0.01f;
-  }
-#endif
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
 
@@ -170,14 +164,6 @@ void Parameters::calculate_parameters()
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
-  }
-
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
-  for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(gpuSetDevice(device_id));
-    q_scaler_gpu[device_id].resize(dim);
-    q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
 }
 
