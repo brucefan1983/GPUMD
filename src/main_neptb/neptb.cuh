@@ -93,9 +93,6 @@ public:
     float v_sps = 4.7;
     float v_pps = 5.5;
     float v_ppp = -1.55;
-    float nc = 6.5;
-    float rc = 2.18;
-    float r0 = 1.536329;
   };
 
   NEPTB(

@@ -749,9 +749,6 @@ static __global__ void find_hamiltonian(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
 
-      float s12 = (tb.r0 * d12inv) * (tb.r0 * d12inv) *
-                   exp(2.0f * (-pow(d12 / tb.rc, tb.nc) + pow(tb.r0 / tb.rc, tb.nc)));
-
       float cos_x = r12[0] * d12inv;
       float cos_y = r12[1] * d12inv;
       float cos_z = r12[2] * d12inv;
@@ -783,6 +780,7 @@ static __global__ void find_hamiltonian(
       H12[3][2] = H12[2][3];
       H12[1][3] = H12[3][1];
 
+      const float s12 = s(d12);
       for (int k1 = 0; k1 < number_of_orbitals_per_atom; ++k1) {
         for (int k2 = 0; k2 < number_of_orbitals_per_atom; ++k2) {
           int n1k1 = n1 * number_of_orbitals_per_atom + k1;
