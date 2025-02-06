@@ -147,19 +147,6 @@ void SNES::find_type_of_variable(Parameters& para)
       }
     }
   }
-  offset +=
-    (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types * para.num_types;
-  for (int n = 0; n <= para.n_max_angular; ++n) {
-    for (int k = 0; k <= para.basis_size_angular; ++k) {
-      int nk = n * (para.basis_size_angular + 1) + k;
-      for (int t1 = 0; t1 < para.num_types; ++t1) {
-        for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = t1 * para.num_types + t2;
-          type_of_variable[nk * para.num_types * para.num_types + t12 + offset] = t1;
-        }
-      }
-    }
-  }
 }
 
 void SNES::compute(Parameters& para, Fitness* fitness_function)

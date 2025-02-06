@@ -145,19 +145,8 @@ NEPTB::NEPTB(
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
-  paramb.n_max_angular = para.n_max_angular;
-  paramb.L_max = para.L_max;
-  paramb.num_L = paramb.L_max;
-  if (para.L_max_4body == 2) {
-    paramb.num_L += 1;
-  }
-  if (para.L_max_5body == 1) {
-    paramb.num_L += 1;
-  }
-  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
 
   paramb.basis_size_radial = para.basis_size_radial;
-  paramb.basis_size_angular = para.basis_size_angular;
   paramb.num_types_sq = para.num_types * para.num_types;
   paramb.num_c_radial =
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
@@ -196,7 +185,6 @@ NEPTB::NEPTB(
     neptb_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     neptb_data[device_id].descriptors.resize(N * annmb[device_id].dim);
     neptb_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    neptb_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     neptb_data[device_id].parameters.resize(annmb[device_id].num_para);
     neptb_data[device_id].hamiltonian.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);
     neptb_data[device_id].hamiltonian_unscaled.resize(N * NUM_ORBITALS * N * NUM_ORBITALS);

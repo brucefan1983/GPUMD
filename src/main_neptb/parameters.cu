@@ -77,12 +77,7 @@ void Parameters::set_default_parameters()
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
-  basis_size_angular = 8;      // large enough in most cases
   n_max_radial = 4;            // a relatively small value to achieve high speed
-  n_max_angular = 4;           // a relatively small value to achieve high speed
-  L_max = 4;                   // the only supported value
-  L_max_4body = 2;             // default is to include 4body
-  L_max_5body = 0;             // default is not to include 5body
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
@@ -155,14 +150,7 @@ void Parameters::read_zbl_in()
 void Parameters::calculate_parameters()
 {
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
-  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
-    dim_angular += n_max_angular + 1;
-  }
-  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
-    dim_angular += n_max_angular + 1;
-  }
-  dim = dim_radial + dim_angular;
+  dim = dim_radial;
   q_scaler_cpu.resize(dim, 1.0e10f);
 #ifdef USE_FIXED_SCALER
   for (int n = 0; n < q_scaler_cpu.size(); ++n) {
@@ -173,8 +161,7 @@ void Parameters::calculate_parameters()
   number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
 
   number_of_variables_descriptor =
-    num_types * num_types *
-    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+    num_types * num_types * (dim_radial * (basis_size_radial + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
@@ -274,28 +261,14 @@ void Parameters::report_inputs()
 
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
-    printf("    (input)   n_max_angular = %d.\n", n_max_angular);
   } else {
     printf("    (default) n_max_radial = %d.\n", n_max_radial);
-    printf("    (default) n_max_angular = %d.\n", n_max_angular);
   }
 
   if (is_basis_size_set) {
     printf("    (input)   basis_size_radial = %d.\n", basis_size_radial);
-    printf("    (input)   basis_size_angular = %d.\n", basis_size_angular);
   } else {
     printf("    (default) basis_size_radial = %d.\n", basis_size_radial);
-    printf("    (default) basis_size_angular = %d.\n", basis_size_angular);
-  }
-
-  if (is_l_max_set) {
-    printf("    (input)   l_max_3body = %d.\n", L_max);
-    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
-    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
-  } else {
-    printf("    (default) l_max_3body = %d.\n", L_max);
-    printf("    (default) l_max_4body = %d.\n", L_max_4body);
-    printf("    (default) l_max_5body = %d.\n", L_max_5body);
   }
 
   if (is_neuron_set) {
@@ -370,7 +343,6 @@ void Parameters::report_inputs()
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
-  printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
@@ -397,8 +369,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_n_max(param, num_param);
   } else if (strcmp(param[0], "basis_size") == 0) {
     parse_basis_size(param, num_param);
-  } else if (strcmp(param[0], "l_max") == 0) {
-    parse_l_max(param, num_param);
   } else if (strcmp(param[0], "neuron") == 0) {
     parse_neuron(param, num_param);
   } else if (strcmp(param[0], "batch") == 0) {
@@ -584,24 +554,17 @@ void Parameters::parse_n_max(const char** param, int num_param)
 {
   is_n_max_set = true;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("n_max should have 2 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("n_max should have 1 parameter.\n");
   }
   if (!is_valid_int(param[1], &n_max_radial)) {
     PRINT_INPUT_ERROR("n_max_radial should be an integer.\n");
   }
-  if (!is_valid_int(param[2], &n_max_angular)) {
-    PRINT_INPUT_ERROR("n_max_angular should be an integer.\n");
-  }
+
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
   } else if (n_max_radial > 19) {
     PRINT_INPUT_ERROR("n_max_radial should <= 19.");
-  }
-  if (n_max_angular < 0) {
-    PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 19) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
   }
 }
 
@@ -609,66 +572,16 @@ void Parameters::parse_basis_size(const char** param, int num_param)
 {
   is_basis_size_set = true;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("basis_size should have 2 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("basis_size should have 1 parameter.\n");
   }
   if (!is_valid_int(param[1], &basis_size_radial)) {
     PRINT_INPUT_ERROR("basis_size_radial should be an integer.\n");
-  }
-  if (!is_valid_int(param[2], &basis_size_angular)) {
-    PRINT_INPUT_ERROR("basis_size_angular should be an integer.\n");
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
   } else if (basis_size_radial > 19) {
     PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
-  }
-  if (basis_size_angular < 0) {
-    PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 19) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
-  }
-}
-
-void Parameters::parse_l_max(const char** param, int num_param)
-{
-  is_l_max_set = true;
-
-  if (num_param != 2 && num_param != 3 && num_param != 4) {
-    PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
-  }
-  if (!is_valid_int(param[1], &L_max)) {
-    PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
-  }
-  if (L_max < 0) {
-    PRINT_INPUT_ERROR("l_max for 3-body descriptors should >= 0.");
-  }
-  if (L_max > 8) {
-    PRINT_INPUT_ERROR("l_max for 3-body descriptors should <= 8.");
-  }
-
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &L_max_4body)) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
-    }
-    if (L_max_4body != 0 && L_max_4body != 2) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
-    }
-    if (L_max < L_max_4body) {
-      PRINT_INPUT_ERROR("l_max_4body should <= l_max_3body.");
-    }
-  }
-
-  if (num_param == 4) {
-    if (!is_valid_int(param[3], &L_max_5body)) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should be an integer.\n");
-    }
-    if (L_max_5body != 0 && L_max_5body != 1) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should = 0 or 1.");
-    }
-    if (L_max_4body == 0 && L_max_5body == 1) {
-      PRINT_INPUT_ERROR("cannot have l_max_4body = 0 with l_max_5body = 1.");
-    }
   }
 }
 

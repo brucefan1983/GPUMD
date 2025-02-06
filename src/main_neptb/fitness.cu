@@ -296,9 +296,8 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       max_NN_radial,
       max_NN_angular);
   }
-  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
+  fprintf(fid_nep, "n_max %d\n", para.n_max_radial);
+  fprintf(fid_nep, "basis_size %d\n", para.basis_size_radial);
 
   fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
   for (int m = 0; m < para.number_of_variables; ++m) {

@@ -31,12 +31,7 @@ public:
   int maximum_generation; // maximum number of generations for SNES;
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
-  int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
-  int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the 3body spherical harmonics
-  int L_max_4body;        // maximum order of the 4body spherical harmonics
-  int L_max_5body;        // maximum order of the 5body spherical harmonics
   float rc_radial;        // radial cutoff distance
   float rc_angular;       // angular cutoff distance
   float lambda_1;         // weight parameter for L1 regularization loss
@@ -86,7 +81,6 @@ public:
   // other parameters
   int dim;                            // dimension of the descriptor vector
   int dim_radial;                     // number of radial descriptor components
-  int dim_angular;                    // number of angular descriptor components
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_descriptor; // number of parameters in the descriptor only
@@ -118,7 +112,6 @@ private:
   void parse_cutoff(const char** param, int num_param);
   void parse_n_max(const char** param, int num_param);
   void parse_basis_size(const char** param, int num_param);
-  void parse_l_max(const char** param, int num_param);
   void parse_neuron(const char** param, int num_param);
   void parse_lambda_1(const char** param, int num_param);
   void parse_lambda_2(const char** param, int num_param);

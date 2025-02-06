@@ -34,12 +34,7 @@ public:
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int basis_size_radial = 0;
-    int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;         // l = 1, 2, ..., L_max
-    int dim_angular;
-    int num_L;
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
@@ -59,7 +54,6 @@ public:
     GPU_Vector<float> z12_angular;
     GPU_Vector<float> descriptors; // descriptors
     GPU_Vector<float> Fp;          // gradient of descriptors
-    GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
     GPU_Vector<float> hamiltonian;
     GPU_Vector<float> hamiltonian_unscaled;
