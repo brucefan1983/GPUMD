@@ -628,6 +628,18 @@ void NEPTB::find_force(
       neptb_data[device_id].descriptors.data());
     GPU_CHECK_KERNEL
 
+    apply_ann<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      neptb_data[device_id].descriptors.data(),
+      neptb_data[device_id].onsite_s.data(),
+      neptb_data[device_id].onsite_p.data(),
+      neptb_data[device_id].onsite_derivative_s.data(),
+      neptb_data[device_id].onsite_derivative_p.data());
+    GPU_CHECK_KERNEL
+
     zero_force<<<grid_size, block_size>>>(
       dataset[device_id].N,
       dataset[device_id].force.data(),
@@ -699,17 +711,5 @@ void NEPTB::find_force(
     fclose(fid_hamiltonian);
     fclose(fid_force);
     exit(1);
-
-    apply_ann<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      neptb_data[device_id].descriptors.data(),
-      neptb_data[device_id].onsite_s.data(),
-      neptb_data[device_id].onsite_p.data(),
-      neptb_data[device_id].onsite_derivative_s.data(),
-      neptb_data[device_id].onsite_derivative_p.data());
-    GPU_CHECK_KERNEL
   }
 }
