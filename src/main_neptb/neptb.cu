@@ -335,12 +335,12 @@ static __global__ void apply_ann(
       onsite_derivative_s,
       onsite_derivative_p);
 
-    // to be turned on later
-    //g_onsite_s[n1] = onsite_s;
-    //g_onsite_p[n1] = onsite_p;
+    g_onsite_s[n1] = onsite_s;
+    g_onsite_p[n1] = onsite_p;
 
-    g_onsite_s[n1] = -2.99;
-    g_onsite_p[n1] = 3.71;
+    // the base model
+    // g_onsite_s[n1] = -2.99;
+    // g_onsite_p[n1] = 3.71;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_onsite_derivative_s[n1 + d * N] = onsite_derivative_s[d] * q_scaler;
@@ -571,9 +571,9 @@ static __global__ void find_force_onsite(
   if (n1 < N) {
     int t1 = g_type[n1];
 
-    float F_onsite_n1[NUM_ORBITALS];
+    float F_onsite_n1[NUM_ORBITALS] = {0.0f};
     for (int a = 0; a < NUM_ORBITALS; ++a) {
-      for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
+      for (int n = 0; n < N * NUM_ORBITALS/2; ++n) {
         float temp = g_eigenvector[n * N * NUM_ORBITALS + n1 * NUM_ORBITALS + a];
         F_onsite_n1[a] += temp * temp;
       }
@@ -591,9 +591,9 @@ static __global__ void find_force_onsite(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
 
-      float F_onsite_n2[NUM_ORBITALS];
+      float F_onsite_n2[NUM_ORBITALS] = {0.0f};
       for (int a = 0; a < NUM_ORBITALS; ++a) {
-        for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
+        for (int n = 0; n < N * NUM_ORBITALS/2; ++n) {
           float temp = g_eigenvector[n * N * NUM_ORBITALS + n2 * NUM_ORBITALS + a];
           F_onsite_n1[a] += temp * temp;
         }
@@ -792,8 +792,6 @@ void NEPTB::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
 
-    // to be used:
-/*
     find_force_onsite<<<grid_size, block_size>>>(
       paramb,
       annmb[device_id],
@@ -811,8 +809,8 @@ void NEPTB::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
-*/
 
+#if 0
     // now hamiltonian is eigenvector
     FILE* fid_eigenvalue = my_fopen("eigenvalue.out", "w");
     FILE* fid_hamiltonian = my_fopen("hamiltonian.out", "w");
@@ -840,5 +838,6 @@ void NEPTB::find_force(
     fclose(fid_hamiltonian);
     fclose(fid_force);
     exit(1);
+#endif
   }
 }
