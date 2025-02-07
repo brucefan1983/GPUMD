@@ -456,7 +456,7 @@ static __global__ void find_hamiltonian(
   }
 }
 
-static __global__ void find_force_from_eigenvectors(
+static __global__ void find_force_hopping(
   const NEPTB::TB tb,
   const int N,
   const int* g_NN,
@@ -681,7 +681,7 @@ void NEPTB::find_force(
       neptb_data[device_id].eigenvalue.data());
 
     // hamiltonian here is eigenvector
-    find_force_from_eigenvectors<<<grid_size, block_size>>>(
+    find_force_hopping<<<grid_size, block_size>>>(
       tb,
       dataset[device_id].N,
       neptb_data[device_id].NN_angular.data(),
