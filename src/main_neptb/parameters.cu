@@ -152,7 +152,7 @@ void Parameters::calculate_parameters()
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim = dim_radial;
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+  number_of_variables_ann = (dim + 3) * num_neurons1 * num_types + 1;
 
   number_of_variables_descriptor =
     num_types * num_types * (dim_radial * (basis_size_radial + 1));

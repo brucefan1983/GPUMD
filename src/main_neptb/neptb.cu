@@ -115,7 +115,7 @@ void NEPTB::update_potential(Parameters& para, float* parameters, ANN& ann)
     ann.b0[t] = pointer;
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
+    pointer += ann.num_neurons1 * 2;
   }
   ann.b1 = pointer;
   pointer += 1;
