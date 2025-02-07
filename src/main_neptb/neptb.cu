@@ -550,15 +550,18 @@ static __global__ void find_force_hopping(
 }
 
 static __global__ void find_force_onsite(
-  const NEPTB::TB tb,
+  const NEPTB::ParaMB paramb,
+  const NEPTB::ANN annmb,
   const int N,
   const int* g_NN,
   const int* g_NL,
+  const int* g_type,
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
-  const float* g_hamiltonian_unscaled,
   const float* g_eigenvector,
+  const float* g_onsite_derivative_s,
+  const float* g_onsite_derivative_p,
   float* g_fx,
   float* g_fy,
   float* g_fz)
@@ -566,73 +569,73 @@ static __global__ void find_force_onsite(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (n1 < N) {
+    int t1 = g_type[n1];
+
+    float F_onsite_n1[NUM_ORBITALS];
+    for (int a = 0; a < NUM_ORBITALS; ++a) {
+      for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
+        float temp = g_eigenvector[n * N * NUM_ORBITALS + n1 * NUM_ORBITALS + a];
+        F_onsite_n1[a] += temp * temp;
+      }
+    }
+
     float force[3];
+
     int neighbor_number = g_NN[n1];
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
+      int t2 = g_type[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
-      float cos_x = r12[0] * d12inv;
-      float cos_y = r12[1] * d12inv;
-      float cos_z = r12[2] * d12inv;
-      float cos_xx = cos_x * cos_x;
-      float cos_yy = cos_y * cos_y;
-      float cos_zz = cos_z * cos_z;
-      float sin_xx = 1.0f - cos_xx;
-      float sin_yy = 1.0f - cos_yy;
-      float sin_zz = 1.0f - cos_zz;
-      float cos_xy = cos_x * cos_y;
-      float cos_yz = cos_y * cos_z;
-      float cos_zx = cos_z * cos_x;
-      float cos_xyz = cos_xy * cos_z;
 
-      float e_sx[3] = {sin_xx, -cos_xy, -cos_zx};
-      float e_sy[3] = {-cos_xy, sin_yy, -cos_yz};
-      float e_sz[3] = {-cos_zx, -cos_yz, sin_zz};
-      float e_xx[3] = {2.0f*cos_x*e_sx[0], 2.0f*cos_x*e_sx[1], 2.0f*cos_x*e_sx[2]}; 
-      float e_yy[3] = {2.0f*cos_y*e_sy[0], 2.0f*cos_y*e_sy[1], 2.0f*cos_y*e_sy[2]}; 
-      float e_zz[3] = {2.0f*cos_z*e_sz[0], 2.0f*cos_z*e_sz[1], 2.0f*cos_z*e_sz[2]};
-      float e_xy[3] = {cos_y*(1.0f-2.0f*cos_xx), cos_x*(1.0f-2.0f*cos_yy), -2.0f*cos_xyz};
-      float e_yz[3] = {-2.0f*cos_xyz, cos_z*(1.0f-2.0f*cos_yy), cos_y*(1.0f-2.0f*cos_zz)};
-      float e_zx[3] = {cos_z*(1.0f-2.0f*cos_xx), -2.0f*cos_xyz, cos_x*(1.0f-2.0f*cos_zz)};
-      float F[NUM_ORBITALS][NUM_ORBITALS] = {0.0f};
+      float F_onsite_n2[NUM_ORBITALS];
       for (int a = 0; a < NUM_ORBITALS; ++a) {
-        for (int b = 0; b < NUM_ORBITALS; ++b) {
-          for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
-            F[a][b] += 
-            g_eigenvector[n * N*NUM_ORBITALS + n1*NUM_ORBITALS+a] *
-            g_eigenvector[n * N*NUM_ORBITALS + n2*NUM_ORBITALS+b];
-          }
+        for (int n = 0; n < N * NUM_ORBITALS/2; ++ n) {
+          float temp = g_eigenvector[n * N * NUM_ORBITALS + n2 * NUM_ORBITALS + a];
+          F_onsite_n1[a] += temp * temp;
         }
       }
 
-      for (int d = 0; d < 3; ++d) {
-        float K[NUM_ORBITALS][NUM_ORBITALS]  = {0.0f};
-        K[1][1] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_xx[d];
-        K[2][2] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_yy[d];
-        K[3][3] = s(d12)* d12inv*(tb.v_pps - tb.v_ppp)*e_zz[d];
-        K[0][1] = s(d12)* d12inv * tb.v_sps * e_sx[d];
-        K[0][2] = s(d12)* d12inv * tb.v_sps * e_sy[d];
-        K[0][3] = s(d12)* d12inv * tb.v_sps * e_sz[d];
-        K[1][2] = s(d12)* d12inv * (tb.v_pps - tb.v_ppp) * e_xy[d];
-        K[2][3] = s(d12)* d12inv * (tb.v_pps - tb.v_ppp) * e_yz[d];
-        K[3][1] = s(d12)* d12inv * (tb.v_pps - tb.v_ppp) * e_zx[d];
-        K[1][0] = - K[0][1];
-        K[2][0] = - K[0][2];
-        K[3][0] = - K[0][3];
-        K[2][1] = + K[1][2];
-        K[3][2] = + K[2][3];
-        K[1][3] = + K[3][1];
+      float fc12, fcp12;
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+
+        float sum = 0.0f;
         for (int a = 0; a < NUM_ORBITALS; ++a) {
-          for (int b = 0; b < NUM_ORBITALS; ++b) {
-            int n1a = n1 * NUM_ORBITALS + a;
-            int n2b = n2 * NUM_ORBITALS + b;
-            K[a][b] += g_hamiltonian_unscaled[n1a * N*NUM_ORBITALS + n2b] * s_d(d12) * r12[d] * d12inv;
-            force[d] += 4.0f * F[a][b] * K[a][b];
+          if (a == 0) {
+            sum += F_onsite_n1[a] * g_onsite_derivative_s[n1 + n * N];
+            sum += F_onsite_n2[a] * g_onsite_derivative_s[n2 + n * N];
+          } else {
+            sum += F_onsite_n1[a] * g_onsite_derivative_p[n1 + n * N];
+            sum += F_onsite_n2[a] * g_onsite_derivative_p[n2 + n * N];
           }
+        }
+
+        float tmp12 = 2.0f * sum * gnp12 * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          force[d] += tmp12 * r12[d];
         }
       }
     }
@@ -788,6 +791,27 @@ void NEPTB::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
+
+    // to be used:
+/*
+    find_force_onsite<<<grid_size, block_size>>>(
+      paramb,
+      annmb[device_id],
+      dataset[device_id].N,
+      neptb_data[device_id].NN_angular.data(),
+      neptb_data[device_id].NL_angular.data(),
+      dataset[device_id].type.data(),
+      neptb_data[device_id].x12_angular.data(),
+      neptb_data[device_id].y12_angular.data(),
+      neptb_data[device_id].z12_angular.data(),
+      neptb_data[device_id].hamiltonian.data(),
+      neptb_data[device_id].onsite_derivative_s.data(),
+      neptb_data[device_id].onsite_derivative_p.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2);
+    GPU_CHECK_KERNEL
+*/
 
     // now hamiltonian is eigenvector
     FILE* fid_eigenvalue = my_fopen("eigenvalue.out", "w");
