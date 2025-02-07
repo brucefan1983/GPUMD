@@ -85,7 +85,6 @@ public:
   };
 
   struct TB {
-    float onsite[4] = {-2.99, 3.71, 3.71, 3.71};
     float v_sss = -5.0;
     float v_sps = 4.7;
     float v_pps = 5.5;

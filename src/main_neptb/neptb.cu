@@ -335,8 +335,12 @@ static __global__ void apply_ann(
       onsite_derivative_s,
       onsite_derivative_p);
 
-    g_onsite_s[n1] = onsite_s;
-    g_onsite_p[n1] = onsite_p;
+    // to be turned on later
+    //g_onsite_s[n1] = onsite_s;
+    //g_onsite_p[n1] = onsite_p;
+
+    g_onsite_s[n1] = -2.99;
+    g_onsite_p[n1] = 3.71;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_onsite_derivative_s[n1 + d * N] = onsite_derivative_s[d] * q_scaler;
@@ -384,6 +388,8 @@ static __global__ void find_hamiltonian(
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
+  const float* g_onsite_s,
+  const float* g_onsite_p,
   float* g_hamiltonian,
   float* g_hamiltonian_unscaled)
 {
@@ -391,7 +397,11 @@ static __global__ void find_hamiltonian(
   if (n1 < N) {
     for (int k = 0; k < NUM_ORBITALS; ++k) {
       int nk = n1 * NUM_ORBITALS + k;
-      g_hamiltonian[nk * N * NUM_ORBITALS + nk] = tb.onsite[k];
+      if (k == 0) {
+        g_hamiltonian[nk * N * NUM_ORBITALS + nk] = g_onsite_s[n1];
+      } else {
+        g_hamiltonian[nk * N * NUM_ORBITALS + nk] = g_onsite_p[n1];
+      }
     }
 
     int neighbor_number = g_NN[n1];
@@ -658,6 +668,8 @@ void NEPTB::find_force(
       neptb_data[device_id].x12_angular.data(),
       neptb_data[device_id].y12_angular.data(),
       neptb_data[device_id].z12_angular.data(),
+      neptb_data[device_id].onsite_s.data(),
+      neptb_data[device_id].onsite_p.data(),
       neptb_data[device_id].hamiltonian.data(),
       neptb_data[device_id].hamiltonian_unscaled.data());
     GPU_CHECK_KERNEL
