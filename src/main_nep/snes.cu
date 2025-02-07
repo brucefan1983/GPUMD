@@ -127,7 +127,7 @@ void SNES::calculate_utility()
 void SNES::find_type_of_variable(Parameters& para)
 {
   int num_para_ann_per_type = (para.dim + 2) * para.num_neurons1;
-  if (para.has_charge) {
+  if (para.charge_mode) {
     num_para_ann_per_type += para.num_neurons1;
   }
 

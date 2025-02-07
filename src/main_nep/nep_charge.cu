@@ -249,6 +249,7 @@ NEP_Charge::NEP_Charge(
   int version,
   int deviceCount)
 {
+  paramb.charge_mode = para.charge_mode;
   paramb.version = version;
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
@@ -1232,23 +1233,27 @@ void NEP_Charge::find_force(
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
-    find_force_charge_real_space<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      charge_para.alpha,
-      charge_para.two_alpha_over_sqrt_pi,
-      nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(),
-      dataset[device_id].charge.data(),
-      nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(),
-      nep_data[device_id].z12_radial.data(),
-      dataset[device_id].force.data(),
-      dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data(),
-      dataset[device_id].energy.data(),
-      nep_data[device_id].D_real.data());
-    GPU_CHECK_KERNEL
+    // charge_mode = 1: include real space and self energy
+    // charge_mode = 2: exclude real space and self energy
+    if (paramb.charge_mode == 1) {
+      find_force_charge_real_space<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        charge_para.alpha,
+        charge_para.two_alpha_over_sqrt_pi,
+        nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(),
+        dataset[device_id].charge.data(),
+        nep_data[device_id].x12_radial.data(),
+        nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data(),
+        dataset[device_id].energy.data(),
+        nep_data[device_id].D_real.data());
+      GPU_CHECK_KERNEL
+    }
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,

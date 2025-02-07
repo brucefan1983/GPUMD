@@ -127,7 +127,7 @@ Fitness::Fitness(Parameters& para)
     potential.reset(
       new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
   } else {
-    if (para.has_charge) {
+    if (para.charge_mode) {
       potential.reset(
         new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
     } else {
@@ -192,7 +192,7 @@ void Fitness::compute(
             para.lambda_f * rmse_force_array[t];
           fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] =
             para.lambda_v * rmse_virial_array[t];
-          if (para.has_charge) {
+          if (para.charge_mode) {
             fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] =
               para.lambda_q * rmse_charge_array[t];
           } else {
@@ -493,7 +493,7 @@ void Fitness::report_error(
         fclose(fid_force);
         fclose(fid_virial);
         fclose(fid_stress);
-        if (para.has_charge) {
+        if (para.charge_mode) {
           FILE* fid_charge = my_fopen("charge_test.out", "w");
           update_charge(fid_charge, test_set[0]);
           fclose(fid_charge);
@@ -579,14 +579,14 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_virial = my_fopen("virial_train.out", "w");
     FILE* fid_stress = my_fopen("stress_train.out", "w");
     FILE* fid_charge;
-    if (para.has_charge) {
+    if (para.charge_mode) {
       fid_charge = my_fopen("charge_train.out", "w");
     }
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_energy_force_virial(
         fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
-      if (para.has_charge) {
+      if (para.charge_mode) {
         update_charge(fid_charge, train_set[batch_id][0]);
       }
     }
@@ -594,7 +594,7 @@ void Fitness::predict(Parameters& para, float* elite)
     fclose(fid_force);
     fclose(fid_virial);
     fclose(fid_stress);
-    if (para.has_charge) {
+    if (para.charge_mode) {
       fclose(fid_charge);
     }
   } else if (para.train_mode == 1) {

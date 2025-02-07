@@ -62,7 +62,7 @@ public:
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
-  int has_charge; // add dynamic charge to NEP potential model
+  int charge_mode; // add dynamic charge to NEP potential model
 
   // check if a parameter has been set:
   bool is_train_mode_set;

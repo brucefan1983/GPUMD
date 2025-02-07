@@ -107,7 +107,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
-  has_charge = false;
+  charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -161,7 +161,7 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (has_charge) {
+  if (charge_mode) {
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
@@ -196,12 +196,12 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-    if (has_charge) {
+    if (charge_mode) {
       number_of_variables_ann += num_neurons1;
     }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-    if (has_charge) {
+    if (charge_mode) {
       number_of_variables_ann += num_neurons1 * num_types;
     }
   }
@@ -313,13 +313,11 @@ void Parameters::report_inputs()
   }
 
   if (is_has_charge_set) {
-    if (has_charge) {
-      printf("    (input)   use NEP-Charge and consider dynamic charges.\n");
-    } else {
-      printf("    (input)   use pure NEP without considering charges.\n");
+    if (charge_mode == 1) {
+      printf("    (input)   use NEP-Charge and include real-space.\n");
+    } else if (charge_mode == 2) {
+      printf("    (input)   use NEP-Charge and exclude real-space.\n");
     }
-  } else {
-    printf("    (default) use pure NEP without considering charges.\n");
   }
 
   if (is_cutoff_set) {
@@ -1101,11 +1099,11 @@ void Parameters::parse_has_charge(const char** param, int num_param)
   if (num_param != 2) {
     PRINT_INPUT_ERROR("has_charge should have one parameter.\n");
   }
-  if (!is_valid_int(param[1], &has_charge)) {
-    PRINT_INPUT_ERROR("has_charge should be an integer.\n");
+  if (!is_valid_int(param[1], &charge_mode)) {
+    PRINT_INPUT_ERROR("charge mode should be an integer.\n");
   }
-  if (has_charge != 0 && has_charge != 1) {
-    PRINT_INPUT_ERROR("has_charge should be 0 or 1.");
+  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2.");
   }
 }
 
