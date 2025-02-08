@@ -595,7 +595,7 @@ static __global__ void find_force_onsite(
       for (int a = 0; a < NUM_ORBITALS; ++a) {
         for (int n = 0; n < N * NUM_ORBITALS/2; ++n) {
           float temp = g_eigenvector[n * N * NUM_ORBITALS + n2 * NUM_ORBITALS + a];
-          F_onsite_n1[a] += temp * temp;
+          F_onsite_n2[a] += temp * temp;
         }
       }
 
