@@ -68,12 +68,15 @@ void findCell(
   cell[3] = cell[0] + numCells[0] * (cell[1] + numCells[1] * cell[2]);
 }
 
+// just check the atom pairs whose distance less than this value
+#define MIN_DISTANCE_LIMIT 2.0
+
 void calculate_min_atomic_distance(const Atom& atom, const Box& box)
 {
   const int N = atom.number_of_atoms;
   const double* pos = atom.cpu_position_per_atom.data();
 
-  double dist_sq = 5.0;
+  double min_dist_sq = MIN_DISTANCE_LIMIT * MIN_DISTANCE_LIMIT;
   int min_n1 = -1, min_n2 = -1;
 
   double thickness[3];
@@ -137,15 +140,14 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
               double y12 = pos[n2 + N] - r1[1];
               double z12 = pos[n2 + 2 * N] - r1[2];
               applyMic(box, x12, y12, z12);
-              if (fabs(x12) > 2.0 || fabs(y12) > 2.0 || fabs(z12) > 2.0)
+              if (fabs(x12) > MIN_DISTANCE_LIMIT || fabs(y12) > MIN_DISTANCE_LIMIT || 
+                  fabs(z12) > MIN_DISTANCE_LIMIT) {
                 continue;
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 >= 4.0)
-                continue;
+              }
+              const double dist = x12 * x12 + y12 * y12 + z12 * z12;
 
-              double dist = d2;
-              if (dist < dist_sq) {
-                dist_sq = dist;
+              if (dist < min_dist_sq) {
+                min_dist_sq = dist;
                 min_n1 = n1;
                 min_n2 = n2;
               }
@@ -155,14 +157,19 @@ void calculate_min_atomic_distance(const Atom& atom, const Box& box)
       }
     }
   }
-  double min_distance = sqrt(dist_sq);
+  double min_distance = sqrt(min_dist_sq);
 
-  printf(
-    "Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
-    min_n1,
-    atom.cpu_atom_symbol[min_n1].c_str(),
-    min_n2,
-    atom.cpu_atom_symbol[min_n2].c_str(),
-    min_distance);
+  if (min_n1 == -1) {
+    printf("Minimum distance is larger than %f Å\n", MIN_DISTANCE_LIMIT);
+  }
+  else {
+    printf(
+      "Minimum distance between atoms %d (%s) and %d (%s): %f Å\n",
+      min_n1,
+      atom.cpu_atom_symbol[min_n1].c_str(),
+      min_n2,
+      atom.cpu_atom_symbol[min_n2].c_str(),
+      min_distance);
+  }
   
 }
