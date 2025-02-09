@@ -616,15 +616,18 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
         break;
       }
     }
-    bool is_considered = energy_is_small && force_is_small;
+    bool is_considered = (energy_is_small || structures[nc].energy_weight < 0.5f) && force_is_small;
 
     bool is_accurate = true;
 
     double energy_nep = 0.0;
     double energy_ref = 0.0;
     input_energy >> energy_nep >> energy_ref;
-    if (std::abs(energy_nep - energy_ref) > 0.5) {
-      is_accurate = false;
+
+    if (structures[nc].energy_weight > 0.5f) {
+      if (std::abs(energy_nep - energy_ref) > 0.5) {
+        is_accurate = false;
+      }
     }
 
     double force_nep[3];
