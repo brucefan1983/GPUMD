@@ -430,6 +430,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
   }
 
+  // check ilp rc and nep rc, make sure ilp's larger than nep's
+  if (max_nep_rc > rc) {
+    printf("ERROR: Please make sure cutoff of ILP is larger than it of NEP.\n");
+    exit(1);
+  }
+
   // read nep map to identify the nep for each group
   int num_nep_group = 0;
   PRINT_SCANF_ERROR(fscanf(fid_nep_map, "%d", &num_nep_group), 1, 
