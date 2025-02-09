@@ -44,7 +44,8 @@ private:
   int check_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  double threshold_ = 0.0;
+  double threshold_lo_ = 0.0;
+  double threshold_hi_ = 0.0;
   FILE* exyz_file_;
   FILE* out_file_;
   std::vector<double> cpu_force_per_atom_;
