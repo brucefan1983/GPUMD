@@ -20,6 +20,4 @@ Github Discussions
 
 Discussion groups
 -----------------
-There are Chinese discussion groups based on the following QQ numbers: 
-* 887975816 (close to be full)
-* 778083814 (available)
+There is a Chinese discussion group based on the following QQ number: 778083814

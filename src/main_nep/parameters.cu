@@ -104,6 +104,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  output_descriptor = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -157,10 +158,6 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (version == 5 && train_mode != 0) {
-    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
-  }
-
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -192,8 +189,6 @@ void Parameters::calculate_parameters()
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-  } else if (version == 5) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
   }
 
   number_of_variables_descriptor =
@@ -493,6 +488,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "output_descriptor") == 0) {
+    parse_output_descriptor(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -538,8 +535,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 5) {
-    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
@@ -1052,5 +1049,20 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
 
   if (typewise_cutoff_zbl_factor < 0.5f) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
+  }
+}
+
+void Parameters::parse_output_descriptor(const char** param, int num_param)
+{
+  output_descriptor = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_descriptor should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_descriptor)) {
+    PRINT_INPUT_ERROR("output_descriptor should be an integer.\n");
+  }
+  if (output_descriptor < 0 || output_descriptor > 2) {
+    PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
 }

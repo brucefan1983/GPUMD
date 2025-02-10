@@ -22,6 +22,7 @@ neighbor list.
 #include "utilities/gpu_macro.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
+#include <cstring>
 
 static __device__ void find_cell_id(
   const Box& box,
@@ -497,9 +498,6 @@ void find_neighbor_ilp(
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
-  GPU_CHECK_KERNEL
-  const int MN_big = big_ilp_NL.size() / big_ilp_NN.size();
-  gpu_sort_neighbor_list_ilp<<<N, min(1024, MN_big), MN_big * sizeof(int)>>>(N, big_ilp_NN.data(), big_ilp_NL.data());
   GPU_CHECK_KERNEL
 }
 

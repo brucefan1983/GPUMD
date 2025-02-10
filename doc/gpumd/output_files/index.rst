@@ -121,6 +121,14 @@ Output files
      - :ref:`compute_rdf <kw_compute_rdf>`
      - Radial distribution function (:term:`RDF`)
      - Append
+   * - :ref:`adf.out <adf_out>`
+     - :ref:`compute_adf <kw_compute_adf>`
+     - Angular distribution function (:term:`ADF`)
+     - Append
+   * - :ref:`angular_rdf.out <angular_rdf_out>`
+     - :ref:`compute_angular_rdf <kw_compute_angular_rdf>`
+     - Angular-dependent radial distribution function (:term:`ARDF`)
+     - Append
    * - :ref:`mcmd.out <mcmd_out>`
      - :ref:`mc <kw_mc>`
      - Acceptance ratio and species concentrations
@@ -170,7 +178,9 @@ Output files
    viscosity_out
    onsager_out
    rdf_out
+   adf_out
    mcmd_out
    lsqt_dos_out
    lsqt_velocity_out
    lsqt_sigma_out
+   angular_rdf_out

@@ -122,6 +122,13 @@ public:
     CHECK(gpuMemcpy(data_, h_data, memory, gpuMemcpyHostToDevice));
   }
 
+  // copy data from host with a given size and a gpu offset
+  void copy_from_host(const T* h_data, const size_t size, const int offset)
+  {
+    const size_t memory = sizeof(T) * size;
+    CHECK(gpuMemcpy(data_ + offset, h_data, memory, gpuMemcpyHostToDevice));
+  }
+
   // copy data from device with the default size
   void copy_from_device(const T* d_data)
   {
@@ -146,6 +153,13 @@ public:
   {
     const size_t memory = sizeof(T) * size;
     CHECK(gpuMemcpy(h_data, data_, memory, gpuMemcpyDeviceToHost));
+  }
+
+  // copy data to host with a given size and a gpu offset
+  void copy_to_host(T* h_data, const size_t size, const int offset)
+  {
+    const size_t memory = sizeof(T) * size;
+    CHECK(gpuMemcpy(h_data, data_ + offset, memory, gpuMemcpyDeviceToHost));
   }
 
   // copy data to device with the default size

@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <cstring>
 
 void print_welcome_information(void);
 

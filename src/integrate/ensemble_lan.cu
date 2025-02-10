@@ -23,6 +23,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstdlib>
+#include <cstring>
 
 Ensemble_LAN::Ensemble_LAN() {}
 

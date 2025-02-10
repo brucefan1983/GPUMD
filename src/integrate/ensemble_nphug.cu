@@ -15,6 +15,7 @@
 
 #include "ensemble_nphug.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -121,6 +122,22 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
+    } else if (strcmp(params[i], "p0") == 0) {
+      if (!is_valid_real(params[i + 1], &p0))
+        PRINT_INPUT_ERROR("Invalid p0 value.");
+      p0 /= PRESSURE_UNIT_CONVERSION;
+      p0_given = true;
+      i += 2;
+    } else if (strcmp(params[i], "v0") == 0) {
+      if (!is_valid_real(params[i + 1], &v0))
+        PRINT_INPUT_ERROR("Invalid v0 value.");
+      v0_given = true;
+      i += 2;
+    } else if (strcmp(params[i], "e0") == 0) {
+      if (!is_valid_real(params[i + 1], &e0))
+        PRINT_INPUT_ERROR("Invalid e0 value.");
+      e0_given = true;
+      i += 2;
     } else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
@@ -197,9 +214,12 @@ void Ensemble_NPHug::init_mttk()
 
   // get initial thermo info
   get_thermo();
-  v0 = v_current;
-  e0 = e_current;
-  p0 = p_nphug_current;
+  if (!v0_given)
+    v0 = v_current;
+  if (!e0_given)
+    e0 = e_current;
+  if (!p0_given)
+    p0 = p_nphug_current;
   printf("    NPHug V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 }
 

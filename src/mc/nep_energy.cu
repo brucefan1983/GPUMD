@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -110,8 +111,8 @@ void NEP_Energy::initialize(const char* file_potential)
       std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
       exit(1);
     }
-    zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
       zbl.flexibled = true;
       printf("        has the flexible ZBL potential\n");
@@ -130,8 +131,8 @@ void NEP_Energy::initialize(const char* file_potential)
                  "[radial_factor] [angular_factor] [zbl_factor].\n";
     exit(1);
   }
-  paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
   printf("        radial cutoff = %g A.\n", paramb.rc_radial);
   printf("        angular cutoff = %g A.\n", paramb.rc_angular);
 
@@ -145,9 +146,9 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_float_from_token(tokens[7], __FILE__, __LINE__);
+    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
+    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_radial_factor > 0.0f) {
       paramb.use_typewise_cutoff = true;
     }
@@ -241,14 +242,14 @@ void NEP_Energy::initialize(const char* file_potential)
   std::vector<float> parameters(annmb.num_para);
   for (int n = 0; n < annmb.num_para; ++n) {
     tokens = get_tokens(input);
-    parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   nep_parameters.resize(annmb.num_para);
   nep_parameters.copy_from_host(parameters.data());
   update_potential(nep_parameters.data(), annmb);
   for (int d = 0; d < annmb.dim; ++d) {
     tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
   // flexible zbl potential parameters
@@ -256,7 +257,7 @@ void NEP_Energy::initialize(const char* file_potential)
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
-      zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     zbl.num_types = paramb.num_types;
   }

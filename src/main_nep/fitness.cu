@@ -18,7 +18,8 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep3.cuh"
+#include "nep.cuh"
+#include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -31,6 +32,7 @@ Get the fitness
 #include <random>
 #include <sstream>
 #include <vector>
+#include <cstring>
 
 Fitness::Fitness(Parameters& para)
 {
@@ -115,8 +117,13 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  potential.reset(
-    new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  if (para.train_mode == 1 || para.train_mode == 2) {
+    potential.reset(
+      new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  } else {
+    potential.reset(
+      new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  }
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
@@ -271,13 +278,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       } else {
         fprintf(fid_nep, "nep4 %d ", para.num_types);
       }
-    } else if (para.version == 5) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep5_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep5 %d ", para.num_types);
-      }
-    }
+    } 
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 3) {
       fprintf(fid_nep, "nep3_dipole %d ", para.num_types);

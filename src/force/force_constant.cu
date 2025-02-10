@@ -25,6 +25,7 @@ Use finite difference to calculate the seconod order force constants：
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <vector>
+#include <cstring>
 
 static __global__ void gpu_shift_atom(const double dx, double* x) { x[0] += dx; }
 

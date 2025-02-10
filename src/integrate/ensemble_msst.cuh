@@ -56,6 +56,9 @@ public:
   double p0;
   double v0;
   double e0;
+  bool p0_given = false;
+  bool v0_given = false;
+  bool e0_given = false;
   double p_current;
   double dhugo, dray;
   double tscale = 0;

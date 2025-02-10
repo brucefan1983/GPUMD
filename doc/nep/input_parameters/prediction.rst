@@ -6,7 +6,7 @@
 ==================
 
 This keyword instructs :program:`nep` to evaluate a model against a set of structures without starting an optimization.
-This requires a ``nep.txt`` file to be present.
+This requires a ``nep.txt`` file, in addition to the ``nep.in`` file, to be present.
 Note that only the structures in ``train.xyz`` are included in the prediction.
 The syntax is::
 

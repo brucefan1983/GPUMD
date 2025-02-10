@@ -82,5 +82,4 @@ std::vector<std::string> get_tokens(const std::string& line);
 std::vector<std::string> get_tokens(std::ifstream& input);
 std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input);
 int get_int_from_token(const std::string& token, const char* filename, const int line);
-float get_float_from_token(const std::string& token, const char* filename, const int line);
 double get_double_from_token(const std::string& token, const char* filename, const int line);
