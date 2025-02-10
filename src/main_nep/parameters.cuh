@@ -46,6 +46,7 @@ public:
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
+  float lambda_q;         // weight for global charge
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
@@ -61,6 +62,7 @@ public:
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
+  int charge_mode; // add dynamic charge to NEP potential model
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -86,6 +88,7 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
+  bool is_has_charge_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -140,4 +143,5 @@ private:
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
+  void parse_has_charge(const char** param, int num_param);
 };
