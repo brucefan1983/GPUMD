@@ -1167,7 +1167,7 @@ static __device__ void calc_normal_cbn(
       for (ip = 0; ip < 3; ++ip) {
         dnormdri[id][ip] = 0.0;
         for (m = 0; m < 3; ++m) {
-          dnormal[id][ip][m] = 0.0;
+          dnormal[id][m][ip] = 0.0;
         }
       }
     }
@@ -1259,7 +1259,7 @@ static __device__ void calc_normal_cbn(
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
         for (ip = 0; ip < 3; ip++) {
-          dnormal[id][ip][m] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
+          dnormal[id][m][ip] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
         }
       }
     }
@@ -1395,7 +1395,7 @@ static __device__ void calc_normal_cbn(
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
         for (ip = 0; ip < 3; ip++) {
-          dnormal[id][ip][m] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
+          dnormal[id][m][ip] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
         }
       }
     }
