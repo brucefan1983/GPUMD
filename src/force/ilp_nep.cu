@@ -28,6 +28,8 @@ TODO:
 #include <iostream>
 #include <fstream>
 #include <string>
+// TODO
+// #include <iomanip>
 
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
@@ -1790,6 +1792,9 @@ static __global__ void gpu_find_force(
       calc_normal_cbn(vet, cont, normal, dnormdri, dnormal);
     }
 
+// TODO: for test
+//     printf("n1[%d] normal[%.12f %.12f %.12f]\n", n1, normal[0], normal[1], normal[2]);
+
     // calculate energy and force
     for (int i1 = 0; i1 < neighor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
@@ -1847,6 +1852,12 @@ static __global__ void gpu_find_force(
       s_fz += f12z - f21z;
 
       s_pe += p2_vdW * 0.5f;
+      
+      // if (n1 == 0)
+      // printf("n2[%d] dx[%.16f] dy[%.16f] dz[%.16f] r[%.16f] rsq[%.16f] rinv[%.16f] tap[%.16f] att[%.16f]\n", 
+      // n2, x12d, y12d, z12d, r, rsq, rinv, Tap, p2_vdW);
+// TODO: for test
+//      ilp_e[n1] += p2_vdW * 0.5f;
       s_sxx += x12f * f21x;
       s_sxy += x12f * f21y;
       s_sxz += x12f * f21z;
@@ -1986,6 +1997,8 @@ static __global__ void gpu_find_force(
         s_szz += delkiz_half[kk] * fk[2];
       }
       s_pe += Tap * Vilp;
+// TODO: for test
+//      ilp_e[n1 + number_of_particles] += Tap * Vilp;
       s_sxx += delx_half * fkcx;
       s_sxy += delx_half * fkcy;
       s_sxz += delx_half * fkcz;
@@ -2997,6 +3010,8 @@ static __global__ void ppe(double* p, int N1, int N2) {
 }
 #endif
 
+// TODO
+// #define CHECK_NEIGHBOR 1
 #define BLOCK_SIZE_ILP 128
 //#define USE_FIXED_NEIGHBOR 1
 #define UPDATE_TEMP 10
@@ -3026,6 +3041,9 @@ void ILP_NEP::compute_ilp(
   int* g_nep_map = nep_map.data();
   int* g_type_map = type_map.data();
   const int total_types = type_map_cpu.size() / num_nep;
+
+// TODO
+//   GPU_Vector<double> ilp_energy(2 * number_of_atoms, 0.0);
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -3109,6 +3127,39 @@ void ILP_NEP::compute_ilp(
   nep_data.f12y.fill(0.0f);
   nep_data.f12z.fill(0.0f);
 
+// TODO
+#ifdef CHECK_NEIGHBOR
+  std::vector<int> cpu_nn_ilp_diff(number_of_atoms);
+  std::vector<int> cpu_nl_ilp_diff(number_of_atoms * CUDA_MAX_NL_ILP_NEP_TMD);
+  std::vector<int> cpu_nn_ilp_same(number_of_atoms);
+  std::vector<int> cpu_nl_ilp_same(number_of_atoms * MAX_ILP_NEIGHBOR_TMD);
+  ilp_data.NN.copy_to_host(cpu_nn_ilp_diff.data());
+  ilp_data.NL.copy_to_host(cpu_nl_ilp_diff.data());
+  ilp_data.ilp_NN.copy_to_host(cpu_nn_ilp_same.data());
+  ilp_data.ilp_NL.copy_to_host(cpu_nl_ilp_same.data());
+
+  std::ofstream output_file_ilp_nl("ilp_neighbor_list.out", std::ios_base::app);
+  output_file_ilp_nl << "different layer NL" << std::endl;
+  for (int i = 0; i < number_of_atoms; ++i) {
+    output_file_ilp_nl << "atom[" << i << "] " << "NN[" << cpu_nn_ilp_diff[i] << "] ";
+    for (int j = 0; j < cpu_nn_ilp_diff[i]; ++j) {
+      output_file_ilp_nl << cpu_nl_ilp_diff[i + j * number_of_atoms] << " ";
+    }
+    output_file_ilp_nl << std::endl;
+  }
+  output_file_ilp_nl <<std::endl;
+
+  output_file_ilp_nl << "same layer NL" << std::endl;
+  for (int i = 0; i < number_of_atoms; ++i) {
+    output_file_ilp_nl << "atom[" << i << "] " << "NN[" << cpu_nn_ilp_same[i] << "] ";
+    for (int j = 0; j < cpu_nn_ilp_same[i]; ++j) {
+      output_file_ilp_nl << cpu_nl_ilp_same[i + j * number_of_atoms] << " ";
+    }
+    output_file_ilp_nl << std::endl;
+  }
+  output_file_ilp_nl.close();
+#endif
+
   double *g_fx = force_per_atom.data();
   double *g_fy = force_per_atom.data() + number_of_atoms;
   double *g_fz = force_per_atom.data() + number_of_atoms * 2;
@@ -3120,6 +3171,40 @@ void ILP_NEP::compute_ilp(
   float *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
   float *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   float *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
+
+// TODO
+#ifdef CHECK_NEIGHBOR
+  std::vector<int> cpu_nn_r(number_of_atoms);
+  std::vector<int> cpu_nl_r(number_of_atoms * max_MN_radial);
+  std::vector<int> cpu_nn_a(number_of_atoms);
+  std::vector<int> cpu_nl_a(number_of_atoms * max_MN_angular);
+  nep_data.NN_radial.copy_to_host(cpu_nn_r.data());
+  nep_data.NL_radial.copy_to_host(cpu_nl_r.data());
+  nep_data.NN_angular.copy_to_host(cpu_nn_a.data());
+  nep_data.NL_angular.copy_to_host(cpu_nl_a.data());
+
+  std::ofstream output_file("nep_neighbor_list.out", std::ios_base::app);
+  output_file << "Radial" << std::endl;
+  for (int i = 0; i < number_of_atoms; ++i) {
+    output_file << "atom[" << i << "] " << "NN[" << cpu_nn_r[i] << "] ";
+    for (int j = 0; j < cpu_nn_r[i]; ++j) {
+      output_file << cpu_nl_r[i + j * number_of_atoms] << " ";
+    }
+    output_file << std::endl;
+  }
+  output_file <<std::endl;
+
+  output_file << "Angular" << std::endl;
+  for (int i = 0; i < number_of_atoms; ++i) {
+    output_file << "atom[" << i << "] " << "NN[" << cpu_nn_a[i] << "] ";
+    for (int j = 0; j < cpu_nn_a[i]; ++j) {
+      output_file << cpu_nl_a[i + j * number_of_atoms] << " ";
+    }
+    output_file << std::endl;
+  }
+  output_file.close();
+#endif
+
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_ILP>>>(
     ilp_para,
@@ -3149,6 +3234,27 @@ void ILP_NEP::compute_ilp(
     g_f12z_ilp_neigh,
     sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
+
+
+// TODO
+//   std::vector<double> cpu_ilp_f(3 * number_of_atoms);
+//   force_per_atom.copy_to_host(cpu_ilp_f.data());
+//   std::ofstream output_file_ilp_f("ilp_force.out", std::ios_base::app);
+//   for (int i = 0; i < number_of_atoms; ++i) {
+//     output_file_ilp_f << "atom[" << i << "] " << "fx[" << std::setprecision(12) << cpu_ilp_f[i] << "] "
+//     << "fy[" << cpu_ilp_f[i + number_of_atoms] << "] " << "fz[" << cpu_ilp_f[i + 2 * number_of_atoms] 
+//     << "]" << std::endl;
+//   }
+// 
+// 
+//   std::vector<double> cpu_ilp_e(2 * number_of_atoms);
+//   ilp_energy.copy_to_host(cpu_ilp_e.data());
+//   std::ofstream output_file_ilp_e("ilp_energy.out", std::ios_base::app);
+//   for (int i = 0; i < number_of_atoms; ++i) {
+//     output_file_ilp_e << "atom[" << i << "] " << "att[" << std::setprecision(12) << cpu_ilp_e[i] << "] "
+//     << "rep[" << cpu_ilp_e[i + number_of_atoms] << "]" << std::endl;
+//   }
+//   output_file_ilp_e <<std::endl;
 
 #ifdef CODING
   std::vector<double> ilp_tmp(number_of_atoms);
@@ -3184,6 +3290,17 @@ void ILP_NEP::compute_ilp(
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
     GPU_CHECK_KERNEL
+
+
+// TODO
+  // force_per_atom.copy_to_host(cpu_ilp_f.data());
+  // output_file_ilp_f << std::endl;
+  // for (int i = 0; i < number_of_atoms; ++i) {
+  //   output_file_ilp_f << "atom[" << i << "] " << "fx[" << std::setprecision(12) << cpu_ilp_f[i] << "] "
+  //   << "fy[" << cpu_ilp_f[i + number_of_atoms] << "] " << "fz[" << cpu_ilp_f[i + 2 * number_of_atoms] 
+  //   << "]" << std::endl;
+  // }
+  // output_file_ilp_f.close();
 
   // compute NEP
   const int BLOCK_SIZE_NEP = 64;
@@ -3319,9 +3436,9 @@ void ILP_NEP::compute_ilp(
   }
 
   printf("\n========== OUTPUT ENERGYS FOR DEBUG ==========\n");
-  printf("ilp[%lf]\t\t", p_ilp);
+  printf("ilp[%.12lf]\t\t", p_ilp);
   for (int i = 0; i < num_nep; ++i) {
-    printf("nep%d[%lf]\t\t", i, p_nep[i]);
+    printf("nep%d[%.12lf]\t\t", i, p_nep[i]);
   }
   printf("\n========== OUTPUT ENERGYS FOR DEBUG ==========\n");
 
