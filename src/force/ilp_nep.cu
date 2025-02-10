@@ -300,8 +300,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
                    "[radial_factor] [angular_factor] [zbl_factor].\n";
       exit(1);
     }
-    parambs[i].rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    parambs[i].rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    parambs[i].rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    parambs[i].rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
     printf("    radial cutoff = %g A.\n", parambs[i].rc_radial);
     printf("    angular cutoff = %g A.\n", parambs[i].rc_angular);
     // save the max rc_radial, same to max rc
@@ -323,8 +323,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    enlarged MN_angular = %d.\n", parambs[i].MN_angular);
 
     if (tokens.size() == 8) {
-      parambs[i].typewise_cutoff_radial_factor = get_float_from_token(tokens[5], __FILE__, __LINE__);
-      parambs[i].typewise_cutoff_angular_factor = get_float_from_token(tokens[6], __FILE__, __LINE__);
+      parambs[i].typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
+      parambs[i].typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
       if (parambs[i].typewise_cutoff_radial_factor > 0.0f) {
         parambs[i].use_typewise_cutoff = true;
       }
@@ -422,12 +422,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     std::vector<float> parameters(annmbs[i].num_para);
     for (int n = 0; n < annmbs[i].num_para; ++n) {
       tokens = get_tokens(input);
-      parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     all_ann_para.push_back(parameters);
     for (int d = 0; d < annmbs[i].dim; ++d) {
       tokens = get_tokens(input);
-      parambs[i].q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      parambs[i].q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
 
   }
