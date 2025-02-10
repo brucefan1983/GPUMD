@@ -748,14 +748,24 @@ static __device__ __forceinline__ float calc_Tap(const float r_ij, const float R
   float Tap, r;
 
   r = r_ij * Rcutinv;
-  Tap = Tap_coeff[7];
-  Tap = Tap * r + Tap_coeff[6];
-  Tap = Tap * r + Tap_coeff[5];
-  Tap = Tap * r + Tap_coeff[4];
-  Tap = Tap * r + Tap_coeff[3];
-  Tap = Tap * r + Tap_coeff[2];
-  Tap = Tap * r + Tap_coeff[1];
-  Tap = Tap * r + Tap_coeff[0];
+  if (r >= 1.0f) {
+    Tap = 0.0f;
+  } else {
+    Tap = Tap_coeff[7];
+    for (int i = 6; i >= 0; --i) {
+      Tap = Tap * r + Tap_coeff[i];
+    }
+  }
+
+  // r = r_ij * Rcutinv;
+  // Tap = Tap_coeff[7];
+  // Tap = Tap * r + Tap_coeff[6];
+  // Tap = Tap * r + Tap_coeff[5];
+  // Tap = Tap * r + Tap_coeff[4];
+  // Tap = Tap * r + Tap_coeff[3];
+  // Tap = Tap * r + Tap_coeff[2];
+  // Tap = Tap * r + Tap_coeff[1];
+  // Tap = Tap * r + Tap_coeff[0];
 
   return Tap;
 }
@@ -766,14 +776,24 @@ static __device__ __forceinline__ float calc_dTap(const float r_ij, const float 
   float dTap, r;
   
   r = r_ij * Rcutinv;
-  dTap = 7.0f * Tap_coeff[7];
-  dTap = dTap * r + 6.0f * Tap_coeff[6];
-  dTap = dTap * r + 5.0f * Tap_coeff[5];
-  dTap = dTap * r + 4.0f * Tap_coeff[4];
-  dTap = dTap * r + 3.0f * Tap_coeff[3];
-  dTap = dTap * r + 2.0f * Tap_coeff[2];
-  dTap = dTap * r + Tap_coeff[1];
-  dTap *= Rcutinv;
+  if (r >= 1.0f) {
+    dTap = 0.0f;
+  } else {
+    dTap = 7.0f * Tap_coeff[7];
+    for (int i = 6; i > 0; --i) {
+      dTap = dTap * r + i * Tap_coeff[i];
+    }
+    dTap *= Rcutinv;
+  }
+  // r = r_ij * Rcutinv;
+  // dTap = 7.0f * Tap_coeff[7];
+  // dTap = dTap * r + 6.0f * Tap_coeff[6];
+  // dTap = dTap * r + 5.0f * Tap_coeff[5];
+  // dTap = dTap * r + 4.0f * Tap_coeff[4];
+  // dTap = dTap * r + 3.0f * Tap_coeff[3];
+  // dTap = dTap * r + 2.0f * Tap_coeff[2];
+  // dTap = dTap * r + Tap_coeff[1];
+  // dTap *= Rcutinv;
 
   return dTap;
 }
