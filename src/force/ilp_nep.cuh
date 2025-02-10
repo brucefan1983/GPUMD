@@ -30,7 +30,8 @@
 
 
 
-struct NEP_Data {
+// this nep data struct is just for ILP+NEP potential
+struct NEP_Data_ {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
@@ -201,7 +202,7 @@ private:
   GPU_Vector<int> nep_map;          // map nep group to nep parameters (gpu)
   std::vector<int> type_map_cpu;    // map ilp type to nep type (cpu)
   GPU_Vector<int> type_map;         // map ilp type to nep type (gpu)
-  NEP_Data nep_data;
+  NEP_Data_ nep_data;
 
   // two group methods for ilp and nep
   int ilp_group_method = 0;
