@@ -24,11 +24,13 @@ private:
   double force_tolerance;
   double max_relax_steps;
   double energy_last_step = 0;
+  int minimizer_type;
 public:
     MC_Minimizer_Global(const char** param, int num_param,
     double temperature_input,
     double force_tolerance_input,
-    int max_relax_steps_input);
+    int max_relax_steps_input,
+    int minimizer_type_input);
     ~MC_Minimizer_Global();
 
     virtual void compute(

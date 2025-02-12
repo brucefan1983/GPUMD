@@ -24,12 +24,14 @@ private:
   double temperature;
   double force_tolerance;
   int max_relax_steps;
+  int minimizer_type;
 public:
     MC_Minimizer_Local(const char** param, int num_param,
     double scale_factor_input,
     double temperature_input,
     double force_tolerance_input,
-    int max_relax_steps_input);
+    int max_relax_steps_input,
+    int minimizer_type_input);
     ~MC_Minimizer_Local();
 
     virtual void compute(

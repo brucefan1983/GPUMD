@@ -33,6 +33,7 @@ private:
     //parameters
     int num_trials_mc = 0; 
     double temperature = 0; 
+    int minimizer_type = 0;
     double force_tolerance = 0;
     int max_relax_steps = 0;
     double scale_factor = 0;

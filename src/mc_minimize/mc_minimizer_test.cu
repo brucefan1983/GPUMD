@@ -20,13 +20,15 @@ MC_Minimizer_Test::MC_Minimizer_Test(
     double scale_factor_input,
     double temperature_input,
     double force_tolerance_input,
-    int max_relax_steps_input)
+    int max_relax_steps_input,
+    int minimizer_type_input)
   : MC_Minimizer(param, num_param)
 {
   scale_factor = scale_factor_input;
   temperature = temperature_input;
   force_tolerance = force_tolerance_input;
   max_relax_steps = max_relax_steps_input;
+  minimizer_type = minimizer_type_input;
 }
 
 MC_Minimizer_Test::~MC_Minimizer_Test()
@@ -555,9 +557,19 @@ void MC_Minimizer_Test::compute(
       atom_global_copy.velocity_per_atom.data(),
       atom_global_copy.velocity_per_atom.data() + N,
       atom_global_copy.velocity_per_atom.data() + N * 2);
-
-    Minimizer_FIRE minimizer_compare_global(N, max_relax_steps, force_tolerance);
-    minimizer_compare_global.compute(
+    switch (minimizer_type)
+    {
+    case 0:
+      minimizer.reset(new Minimizer_SD(N, max_relax_steps, force_tolerance));
+      break;
+    case 1:
+      minimizer.reset(new Minimizer_FIRE(N, max_relax_steps, force_tolerance));
+      break;
+    default:
+      PRINT_INPUT_ERROR("Invalid minimizer.");
+      break;
+    }
+    minimizer->compute(
       force,
       box,
       atom_global_copy.position_per_atom,
@@ -686,12 +698,20 @@ void MC_Minimizer_Test::compute(
       local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms,
       local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms * 2);
 
-    Minimizer_FIRE Minimizer(
-      local_N_cpu,
-      max_relax_steps,
-      force_tolerance);
+    switch (minimizer_type)
+    {
+    case 0:
+      minimizer.reset(new Minimizer_SD(local_N_cpu, max_relax_steps, force_tolerance));
+      break;
+    case 1:
+      minimizer.reset(new Minimizer_FIRE(local_N_cpu, max_relax_steps, force_tolerance));
+      break;
+    default:
+      PRINT_INPUT_ERROR("Invalid minimizer.");
+      break;
+    }
 
-    Minimizer.compute_label_atoms(
+    minimizer->compute_label_atoms(
       force,
       box,
       local_atoms.position_per_atom,

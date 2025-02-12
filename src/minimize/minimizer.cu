@@ -129,3 +129,17 @@ void Minimizer::calculate_force_square_max(const GPU_Vector<double>& force_per_a
 
   force_square_max_.copy_to_host(cpu_force_square_max_.data());
 }
+
+void Minimizer::compute_label_atoms(
+  Force& force,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  std::vector<Group>& group,
+  GPU_Vector<double>& local_flags,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+  {
+    //nothing
+  }

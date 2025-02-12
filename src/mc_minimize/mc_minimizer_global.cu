@@ -19,12 +19,14 @@ MC_Minimizer_Global::MC_Minimizer_Global(
   const char** param, int num_param,
   double temperature_input,
   double force_tolerance_input,
-  int max_relax_steps_input)
+  int max_relax_steps_input,
+  int minimizer_type_input)
   : MC_Minimizer(param, num_param)
 {
   temperature = temperature_input;
   force_tolerance = force_tolerance_input;
   max_relax_steps = max_relax_steps_input;
+  minimizer_type = minimizer_type_input;
 }
 
 MC_Minimizer_Global::~MC_Minimizer_Global()
@@ -142,8 +144,19 @@ void MC_Minimizer_Global::compute(
     atom_copy.velocity_per_atom.data() + N,
     atom_copy.velocity_per_atom.data() + N * 2);
 
-  Minimizer_FIRE minimizer(N, max_relax_steps, force_tolerance);
-  minimizer.compute(
+  switch (minimizer_type)
+  {
+  case 0:
+    minimizer.reset(new Minimizer_SD(N, max_relax_steps, force_tolerance));
+    break;
+  case 1:
+    minimizer.reset(new Minimizer_FIRE(N, max_relax_steps, force_tolerance));
+    break;
+  default:
+    PRINT_INPUT_ERROR("Invalid minimizer.");
+    break;
+  }
+  minimizer->compute(
     force,
     box,
     atom_copy.position_per_atom,

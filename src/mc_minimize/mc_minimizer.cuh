@@ -19,6 +19,8 @@
 #include "force/force.cuh"
 #include <random>
 #include "minimize/minimizer_fire.cuh"
+#include "minimize/minimizer_sd.cuh"
+#include "minimize/minimizer.cuh"
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -44,5 +46,6 @@ public:
 protected:
   std::mt19937 rng;
   std::ofstream mc_output;
+  std::unique_ptr<Minimizer> minimizer;
 };
 

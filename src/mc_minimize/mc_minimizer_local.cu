@@ -20,13 +20,15 @@ MC_Minimizer_Local::MC_Minimizer_Local(
     double scale_factor_input,
     double temperature_input,
     double force_tolerance_input,
-    int max_relax_steps_input)
+    int max_relax_steps_input,
+    int minimizer_type_input)
   : MC_Minimizer(param, num_param)
 {
   scale_factor = scale_factor_input;
   temperature = temperature_input;
   force_tolerance = force_tolerance_input;
   max_relax_steps = max_relax_steps_input;
+  minimizer_type = minimizer_type_input;
 }
 
 MC_Minimizer_Local::~MC_Minimizer_Local()
@@ -606,13 +608,21 @@ void MC_Minimizer_Local::compute(
       local_atoms.velocity_per_atom.data(),
       local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms,
       local_atoms.velocity_per_atom.data() + local_atoms.number_of_atoms * 2);
+    
+    switch (minimizer_type)
+    {
+    case 0:
+      minimizer.reset(new Minimizer_SD(local_N_cpu, max_relax_steps, force_tolerance));
+      break;
+    case 1:
+      minimizer.reset(new Minimizer_FIRE(local_N_cpu, max_relax_steps, force_tolerance));
+      break;
+    default:
+      PRINT_INPUT_ERROR("Invalid minimizer.");
+      break;
+    }
 
-    Minimizer_FIRE Minimizer(
-      local_N_cpu,
-      max_relax_steps,
-      force_tolerance);
-
-    Minimizer.compute_label_atoms(
+    minimizer->compute_label_atoms(
       force,
       box,
       local_atoms.position_per_atom,

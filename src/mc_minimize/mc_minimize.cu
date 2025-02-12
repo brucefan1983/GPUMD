@@ -64,8 +64,8 @@ void MC_Minimize::compute(
 
 void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vector<Group>& group, Atom& atom, Box& box, Force& force)
 {
-  if (num_param < 6) {
-    PRINT_INPUT_ERROR("mc_minimize should have at least 5 parameters.\n");
+  if (num_param < 7) {
+    PRINT_INPUT_ERROR("mc_minimize should have at least 6 parameters.\n");
   }
 
   //0 for local, 1 for global, 2 for test
@@ -83,17 +83,17 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
     PRINT_INPUT_ERROR("invalid MC Minimizer type for MC.\n");
   }
   if (mc_minimizer_type == 0) {
-    if (num_param < 7) {
+    if (num_param < 8) {
       PRINT_INPUT_ERROR("reading error for local relaxation, missing parameter\n");
     }
   }
   if (mc_minimizer_type == 1) {
-    if (num_param < 6) {
+    if (num_param < 7) {
       PRINT_INPUT_ERROR("reading error for global relaxation, missing parameter\n");
     }
   }
   if (mc_minimizer_type == 2) {
-    if (num_param < 7) {
+    if (num_param < 8) {
       PRINT_INPUT_ERROR("reading error for test, missing parameter\n");
     }
   }
@@ -114,8 +114,17 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
     PRINT_INPUT_ERROR("temperature for MC Minimize should be positive.\n");
   }
 
+  //check the relax method
+  if (strcmp(param[4], "sd") == 0) {
+    minimizer_type = 0;
+  } else if (strcmp(param[4], "fire") == 0) {
+    minimizer_type = 1;
+  } else {
+    PRINT_INPUT_ERROR("Invalid minimizer.");
+  }
+
   //check if force_tolerance reasonable
-  if (!is_valid_real(param[4], &force_tolerance)) {
+  if (!is_valid_real(param[5], &force_tolerance)) {
     PRINT_INPUT_ERROR("force tolerance for MC Minimize should be a number.\n");
   }
   if (force_tolerance <= 0) {
@@ -123,7 +132,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   }
 
   //check if max nmber of relax reasonable
-  if (!is_valid_int(param[5], &max_relax_steps)) {
+  if (!is_valid_int(param[6], &max_relax_steps)) {
     PRINT_INPUT_ERROR("max relaxation steps for MC Minimize should be an integer.\n");
   }
   if (max_relax_steps <= 0) {
@@ -133,7 +142,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   //check if scale factor reasonable 
   if (mc_minimizer_type == 0)
   {
-  if (!is_valid_real(param[6], &scale_factor)) {
+  if (!is_valid_real(param[7], &scale_factor)) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
   }
   if (scale_factor <= 0) {
@@ -142,7 +151,7 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   }
   if (mc_minimizer_type == 2)
   {
-  if (!is_valid_real(param[6], &scale_factor)) {
+  if (!is_valid_real(param[7], &scale_factor)) {
     PRINT_INPUT_ERROR("scale factor for MC Minimize should be a number.\n");
   }
   if (scale_factor <= 0) {
@@ -155,15 +164,15 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
   int num_param_before_group;
   if (mc_minimizer_type == 0)
   {
-    num_param_before_group = 7;
+    num_param_before_group = 8;
   }
   if (mc_minimizer_type == 1)
   {
-    num_param_before_group = 6;
+    num_param_before_group = 7;
   }
   if (mc_minimizer_type == 2)
   {
-    num_param_before_group = 7;
+    num_param_before_group = 8;
   }
 
   if (num_param > num_param_before_group)
@@ -174,14 +183,14 @@ void MC_Minimize::parse_mc_minimize(const char** param, int num_param, std::vect
 
   if (mc_minimizer_type == 0)
   {
-    mc_minimizer.reset(new MC_Minimizer_Local(param, num_param, scale_factor, temperature, force_tolerance, max_relax_steps));
+    mc_minimizer.reset(new MC_Minimizer_Local(param, num_param, scale_factor, temperature, force_tolerance, max_relax_steps, minimizer_type));
   }
   if (mc_minimizer_type == 1)
   {
-    mc_minimizer.reset(new MC_Minimizer_Global(param, num_param, temperature, force_tolerance, max_relax_steps));
+    mc_minimizer.reset(new MC_Minimizer_Global(param, num_param, temperature, force_tolerance, max_relax_steps, minimizer_type));
   }
   if (mc_minimizer_type == 2)
   {
-    mc_minimizer.reset(new MC_Minimizer_Test(param, num_param, scale_factor, temperature, force_tolerance, max_relax_steps));
+    mc_minimizer.reset(new MC_Minimizer_Test(param, num_param, scale_factor, temperature, force_tolerance, max_relax_steps, minimizer_type));
   }
 }
