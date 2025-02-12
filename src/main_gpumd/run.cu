@@ -29,6 +29,7 @@ Run simulation according to the inputs in the run.in file.
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
+#include "model/check_distance.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
@@ -114,6 +115,8 @@ Run::Run()
   print_line_2();
 
   initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
+
+  calculate_min_atomic_distance(atom, box);
 
   allocate_memory_gpu(group, atom, thermo);
 
@@ -451,6 +454,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_adf") == 0) {
     measure.adf.parse(param, num_param, box, number_of_types);
+  } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
+    measure.angular_rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_viscosity") == 0) {

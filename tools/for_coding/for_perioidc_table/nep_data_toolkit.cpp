@@ -158,6 +158,7 @@ struct Structure {
   bool has_sid = false;
   bool has_virial = false;
   bool has_stress = false;
+  double energy_weight = 1.0;
   double energy;
   double weight;
   double virial[9];
@@ -225,6 +226,15 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (token.substr(0, sid_string.length()) == sid_string) {
       structure.has_sid = true;
       structure.sid = token.substr(sid_string.length(), token.length());
+    }
+  }
+
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), __FILE__, __LINE__);
     }
   }
 
@@ -394,6 +404,11 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
 static void write_one_structure(std::ofstream& output, const Structure& structure)
 {
   output << structure.num_atom << "\n";
+
+  if (structure.energy_weight != 1.0) {
+    output << "energy_weight=" << structure.energy_weight << " ";
+  }
+
   output << "Lattice=\"";
   for (int m = 0; m < 9; ++m) {
     output << structure.box[m];
@@ -584,56 +599,33 @@ static void subsample_structures(const std::vector<Structure>& structures)
 static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures)
 {
   std::ifstream input_energy("energy_train.out");
-  std::ifstream input_stress("stress_train.out");
   std::ifstream input_force("force_train.out");
   std::ofstream output_accurate("accurate.xyz");
   std::ofstream output_inaccurate("inaccurate.xyz");
   int num1 = 0;
   int num2 = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
-
-
-      bool energy_is_small = structures[nc].energy < 0.0;
-      bool stress_is_small = true;
-      for (int d = 0; d < 9; ++d) {
-        if (structures[nc].stress[d] * 160.2 > 40.0 || structures[nc].stress[d] * 160.2 < -40.0) {
-          stress_is_small = false;
-          break;
-        }
+    bool energy_is_small = structures[nc].energy < 0.0;
+    bool force_is_small = true;
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      double fx = structures[nc].fx[n];
+      double fy = structures[nc].fy[n];
+      double fz = structures[nc].fz[n];
+      if (fx * fx + fy * fy + fz * fz > 400.0) {
+        force_is_small = false;
+        break;
       }
-      bool force_is_small = true;
-      for (int n = 0; n < structures[nc].num_atom; ++n) {
-        double fx = structures[nc].fx[n];
-        double fy = structures[nc].fy[n];
-        double fz = structures[nc].fz[n];
-        if (fx * fx + fy * fy + fz * fz > 400.0) {
-          force_is_small = false;
-          break;
-        }
-      }
-      std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
-
-     bool is_considered = energy_is_small && stress_is_small && force_is_small && (elements.size() > 2);
+    }
+    bool is_considered = (energy_is_small || structures[nc].energy_weight < 0.5f) && force_is_small;
 
     bool is_accurate = true;
 
     double energy_nep = 0.0;
     double energy_ref = 0.0;
     input_energy >> energy_nep >> energy_ref;
-    if (std::abs(energy_nep - energy_ref) > 0.5) {
-      is_accurate = false;
-    }
 
-    double stress_nep[6];
-    double stress_ref[6];
-    for (int n = 0; n < 6; ++n) {
-      input_stress >> stress_nep[n];
-    }
-    for (int n = 0; n < 6; ++n) {
-      input_stress >> stress_ref[n];
-    }
-    for (int n = 0; n < 6; ++n) {
-      if (std::abs(stress_nep[n] - stress_ref[n]) > 8.0) {
+    if (structures[nc].energy_weight > 0.5f) {
+      if (std::abs(energy_nep - energy_ref) > 0.5) {
         is_accurate = false;
       }
     }
@@ -650,7 +642,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       }
     }
 
-    //if (is_considered) {
+    if (is_considered) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -658,10 +650,9 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    //}
+    }
   }
   input_energy.close();
-  input_stress.close();
   input_force.close();
   output_accurate.close();
   output_inaccurate.close();
