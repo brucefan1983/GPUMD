@@ -664,7 +664,8 @@ static __device__ void calc_vdW(
   float &f2_vdW)
 {
   float r2inv, r6inv, r8inv;
-  float TSvdw, TSvdwinv, Vilp;
+  double TSvdw, TSvdwinv_double;
+  float Vilp, TSvdwinv_float;
   float fpair, fsum;
 
   r2inv = 1.0f / rsq;
@@ -672,14 +673,16 @@ static __device__ void calc_vdW(
   r8inv = r2inv * r6inv;
 
   // TSvdw = 1.0 + exp(-d_Seff * r + d);
-  TSvdw = 1.0f + expf(-d_Seff * r + d);
-  TSvdwinv = 1.0f / TSvdw;
-  Vilp = -C_6 * r6inv * TSvdwinv;
+  // use double to avoid inf from exp function
+  TSvdw = 1.0 + exp((double) (-d_Seff * r + d));
+  TSvdwinv_double = 1.0 / TSvdw;
+  TSvdwinv_float = (float) TSvdwinv_double;
+  Vilp = -C_6 * r6inv * TSvdwinv_float;
 
   // derivatives
   // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
   //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
-  fpair = (-6.0f + d_Seff * (TSvdw - 1.0f) * TSvdwinv * r ) * C_6 * TSvdwinv * r8inv;
+  fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r ) * C_6 * TSvdwinv_float * r8inv;
   fsum = fpair * Tap - Vilp * dTap * rinv;
 
   p2_vdW = Tap * Vilp;
