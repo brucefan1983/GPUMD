@@ -21,7 +21,7 @@ CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DDEBUG
 endif
 INC = -I./
 LDFLAGS = 
@@ -44,6 +44,9 @@ SOURCES_GPUMD =                   \
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard utilities/*.cu)
+SOURCES_NEPTB =                   \
+	$(wildcard main_neptb/*.cu)   \
+	$(wildcard utilities/*.cu)
 
 
 ###########################################################
@@ -52,9 +55,11 @@ SOURCES_NEP =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+OBJ_NEPTB = $(SOURCES_NEPTB:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_NEPTB = $(SOURCES_NEPTB:.cu=.o)
 endif
 
 
@@ -71,13 +76,14 @@ HEADERS =                         \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_neptb/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep
+all: gpumd nep neptb
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
@@ -88,7 +94,11 @@ nep: $(OBJ_NEP)
 	@echo =================================================
 	@echo The nep executable is successfully compiled!
 	@echo =================================================
-
+neptb: $(OBJ_NEPTB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The neptb executable is successfully compiled!
+	@echo =================================================
 
 ###########################################################
 # rules for building object files
@@ -114,6 +124,8 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_neptb/%.obj: main_neptb/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
@@ -135,6 +147,8 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_neptb/%.o: main_neptb/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
 
@@ -145,6 +159,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep
+	rm -f */*.o gpumd nep neptb
 endif
 

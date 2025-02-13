@@ -88,6 +88,8 @@
 #define gpusolverDnZheevd hipsolverDnZheevd
 #define gpusolverDnDsyevj_bufferSize hipsolverDnDsyevj_bufferSize
 #define gpusolverDnDsyevj hipsolverDnDsyevj
+#define gpusolverDnSsyevj_bufferSize hipsolverDnSsyevj_bufferSize
+#define gpusolverDnSsyevj hipsolverDnSsyevj
 #define gpusolverDnZheevjBatched_bufferSize hipsolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched hipsolverDnZheevjBatched
 
@@ -162,6 +164,8 @@
 #define gpusolverDnZheevd cusolverDnZheevd
 #define gpusolverDnDsyevj_bufferSize cusolverDnDsyevj_bufferSize
 #define gpusolverDnDsyevj cusolverDnDsyevj
+#define gpusolverDnSsyevj_bufferSize cusolverDnSsyevj_bufferSize
+#define gpusolverDnSsyevj cusolverDnSsyevj
 #define gpusolverDnZheevjBatched_bufferSize cusolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched cusolverDnZheevjBatched
 
