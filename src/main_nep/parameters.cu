@@ -75,6 +75,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
+  is_has_charge_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -94,6 +95,7 @@ void Parameters::set_default_parameters()
   lambda_v = 0.1f;             // virial is less important
   lambda_av = 0.0f;            // atomic virial is not used by default
   lambda_shear = 1.0f;         // do not weight shear virial more by default
+  lambda_q = 0.01f;            // need to test
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
@@ -107,6 +109,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
+  charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -160,6 +163,12 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
+  if (charge_mode) {
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
+    }
+  }
+
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -192,8 +201,14 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+    if (charge_mode) {
+      number_of_variables_ann += num_neurons1;
+    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+    if (charge_mode) {
+      number_of_variables_ann += num_neurons1 * num_types;
+    }
   }
 
   number_of_variables_descriptor =
@@ -300,6 +315,14 @@ void Parameters::report_inputs()
     }
   } else {
     printf("    (default) will not add the ZBL potential.\n");
+  }
+
+  if (is_has_charge_set) {
+    if (charge_mode == 1) {
+      printf("    (input)   use NEP-Charge and include real-space.\n");
+    } else if (charge_mode == 2) {
+      printf("    (input)   use NEP-Charge and exclude real-space.\n");
+    }
   }
 
   if (is_cutoff_set) {
@@ -503,6 +526,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
+  } else if (strcmp(param[0], "has_charge") == 0) {
+    parse_has_charge(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1098,3 +1123,19 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
     PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
 }
+
+void Parameters::parse_has_charge(const char** param, int num_param)
+{
+  is_has_charge_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("has_charge should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &charge_mode)) {
+    PRINT_INPUT_ERROR("charge mode should be an integer.\n");
+  }
+  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2.");
+  }
+}
+

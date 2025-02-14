@@ -26,6 +26,7 @@ struct Structure {
   int atomic_virial_diag_only;
   int has_temperature;
   float weight;
+  float charge = 0.0f;
   float energy = 0.0f;
   float energy_weight = 1.0f;
   float virial[6];
