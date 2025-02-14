@@ -825,6 +825,9 @@ static __global__ void gpu_sum_virial_error(
 
 std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
 {
+  if (para.atomic_v) {
+    return get_rmse_avirial(para, use_weight, device_id);
+  }
   CHECK(gpuSetDevice(device_id));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
