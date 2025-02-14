@@ -65,6 +65,7 @@ void Parameters::set_default_parameters()
   is_lambda_e_set = false;
   is_lambda_f_set = false;
   is_lambda_v_set = false;
+  is_atomic_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
   is_population_set = false;
@@ -101,6 +102,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  atomic_v = false;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
@@ -407,6 +409,12 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
+  if (is_atomic_v_set) {
+    printf("    (input)   atomic_v = %d.\n", atomic_v);
+  } else {
+    printf("    (default) atomic_v = %d.\n", atomic_v);
+  }
+
   if (is_lambda_shear_set) {
     printf("    (input)   lambda_shear = %g.\n", lambda_shear);
   } else {
@@ -507,6 +515,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "atomic_v") == 0) {
+    parse_atomic_v(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
@@ -892,6 +902,26 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
 
   if (lambda_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_atomic_v(const char** param, int num_param)
+{
+  is_atomic_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
+  }
+
+  int atomic_v_temp = 0;
+  if (!is_valid_int(param[1], &atomic_v_temp)) {
+    PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
+  }
+
+  atomic_v = atomic_v_temp;
+
+  if (atomic_v != 0 && atomic_v != 1) {
+    PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
   }
 }
 
