@@ -76,10 +76,20 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
       structures[n].avirialxx.resize(structures[n].num_atom);
       structures[n].avirialyy.resize(structures[n].num_atom);
       structures[n].avirialzz.resize(structures[n].num_atom);
+      for (int na = 0; na < structures[n].num_atom; ++na) {
+        structures[n].avirialxx[na] = structures_input[n_input].avirialxx[na];
+        structures[n].avirialyy[na] = structures_input[n_input].avirialyy[na];
+        structures[n].avirialzz[na] = structures_input[n_input].avirialzz[na];
+      }
       if (!structures[n].atomic_virial_diag_only) {
         structures[n].avirialxy.resize(structures[n].num_atom);
         structures[n].avirialyz.resize(structures[n].num_atom);
         structures[n].avirialzx.resize(structures[n].num_atom);
+        for (int na = 0; na < structures[n].num_atom; ++na) {
+          structures[n].avirialxy[na] = structures_input[n_input].avirialxy[na];
+          structures[n].avirialyz[na] = structures_input[n_input].avirialyz[na];
+          structures[n].avirialzx[na] = structures_input[n_input].avirialzx[na];
+        }
       }
     }
   }
@@ -145,11 +155,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
+  avirial.resize(N * 3);
   charge_cpu.resize(N);
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
-  avirial_cpu.resize(N * 6);
+  avirial_cpu.resize(N * 3);
 
   weight_cpu.resize(Nc);
   charge_ref_cpu.resize(Nc);
@@ -157,7 +168,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
-  avirial_ref_cpu.resize(N * 6);
+  avirial_ref_cpu.resize(N * 3);
   temperature_ref_cpu.resize(N);
 
   for (int n = 0; n < Nc; ++n) {
@@ -205,7 +216,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
-  avirial_ref_gpu.resize(N * 6);
+  avirial_ref_gpu.resize(N * 3);
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
   charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
