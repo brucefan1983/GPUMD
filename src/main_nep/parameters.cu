@@ -543,8 +543,8 @@ void Parameters::parse_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &train_mode)) {
     PRINT_INPUT_ERROR("mode should be an integer.\n");
   }
-  if (train_mode < 0 || train_mode > 7) {
-    PRINT_INPUT_ERROR("model_type should be >= 0 and <= 7.");
+  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
 
