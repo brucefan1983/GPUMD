@@ -21,6 +21,8 @@ Reference: PhysRevLett 97, 170201 (2006)
 
 #include "minimizer_fire_box_change.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace
@@ -151,8 +153,8 @@ void get_force_temp(
 template <int N>
 void solveLinearEquation(const double* A, const double* B, double* X)
 {
-
   double a[N][N], b[N][N];
+
   for (int j = 0; j < N; ++j) {
     for (int i = 0; i < N; ++i) {
       a[i][j] = A[j * N + i];
@@ -161,27 +163,43 @@ void solveLinearEquation(const double* A, const double* B, double* X)
   }
 
   for (int col = 0; col < N; ++col) {
-    for (int i = 0; i < N; ++i) {
-      if (i == col) {
-        double diag = a[i][col];
-        if (fabs(diag) < 1e-9) {
-          printf("Matrix is singular or nearly singular!\n");
-          return;
-        }
+    int pivot_row = col;
+    for (int i = col + 1; i < N; ++i) {
+      if (fabs(a[i][col]) > fabs(a[pivot_row][col])) {
+        pivot_row = i;
+      }
+    }
+
+    if (fabs(a[pivot_row][col]) < 1e-9) {
+      printf("Matrix is singular or nearly singular!\n");
+      return;
+    }
+
+    if (pivot_row != col) {
+      for (int j = 0; j < N; ++j) {
+        std::swap(a[col][j], a[pivot_row][j]);
+        std::swap(b[col][j], b[pivot_row][j]);
+      }
+    }
+
+    double diag = a[col][col];
+    for (int j = 0; j < N; ++j) {
+      a[col][j] /= diag;
+      b[col][j] /= diag;
+    }
+
+    for (int row = 0; row < N; ++row) {
+      if (row != col) {
+        double factor = a[row][col];
         for (int j = 0; j < N; ++j) {
-          a[i][j] /= diag;
-          b[i][j] /= diag;
-        }
-      } else {
-        double factor = a[i][col];
-        for (int j = 0; j < N; ++j) {
-          a[i][j] -= factor * a[col][j];
-          b[i][j] -= factor * b[col][j];
+          a[row][j] -= factor * a[col][j];
+          b[row][j] -= factor * b[col][j];
         }
       }
     }
   }
 
+  // 将计算得到的结果存储回 X 中（行主序）
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       X[i * N + j] = b[i][j];
