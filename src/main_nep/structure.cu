@@ -101,18 +101,15 @@ static void read_force(
   structure.fx.resize(structure.num_atom);
   structure.fy.resize(structure.num_atom);
   structure.fz.resize(structure.num_atom);
-  if (train_mode == 4 || train_mode == 5) {
+  if (structure.has_atomic_virial) {
     structure.avirialxx.resize(structure.num_atom);
     structure.avirialyy.resize(structure.num_atom);
     structure.avirialzz.resize(structure.num_atom);
-  }
-  if (train_mode == 6 || train_mode == 7) {
-    structure.avirialxx.resize(structure.num_atom);
-    structure.avirialyy.resize(structure.num_atom);
-    structure.avirialzz.resize(structure.num_atom);
-    structure.avirialxy.resize(structure.num_atom);
-    structure.avirialyz.resize(structure.num_atom);
-    structure.avirialzx.resize(structure.num_atom);
+    if (!structure.atomic_virial_diag_only) {
+      structure.avirialxy.resize(structure.num_atom);
+      structure.avirialyz.resize(structure.num_atom);
+      structure.avirialzx.resize(structure.num_atom);
+    }
   }
 
   for (int na = 0; na < structure.num_atom; ++na) {
@@ -138,28 +135,21 @@ static void read_force(
         get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
     }
 
-    if (num_columns > 4 && (train_mode == 4 || train_mode == 5)) {
+    if (num_columns > 4 && structure.has_atomic_virial) {
       structure.avirialxx[na] =
         get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
       structure.avirialyy[na] =
         get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
       structure.avirialzz[na] =
         get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
-    }
-
-    if (num_columns > 4 && (train_mode == 6 || train_mode == 7)) {
-      structure.avirialxx[na] =
-        get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialyy[na] =
-        get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialzz[na] =
-        get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialxy[na] =
-        get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialyz[na] =
-        get_double_from_token(tokens[5 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialzx[na] =
-        get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
+        if (!structure.atomic_virial_diag_only) {
+          structure.avirialxy[na] =
+            get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialyz[na] =
+            get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialzx[na] =
+            get_double_from_token(tokens[5 + avirial_offset], xyz_filename.c_str(), line_number);
+        }
     }
 
     bool is_allowed_element = false;
