@@ -1366,6 +1366,30 @@ void NEP::compute_small_box(
     r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    std::vector<int> cpu_NN_radial(type.size());
+    std::vector<int> cpu_NN_angular(type.size());
+    NN_radial.copy_to_host(cpu_NN_radial.data());
+    NN_angular.copy_to_host(cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < cpu_NN_radial[n]) {
+        radial_actual = cpu_NN_radial[n];
+      }
+      if (angular_actual < cpu_NN_angular[n]) {
+        angular_actual = cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
+
   const bool is_polarizability = paramb.model_type == 2;
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1938,6 +1962,30 @@ void NEP::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
+
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    std::vector<int> cpu_NN_radial(type.size());
+    std::vector<int> cpu_NN_angular(type.size());
+    NN_radial.copy_to_host(cpu_NN_radial.data());
+    NN_angular.copy_to_host(cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < cpu_NN_radial[n]) {
+        radial_actual = cpu_NN_radial[n];
+      }
+      if (angular_actual < cpu_NN_angular[n]) {
+        angular_actual = cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     temperature,
