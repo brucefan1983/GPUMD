@@ -23,7 +23,7 @@ The driver class dealing with measurement.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
-#define NUM_OF_HEAT_COMPONENTS 5
+//#define NUM_OF_HEAT_COMPONENTS 5
 
 void Measure::initialize(
   const int number_of_steps,
