@@ -30,7 +30,14 @@ Calculate the heat current autocorrelation (HAC) function.
 #define DIM 3
 
 // Allocate memory for recording heat current data
-void HAC::preprocess(const int number_of_steps)
+void HAC::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
@@ -72,23 +79,30 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
 // sample heat current data for HAC calculations.
 void HAC::process(
   const int number_of_steps,
-  const int step,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom)
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   if ((step + 1) % sample_interval != 0)
     return;
 
-  const int N = velocity_per_atom.size() / 3;
+  const int N = atom.number_of_atoms;
 
-  compute_heat(virial_per_atom, velocity_per_atom, heat_per_atom);
+  compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
 
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, heat_per_atom.data(), heat_all.data());
+  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, atom.heat_per_atom.data(), heat_all.data());
   GPU_CHECK_KERNEL
 }
 
@@ -165,7 +179,14 @@ static void find_rtc(const int Nc, const double factor, const double* hac, doubl
 // Calculate HAC (heat currant auto-correlation function)
 // and RTC (running thermal conductivity)
 void HAC::postprocess(
-  const int number_of_steps, const double temperature, const double time_step, const double volume)
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double volume,
+  const double number_of_beads)
 {
   if (!compute)
     return;
@@ -251,4 +272,9 @@ void HAC::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("output_interval for HAC should be an integer number.\n");
   }
   printf("    output_interval is %d\n", output_interval);
+}
+
+HAC::HAC(const char** param, int num_param)
+{
+  parse(param, num_param);
 }

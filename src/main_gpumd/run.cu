@@ -26,6 +26,8 @@ Run simulation according to the inputs in the run.in file.
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
+#include "measure/property.cuh"
+#include "measure/hac.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -457,7 +459,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
     measure.angular_rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
-    measure.hac.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HAC(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
     measure.viscosity.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
