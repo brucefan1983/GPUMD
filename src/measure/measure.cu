@@ -103,6 +103,8 @@ void Measure::finalize(
       number_of_beads);
   }
 
+  properties.clear();
+
   dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
