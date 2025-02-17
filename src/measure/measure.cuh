@@ -100,7 +100,7 @@ public:
   ADF adf;
   RDF rdf;
   AngularRDF angular_rdf;
-  Viscosity viscosity;
+
 
   HNEMD hnemd;
   HNEMDEC hnemdec;

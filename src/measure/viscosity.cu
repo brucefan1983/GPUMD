@@ -26,7 +26,14 @@ Calculate the stress autocorrelation function and viscosity.
 
 #define NUM_OF_COMPONENTS 9
 
-void Viscosity::preprocess(const int number_of_steps)
+void Viscosity::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
@@ -78,22 +85,29 @@ static __global__ void gpu_sum_stress(
 
 void Viscosity::process(
   const int number_of_steps,
-  const int step,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& velocity,
-  const GPU_Vector<double>& virial)
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   if ((step + 1) % sample_interval != 0)
     return;
 
-  const int N = velocity.size() / 3;
+  const int N = atom.number_of_atoms;
 
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
-    N, Nd, nd, mass.data(), velocity.data(), virial.data(), stress_all.data());
+    N, Nd, nd, atom.mass.data(), atom.velocity_per_atom.data(), atom.virial_per_atom.data(), stress_all.data());
   GPU_CHECK_KERNEL
 }
 
@@ -182,7 +196,14 @@ find_viscosity(const int Nc, const double factor, const double* correlation, dou
 }
 
 void Viscosity::postprocess(
-  const int number_of_steps, const double temperature, const double time_step, const double volume)
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double volume,
+  const double number_of_beads)
 {
   if (!compute)
     return;
@@ -227,6 +248,11 @@ void Viscosity::postprocess(
   print_line_2();
 
   compute = 0;
+}
+
+Viscosity::Viscosity(const char** param, int num_param)
+{
+  parse(param, num_param);
 }
 
 void Viscosity::parse(const char** param, int num_param)

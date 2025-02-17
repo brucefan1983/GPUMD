@@ -54,7 +54,6 @@ void Measure::initialize(
   rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
 
-  viscosity.preprocess(number_of_steps);
 
   compute.preprocess(number_of_atoms, group);
   hnemd.preprocess();
@@ -122,8 +121,6 @@ void Measure::finalize(
   adf.postprocess();
   rdf.postprocess(integrate.type >= 31, number_of_beads);
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
-
-  viscosity.postprocess(number_of_steps, temperature, time_step, volume);
 
   compute.postprocess();
   hnemd.postprocess();
@@ -218,8 +215,6 @@ void Measure::process(
   adf.process(step, box, atom);
   rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
-
-  viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
 
   hnemd.process(
     step,

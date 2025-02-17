@@ -32,6 +32,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/shc.cuh"
 #include "measure/msd.cuh"
 #include "measure/sdc.cuh"
+#include "measure/viscosity.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
 #include "minimize/minimize.cuh"
@@ -479,7 +480,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new HAC(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
-    measure.viscosity.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Viscosity(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
     measure.hnemd.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
