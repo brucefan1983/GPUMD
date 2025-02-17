@@ -60,7 +60,6 @@ public:
     const int number_of_steps,
     const double time_step,
     const double temperature,
-    const double volume,
     const double number_of_beads);
     
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);

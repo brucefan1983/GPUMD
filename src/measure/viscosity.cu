@@ -202,7 +202,6 @@ void Viscosity::postprocess(
   const int number_of_steps,
   const double time_step,
   const double temperature,
-  const double volume,
   const double number_of_beads)
 {
   if (!compute)
@@ -225,7 +224,7 @@ void Viscosity::postprocess(
 
   correlation_gpu.copy_to_host(correlation_cpu.data());
 
-  double factor = dt * 0.5 / (K_B * temperature * volume);
+  double factor = dt * 0.5 / (K_B * temperature * box.get_volume());
   factor *= PRESSURE_UNIT_CONVERSION * TIME_UNIT_CONVERSION * 1.0e-6; // Pa s
 
   find_viscosity(Nc, factor, correlation_cpu.data(), viscosity.data());

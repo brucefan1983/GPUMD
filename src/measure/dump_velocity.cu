@@ -172,7 +172,6 @@ void Dump_Velocity::postprocess(
   const int number_of_steps,
   const double time_step,
   const double temperature,
-  const double volume,
   const double number_of_beads)
 {
   if (dump_) {

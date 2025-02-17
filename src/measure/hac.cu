@@ -185,7 +185,6 @@ void HAC::postprocess(
   const int number_of_steps,
   const double time_step,
   const double temperature,
-  const double volume,
   const double number_of_beads)
 {
   if (!compute)
@@ -208,7 +207,7 @@ void HAC::postprocess(
 
   hac_gpu.copy_to_host(hac_cpu.data());
 
-  double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
+  double factor = dt * 0.5 / (K_B * temperature * temperature * box.get_volume());
   factor *= KAPPA_UNIT_CONVERSION;
 
   find_rtc(Nc, factor, hac_cpu.data(), rtc.data());

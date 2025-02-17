@@ -328,7 +328,6 @@ void Run::perform_a_run()
     number_of_steps,
     time_step,
     integrate.temperature2,
-    box.get_volume(),
     atom.number_of_beads);
 
   electron_stop.finalize();

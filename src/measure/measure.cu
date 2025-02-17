@@ -86,7 +86,6 @@ void Measure::finalize(
   const int number_of_steps,
   const double time_step,
   const double temperature,
-  const double volume,
   const double number_of_beads)
 {
 
@@ -98,7 +97,6 @@ void Measure::finalize(
       number_of_steps,
       time_step,
       temperature,
-      volume,
       number_of_beads);
   }
 
