@@ -95,7 +95,7 @@ public:
   std::vector<std::unique_ptr<Property>> properties;
 
   LSQT lsqt;
-  DOS dos;
+
   SDC sdc;
   MSD msd;
   ADF adf;

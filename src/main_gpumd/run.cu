@@ -27,6 +27,7 @@ Run simulation according to the inputs in the run.in file.
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
 #include "measure/property.cuh"
+#include "measure/dos.cuh"
 #include "measure/hac.cuh"
 #include "measure/shc.cuh"
 #include "minimize/minimize.cuh"
@@ -448,7 +449,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "active") == 0) {
     measure.active.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
-    measure.dos.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new DOS(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_sdc") == 0) {
     measure.sdc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_msd") == 0) {

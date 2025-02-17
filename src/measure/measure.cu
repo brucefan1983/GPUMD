@@ -47,7 +47,7 @@ void Measure::initialize(
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
   lsqt.preprocess(atom, number_of_steps, time_step);
-  dos.preprocess(time_step, group, atom.mass);
+
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
   adf.preprocess(number_of_atoms);
@@ -117,7 +117,7 @@ void Measure::finalize(
   dump_dipole.postprocess();
   dump_polarizability.postprocess();
   active.postprocess();
-  dos.postprocess();
+
   sdc.postprocess();
   msd.postprocess();
   adf.postprocess();
@@ -222,7 +222,7 @@ void Measure::process(
     atom.force_per_atom,
     atom.velocity_per_atom,
     atom.virial_per_atom);
-  dos.process(step, group, atom.velocity_per_atom);
+
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
   adf.process(step, box, atom);
