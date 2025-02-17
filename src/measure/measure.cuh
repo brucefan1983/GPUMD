@@ -107,8 +107,6 @@ public:
   MODAL_ANALYSIS modal_analysis;
 
 
-
-  Dump_Restart dump_restart;
   Dump_Force dump_force;
   Dump_EXYZ dump_exyz;
   Dump_Beads dump_beads;

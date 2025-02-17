@@ -61,7 +61,6 @@ void Measure::initialize(
   modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
 
 
-  dump_restart.preprocess();
 
   dump_force.preprocess(number_of_atoms, group);
   dump_exyz.preprocess(number_of_atoms);
@@ -102,8 +101,6 @@ void Measure::finalize(
 
   properties.clear();
 
-
-  dump_restart.postprocess();
 
   dump_force.postprocess();
   dump_exyz.postprocess();
@@ -171,17 +168,6 @@ void Measure::process(
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
 
 
-  dump_restart.process(
-    step,
-    box,
-    group,
-    atom.cpu_atom_symbol,
-    atom.cpu_type,
-    atom.cpu_mass,
-    atom.position_per_atom,
-    atom.velocity_per_atom,
-    atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(step, global_time, box, atom, thermo);
   dump_beads.process(step, global_time, box, atom);
