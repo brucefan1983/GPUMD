@@ -61,7 +61,7 @@ void Measure::initialize(
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
   modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
   dump_position.preprocess();
-  dump_velocity.preprocess();
+
   dump_restart.preprocess();
 
   dump_force.preprocess(number_of_atoms, group);
@@ -106,7 +106,7 @@ void Measure::finalize(
   properties.clear();
 
   dump_position.postprocess();
-  dump_velocity.postprocess();
+
   dump_restart.postprocess();
 
   dump_force.postprocess();
@@ -184,7 +184,7 @@ void Measure::process(
     atom.cpu_type,
     atom.position_per_atom,
     atom.cpu_position_per_atom);
-  dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
+
   dump_restart.process(
     step,
     box,

@@ -108,7 +108,7 @@ public:
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
   Dump_Position dump_position;
-  Dump_Velocity dump_velocity;
+
 
   Dump_Restart dump_restart;
   Dump_Force dump_force;

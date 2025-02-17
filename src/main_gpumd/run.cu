@@ -31,6 +31,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/hac.cuh"
 #include "measure/shc.cuh"
 #include "measure/dump_thermo.cuh"
+#include "measure/dump_velocity.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -434,7 +435,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dump_restart") == 0) {
     measure.dump_restart.parse(param, num_param);
   } else if (strcmp(param[0], "dump_velocity") == 0) {
-    measure.dump_velocity.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Velocity(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_force") == 0) {
     measure.dump_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "dump_exyz") == 0) {
