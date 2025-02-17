@@ -63,7 +63,7 @@ void Measure::initialize(
   dump_position.preprocess();
   dump_velocity.preprocess();
   dump_restart.preprocess();
-  dump_thermo.preprocess();
+
   dump_force.preprocess(number_of_atoms, group);
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
@@ -108,7 +108,7 @@ void Measure::finalize(
   dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
-  dump_thermo.postprocess();
+
   dump_force.postprocess();
   dump_exyz.postprocess();
   dump_beads.postprocess();
@@ -176,14 +176,6 @@ void Measure::process(
   const int number_of_atoms = atom.cpu_type.size();
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
-  dump_thermo.process(
-    integrate.type >= 31,
-    integrate.ensemble->temperature,
-    step,
-    number_of_atoms,
-    number_of_atoms_fixed,
-    box,
-    thermo);
   dump_position.process(
     step,
     box,

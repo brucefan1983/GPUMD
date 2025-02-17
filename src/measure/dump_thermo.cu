@@ -18,6 +18,7 @@ Dump thermo data to a file at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_thermo.cuh"
+#include "integrate/integrate.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -25,6 +26,11 @@ Dump thermo data to a file at a given interval.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+
+Dump_Thermo::Dump_Thermo(const char** param, int num_param) 
+{
+  parse(param, num_param);
+}
 
 void Dump_Thermo::parse(const char** param, int num_param)
 {
@@ -41,7 +47,14 @@ void Dump_Thermo::parse(const char** param, int num_param)
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
-void Dump_Thermo::preprocess()
+void Dump_Thermo::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     fid_ = my_fopen("thermo.out", "a");
@@ -49,27 +62,34 @@ void Dump_Thermo::preprocess()
 }
 
 void Dump_Thermo::process(
-  const bool is_pimd,
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
   const double temperature_target,
-  const int step,
-  const int number_of_atoms,
-  const int number_of_atoms_fixed,
-  const Box& box,
-  GPU_Vector<double>& gpu_thermo)
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& gpu_thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
+  int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+
   double thermo[8];
   gpu_thermo.copy_to_host(thermo, 8);
   double energy_kin, temperature;
-  if (is_pimd) {
+  if (integrate.type >= 31) {
     energy_kin = thermo[0];
     temperature = temperature_target;
   } else {
-    const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
+    const int number_of_atoms_moving = atom.number_of_atoms - number_of_atoms_fixed;
     energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
     temperature = thermo[0];
   }
@@ -103,7 +123,15 @@ void Dump_Thermo::process(
   fflush(fid_);
 }
 
-void Dump_Thermo::postprocess()
+void Dump_Thermo::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double volume,
+  const double number_of_beads)
 {
   if (dump_) {
     fclose(fid_);
