@@ -59,7 +59,7 @@ void Measure::initialize(
   hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
   modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
-  dump_position.preprocess();
+
 
   dump_restart.preprocess();
 
@@ -102,7 +102,6 @@ void Measure::finalize(
 
   properties.clear();
 
-  dump_position.postprocess();
 
   dump_restart.postprocess();
 
@@ -170,14 +169,7 @@ void Measure::process(
   const int number_of_atoms = atom.cpu_type.size();
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
-  dump_position.process(
-    step,
-    box,
-    group,
-    atom.cpu_atom_symbol,
-    atom.cpu_type,
-    atom.position_per_atom,
-    atom.cpu_position_per_atom);
+
 
   dump_restart.process(
     step,

@@ -33,6 +33,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/msd.cuh"
 #include "measure/sdc.cuh"
 #include "measure/viscosity.cuh"
+#include "measure/dump_position.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
 #include "minimize/minimize.cuh"
@@ -421,7 +422,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Dump_Thermo(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_position") == 0) {
-    measure.dump_position.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Position(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
     measure.dump_netcdf.parse(param, num_param);

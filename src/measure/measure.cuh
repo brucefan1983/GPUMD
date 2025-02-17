@@ -105,7 +105,7 @@ public:
   HNEMDEC hnemdec;
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
-  Dump_Position dump_position;
+
 
 
   Dump_Restart dump_restart;
