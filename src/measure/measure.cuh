@@ -102,7 +102,7 @@ public:
   RDF rdf;
   AngularRDF angular_rdf;
   Viscosity viscosity;
-  SHC shc;
+
   HNEMD hnemd;
   HNEMDEC hnemdec;
   Compute compute;
