@@ -14,11 +14,12 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Group;
 
-class MSD
+class MSD : public Property
 {
 public:
   bool compute_ = false;
@@ -27,10 +28,40 @@ public:
   int grouping_method_ = -1;
   int group_id_ = -1;
 
-  void preprocess(const int num_atoms, const double time_step, const std::vector<Group>& groups);
-  void process(
-    const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
-  void postprocess();
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature,
+    const double volume,
+    const double number_of_beads);
+
+  MSD(const char** param, const int num_param, const std::vector<Group>& groups);
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
 
 private:

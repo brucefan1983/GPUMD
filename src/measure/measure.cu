@@ -49,7 +49,7 @@ void Measure::initialize(
   lsqt.preprocess(atom, number_of_steps, time_step);
 
   sdc.preprocess(number_of_atoms, time_step, group);
-  msd.preprocess(number_of_atoms, time_step, group);
+
   adf.preprocess(number_of_atoms);
   rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
@@ -119,7 +119,7 @@ void Measure::finalize(
   active.postprocess();
 
   sdc.postprocess();
-  msd.postprocess();
+
   adf.postprocess();
   rdf.postprocess(integrate.type >= 31, number_of_beads);
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
@@ -216,7 +216,7 @@ void Measure::process(
     atom.virial_per_atom);
 
   sdc.process(step, group, atom.velocity_per_atom);
-  msd.process(step, group, atom.unwrapped_position);
+
   adf.process(step, box, atom);
   rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);

@@ -97,7 +97,7 @@ public:
   LSQT lsqt;
 
   SDC sdc;
-  MSD msd;
+
   ADF adf;
   RDF rdf;
   AngularRDF angular_rdf;
