@@ -23,7 +23,6 @@ The driver class dealing with measurement.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
-#define NUM_OF_HEAT_COMPONENTS 5
 
 void Measure::initialize(
   const int number_of_steps,
@@ -34,18 +33,29 @@ void Measure::initialize(
   Box& box,
   Force& force)
 {
+  for (auto& prop : properties) {
+    prop->preprocess(
+      number_of_steps,
+      time_step,
+      integrate,
+      group,
+      atom,
+      box,
+      force);
+  }
+
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
   lsqt.preprocess(atom, number_of_steps, time_step);
-  dos.preprocess(time_step, group, atom.mass);
+
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
   adf.preprocess(number_of_atoms);
   rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
-  hac.preprocess(number_of_steps);
+
   viscosity.preprocess(number_of_steps);
-  shc.preprocess(number_of_atoms, group);
+
   compute.preprocess(number_of_atoms, group);
   hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
@@ -80,6 +90,21 @@ void Measure::finalize(
   const double volume,
   const double number_of_beads)
 {
+
+  for (auto& prop : properties) {
+    prop->postprocess(
+      atom,
+      box,
+      integrate,
+      number_of_steps,
+      time_step,
+      temperature,
+      volume,
+      number_of_beads);
+  }
+
+  properties.clear();
+
   dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
@@ -92,15 +117,15 @@ void Measure::finalize(
   dump_dipole.postprocess();
   dump_polarizability.postprocess();
   active.postprocess();
-  dos.postprocess();
+
   sdc.postprocess();
   msd.postprocess();
   adf.postprocess();
   rdf.postprocess(integrate.type >= 31, number_of_beads);
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
-  hac.postprocess(number_of_steps, temperature, time_step, volume);
+
   viscosity.postprocess(number_of_steps, temperature, time_step, volume);
-  shc.postprocess(time_step);
+
   compute.postprocess();
   hnemd.postprocess();
   hnemdec.postprocess();
@@ -131,6 +156,23 @@ void Measure::process(
   Atom& atom,
   Force& force)
 {
+
+  for (auto& prop : properties) {
+    prop->process(
+      number_of_steps,
+      step,
+      fixed_group,
+      move_group,
+      global_time,
+      temperature,
+      integrate,
+      box,
+      group,
+      thermo,
+      atom,
+      force);
+  }
+
   const int number_of_atoms = atom.cpu_type.size();
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
@@ -180,16 +222,15 @@ void Measure::process(
     atom.force_per_atom,
     atom.velocity_per_atom,
     atom.virial_per_atom);
-  dos.process(step, group, atom.velocity_per_atom);
+
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
   adf.process(step, box, atom);
   rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
-  hac.process(
-    number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
+
   viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
-  shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
+
   hnemd.process(
     step,
     temperature,

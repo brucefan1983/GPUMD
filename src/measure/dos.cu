@@ -144,6 +144,11 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
+DOS::DOS(const char** param, const int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+}
+
 void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
@@ -196,17 +201,34 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
 }
 
 void DOS::preprocess(
-  const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_)
     return;
-  initialize_parameters(time_step, groups, mass);
+  initialize_parameters(time_step, group, atom.mass);
   allocate_memory();
-  copy_mass(mass);
+  copy_mass(atom.mass);
 }
 
 void DOS::process(
-  const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -215,13 +237,21 @@ void DOS::process(
 
   const int sample_step = step / sample_interval_;
   const int correlation_step = sample_step % num_correlation_steps_;
-  copy_velocity(correlation_step, velocity_per_atom);
+  copy_velocity(correlation_step, atom.velocity_per_atom);
   if (sample_step >= num_correlation_steps_ - 1) {
     find_vac(correlation_step);
   }
 }
 
-void DOS::postprocess()
+void DOS::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double volume,
+  const double number_of_beads)
 {
   if (!compute_)
     return;

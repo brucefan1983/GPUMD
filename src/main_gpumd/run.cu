@@ -26,6 +26,10 @@ Run simulation according to the inputs in the run.in file.
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
+#include "measure/property.cuh"
+#include "measure/dos.cuh"
+#include "measure/hac.cuh"
+#include "measure/shc.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -445,7 +449,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "active") == 0) {
     measure.active.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
-    measure.dos.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new DOS(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_sdc") == 0) {
     measure.sdc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_msd") == 0) {
@@ -457,7 +463,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
     measure.angular_rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
-    measure.hac.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HAC(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
     measure.viscosity.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
@@ -465,7 +473,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
     measure.hnemdec.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
-    measure.shc.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new SHC(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_gkma") == 0) {
     measure.parse_compute_gkma(param, num_param, number_of_types);
   } else if (strcmp(param[0], "compute_hnema") == 0) {

@@ -14,18 +14,19 @@
 */
 
 #pragma once
-#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
+#include <vector>
 
-class HAC : public Property
+class Integrate;
+class Atom;
+class Force;
+
+class Property
 {
 public:
-  HAC(const char**, int);
-
-  int compute = 0;
-  int sample_interval; // sample interval for heat current
-  int Nc;              // number of correlation points
-  int output_interval; // only output Nc/output_interval data
 
   virtual void preprocess(
     const int number_of_steps,
@@ -34,7 +35,7 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force);
+    Force& force) = 0;
 
   virtual void process(
       const int number_of_steps,
@@ -48,7 +49,7 @@ public:
       std::vector<Group>& group,
       GPU_Vector<double>& thermo,
       Atom& atom,
-      Force& force);
+      Force& force) = 0;
 
   virtual void postprocess(
     Atom& atom,
@@ -58,10 +59,5 @@ public:
     const double time_step,
     const double temperature,
     const double volume,
-    const double number_of_beads);
-
-  void parse(const char**, int);
-
-private:
-  GPU_Vector<double> heat_all;
+    const double number_of_beads) = 0;
 };

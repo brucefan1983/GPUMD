@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "adf.cuh"
 #include "active.cuh"
 #include "compute.cuh"
@@ -91,16 +92,17 @@ public:
     Atom& atom,
     Force& force);
 
+  std::vector<std::unique_ptr<Property>> properties;
+
   LSQT lsqt;
-  DOS dos;
+
   SDC sdc;
   MSD msd;
-  HAC hac;
   ADF adf;
   RDF rdf;
   AngularRDF angular_rdf;
   Viscosity viscosity;
-  SHC shc;
+
   HNEMD hnemd;
   HNEMDEC hnemdec;
   Compute compute;
