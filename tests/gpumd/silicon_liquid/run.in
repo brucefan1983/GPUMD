@@ -9,4 +9,5 @@ run         1000
 ensemble    nve
 compute_sdc 2 100
 compute_msd 2 100
+compute_viscosity 2 100
 run         1000
