@@ -53,9 +53,10 @@ cd gpumd/silicon_liquid
 echo "#### silicon_liquid"
 ../../../src/gpumd > /dev/null
 diff -q movie.xyz movie1.xyz
+diff -q restart.xyz restart1.xyz
 diff -q sdc.out sdc1.out
 diff -q msd.out msd1.out
 diff -q viscosity.out viscosity1.out
 diff -q neighbor.out neighbor1.out
-rm movie.xyz sdc.out msd.out viscosity.out neighbor.out
+rm movie.xyz restart.xyz sdc.out msd.out viscosity.out neighbor.out
 cd ../..
