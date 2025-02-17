@@ -96,7 +96,6 @@ public:
 
   LSQT lsqt;
 
-  SDC sdc;
 
   ADF adf;
   RDF rdf;

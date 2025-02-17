@@ -48,7 +48,7 @@ void Measure::initialize(
   const int number_of_potentials = force.potentials.size();
   lsqt.preprocess(atom, number_of_steps, time_step);
 
-  sdc.preprocess(number_of_atoms, time_step, group);
+
 
   adf.preprocess(number_of_atoms);
   rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
@@ -118,7 +118,6 @@ void Measure::finalize(
   dump_polarizability.postprocess();
   active.postprocess();
 
-  sdc.postprocess();
 
   adf.postprocess();
   rdf.postprocess(integrate.type >= 31, number_of_beads);
@@ -215,7 +214,6 @@ void Measure::process(
     atom.velocity_per_atom,
     atom.virial_per_atom);
 
-  sdc.process(step, group, atom.velocity_per_atom);
 
   adf.process(step, box, atom);
   rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);

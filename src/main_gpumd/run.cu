@@ -31,6 +31,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/hac.cuh"
 #include "measure/shc.cuh"
 #include "measure/msd.cuh"
+#include "measure/sdc.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
 #include "minimize/minimize.cuh"
@@ -460,7 +461,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new DOS(param, num_param, group));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_sdc") == 0) {
-    measure.sdc.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new SDC(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_msd") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new MSD(param, num_param, group));
