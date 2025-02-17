@@ -62,7 +62,7 @@ void Measure::initialize(
 
 
 
-  dump_force.preprocess(number_of_atoms, group);
+
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
@@ -102,7 +102,7 @@ void Measure::finalize(
   properties.clear();
 
 
-  dump_force.postprocess();
+
   dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
@@ -168,7 +168,7 @@ void Measure::process(
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
 
 
-  dump_force.process(step, group, atom.force_per_atom);
+
   dump_exyz.process(step, global_time, box, atom, thermo);
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
