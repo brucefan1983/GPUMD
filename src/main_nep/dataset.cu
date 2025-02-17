@@ -32,7 +32,9 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].num_atom = structures_input[n_input].num_atom;
     structures[n].weight = structures_input[n_input].weight;
     structures[n].has_virial = structures_input[n_input].has_virial;
+    structures[n].charge = structures_input[n_input].charge;
     structures[n].energy = structures_input[n_input].energy;
+    structures[n].energy_weight = structures_input[n_input].energy_weight;
     structures[n].has_temperature = structures_input[n_input].has_temperature;
     structures[n].temperature = structures_input[n_input].temperature;
     structures[n].volume = structures_input[n_input].volume;
@@ -125,14 +127,17 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
 
+  charge.resize(N);
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
+  charge_cpu.resize(N);
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
 
   weight_cpu.resize(Nc);
+  charge_ref_cpu.resize(Nc);
   energy_ref_cpu.resize(Nc);
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
@@ -141,6 +146,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
+    charge_ref_cpu[n] = structures[n].charge;
     energy_ref_cpu[n] = structures[n].energy;
     energy_weight_cpu[n] = structures[n].energy_weight;
     for (int k = 0; k < 6; ++k) {
@@ -168,12 +174,14 @@ void Dataset::initialize_gpu_data(Parameters& para)
   }
 
   type_weight_gpu.resize(NUM_ELEMENTS);
+  charge_ref_gpu.resize(Nc);
   energy_ref_gpu.resize(Nc);
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
+  charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
@@ -655,3 +663,72 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   }
   return rmse_array;
 }
+
+static __global__ void gpu_sum_charge_error(
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_charge, 
+  float* g_charge_ref,  
+  float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ float s_charge[];
+  s_charge[tid] = 0.0f;
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_charge[tid] += g_charge[n];
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_charge[tid] += s_charge[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    float diff = s_charge[0] / Na - g_charge_ref[bid];
+    error_gpu[bid] = diff * diff;
+  }
+}
+
+std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
+{
+  CHECK(gpuSetDevice(device_id));
+
+  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<int> count_array(para.num_types + 1, 0);
+
+  int mem = sizeof(float) * Nc;
+  const int block_size = 256;
+
+  gpu_sum_charge_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    Na.data(),
+    Na_sum.data(),
+    charge.data(),
+    charge_ref_gpu.data(),
+    error_gpu.data());
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+  for (int n = 0; n < Nc; ++n) {
+      float rmse_temp = error_cpu[n];
+      for (int t = 0; t < para.num_types + 1; ++t) {
+        if (has_type[t * Nc + n]) {
+          rmse_array[t] += rmse_temp;
+          count_array[t] += 1;
+        }
+      }
+  }
+
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+    }
+  }
+  return rmse_array;
+}
+

@@ -14,31 +14,8 @@
 */
 
 #pragma once
-#include <vector>
 
-class Parameters;
+class Box;
+class Atom;
 
-struct Structure {
-  int num_cell[3];
-  int num_atom;
-  int has_virial;
-  int has_temperature;
-  float weight;
-  float charge = 0.0f;
-  float energy = 0.0f;
-  float energy_weight = 1.0f;
-  float virial[6];
-  float box_original[9];
-  float volume;
-  float box[18];
-  float temperature;
-  std::vector<int> type;
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<float> z;
-  std::vector<float> fx;
-  std::vector<float> fy;
-  std::vector<float> fz;
-};
-
-bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);
+void calculate_min_atomic_distance(const Atom& atom, const Box& box);
