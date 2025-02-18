@@ -84,7 +84,6 @@ public:
 
 
   ADF adf;
-  RDF rdf;
   AngularRDF angular_rdf;
 
 

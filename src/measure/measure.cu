@@ -51,7 +51,6 @@ void Measure::initialize(
 
 
   adf.preprocess(number_of_atoms);
-  rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
 
 
@@ -107,7 +106,6 @@ void Measure::finalize(
 
 
   adf.postprocess();
-  rdf.postprocess(integrate.type >= 31, number_of_beads);
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
 
   hnemd.postprocess();
@@ -171,7 +169,6 @@ void Measure::process(
 
 
   adf.process(step, box, atom);
-  rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
 
   hnemd.process(

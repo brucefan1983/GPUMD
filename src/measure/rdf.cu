@@ -19,6 +19,7 @@ Calculate:
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
+#include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
@@ -348,10 +349,13 @@ void RDF::find_rdf(
 }
 
 void RDF::preprocess(
-  const bool is_pimd,
-  const int number_of_beads,
-  const int num_atoms,
-  std::vector<int>& cpu_type_size)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -362,34 +366,45 @@ void RDF::preprocess(
   }
   radial_.resize(rdf_bins_);
   radial_.copy_from_host(radial_cpu.data());
-  rdf_N_ = num_atoms;
-  num_atoms_ = num_atoms * rdf_atom_count;
+  rdf_N_ = atom.number_of_atoms;
+  num_atoms_ = atom.number_of_atoms * rdf_atom_count;
   density1.resize(rdf_atom_count);
   density2.resize(rdf_atom_count);
   atom_id1_typesize.resize(rdf_atom_count - 1);
   atom_id2_typesize.resize(rdf_atom_count - 1);
   for (int a = 0; a < rdf_atom_count - 1; a++) {
-    atom_id1_typesize[a] = cpu_type_size[atom_id1_[a]];
-    atom_id2_typesize[a] = cpu_type_size[atom_id2_[a]];
+    atom_id1_typesize[a] = atom.cpu_type_size[atom_id1_[a]];
+    atom_id2_typesize[a] = atom.cpu_type_size[atom_id2_[a]];
   }
 
-  if (is_pimd) {
-    rdf_g_.resize(number_of_beads * num_atoms_ * rdf_bins_, 0);
-    rdf_.resize(number_of_beads * num_atoms_ * rdf_bins_, 0);
-    cell_count.resize(num_atoms);
-    cell_count_sum.resize(num_atoms);
-    cell_contents.resize(num_atoms);
+  if (integrate.type >= 31) {
+    rdf_g_.resize(atom.number_of_beads * num_atoms_ * rdf_bins_, 0);
+    rdf_.resize(atom.number_of_beads * num_atoms_ * rdf_bins_, 0);
+    cell_count.resize(atom.number_of_atoms);
+    cell_count_sum.resize(atom.number_of_atoms);
+    cell_contents.resize(atom.number_of_atoms);
   } else {
     rdf_g_.resize(num_atoms_ * rdf_bins_, 0);
     rdf_.resize(num_atoms_ * rdf_bins_, 0);
-    cell_count.resize(num_atoms);
-    cell_count_sum.resize(num_atoms);
-    cell_contents.resize(num_atoms);
+    cell_count.resize(atom.number_of_atoms);
+    cell_count_sum.resize(atom.number_of_atoms);
+    cell_contents.resize(atom.number_of_atoms);
   }
 }
 
 void RDF::process(
-  const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -404,7 +419,7 @@ void RDF::process(
     density2[a + 1] = atom_id2_typesize[a] / box.get_volume();
   }
 
-  if (is_pimd) {
+  if (integrate.type >= 31) {
 
     for (int k = 0; k < atom.number_of_beads; k++) {
       const double rc_cell_list = 0.5 * r_cut_;
@@ -493,12 +508,19 @@ void RDF::process(
   }
 }
 
-void RDF::postprocess(const bool is_pimd, const int number_of_beads)
+void RDF::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double number_of_beads)
 {
   if (!compute_)
     return;
 
-  if (is_pimd) {
+  if (integrate.type >= 31) {
 
     CHECK(gpuMemcpy(
       rdf_.data(),
@@ -610,6 +632,16 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
   }
   rdf_atom_count = 1;
   num_repeat_ = 0;
+}
+
+RDF::RDF(
+  const char** param,
+  const int num_param,
+  Box& box,
+  const int number_of_types,
+  const int number_of_steps)
+{
+  parse(param, num_param, box, number_of_types, number_of_steps);
 }
 
 void RDF::parse(
