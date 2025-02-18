@@ -439,10 +439,10 @@ static void read_one_structure(
       if (force_position < 0 && para.train_mode == 0) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
-      if (avirial_position < 0 && (para.train_mode == 4 || para.train_mode == 5)) {
+      if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
       }
-      if (avirial_position < 0 && (para.train_mode == 6 || para.train_mode == 7)) {
+      if (avirial_position < 0 && para.train_mode == 2 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
