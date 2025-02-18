@@ -155,22 +155,10 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
-  if (structures[0].atomic_virial_diag_only) {
-    avirial.resize(N * 3);
-  }
-  else {
-    avirial.resize(N * 6);
-  }
   charge_cpu.resize(N);
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
-  if (structures[0].atomic_virial_diag_only) {
-    avirial_cpu.resize(N * 3);
-  }
-  else {
-    avirial_cpu.resize(N * 6);
-  }
 
   weight_cpu.resize(Nc);
   charge_ref_cpu.resize(Nc);
