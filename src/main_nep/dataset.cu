@@ -155,12 +155,22 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
-  avirial.resize(N * 3);
+  if (structures[0].atomic_virial_diag_only) {
+    avirial.resize(N * 3);
+  }
+  else {
+    avirial.resize(N * 6);
+  }
   charge_cpu.resize(N);
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
-  avirial_cpu.resize(N * 3);
+  if (structures[0].atomic_virial_diag_only) {
+    avirial_cpu.resize(N * 3);
+  }
+  else {
+    avirial_cpu.resize(N * 6);
+  }
 
   weight_cpu.resize(Nc);
   charge_ref_cpu.resize(Nc);
@@ -168,7 +178,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
-  avirial_ref_cpu.resize(N * 3);
+  if (structures[0].atomic_virial_diag_only) {
+    avirial_ref_cpu.resize(N * 3);
+  }
+  else {
+    avirial_ref_cpu.resize(N * 6);
+  }
   temperature_ref_cpu.resize(N);
 
   for (int n = 0; n < Nc; ++n) {
@@ -216,7 +231,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
-  avirial_ref_gpu.resize(N * 3);
+  if (structures[0].atomic_virial_diag_only) {
+    avirial_ref_gpu.resize(N * 3);
+  }
+  else {
+    avirial_ref_gpu.resize(N * 6);
+  }
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
   charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
@@ -487,13 +507,12 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
 }
 
 static __global__ void gpu_sum_avirial_diag_only_error(
+  const int N,
   int* g_Na,
   int* g_Na_sum,
   int* g_type,
   float* g_type_weight,
-  float* g_avxx,
-  float* g_avyy,
-  float* g_avzz,
+  float* g_virial,
   float* g_avxx_ref,
   float* g_avyy_ref,
   float* g_avzz_ref,
@@ -510,9 +529,9 @@ static __global__ void gpu_sum_avirial_diag_only_error(
     float avxx_ref = g_avxx_ref[n];
     float avyy_ref = g_avyy_ref[n];
     float avzz_ref = g_avzz_ref[n];
-    float dxx = g_avxx[n] - avxx_ref;
-    float dyy = g_avyy[n] - avyy_ref;
-    float dzz = g_avzz[n] - avzz_ref;
+    float dxx = g_virial[n] - avxx_ref;
+    float dyy = g_virial[1 * N + n] - avyy_ref;
+    float dzz = g_virial[2 * N + n] - avzz_ref;
     float diff_square = dxx * dxx + dyy * dyy + dzz * dzz;
     s_error[tid] += diff_square;
   }
@@ -531,16 +550,12 @@ static __global__ void gpu_sum_avirial_diag_only_error(
 }
 
 static __global__ void gpu_sum_avirial_error(
+  const int N,
   int* g_Na,
   int* g_Na_sum,
   int* g_type,
   float* g_type_weight,
-  float* g_avxx,
-  float* g_avyy,
-  float* g_avzz,
-  float* g_avxy,
-  float* g_avyz,
-  float* g_avzx,
+  float* g_virial,
   float* g_avxx_ref,
   float* g_avyy_ref,
   float* g_avzz_ref,
@@ -563,12 +578,12 @@ static __global__ void gpu_sum_avirial_error(
     float avxy_ref = g_avxy_ref[n];
     float avyz_ref = g_avyz_ref[n];
     float avzx_ref = g_avzx_ref[n];
-    float dxx = g_avxx[n] - avxx_ref;
-    float dyy = g_avyy[n] - avyy_ref;
-    float dzz = g_avzz[n] - avzz_ref;
-    float dxy = g_avxy[n] - avxy_ref;
-    float dyz = g_avyz[n] - avyz_ref;
-    float dzx = g_avzx[n] - avzx_ref;
+    float dxx = g_virial[n] - avxx_ref;
+    float dyy = g_virial[1 * N + n] - avyy_ref;
+    float dzz = g_virial[2 * N + n] - avzz_ref;
+    float dxy = g_virial[3 * N + n] - avxy_ref;
+    float dyz = g_virial[4 * N + n] - avyz_ref;
+    float dzx = g_virial[5 * N + n] - avzx_ref;
     float diff_square = dxx * dxx + dyy * dyy + dzz * dzz + dxy * dxy + dyz * dyz + dzx * dzx;
     s_error[tid] += diff_square;
   }
@@ -593,29 +608,24 @@ std::vector<float> Dataset::get_rmse_avirial(Parameters& para, const bool use_we
 
   if (structures[0].atomic_virial_diag_only) {
     gpu_sum_avirial_diag_only_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      N,
       Na.data(),
       Na_sum.data(),
       type.data(),
       type_weight_gpu.data(),
-      avirial.data(),
-      avirial.data() + N,
-      avirial.data() + N * 2,
+      virial.data(),
       avirial_ref_gpu.data(),
       avirial_ref_gpu.data() + N,
       avirial_ref_gpu.data() + N * 2,
       error_gpu.data());
   } else {
     gpu_sum_avirial_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      N,
       Na.data(),
       Na_sum.data(),
       type.data(),
       type_weight_gpu.data(),
-      avirial.data(),
-      avirial.data() + N,
-      avirial.data() + N * 2,
-      avirial.data() + N * 3,
-      avirial.data() + N * 4,
-      avirial.data() + N * 5,
+      virial.data(),
       avirial_ref_gpu.data(),
       avirial_ref_gpu.data() + N,
       avirial_ref_gpu.data() + N * 2,
