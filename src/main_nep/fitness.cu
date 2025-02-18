@@ -488,7 +488,7 @@ void Fitness::report_error(
         FILE* fid_energy = my_fopen("energy_test.out", "w");
         FILE* fid_virial = my_fopen("virial_test.out", "w");
         FILE* fid_stress = my_fopen("stress_test.out", "w");
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
+        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0], para.atomic_v);
         fclose(fid_energy);
         fclose(fid_force);
         fclose(fid_virial);
@@ -500,11 +500,11 @@ void Fitness::report_error(
         }
       } else if (para.train_mode == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0]);
+        update_dipole(fid_dipole, test_set[0], para.atomic_v);
         fclose(fid_dipole);
       } else if (para.train_mode == 2) {
         FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0]);
+        update_polarizability(fid_polarizability, test_set[0], para.atomic_v);
         fclose(fid_polarizability);
       }
     }
@@ -516,7 +516,7 @@ void Fitness::report_error(
 }
 
 void Fitness::update_energy_force_virial(
-  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset)
+  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset, bool atomic)
 {
   dataset.energy.copy_to_host(dataset.energy_cpu.data());
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
@@ -539,8 +539,48 @@ void Fitness::update_energy_force_virial(
   }
 
   output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
-  output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-  output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+
+  if (!atomic) {
+    output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    for (int nc = 0; nc < dataset.Nc; ++nc) {
+      int offset = dataset.Na_sum_cpu[nc];
+      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+        int n = offset + m;
+        fprintf(
+          fid_virial,
+          "%g %g %g %g %g %g\n",
+          dataset.virial_cpu[n] / dataset.Na_cpu[nc],
+          dataset.virial_cpu[n + dataset.N] / dataset.Na_cpu[nc],
+          dataset.virial_cpu[n + dataset.N * 2] / dataset.Na_cpu[nc],
+          dataset.virial_cpu[n + dataset.N * 3] / dataset.Na_cpu[nc],
+          dataset.virial_cpu[n + dataset.N * 4] / dataset.Na_cpu[nc],
+          dataset.virial_cpu[n + dataset.N * 5] / dataset.Na_cpu[nc],
+          dataset.avirial_ref_cpu[n],
+          dataset.avirial_ref_cpu[n + dataset.N],
+          dataset.avirial_ref_cpu[n + dataset.N * 2],
+          dataset.avirial_ref_cpu[n + dataset.N * 3],
+          dataset.avirial_ref_cpu[n + dataset.N * 4],
+          dataset.avirial_ref_cpu[n + dataset.N * 5]);
+        fprintf(
+          fid_stress,
+          "%g %g %g %g %g %g\n",
+          dataset.virial_cpu[n] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.virial_cpu[n + dataset.N] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.virial_cpu[n + dataset.N * 2] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.virial_cpu[n + dataset.N * 3] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.virial_cpu[n + dataset.N * 4] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.virial_cpu[n + dataset.N * 5] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n + dataset.N] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n + dataset.N * 2] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n + dataset.N * 3] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n + dataset.N * 4] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
+          dataset.avirial_ref_cpu[n + dataset.N * 5] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+      }
+    }
+  }
 }
 
 void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
@@ -553,22 +593,58 @@ void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
   }
 }
 
-void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
+void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  if (!atomic) {
+    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    for (int nc = 0; nc < dataset.Nc; ++nc) {
+      int offset = dataset.Na_sum_cpu[nc];
+      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+        int n = offset + m;
+        fprintf(
+          fid_dipole,
+          "%g %g %g %g %g %g\n",
+          dataset.virial_cpu[n],
+          dataset.virial_cpu[n + dataset.N],
+          dataset.virial_cpu[n + dataset.N * 2],
+          dataset.avirial_ref_cpu[n],
+          dataset.avirial_ref_cpu[n + dataset.N],
+          dataset.avirial_ref_cpu[n + dataset.N * 2]);
+      }
+    }
+  }
 }
 
-void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
+void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(
-    false,
-    6,
-    fid_polarizability,
-    dataset.virial_cpu.data(),
-    dataset.virial_ref_cpu.data(),
-    dataset);
+  if (!atomic) {
+    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    for (int nc = 0; nc < dataset.Nc; ++nc) {
+      int offset = dataset.Na_sum_cpu[nc];
+      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+        int n = offset + m;
+        fprintf(
+          fid_polarizability,
+          "%g %g %g %g %g %g\n",
+          dataset.virial_cpu[n],
+          dataset.virial_cpu[n + dataset.N],
+          dataset.virial_cpu[n + dataset.N * 2],
+          dataset.virial_cpu[n + dataset.N * 3],
+          dataset.virial_cpu[n + dataset.N * 4],
+          dataset.virial_cpu[n + dataset.N * 5],
+          dataset.avirial_ref_cpu[n],
+          dataset.avirial_ref_cpu[n + dataset.N],
+          dataset.avirial_ref_cpu[n + dataset.N * 2],
+          dataset.avirial_ref_cpu[n + dataset.N * 3],
+          dataset.avirial_ref_cpu[n + dataset.N * 4],
+          dataset.avirial_ref_cpu[n + dataset.N * 5]);
+      }
+    }
+  }
 }
 
 void Fitness::predict(Parameters& para, float* elite)
@@ -585,7 +661,7 @@ void Fitness::predict(Parameters& para, float* elite)
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_energy_force_virial(
-        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
+        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0], para.atomic_v);
       if (para.charge_mode) {
         update_charge(fid_charge, train_set[batch_id][0]);
       }
@@ -601,14 +677,14 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_dipole(fid_dipole, train_set[batch_id][0]);
+      update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_dipole);
   } else if (para.train_mode == 2) {
     FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_polarizability(fid_polarizability, train_set[batch_id][0]);
+      update_polarizability(fid_polarizability, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_polarizability);
   }
