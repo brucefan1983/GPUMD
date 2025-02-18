@@ -136,20 +136,27 @@ static void read_force(
     }
 
     if (num_columns > 4 && structure.has_atomic_virial) {
-      structure.avirialxx[na] =
-        get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialyy[na] =
-        get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
-      structure.avirialzz[na] =
-        get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
-        if (!structure.atomic_virial_diag_only) {
-          structure.avirialxy[na] =
-            get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialyz[na] =
-            get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialzx[na] =
-            get_double_from_token(tokens[5 + avirial_offset], xyz_filename.c_str(), line_number);
-        }
+      if (structure.atomic_virial_diag_only) {
+        structure.avirialxx[na] =
+          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialyy[na] =
+          get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialzz[na] =
+          get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
+      } else {
+        structure.avirialxx[na] =
+          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialyy[na] =
+          get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialzz[na] =
+          get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialxy[na] =
+          get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialyz[na] =
+          get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
+        structure.avirialzx[na] =
+          get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
+      }
     }
 
     bool is_allowed_element = false;
