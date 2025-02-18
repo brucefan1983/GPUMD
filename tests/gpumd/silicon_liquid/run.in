@@ -14,4 +14,6 @@ ensemble    nve
 compute_sdc 2 100
 compute_msd 2 100
 compute_viscosity 2 100
+compute_rdf 5 100 100
+compute_adf 100 60 0 2.5
 run         1000
