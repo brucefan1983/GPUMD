@@ -759,8 +759,8 @@ static __global__ void find_structure_factor(
       for (int n = N1; n < N2; ++n) {
         float kr = g_kx[nc_nk] * g_x[n] + g_ky[nc_nk] * g_y[n] + g_kz[nc_nk] * g_z[n];
         const float charge = g_charge[n];
-        float sin_kr, cos_kr;
-        sincos(kr, &sin_kr, &cos_kr);
+        float sin_kr = sin(kr);
+        float cos_kr = cos(kr);
         S_real += charge * cos_kr;
         S_imag -= charge * sin_kr;
       }
@@ -814,8 +814,8 @@ static __global__ void find_force_charge_reciprocal_space(
         const float G = g_G[nc_nk];
         const float S_real = g_S_real[nc_nk];
         const float S_imag = g_S_imag[nc_nk];
-        float sin_kr, cos_kr;
-        sincos(kr, &sin_kr, &cos_kr);
+        float sin_kr = sin(kr);
+        float cos_kr = cos(kr);
         const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
         const float GSS = G * (S_real * S_real + S_imag * S_imag);
         temp_energy_sum += GSS;
