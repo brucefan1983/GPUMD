@@ -550,7 +550,7 @@ void Fitness::update_energy_force_virial(
         int n = offset + m;
         fprintf(
           fid_virial,
-          "%g %g %g %g %g %g\n",
+          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
           dataset.virial_cpu[n] / dataset.Na_cpu[nc],
           dataset.virial_cpu[n + dataset.N] / dataset.Na_cpu[nc],
           dataset.virial_cpu[n + dataset.N * 2] / dataset.Na_cpu[nc],
@@ -565,7 +565,7 @@ void Fitness::update_energy_force_virial(
           dataset.avirial_ref_cpu[n + dataset.N * 5]);
         fprintf(
           fid_stress,
-          "%g %g %g %g %g %g\n",
+          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
           dataset.virial_cpu[n] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
           dataset.virial_cpu[n + dataset.N] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
           dataset.virial_cpu[n + dataset.N * 2] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
@@ -629,7 +629,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
         int n = offset + m;
         fprintf(
           fid_polarizability,
-          "%g %g %g %g %g %g\n",
+          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
           dataset.virial_cpu[n],
           dataset.virial_cpu[n + dataset.N],
           dataset.virial_cpu[n + dataset.N * 2],
