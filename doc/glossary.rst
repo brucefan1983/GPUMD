@@ -14,6 +14,9 @@ Glossary
    ACE
         atomic cluster expansion [Drautz2019]_
 
+   ADF
+        angular distribution function
+
    BDP
         :ref:`Bussi-Donadio-Parrinello thermostat <bdp_thermostat>` [Bussi2007b]_
 
