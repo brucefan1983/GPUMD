@@ -17,7 +17,6 @@
 #include "property.cuh"
 #include "adf.cuh"
 #include "active.cuh"
-#include "compute.cuh"
 #include "dump_beads.cuh"
 #include "dump_dipole.cuh"
 #include "dump_exyz.cuh"
@@ -92,7 +91,7 @@ public:
 
   HNEMD hnemd;
   HNEMDEC hnemdec;
-  Compute compute;
+
   MODAL_ANALYSIS modal_analysis;
 
   Dump_EXYZ dump_exyz;

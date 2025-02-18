@@ -55,7 +55,6 @@ void Measure::initialize(
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
 
 
-  compute.preprocess(number_of_atoms, group);
   hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
   modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
@@ -116,7 +115,6 @@ void Measure::finalize(
   rdf.postprocess(integrate.type >= 31, number_of_beads);
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
 
-  compute.postprocess();
   hnemd.postprocess();
   hnemdec.postprocess();
   modal_analysis.postprocess();
@@ -176,16 +174,6 @@ void Measure::process(
   dump_dipole.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   dump_polarizability.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
-
-  compute.process(
-    step,
-    integrate.ensemble->energy_transferred,
-    group,
-    atom.mass,
-    atom.potential_per_atom,
-    atom.force_per_atom,
-    atom.velocity_per_atom,
-    atom.virial_per_atom);
 
 
   adf.process(step, box, atom);

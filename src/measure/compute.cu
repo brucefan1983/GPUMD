@@ -18,6 +18,7 @@ Compute block (space) averages of various per-atom quantities.
 ------------------------------------------------------------------------------*/
 
 #include "compute.cuh"
+#include "integrate/integrate.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -27,7 +28,14 @@ Compute block (space) averages of various per-atom quantities.
 
 #define DIM 3
 
-void Compute::preprocess(const int N, const std::vector<Group>& group)
+void Compute::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   number_of_scalars = 0;
   if (compute_temperature)
@@ -52,14 +60,21 @@ void Compute::preprocess(const int N, const std::vector<Group>& group)
   cpu_group_sum_ave.resize(number_of_columns, 0.0);
 
   gpu_group_sum.resize(number_of_columns);
-  gpu_per_atom_x.resize(N);
-  gpu_per_atom_y.resize(N);
-  gpu_per_atom_z.resize(N);
+  gpu_per_atom_x.resize(atom.number_of_atoms);
+  gpu_per_atom_y.resize(atom.number_of_atoms);
+  gpu_per_atom_z.resize(atom.number_of_atoms);
 
   fid = my_fopen("compute.out", "a");
 }
 
-void Compute::postprocess()
+void Compute::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double number_of_beads)
 {
   if (number_of_scalars == 0)
     return;
@@ -335,14 +350,18 @@ static __global__ void find_group_sum_9(
 }
 
 void Compute::process(
-  const int step,
-  const double energy_transferred[],
-  const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (number_of_scalars == 0)
     return;
@@ -352,16 +371,16 @@ void Compute::process(
   int output_flag = (((step + 1) / sample_interval) % output_interval == 0);
 
   const int Ng = group[grouping_method].number;
-  const int N = mass.size();
+  const int N = atom.number_of_atoms;
 
   int offset = 0;
   if (compute_temperature) {
     find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data());
     GPU_CHECK_KERNEL
     find_group_sum_1<<<Ng, 256>>>(
@@ -378,7 +397,7 @@ void Compute::process(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      potential_per_atom.data(),
+      atom.potential_per_atom.data(),
       gpu_group_sum.data() + offset);
     GPU_CHECK_KERNEL
     offset += Ng;
@@ -388,9 +407,9 @@ void Compute::process(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + 2 * N,
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + N,
+      atom.force_per_atom.data() + 2 * N,
       gpu_group_sum.data() + offset);
     GPU_CHECK_KERNEL
     offset += Ng * 3;
@@ -404,15 +423,15 @@ void Compute::process(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      virial_per_atom.data() + N * 0,
-      virial_per_atom.data() + N * 3,
-      virial_per_atom.data() + N * 4,
-      virial_per_atom.data() + N * 6,
-      virial_per_atom.data() + N * 1,
-      virial_per_atom.data() + N * 5,
-      virial_per_atom.data() + N * 7,
-      virial_per_atom.data() + N * 8,
-      virial_per_atom.data() + N * 2,
+      atom.virial_per_atom.data() + N * 0,
+      atom.virial_per_atom.data() + N * 3,
+      atom.virial_per_atom.data() + N * 4,
+      atom.virial_per_atom.data() + N * 6,
+      atom.virial_per_atom.data() + N * 1,
+      atom.virial_per_atom.data() + N * 5,
+      atom.virial_per_atom.data() + N * 7,
+      atom.virial_per_atom.data() + N * 8,
+      atom.virial_per_atom.data() + N * 2,
       gpu_group_sum.data() + offset);
     GPU_CHECK_KERNEL
     offset += Ng * 9;
@@ -424,18 +443,18 @@ void Compute::process(
     // zx zy zz    7 8 2
     find_per_atom_jp<<<(N - 1) / 128 + 1, 128>>>(
       N,
-      virial_per_atom.data(),
-      virial_per_atom.data() + N * 3,
-      virial_per_atom.data() + N * 4,
-      virial_per_atom.data() + N * 6,
-      virial_per_atom.data() + N * 1,
-      virial_per_atom.data() + N * 5,
-      virial_per_atom.data() + N * 7,
-      virial_per_atom.data() + N * 8,
-      virial_per_atom.data() + N * 2,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.virial_per_atom.data(),
+      atom.virial_per_atom.data() + N * 3,
+      atom.virial_per_atom.data() + N * 4,
+      atom.virial_per_atom.data() + N * 6,
+      atom.virial_per_atom.data() + N * 1,
+      atom.virial_per_atom.data() + N * 5,
+      atom.virial_per_atom.data() + N * 7,
+      atom.virial_per_atom.data() + N * 8,
+      atom.virial_per_atom.data() + N * 2,
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
@@ -455,11 +474,11 @@ void Compute::process(
   if (compute_jk) {
     find_per_atom_jk<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      potential_per_atom.data(),
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.potential_per_atom.data(),
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
@@ -479,10 +498,10 @@ void Compute::process(
   if (compute_momentum) {
     find_per_atom_momentum<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
@@ -506,7 +525,7 @@ void Compute::process(
     cpu_group_sum_ave[n] += cpu_group_sum[n];
 
   if (output_flag) {
-    output_results(energy_transferred, group);
+    output_results(integrate.ensemble->energy_transferred, group);
     for (int n = 0; n < Ng * number_of_scalars; ++n)
       cpu_group_sum_ave[n] = 0.0;
   }
@@ -533,6 +552,11 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
 
   fprintf(fid, "\n");
   fflush(fid);
+}
+
+Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
+{
+  parse(param, num_param, group);
 }
 
 void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)
