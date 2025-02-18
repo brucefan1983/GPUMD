@@ -5,7 +5,7 @@
 :attr:`atomic_v`
 ================
 
-This keyword sets the mode :math:`\atomic_v` of whether to fit atomic or global quantities for virial (`model_type = 0`), dipole (`model_type = 1`), or polarizability (`model_type = 2`).
+This keyword sets the mode :math:`\atomic_v` of whether to fit atomic or global quantities for virial (`model_type = 0`), dipole (`model_type = 1`), or polarizability (`model_type = 2`). Only one of atomic and global can be fitted at a time. Fitting both simultaneously is not supported.
 The syntax is::
 
   atomic_v <mode>
