@@ -50,6 +50,11 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
+Dump_EXYZ::Dump_EXYZ(const char** param, int num_param) 
+{
+  parse(param, num_param);
+}
+
 void Dump_EXYZ::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -118,7 +123,14 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 }
 
-void Dump_EXYZ::preprocess(const int number_of_atoms)
+void Dump_EXYZ::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     if (separated_ == 0) {
@@ -128,10 +140,10 @@ void Dump_EXYZ::preprocess(const int number_of_atoms)
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
-      cpu_force_per_atom_.resize(number_of_atoms * 3);
+      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
     if (has_potential_) {
-      cpu_potential_per_atom_.resize(number_of_atoms);
+      cpu_potential_per_atom_.resize(atom.number_of_atoms);
     }
   }
 }
@@ -215,11 +227,18 @@ void Dump_EXYZ::output_line2(
 }
 
 void Dump_EXYZ::process(
-  const int step,
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const Box& box,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
   Atom& atom,
-  GPU_Vector<double>& gpu_thermo)
+  Force& force)
 {
   if (!dump_)
     return;
@@ -247,7 +266,7 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
@@ -279,7 +298,14 @@ void Dump_EXYZ::process(
   }
 }
 
-void Dump_EXYZ::postprocess()
+void Dump_EXYZ::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double number_of_beads)
 {
   if (dump_) {
     if (separated_ == 0) {

@@ -60,9 +60,6 @@ void Measure::initialize(
   modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
 
 
-
-
-  dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
   dump_shock_nemd.preprocess(atom, box);
@@ -101,8 +98,6 @@ void Measure::finalize(
   properties.clear();
 
 
-
-  dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
   dump_shock_nemd.postprocess();
@@ -167,7 +162,6 @@ void Measure::process(
 
 
 
-  dump_exyz.process(step, global_time, box, atom, thermo);
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);

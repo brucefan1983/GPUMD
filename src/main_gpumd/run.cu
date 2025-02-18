@@ -34,6 +34,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/msd.cuh"
 #include "measure/sdc.cuh"
 #include "measure/viscosity.cuh"
+#include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
 #include "measure/dump_position.cuh"
 #include "measure/dump_restart.cuh"
@@ -453,7 +454,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Dump_Force(param, num_param, group));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_exyz") == 0) {
-    measure.dump_exyz.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_EXYZ(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_beads") == 0) {
     measure.dump_beads.parse(param, num_param);
   } else if (strcmp(param[0], "dump_observer") == 0) {
