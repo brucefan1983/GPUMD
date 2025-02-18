@@ -35,6 +35,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/sdc.cuh"
 #include "measure/rdf.cuh"
 #include "measure/adf.cuh"
+#include "measure/angular_rdf.cuh"
 #include "measure/viscosity.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
@@ -492,7 +493,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new ADF(param, num_param, box, number_of_types));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
-    measure.angular_rdf.parse(param, num_param, box, number_of_types, number_of_steps);
+    std::unique_ptr<Property> property;
+    property.reset(new AngularRDF(param, num_param, box, number_of_types, number_of_steps));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hac") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new HAC(param, num_param));

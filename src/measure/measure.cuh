@@ -82,8 +82,6 @@ public:
 
   LSQT lsqt;
 
-  AngularRDF angular_rdf;
-
 
   HNEMD hnemd;
   HNEMDEC hnemdec;
