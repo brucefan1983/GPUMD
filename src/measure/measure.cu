@@ -48,9 +48,6 @@ void Measure::initialize(
   const int number_of_potentials = force.potentials.size();
   lsqt.preprocess(atom, number_of_steps, time_step);
 
-
-
-  adf.preprocess(number_of_atoms);
   angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
 
 
@@ -104,8 +101,6 @@ void Measure::finalize(
   dump_polarizability.postprocess();
   active.postprocess();
 
-
-  adf.postprocess();
   angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
 
   hnemd.postprocess();
@@ -168,7 +163,6 @@ void Measure::process(
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
 
-  adf.process(step, box, atom);
   angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
 
   hnemd.process(

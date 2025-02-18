@@ -82,8 +82,6 @@ public:
 
   LSQT lsqt;
 
-
-  ADF adf;
   AngularRDF angular_rdf;
 
 

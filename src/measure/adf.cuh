@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "model/box.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
@@ -21,7 +22,7 @@
 class Group;
 class Atom;
 
-class ADF
+class ADF : public Property
 {
 
 public:
@@ -30,9 +31,40 @@ public:
   int adf_bins_ = 30;
   int num_interval_ = 100;
 
-  void preprocess(const int num_atoms);
-  void process(const int step, Box& box, Atom& atom);
-  void postprocess();
+  ADF(const char** param, const int num_param, Box& box, const int number_of_types);
+
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature,
+    const double number_of_beads);
+
   void parse(const char** param, const int num_param, Box& box, const int number_of_types);
 
 private:
