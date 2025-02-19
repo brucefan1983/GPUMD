@@ -67,6 +67,10 @@ Run simulation according to the inputs in the run.in file.
 #include "velocity.cuh"
 #include <cstring>
 
+#ifdef USE_NETCDF
+#include "dump_netcdf.cuh"
+#endif
+
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
 {
@@ -446,7 +450,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
-    measure.dump_netcdf.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new DUMP_NETCDF(param, num_param));
+    measure.properties.emplace_back(std::move(property));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
 #endif

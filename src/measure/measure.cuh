@@ -20,9 +20,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
-#ifdef USE_NETCDF
-#include "dump_netcdf.cuh"
-#endif
+
 #ifdef USE_PLUMED
 #include "plumed.cuh"
 #endif
@@ -67,9 +65,6 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-#ifdef USE_NETCDF
-  DUMP_NETCDF dump_netcdf;
-#endif
 #ifdef USE_PLUMED
   PLUMED plmd;
 #endif

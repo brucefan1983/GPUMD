@@ -44,10 +44,6 @@ void Measure::initialize(
       force);
   }
 
-  const int number_of_atoms = atom.mass.size();
-#ifdef USE_NETCDF
-  dump_netcdf.preprocess(number_of_atoms);
-#endif
 #ifdef USE_PLUMED
   plmd.preprocess(atom.cpu_mass);
 #endif
@@ -76,9 +72,6 @@ void Measure::finalize(
 
   properties.clear();
 
-#ifdef USE_NETCDF
-  dump_netcdf.postprocess();
-#endif
 #ifdef USE_PLUMED
   plmd.postprocess();
 #endif
