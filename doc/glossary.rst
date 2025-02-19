@@ -9,7 +9,7 @@ Glossary
         atomic cluster expansion [Drautz2019]_
 
    ADF
-        angle distribution function
+        angular distribution function
 
    ARDF
         angular-dependent radial distribution function
