@@ -73,8 +73,7 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature,
-    const double number_of_beads);
+    const double temperature);
   void find_dos_and_velocity(Atom& atom, Box& box);
   void find_sigma(Atom& atom, Box& box, const int step);
 

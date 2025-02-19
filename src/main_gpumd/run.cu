@@ -335,8 +335,7 @@ void Run::perform_a_run()
     integrate,
     number_of_steps,
     time_step,
-    integrate.temperature2,
-    atom.number_of_beads);
+    integrate.temperature2);
 
   electron_stop.finalize();
   add_force.finalize();

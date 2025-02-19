@@ -47,8 +47,7 @@ void Measure::finalize(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads)
+  const double temperature)
 {
 
   for (auto& prop : properties) {
@@ -58,8 +57,7 @@ void Measure::finalize(
       integrate,
       number_of_steps,
       time_step,
-      temperature,
-      number_of_beads);
+      temperature);
   }
 
   properties.clear();

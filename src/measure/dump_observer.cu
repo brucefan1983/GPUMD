@@ -451,8 +451,7 @@ void Dump_Observer::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads)
+  const double temperature)
 {
   for (int i = 0; i < exyz_files_.size(); i++) {
     fclose(exyz_files_[i]);

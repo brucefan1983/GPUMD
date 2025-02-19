@@ -951,8 +951,7 @@ void LSQT::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads) { compute = false; };
+  const double temperature) { compute = false; };
 
 LSQT::LSQT(const char** param, const int num_param)
 {

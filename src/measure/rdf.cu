@@ -514,8 +514,7 @@ void RDF::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads)
+  const double temperature)
 {
   if (!compute_)
     return;
@@ -525,12 +524,12 @@ void RDF::postprocess(
     CHECK(gpuMemcpy(
       rdf_.data(),
       rdf_g_.data(),
-      sizeof(double) * number_of_beads * num_atoms_ * rdf_bins_,
+      sizeof(double) * atom.number_of_beads * num_atoms_ * rdf_bins_,
       gpuMemcpyDeviceToHost));
     CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
-    std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
-    for (int k = 0; k < number_of_beads; k++) {
+    std::vector<double> rdf_average(atom.number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
+    for (int k = 0; k < atom.number_of_beads; k++) {
       for (int a = 0; a < rdf_atom_count; a++) {
         for (int m = 0; m < rdf_N_; m++) {
           for (int x = 0; x < rdf_bins_; x++) {
@@ -543,11 +542,11 @@ void RDF::postprocess(
     }
 
     std::vector<double> rdf_centroid(rdf_atom_count * rdf_bins_, 0.0);
-    for (int k = 0; k < number_of_beads; k++) {
+    for (int k = 0; k < atom.number_of_beads; k++) {
       for (int a = 0; a < rdf_atom_count; a++) {
         for (int x = 0; x < rdf_bins_; x++) {
           rdf_centroid[a * rdf_bins_ + x] +=
-            rdf_average[k * rdf_atom_count * rdf_bins_ + a * rdf_bins_ + x] / number_of_beads;
+            rdf_average[k * rdf_atom_count * rdf_bins_ + a * rdf_bins_ + x] / atom.number_of_beads;
         }
       }
     }

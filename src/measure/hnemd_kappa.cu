@@ -136,8 +136,7 @@ void HNEMD::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads) { compute = 0; }
+  const double temperature) { compute = 0; }
 
 HNEMD::HNEMD(const char** param, int num_param, Force& force)
 {

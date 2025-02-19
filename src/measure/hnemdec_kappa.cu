@@ -243,8 +243,7 @@ void HNEMDEC::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads) { compute = -1; }
+  const double temperature) { compute = -1; }
 
 HNEMDEC::HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature)
 {

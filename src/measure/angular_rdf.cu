@@ -587,8 +587,7 @@ void AngularRDF::postprocess(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature,
-  const double number_of_beads)
+  const double temperature)
 {
   if (!compute_)
     return;

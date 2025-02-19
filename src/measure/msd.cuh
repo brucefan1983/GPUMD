@@ -57,8 +57,7 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature,
-    const double number_of_beads);
+    const double temperature);
 
   MSD(const char** param, const int num_param, const std::vector<Group>& groups);
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
