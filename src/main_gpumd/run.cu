@@ -41,6 +41,8 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/hnemd_kappa.cuh"
 #include "measure/hnemdec_kappa.cuh"
 #include "measure/modal_analysis.cuh"
+#include "measure/plumed.cuh"
+#include "measure/dump_netcdf.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
 #include "measure/dump_position.cuh"
@@ -66,10 +68,6 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
 #include <cstring>
-
-#ifdef USE_NETCDF
-#include "dump_netcdf.cuh"
-#endif
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -217,12 +215,6 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
-#ifdef USE_PLUMED
-  if (measure.plmd.use_plumed == 1) {
-    measure.plmd.init(time_step, integrate.temperature);
-  }
-#endif
-
   clock_t time_begin = clock();
 
   // compute force for the first integrate step
@@ -297,13 +289,6 @@ void Run::perform_a_run()
         atom.velocity_per_atom,
         atom.mass);
     }
-
-#ifdef USE_PLUMED
-    if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
-      measure.plmd.process(
-        box, thermo, atom.position_per_atom, atom.force_per_atom, atom.virial_per_atom);
-    }
-#endif
 
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
@@ -458,7 +443,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 #endif
   } else if (strcmp(param[0], "plumed") == 0) {
 #ifdef USE_PLUMED
-    measure.plmd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new PLUMED(param, num_param));
+    measure.properties.emplace_back(std::move(property));
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif

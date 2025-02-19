@@ -15,18 +15,15 @@
 
 #pragma once
 #include "property.cuh"
-#include "force/force.cuh"
-#include "integrate/integrate.cuh"
-#include "model/box.cuh"
-#include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
-
-#ifdef USE_PLUMED
-#include "plumed.cuh"
-#endif
+#include <memory>
+#include <vector>
 
 class Atom;
+class Box;
 class Force;
+class Group;
+class Integrate;
 class Ensemble;
 class Measure
 {
@@ -64,8 +61,4 @@ public:
     Force& force);
 
   std::vector<std::unique_ptr<Property>> properties;
-
-#ifdef USE_PLUMED
-  PLUMED plmd;
-#endif
 };
