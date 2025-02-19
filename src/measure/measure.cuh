@@ -15,7 +15,6 @@
 
 #pragma once
 #include "property.cuh"
-#include "adf.cuh"
 #include "active.cuh"
 #include "dump_beads.cuh"
 #include "dump_dipole.cuh"
@@ -30,8 +29,6 @@
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "rdf.cuh"
-#include "angular_rdf.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
@@ -79,9 +76,6 @@ public:
     Force& force);
 
   std::vector<std::unique_ptr<Property>> properties;
-
-  LSQT lsqt;
-
 
   HNEMD hnemd;
   HNEMDEC hnemdec;

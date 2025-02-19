@@ -37,6 +37,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
 #include "measure/viscosity.cuh"
+#include "measure/lsqt.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
 #include "measure/dump_position.cuh"
@@ -539,7 +540,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
-    measure.lsqt.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new LSQT(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {

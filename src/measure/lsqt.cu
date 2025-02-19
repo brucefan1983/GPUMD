@@ -682,7 +682,14 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 }
 } // namespace
 
-void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
+void LSQT::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute) {
     return;
@@ -720,7 +727,19 @@ void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
   sci.resize(number_of_orbitals);
 }
 
-void LSQT::process(Atom& atom, Box& box, const int step)
+void LSQT::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute) {
     return;
@@ -926,7 +945,19 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
   fclose(os_sigma);
 }
 
-void LSQT::postprocess() { compute = false; };
+void LSQT::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double number_of_beads) { compute = false; };
+
+LSQT::LSQT(const char** param, const int num_param)
+{
+  parse(param, num_param);
+}
 
 void LSQT::parse(const char** param, const int num_param)
 {

@@ -46,7 +46,6 @@ void Measure::initialize(
 
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
-  lsqt.preprocess(atom, number_of_steps, time_step);
 
   hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
@@ -177,7 +176,6 @@ void Measure::process(
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 
-  lsqt.process(atom, box, step);
   dump_shock_nemd.process(atom, box, step);
 
 #ifdef USE_NETCDF
