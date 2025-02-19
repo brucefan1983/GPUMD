@@ -18,10 +18,6 @@ The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
 #include "measure.cuh"
-#include "model/atom.cuh"
-#include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
-#include "utilities/read_file.cuh"
 #include <cstring>
 
 void Measure::initialize(
@@ -43,10 +39,6 @@ void Measure::initialize(
       box,
       force);
   }
-
-#ifdef USE_PLUMED
-  plmd.preprocess(atom.cpu_mass);
-#endif
 }
 
 void Measure::finalize(
@@ -71,10 +63,6 @@ void Measure::finalize(
   }
 
   properties.clear();
-
-#ifdef USE_PLUMED
-  plmd.postprocess();
-#endif
 }
 
 void Measure::process(
@@ -91,7 +79,6 @@ void Measure::process(
   Atom& atom,
   Force& force)
 {
-
   for (auto& prop : properties) {
     prop->process(
       number_of_steps,
@@ -107,16 +94,4 @@ void Measure::process(
       atom,
       force);
   }
-
-#ifdef USE_NETCDF
-  dump_netcdf.process(
-    step,
-    global_time,
-    box,
-    atom.cpu_type,
-    atom.position_per_atom,
-    atom.cpu_position_per_atom,
-    atom.velocity_per_atom,
-    atom.cpu_velocity_per_atom);
-#endif
 }
