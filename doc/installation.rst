@@ -69,9 +69,9 @@ The setup instructions are below:
 
   .. code:: make
 
-     INC = -I<path>/netcdf/include -I./
-     LDFLAGS = -L<path>/netcdf/lib
-     LIBS = -l:libnetcdf.a
+     INC = -I<path>/include -I./
+     LDFLAGS = -L<path>/lib
+     LIBS = -lcublas -lcusolver -l:libnetcdf.a
 
   where :attr:`<path>` should be replaced with the installation path for NetCDF (defined in :attr:`--prefix` of the ``./configure`` command).
 * Follow the remaining :program:`GPUMD` installation instructions
