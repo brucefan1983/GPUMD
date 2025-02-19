@@ -51,7 +51,7 @@ The setup instructions are below:
 
      ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
 
-  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install PLUMED:
+  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install NetCDF:
 
   .. code:: bash
 
@@ -103,7 +103,7 @@ The setup instructions are below:
 
   .. code:: bash
 
-     make -j8 && make install
+     make -j6 && make install
 
   Then update your environment variables (e.g., add the following lines to your bashrc file):
 
