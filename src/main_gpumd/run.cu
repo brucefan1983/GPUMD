@@ -38,6 +38,9 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/angular_rdf.cuh"
 #include "measure/viscosity.cuh"
 #include "measure/lsqt.cuh"
+#include "measure/hnemd_kappa.cuh"
+#include "measure/hnemdec_kappa.cuh"
+#include "measure/modal_analysis.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
 #include "measure/dump_position.cuh"
@@ -511,7 +514,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new HNEMD(param, num_param, force));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
-    measure.hnemdec.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HNEMDEC(param, num_param, force, atom, integrate.temperature1));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_shc") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new SHC(param, num_param, group));
@@ -661,22 +666,6 @@ void Run::parse_run(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   printf("Run %d steps.\n", number_of_steps);
-
-  if (measure.hnemdec.compute != -1) {
-    if ((measure.hnemdec.compute > number_of_types) || (measure.hnemdec.compute < 0)) {
-      PRINT_INPUT_ERROR(
-        "compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
-    }
-    force.set_hnemdec_parameters(
-      measure.hnemdec.compute,
-      measure.hnemdec.fe_x,
-      measure.hnemdec.fe_y,
-      measure.hnemdec.fe_z,
-      atom.cpu_mass,
-      atom.cpu_type,
-      atom.cpu_type_size,
-      integrate.temperature1);
-  }
 
   // set target temperature for temperature-dependent NEP
   force.temperature = integrate.temperature1;

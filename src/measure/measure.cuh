@@ -22,11 +22,7 @@
 #include "dump_polarizability.cuh"
 #include "dump_shock_nemd.cuh"
 #include "force/force.cuh"
-#include "hnemd_kappa.cuh"
-#include "hnemdec_kappa.cuh"
 #include "integrate/integrate.cuh"
-#include "lsqt.cuh"
-#include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -77,7 +73,6 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-  HNEMDEC hnemdec;
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
   Dump_Shock_NEMD dump_shock_nemd;

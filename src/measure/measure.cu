@@ -47,9 +47,6 @@ void Measure::initialize(
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
 
-  hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
-
-
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
   dump_shock_nemd.preprocess(atom, box);
@@ -95,7 +92,6 @@ void Measure::finalize(
   dump_polarizability.postprocess();
   active.postprocess();
 
-  hnemdec.postprocess();
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
 #endif
@@ -139,25 +135,12 @@ void Measure::process(
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
 
-
-
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
   dump_dipole.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   dump_polarizability.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
-
-  hnemdec.process(
-    step,
-    temperature,
-    box.get_volume(),
-    atom.velocity_per_atom,
-    atom.virial_per_atom,
-    atom.type,
-    atom.mass,
-    atom.potential_per_atom,
-    atom.heat_per_atom);
 
   dump_shock_nemd.process(atom, box, step);
 
