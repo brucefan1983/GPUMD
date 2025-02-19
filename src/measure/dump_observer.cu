@@ -186,6 +186,7 @@ void Dump_Observer::process(
     return;
 
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+  number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
     // If observing, calculate properties with all potentials.

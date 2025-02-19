@@ -15,8 +15,6 @@
 
 #pragma once
 #include "property.cuh"
-#include "active.cuh"
-
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "model/box.cuh"
@@ -69,8 +67,6 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-  
-  Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif
