@@ -76,7 +76,7 @@ public:
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
   
-  Dump_Dipole dump_dipole;
+  //Dump_Dipole dump_dipole;
   Dump_Polarizability dump_polarizability;
   Active active;
 #ifdef USE_NETCDF
