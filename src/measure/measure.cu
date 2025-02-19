@@ -46,8 +46,6 @@ void Measure::initialize(
 
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
-
-  dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
@@ -80,9 +78,6 @@ void Measure::finalize(
   }
 
   properties.clear();
-
-
-  dump_beads.postprocess();
   dump_observer.postprocess();
   active.postprocess();
 
@@ -128,8 +123,6 @@ void Measure::process(
   const int number_of_atoms = atom.cpu_type.size();
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
-
-  dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);

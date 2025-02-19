@@ -16,7 +16,7 @@
 #pragma once
 #include "property.cuh"
 #include "active.cuh"
-#include "dump_beads.cuh"
+
 #include "dump_observer.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -70,7 +70,7 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-  Dump_Beads dump_beads;
+  
   Dump_Observer dump_observer;
   
   Active active;
