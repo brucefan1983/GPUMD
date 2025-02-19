@@ -334,6 +334,10 @@ void DUMP_NETCDF::write(
     cell_lengths[0] = box.cpu_h[0];
     cell_lengths[1] = box.cpu_h[4];
     cell_lengths[2] = box.cpu_h[8];
+
+    cell_angles[0] = 90;
+    cell_angles[1] = 90;
+    cell_angles[2] = 90;
   }
 
   // Set lengths to 0 if PBC is off
