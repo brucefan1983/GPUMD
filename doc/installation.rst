@@ -49,9 +49,14 @@ The setup instructions are below:
 
   .. code:: bash
 
-     ./configure --prefix=/home/alex/netcdf --disable-netcdf-4 --disable-dap
+     ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
 
-  Here, the :attr:`--prefix` determines the output directory of the build.
+  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install PLUMED:
+
+  .. code:: bash
+
+     make -j && make install
+
 * Enable the NetCDF functionality.
   To do this, one must enable the :attr:`USE_NETCDF` flag.
   In the makefile, this will look as follows:
