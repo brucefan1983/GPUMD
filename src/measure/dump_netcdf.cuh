@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,12 +39,12 @@ public:
 
 private:
   bool dump_ = false;
-  int interval = 1;          // output interval
-  int has_velocity_ = 0;     // 0 wthout velocities, 1 with velocities
+  int interval = 1;      // output interval
+  int has_velocity_ = 0; // 0 wthout velocities, 1 with velocities
   char file_position[200];
-  int precision = 2;         // 1 = single precision, 2 = double
+  int precision = 2; // 1 = single precision, 2 = double
 
-  int ncid;                  // NetCDF ID
+  int ncid; // NetCDF ID
   static bool append;
 
   // dimensions

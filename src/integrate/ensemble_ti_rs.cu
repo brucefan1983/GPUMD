@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 */
 
 #include "ensemble_ti_rs.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -280,5 +282,5 @@ double Ensemble_TI_RS::switch_func(double t) { return 1 / (1 + t * (1 / lambda_f
 double Ensemble_TI_RS::dswitch_func(double t)
 {
   double a = 1 / lambda_f - 1;
-  return -(a / pow((1 + a * t), 2)) / t_switch;
+  return -(a / pow((1 + a * t), 2.0)) / t_switch;
 }

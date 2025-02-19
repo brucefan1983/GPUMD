@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "adf.cuh"
 #include "active.cuh"
 #include "compute.cuh"
 #include "dos.cuh"
@@ -22,10 +23,10 @@
 #include "dump_exyz.cuh"
 #include "dump_force.cuh"
 #include "dump_observer.cuh"
-#include "dump_piston.cuh"
 #include "dump_polarizability.cuh"
 #include "dump_position.cuh"
 #include "dump_restart.cuh"
+#include "dump_shock_nemd.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
 #include "force/force.cuh"
@@ -39,6 +40,7 @@
 #include "model/group.cuh"
 #include "msd.cuh"
 #include "rdf.cuh"
+#include "angular_rdf.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -94,7 +96,9 @@ public:
   SDC sdc;
   MSD msd;
   HAC hac;
+  ADF adf;
   RDF rdf;
+  AngularRDF angular_rdf;
   Viscosity viscosity;
   SHC shc;
   HNEMD hnemd;
@@ -109,7 +113,7 @@ public:
   Dump_EXYZ dump_exyz;
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
-  Dump_Piston dump_piston;
+  Dump_Shock_NEMD dump_shock_nemd;
   Dump_Dipole dump_dipole;
   Dump_Polarizability dump_polarizability;
   Active active;

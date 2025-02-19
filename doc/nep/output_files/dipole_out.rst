@@ -1,4 +1,4 @@
-.. _dipole_out:
+.. _nep_dipole_out:
 .. index::
    single: dipole_train.out (output file)
    single: dipole_test.out (output file)

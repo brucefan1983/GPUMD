@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 */
 
 #include "ensemble_ti_spring.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -164,18 +166,18 @@ void Ensemble_TI_Spring::init()
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
   gpu_k.resize(N, 0);
   cpu_k.resize(N, 0);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     position_0.data(),
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 
   if (!auto_k) {
     for (int i = 0; i < N; i++) {

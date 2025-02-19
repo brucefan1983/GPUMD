@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,24 +31,25 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "dftd3para.cuh"
 #include "model/box.cuh"
 #include "neighbor.cuh"
+#include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 namespace
 {
 const int MN = 10000; // maximum number of neighbors for one atom
-const int NUM_ELEMENTS = 103;
 const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 void __global__ find_dftd3_coordination_number_small_box(
   DFTD3::DFTD3_Para dftd3_para,
@@ -292,39 +293,30 @@ bool get_expanded_box(const double rc, const Box& box, DFTD3::ExpandedBox& ebox)
       exit(1);
     }
 
-    if (box.triclinic) {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
 
-      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-      for (int n = 9; n < 18; n++) {
-        ebox.h[n] /= det;
-      }
-    } else {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[3] = ebox.h[0] * 0.5;
-      ebox.h[4] = ebox.h[1] * 0.5;
-      ebox.h[5] = ebox.h[2] * 0.5;
+    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                  ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                  ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+    for (int n = 9; n < 18; n++) {
+      ebox.h[n] /= det;
     }
   }
 
@@ -334,36 +326,18 @@ bool get_expanded_box(const double rc, const Box& box, DFTD3::ExpandedBox& ebox)
 static __device__ void apply_mic_small_box(
   const Box& box, const DFTD3::ExpandedBox& ebox, double& x12, double& y12, double& z12)
 {
-  if (box.triclinic == 0) {
-    if (box.pbc_x == 1 && x12 < -ebox.h[3]) {
-      x12 += ebox.h[0];
-    } else if (box.pbc_x == 1 && x12 > +ebox.h[3]) {
-      x12 -= ebox.h[0];
-    }
-    if (box.pbc_y == 1 && y12 < -ebox.h[4]) {
-      y12 += ebox.h[1];
-    } else if (box.pbc_y == 1 && y12 > +ebox.h[4]) {
-      y12 -= ebox.h[1];
-    }
-    if (box.pbc_z == 1 && z12 < -ebox.h[5]) {
-      z12 += ebox.h[2];
-    } else if (box.pbc_z == 1 && z12 > +ebox.h[5]) {
-      z12 -= ebox.h[2];
-    }
-  } else {
-    double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-    double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-    double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
-    if (box.pbc_x == 1)
-      sx12 -= nearbyint(sx12);
-    if (box.pbc_y == 1)
-      sy12 -= nearbyint(sy12);
-    if (box.pbc_z == 1)
-      sz12 -= nearbyint(sz12);
-    x12 = ebox.h[0] * sx12 + ebox.h[1] * sy12 + ebox.h[2] * sz12;
-    y12 = ebox.h[3] * sx12 + ebox.h[4] * sy12 + ebox.h[5] * sz12;
-    z12 = ebox.h[6] * sx12 + ebox.h[7] * sy12 + ebox.h[8] * sz12;
-  }
+  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
+  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
+  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
+  if (box.pbc_x == 1)
+    sx12 -= nearbyint(sx12);
+  if (box.pbc_y == 1)
+    sy12 -= nearbyint(sy12);
+  if (box.pbc_z == 1)
+    sz12 -= nearbyint(sz12);
+  x12 = ebox.h[0] * sx12 + ebox.h[1] * sy12 + ebox.h[2] * sz12;
+  y12 = ebox.h[3] * sx12 + ebox.h[4] * sy12 + ebox.h[5] * sz12;
+  z12 = ebox.h[6] * sx12 + ebox.h[7] * sy12 + ebox.h[8] * sz12;
 }
 
 static __global__ void find_neighbor_list_small_box(
@@ -402,15 +376,9 @@ static __global__ void find_neighbor_list_small_box(
             }
 
             double delta[3];
-            if (box.triclinic) {
-              delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
-              delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
-              delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
-            } else {
-              delta[0] = box.cpu_h[0] * ia;
-              delta[1] = box.cpu_h[1] * ib;
-              delta[2] = box.cpu_h[2] * ic;
-            }
+            delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
+            delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
+            delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
 
             double x12 = g_x[n2] + delta[0] - x1;
             double y12 = g_y[n2] + delta[1] - y1;
@@ -948,7 +916,7 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_coordination_number_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -960,7 +928,7 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
     cn.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   add_dftd3_force_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -980,7 +948,7 @@ void DFTD3::compute_small_box(
     virial_per_atom.data(),
     dc6_sum.data(),
     dc8_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   add_dftd3_force_extra_small_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -997,7 +965,7 @@ void DFTD3::compute_small_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DFTD3::compute_large_box(
@@ -1059,7 +1027,7 @@ void DFTD3::compute_large_box(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     cn.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_force_large_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -1085,7 +1053,7 @@ void DFTD3::compute_large_box(
     virial_per_atom.data(),
     dc6_sum.data(),
     dc8_sum.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   find_dftd3_force_extra_large_box<<<(N - 1) / 64 + 1, 64>>>(
     dftd3_para,
@@ -1108,7 +1076,7 @@ void DFTD3::compute_large_box(
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
     virial_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DFTD3::compute(
@@ -1192,6 +1160,9 @@ void DFTD3::initialize(
   valid = valid || set_para(functional, "tpssh", 1.000, 0.4529, 2.2382, 4.6550, dftd3_para);
   valid = valid || set_para(functional, "b2kplyp", 0.64, 0.0000, 0.1521, 7.1916, dftd3_para);
   valid = valid || set_para(functional, "dsd-pbep86", 0.418, 0.0000, 0.0000, 5.6500, dftd3_para);
+  valid = valid || set_para(functional, "b97m", 1.0000, -0.0780, 0.1384, 5.5946, dftd3_para);
+  valid = valid || set_para(functional, "wb97x", 1.0000, 0.0000, 0.2641, 5.4959, dftd3_para);
+  valid = valid || set_para(functional, "wb97m", 1.0000, 0.5660, 0.3908, 3.1280, dftd3_para);
 
   if (!valid) {
     std::cout << "The " << functional

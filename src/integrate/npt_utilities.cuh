@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Some CUDA kernels for position scaling in NPT
 ------------------------------------------------------------------------------*/
+
+#pragma once
+#include "utilities/gpu_macro.cuh"
 
 static __global__ void gpu_pressure_orthogonal(
   const int number_of_particles,

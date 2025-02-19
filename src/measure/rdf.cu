@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ Calculate:
 #include "rdf.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -315,7 +316,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
   } else {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -342,7 +343,7 @@ void RDF::find_rdf(
       rdf_g_ind,
       rdf_bins_,
       r_step_);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -499,12 +500,12 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
 
   if (is_pimd) {
 
-    CHECK(cudaMemcpy(
+    CHECK(gpuMemcpy(
       rdf_.data(),
       rdf_g_.data(),
       sizeof(double) * number_of_beads * num_atoms_ * rdf_bins_,
-      cudaMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+      gpuMemcpyDeviceToHost));
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
     for (int k = 0; k < number_of_beads; k++) {
@@ -559,9 +560,9 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
 
   } else {
 
-    CHECK(cudaMemcpy(
-      rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, cudaMemcpyDeviceToHost));
-    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+    CHECK(gpuMemcpy(
+      rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
+    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
     std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
     for (int a = 0; a < rdf_atom_count; a++) {
@@ -608,6 +609,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
     atom_id2_[s] = -1;
   }
   rdf_atom_count = 1;
+  num_repeat_ = 0;
 }
 
 void RDF::parse(
@@ -634,9 +636,15 @@ void RDF::parse(
   if (r_cut_ <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
   }
-  double thickness_half[3] = {box.get_volume()/box.get_area(0)/ 2,box.get_volume()/box.get_area(1)/ 2,box.get_volume()/box.get_area(2)/ 2};
+  double thickness_half[3] = {
+    box.get_volume() / box.get_area(0) / 2.5,
+    box.get_volume() / box.get_area(1) / 2.5,
+    box.get_volume() / box.get_area(2) / 2.5};
   if (r_cut_ > thickness_half[0] || r_cut_ > thickness_half[1] || r_cut_ > thickness_half[2]) {
-    PRINT_INPUT_ERROR("radial cutoff is too large for this small box.\n");
+    std::string message =
+      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
+      "                Please increase the periodic direction(s).\n";
+    PRINT_INPUT_ERROR(message.c_str());
   }
   printf("    radial cutoff %g.\n", r_cut_);
 

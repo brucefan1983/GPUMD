@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,14 +16,15 @@
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <random>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -87,7 +88,9 @@ static void read_force(
   const int force_offset,
   std::ifstream& input,
   const Parameters& para,
-  Structure& structure)
+  Structure& structure,
+  std::string& xyz_filename,
+  int& line_number)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -99,17 +102,25 @@ static void read_force(
 
   for (int na = 0; na < structure.num_atom; ++na) {
     std::vector<std::string> tokens = get_tokens(input);
+    line_number++;
+
     if (tokens.size() != num_columns) {
       PRINT_INPUT_ERROR("Number of items for an atom line mismatches properties.");
     }
     std::string atom_symbol(tokens[0 + species_offset]);
-    structure.x[na] = get_float_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
-    structure.y[na] = get_float_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
-    structure.z[na] = get_float_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
+    structure.x[na] =
+      get_double_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
+    structure.y[na] =
+      get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
+    structure.z[na] =
+      get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
     if (num_columns > 4) {
-      structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
-      structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
-      structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
+      structure.fx[na] =
+        get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
+      structure.fy[na] =
+        get_double_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
+      structure.fz[na] =
+        get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
     }
 
     bool is_allowed_element = false;
@@ -125,9 +136,16 @@ static void read_force(
   }
 }
 
-static void read_one_structure(const Parameters& para, std::ifstream& input, Structure& structure)
+static void read_one_structure(
+  const Parameters& para,
+  std::ifstream& input,
+  Structure& structure,
+  std::string& xyz_filename,
+  int& line_number)
 {
   std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
+  line_number++;
+
   for (auto& token : tokens) {
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -137,13 +155,22 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
+    }
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_float_from_token(
-        token.substr(energy_string.length(), token.length()), __FILE__, __LINE__);
+      structure.energy = get_double_from_token(
+        token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
       structure.energy /= structure.num_atom;
     }
   }
@@ -156,8 +183,10 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     const std::string temperature_string = "temperature=";
     if (token.substr(0, temperature_string.length()) == temperature_string) {
       structure.has_temperature = true;
-      structure.temperature = get_float_from_token(
-        token.substr(temperature_string.length(), token.length()), __FILE__, __LINE__);
+      structure.temperature = get_double_from_token(
+        token.substr(temperature_string.length(), token.length()),
+        xyz_filename.c_str(),
+        line_number);
     }
   }
   if (para.train_mode == 3 && !structure.has_temperature) {
@@ -171,8 +200,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
     if (token.substr(0, weight_string.length()) == weight_string) {
-      structure.weight = get_float_from_token(
-        token.substr(weight_string.length(), token.length()), __FILE__, __LINE__);
+      structure.weight = get_double_from_token(
+        token.substr(weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
       if (structure.weight <= 0.0f || structure.weight > 100.0f) {
         PRINT_INPUT_ERROR("Configuration weight should > 0 and <= 100.");
       }
@@ -186,12 +215,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
-        structure.box_original[transpose_index[m]] = get_float_from_token(
+        structure.box_original[transpose_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__,
-          __LINE__);
+          xyz_filename.c_str(),
+          line_number);
       }
       change_box(para, structure);
     }
@@ -207,12 +236,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       structure.has_virial = true;
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
-        structure.virial[reduced_index[m]] = get_float_from_token(
+        structure.virial[reduced_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__,
-          __LINE__);
+          xyz_filename.c_str(),
+          line_number);
         structure.virial[reduced_index[m]] /= structure.num_atom;
       }
     }
@@ -227,12 +256,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       float volume = abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
-        virials_from_stress[reduced_index[m]] = get_float_from_token(
+        virials_from_stress[reduced_index[m]] = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (stress_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__,
-          __LINE__);
+          xyz_filename.c_str(),
+          line_number);
         virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
       }
     }
@@ -275,12 +304,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
           structure.virial[m] = 0.0f;
         }
         for (int m = 0; m < 3; ++m) {
-          structure.virial[m] = get_float_from_token(
+          structure.virial[m] = get_double_from_token(
             tokens[n + m].substr(
               (m == 0) ? (dipole_string.length() + 1) : 0,
               (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            __FILE__,
-            __LINE__);
+            xyz_filename.c_str(),
+            line_number);
           structure.virial[m] /= structure.num_atom;
         }
       }
@@ -305,12 +334,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
         structure.has_virial = true;
         const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
         for (int m = 0; m < 9; ++m) {
-          structure.virial[reduced_index[m]] = get_float_from_token(
+          structure.virial[reduced_index[m]] = get_double_from_token(
             tokens[n + m].substr(
               (m == 0) ? (pol_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            __FILE__,
-            __LINE__);
+            xyz_filename.c_str(),
+            line_number);
           structure.virial[reduced_index[m]] /= structure.num_atom;
         }
       }
@@ -365,39 +394,57 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         if (k < species_position) {
-          species_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          species_offset +=
+            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
         }
         if (k < pos_position) {
-          pos_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          pos_offset +=
+            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
         }
         if (k < force_position) {
-          force_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          force_offset +=
+            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
         }
-        num_columns += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        num_columns += get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
       }
     }
   }
 
-  read_force(num_columns, species_offset, pos_offset, force_offset, input, para, structure);
+  read_force(
+    num_columns,
+    species_offset,
+    pos_offset,
+    force_offset,
+    input,
+    para,
+    structure,
+    xyz_filename,
+    line_number);
 }
 
-static void
-read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& structures)
+static void read_exyz(
+  const Parameters& para,
+  std::ifstream& input,
+  std::vector<Structure>& structures,
+  std::string& xyz_filename)
 {
+  int line_number = 0;
   int Nc = 0;
   while (true) {
     std::vector<std::string> tokens = get_tokens(input);
+    line_number++;
+
     if (tokens.size() == 0) {
       break;
     } else if (tokens.size() > 1) {
       PRINT_INPUT_ERROR("The first line for each frame should have one value.");
     }
     Structure structure;
-    structure.num_atom = get_int_from_token(tokens[0], __FILE__, __LINE__);
+    structure.num_atom = get_int_from_token(tokens[0], xyz_filename.c_str(), line_number);
     if (structure.num_atom < 1) {
       PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
     }
-    read_one_structure(para, input, structure);
+    read_one_structure(para, input, structure, xyz_filename, line_number);
     structures.emplace_back(structure);
     ++Nc;
   }
@@ -420,7 +467,7 @@ read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& 
 
 static void find_permuted_indices(
   const int num_batches,
-  const std::vector<Structure>& structures, 
+  const std::vector<Structure>& structures,
   std::vector<int>& permuted_indices)
 {
   std::vector<float> energy(structures.size());
@@ -429,12 +476,10 @@ static void find_permuted_indices(
   }
 
   std::vector<int> energy_index(structures.size());
-  std::iota(energy_index.begin(), energy_index.end(), 0); 
-  std::stable_sort(
-    energy_index.begin(), 
-    energy_index.end(),
-    [&energy](size_t i1, size_t i2) {return energy[i1] < energy[i2];}
-  );
+  std::iota(energy_index.begin(), energy_index.end(), 0);
+  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
+    return energy[i1] < energy[i2];
+  });
 
   int count = 0;
   for (int b = 0; b < num_batches; ++b) {
@@ -446,7 +491,6 @@ static void find_permuted_indices(
     }
     count += batch_size;
   }
-  
 }
 
 static void reorder(const int num_batches, std::vector<Structure>& structures)
@@ -461,6 +505,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].weight = structures[nc].weight;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
+    structures_copy[nc].energy_weight = structures[nc].energy_weight;
     structures_copy[nc].has_temperature = structures[nc].has_temperature;
     structures_copy[nc].temperature = structures[nc].temperature;
     structures_copy[nc].volume = structures[nc].volume;
@@ -499,6 +544,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].weight = structures_copy[configuration_id[nc]].weight;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
+    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
     structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
     structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
     structures[nc].volume = structures_copy[configuration_id[nc]].volume;
@@ -545,9 +591,10 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     }
   } else {
     print_line_1();
-    is_train ? printf("Started reading train.xyz.\n") : printf("Started reading test.xyz.\n");
+    std::string xyz_filename = is_train ? "train.xyz" : "test.xyz";
+    std::cout << "Started reading " << xyz_filename << std::endl;
     print_line_2();
-    read_exyz(para, input, structures);
+    read_exyz(para, input, structures, xyz_filename);
     input.close();
   }
 

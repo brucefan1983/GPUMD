@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +15,12 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <curand_kernel.h>
+#include "utilities/gpu_macro.cuh"
+#ifdef USE_HIP
+  #include <hiprand_kernel.h>
+#else
+  #include <curand_kernel.h>
+#endif
 #include <random>
 #include <vector>
 class Fitness;
@@ -32,7 +37,7 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  
+
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;
@@ -43,7 +48,7 @@ protected:
   std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
 
-  GPU_Vector<curandState> curand_states;
+  GPU_Vector<gpurandState> curand_states;
   GPU_Vector<int> gpu_type_of_variable;
   GPU_Vector<int> gpu_index;
   GPU_Vector<float> gpu_utility;

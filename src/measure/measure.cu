@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ The driver class dealing with measurement.
 #include "measure.cuh"
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -39,7 +40,9 @@ void Measure::initialize(
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
+  adf.preprocess(number_of_atoms);
   rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
+  angular_rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   hac.preprocess(number_of_steps);
   viscosity.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
@@ -55,7 +58,7 @@ void Measure::initialize(
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
-  dump_piston.preprocess(atom, box);
+  dump_shock_nemd.preprocess(atom, box);
   dump_dipole.preprocess(number_of_atoms, number_of_potentials, force);
   dump_polarizability.preprocess(number_of_atoms, number_of_potentials, force);
   active.preprocess(number_of_atoms, number_of_potentials, force);
@@ -85,14 +88,16 @@ void Measure::finalize(
   dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
-  dump_piston.postprocess();
+  dump_shock_nemd.postprocess();
   dump_dipole.postprocess();
   dump_polarizability.postprocess();
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();
   msd.postprocess();
+  adf.postprocess();
   rdf.postprocess(integrate.type >= 31, number_of_beads);
+  angular_rdf.postprocess(integrate.type >= 31, number_of_beads);
   hac.postprocess(number_of_steps, temperature, time_step, volume);
   viscosity.postprocess(number_of_steps, temperature, time_step, volume);
   shc.postprocess(time_step);
@@ -178,7 +183,9 @@ void Measure::process(
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
+  adf.process(step, box, atom);
   rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
+  angular_rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   hac.process(
     number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
   viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
@@ -204,7 +211,7 @@ void Measure::process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 
   lsqt.process(atom, box, step);
-  dump_piston.process(atom, box, step);
+  dump_shock_nemd.process(atom, box, step);
 
 #ifdef USE_NETCDF
   dump_netcdf.process(

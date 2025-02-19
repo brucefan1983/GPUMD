@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,10 +17,12 @@
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <cstring>
 
 void print_welcome_information(void);
 
@@ -70,7 +72,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*                    Version 3.9.4                            *\n");
+  printf("*              Master version after 3.9.5                     *\n");
   printf("*              This is the nep executable                     *\n");
   printf("***************************************************************\n");
   printf("\n");

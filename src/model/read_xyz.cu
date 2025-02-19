@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ The class defining the simulation model.
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -30,6 +31,7 @@ The class defining the simulation model.
 #include <map>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},
@@ -136,33 +138,6 @@ const std::map<std::string, double> MASS_TABLE{
   {"No", 259},
   {"Lr", 262}};
 
-static bool need_triclinic()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  bool triclinic = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "compute_elastic") {
-        triclinic = true;
-      }
-      if (tokens[0] == "change_box" && tokens.size() == 7) {
-        triclinic = true;
-      }
-      if (tokens[0] == "ensemble" && tokens.size() >= 18) {
-        triclinic = true;
-      }
-    }
-  }
-
-  input_run.close();
-  return triclinic;
-}
-
 static void read_xyz_line_1(std::ifstream& input, int& N)
 {
   std::vector<std::string> tokens = get_tokens(input);
@@ -182,6 +157,7 @@ static void read_xyz_line_2(
   Box& box,
   int& has_velocity_in_xyz,
   bool& has_mass,
+  bool& has_charge,
   int& num_columns,
   int* property_offset,
   std::vector<Group>& group)
@@ -243,18 +219,6 @@ static void read_xyz_line_2(
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
-
-    if (
-      !need_triclinic() && box.cpu_h[1] == 0 && box.cpu_h[2] == 0 && box.cpu_h[3] == 0 &&
-      box.cpu_h[5] == 0 && box.cpu_h[6] == 0 && box.cpu_h[7] == 0) {
-      box.triclinic = 0;
-    } else {
-      box.triclinic = 1;
-    }
-
-    (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
-
-    if (box.triclinic == 1) {
       printf("Box matrix h = [a, b, c] is\n");
       for (int d1 = 0; d1 < 3; ++d1) {
         for (int d2 = 0; d2 < 3; ++d2) {
@@ -272,31 +236,13 @@ static void read_xyz_line_2(
         }
         printf("\n");
       }
-    } else {
-      box.cpu_h[1] = box.cpu_h[4];
-      box.cpu_h[2] = box.cpu_h[8];
-      box.cpu_h[3] = box.cpu_h[0] * 0.5;
-      box.cpu_h[4] = box.cpu_h[1] * 0.5;
-      box.cpu_h[5] = box.cpu_h[2] * 0.5;
-      if (box.cpu_h[0] <= 0) {
-        PRINT_INPUT_ERROR("Box length in x direction <= 0.");
-      }
-      if (box.cpu_h[1] <= 0) {
-        PRINT_INPUT_ERROR("Box length in y direction <= 0.");
-      }
-      if (box.cpu_h[2] <= 0) {
-        PRINT_INPUT_ERROR("Box length in z direction <= 0.");
-      }
-      printf("Box lengths are\n");
-      printf("    Lx = %20.10e A\n", box.cpu_h[0]);
-      printf("    Ly = %20.10e A\n", box.cpu_h[1]);
-      printf("    Lz = %20.10e A\n", box.cpu_h[2]);
-    }
   }
 
   // properties
-  std::string property_name[5] = {"species", "pos", "mass", "vel", "group"};
-  int property_position[5] = {-1, -1, -1, -1, -1}; // species,pos,mass,vel,group
+  const int num_properties = 6;
+  std::string property_name[num_properties] = {"species", "pos", "mass", "charge", "vel", "group"};
+  int property_position[num_properties] = {
+    -1, -1, -1, -1, -1, -1}; // species,pos,mass,charge,vel,group
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -308,14 +254,14 @@ static void read_xyz_line_2(
       }
       std::vector<std::string> sub_tokens = get_tokens(line);
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
-        for (int prop = 0; prop < 5; ++prop) {
+        for (int prop = 0; prop < num_properties; ++prop) {
           if (sub_tokens[k * 3] == property_name[prop]) {
             property_position[prop] = k;
           }
         }
       }
 
-      if (property_position[3] < 0) {
+      if (property_position[4] < 0) {
         has_velocity_in_xyz = 0;
         printf("Do not specify initial velocities here.\n");
       } else {
@@ -323,19 +269,19 @@ static void read_xyz_line_2(
         printf("Specify initial velocities here.\n");
       }
 
-      if (property_position[4] < 0) {
+      if (property_position[5] < 0) {
         group.resize(0);
         printf("Have no grouping method.\n");
       } else {
         int num_of_grouping_methods =
-          get_int_from_token(sub_tokens[property_position[4] * 3 + 2], __FILE__, __LINE__);
+          get_int_from_token(sub_tokens[property_position[5] * 3 + 2], __FILE__, __LINE__);
         group.resize(num_of_grouping_methods);
         printf("Have %d grouping method(s).\n", num_of_grouping_methods);
       }
 
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         const int tmp_length = get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
-        for (int prop = 0; prop < 5; ++prop) {
+        for (int prop = 0; prop < num_properties; ++prop) {
           if (k < property_position[prop]) {
             property_offset[prop] += tmp_length;
           }
@@ -356,6 +302,11 @@ static void read_xyz_line_2(
   } else {
     has_mass = true;
   }
+  if (property_position[3] < 0) {
+    has_charge = false;
+  } else {
+    has_charge = true;
+  }
 }
 
 void read_xyz_in_line_3(
@@ -363,6 +314,7 @@ void read_xyz_in_line_3(
   const int N,
   const int has_velocity_in_xyz,
   const bool has_mass,
+  const bool has_charge,
   const int num_columns,
   const int* property_offset,
   int& number_of_types,
@@ -370,6 +322,7 @@ void read_xyz_in_line_3(
   std::vector<std::string>& cpu_atom_symbol,
   std::vector<int>& cpu_type,
   std::vector<double>& cpu_mass,
+  std::vector<double>& cpu_charge,
   std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
   std::vector<Group>& group)
@@ -377,6 +330,7 @@ void read_xyz_in_line_3(
   cpu_atom_symbol.resize(N);
   cpu_type.resize(N);
   cpu_mass.resize(N);
+  cpu_charge.resize(N, 0.0);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
   number_of_types = atom_symbols.size();
@@ -419,18 +373,22 @@ void read_xyz_in_line_3(
       cpu_mass[n] = MASS_TABLE.at(cpu_atom_symbol[n]);
     }
 
+    if (has_charge) {
+      cpu_charge[n] = get_double_from_token(tokens[property_offset[3]], __FILE__, __LINE__);
+    }
+
     if (has_velocity_in_xyz) {
       const double A_per_fs_to_natural = TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
         cpu_velocity_per_atom[n + N * d] =
-          get_double_from_token(tokens[property_offset[3] + d], __FILE__, __LINE__) *
+          get_double_from_token(tokens[property_offset[4] + d], __FILE__, __LINE__) *
           A_per_fs_to_natural;
       }
     }
 
     for (int m = 0; m < group.size(); ++m) {
       group[m].cpu_label[n] =
-        get_int_from_token(tokens[property_offset[4] + m], __FILE__, __LINE__);
+        get_int_from_token(tokens[property_offset[5] + m], __FILE__, __LINE__);
       if (group[m].cpu_label[n] < 0 || group[m].cpu_label[n] >= N) {
         PRINT_INPUT_ERROR("Group label should >= 0 and < N.");
       }
@@ -536,16 +494,19 @@ void initialize_position(
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
-  int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
+  int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
-  read_xyz_line_2(input, box, has_velocity_in_xyz, has_mass, num_columns, property_offset, group);
+  bool has_charge = true;
+  read_xyz_line_2(
+    input, box, has_velocity_in_xyz, has_mass, has_charge, num_columns, property_offset, group);
 
   read_xyz_in_line_3(
     input,
     atom.number_of_atoms,
     has_velocity_in_xyz,
     has_mass,
+    has_charge,
     num_columns,
     property_offset,
     number_of_types,
@@ -553,6 +514,7 @@ void initialize_position(
     atom.cpu_atom_symbol,
     atom.cpu_type,
     atom.cpu_mass,
+    atom.cpu_charge,
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
     group);
@@ -584,6 +546,8 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   }
   atom.mass.resize(N);
   atom.mass.copy_from_host(atom.cpu_mass.data());
+  atom.charge.resize(N);
+  atom.charge.copy_from_host(atom.cpu_charge.data());
   atom.position_per_atom.resize(N * 3);
   atom.unwrapped_position.resize(N * 3);
   atom.position_temp.resize(N * 3);

@@ -33,9 +33,25 @@ total_outcar=$(find -L "$read_dire" -name "OUTCAR" | wc -l)
 converged_files=()
 non_converged_files=()
 
+echo "Checking the convergence of OUTCARs ..."
+
 for file in $(find "$read_dire" -name "OUTCAR"); do
-    if grep -q "aborting loop because EDIFF is reached" "$file"; then
+    NSW=$(grep "number of steps for IOM" "$file" | awk '{print $3}')
+    
+    if [ "$NSW" -ne 0 ]; then
         converged_files+=("$file")
+        continue
+    fi
+    
+    NELM=$(grep "of ELM steps" "$file" | awk '{print $3}' | tr -d ';')
+    actual_steps=$(grep -c "Iteration" "$file")
+
+    if grep -q "aborting loop because EDIFF is reached" "$file"; then
+        if [ "$actual_steps" -lt "$NELM" ]; then
+            converged_files+=("$file")
+        else
+            non_converged_files+=("$file")
+        fi
     else
         non_converged_files+=("$file")
     fi

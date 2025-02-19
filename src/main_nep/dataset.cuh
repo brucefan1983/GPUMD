@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,17 +39,23 @@ public:
   GPU_Vector<float> box_original; // (original) box (9 components)
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
 
+  GPU_Vector<float> charge;      // calculated charge in GPU
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU
   GPU_Vector<float> force;       // calculated force in GPU
+  std::vector<float> charge_cpu;  // calculated charge in CPU
   std::vector<float> energy_cpu; // calculated energy in CPU
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
 
+  GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
+  GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
   GPU_Vector<float> energy_ref_gpu;       // reference energy in GPU
   GPU_Vector<float> virial_ref_gpu;       // reference virial in GPU
   GPU_Vector<float> force_ref_gpu;        // reference force in GPU
   GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
+  std::vector<float> energy_weight_cpu;   // energy weight in CPU
+  std::vector<float> charge_ref_cpu;      // reference charge in CPU
   std::vector<float> energy_ref_cpu;      // reference energy in CPU
   std::vector<float> virial_ref_cpu;      // reference virial in CPU
   std::vector<float> force_ref_cpu;       // reference force in CPU
@@ -75,6 +81,7 @@ public:
     const bool do_shift,
     int device_id);
   std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_rmse_charge(Parameters& para, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);

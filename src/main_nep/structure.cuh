@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@ struct Structure {
   int has_virial;
   int has_temperature;
   float weight;
-  float energy;
+  float charge = 0.0f;
+  float energy = 0.0f;
+  float energy_weight = 1.0f;
   float virial[6];
   float box_original[9];
   float volume;

@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 #include "lj.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
@@ -233,5 +235,5 @@ void LJ::compute(
     force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data(),
     potential_per_atom.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

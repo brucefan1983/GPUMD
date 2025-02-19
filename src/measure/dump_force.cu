@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ Dump force data to a file at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
@@ -124,7 +125,7 @@ void Dump_Force::process(
     for (int d = 0; d < 3; ++d) {
       double* cpu_f = cpu_force_per_atom.data() + group_size * d;
       double* gpu_f = gpu_force_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(

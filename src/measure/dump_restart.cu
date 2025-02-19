@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,9 +22,11 @@ Dump a restart file
 #include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
 
 void Dump_Restart::parse(const char** param, int num_param)
 {
@@ -80,26 +82,21 @@ void Dump_Restart::process(
 
   fprintf(fid, "%d\n", number_of_atoms);
 
-  fprintf(fid, "triclinic=%c ", box.triclinic ? 'T' : 'F');
   fprintf(
     fid, "pbc=\"%c %c %c\" ", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
-  if (box.triclinic == 0) {
-    fprintf(fid, "Lattice=\"%g 0 0 0 %g 0 0 0 %g\" ", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid,
-      "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid,
+    "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   if (group.size() == 0) {
     fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3\n");

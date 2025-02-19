@@ -33,4 +33,4 @@ Caveats
   This is, however, not a problem since during the MD simulation, the Maxwell distribution will be achieved automatically within a short time.
 * The total linear and angular momenta are set to zero.
 * If there are already velocity data in the :ref:`simulation model file <model_xyz>`, the initial temperature will not be used and the velocities will be initialized as those in the simulation model file.
-  **Important:** In this case, you still need to write this keyword, otherwise the velocities will not be initialized at all (and will hence be undefined).
+* If there are not velocity data in the :ref:`simulation model file <model_xyz>`, and this keyword is missing, velocities will be initialized with a default temperature of 300 K.

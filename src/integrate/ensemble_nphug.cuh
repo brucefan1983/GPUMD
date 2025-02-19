@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@ public:
   virtual ~Ensemble_NPHug(void);
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;
+  bool p0_given = false;
+  bool v0_given = false;
+  bool e0_given = false;
   double thermo_info[8];
   int uniaxial_compress;
   double dhugo;

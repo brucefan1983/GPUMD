@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
-#define MAX_NUM_ELEMENTS_EAM 10
+#define MAX_NUM_ELEMENTS_EAM 18
 
 struct EAM2004Zhou {
   double re_inv[MAX_NUM_ELEMENTS_EAM];

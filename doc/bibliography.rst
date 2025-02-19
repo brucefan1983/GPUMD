@@ -20,7 +20,7 @@ Bibliography
    | Erik Bitzek, Pekka Koskinen, Franz Gähler, Michael Moseler, and Peter Gumbsch
    | *Structural Relaxation Made Simple*
    | Phys. Rev. Lett. **97**, 170201 (2006)
-   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_
+   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevLett.97.170201>`_
 
 .. [Brorsson2021]
    | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, and Paul Erhart
@@ -226,6 +226,12 @@ Bibliography
    | In: Proceedings of the 13th Annual Conference on Genetic and Evolutionary Computation
    | GECCO '11 (Association for Computing Machinery), New York, USA (2011), pp. 845–852
    | DOI: `10.1145/2001576.2001692 <https://doi.org/10.1145/2001576.2001692>`_
+
+.. [Song2024]
+   | Keke Song, Rui Zhao, Jiahui Liu, Yanzhou Wang, Eric Lindgren, Yong Wang, Shunda Chen, Ke Xu, Ting Liang, Penghua Ying, Nan Xu, Zhiqiang Zhao, Jiuyang Shi, Junjie Wang, Shuang Lyu, Zezhu Zeng, Shirong Liang, Haikuan Dong, Ligang Sun, Yue Chen, Zhuhua Zhang, Wanlin Guo, Ping Qian, Jian Sun, Paul Erhart, Tapio Ala-Nissila, Yanjing Su, and Zheyong Fan
+   | *General-purpose machine-learned potential for 16 elemental metals and their alloys*
+   | Nature Communications *15*, 10208 (2024)
+   | DOI: `10.1038/s41467-024-54554-x <https://doi.org/10.1038/s41467-024-54554-x>`_
 
 .. [Tersoff1988]
    | Jerry Tersoff

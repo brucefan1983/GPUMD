@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@ Run active learning on-the-fly during MD
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -193,7 +195,7 @@ void Active::process(
   // Reset mean vectors to zero
   initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
   for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
@@ -205,7 +207,7 @@ void Active::process(
       atom.force_per_atom.data() + number_of_atoms * 2,
       atom.potential_per_atom.data(),
       atom.virial_per_atom.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     // Compute new potential properties
     force.potentials[potential_index]->compute(
       box,
@@ -223,12 +225,12 @@ void Active::process(
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + number_of_atoms,
       atom.force_per_atom.data() + number_of_atoms * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
   double uncertainty = -1.0;
   for (int i = 0; i < number_of_atoms; i++) {
@@ -289,33 +291,18 @@ void Active::output_line2(
   fprintf(fid_, " uncertainty=%.8f", uncertainty);
 
   // box
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];

@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 #include "read_file.cuh"
 #include <ctype.h>
 #include <errno.h>
+#include <cstring>
 
 int is_valid_int(const char* s, int* result)
 {
-  if (s == NULL || *s == '\0') {
+  if (s == NULL) {
+    return 0;
+  } else if (*s == '\0') {
     return 0;
   }
   char* p;
@@ -39,7 +42,9 @@ int is_valid_int(const char* s, int* result)
 
 int is_valid_real(const char* s, double* result)
 {
-  if (s == NULL || *s == '\0') {
+  if (s == NULL) {
+    return 0;
+  } else if (*s == '\0') {
     return 0;
   }
   char* p;

@@ -76,9 +76,11 @@ def to_system_data(folder):
     all_eners = []
     all_forces = []
     all_virs = []
+    all_nframes = 0
     for ii in sets:
         cells, coords, eners, forces, virs = load_set(ii)
         nframes = np.reshape(cells, [-1,3,3]).shape[0]
+        all_nframes += nframes
         all_cells.append(np.reshape(cells, [nframes,3,3]))
         all_coords.append(np.reshape(coords, [nframes,-1,3]))
         if eners is not None:
@@ -89,7 +91,7 @@ def to_system_data(folder):
             all_forces.append(np.reshape(forces, [nframes,-1,3]))
         if virs is not None and virs.size > 0:
             all_virs.append(np.reshape(virs, [nframes,9]))
-    data['frames'] = nframes
+    data['frames'] = all_nframes
     data['cells'] = np.concatenate(all_cells, axis = 0)
     data['coords'] = np.concatenate(all_coords, axis = 0)
     if len(all_eners) > 0 :

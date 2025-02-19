@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@ The class defining the grouping methods
 ------------------------------------------------------------------------------*/
 
 #include "group.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <vector>
+#include <cstring>
 
 void Group::find_size(const int N, const int k)
 {

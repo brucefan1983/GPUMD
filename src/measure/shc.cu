@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "shc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -178,18 +179,20 @@ void SHC::process(
   const double* vz_tmp = velocity_per_atom.data() + N * 2;
 
   if (-1 == group_method) {
-    CHECK(cudaMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
   } else {
     if (group_id == -1) {
       for (int n = 1; n < group_num; ++n) {
-        int offset_s = Nc * group[group_method].cpu_size_sum[n] + 
+        int offset_s = Nc * group[group_method].cpu_size_sum[n] +
                        correlation_step * group[group_method].cpu_size[n];
-        gpu_copy_data<<<(group[group_method].cpu_size[n] - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+        gpu_copy_data<<<
+          (group[group_method].cpu_size[n] - 1) / BLOCK_SIZE_SHC + 1,
+          BLOCK_SIZE_SHC>>>(
           group[group_method].cpu_size[n],
           group[group_method].cpu_size_sum[n],
           group[group_method].contents.data(),
@@ -205,7 +208,7 @@ void SHC::process(
           vx_tmp,
           vy_tmp,
           vz_tmp);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
@@ -225,7 +228,7 @@ void SHC::process(
         vy_tmp,
         vz_tmp);
     }
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (sample_step >= Nc - 1) {
@@ -246,7 +249,7 @@ void SHC::process(
           vz.data() + offset_s,
           ki_negative.data() + Nc * n,
           ko_negative.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
 
         gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
           group[group_method].cpu_size[n],
@@ -259,7 +262,7 @@ void SHC::process(
           sz.data() + offset_s,
           ki_positive.data() + Nc * n,
           ko_positive.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
@@ -273,7 +276,7 @@ void SHC::process(
         vz.data(),
         ki_negative.data(),
         ko_negative.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
 
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
         group_size,
@@ -286,7 +289,7 @@ void SHC::process(
         sz.data(),
         ki_positive.data(),
         ko_positive.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }
@@ -487,9 +490,11 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
       PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
     }
   }
-  
+
   if (group_id == -1) {
-    printf("    compute SHC for all group IDs except for group ID 0 in grouping method %d.\n", group_method);
+    printf(
+      "    compute SHC for all group IDs except for group ID 0 in grouping method %d.\n",
+      group_method);
   }
   if (group_id < -1) {
     PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");

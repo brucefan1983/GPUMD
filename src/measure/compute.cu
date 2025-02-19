@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ Compute block (space) averages of various per-atom quantities.
 #include "compute.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
@@ -36,7 +37,7 @@ void Compute::preprocess(const int N, const std::vector<Group>& group)
   if (compute_force)
     number_of_scalars += 3;
   if (compute_virial)
-    number_of_scalars += 3;
+    number_of_scalars += 9;
   if (compute_jp)
     number_of_scalars += 3;
   if (compute_jk)
@@ -186,7 +187,7 @@ static __global__ void find_group_sum_1(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];
@@ -232,7 +233,6 @@ static __global__ void find_group_sum_3(
   }
   __syncthreads();
 
-#pragma unroll
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_fx[tid] += s_fx[tid + offset];
@@ -246,6 +246,91 @@ static __global__ void find_group_sum_3(
     g_out[bid] = s_fx[0];
     g_out[bid + gridDim.x] = s_fy[0];
     g_out[bid + gridDim.x * 2] = s_fz[0];
+  }
+}
+
+static __global__ void find_group_sum_9(
+  const int* g_group_size,
+  const int* g_group_size_sum,
+  const int* g_group_contents,
+  const double* g_xx,
+  const double* g_xy,
+  const double* g_xz,
+  const double* g_yx,
+  const double* g_yy,
+  const double* g_yz,
+  const double* g_zx,
+  const double* g_zy,
+  const double* g_zz,
+  double* g_out)
+{
+  // <<<number_of_groups, 128>>> (one CUDA block for one group of atoms)
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int group_size = g_group_size[bid];
+  int offset = g_group_size_sum[bid];
+  int number_of_patches = (group_size - 1) / 128 + 1;
+  __shared__ double s_xx[128];
+  __shared__ double s_xy[128];
+  __shared__ double s_xz[128];
+  __shared__ double s_yx[128];
+  __shared__ double s_yy[128];
+  __shared__ double s_yz[128];
+  __shared__ double s_zx[128];
+  __shared__ double s_zy[128];
+  __shared__ double s_zz[128];
+  s_xx[tid] = 0.0;
+  s_xy[tid] = 0.0;
+  s_xz[tid] = 0.0;
+  s_yx[tid] = 0.0;
+  s_yy[tid] = 0.0;
+  s_yz[tid] = 0.0;
+  s_zx[tid] = 0.0;
+  s_zy[tid] = 0.0;
+  s_zz[tid] = 0.0;
+
+  for (int patch = 0; patch < number_of_patches; patch++) {
+    int k = tid + patch * 128;
+    if (k < group_size) {
+      int n = g_group_contents[offset + k]; // particle index
+      s_xx[tid] += g_xx[n];
+      s_xy[tid] += g_xy[n];
+      s_xz[tid] += g_xz[n];
+      s_yx[tid] += g_yx[n];
+      s_yy[tid] += g_yy[n];
+      s_yz[tid] += g_yz[n];
+      s_zx[tid] += g_zx[n];
+      s_zy[tid] += g_zy[n];
+      s_zz[tid] += g_zz[n];
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_xx[tid] += s_xx[tid + offset];
+      s_xy[tid] += s_xy[tid + offset];
+      s_xz[tid] += s_xz[tid + offset];
+      s_yx[tid] += s_yx[tid + offset];
+      s_yy[tid] += s_yy[tid + offset];
+      s_yz[tid] += s_yz[tid + offset];
+      s_zx[tid] += s_zx[tid + offset];
+      s_zy[tid] += s_zy[tid + offset];
+      s_zz[tid] += s_zz[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_out[bid + gridDim.x * 0] = s_xx[0];
+    g_out[bid + gridDim.x * 1] = s_xy[0];
+    g_out[bid + gridDim.x * 2] = s_xz[0];
+    g_out[bid + gridDim.x * 3] = s_yx[0];
+    g_out[bid + gridDim.x * 4] = s_yy[0];
+    g_out[bid + gridDim.x * 5] = s_yz[0];
+    g_out[bid + gridDim.x * 6] = s_zx[0];
+    g_out[bid + gridDim.x * 7] = s_zy[0];
+    g_out[bid + gridDim.x * 8] = s_zz[0];
   }
 }
 
@@ -278,14 +363,14 @@ void Compute::process(
       velocity_per_atom.data() + N,
       velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     find_group_sum_1<<<Ng, 256>>>(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
       gpu_per_atom_x.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_potential) {
@@ -295,7 +380,7 @@ void Compute::process(
       group[grouping_method].contents.data(),
       potential_per_atom.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_force) {
@@ -307,20 +392,30 @@ void Compute::process(
       force_per_atom.data() + N,
       force_per_atom.data() + 2 * N,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_virial) {
-    find_group_sum_3<<<Ng, 256>>>(
+    // the virial tensor:
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    find_group_sum_9<<<Ng, 128>>>(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      virial_per_atom.data(),
-      virial_per_atom.data() + N,
+      virial_per_atom.data() + N * 0,
+      virial_per_atom.data() + N * 3,
+      virial_per_atom.data() + N * 4,
+      virial_per_atom.data() + N * 6,
+      virial_per_atom.data() + N * 1,
+      virial_per_atom.data() + N * 5,
+      virial_per_atom.data() + N * 7,
+      virial_per_atom.data() + N * 8,
       virial_per_atom.data() + N * 2,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
-    offset += Ng * 3;
+    GPU_CHECK_KERNEL
+    offset += Ng * 9;
   }
   if (compute_jp) {
     // the virial tensor:
@@ -344,7 +439,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -354,7 +449,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_jk) {
@@ -368,7 +463,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -378,7 +473,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_momentum) {
@@ -391,7 +486,7 @@ void Compute::process(
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -401,7 +496,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
 

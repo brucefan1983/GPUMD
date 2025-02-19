@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ The abstract base class (ABC) for the ensemble classes.
 
 #include "ensemble.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 #define DIM 3
 
 Ensemble::Ensemble(void)
@@ -314,7 +316,7 @@ void Ensemble::velocity_verlet(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // Find some thermodynamic properties:
@@ -757,7 +759,7 @@ void Ensemble::find_thermo(
       thermo.data());
   }
 
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 // Scale the velocity of every particle in the systems by a factor
@@ -782,7 +784,7 @@ void Ensemble::scale_velocity_global(const double factor, GPU_Vector<double>& ve
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_find_vc_and_ke(
@@ -837,7 +839,7 @@ static __global__ void gpu_find_vc_and_ke(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_mc[tid] += s_mc[tid + offset];
@@ -887,7 +889,7 @@ void Ensemble::find_vc_and_ke(
     vcy,
     vcz,
     ke);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_scale_velocity(
@@ -963,5 +965,5 @@ void Ensemble::scale_velocity_local(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }

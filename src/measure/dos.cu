@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ Reference for DOS:
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -216,7 +217,6 @@ void DOS::process(
   const int correlation_step = sample_step % num_correlation_steps_;
   copy_velocity(correlation_step, velocity_per_atom);
   if (sample_step >= num_correlation_steps_ - 1) {
-    ++num_time_origins_;
     find_vac(correlation_step);
   }
 }
@@ -226,7 +226,7 @@ void DOS::postprocess()
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   normalize_vac();
   output_vac();
@@ -252,7 +252,6 @@ void DOS::parse_num_dos_points(const char** param, int& k)
 void DOS::initialize_parameters(
   const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
 {
-  num_time_origins_ = 0;
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   if (1.0 / dt_in_ps_ < omega_max_ / PI) {
@@ -303,7 +302,7 @@ void DOS::copy_mass(const GPU_Vector<double>& mass)
     const int offset = (group_id_ < 0) ? 0 : group_->cpu_size_sum[group_id_];
     gpu_copy_mass<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_, group_->contents.data() + offset, mass.data(), mass_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -340,7 +339,7 @@ void DOS::copy_velocity(const int correlation_step, const GPU_Vector<double>& ve
       }
     }
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::find_vac(const int correlation_step)
@@ -380,7 +379,7 @@ void DOS::find_vac(const int correlation_step)
       vacy_.data(),
       vacz_.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::normalize_vac()

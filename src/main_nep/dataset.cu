@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/nep_utilities.cuh"
+#include <cstring>
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
@@ -29,7 +32,9 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].num_atom = structures_input[n_input].num_atom;
     structures[n].weight = structures_input[n_input].weight;
     structures[n].has_virial = structures_input[n_input].has_virial;
+    structures[n].charge = structures_input[n_input].charge;
     structures[n].energy = structures_input[n_input].energy;
+    structures[n].energy_weight = structures_input[n_input].energy_weight;
     structures[n].has_temperature = structures_input[n_input].has_temperature;
     structures[n].temperature = structures_input[n_input].temperature;
     structures[n].volume = structures_input[n_input].volume;
@@ -122,22 +127,28 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
 
+  charge.resize(N);
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
+  charge_cpu.resize(N);
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
 
   weight_cpu.resize(Nc);
+  charge_ref_cpu.resize(Nc);
   energy_ref_cpu.resize(Nc);
+  energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
   temperature_ref_cpu.resize(N);
 
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
+    charge_ref_cpu[n] = structures[n].charge;
     energy_ref_cpu[n] = structures[n].energy;
+    energy_weight_cpu[n] = structures[n].energy_weight;
     for (int k = 0; k < 6; ++k) {
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
@@ -163,12 +174,16 @@ void Dataset::initialize_gpu_data(Parameters& para)
   }
 
   type_weight_gpu.resize(NUM_ELEMENTS);
+  charge_ref_gpu.resize(Nc);
   energy_ref_gpu.resize(Nc);
+  energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
+  charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
+  energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
   temperature_ref_gpu.copy_from_host(temperature_ref_cpu.data());
@@ -189,8 +204,13 @@ static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
   const int* Na_sum,
-  const float rc2_radial,
-  const float rc2_angular,
+  const bool use_typewise_cutoff,
+  const float typewise_cutoff_radial_factor,
+  const float typewise_cutoff_angular_factor,
+  const int* g_type,
+  const int* g_atomic_numbers,
+  const float g_rc_radial,
+  const float g_rc_angular,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -209,6 +229,7 @@ static __global__ void gpu_find_neighbor_number(
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
+    int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
@@ -226,10 +247,19 @@ static __global__ void gpu_find_neighbor_number(
             float z12 = z[n2] + delta_z - z1;
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            if (distance_square < rc2_radial) {
+            int t2 = g_type[n2];
+            float rc_radial = g_rc_radial;
+            float rc_angular = g_rc_angular;
+            if (use_typewise_cutoff) {
+              int z1 = g_atomic_numbers[t1];
+              int z2 = g_atomic_numbers[t2];
+              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_radial_factor, rc_radial);
+              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_angular_factor, rc_angular);
+            }
+            if (distance_square < rc_radial * rc_radial) {
               count_radial++;
             }
-            if (distance_square < rc2_angular) {
+            if (distance_square < rc_angular * rc_angular) {
               count_angular++;
             }
           }
@@ -247,15 +277,25 @@ void Dataset::find_neighbor(Parameters& para)
   GPU_Vector<int> NN_angular_gpu(N);
   std::vector<int> NN_radial_cpu(N);
   std::vector<int> NN_angular_cpu(N);
-  float rc2_radial = para.rc_radial * para.rc_radial;
-  float rc2_angular = para.rc_angular * para.rc_angular;
+
+  std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
+  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+    atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
+  }
+  GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
+  atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
 
   gpu_find_neighbor_number<<<Nc, 256>>>(
     N,
     Na.data(),
     Na_sum.data(),
-    rc2_radial,
-    rc2_angular,
+    para.use_typewise_cutoff,
+    para.typewise_cutoff_radial_factor,
+    para.typewise_cutoff_angular_factor,
+    type.data(),
+    atomic_numbers.data(),
+    para.rc_radial,
+    para.rc_angular,
     box.data(),
     box_original.data(),
     num_cell.data(),
@@ -264,7 +304,7 @@ void Dataset::find_neighbor(Parameters& para)
     r.data() + N * 2,
     NN_radial_gpu.data(),
     NN_angular_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   NN_radial_gpu.copy_to_host(NN_radial_cpu.data());
   NN_angular_gpu.copy_to_host(NN_angular_cpu.data());
@@ -301,7 +341,7 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(
   Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);
   error_cpu.resize(Nc);
@@ -354,18 +394,11 @@ static __global__ void gpu_sum_force_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_error[tid] += s_error[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -375,7 +408,7 @@ static __global__ void gpu_sum_force_error(
 
 std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     use_weight,
@@ -392,7 +425,7 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
     force_ref_gpu.data() + N * 2,
     error_gpu.data());
   int mem = sizeof(float) * Nc;
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -414,9 +447,14 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   return rmse_array;
 }
 
-#ifndef USE_FIXED_SCALER
 static __global__ void
-gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
+gpu_get_energy_shift(
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_pe, 
+  float* g_pe_ref, 
+  float* g_pe_weight, 
+  float* g_energy_shift)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -431,29 +469,27 @@ gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, flo
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_pe[tid] += s_pe[tid + offset];
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
     float diff = s_pe[0] / Na - g_pe_ref[bid];
-    g_energy_shift[bid] = diff;
+    g_energy_shift[bid] = diff * g_pe_weight[bid];
   }
 }
-#endif
 
 static __global__ void gpu_sum_pe_error(
-  float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
+  float energy_shift, 
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_pe, 
+  float* g_pe_ref, 
+  float* g_pe_weight, 
+  float* error_gpu)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -468,23 +504,16 @@ static __global__ void gpu_sum_pe_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_pe[tid] += s_pe[tid + offset];
     }
     __syncthreads();
   }
 
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
-  }
-
   if (tid == 0) {
     float diff = s_pe[0] / Na - g_pe_ref[bid] - energy_shift;
-    error_gpu[bid] = diff * diff;
+    error_gpu[bid] = diff * diff * g_pe_weight[bid];
   }
 }
 
@@ -495,23 +524,30 @@ std::vector<float> Dataset::get_rmse_energy(
   const bool do_shift,
   int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
   energy_shift_per_structure = 0.0f;
 
   const int block_size = 256;
   int mem = sizeof(float) * Nc;
 
-#ifndef USE_FIXED_SCALER
   if (do_shift) {
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
-      Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
-    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+      Na.data(), 
+      Na_sum.data(), 
+      energy.data(), 
+      energy_ref_gpu.data(), 
+      energy_weight_gpu.data(), 
+      error_gpu.data());
+    CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+    float Nc_with_weight = 0.0f;
     for (int n = 0; n < Nc; ++n) {
+      Nc_with_weight += energy_weight_cpu[n];
       energy_shift_per_structure += error_cpu[n];
     }
-    energy_shift_per_structure /= Nc;
+    if (Nc_with_weight > 0.0f) {
+      energy_shift_per_structure /= Nc_with_weight;
+    }
   }
-#endif
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure,
@@ -519,8 +555,9 @@ std::vector<float> Dataset::get_rmse_energy(
     Na_sum.data(),
     energy.data(),
     energy_ref_gpu.data(),
+    energy_weight_gpu.data(), 
     error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -567,22 +604,13 @@ static __global__ void gpu_sum_virial_error(
   }
   __syncthreads();
 
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       for (int d = 0; d < 6; ++d) {
         s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
       }
     }
     __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      for (int d = 0; d < 6; ++d) {
-        s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
-      }
-    }
-    __syncwarp();
   }
 
   if (tid == 0) {
@@ -597,7 +625,7 @@ static __global__ void gpu_sum_virial_error(
 
 std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(cudaSetDevice(device_id));
+  CHECK(gpuSetDevice(device_id));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -615,7 +643,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
     virial.data(),
     virial_ref_gpu.data(),
     error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
@@ -635,3 +663,72 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   }
   return rmse_array;
 }
+
+static __global__ void gpu_sum_charge_error(
+  int* g_Na, 
+  int* g_Na_sum, 
+  float* g_charge, 
+  float* g_charge_ref,  
+  float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ float s_charge[];
+  s_charge[tid] = 0.0f;
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_charge[tid] += g_charge[n];
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_charge[tid] += s_charge[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    float diff = s_charge[0] / Na - g_charge_ref[bid];
+    error_gpu[bid] = diff * diff;
+  }
+}
+
+std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
+{
+  CHECK(gpuSetDevice(device_id));
+
+  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<int> count_array(para.num_types + 1, 0);
+
+  int mem = sizeof(float) * Nc;
+  const int block_size = 256;
+
+  gpu_sum_charge_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    Na.data(),
+    Na_sum.data(),
+    charge.data(),
+    charge_ref_gpu.data(),
+    error_gpu.data());
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+  for (int n = 0; n < Nc; ++n) {
+      float rmse_temp = error_cpu[n];
+      for (int t = 0; t < para.num_types + 1; ++t) {
+        if (has_type[t * Nc + n]) {
+          rmse_array[t] += rmse_temp;
+          count_array[t] += 1;
+        }
+      }
+  }
+
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+    }
+  }
+  return rmse_array;
+}
+

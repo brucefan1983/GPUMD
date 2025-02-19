@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,6 +56,9 @@ public:
   double p0;
   double v0;
   double e0;
+  bool p0_given = false;
+  bool v0_given = false;
+  bool e0_given = false;
   double p_current;
   double dhugo, dray;
   double tscale = 0;

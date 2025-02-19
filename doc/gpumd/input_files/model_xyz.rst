@@ -48,7 +48,8 @@ Essentially any keyword is allowed, but we only read the following ones:
 
   * ``species:S:1`` atom type (*Mandatory*)
   * ``pos:R:3`` position vector (*Mandatory*)
-  * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing) 
+  * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing)
+  * ``charge:R:1`` charge (*Optional*: default charge is zero)  
   * ``vel:R:3`` velocity vector (*Optional*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
@@ -63,6 +64,7 @@ Units
 -----
 
 The mass should be given in units of the unified atomic mass unit (amu). 
+The charge is in units of e (proton charge).
 The cell dimensions and atom coordinates should be given in units of Ångstrom. 
 Velocities need to be specified in units of Å/fs.
 

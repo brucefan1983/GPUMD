@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
-#include "ensemble_mirror.cuh"
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
@@ -29,15 +28,19 @@ The driver class for the various integrators.
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
-#include "ensemble_piston.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
+#include "ensemble_wall_harmonic.cuh"
+#include "ensemble_wall_mirror.cuh"
+#include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void Integrate::initialize(
   double time_step,
@@ -134,6 +137,8 @@ void Integrate::initialize(
     case -8: // ti_rs
       break;
     case -9: // ti_as
+      break;
+    case -10:
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -270,7 +275,7 @@ void Integrate::compute1(
     atom.position_temp.data(),
     atom.position_temp.data() + num_atoms,
     atom.position_temp.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   ensemble->compute1(time_step, group, box, atom, thermo);
 
@@ -285,7 +290,7 @@ void Integrate::compute1(
     atom.unwrapped_position.data(),
     atom.unwrapped_position.data() + num_atoms,
     atom.unwrapped_position.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void Integrate::compute2(
@@ -406,24 +411,27 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "ti_spring") == 0) {
     type = -2;
     ensemble.reset(new Ensemble_TI_Spring(param, num_param));
-  } else if (strcmp(param[1], "piston") == 0) {
+  } else if (strcmp(param[1], "wall_piston") == 0) {
     type = -4;
-    ensemble.reset(new Ensemble_piston(param, num_param));
+    ensemble.reset(new Ensemble_wall_piston(param, num_param));
   } else if (strcmp(param[1], "nphug") == 0) {
     type = -5;
     ensemble.reset(new Ensemble_NPHug(param, num_param));
   } else if (strcmp(param[1], "ti") == 0) {
     type = -6;
     ensemble.reset(new Ensemble_TI(param, num_param));
-  } else if (strcmp(param[1], "mirror") == 0) {
+  } else if (strcmp(param[1], "wall_mirror") == 0) {
     type = -7;
-    ensemble.reset(new Ensemble_mirror(param, num_param));
+    ensemble.reset(new Ensemble_wall_mirror(param, num_param));
   } else if (strcmp(param[1], "ti_rs") == 0) {
     type = -8;
     ensemble.reset(new Ensemble_TI_RS(param, num_param));
   } else if (strcmp(param[1], "ti_as") == 0) {
     type = -9;
     ensemble.reset(new Ensemble_TI_AS(param, num_param));
+  } else if (strcmp(param[1], "wall_harmonic") == 0) {
+    type = -10;
+    ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -482,7 +490,8 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 3;
-      if (box.triclinic == 1) {
+      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
       }
     } else if (num_param == 8) { // isotropic
@@ -496,7 +505,8 @@ void Integrate::parse_ensemble(
         PRINT_INPUT_ERROR("elastic modulus should > 0.");
       }
       num_target_pressure_components = 1;
-      if (box.triclinic == 1) {
+      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
       }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -518,9 +528,6 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 6;
-      if (box.triclinic == 0) {
-        PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-      }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
         PRINT_INPUT_ERROR(
           "Cannot use 6 pressure components with non-periodic boundary in any direction.");
@@ -662,7 +669,8 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 3;
-          if (box.triclinic == 1) {
+          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
           }
         } else if (num_param == 9) { // isotropic
@@ -676,7 +684,8 @@ void Integrate::parse_ensemble(
             PRINT_INPUT_ERROR("elastic modulus should > 0.");
           }
           num_target_pressure_components = 1;
-          if (box.triclinic == 1) {
+          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
           }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -698,9 +707,6 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 6;
-          if (box.triclinic == 0) {
-            PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-          }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
             PRINT_INPUT_ERROR(
               "Cannot use 6 pressure components with non-periodic boundary in any direction.");
@@ -861,6 +867,8 @@ void Integrate::parse_ensemble(
     case -8:
       break;
     case -9:
+      break;
+    case -10:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

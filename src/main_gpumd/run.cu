@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
+#include "add_efield.cuh"
+#include "add_force.cuh"
+#include "add_random_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
@@ -26,12 +29,15 @@ Run simulation according to the inputs in the run.in file.
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
+#include "model/check_distance.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
+#include <cstring>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -80,7 +86,7 @@ static void calculate_time_step(
   }
   const int N = velocity_per_atom.size() / 3;
   double* gpu_v2_max;
-  CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
+  CHECK(gpuGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
   gpu_find_largest_v2<<<1, 1024>>>(
     N,
     (N - 1) / 1024 + 1,
@@ -88,9 +94,9 @@ static void calculate_time_step(
     velocity_per_atom.data() + N,
     velocity_per_atom.data() + N * 2,
     gpu_v2_max);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
-  CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), gpuMemcpyDeviceToHost));
   double cpu_v_max = sqrt(cpu_v2_max[0]);
   double time_step_min = max_distance_per_step / cpu_v_max;
 
@@ -110,7 +116,24 @@ Run::Run()
 
   initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
 
+  calculate_min_atomic_distance(atom, box);
+
   allocate_memory_gpu(group, atom, thermo);
+
+  velocity.initialize(
+    has_velocity_in_xyz,
+    300,
+    atom.cpu_mass,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom,
+    atom.velocity_per_atom,
+    false,
+    123);
+  if (has_velocity_in_xyz) {
+    printf("Initialized velocities with data in model.xyz.\n");
+  } else {
+    printf("Initialized velocities with default T = 300 K.\n");
+  }
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
@@ -201,6 +224,15 @@ void Run::perform_a_run()
 
   for (int step = 0; step < number_of_steps; ++step) {
 
+    velocity.correct_velocity(
+      step,
+      group,
+      atom.cpu_mass,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.velocity_per_atom);
+
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
@@ -242,6 +274,9 @@ void Run::perform_a_run()
 #endif
 
     electron_stop.compute(time_step, atom);
+    add_force.compute(step, group, atom);
+    add_random_force.compute(step, atom);
+    add_efield.compute(step, group, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
@@ -260,14 +295,6 @@ void Run::perform_a_run()
       thermo,
       atom,
       force);
-
-    velocity.correct_velocity(
-      step,
-      atom.cpu_mass,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.velocity_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
@@ -296,6 +323,9 @@ void Run::perform_a_run()
     atom.number_of_beads);
 
   electron_stop.finalize();
+  add_force.finalize();
+  add_random_force.finalize();
+  add_efield.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -377,7 +407,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    parse_correct_velocity(param, num_param);
+    parse_correct_velocity(param, num_param, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
@@ -406,8 +436,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_beads.parse(param, num_param);
   } else if (strcmp(param[0], "dump_observer") == 0) {
     measure.dump_observer.parse(param, num_param);
-  } else if (strcmp(param[0], "dump_piston") == 0) {
-    measure.dump_piston.parse(param, num_param);
+  } else if (strcmp(param[0], "dump_shock_nemd") == 0) {
+    measure.dump_shock_nemd.parse(param, num_param);
   } else if (strcmp(param[0], "dump_dipole") == 0) {
     measure.dump_dipole.parse(param, num_param);
   } else if (strcmp(param[0], "dump_polarizability") == 0) {
@@ -422,6 +452,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.msd.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_rdf") == 0) {
     measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
+  } else if (strcmp(param[0], "compute_adf") == 0) {
+    measure.adf.parse(param, num_param, box, number_of_types);
+  } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
+    measure.angular_rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
@@ -446,6 +480,12 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
+  } else if (strcmp(param[0], "add_random_force") == 0) {
+    add_random_force.parse(param, num_param, atom.number_of_atoms);
+  } else if (strcmp(param[0], "add_force") == 0) {
+    add_force.parse(param, num_param, group);
+  } else if (strcmp(param[0], "add_efield") == 0) {
+    add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "dftd3") == 0) {
@@ -461,23 +501,26 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Run::parse_velocity(const char** param, int num_param)
 {
-  int seed;
+  int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
     PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
+  } else if (num_param == 4) {
+    // See https://github.com/brucefan1983/GPUMD/pull/768
+    // for the reason for putting this branch here.
+    use_seed = true;
+    if (!is_valid_int(param[3], &seed)) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
   }
+
   if (!is_valid_real(param[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
-  if (num_param == 4) {
-    use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
-      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
-    }
-  }
+
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,
@@ -487,19 +530,46 @@ void Run::parse_velocity(const char** param, int num_param)
     atom.velocity_per_atom,
     use_seed,
     seed);
+  if (!has_velocity_in_xyz) {
+    printf("Initialized velocities with input T = %g K.\n", initial_temperature);
+  }
 }
 
-void Run::parse_correct_velocity(const char** param, int num_param)
+void Run::parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("correct_velocity should have 1 parameter.\n");
+  printf("Correct linear and angular momenta.\n");
+
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("correct_velocity should have 1 or 2 parameters.\n");
   }
   if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
     PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
   }
-  if (velocity.velocity_correction_interval <= 0) {
-    PRINT_INPUT_ERROR("velocity correction interval should be positive.\n");
+  if (velocity.velocity_correction_interval < 10) {
+    PRINT_INPUT_ERROR("velocity correction interval should >= 10.\n");
   }
+
+  printf("    every %d steps.\n", velocity.velocity_correction_interval);
+
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &velocity.velocity_correction_group_method)) {
+      PRINT_INPUT_ERROR("velocity correction group method should be an integer.\n");
+    }
+    if (velocity.velocity_correction_group_method < 0) {
+      PRINT_INPUT_ERROR("grouping method should >= 0.\n");
+    }
+    if (velocity.velocity_correction_group_method >= group.size()) {
+      PRINT_INPUT_ERROR("grouping method should < maximum number of grouping methods.\n");
+    }
+  }
+
+  if (velocity.velocity_correction_group_method < 0) {
+    printf("    for the whole system.\n");
+  } else {
+    printf(
+      "    for individual groups in group method %d.\n", velocity.velocity_correction_group_method);
+  }
+
   velocity.do_velocity_correction = true;
 }
 
@@ -562,7 +632,7 @@ void Run::parse_run(const char** param, int num_param)
   perform_a_run();
 }
 
-static __global__ void gpu_pressure_triclinic(
+static __global__ void gpu_deform_atom(
   int N,
   double mu0,
   double mu1,
@@ -611,9 +681,6 @@ void Run::parse_change_box(const char** param, int num_param)
   }
 
   if (num_param == 7) {
-    if (box.triclinic == 0) {
-      PRINT_INPUT_ERROR("Cannot use orthogonal box with shear deformation.");
-    }
     if (!is_valid_real(param[4], &deformation_matrix[1][2])) {
       PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
     }
@@ -637,12 +704,8 @@ void Run::parse_change_box(const char** param, int num_param)
   printf("    in xy and yz by strain %g.\n", deformation_matrix[0][1]);
 
   for (int d = 0; d < 3; ++d) {
-    if (box.triclinic == 0) {
-      deformation_matrix[d][d] = (box.cpu_h[d] + deformation_matrix[d][d]) / box.cpu_h[d];
-    } else {
-      deformation_matrix[d][d] =
-        (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
-    }
+    deformation_matrix[d][d] =
+      (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
   }
 
   printf("    Deformation matrix =\n");
@@ -654,47 +717,33 @@ void Run::parse_change_box(const char** param, int num_param)
     printf("\n");
   }
 
-  if (box.triclinic == 0) {
-    printf("    Original box lengths are\n");
-    printf("        Lx = %g A\n", box.cpu_h[0]);
-    printf("        Ly = %g A\n", box.cpu_h[1]);
-    printf("        Lz = %g A\n", box.cpu_h[2]);
-  } else {
-    printf("    Original box h = [a, b, c] is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      printf("        ");
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%g ", box.cpu_h[d1 * 3 + d2]);
-      }
-      printf("\n");
+  printf("    Original box h = [a, b, c] is\n");
+  for (int d1 = 0; d1 < 3; ++d1) {
+    printf("        ");
+    for (int d2 = 0; d2 < 3; ++d2) {
+      printf("%g ", box.cpu_h[d1 * 3 + d2]);
     }
+    printf("\n");
   }
 
-  if (box.triclinic == 0) {
-    for (int d = 0; d < 3; ++d) {
-      box.cpu_h[d] *= deformation_matrix[d][d];
-      box.cpu_h[d + 3] = box.cpu_h[d] * 0.5;
-    }
-  } else {
-    double h_old[9];
-    for (int i = 0; i < 9; ++i) {
-      h_old[i] = box.cpu_h[i];
-    }
-
-    for (int r = 0; r < 3; ++r) {
-      for (int c = 0; c < 3; ++c) {
-        double tmp = 0.0;
-        for (int k = 0; k < 3; ++k) {
-          tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
-        }
-        box.cpu_h[r * 3 + c] = tmp;
-      }
-    }
-    box.get_inverse();
+  double h_old[9];
+  for (int i = 0; i < 9; ++i) {
+    h_old[i] = box.cpu_h[i];
   }
+
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      double tmp = 0.0;
+      for (int k = 0; k < 3; ++k) {
+        tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+      }
+      box.cpu_h[r * 3 + c] = tmp;
+    }
+  }
+  box.get_inverse();
 
   const int number_of_atoms = atom.position_per_atom.size() / 3;
-  gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     deformation_matrix[0][0],
     deformation_matrix[0][1],
@@ -708,21 +757,14 @@ void Run::parse_change_box(const char** param, int num_param)
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
-  if (box.triclinic == 0) {
-    printf("    Changed box lengths are\n");
-    printf("        Lx = %g A\n", box.cpu_h[0]);
-    printf("        Ly = %g A\n", box.cpu_h[1]);
-    printf("        Lz = %g A\n", box.cpu_h[2]);
-  } else {
-    printf("    Changed box h = [a, b, c] is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      printf("        ");
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%g ", box.cpu_h[d1 * 3 + d2]);
-      }
-      printf("\n");
+  printf("    Changed box h = [a, b, c] is\n");
+  for (int d1 = 0; d1 < 3; ++d1) {
+    printf("        ");
+    for (int d2 = 0; d2 < 3; ++d2) {
+      printf("%g ", box.cpu_h[d1 * 3 + d2]);
     }
+    printf("\n");
   }
 }

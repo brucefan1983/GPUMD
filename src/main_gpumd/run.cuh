@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@ class Force;
 class Integrate;
 class Measure;
 
+#include "add_efield.cuh"
+#include "add_force.cuh"
+#include "add_random_force.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -46,7 +49,7 @@ private:
   void parse_neighbor(const char** param, int num_param);
   void parse_velocity(const char** param, int num_param);
   void parse_change_box(const char** param, int num_param);
-  void parse_correct_velocity(const char** param, int num_param);
+  void parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group);
   void parse_time_step(const char** param, int num_param);
   void parse_run(const char** param, int num_param);
 
@@ -68,4 +71,7 @@ private:
   MC mc;
   Measure measure;
   Electron_Stop electron_stop;
+  Add_Force add_force;
+  Add_Random_Force add_random_force;
+  Add_Efield add_efield;
 };

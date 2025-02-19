@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // nep version, can be 2 or 3
+  int version;            // nep version, can be 3 or 4 or 5
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
@@ -46,6 +46,7 @@ public:
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
+  float lambda_q;         // weight for global charge
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
@@ -55,6 +56,13 @@ public:
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
+  bool use_typewise_cutoff;
+  bool use_typewise_cutoff_zbl;
+  float typewise_cutoff_radial_factor;
+  float typewise_cutoff_angular_factor;
+  float typewise_cutoff_zbl_factor;
+  int output_descriptor;
+  int charge_mode; // add dynamic charge to NEP potential model
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -78,6 +86,9 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
+  bool is_use_typewise_cutoff_set;
+  bool is_use_typewise_cutoff_zbl_set;
+  bool is_has_charge_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -129,4 +140,8 @@ private:
   void parse_generation(const char** param, int num_param);
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
+  void parse_use_typewise_cutoff(const char** param, int num_param);
+  void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
+  void parse_output_descriptor(const char** param, int num_param);
+  void parse_has_charge(const char** param, int num_param);
 };

@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,16 +17,18 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
-#include "force/nep3.cuh"
+#include "force/nep.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void sum_dipole(
   const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_dipole)
@@ -51,18 +53,12 @@ static __global__ void sum_dipole(
   __syncthreads();
 
   // aggregate the patches in parallel
-#pragma unroll
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_d[tid] += s_d[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_d[tid] += s_d[tid + offset];
-    }
-    __syncwarp();
   }
 
   // save the final value
@@ -173,7 +169,7 @@ void Dump_Dipole::process(
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
     gpu_dipole_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
@@ -194,7 +190,7 @@ void Dump_Dipole::process(
     number_of_atoms_per_thread,
     atom_copy.virial_per_atom.data(),
     gpu_dipole_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
   gpu_dipole_.copy_to_host(cpu_dipole_.data());

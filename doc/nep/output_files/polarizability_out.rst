@@ -1,4 +1,4 @@
-.. _polarizability_out:
+.. _nep_polarizability_out:
 .. index::
    single: polarizability_train.out (output file)
    single: polarizability_test.out (output file)

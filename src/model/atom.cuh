@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,11 +25,13 @@ public:
   std::vector<int> cpu_type;
   std::vector<int> cpu_type_size;
   std::vector<double> cpu_mass;
+  std::vector<double> cpu_charge;
   std::vector<double> cpu_position_per_atom;
   std::vector<double> cpu_velocity_per_atom;
   std::vector<std::string> cpu_atom_symbol;
   GPU_Vector<int> type;                  // per-atom type (1 component)
   GPU_Vector<double> mass;               // per-atom mass (1 component)
+  GPU_Vector<double> charge;             // per-atom charge (1 component)
   GPU_Vector<double> position_per_atom;  // per-atom position (3 components)
   GPU_Vector<double> position_temp;      // used to calculated unwrapped_position
   GPU_Vector<double> unwrapped_position; // unwrapped per-atom position (3 components)

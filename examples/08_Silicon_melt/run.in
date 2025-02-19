@@ -1,4 +1,4 @@
-potential   ../../potentials/nep/Si_2022_NEP2.txt
+potential   ../../potentials/nep/Si_2022_NEP3_3body.txt
 velocity    600
 
 time_step   2

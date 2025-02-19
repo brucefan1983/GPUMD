@@ -1,5 +1,5 @@
 /*
-    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,9 +18,11 @@ Calculate the stress autocorrelation function and viscosity.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>
+#include <cstring>
 
 #define NUM_OF_COMPONENTS 9
 
@@ -92,7 +94,7 @@ void Viscosity::process(
   int Nd = number_of_steps / sample_interval;
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
     N, Nd, nd, mass.data(), velocity.data(), virial.data(), stress_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_correct_stress(const int Nd, double* g_stress_all)
@@ -196,9 +198,9 @@ void Viscosity::postprocess(
   std::vector<double> correlation_cpu(Nc * NUM_OF_COMPONENTS);
 
   gpu_correct_stress<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_find_correlation<<<Nc, 128>>>(Nc, Nd, stress_all.data(), correlation_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   correlation_gpu.copy_to_host(correlation_cpu.data());
 

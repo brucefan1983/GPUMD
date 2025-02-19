@@ -23,15 +23,15 @@ The second parameter :attr:`sample_interval` means sampling the quantities every
 The third parameter :attr:`output_interval` means averaging over so many sampled data before giving one output.
 
 Starting from the fourth parameter, one can list the quantities to be computed.
+The allowed names for :attr:`quantity` are:
 
-The allowed names for the quantities are:
-
-* :attr:`temperature`, which is the temperature
-* :attr:`potential`, which is the potential energy
-* :attr:`force`, which is the force vector
-* :attr:`virial`, which is the diagonal part of the virial
-* :attr:`jp`, which is the potential part of the heat current vector
-* :attr:`jk`, which is the kinetic part of the heat current vector
+* :attr:`temperature`, which yields the temperature
+* :attr:`potential`, which yields the potential energy
+* :attr:`force`, which yields the force vector
+* :attr:`virial`, which yields the diagonal part of the virial
+* :attr:`jp`, which yields the potential part of the heat current vector
+* :attr:`jk`, which yields the kinetic part of the heat current vector
+* :attr:`momentum`, which yields the momentum
 
 One can write one or more (distinct) names in any order.
 
