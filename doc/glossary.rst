@@ -5,17 +5,14 @@ Glossary
 
 .. glossary::
 
+   ACE
+        atomic cluster expansion [Drautz2019]_
+
    ADF
         angle distribution function
 
    ARDF
         angular-dependent radial distribution function
-
-   ACE
-        atomic cluster expansion [Drautz2019]_
-
-   ADF
-        angular distribution function
 
    BDP
         :ref:`Bussi-Donadio-Parrinello thermostat <bdp_thermostat>` [Bussi2007b]_
