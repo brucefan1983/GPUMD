@@ -47,6 +47,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dump_restart.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
+#include "measure/dump_shock_nemd.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -470,7 +471,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dump_observer") == 0) {
     measure.dump_observer.parse(param, num_param);
   } else if (strcmp(param[0], "dump_shock_nemd") == 0) {
-    measure.dump_shock_nemd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Shock_NEMD(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_dipole") == 0) {
     measure.dump_dipole.parse(param, num_param);
   } else if (strcmp(param[0], "dump_polarizability") == 0) {
