@@ -23,6 +23,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 #include "compute_heat.cuh"
 #include "hnemd_kappa.cuh"
+#include "force/force.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -33,7 +34,14 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
 
-void HNEMD::preprocess()
+void HNEMD::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute)
     return;
@@ -71,23 +79,29 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
 }
 
 void HNEMD::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
   const double temperature,
-  const double volume,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom)
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   const int output_flag = ((step + 1) % output_interval == 0);
   step %= output_interval;
 
-  const int N = velocity_per_atom.size() / 3;
+  const int N = atom.number_of_atoms;
 
-  compute_heat(virial_per_atom, velocity_per_atom, heat_per_atom);
+  compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
 
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, step, heat_per_atom.data(), heat_all.data());
+  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, step, atom.heat_per_atom.data(), heat_all.data());
   GPU_CHECK_KERNEL
 
   if (output_flag) {
@@ -104,7 +118,7 @@ void HNEMD::process(
       }
     }
     double factor = KAPPA_UNIT_CONVERSION / output_interval;
-    factor /= (volume * temperature * fe);
+    factor /= (box.get_volume() * temperature * fe);
 
     FILE* fid = fopen("kappa.out", "a");
     for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) {
@@ -116,7 +130,20 @@ void HNEMD::process(
   }
 }
 
-void HNEMD::postprocess() { compute = 0; }
+void HNEMD::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double number_of_beads) { compute = 0; }
+
+HNEMD::HNEMD(const char** param, int num_param, Force& force)
+{
+  parse(param, num_param);
+  force.set_hnemd_parameters(fe_x, fe_y, fe_z);
+}
 
 void HNEMD::parse(const char** param, int num_param)
 {

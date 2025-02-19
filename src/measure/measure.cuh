@@ -77,11 +77,7 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-  HNEMD hnemd;
   HNEMDEC hnemdec;
-
-  MODAL_ANALYSIS modal_analysis;
-
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
   Dump_Shock_NEMD dump_shock_nemd;
@@ -94,8 +90,4 @@ public:
 #ifdef USE_PLUMED
   PLUMED plmd;
 #endif
-
-  // functions to get inputs from run.in
-  void parse_compute_gkma(const char**, int, const int number_of_types);
-  void parse_compute_hnema(const char**, int, const int number_of_types);
 };

@@ -346,6 +346,7 @@ void Run::perform_a_run()
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
+  force.finalize();
   max_distance_per_step = 0.0;
 }
 
@@ -506,7 +507,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Viscosity(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
-    measure.hnemd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HNEMD(param, num_param, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
     measure.hnemdec.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
@@ -514,9 +517,13 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new SHC(param, num_param, group));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_gkma") == 0) {
-    measure.parse_compute_gkma(param, num_param, number_of_types);
+    std::unique_ptr<Property> property;
+    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 0, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnema") == 0) {
-    measure.parse_compute_hnema(param, num_param, number_of_types);
+    std::unique_ptr<Property> property;
+    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "deform") == 0) {
     integrate.parse_deform(param, num_param);
   } else if (strcmp(param[0], "compute") == 0) {
@@ -655,12 +662,7 @@ void Run::parse_run(const char** param, int num_param)
   }
   printf("Run %d steps.\n", number_of_steps);
 
-  bool compute_hnemd = measure.hnemd.compute || (measure.modal_analysis.compute &&
-                                                 measure.modal_analysis.method == HNEMA_METHOD);
-  force.set_hnemd_parameters(
-    compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
-
-  if (!compute_hnemd && (measure.hnemdec.compute != -1)) {
+  if (measure.hnemdec.compute != -1) {
     if ((measure.hnemdec.compute > number_of_types) || (measure.hnemdec.compute < 0)) {
       PRINT_INPUT_ERROR(
         "compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");

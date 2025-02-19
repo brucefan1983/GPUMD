@@ -47,9 +47,7 @@ void Measure::initialize(
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
 
-  hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
-  modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
 
 
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
@@ -97,19 +95,13 @@ void Measure::finalize(
   dump_polarizability.postprocess();
   active.postprocess();
 
-  hnemd.postprocess();
   hnemdec.postprocess();
-  modal_analysis.postprocess();
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
 #endif
 #ifdef USE_PLUMED
   plmd.postprocess();
 #endif
-
-  // TODO: move to the relevant class
-  modal_analysis.compute = 0;
-  modal_analysis.method = NO_METHOD;
 }
 
 void Measure::process(
@@ -156,13 +148,6 @@ void Measure::process(
   dump_polarizability.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
-  hnemd.process(
-    step,
-    temperature,
-    box.get_volume(),
-    atom.velocity_per_atom,
-    atom.virial_per_atom,
-    atom.heat_per_atom);
   hnemdec.process(
     step,
     temperature,
@@ -173,8 +158,6 @@ void Measure::process(
     atom.mass,
     atom.potential_per_atom,
     atom.heat_per_atom);
-  modal_analysis.process(
-    step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 
   dump_shock_nemd.process(atom, box, step);
 
@@ -189,257 +172,4 @@ void Measure::process(
     atom.velocity_per_atom,
     atom.cpu_velocity_per_atom);
 #endif
-}
-
-// TODO: move to the relevant class
-void Measure::parse_compute_gkma(const char** param, int num_param, const int number_of_types)
-{
-  modal_analysis.compute = 1;
-  if (modal_analysis.method == GKMA_METHOD) { // TODO add warning macro
-    printf("*******************************************************"
-           "WARNING: GKMA method already defined for this run.\n"
-           "         Parameters will be overwritten\n"
-           "*******************************************************");
-  } else if (modal_analysis.method == HNEMA_METHOD) {
-    printf("*******************************************************"
-           "WARNING: HNEMA method already defined for this run.\n"
-           "         GKMA will now run instead.\n"
-           "*******************************************************");
-  }
-  modal_analysis.method = GKMA_METHOD;
-
-  printf("Compute modal heat current using GKMA method.\n");
-
-  /*
-   * There is a hidden feature that allows for specification of atom
-   * types to included (must be contiguously defined like potentials)
-   * -- Works for types only, not groups --
-   */
-
-  if (num_param != 6 && num_param != 9) {
-    PRINT_INPUT_ERROR("compute_gkma should have 5 parameters.\n");
-  }
-  if (
-    !is_valid_int(param[1], &modal_analysis.sample_interval) ||
-    !is_valid_int(param[2], &modal_analysis.first_mode) ||
-    !is_valid_int(param[3], &modal_analysis.last_mode)) {
-    PRINT_INPUT_ERROR("A parameter for GKMA should be an integer.\n");
-  }
-
-  if (strcmp(param[4], "bin_size") == 0) {
-    modal_analysis.f_flag = 0;
-    if (!is_valid_int(param[5], &modal_analysis.bin_size)) {
-      PRINT_INPUT_ERROR("GKMA bin_size must be an integer.\n");
-    }
-  } else if (strcmp(param[4], "f_bin_size") == 0) {
-    modal_analysis.f_flag = 1;
-    if (!is_valid_real(param[5], &modal_analysis.f_bin_size)) {
-      PRINT_INPUT_ERROR("GKMA f_bin_size must be a real number.\n");
-    }
-  } else {
-    PRINT_INPUT_ERROR("Invalid binning keyword for compute_gkma.\n");
-  }
-
-  MODAL_ANALYSIS* g = &modal_analysis;
-  // Parameter checking
-  if (g->sample_interval < 1 || g->first_mode < 1 || g->last_mode < 1)
-    PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
-  if (g->first_mode > g->last_mode)
-    PRINT_INPUT_ERROR("first_mode <= last_mode required.\n");
-
-  printf(
-    "    sample_interval is %d.\n"
-    "    first_mode is %d.\n"
-    "    last_mode is %d.\n",
-    g->sample_interval,
-    g->first_mode,
-    g->last_mode);
-
-  if (g->f_flag) {
-    if (g->f_bin_size <= 0.0) {
-      PRINT_INPUT_ERROR("bin_size must be greater than zero.\n");
-    }
-    printf(
-      "    Bin by frequency.\n"
-      "    f_bin_size is %f THz.\n",
-      g->f_bin_size);
-  } else {
-    if (g->bin_size < 1) {
-      PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
-    }
-    printf(
-      "    Bin by modes.\n"
-      "    bin_size is %d bins.\n",
-      g->bin_size);
-  }
-
-  // Hidden feature implementation
-  if (num_param == 9) {
-    if (strcmp(param[6], "atom_range") == 0) {
-      if (
-        !is_valid_int(param[7], &modal_analysis.atom_begin) ||
-        !is_valid_int(param[8], &modal_analysis.atom_end)) {
-        PRINT_INPUT_ERROR("GKMA atom_begin & atom_end must be integers.\n");
-      }
-      if (modal_analysis.atom_begin > modal_analysis.atom_end) {
-        PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
-      }
-      if (modal_analysis.atom_begin < 0) {
-        PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
-      }
-      if (modal_analysis.atom_end >= number_of_types) {
-        PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
-      }
-    } else {
-      PRINT_INPUT_ERROR("Invalid GKMA keyword.\n");
-    }
-    printf(
-      "    Use select atom range.\n"
-      "    Atom types %d to %d.\n",
-      modal_analysis.atom_begin,
-      modal_analysis.atom_end);
-  } else // default behavior
-  {
-    modal_analysis.atom_begin = 0;
-    modal_analysis.atom_end = number_of_types - 1;
-  }
-}
-
-// TODO: move to the relevant class
-void Measure::parse_compute_hnema(const char** param, int num_param, const int number_of_types)
-{
-  modal_analysis.compute = 1;
-  if (modal_analysis.method == HNEMA_METHOD) {
-    printf("*******************************************************\n"
-           "WARNING: HNEMA method already defined for this run.\n"
-           "         Parameters will be overwritten\n"
-           "*******************************************************\n");
-  } else if (modal_analysis.method == GKMA_METHOD) {
-    printf("*******************************************************\n"
-           "WARNING: GKMA method already defined for this run.\n"
-           "         HNEMA will now run instead.\n"
-           "*******************************************************\n");
-  }
-  modal_analysis.method = HNEMA_METHOD;
-
-  printf("Compute modal thermal conductivity using HNEMA method.\n");
-
-  /*
-   * There is a hidden feature that allows for specification of atom
-   * types to included (must be contiguously defined like potentials)
-   * -- Works for types only, not groups --
-   */
-
-  if (num_param != 10 && num_param != 13) {
-    PRINT_INPUT_ERROR("compute_hnema should have 9 parameters.\n");
-  }
-  if (
-    !is_valid_int(param[1], &modal_analysis.sample_interval) ||
-    !is_valid_int(param[2], &modal_analysis.output_interval) ||
-    !is_valid_int(param[6], &modal_analysis.first_mode) ||
-    !is_valid_int(param[7], &modal_analysis.last_mode)) {
-    PRINT_INPUT_ERROR("A parameter for HNEMA should be an integer.\n");
-  }
-
-  // HNEMD driving force parameters -> Use HNEMD object
-  if (!is_valid_real(param[3], &hnemd.fe_x)) {
-    PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
-  }
-  printf("    fe_x = %g /A\n", hnemd.fe_x);
-  if (!is_valid_real(param[4], &hnemd.fe_y)) {
-    PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
-  }
-  printf("    fe_y = %g /A\n", hnemd.fe_y);
-  if (!is_valid_real(param[5], &hnemd.fe_z)) {
-    PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
-  }
-  printf("    fe_z = %g /A\n", hnemd.fe_z);
-  // magnitude of the vector
-  hnemd.fe = hnemd.fe_x * hnemd.fe_x;
-  hnemd.fe += hnemd.fe_y * hnemd.fe_y;
-  hnemd.fe += hnemd.fe_z * hnemd.fe_z;
-  hnemd.fe = sqrt(hnemd.fe);
-
-  if (strcmp(param[8], "bin_size") == 0) {
-    modal_analysis.f_flag = 0;
-    if (!is_valid_int(param[9], &modal_analysis.bin_size)) {
-      PRINT_INPUT_ERROR("HNEMA bin_size must be an integer.\n");
-    }
-  } else if (strcmp(param[8], "f_bin_size") == 0) {
-    modal_analysis.f_flag = 1;
-    if (!is_valid_real(param[9], &modal_analysis.f_bin_size)) {
-      PRINT_INPUT_ERROR("HNEMA f_bin_size must be a real number.\n");
-    }
-  } else {
-    PRINT_INPUT_ERROR("Invalid binning keyword for compute_hnema.\n");
-  }
-
-  MODAL_ANALYSIS* h = &modal_analysis;
-  // Parameter checking
-  if (h->sample_interval < 1 || h->output_interval < 1 || h->first_mode < 1 || h->last_mode < 1)
-    PRINT_INPUT_ERROR("compute_hnema parameters must be positive integers.\n");
-  if (h->first_mode > h->last_mode)
-    PRINT_INPUT_ERROR("first_mode <= last_mode required.\n");
-  if (h->output_interval % h->sample_interval != 0)
-    PRINT_INPUT_ERROR("sample_interval must divide output_interval an integer\n"
-                      " number of times.\n");
-
-  printf(
-    "    sample_interval is %d.\n"
-    "    output_interval is %d.\n"
-    "    first_mode is %d.\n"
-    "    last_mode is %d.\n",
-    h->sample_interval,
-    h->output_interval,
-    h->first_mode,
-    h->last_mode);
-
-  if (h->f_flag) {
-    if (h->f_bin_size <= 0.0) {
-      PRINT_INPUT_ERROR("bin_size must be greater than zero.\n");
-    }
-    printf(
-      "    Bin by frequency.\n"
-      "    f_bin_size is %f THz.\n",
-      h->f_bin_size);
-  } else {
-    if (h->bin_size < 1) {
-      PRINT_INPUT_ERROR("compute_hnema parameters must be positive integers.\n");
-    }
-    printf(
-      "    Bin by modes.\n"
-      "    bin_size is %d modes.\n",
-      h->bin_size);
-  }
-
-  // Hidden feature implementation
-  if (num_param == 13) {
-    if (strcmp(param[10], "atom_range") == 0) {
-      if (
-        !is_valid_int(param[11], &modal_analysis.atom_begin) ||
-        !is_valid_int(param[12], &modal_analysis.atom_end)) {
-        PRINT_INPUT_ERROR("HNEMA atom_begin & atom_end must be integers.\n");
-      }
-      if (modal_analysis.atom_begin > modal_analysis.atom_end) {
-        PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
-      }
-      if (modal_analysis.atom_begin < 0) {
-        PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
-      }
-      if (modal_analysis.atom_end >= number_of_types) {
-        PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
-      }
-    } else {
-      PRINT_INPUT_ERROR("Invalid HNEMA keyword.\n");
-    }
-    printf(
-      "    Use select atom range.\n"
-      "    Atom types %d to %d.\n",
-      modal_analysis.atom_begin,
-      modal_analysis.atom_end);
-  } else // default behavior
-  {
-    modal_analysis.atom_begin = 0;
-    modal_analysis.atom_end = number_of_types - 1;
-  }
 }
