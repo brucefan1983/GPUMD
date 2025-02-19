@@ -58,15 +58,15 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_NETCDF
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/netcdf/include
-     LDFLAGS = -L<path>/netcdf/lib
-     LIBS = -l:libnetcdf.a
+     INC += -I<path>/netcdf/include
+     LDFLAGS += -L<path>/netcdf/lib
+     LIBS += -l:libnetcdf.a
 
   where :attr:`<path>` should be replaced with the installation path for NetCDF (defined in :attr:`--prefix` of the ``./configure`` command).
 * Follow the remaining :program:`GPUMD` installation instructions
@@ -115,14 +115,14 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_PLUMED
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_PLUMED
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/include
-     LDFLAGS = -L<path>/lib -lplumed -lplumedKernel
+     INC += -I<path>/include
+     LDFLAGS += -L<path>/lib -lplumed -lplumedKernel
 
   where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command).
 * Follow the remaining :program:`GPUMD` installation instructions
