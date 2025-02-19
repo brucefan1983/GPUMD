@@ -103,7 +103,7 @@ The setup instructions are below:
 
   .. code:: bash
 
-     make && make install
+     make -j8 && make install
 
   Then update your environment variables (e.g., add the following lines to your bashrc file):
 
