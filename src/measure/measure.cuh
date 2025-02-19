@@ -17,7 +17,6 @@
 #include "property.cuh"
 #include "active.cuh"
 
-#include "dump_observer.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "model/box.cuh"
@@ -70,8 +69,6 @@ public:
 
   std::vector<std::unique_ptr<Property>> properties;
 
-  
-  Dump_Observer dump_observer;
   
   Active active;
 #ifdef USE_NETCDF

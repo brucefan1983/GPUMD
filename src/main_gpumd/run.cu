@@ -51,6 +51,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dump_dipole.cuh"
 #include "measure/dump_polarizability.cuh"
 #include "measure/dump_beads.cuh"
+#include "measure/dump_observer.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -474,7 +475,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Dump_Beads(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_observer") == 0) {
-    measure.dump_observer.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Observer(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_shock_nemd") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Dump_Shock_NEMD(param, num_param));
