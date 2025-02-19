@@ -64,7 +64,7 @@ The setup instructions are below:
 
   .. code:: make
 
-     INC = -I<path>/netcdf/include
+     INC = -I<path>/netcdf/include -I./
      LDFLAGS = -L<path>/netcdf/lib
      LIBS = -l:libnetcdf.a
 
