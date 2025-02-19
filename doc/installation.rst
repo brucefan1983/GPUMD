@@ -58,7 +58,7 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_NETCDF
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
 
   In addition to that line the makefile must also be updated to the following:
 
@@ -92,7 +92,7 @@ The setup instructions are below:
 
   .. code:: bash
 
-     ./configure --prefix=/home/user/plumed --disable-mpi --enable-openmp --enable-modules=all
+     ./configure --prefix=<path> --disable-mpi --enable-openmp --enable-modules=all
 
   Here, the :attr:`--prefix` determines the output directory of the build. Then make and install PLUMED:
 
@@ -115,13 +115,13 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_PLUMED
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_PLUMED
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/include
+     INC = -I<path>/include -I./
      LDFLAGS = -L<path>/lib -lplumed -lplumedKernel
 
   where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command).
