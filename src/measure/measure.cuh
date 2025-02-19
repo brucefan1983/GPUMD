@@ -96,7 +96,6 @@ public:
 #endif
 
   // functions to get inputs from run.in
-  void parse_dump_position(const char**, int);
   void parse_compute_gkma(const char**, int, const int number_of_types);
   void parse_compute_hnema(const char**, int, const int number_of_types);
 };
