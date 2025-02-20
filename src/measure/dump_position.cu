@@ -30,7 +30,7 @@ Dump position data to movie.xyz.
 Dump_Position::Dump_Position(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  //property_name = "dump_position";
+  property_name = "dump_position";
 }
 
 void Dump_Position::parse(const char** param, int num_param, const std::vector<Group>& groups)
