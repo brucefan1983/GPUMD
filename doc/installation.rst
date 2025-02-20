@@ -49,24 +49,29 @@ The setup instructions are below:
 
   .. code:: bash
 
-     ./configure --prefix=/home/alex/netcdf --disable-netcdf-4 --disable-dap
+     ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
 
-  Here, the :attr:`--prefix` determines the output directory of the build.
+  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install NetCDF:
+
+  .. code:: bash
+
+     make -j && make install
+
 * Enable the NetCDF functionality.
   To do this, one must enable the :attr:`USE_NETCDF` flag.
   In the makefile, this will look as follows:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_NETCDF
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/netcdf/include
-     LDFLAGS = -L<path>/netcdf/lib
-     LIBS = -l:libnetcdf.a
+     INC = -I<path>/include -I./
+     LDFLAGS = -L<path>/lib
+     LIBS = -lcublas -lcusolver -l:libnetcdf.a
 
   where :attr:`<path>` should be replaced with the installation path for NetCDF (defined in :attr:`--prefix` of the ``./configure`` command).
 * Follow the remaining :program:`GPUMD` installation instructions
@@ -92,13 +97,13 @@ The setup instructions are below:
 
   .. code:: bash
 
-     ./configure --prefix=/home/user/plumed --disable-mpi --enable-openmp --enable-modules=all
+     ./configure --prefix=<path> --disable-mpi --enable-openmp --enable-modules=all
 
   Here, the :attr:`--prefix` determines the output directory of the build. Then make and install PLUMED:
 
   .. code:: bash
 
-     make && make install
+     make -j6 && make install
 
   Then update your environment variables (e.g., add the following lines to your bashrc file):
 
@@ -115,13 +120,13 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++11 -O3 -arch=sm_75 -DUSE_PLUMED
+     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_PLUMED
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/include
+     INC = -I<path>/include -I./
      LDFLAGS = -L<path>/lib -lplumed -lplumedKernel
 
   where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command).

@@ -327,7 +327,8 @@ void DUMP_NETCDF::write(
   // Get cell lengths and angles
   double cell_lengths[3];
   double cell_angles[3];
-  if (box.triclinic) {
+  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
     const double* t = box.cpu_h;
     double cosgamma, cosbeta, cosalpha;
     cell_lengths[0] = sqrt(t[0] * t[0] + t[3] * t[3] + t[6] * t[6]); // a-side
@@ -344,8 +345,8 @@ void DUMP_NETCDF::write(
 
   } else {
     cell_lengths[0] = box.cpu_h[0];
-    cell_lengths[1] = box.cpu_h[1];
-    cell_lengths[2] = box.cpu_h[2];
+    cell_lengths[1] = box.cpu_h[4];
+    cell_lengths[2] = box.cpu_h[8];
 
     cell_angles[0] = 90;
     cell_angles[1] = 90;
