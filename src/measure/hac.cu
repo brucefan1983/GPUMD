@@ -275,5 +275,5 @@ void HAC::parse(const char** param, int num_param)
 HAC::HAC(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::hac;
+  property_name = "compute_hac";
 }

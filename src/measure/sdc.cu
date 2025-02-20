@@ -280,7 +280,7 @@ void SDC::postprocess(
 SDC::SDC(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = Property_Name::sdc;
+  property_name = "compute_sdc";
 }
 
 void SDC::parse(const char** param, const int num_param, const std::vector<Group>& groups)

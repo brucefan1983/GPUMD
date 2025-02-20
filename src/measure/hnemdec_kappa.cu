@@ -248,7 +248,7 @@ void HNEMDEC::postprocess(
 HNEMDEC::HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature)
 {
   parse(param, num_param);
-  property_name = Property_Name::hnemdec_kappa;
+  property_name = "compute_hnemdec";
   force.set_hnemdec_parameters(
     compute,
     fe_x,

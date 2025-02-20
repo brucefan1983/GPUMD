@@ -30,7 +30,7 @@ Dump force data to a file at a given interval.
 Dump_Force::Dump_Force(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = Property_Name::dump_force;
+  property_name = "dump_force";
 }
 
 void Dump_Force::parse(const char** param, int num_param, const std::vector<Group>& groups)

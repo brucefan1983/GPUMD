@@ -103,7 +103,7 @@ static __global__ void initialize_properties(
 Dump_Dipole::Dump_Dipole(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_dipole;
+  property_name = "dump_dipole";
 }
 
 void Dump_Dipole::parse(const char** param, int num_param)

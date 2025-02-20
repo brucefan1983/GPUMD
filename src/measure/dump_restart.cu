@@ -31,7 +31,7 @@ Dump a restart file
 Dump_Restart::Dump_Restart(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_restart;
+  property_name = "dump_restart";
 }
 
 void Dump_Restart::parse(const char** param, int num_param)

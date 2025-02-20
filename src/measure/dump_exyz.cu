@@ -53,7 +53,7 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
 Dump_EXYZ::Dump_EXYZ(const char** param, int num_param) 
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_exyz;
+  property_name = "dump_exyz";
 }
 
 void Dump_EXYZ::parse(const char** param, int num_param)

@@ -282,7 +282,7 @@ void MSD::postprocess(
 MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = Property_Name::msd;
+  property_name = "compute_msd";
 }
 
 void MSD::parse(const char** param, const int num_param, const std::vector<Group>& groups)

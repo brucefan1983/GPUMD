@@ -434,7 +434,7 @@ AngularRDF::AngularRDF(
   const int number_of_steps)
 {
   parse(param, num_param, box, number_of_types, number_of_steps);
-  property_name = Property_Name::angular_rdf;
+  property_name = "compute_angular_rdf";
 }
 
 void AngularRDF::preprocess(

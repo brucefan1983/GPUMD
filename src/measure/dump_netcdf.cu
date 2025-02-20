@@ -77,7 +77,7 @@ bool DUMP_NETCDF::append = false;
 DUMP_NETCDF::DUMP_NETCDF(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_netcdf;
+  property_name = "dump_netcdf";
 }
 
 void DUMP_NETCDF::parse(const char** param, int num_param)

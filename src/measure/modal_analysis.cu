@@ -644,7 +644,7 @@ MODAL_ANALYSIS::MODAL_ANALYSIS(
     parse_compute_hnema(param, num_param, number_of_types);
     force.set_hnemd_parameters(fe_x, fe_y, fe_z);
   }
-  property_name = Property_Name::modal_analysis;
+  property_name = "modal_analysis";
 }
 
 void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const int number_of_types)

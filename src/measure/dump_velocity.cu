@@ -31,7 +31,7 @@ Dump velocity data to a file at a given interval.
 Dump_Velocity::Dump_Velocity(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = Property_Name::dump_velocity;
+  property_name = "dump_velocity";
 }
 
 void Dump_Velocity::parse(const char** param, int num_param, const std::vector<Group>& groups)

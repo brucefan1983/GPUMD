@@ -75,7 +75,7 @@ static __global__ void initialize_properties(
 Dump_Observer::Dump_Observer(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_observer;
+  property_name = "dump_observer";
 }
 
 void Dump_Observer::parse(const char** param, int num_param)

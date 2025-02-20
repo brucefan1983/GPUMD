@@ -144,7 +144,7 @@ void write_to_file(FILE* file, double* array, int n)
 Dump_Shock_NEMD::Dump_Shock_NEMD(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_shock_nemd;
+  property_name = "dump_shock_nemd";
 }
 
 void Dump_Shock_NEMD::parse(const char** param, int num_param)

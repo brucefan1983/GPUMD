@@ -104,7 +104,7 @@ static __global__ void initialize_properties(
 Dump_Polarizability::Dump_Polarizability(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::dump_polarizability;
+  property_name = "dump_polarizability";
 }
 
 void Dump_Polarizability::parse(const char** param, int num_param)

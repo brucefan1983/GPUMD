@@ -102,7 +102,7 @@ void PLUMED::preprocess(
 PLUMED::PLUMED(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = Property_Name::plumed;
+  property_name = "plumed";
 }
 
 void PLUMED::parse(const char** param, int num_param)

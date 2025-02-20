@@ -525,5 +525,5 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
 SHC::SHC(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = Property_Name::shc;
+  property_name = "compute_shc";
 }

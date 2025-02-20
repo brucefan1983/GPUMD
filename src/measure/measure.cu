@@ -19,6 +19,9 @@ The driver class dealing with measurement.
 
 #include "measure.cuh"
 #include <cstring>
+#include <iostream>
+#include <string>
+#include <vector>
 
 void Measure::initialize(
   const int number_of_steps,
@@ -29,11 +32,20 @@ void Measure::initialize(
   Box& box,
   Force& force)
 {
+  std::vector<std::string> property_names;
   for (auto& prop : properties) {
-    if (prop->property_name == Property_Name::none) {
-      printf("There is an unkown property name, please fix the bug.\n");
+    if (prop->property_name == "") {
+      printf("Dear developer:\n");
+      printf("    Please set the property name you developed.\n");
       exit(1);
     }
+    for (auto property_name : property_names) {
+      if (property_name == prop->property_name) {
+        std::cout << "There are multiple " << prop->property_name << " keywords within one run.\n";
+        exit(1);
+      }
+    }
+    property_names.emplace_back(prop->property_name);
   }
 
 
