@@ -956,6 +956,7 @@ void LSQT::postprocess(
 LSQT::LSQT(const char** param, const int num_param)
 {
   parse(param, num_param);
+  property_name = Property_Name::lsqt;
 }
 
 void LSQT::parse(const char** param, const int num_param)

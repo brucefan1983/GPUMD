@@ -30,6 +30,14 @@ void Measure::initialize(
   Force& force)
 {
   for (auto& prop : properties) {
+    if (prop->property_name == Property_Name::none) {
+      printf("There is an unkown property name, please fix the bug.\n");
+      exit(1);
+    }
+  }
+
+
+  for (auto& prop : properties) {
     prop->preprocess(
       number_of_steps,
       time_step,

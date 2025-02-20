@@ -24,9 +24,44 @@ class Integrate;
 class Atom;
 class Force;
 
+
+enum class Property_Name {
+  none = 0,
+  compute,
+  dos,
+  hac,
+  shc,
+  msd,
+  sdc,
+  rdf,
+  adf,
+  angular_rdf,
+  viscosity,
+  lsqt,
+  hnemd_kappa,
+  hnemdec_kappa,
+  modal_analysis,
+  plumed,
+  dump_netcdf,
+  dump_exyz,
+  dump_force,
+  dump_position,
+  dump_restart,
+  dump_thermo,
+  dump_velocity,
+  dump_shock_nemd,
+  dump_dipole,
+  dump_polarizability,
+  dump_beads,
+  dump_observer,
+  active
+};
+
 class Property
 {
 public:
+
+  Property_Name property_name = Property_Name::none;
 
   virtual void preprocess(
     const int number_of_steps,

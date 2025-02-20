@@ -147,6 +147,7 @@ __global__ void gpu_find_vac(
 DOS::DOS(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
+  property_name = Property_Name::dos;
 }
 
 void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)

@@ -175,6 +175,7 @@ static __global__ void gpu_find_adf_local(
 ADF::ADF(const char** param, const int num_param, Box& box, const int number_of_types)
 {
   parse(param, num_param, box, number_of_types);
+  property_name = Property_Name::adf;
 }
 
 void ADF::preprocess(

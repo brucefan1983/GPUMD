@@ -30,6 +30,7 @@ Dump bead data in PIMD-related run
 Dump_Beads::Dump_Beads(const char** param, int num_param)
 {
   parse(param, num_param);
+  property_name = Property_Name::dump_beads;
 }
 
 void Dump_Beads::parse(const char** param, int num_param)

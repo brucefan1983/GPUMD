@@ -141,6 +141,7 @@ void HNEMD::postprocess(
 HNEMD::HNEMD(const char** param, int num_param, Force& force)
 {
   parse(param, num_param);
+  property_name = Property_Name::hnemd_kappa;
   force.set_hnemd_parameters(fe_x, fe_y, fe_z);
 }
 

@@ -556,6 +556,7 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
 Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
 {
   parse(param, num_param, group);
+  property_name = Property_Name::compute;
 }
 
 void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)

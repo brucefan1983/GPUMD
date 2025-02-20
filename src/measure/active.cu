@@ -112,6 +112,7 @@ static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, d
 Active::Active(const char** param, int num_param)
 {
   parse(param, num_param);
+  property_name = Property_Name::active;
 }
 
 void Active::parse(const char** param, int num_param)

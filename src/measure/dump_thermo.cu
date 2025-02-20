@@ -30,6 +30,7 @@ Dump thermo data to a file at a given interval.
 Dump_Thermo::Dump_Thermo(const char** param, int num_param) 
 {
   parse(param, num_param);
+  property_name = Property_Name::dump_thermo;
 }
 
 void Dump_Thermo::parse(const char** param, int num_param)
