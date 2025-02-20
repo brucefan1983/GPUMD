@@ -625,7 +625,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
     input_energy >> energy_nep >> energy_ref;
 
     if (structures[nc].energy_weight > 0.5f) {
-      if (std::abs(energy_nep - energy_ref) > 0.5) {
+      if (std::abs(energy_nep - energy_ref) > 0.4) {
         is_accurate = false;
       }
     }
@@ -637,7 +637,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       double fx_diff = force_nep[0] - force_ref[0];
       double fy_diff = force_nep[1] - force_ref[1];
       double fz_diff = force_nep[2] - force_ref[2];
-      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > 25.0) {
+      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > 16.0) {
         is_accurate = false;
       }
     }
