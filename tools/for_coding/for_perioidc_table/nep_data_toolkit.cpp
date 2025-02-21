@@ -472,130 +472,6 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-const std::string ELEMENTS[89] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
-  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
-  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
-
-std::vector<std::string> get_elements_in_one_structure(const Structure& structure) 
-{
-  std::vector<std::string> elements;
-  for (int n = 0; n < structure.num_atom; ++n) {
-    bool has_same_element = false;
-    for (int i = 0; i < elements.size(); ++i) {
-      if (structure.atom_symbol[n] == elements[i]) {
-        has_same_element = true;
-        break;
-      }
-    }
-    if (!has_same_element) {
-      elements.emplace_back(structure.atom_symbol[n]);
-    }
-  }
-  return elements;
-}
-
-int get_element_index(const std::string& element) 
-{
-  int index = 0;
-  for (int n = 0; n < 89; ++n) {
-    if (ELEMENTS[n] == element) {
-      index = n;
-      break;
-    }
-  }
-  return index;
-}
-
-static void get_one_and_two_component_structures(const std::string& input_filename)
-{
-  std::vector<Structure> structures;
-  read(input_filename, structures);
-  std::cout << "Number of structures read from " << input_filename + " = " << structures.size() << std::endl;
-
-  int num = 0;
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    bool is_considered_structure = false;
-    std::vector<std::string> elements = get_elements_in_one_structure(structures[nc]);
-    std::ofstream output;
-    if (elements.size() == 1) {
-      is_considered_structure = true; 
-      output.open("one_component/" + elements[0] + ".xyz", std::ios::app);
-    } else if (elements.size() == 2) {
-      is_considered_structure = true; 
-      int index_0 = get_element_index(elements[0]);
-      int index_1 = get_element_index(elements[1]);
-      if (index_0 < index_1) {
-        output.open("two_component/" + elements[0] + elements[1] + ".xyz", std::ios::app);
-      } else {
-        output.open("two_component/" + elements[1] + elements[0] + ".xyz", std::ios::app);
-      }
-    } 
-    if (is_considered_structure) {
-      bool energy_is_small = structures[nc].energy < 0.0;
-      bool stress_is_small = true;
-      for (int d = 0; d < 9; ++d) {
-        if (structures[nc].stress[d] * 160.2 > 80.0 || structures[nc].stress[d] * 160.2 < -40.0) {
-          stress_is_small = false;
-          break;
-        }
-      }
-      bool force_is_small = true;
-      for (int n = 0; n < structures[nc].num_atom; ++n) {
-        double fx = structures[nc].fx[n];
-        double fy = structures[nc].fy[n];
-        double fz = structures[nc].fz[n];
-        if (fx * fx + fy * fy + fz * fz > 400.0) {
-          force_is_small = false;
-          break;
-        }
-      }
-
-      if (energy_is_small && force_is_small && stress_is_small) {
-        write_one_structure(output, structures[nc]);
-        num++;
-      }
-    }
-    output.close();
-  }
-  std::cout << "Number of valid 1- and 2-component structures = " << num << std::endl;
-}
-
-static void subsample_structures(const std::vector<Structure>& structures)
-{
-  std::vector<double> energy(structures.size());
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    energy[nc] = structures[nc].energy;
-  }
-
-  std::vector<int> energy_index(structures.size());
-  std::iota(energy_index.begin(), energy_index.end(), 0);
-  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
-    return energy[i1] < energy[i2];
-  });
-
-  int num1 = 0;
-  int num2 = 0;
-  std::ofstream output_train("train_new.xyz");
-  std::ofstream output_test("test_new.xyz");
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    if (nc % 50 == 0) {
-      write_one_structure(output_train, structures[energy_index[nc]]);
-      num1++;
-    } else {
-      write_one_structure(output_test, structures[energy_index[nc]]);
-      num2++;
-    }
-  }
-  output_train.close();
-  output_test.close();
-  std::cout << "Number of structures written into train_new.xyz = " << num1 << std::endl;
-  std::cout << "Number of structures written into test_new.xyz = " << num2 << std::endl;
-}
-
 static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures)
 {
   std::ifstream input_energy("energy_train.out");
@@ -720,51 +596,15 @@ static void fps(std::vector<Structure>& structures, double distance_square_min, 
   std::cout << "Number of structures written into not_selected.xyz = " << num2 << std::endl;
 }
 
-const std::string FOLDERS[31] = {
-  "npt1000/1.xyz",
-  "npt1000/2.xyz",
-  "npt1000/3.xyz",
-  "npt1000/4.xyz",
-  "npt1000/5.xyz",
-  "npt3000/1.xyz",
-  "npt3000/2.xyz",
-  "npt3000/3.xyz",
-  "npt3000/4.xyz",
-  "npt3000/5.xyz",
-  "nvt1000/1.xyz",
-  "nvt1000/2.xyz",
-  "nvt1000/3.xyz",
-  "nvt1000/4.xyz",
-  "nvt3000/1.xyz",
-  "nvt3000/2.xyz",
-  "nvt3000/3.xyz",
-  "nvt3000/4.xyz",
-  "nvt3000/5.xyz",
-  "rat300/1.xyz",
-  "rat300/2.xyz",
-  "rat500/1.xyz",
-  "rat500/2.xyz",
-  "rat1000/1.xyz",
-  "rat1000/2.xyz",
-  "rat1000/3.xyz",
-  "relax/1.xyz",
-  "relax/2.xyz",
-  "sub300/1.xyz",
-  "sub500/1.xyz",
-  "sub1000/1.xyz"
-};
-
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
   std::cout << "Welcome to use nep_data_toolkit!" << std::endl;
   std::cout << "Here are the functionalities:" << std::endl;
   std::cout << "----------------------------------------------------\n";
-  std::cout << "0: count the number of structures\n";
-  std::cout << "1: copy\n";
-  std::cout << "2: get all the one- and two-component structures\n";
+  std::cout << "1: count the number of structures\n";
+  std::cout << "2: copy\n";
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
-  std::cout << "4: energy-space subsampling\n";
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "====================================================\n";
 
@@ -772,7 +612,7 @@ int main(int argc, char* argv[])
   int option;
   std::cin >> option;
 
-  if (option == 0) {
+  if (option == 1) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
@@ -780,7 +620,7 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-  } else if (option == 1) {
+  } else if (option == 2) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
@@ -792,10 +632,6 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     write(output_filename, structures_input);
-  }  else if (option == 2) {
-    for (int n = 0; n < 31; ++n) {
-      get_one_and_two_component_structures(FOLDERS[n]);
-    }
   } else if (option == 3) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -805,15 +641,6 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     split_into_accurate_and_inaccurate(structures_input);
-  } else if (option == 4) {
-    std::cout << "Please enter the input xyz filename: ";
-    std::string input_filename;
-    std::cin >> input_filename;
-    std::vector<Structure> structures_input;
-    read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
-    subsample_structures(structures_input);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
