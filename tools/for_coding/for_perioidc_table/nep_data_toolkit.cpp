@@ -472,7 +472,7 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures)
+static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures, double energy_threshold, double force_threshold)
 {
   std::ifstream input_energy("energy_train.out");
   std::ifstream input_force("force_train.out");
@@ -500,8 +500,8 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
     double energy_ref = 0.0;
     input_energy >> energy_nep >> energy_ref;
 
-    if (structures[nc].energy_weight > 0.5f) {
-      if (std::abs(energy_nep - energy_ref) > 0.4) {
+    if (structures[nc].energy_weight > 0.5f && energy_threshold > 0) {
+      if (std::abs(energy_nep - energy_ref) > energy_threshold) {
         is_accurate = false;
       }
     }
@@ -513,7 +513,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       double fx_diff = force_nep[0] - force_ref[0];
       double fy_diff = force_nep[1] - force_ref[1];
       double fz_diff = force_nep[2] - force_ref[2];
-      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > 16.0) {
+      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold *  force_threshold) {
         is_accurate = false;
       }
     }
@@ -636,11 +636,17 @@ int main(int argc, char* argv[])
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
+    std::cout << "Please enter the energy threshold in units of eV/atom (negative to ignore): ";
+    double energy_threshold;
+    std::cin >> energy_threshold;
+    std::cout << "Please enter the force threshold in units of eV/A: ";
+    double force_threshold;
+    std::cin >> force_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    split_into_accurate_and_inaccurate(structures_input);
+    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
