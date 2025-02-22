@@ -172,12 +172,25 @@ static __global__ void gpu_find_adf_local(
 
 } // namespace
 
-void ADF::preprocess(const int num_atoms)
+ADF::ADF(const char** param, const int num_param, Box& box, const int number_of_types)
+{
+  parse(param, num_param, box, number_of_types);
+  property_name = "compute_adf";
+}
+
+void ADF::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_) {
     return;
   }
-  num_atoms_ = num_atoms;
+  num_atoms_ = atom.number_of_atoms;
   if (global_) {
     adf.resize(adf_bins_, 0);
     adf_gpu.resize(adf_bins_, 0);
@@ -219,7 +232,19 @@ void ADF::preprocess(const int num_atoms)
   fid = fopen("adf.out", "a");
 };
 
-void ADF::process(const int step, Box& box, Atom& atom)
+void ADF::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
 
   if (!compute_) {
@@ -323,7 +348,13 @@ void ADF::process(const int step, Box& box, Atom& atom)
   fflush(fid);
 };
 
-void ADF::postprocess()
+void ADF::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute_)
     return;

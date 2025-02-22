@@ -14,18 +14,23 @@
 */
 
 #pragma once
-#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
 #include <string>
 #include <vector>
-class Box;
-class Atom;
 
-class Dump_EXYZ : public Property
+class Integrate;
+class Atom;
+class Force;
+
+class Property
 {
 public:
-  Dump_EXYZ(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+
+  std::string property_name = "";
+
   virtual void preprocess(
     const int number_of_steps,
     const double time_step,
@@ -33,7 +38,7 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force);
+    Force& force) = 0;
 
   virtual void process(
       const int number_of_steps,
@@ -47,7 +52,7 @@ public:
       std::vector<Group>& group,
       GPU_Vector<double>& thermo,
       Atom& atom,
-      Force& force);
+      Force& force) = 0;
 
   virtual void postprocess(
     Atom& atom,
@@ -55,25 +60,5 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature);
-
-private:
-  bool dump_ = false;
-  int dump_interval_ = 1;
-  int has_velocity_ = 0;
-  int has_force_ = 0;
-  int has_potential_ = 0;
-  int separated_ = 0;
-  FILE* fid_;
-  char filename_[200];
-  void output_line2(
-    const double time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
-  std::vector<double> cpu_force_per_atom_;
-  std::vector<double> cpu_potential_per_atom_;
-  GPU_Vector<double> gpu_total_virial_;
-  std::vector<double> cpu_total_virial_;
+    const double temperature) = 0;
 };

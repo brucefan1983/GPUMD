@@ -14,13 +14,14 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
 class Group;
 class Atom;
 
-class RDF
+class RDF : public Property
 {
 
 public:
@@ -32,14 +33,45 @@ public:
   int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
   int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
 
-  void preprocess(
-    const bool is_pimd,
-    const int number_of_beads,
-    const int num_atoms,
-    std::vector<int>& cpu_type_size);
-  void process(const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom);
-  void postprocess(const bool is_pimd, const int number_of_beads);
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
   void parse(
+    const char** param,
+    const int num_param,
+    Box& box,
+    const int number_of_types,
+    const int number_of_steps);
+
+  RDF(
     const char** param,
     const int num_param,
     Box& box,

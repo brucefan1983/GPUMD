@@ -14,9 +14,10 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HNEMD
+class HNEMD : public Property
 {
 public:
   int compute = 0;
@@ -30,17 +31,37 @@ public:
 
   GPU_Vector<double> heat_all;
 
-  void preprocess();
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
 
-  void process(
-    int step,
-    const double temperature,
-    const double volume,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& heat_per_atom);
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 
-  void postprocess();
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
   void parse(const char** param, int num_param);
+  HNEMD(const char** param, int num_param, Force& force);
 };

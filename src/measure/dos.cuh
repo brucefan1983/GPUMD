@@ -14,11 +14,12 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Group;
 
-class DOS
+class DOS : public Property
 {
 public:
   bool compute_ = false;
@@ -30,11 +31,39 @@ public:
   int num_dos_points_ = -1;
 
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
-  void preprocess(
-    const double time_step, const std::vector<Group>& group, const GPU_Vector<double>& mass);
-  void process(
-    const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
-  void postprocess();
+
+  DOS(const char** param, const int num_param, const std::vector<Group>& groups);
+
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   int num_atoms_;
