@@ -472,10 +472,15 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures, double energy_threshold, double force_threshold)
+static void split_into_accurate_and_inaccurate(
+  const std::vector<Structure>& structures, 
+  double energy_threshold, 
+  double force_threshold,
+  double virial_threshold)
 {
   std::ifstream input_energy("energy_train.out");
   std::ifstream input_force("force_train.out");
+  std::ifstream input_virial("virial_train.out");
   std::ofstream output_accurate("accurate.xyz");
   std::ofstream output_inaccurate("inaccurate.xyz");
   int num1 = 0;
@@ -513,7 +518,21 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       double fx_diff = force_nep[0] - force_ref[0];
       double fy_diff = force_nep[1] - force_ref[1];
       double fz_diff = force_nep[2] - force_ref[2];
-      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold *  force_threshold) {
+      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold * force_threshold) {
+        is_accurate = false;
+      }
+    }
+
+    double virial_nep[6];
+    double virial_ref[6];
+    for (int n = 0; n < 6; ++n) {
+      input_virial >> virial_nep[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      input_virial >> virial_ref[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      if (std::abs(virial_nep[n] - virial_ref[n]) > virial_threshold) {
         is_accurate = false;
       }
     }
@@ -530,6 +549,7 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
   }
   input_energy.close();
   input_force.close();
+  input_virial.close();
   output_accurate.close();
   output_inaccurate.close();
   std::cout << "Number of structures written into accurate.xyz = " << num1 << std::endl;
@@ -642,11 +662,14 @@ int main(int argc, char* argv[])
     std::cout << "Please enter the force threshold in units of eV/A: ";
     double force_threshold;
     std::cin >> force_threshold;
+    std::cout << "Please enter the virial threshold in units of eV/atom: ";
+    double virial_threshold;
+    std::cin >> virial_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold);
+    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold, virial_threshold);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
