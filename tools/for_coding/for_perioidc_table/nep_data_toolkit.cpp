@@ -395,6 +395,17 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
         exit(1);
       }
       read_one_structure(input, structure);
+
+      // correct my early mistakes; no side effect
+      if (structure.sid == "" || structure.sid == "\"oc20\"") {
+        structure.sid = "oc20"; // remove the quote
+        structure.energy_weight = 1.0; // energy should be trained for OC20
+      }
+      // correct my early mistakes; no side effect
+      if (structure.sid == "\"spice\"") {
+        structure.sid = "spice"; // remove the quote
+      }
+
       structures.emplace_back(structure);
     }
     input.close();
@@ -558,7 +569,6 @@ static void split_into_accurate_and_inaccurate(
 
 static void split_with_sid(const std::vector<Structure>& structures)
 {
-  std::ofstream output_none("none.xyz");
   std::ofstream output_ch("ch.xyz");
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
@@ -571,19 +581,16 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_spice = 0;
   int num_omat = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    if (structures[nc].sid == "") {
-      write_one_structure(output_none, structures[nc]);
-        num_none++;
-    } else if (structures[nc].sid == "ch") {
+    if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
         num_ch++;
     } else if (structures[nc].sid == "unep1") {
       write_one_structure(output_unep1, structures[nc]);
         num_unep1++;
-    } else if (structures[nc].sid == "\"oc20\"") {
+    } else if (structures[nc].sid == "oc20") {
       write_one_structure(output_oc20, structures[nc]);
         num_oc20++;
-    } else if (structures[nc].sid == "\"spice\"") {
+    } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
     } else {
@@ -591,13 +598,11 @@ static void split_with_sid(const std::vector<Structure>& structures)
         num_omat++;
     } 
   }
-  output_none.close();
   output_ch.close();
   output_unep1.close();
   output_oc20.close();
   output_spice.close();
   output_omat.close();
-  std::cout << "Number of structures written into none.xyz = " << num_none << std::endl;
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
