@@ -556,6 +556,55 @@ static void split_into_accurate_and_inaccurate(
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
 }
 
+static void split_with_sid(const std::vector<Structure>& structures)
+{
+  std::ofstream output_none("none.xyz");
+  std::ofstream output_ch("ch.xyz");
+  std::ofstream output_unep1("unep1.xyz");
+  std::ofstream output_oc20("oc20.xyz");
+  std::ofstream output_spice("spice.xyz");
+  std::ofstream output_omat("omat.xyz");
+  int num_none = 0;
+  int num_ch = 0;
+  int num_unep1 = 0;
+  int num_oc20 = 0;
+  int num_spice = 0;
+  int num_omat = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    if (structures[nc].sid == "") {
+      write_one_structure(output_none, structures[nc]);
+        num_none++;
+    } else if (structures[nc].sid == "ch") {
+      write_one_structure(output_ch, structures[nc]);
+        num_ch++;
+    } else if (structures[nc].sid == "unep1") {
+      write_one_structure(output_unep1, structures[nc]);
+        num_unep1++;
+    } else if (structures[nc].sid == "\"oc20\"") {
+      write_one_structure(output_oc20, structures[nc]);
+        num_oc20++;
+    } else if (structures[nc].sid == "\"spice\"") {
+      write_one_structure(output_spice, structures[nc]);
+        num_spice++;
+    } else {
+      write_one_structure(output_omat, structures[nc]);
+        num_omat++;
+    } 
+  }
+  output_none.close();
+  output_ch.close();
+  output_unep1.close();
+  output_oc20.close();
+  output_spice.close();
+  output_omat.close();
+  std::cout << "Number of structures written into none.xyz = " << num_none << std::endl;
+  std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
+  std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
+  std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
+  std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
+  std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
+}
+
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
 {
   std::ifstream input_descriptor("descriptor.out");
@@ -625,6 +674,7 @@ int main(int argc, char* argv[])
   std::cout << "1: count the number of structures\n";
   std::cout << "2: copy\n";
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
+  std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "====================================================\n";
 
@@ -670,6 +720,15 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold, virial_threshold);
+  } else if (option == 4) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    split_with_sid(structures_input);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
