@@ -395,6 +395,17 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
         exit(1);
       }
       read_one_structure(input, structure);
+
+      // correct my early mistakes; no side effect
+      if (structure.sid == "" || structure.sid == "\"oc20\"") {
+        structure.sid = "oc20"; // remove the quote
+        structure.energy_weight = 1.0; // energy should be trained for OC20
+      }
+      // correct my early mistakes; no side effect
+      if (structure.sid == "\"spice\"") {
+        structure.sid = "spice"; // remove the quote
+      }
+
       structures.emplace_back(structure);
     }
     input.close();
@@ -472,10 +483,15 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void split_into_accurate_and_inaccurate(const std::vector<Structure>& structures, double energy_threshold, double force_threshold)
+static void split_into_accurate_and_inaccurate(
+  const std::vector<Structure>& structures, 
+  double energy_threshold, 
+  double force_threshold,
+  double virial_threshold)
 {
   std::ifstream input_energy("energy_train.out");
   std::ifstream input_force("force_train.out");
+  std::ifstream input_virial("virial_train.out");
   std::ofstream output_accurate("accurate.xyz");
   std::ofstream output_inaccurate("inaccurate.xyz");
   int num1 = 0;
@@ -513,7 +529,21 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
       double fx_diff = force_nep[0] - force_ref[0];
       double fy_diff = force_nep[1] - force_ref[1];
       double fz_diff = force_nep[2] - force_ref[2];
-      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold *  force_threshold) {
+      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold * force_threshold) {
+        is_accurate = false;
+      }
+    }
+
+    double virial_nep[6];
+    double virial_ref[6];
+    for (int n = 0; n < 6; ++n) {
+      input_virial >> virial_nep[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      input_virial >> virial_ref[n];
+    }
+    for (int n = 0; n < 6; ++n) {
+      if (std::abs(virial_nep[n] - virial_ref[n]) > virial_threshold) {
         is_accurate = false;
       }
     }
@@ -530,10 +560,54 @@ static void split_into_accurate_and_inaccurate(const std::vector<Structure>& str
   }
   input_energy.close();
   input_force.close();
+  input_virial.close();
   output_accurate.close();
   output_inaccurate.close();
   std::cout << "Number of structures written into accurate.xyz = " << num1 << std::endl;
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
+}
+
+static void split_with_sid(const std::vector<Structure>& structures)
+{
+  std::ofstream output_ch("ch.xyz");
+  std::ofstream output_unep1("unep1.xyz");
+  std::ofstream output_oc20("oc20.xyz");
+  std::ofstream output_spice("spice.xyz");
+  std::ofstream output_omat("omat.xyz");
+  int num_none = 0;
+  int num_ch = 0;
+  int num_unep1 = 0;
+  int num_oc20 = 0;
+  int num_spice = 0;
+  int num_omat = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    if (structures[nc].sid == "ch") {
+      write_one_structure(output_ch, structures[nc]);
+        num_ch++;
+    } else if (structures[nc].sid == "unep1") {
+      write_one_structure(output_unep1, structures[nc]);
+        num_unep1++;
+    } else if (structures[nc].sid == "oc20") {
+      write_one_structure(output_oc20, structures[nc]);
+        num_oc20++;
+    } else if (structures[nc].sid == "spice") {
+      write_one_structure(output_spice, structures[nc]);
+        num_spice++;
+    } else {
+      write_one_structure(output_omat, structures[nc]);
+        num_omat++;
+    } 
+  }
+  output_ch.close();
+  output_unep1.close();
+  output_oc20.close();
+  output_spice.close();
+  output_omat.close();
+  std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
+  std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
+  std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
+  std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
+  std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
@@ -605,6 +679,7 @@ int main(int argc, char* argv[])
   std::cout << "1: count the number of structures\n";
   std::cout << "2: copy\n";
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
+  std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "====================================================\n";
 
@@ -642,11 +717,23 @@ int main(int argc, char* argv[])
     std::cout << "Please enter the force threshold in units of eV/A: ";
     double force_threshold;
     std::cin >> force_threshold;
+    std::cout << "Please enter the virial threshold in units of eV/atom: ";
+    double virial_threshold;
+    std::cin >> virial_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold);
+    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold, virial_threshold);
+  } else if (option == 4) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    split_with_sid(structures_input);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
