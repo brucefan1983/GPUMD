@@ -3104,9 +3104,6 @@ void ILP_NEP::compute_ilp(
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
 
-  ilp_data.ilp_NL.fill(0);
-  ilp_data.ilp_NN.fill(0);
-
   // find ILP neighbor list
   ILP_neighbor<<<grid_size, BLOCK_SIZE_ILP>>>(
     number_of_atoms, N1, N2, box, nep_data.NN_radial.data(), nep_data.NL_radial.data(), \
