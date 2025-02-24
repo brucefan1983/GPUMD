@@ -1667,7 +1667,9 @@ static __device__ void calc_vdW(
   float &f2_vdW)
 {
   float r2inv, r6inv, r8inv;
-  float TSvdw, TSvdwinv, Vilp;
+  float Vilp;
+  double TSvdw_double, TSvdwinv_double;
+  float TSvdwinv_float;
   float fpair, fsum;
 
   r2inv = 1.0f / rsq;
@@ -1796,8 +1798,6 @@ static __global__ void gpu_find_force(
       calc_normal_cbn(vet, cont, normal, dnormdri, dnormal);
     }
 
-// TODO: for test
-//     printf("n1[%d] normal[%.12f %.12f %.12f]\n", n1, normal[0], normal[1], normal[2]);
 
     // calculate energy and force
     for (int i1 = 0; i1 < neighor_number; ++i1) {
@@ -1860,8 +1860,6 @@ static __global__ void gpu_find_force(
       // if (n1 == 0)
       // printf("n2[%d] dx[%.16f] dy[%.16f] dz[%.16f] r[%.16f] rsq[%.16f] rinv[%.16f] tap[%.16f] att[%.16f]\n", 
       // n2, x12d, y12d, z12d, r, rsq, rinv, Tap, p2_vdW);
-// TODO: for test
-//      ilp_e[n1] += p2_vdW * 0.5f;
       s_sxx += x12f * f21x;
       s_sxy += x12f * f21y;
       s_sxz += x12f * f21z;
@@ -2001,8 +1999,6 @@ static __global__ void gpu_find_force(
         s_szz += delkiz_half[kk] * fk[2];
       }
       s_pe += Tap * Vilp;
-// TODO: for test
-//      ilp_e[n1 + number_of_particles] += Tap * Vilp;
       s_sxx += delx_half * fkcx;
       s_sxy += delx_half * fkcy;
       s_sxz += delx_half * fkcz;
@@ -3431,6 +3427,7 @@ void ILP_NEP::compute_ilp(
     force_per_atom,
     virial_per_atom);
   GPU_CHECK_KERNEL
+
 #ifdef CODING
   std::vector<double> nep_tmp(number_of_atoms);
   potential_per_atom.copy_to_host(nep_tmp.data());
