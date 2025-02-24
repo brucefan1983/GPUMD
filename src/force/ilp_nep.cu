@@ -2986,6 +2986,36 @@ void find_properties_many_body_nep(
   GPU_CHECK_KERNEL
 }
 
+static __global__ void init_f12(
+  const int N,
+  float *g_f12x_ilp,
+  float *g_f12y_ilp,
+  float *g_f12z_ilp,
+  float *g_f12x_ilp_neigh,
+  float *g_f12y_ilp_neigh,
+  float *g_f12z_ilp_neigh,
+  const int *NN) 
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    #pragma unroll
+    for (int i = 0; i < MAX_ILP_NEIGHBOR_TMD; ++i) {
+      g_f12x_ilp_neigh[n1 + N * i] = 0.0f;
+      g_f12y_ilp_neigh[n1 + N * i] = 0.0f;
+      g_f12z_ilp_neigh[n1 + N * i] = 0.0f;
+    }
+
+    for (int i = 0; i < NN[n1]; ++i) {
+      g_f12x_ilp[n1 + N * i] = 0.0f;
+      g_f12y_ilp[n1 + N * i] = 0.0f;
+      g_f12z_ilp[n1 + N * i] = 0.0f;
+    }
+
+
+  }
+}
+
+
 // nep part of compute func
 
 // define the pure virtual func
@@ -3111,18 +3141,6 @@ void ILP_NEP::compute_ilp(
     ilp_NL, group_sublabel_ilp, sublayer_flag_gpu.data());
   GPU_CHECK_KERNEL
 
-  // initialize force of ilp neighbor temporary vector
-  ilp_data.f12x_ilp_neigh.fill(0);
-  ilp_data.f12y_ilp_neigh.fill(0);
-  ilp_data.f12z_ilp_neigh.fill(0);
-  ilp_data.f12x.fill(0);
-  ilp_data.f12y.fill(0);
-  ilp_data.f12z.fill(0);
-
-  // initialize force of nep neighbor temporary vector
-  nep_data.f12x.fill(0.0f);
-  nep_data.f12y.fill(0.0f);
-  nep_data.f12z.fill(0.0f);
 
 // TODO
 #ifdef CHECK_NEIGHBOR
@@ -3168,6 +3186,14 @@ void ILP_NEP::compute_ilp(
   float *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
   float *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   float *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
+
+  // initialize partial force
+  init_f12<<<grid_size, BLOCK_SIZE_ILP>>>(
+    number_of_atoms,
+    g_f12x, g_f12y, g_f12z, 
+    g_f12x_ilp_neigh, g_f12y_ilp_neigh, g_f12z_ilp_neigh, NN);
+  GPU_CHECK_KERNEL
+
 
 // TODO
 #ifdef CHECK_NEIGHBOR
