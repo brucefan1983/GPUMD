@@ -544,7 +544,9 @@ static void split_into_accurate_and_inaccurate(
     }
     for (int n = 0; n < 6; ++n) {
       if (std::abs(virial_nep[n] - virial_ref[n]) > virial_threshold) {
-        is_accurate = false;
+        if (structures[nc].has_virial || structures[nc].has_stress) {
+          is_accurate = false;
+        }
       }
     }
 
@@ -574,7 +576,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_oc20("oc20.xyz");
   std::ofstream output_spice("spice.xyz");
   std::ofstream output_omat("omat.xyz");
-  int num_none = 0;
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
