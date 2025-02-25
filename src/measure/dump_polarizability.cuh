@@ -14,7 +14,7 @@
 */
 
 #pragma once
-
+#include "property.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "model/atom.cuh"
@@ -27,20 +27,41 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Polarizability
+class Dump_Polarizability : public Property
 {
 public:
+  Dump_Polarizability(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, const int number_of_potentials, Force& force);
-  void process(
-    int step,
-    const double global_time,
-    const int number_of_atoms_fixed,
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
     std::vector<Group>& group,
-    Box& box,
     Atom& atom,
+    Box& box,
     Force& force);
-  void postprocess();
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   bool dump_ = false;

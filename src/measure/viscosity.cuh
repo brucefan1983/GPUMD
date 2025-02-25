@@ -14,30 +14,48 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class Viscosity
+class Viscosity : public Property
 {
 public:
   int compute = 0;
   int sample_interval; // sample interval for stress
   int Nc;              // number of correlation points
 
-  void preprocess(const int number_of_steps);
-
-  void process(
+  virtual void preprocess(
     const int number_of_steps,
-    const int step,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& velocity,
-    const GPU_Vector<double>& virial);
-
-  void postprocess(
-    const int number_of_steps,
-    const double temperature,
     const double time_step,
-    const double volume);
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
 
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
+  Viscosity(const char**, int);
   void parse(const char**, int);
 
 private:

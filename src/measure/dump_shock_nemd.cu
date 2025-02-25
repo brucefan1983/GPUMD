@@ -141,6 +141,12 @@ void write_to_file(FILE* file, double* array, int n)
 
 } // namespace
 
+Dump_Shock_NEMD::Dump_Shock_NEMD(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_shock_nemd";
+}
+
 void Dump_Shock_NEMD::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -162,7 +168,14 @@ void Dump_Shock_NEMD::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Shock_NEMD::preprocess(Atom& atom, Box& box)
+void Dump_Shock_NEMD::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -184,7 +197,19 @@ void Dump_Shock_NEMD::preprocess(Atom& atom, Box& box)
   com_vx_file = my_fopen("vp_hist.txt", "w");
 }
 
-void Dump_Shock_NEMD::process(Atom& atom, Box& box, const int step)
+void Dump_Shock_NEMD::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_ || step % dump_interval_ != 0)
     return;
@@ -277,7 +302,13 @@ void Dump_Shock_NEMD::process(Atom& atom, Box& box, const int step)
   write_to_file(com_vx_file, cpu_com_vx.data(), bins);
 }
 
-void Dump_Shock_NEMD::postprocess()
+void Dump_Shock_NEMD::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!dump_)
     return;

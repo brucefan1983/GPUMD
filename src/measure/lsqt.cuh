@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "property.cuh"
 class Atom;
 class Box;
 
@@ -25,7 +26,7 @@ class Box;
 #define number_of_orbitals_per_atom 4
 #endif
 
-class LSQT
+class LSQT : public Property
 {
 public:
 #ifndef USE_GRAPHENE_TB
@@ -41,10 +42,38 @@ public:
   };
 #endif
 
+  LSQT(const char** param, const int num_param);
   void parse(const char** param, const int num_param);
-  void preprocess(Atom& atom, int number_of_steps, double time_step);
-  void process(Atom& atom, Box& box, const int step);
-  void postprocess();
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
   void find_dos_and_velocity(Atom& atom, Box& box);
   void find_sigma(Atom& atom, Box& box, const int step);
 
