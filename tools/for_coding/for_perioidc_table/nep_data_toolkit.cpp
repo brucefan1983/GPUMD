@@ -483,6 +483,26 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
+static void shifted_energy(std::vector<Structure>& structures)
+{
+  std::ifstream input_energy("energy_train.out");
+
+  double energy_to_be_shifted = 0.0;
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    double energy_nep = 0.0;
+    double energy_ref = 0.0;
+    input_energy >> energy_nep >> energy_ref;
+    energy_to_be_shifted += energy_ref - energy_nep;
+  }
+  energy_to_be_shifted /= structures.size();
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].energy -= energy_to_be_shifted * structures[nc].num_atom;
+  }
+
+  std::cout << "Energy is decreased by " << energy_to_be_shifted << " eV/atom" << std::endl;
+}
+
 static void split_into_accurate_and_inaccurate(
   const std::vector<Structure>& structures, 
   double energy_threshold, 
@@ -682,6 +702,7 @@ int main(int argc, char* argv[])
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
   std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
+  std::cout << "6: shift energy\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -755,6 +776,19 @@ int main(int argc, char* argv[])
     clock_t time_finish = clock();
     double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
     std::cout << "Time used for descriptor-space subsampling = " << time_used << " s.\n";
+  } else if (option == 6) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    shifted_energy(structures_input);
+    write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
