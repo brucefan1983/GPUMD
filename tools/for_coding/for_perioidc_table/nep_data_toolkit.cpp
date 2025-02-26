@@ -483,7 +483,7 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void shifted_energy(std::vector<Structure>& structures)
+static void shift_energy(std::vector<Structure>& structures)
 {
   std::ifstream input_energy("energy_train.out");
 
@@ -501,6 +501,13 @@ static void shifted_energy(std::vector<Structure>& structures)
   }
 
   std::cout << "Energy is decreased by " << energy_to_be_shifted << " eV/atom" << std::endl;
+}
+
+static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
+{
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].sid = new_sid;
+  }
 }
 
 static void split_into_accurate_and_inaccurate(
@@ -703,6 +710,7 @@ int main(int argc, char* argv[])
   std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "6: shift energy\n";
+  std::cout << "7: add or change sid\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -787,7 +795,23 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    shifted_energy(structures_input);
+    shift_energy(structures_input);
+    write(output_filename, structures_input);
+  } else if (option == 7) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::cout << "Please enter the sid to be used for all the structures: ";
+    std::string sid;
+    std::cin >> sid;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    change_sid(structures_input, sid);
     write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
