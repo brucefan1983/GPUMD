@@ -602,12 +602,16 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
   std::ofstream output_spice("spice.xyz");
+  std::ofstream output_water("water.xyz");
+  std::ofstream output_mp("mp.xyz");
   std::ofstream output_omat("omat.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
   int num_spice = 0;
   int num_omat = 0;
+  int num_water = 0;
+  int num_mp = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -621,6 +625,12 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
+    } else if (structures[nc].sid == "water") {
+      write_one_structure(output_water, structures[nc]);
+        num_water++;
+    } else if (structures[nc].sid == "mp") {
+      write_one_structure(output_mp, structures[nc]);
+        num_mp++;
     } else {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
@@ -631,10 +641,14 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_oc20.close();
   output_spice.close();
   output_omat.close();
+  output_water.close();
+  output_mp.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
+  std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
+  std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
 }
 
