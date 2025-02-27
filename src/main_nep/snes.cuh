@@ -61,6 +61,7 @@ protected:
 
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
+  void initialize_mu_and_sigma_finetune(Parameters& para);
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
   void compute(Parameters&, Fitness*);

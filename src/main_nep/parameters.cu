@@ -188,11 +188,12 @@ void Parameters::calculate_parameters()
     dim += 1; // concatenate temeprature with descriptors
   }
   q_scaler_cpu.resize(dim, 1.0e10f);
-#ifdef USE_FIXED_SCALER
-  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-    q_scaler_cpu[n] = 0.01f;
+  
+  if (finetune) {
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      q_scaler_cpu[n] = 0.01f;
+    }
   }
-#endif
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
@@ -515,6 +516,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "has_charge") == 0) {
     parse_has_charge(param, num_param);
+  } else if (strcmp(param[0], "fine_tune") == 0) {
+    parse_finetune(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1107,3 +1110,15 @@ void Parameters::parse_has_charge(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_finetune(const char** param, int num_param)
+{
+  finetune = 1;
+
+  if (num_param > 2) {
+    PRINT_INPUT_ERROR("fine_tune should have at most one parameter.\n");
+  }
+
+  if (num_param == 2) {
+    finetune_file = param[1];
+  }
+}

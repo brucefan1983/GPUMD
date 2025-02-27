@@ -76,7 +76,12 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
   GPU_CHECK_KERNEL
 
-  initialize_mu_and_sigma(para);
+  if (para.finetune_file != "") {
+    initialize_mu_and_sigma_finetune(para);
+  } else {
+    initialize_mu_and_sigma(para);
+  }
+  
   calculate_utility();
   find_type_of_variable(para);
   compute(para, fitness_function);
@@ -107,6 +112,82 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
+  gpuSetDevice(0); // normally use GPU-0
+  gpu_mu.copy_from_host(mu.data());
+  gpu_sigma.copy_from_host(sigma.data());
+}
+
+void SNES::initialize_mu_and_sigma_finetune(Parameters& para)
+{
+  // read in the whole foundation file first
+  const int num_ann_per_element = (81 + 2) * 50;
+  const int num_ann = 89 * num_ann_per_element + 1;
+  const int num_cnk_radial = 89 * 89 * 81;
+  const int num_cnk_angular = 89 * 89 * 81;
+  const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+  std::vector<float> restart_mu(num_tot);
+  std::vector<float> restart_sigma(num_tot);
+
+  std::ifstream input(para.finetune_file);
+  if (!input.is_open()) {
+    std::cout << "Cannot open the foundation model file " << para.finetune_file << std::endl;
+    exit(1);
+  }
+  std::vector<std::string> tokens;
+    
+  for (int n = 0; n < num_tot; ++n) {
+    tokens = get_tokens(input);
+    if (tokens.size() != 2) {
+      std::cout << "Foundation model file should have two columns.\n";
+      exit(1);
+    }
+    restart_mu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    restart_sigma[n] = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  }
+
+  // get the required part
+  int count = 0;
+  for (int i = 0; i < para.num_types; ++ i) {
+    int an = para.atomic_numbers[i] - 1;
+    for (int j = 0; j < num_ann_per_element; ++j) {
+      mu[count] = restart_mu[an * num_ann_per_element + j];
+      sigma[count] = restart_sigma[an * num_ann_per_element + j];
+      ++count;
+    }
+  }
+  ++count; // the global bias
+
+  // radial descriptors
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int t12 = (para.atomic_numbers[t1] - 1) * 89 + (para.atomic_numbers[t2] - 1);
+          mu[count] = restart_mu[nk * 89*89 + t12 + num_ann];
+          sigma[count] = restart_sigma[nk * 89*89 + t12 + num_ann];
+          ++count;
+        }
+      }
+    }
+  }
+
+  // angular descriptors
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int t12 = (para.atomic_numbers[t1] - 1) * 89 + (para.atomic_numbers[t2] - 1);
+          mu[count] = restart_mu[nk * 89*89 + t12 + num_ann + num_cnk_radial];
+          sigma[count] = restart_sigma[nk * 89*89 + t12 + num_ann + num_cnk_radial];
+          ++count;
+        }
+      }
+    }
+  }
+
+  input.close();
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());

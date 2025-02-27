@@ -162,11 +162,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-#ifdef USE_FIXED_SCALER
-        false,
-#else
-        true,
-#endif
+        (para.finetune ? false : true),
         true,
         deviceCount);
     }
