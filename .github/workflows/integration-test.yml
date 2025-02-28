@@ -1,0 +1,32 @@
+name: Integration tests using calorine
+
+on: [push, pull_request]
+
+jobs:
+  Integration_Test:
+    runs-on: ubuntu-latest
+    container: 
+      image: nvidia/cuda:12.8.0-devel-ubuntu22.04
+  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential
+      
+      - name: Install testing dependencies
+        run: pip install calorine pytest
+
+      - name: Build with Make, with DDEBUG
+        run: cd src && make CFLAGS=-DDEBUG
+
+      - name: Run integration test
+        run: cd tests && pytest  # This requires a GPU runner
