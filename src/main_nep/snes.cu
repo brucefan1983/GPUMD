@@ -119,6 +119,14 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
 
 void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
 {
+  // This map is needed because the foundation model misses 5 elements between H-Pu
+  const int element_map[94] = {
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+    20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
+    40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,
+    60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+    80,81,82,0,0,0,0,0,83,84,85,86,87,88
+  };
   // read in the whole foundation file first
   const int NUM89 = 89;
   const int num_ann_per_element = (para.dim + 2) * para.num_neurons1;
@@ -149,7 +157,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   // get the required part
   int count = 0;
   for (int i = 0; i < para.num_types; ++ i) {
-    int an = para.atomic_numbers[i] - 1;
+    int an = element_map[para.atomic_numbers[i]] - 1;
     for (int j = 0; j < num_ann_per_element; ++j) {
       mu[count] = restart_mu[an * num_ann_per_element + j];
       sigma[count] = restart_sigma[an * num_ann_per_element + j];
@@ -164,7 +172,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_radial + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (para.atomic_numbers[t1] - 1) * NUM89 + (para.atomic_numbers[t2] - 1);
+          int t12 = (element_map[para.atomic_numbers[t1]] - 1) * NUM89;
+          t12 += (element_map[para.atomic_numbers[t2]] - 1);
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
           sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
           ++count;
@@ -179,7 +188,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_angular + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (para.atomic_numbers[t1] - 1) * NUM89 + (para.atomic_numbers[t2] - 1);
+          int t12 = (element_map[para.atomic_numbers[t1]] - 1) * NUM89;
+          t12 += (element_map[para.atomic_numbers[t2]] - 1);
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
           sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
           ++count;
