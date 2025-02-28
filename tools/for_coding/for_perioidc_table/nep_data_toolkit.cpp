@@ -483,7 +483,7 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void shifted_energy(std::vector<Structure>& structures)
+static void shift_energy(std::vector<Structure>& structures)
 {
   std::ifstream input_energy("energy_train.out");
 
@@ -501,6 +501,13 @@ static void shifted_energy(std::vector<Structure>& structures)
   }
 
   std::cout << "Energy is decreased by " << energy_to_be_shifted << " eV/atom" << std::endl;
+}
+
+static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
+{
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].sid = new_sid;
+  }
 }
 
 static void split_into_accurate_and_inaccurate(
@@ -595,12 +602,16 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
   std::ofstream output_spice("spice.xyz");
+  std::ofstream output_water("water.xyz");
+  std::ofstream output_mp("mp.xyz");
   std::ofstream output_omat("omat.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
   int num_spice = 0;
   int num_omat = 0;
+  int num_water = 0;
+  int num_mp = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -614,6 +625,12 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
+    } else if (structures[nc].sid == "water") {
+      write_one_structure(output_water, structures[nc]);
+        num_water++;
+    } else if (structures[nc].sid == "mp") {
+      write_one_structure(output_mp, structures[nc]);
+        num_mp++;
     } else {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
@@ -624,10 +641,14 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_oc20.close();
   output_spice.close();
   output_omat.close();
+  output_water.close();
+  output_mp.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
+  std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
+  std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
 }
 
@@ -703,6 +724,7 @@ int main(int argc, char* argv[])
   std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "6: shift energy\n";
+  std::cout << "7: add or change sid\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -787,7 +809,23 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    shifted_energy(structures_input);
+    shift_energy(structures_input);
+    write(output_filename, structures_input);
+  } else if (option == 7) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::cout << "Please enter the sid to be used for all the structures: ";
+    std::string sid;
+    std::cin >> sid;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    change_sid(structures_input, sid);
     write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
