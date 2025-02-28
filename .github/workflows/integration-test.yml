@@ -6,16 +6,17 @@ jobs:
   Integration_Test:
     runs-on: ubuntu-latest
     container: 
-      image: nvidia/cuda:12.8.0-devel-ubuntu22.04
+      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
   
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.10.12'
       - name: Install build dependencies
         run: |
           apt-get update
+          apt-get -y upgrade
           apt-get install -y build-essential
            
       - name: Install python dependencies
