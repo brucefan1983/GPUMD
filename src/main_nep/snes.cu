@@ -120,10 +120,11 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
 void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
 {
   // read in the whole foundation file first
-  const int num_ann_per_element = (81 + 2) * 50;
-  const int num_ann = 89 * num_ann_per_element + 1;
-  const int num_cnk_radial = 89 * 89 * 81;
-  const int num_cnk_angular = 89 * 89 * 81;
+  const int NUM89 = 89;
+  const int num_ann_per_element = (para.dim + 2) * para.num_neurons1;
+  const int num_ann = NUM89 * num_ann_per_element + 1;
+  const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
   std::vector<float> restart_mu(num_tot);
   std::vector<float> restart_sigma(num_tot);
@@ -163,9 +164,9 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_radial + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (para.atomic_numbers[t1] - 1) * 89 + (para.atomic_numbers[t2] - 1);
-          mu[count] = restart_mu[nk * 89*89 + t12 + num_ann];
-          sigma[count] = restart_sigma[nk * 89*89 + t12 + num_ann];
+          int t12 = (para.atomic_numbers[t1] - 1) * NUM89 + (para.atomic_numbers[t2] - 1);
+          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
+          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
           ++count;
         }
       }
@@ -178,9 +179,9 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_angular + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (para.atomic_numbers[t1] - 1) * 89 + (para.atomic_numbers[t2] - 1);
-          mu[count] = restart_mu[nk * 89*89 + t12 + num_ann + num_cnk_radial];
-          sigma[count] = restart_sigma[nk * 89*89 + t12 + num_ann + num_cnk_radial];
+          int t12 = (para.atomic_numbers[t1] - 1) * NUM89 + (para.atomic_numbers[t2] - 1);
+          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
           ++count;
         }
       }
