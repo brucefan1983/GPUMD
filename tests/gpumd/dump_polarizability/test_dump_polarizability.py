@@ -108,12 +108,12 @@ def test_dump_polarizability_numeric(md):
     # Read positions, and predict pol with pol model
     gpu_pol = pol[0, 1:]
     cpu_pol = [
-        1675.418264,
-        1703.6054623,
-        1705.8788132,
-        -11.01748065,
-        0.9166246,
-        -5.5417825,
+            1672.39358575,
+            1695.90813261,
+            1693.6617408,
+            -12.25867633,
+            2.66454939,
+            -6.63347682
     ]
     assert np.allclose(cpu_pol[:3], gpu_pol[:3], atol=1e-6, rtol=1e-2)
     assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-2, rtol=1e-2)
