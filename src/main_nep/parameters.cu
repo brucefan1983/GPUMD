@@ -302,8 +302,20 @@ void Parameters::check_foundation_model()
   if (8 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
   }
-//n_max 8 8
-//basis_size 8 8
+
+  // 5th line, basis_size
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (basis_size_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_radial mismatches with foundation model.");
+  }
+  if (basis_size_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_angular mismatches with foundation model.");
+  }
+
+
 //l_max 6 2 1
 //ANN 50 0
 
