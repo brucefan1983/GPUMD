@@ -117,6 +117,7 @@ private:
   void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
+  void check_foundation_model();
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 

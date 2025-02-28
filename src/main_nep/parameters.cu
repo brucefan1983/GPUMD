@@ -241,10 +241,68 @@ void Parameters::calculate_parameters()
   }
 }
 
+void Parameters::check_foundation_model()
+{
+  std::ifstream input(fine_tune_nep_txt);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open foundation model file.");
+  }
+  std::vector<std::string> tokens;
+  // first line, not used
+  tokens = get_tokens(input);
+  
+  // second line, zbl
+  tokens = get_tokens(input);
+  // TODO: check token size
+  float temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != zbl_rc_inner) {
+    PRINT_INPUT_ERROR("ZBL inner cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != zbl_rc_outer) {
+    PRINT_INPUT_ERROR("ZBL outer cutoff mismatches with foundation model.");
+  }
+
+  // third line, cutoff
+  tokens = get_tokens(input);
+  // TODO: check token size
+  temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != rc_radial) {
+    PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != rc_angular) {
+    PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[5], __FILE__, __LINE__);
+  if (temp != typewise_cutoff_radial_factor) {
+    PRINT_INPUT_ERROR("Radial factor for typewise cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[6], __FILE__, __LINE__);
+  if (temp != typewise_cutoff_angular_factor) {
+    PRINT_INPUT_ERROR("Angular factor for typewise cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[7], __FILE__, __LINE__);
+  if (temp != typewise_cutoff_zbl_factor) {
+    PRINT_INPUT_ERROR("ZBL factor for typewise cutoff mismatches with foundation model.");
+  }
+
+
+//n_max 8 8
+//basis_size 8 8
+//l_max 6 2 1
+//ANN 50 0
+
+}
+
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
     PRINT_INPUT_ERROR("type in nep.in has not been set.");
+  }
+
+  if (fine_tune) {
+    check_foundation_model();
   }
 
   printf("Input or default parameters:\n");
