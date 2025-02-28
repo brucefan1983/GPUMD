@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install calorine pytest
+      - run: python3 -m pip install calorine pytest
       
       - name: Install build dependencies
         run: |
