@@ -253,7 +253,9 @@ void Parameters::check_foundation_model()
   
   // second line, zbl
   tokens = get_tokens(input);
-  // TODO: check token size
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
   float temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
   if (temp != zbl_rc_inner) {
     PRINT_INPUT_ERROR("ZBL inner cutoff mismatches with foundation model.");
@@ -265,7 +267,9 @@ void Parameters::check_foundation_model()
 
   // third line, cutoff
   tokens = get_tokens(input);
-  // TODO: check token size
+  if (tokens.size() != 8) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
   temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
   if (temp != rc_radial) {
     PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
@@ -287,7 +291,17 @@ void Parameters::check_foundation_model()
     PRINT_INPUT_ERROR("ZBL factor for typewise cutoff mismatches with foundation model.");
   }
 
-
+  // 4th line, n_max
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (8 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
+  }
+  if (8 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
+  }
 //n_max 8 8
 //basis_size 8 8
 //l_max 6 2 1
