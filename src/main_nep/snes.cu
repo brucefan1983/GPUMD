@@ -76,8 +76,8 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
   GPU_CHECK_KERNEL
 
-  if (para.finetune_file != "") {
-    initialize_mu_and_sigma_finetune(para);
+  if (para.fine_tune) {
+    initialize_mu_and_sigma_fine_tune(para);
   } else {
     initialize_mu_and_sigma(para);
   }
@@ -117,7 +117,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
   gpu_sigma.copy_from_host(sigma.data());
 }
 
-void SNES::initialize_mu_and_sigma_finetune(Parameters& para)
+void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
 {
   // read in the whole foundation file first
   const int num_ann_per_element = (81 + 2) * 50;
@@ -128,9 +128,9 @@ void SNES::initialize_mu_and_sigma_finetune(Parameters& para)
   std::vector<float> restart_mu(num_tot);
   std::vector<float> restart_sigma(num_tot);
 
-  std::ifstream input(para.finetune_file);
+  std::ifstream input(para.fine_tune_nep_restart);
   if (!input.is_open()) {
-    std::cout << "Cannot open the foundation model file " << para.finetune_file << std::endl;
+    std::cout << "Cannot open the foundation model file " << para.fine_tune_nep_restart << std::endl;
     exit(1);
   }
   std::vector<std::string> tokens;

@@ -189,7 +189,7 @@ void Parameters::calculate_parameters()
   }
   q_scaler_cpu.resize(dim, 1.0e10f);
   
-  if (finetune) {
+  if (fine_tune) {
     for (int n = 0; n < q_scaler_cpu.size(); ++n) {
       q_scaler_cpu[n] = 0.01f;
     }
@@ -441,6 +441,11 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
   }
 
+  if (fine_tune) {
+    printf("    (input)   will fine-tune based on %s and %s.\n", 
+      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
+  }
+
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
@@ -517,7 +522,7 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "has_charge") == 0) {
     parse_has_charge(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
-    parse_finetune(param, num_param);
+    parse_fine_tune(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1110,15 +1115,14 @@ void Parameters::parse_has_charge(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_finetune(const char** param, int num_param)
+void Parameters::parse_fine_tune(const char** param, int num_param)
 {
-  finetune = 1;
+  fine_tune = 1;
 
-  if (num_param > 2) {
-    PRINT_INPUT_ERROR("fine_tune should have at most one parameter.\n");
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
   }
 
-  if (num_param == 2) {
-    finetune_file = param[1];
-  }
+  fine_tune_nep_txt = param[1];
+  fine_tune_nep_restart = param[2];
 }
