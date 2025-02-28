@@ -330,8 +330,16 @@ void Parameters::check_foundation_model()
     PRINT_INPUT_ERROR("L_max_5body mismatches with foundation model.");
   }
 
-//ANN 50 0
+  // 7th line, ANN
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
+  }
 
+  input.close();
 }
 
 void Parameters::report_inputs()
