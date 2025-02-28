@@ -6,7 +6,7 @@ jobs:
   Integration_Test:
     runs-on: ubuntu-latest
     container: 
-      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
+      image: nvidia/cuda:11.2.2-devel-ubuntu20.04
   
     steps:
       - uses: actions/checkout@v4
