@@ -6,7 +6,7 @@ jobs:
   Integration_Test:
     runs-on: ubuntu-latest
     container: 
-      image: nvidia/cuda:11.2.2-devel-ubuntu20.04
+    image: nvidia/cuda:12.2.0-devel-ubuntu22.04
   
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
         run: python3 -m pip install calorine pytest
 
       - name: Build with Make, with DDEBUG
-        run: cd src && make CFLAGS=-DDEBUG
+        run: cd src && make -std=c++14 -O3 -arch=sm_60 -DDEBUG
 
       - name: Run integration test
         run: cd tests && pytest  # This requires a GPU runner
