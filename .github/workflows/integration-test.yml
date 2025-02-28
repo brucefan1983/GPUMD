@@ -9,16 +9,11 @@ jobs:
       image: nvidia/cuda:12.8.0-devel-ubuntu22.04
   
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      - name: Install testing dependencies
-        run: pip install calorine pytest
+          python-version: '3.12'
+      - run: pip install calorine pytest
       
       - name: Install build dependencies
         run: |
