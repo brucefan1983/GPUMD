@@ -15,15 +15,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
+          cache: 'pip'
+      
+      - name: Install testing dependencies
+        run: pip install calorine pytest
       
       - name: Install build dependencies
         run: |
           apt-get update
           apt-get install -y build-essential
-      
-      - name: Install testing dependencies
-        run: pip install calorine pytest
 
       - name: Build with Make, with DDEBUG
         run: cd src && make CFLAGS=-DDEBUG
