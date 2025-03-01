@@ -5,6 +5,9 @@ run:
     ./a.out
 --------------------------------------------------------------------------------------------------*/
 
+#ifdef ZHEYONG
+#include "../../../../NEP_CPU/src/nep.h"
+#endif
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -510,6 +513,109 @@ static void change_sid(std::vector<Structure>& structures, const std::string& ne
   }
 }
 
+#ifdef ZHEYONG
+
+static float get_volume(const double* box)
+{
+  return std::abs(box[0] * (box[4] * box[8] - box[5] * box[7]) +
+         box[1] * (box[5] * box[6] - box[3] * box[8]) +
+         box[2] * (box[3] * box[7] - box[4] * box[6]));
+}
+
+static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
+{
+  std::ifstream input_potential(nep_file);
+  if (!input_potential.is_open()) {
+    std::cout << "Failed to open " << nep_file << std::endl;
+    exit(1);
+  }
+
+  std::string potential_name;
+  input_potential >> potential_name;
+  int number_of_types;
+  input_potential >> number_of_types;
+  std::vector<std::string> atom_symbols(number_of_types);
+  for (int n = 0; n < number_of_types; ++n) {
+    input_potential >> atom_symbols[n];
+  }
+
+  input_potential.close();
+  return atom_symbols;
+}
+
+static void calculate_one_structure(
+  NEP3& nep3,
+  std::vector<std::string>& atom_symbols,
+  Structure& structure,
+  const std::string& functional,
+  double D3_cutoff,
+  double D3_cutoff_cn)
+{
+  std::vector<double> box(9);
+  for (int d1 = 0; d1 < 3; ++d1) {
+    for (int d2 = 0; d2 < 3; ++d2) {
+      box[d1 * 3 + d2] = structure.box[d2 * 3 + d1];
+    }
+  }
+
+  std::vector<int> type(structure.num_atom);
+  std::vector<double> position(structure.num_atom * 3);
+  std::vector<double> potential(structure.num_atom);
+  std::vector<double> force(structure.num_atom * 3);
+  std::vector<double> virial(structure.num_atom * 9);
+
+  for (int n = 0; n < structure.num_atom; n++) {
+    position[n] = structure.x[n];
+    position[n + structure.num_atom] = structure.y[n];
+    position[n + structure.num_atom * 2] = structure.z[n];
+
+    bool is_allowed_element = false;
+    for (int t = 0; t < atom_symbols.size(); ++t) {
+      if (structure.atom_symbol[n] == atom_symbols[t]) {
+        type[n] = t;
+        is_allowed_element = true;
+      }
+    }
+    if (!is_allowed_element) {
+      std::cout << "There is atom not allowed in the used NEP potential.\n";
+      exit(1);
+    }
+  }
+
+  nep3.compute_dftd3(functional, D3_cutoff, D3_cutoff_cn, type, box, position, potential, force, virial);
+
+  for (int n = 0; n < structure.num_atom; n++) {
+    structure.energy += potential[n];
+    structure.fx[n] += force[0 * structure.num_atom + n];
+    structure.fy[n] += force[1 * structure.num_atom + n];
+    structure.fz[n] += force[2 * structure.num_atom + n];
+  }
+  if (structure.has_virial) {
+    for (int d = 0; d < 9; ++d) {
+      for (int n = 0; n < structure.num_atom; n++) {
+        structure.virial[d] += virial[d * structure.num_atom + n];
+      }
+    }
+  } else if (structure.has_stress) {
+    for (int d = 0; d < 9; ++d) {
+      for (int n = 0; n < structure.num_atom; n++) {
+        structure.stress[d] -= virial[d * structure.num_atom + n] / get_volume(structure.box);
+      }
+    }
+  }
+}
+
+static void add_d3(std::vector<Structure>& structures, const std::string& functional)
+{
+  NEP3 nep3("nep.txt");
+  std::vector<std::string> atom_symbols = get_atom_symbols("nep.txt");
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    calculate_one_structure(nep3, atom_symbols, structures[nc], functional, 12, 6);
+  }
+}
+
+#endif
+
 static void split_into_accurate_and_inaccurate(
   const std::vector<Structure>& structures, 
   double energy_threshold, 
@@ -601,6 +707,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_ch("ch.xyz");
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
+  std::ofstream output_oc22("oc22.xyz");
   std::ofstream output_spice("spice.xyz");
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
@@ -608,6 +715,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
+  int num_oc22 = 0;
   int num_spice = 0;
   int num_omat = 0;
   int num_water = 0;
@@ -622,6 +730,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "oc20") {
       write_one_structure(output_oc20, structures[nc]);
         num_oc20++;
+    } else if (structures[nc].sid == "oc22") {
+      write_one_structure(output_oc22, structures[nc]);
+        num_oc22++;
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
@@ -639,6 +750,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_ch.close();
   output_unep1.close();
   output_oc20.close();
+  output_oc22.close();
   output_spice.close();
   output_omat.close();
   output_water.close();
@@ -646,6 +758,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
+  std::cout << "Number of structures written into oc22.xyz = " << num_oc22 << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
@@ -725,6 +838,9 @@ int main(int argc, char* argv[])
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "6: shift energy\n";
   std::cout << "7: add or change sid\n";
+#ifdef ZHEYONG
+  std::cout << "8: add D3\n";
+#endif
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -827,6 +943,24 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     change_sid(structures_input, sid);
     write(output_filename, structures_input);
+#ifdef ZHEYONG
+  } else if (option == 8) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::cout << "Please enter the DFT functional: ";
+    std::string functional;
+    std::cin >> functional;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    add_d3(structures_input, functional);
+    write(output_filename, structures_input);
+#endif
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
