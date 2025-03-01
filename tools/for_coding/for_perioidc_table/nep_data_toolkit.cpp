@@ -601,6 +601,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_ch("ch.xyz");
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
+  std::ofstream output_oc22("oc22.xyz");
   std::ofstream output_spice("spice.xyz");
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
@@ -608,6 +609,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
+  int num_oc22 = 0;
   int num_spice = 0;
   int num_omat = 0;
   int num_water = 0;
@@ -622,6 +624,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "oc20") {
       write_one_structure(output_oc20, structures[nc]);
         num_oc20++;
+    } else if (structures[nc].sid == "oc22") {
+      write_one_structure(output_oc22, structures[nc]);
+        num_oc22++;
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
@@ -639,6 +644,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_ch.close();
   output_unep1.close();
   output_oc20.close();
+  output_oc22.close();
   output_spice.close();
   output_omat.close();
   output_water.close();
@@ -646,6 +652,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
+  std::cout << "Number of structures written into oc22.xyz = " << num_oc22 << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
