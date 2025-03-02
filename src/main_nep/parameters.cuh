@@ -63,6 +63,9 @@ public:
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
+  int fine_tune = 0; // fine_tune option; 0=no, 1=yes
+  std::string fine_tune_nep_txt = "";
+  std::string fine_tune_nep_restart = "";
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -114,6 +117,7 @@ private:
   void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
+  void check_foundation_model();
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
@@ -144,4 +148,5 @@ private:
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_has_charge(const char** param, int num_param);
+  void parse_fine_tune(const char** param, int num_param);
 };
