@@ -28,7 +28,7 @@ The allowed names for :attr:`quantity` are:
 * :attr:`temperature`, which yields the temperature
 * :attr:`potential`, which yields the potential energy
 * :attr:`force`, which yields the force vector
-* :attr:`virial`, which yields the diagonal part of the virial
+* :attr:`virial`, which yields all virial components 
 * :attr:`jp`, which yields the potential part of the heat current vector
 * :attr:`jk`, which yields the kinetic part of the heat current vector
 * :attr:`momentum`, which yields the momentum
