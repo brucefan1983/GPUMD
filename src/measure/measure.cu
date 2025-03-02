@@ -39,7 +39,7 @@ void Measure::initialize(
       printf("    Please set the property name you developed.\n");
       exit(1);
     }
-    for (auto property_name : property_names) {
+    for (auto& property_name : property_names) {
       if (property_name == prop->property_name) {
         std::cout << "There are multiple " << prop->property_name << " keywords within one run.\n";
         exit(1);
