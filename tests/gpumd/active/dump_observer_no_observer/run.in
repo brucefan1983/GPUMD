@@ -11,5 +11,4 @@ ensemble nvt_ber 100 100 100
 dump_thermo 100
 dump_position 50000
 active 1 1 1 0.0
-dump_observer average 1 1 1 1
 run 100
