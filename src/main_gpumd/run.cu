@@ -22,43 +22,44 @@ Run simulation according to the inputs in the run.in file.
 #include "add_random_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
+#include "extrapolation_grade/extrapolation.cuh"
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
-#include "measure/measure.cuh"
-#include "measure/property.cuh"
-#include "measure/compute.cuh"
-#include "measure/dos.cuh"
-#include "measure/hac.cuh"
-#include "measure/shc.cuh"
-#include "measure/msd.cuh"
-#include "measure/sdc.cuh"
-#include "measure/rdf.cuh"
+#include "measure/active.cuh"
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
-#include "measure/viscosity.cuh"
-#include "measure/lsqt.cuh"
-#include "measure/hnemd_kappa.cuh"
-#include "measure/hnemdec_kappa.cuh"
-#include "measure/modal_analysis.cuh"
-#include "measure/plumed.cuh"
-#include "measure/dump_netcdf.cuh"
+#include "measure/compute.cuh"
+#include "measure/dos.cuh"
+#include "measure/dump_beads.cuh"
+#include "measure/dump_dipole.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
+#include "measure/dump_netcdf.cuh"
+#include "measure/dump_observer.cuh"
+#include "measure/dump_polarizability.cuh"
 #include "measure/dump_position.cuh"
 #include "measure/dump_restart.cuh"
+#include "measure/dump_shock_nemd.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
-#include "measure/dump_shock_nemd.cuh"
-#include "measure/dump_dipole.cuh"
-#include "measure/dump_polarizability.cuh"
-#include "measure/dump_beads.cuh"
-#include "measure/dump_observer.cuh"
-#include "measure/active.cuh"
+#include "measure/hac.cuh"
+#include "measure/hnemd_kappa.cuh"
+#include "measure/hnemdec_kappa.cuh"
+#include "measure/lsqt.cuh"
+#include "measure/measure.cuh"
+#include "measure/modal_analysis.cuh"
+#include "measure/msd.cuh"
+#include "measure/plumed.cuh"
+#include "measure/property.cuh"
+#include "measure/rdf.cuh"
+#include "measure/sdc.cuh"
+#include "measure/shc.cuh"
+#include "measure/viscosity.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
-#include "model/read_xyz.cuh"
 #include "model/check_distance.cuh"
+#include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
@@ -289,6 +290,7 @@ void Run::perform_a_run()
         atom.mass);
     }
 
+    extrapolation.process(step);
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_random_force.compute(step, atom);
@@ -328,13 +330,7 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(
-    atom,
-    box,
-    integrate,
-    number_of_steps,
-    time_step,
-    integrate.temperature2);
+  measure.finalize(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
   electron_stop.finalize();
   add_force.finalize();
@@ -363,6 +359,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
+  } else if (strcmp(param[0], "compute_extrapolation") == 0) {
+    extrapolation.allocate_memory(force, atom, box);
+    extrapolation.parse(param, num_param);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
