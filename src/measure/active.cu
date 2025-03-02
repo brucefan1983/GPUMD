@@ -109,6 +109,12 @@ static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, d
   }
 }
 
+Active::Active(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "active";
+}
+
 void Active::parse(const char** param, int num_param)
 {
   check_ = true;
@@ -152,7 +158,14 @@ void Active::parse(const char** param, int num_param)
     check_interval_);
 }
 
-void Active::preprocess(const int number_of_atoms, const int number_of_potentials, Force& force)
+void Active::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // Always use mode "observe" with all other potentials for active learning.
   // Only propagate MD with the main potential.
@@ -165,24 +178,28 @@ void Active::preprocess(const int number_of_atoms, const int number_of_potential
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
-      cpu_force_per_atom_.resize(number_of_atoms * 3);
+      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
-    mean_force_.resize(number_of_atoms * 3);
-    mean_force_sq_.resize(number_of_atoms * 3);
-    gpu_uncertainty_.resize(number_of_atoms);
-    cpu_uncertainty_.resize(number_of_atoms);
+    mean_force_.resize(atom.number_of_atoms * 3);
+    mean_force_sq_.resize(atom.number_of_atoms * 3);
+    gpu_uncertainty_.resize(atom.number_of_atoms);
+    cpu_uncertainty_.resize(atom.number_of_atoms);
   }
 }
 
 void Active::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
+  const double temperature,
+  Integrate& integrate,
   Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
   Atom& atom,
-  Force& force,
-  GPU_Vector<double>& thermo)
+  Force& force)
 {
   // Only run if should check, since forces have to be recomputed with each potential.
   if (!check_)
@@ -411,7 +428,13 @@ void Active::write_exyz(
   fflush(fid_);
 }
 
-void Active::postprocess()
+void Active::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (check_) {
     fclose(exyz_file_);
