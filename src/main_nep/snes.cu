@@ -157,10 +157,10 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   // get the required part
   int count = 0;
   for (int i = 0; i < para.num_types; ++ i) {
-    int an = element_map[para.atomic_numbers[i]] - 1;
+    int element_index = element_map[para.atomic_numbers[i] - 1];
     for (int j = 0; j < num_ann_per_element; ++j) {
-      mu[count] = restart_mu[an * num_ann_per_element + j];
-      sigma[count] = restart_sigma[an * num_ann_per_element + j];
+      mu[count] = restart_mu[element_index * num_ann_per_element + j];
+      sigma[count] = restart_sigma[element_index * num_ann_per_element + j];
       ++count;
     }
   }
@@ -172,8 +172,9 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_radial + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (element_map[para.atomic_numbers[t1]] - 1) * NUM89;
-          t12 += (element_map[para.atomic_numbers[t2]] - 1);
+          int element_index_1 = element_map[para.atomic_numbers[t1] - 1];
+          int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+          int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
           sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
           ++count;
@@ -188,8 +189,9 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       int nk = n * (para.basis_size_angular + 1) + k;
       for (int t1 = 0; t1 < para.num_types; ++t1) {
         for (int t2 = 0; t2 < para.num_types; ++t2) {
-          int t12 = (element_map[para.atomic_numbers[t1]] - 1) * NUM89;
-          t12 += (element_map[para.atomic_numbers[t2]] - 1);
+          int element_index_1 = element_map[para.atomic_numbers[t1] - 1];
+          int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+          int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
           sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
           ++count;
