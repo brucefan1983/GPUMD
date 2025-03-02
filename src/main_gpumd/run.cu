@@ -55,7 +55,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dump_beads.cuh"
 #include "measure/dump_observer.cuh"
 #include "measure/active.cuh"
-#include "measure/active.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
