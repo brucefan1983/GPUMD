@@ -292,7 +292,7 @@ def test_active_no_velocities_or_forces(tmp_path):
         assert np.allclose(0, av, atol=atol, rtol=rtol)
 
 def test_active_dump_observer_average(tmp_path_factory):
-    """Active learning should not be affected by dump_observer running in average mode"""
+    """Active learning should not be affected by dump_observer running in observe mode"""
     # First run with no_threshold to get expected uncertainties etc.
     test_folder = 'no_threshold/'
     files = [
@@ -310,7 +310,7 @@ def test_active_dump_observer_average(tmp_path_factory):
     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
     expected_uncertainties, _, _, _ = _load_active_files(tmp_path)
     
-    test_folder = 'dump_observer_average/'
+    test_folder = 'dump_observer_no_observer/'
     files = [
         'model/nep_full.txt',
         'model/nep_split1.txt',

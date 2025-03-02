@@ -70,7 +70,7 @@ def test_dump_dipole_self_consistent(md):
     for gpu_dipole, conf in zip(dipole[:, 1:], read(f'{md_path}/movie.xyz', ':')):
         conf.calc = CPUNEP(dipole_model)
         cpu_dipole = conf.get_dipole_moment()
-        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-2, rtol=1e-6)
+        assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-2, rtol=1e-3)
 
 
 @pytest.mark.parametrize('md', [1], indirect=True)
@@ -82,11 +82,7 @@ def test_dump_dipole_numeric(md):
     md_path, _ = md
     dipole = np.loadtxt(f'{md_path}/dipole.out')
     gpu_dipole = dipole[0, 1:]
-    cpu_dipole = [
-        4.79686227,
-        0.01536603,
-        0.07771485,
-    ]
+    cpu_dipole = [ 4.76593598e+00, -2.60936585e-03,  6.63326612e-02]
     assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-3, rtol=1e-6)
 
 

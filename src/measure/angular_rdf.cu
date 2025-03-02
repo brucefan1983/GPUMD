@@ -19,6 +19,7 @@ Calculate:
 --------------------------------------------------------------------------------------------------*/
 
 #include "angular_rdf.cuh"
+#include "integrate/integrate.cuh"
 #include "force/neighbor.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -425,18 +426,32 @@ void AngularRDF::find_angular_rdf(
   }
 }
 
+AngularRDF::AngularRDF(
+  const char** param,
+  const int num_param,
+  Box& box,
+  const int number_of_types,
+  const int number_of_steps)
+{
+  parse(param, num_param, box, number_of_types, number_of_steps);
+  property_name = "compute_angular_rdf";
+}
+
 void AngularRDF::preprocess(
-  const bool is_pimd,              // whether PIMD
-  const int number_of_beads,       // number of beads in PIMD
-  const int num_atoms,             // total number of atoms
-  std::vector<int>& cpu_type_size) // number of atoms for each type
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // if not compute RDF, return directly
   if (!compute_)
     return;
 
   // if PIMD, return directly, currently not support PIMD
-  if (is_pimd) {
+  if (integrate.type >= 31) {
     return;
   }
 
@@ -464,8 +479,8 @@ void AngularRDF::preprocess(
   theta_.resize(rdf_theta_bins_);
   theta_.copy_from_host(theta_cpu.data());
 
-  rdf_N_ = num_atoms;
-  num_atoms_ = num_atoms * rdf_atom_count;
+  rdf_N_ = atom.number_of_atoms;
+  num_atoms_ = atom.number_of_atoms * rdf_atom_count;
 
   density1.resize(rdf_atom_count);
   density2.resize(rdf_atom_count);
@@ -477,22 +492,33 @@ void AngularRDF::preprocess(
 
   // initialize atom type size array
   for (int a = 0; a < rdf_atom_count - 1; a++) {
-    atom_id1_typesize[a] = cpu_type_size[atom_id1_[a]];
-    atom_id2_typesize[a] = cpu_type_size[atom_id2_[a]];
+    atom_id1_typesize[a] = atom.cpu_type_size[atom_id1_[a]];
+    atom_id2_typesize[a] = atom.cpu_type_size[atom_id2_[a]];
   }
 
   rdf_g_.resize(num_atoms_ * rdf_r_bins_ * rdf_theta_bins_, 0);
   rdf_.resize(num_atoms_ * rdf_r_bins_ * rdf_theta_bins_, 0);
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  cell_count.resize(atom.number_of_atoms);
+  cell_count_sum.resize(atom.number_of_atoms);
+  cell_contents.resize(atom.number_of_atoms);
 }
 
 void AngularRDF::process(
-  const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   // if PIMD, return directly, currently not support PIMD
-  if (is_pimd) {
+  if (integrate.type >= 31) {
     return;
   }
 
@@ -556,11 +582,17 @@ void AngularRDF::process(
   }
 }
 
-void AngularRDF::postprocess(const bool is_pimd, const int number_of_beads)
+void AngularRDF::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute_)
     return;
-  if (is_pimd)
+  if (integrate.type >= 31)
     return;
 
   CHECK(gpuMemcpy(

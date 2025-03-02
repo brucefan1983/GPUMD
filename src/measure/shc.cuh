@@ -14,10 +14,11 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 class Group;
 
-class SHC
+class SHC : public Property
 {
 public:
   int group_num;         // number of groups
@@ -29,13 +30,40 @@ public:
   int direction;         // transport direction: 0=x; 1=y; 2=z
   int num_omega;         // number of frequency points
   double max_omega;      // maximum angular frequency
-  void preprocess(const int N, const std::vector<Group>& group);
-  void process(
-    const int step,
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom);
-  void postprocess(const double time_step);
+
+  SHC(const char**, int, const std::vector<Group>& group);
+  
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
   void parse(const char**, int, const std::vector<Group>& group);
   void find_shc(const double dt_in_ps, const double d_omega);
   void average_k();
