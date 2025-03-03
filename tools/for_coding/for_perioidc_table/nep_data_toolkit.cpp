@@ -509,6 +509,7 @@ static void shift_energy(std::vector<Structure>& structures)
 static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
 {
   for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].has_sid = true;
     structures[nc].sid = new_sid;
   }
 }
