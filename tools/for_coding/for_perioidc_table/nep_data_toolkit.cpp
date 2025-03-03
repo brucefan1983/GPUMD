@@ -509,6 +509,7 @@ static void shift_energy(std::vector<Structure>& structures)
 static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
 {
   for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].has_sid = true;
     structures[nc].sid = new_sid;
   }
 }
@@ -683,7 +684,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    if (is_considered) {
+    //if (is_considered) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -691,7 +692,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    }
+    //}
   }
   input_energy.close();
   input_force.close();
@@ -712,6 +713,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
   std::ofstream output_omat("omat.xyz");
+  std::ofstream output_protein("protein.xyz");
+  std::ofstream output_ani1xnr("ani1xnr.xyz");
+  std::ofstream output_salex("salex.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
@@ -720,6 +724,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_omat = 0;
   int num_water = 0;
   int num_mp = 0;
+  int num_protein = 0;
+  int num_ani1xnr = 0;
+  int num_salex = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -742,6 +749,15 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "mp") {
       write_one_structure(output_mp, structures[nc]);
         num_mp++;
+    } else if (structures[nc].sid == "protein") {
+      write_one_structure(output_protein, structures[nc]);
+        num_protein++;
+    } else if (structures[nc].sid == "ani1xnr") {
+      write_one_structure(output_ani1xnr, structures[nc]);
+        num_ani1xnr++;
+    } else if (structures[nc].sid == "salex") {
+      write_one_structure(output_salex, structures[nc]);
+        num_salex++;
     } else {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
@@ -755,6 +771,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_omat.close();
   output_water.close();
   output_mp.close();
+  output_protein.close();
+  output_ani1xnr.close();
+  output_salex.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
@@ -763,6 +782,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
+  std::cout << "Number of structures written into protein.xyz = " << num_protein << std::endl;
+  std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
+  std::cout << "Number of structures written into salex.xyz = " << num_salex << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
