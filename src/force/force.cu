@@ -295,18 +295,24 @@ static __global__ void initialize_properties(
   }
 }
 
+void Force::finalize()
+{
+  compute_hnemd_ = false;
+  compute_hnemdec_ = -1;
+}
+
 void Force::set_hnemd_parameters(
-  const bool compute_hnemd,
   const double hnemd_fe_x,
   const double hnemd_fe_y,
   const double hnemd_fe_z)
 {
-  compute_hnemd_ = compute_hnemd;
-  if (compute_hnemd) {
-    hnemd_fe_[0] = hnemd_fe_x;
-    hnemd_fe_[1] = hnemd_fe_y;
-    hnemd_fe_[2] = hnemd_fe_z;
+  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
+    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
   }
+  compute_hnemd_ = true;
+  hnemd_fe_[0] = hnemd_fe_x;
+  hnemd_fe_[1] = hnemd_fe_y;
+  hnemd_fe_[2] = hnemd_fe_z;
 }
 
 void Force::set_hnemdec_parameters(
@@ -319,6 +325,10 @@ void Force::set_hnemdec_parameters(
   const std::vector<int>& type_size,
   const double T)
 {
+  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
+    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
+  }
+
   int N = mass.size();
   int number_of_types = type_size.size();
   compute_hnemdec_ = compute_hnemdec;

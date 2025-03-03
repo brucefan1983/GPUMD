@@ -14,25 +14,48 @@
 */
 
 #pragma once
-
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
 class Box;
 class Atom;
 
-class Dump_EXYZ
+class Dump_EXYZ : public Property
 {
 public:
+  Dump_EXYZ(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms);
-  void process(
-    const int step,
-    const double global_time,
-    const Box& box,
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
     Atom& atom,
-    GPU_Vector<double>& gpu_thermo);
-  void postprocess();
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   bool dump_ = false;

@@ -72,6 +72,12 @@ static __global__ void initialize_properties(
   }
 }
 
+Dump_Observer::Dump_Observer(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_observer";
+}
+
 void Dump_Observer::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -133,12 +139,18 @@ void Dump_Observer::parse(const char** param, int num_param)
 }
 
 void Dump_Observer::preprocess(
-  const int number_of_atoms, const int number_of_potentials, Force& force)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
-    const int number_of_files = (mode_.compare("observe") == 0) ? number_of_potentials : 1;
+    const int number_of_files = (mode_.compare("observe") == 0) ? force.potentials.size() : 1;
     for (int i = 0; i < number_of_files; i++) {
       const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
       std::string exyz_filename = "observer" + file_number + ".xyz";
@@ -149,27 +161,34 @@ void Dump_Observer::preprocess(
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
-      cpu_force_per_atom_.resize(number_of_atoms * 3);
+      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
   }
 }
 
 void Dump_Observer::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
-  Box& box,
-  Atom& atom,
-  Force& force,
+  const double temperature,
   Integrate& integrate,
-  GPU_Vector<double>& thermo)
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   // Only run if should dump, since forces have to be recomputed with each potential.
   if (!dump_)
     return;
   if (((step + 1) % dump_interval_thermo_ != 0) & ((step + 1) % dump_interval_exyz_ != 0))
     return;
+
+  int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+  number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
+
   if (mode_.compare("observe") == 0) {
     // If observing, calculate properties with all potentials.
     const int number_of_potentials = force.potentials.size();
@@ -427,7 +446,13 @@ void Dump_Observer::write_thermo(
   fflush(fid_);
 }
 
-void Dump_Observer::postprocess()
+void Dump_Observer::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   for (int i = 0; i < exyz_files_.size(); i++) {
     fclose(exyz_files_[i]);
