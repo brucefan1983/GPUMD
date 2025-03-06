@@ -15,7 +15,7 @@
 
 #include "extrapolation.cuh"
 
-#define PRINT_RUMTIME_ERROR(text)                                                                  \
+#define PRINT_RUNTIME_ERROR(text)                                                                  \
   do {                                                                                             \
     fprintf(stderr, "Runtime Error:\n");                                                           \
     fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
@@ -167,7 +167,7 @@ void Extrapolation::process(int step)
       if (max_gamma > gamma_high) {
         dump();
         printf("Current step: %d, gamma = %f\n", step, max_gamma);
-        PRINT_RUMTIME_ERROR(
+        PRINT_RUNTIME_ERROR(
           "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
       }
       if (max_gamma >= gamma_low) {
