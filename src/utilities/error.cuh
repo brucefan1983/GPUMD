@@ -22,13 +22,13 @@
 
 #define CHECK(call)                                                                                \
   do {                                                                                             \
-    const gpuError_t error_code = call;                                                           \
-    if (error_code != gpuSuccess) {                                                               \
+    const gpuError_t error_code = call;                                                            \
+    if (error_code != gpuSuccess) {                                                                \
       fprintf(stderr, "CUDA Error:\n");                                                            \
       fprintf(stderr, "    File:       %s\n", __FILE__);                                           \
       fprintf(stderr, "    Line:       %d\n", __LINE__);                                           \
       fprintf(stderr, "    Error code: %d\n", error_code);                                         \
-      fprintf(stderr, "    Error text: %s\n", gpuGetErrorString(error_code));                     \
+      fprintf(stderr, "    Error text: %s\n", gpuGetErrorString(error_code));                      \
       exit(1);                                                                                     \
     }                                                                                              \
   } while (0)
@@ -53,6 +53,15 @@
     exit(1);                                                                                       \
   } while (0)
 
+#define PRINT_RUMTIME_ERROR(text)                                                                  \
+  do {                                                                                             \
+    fprintf(stderr, "Runtime Error:\n");                                                           \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                                             \
+    fprintf(stderr, "    Error text: %s\n", text);                                                 \
+    exit(1);                                                                                       \
+  } while (0)
+
 #define PRINT_KEYWORD_ERROR(keyword)                                                               \
   do {                                                                                             \
     fprintf(stderr, "Input Error:\n");                                                             \
@@ -63,15 +72,15 @@
   } while (0)
 
 #ifdef STRONG_DEBUG
-#define GPU_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                           \
   {                                                                                                \
-    CHECK(gpuGetLastError());                                                                     \
-    CHECK(gpuDeviceSynchronize());                                                                \
+    CHECK(gpuGetLastError());                                                                      \
+    CHECK(gpuDeviceSynchronize());                                                                 \
   }
 #else
-#define GPU_CHECK_KERNEL                                                                          \
+#define GPU_CHECK_KERNEL                                                                           \
   {                                                                                                \
-    CHECK(gpuGetLastError());                                                                     \
+    CHECK(gpuGetLastError());                                                                      \
   }
 #endif
 
