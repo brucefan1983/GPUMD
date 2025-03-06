@@ -15,6 +15,15 @@
 
 #include "extrapolation.cuh"
 
+#define PRINT_RUMTIME_ERROR(text)                                                                  \
+  do {                                                                                             \
+    fprintf(stderr, "Runtime Error:\n");                                                           \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                                             \
+    fprintf(stderr, "    Error text: %s\n", text);                                                 \
+    exit(1);                                                                                       \
+  } while (0)
+
 __global__ void gpu_calculate_gamma(
   float* gamma,
   float* B,
