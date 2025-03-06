@@ -847,6 +847,79 @@ static void fps(std::vector<Structure>& structures, double distance_square_min, 
   std::cout << "Number of structures written into not_selected.xyz = " << num2 << std::endl;
 }
 
+static void get_composition(std::vector<Structure>& structures)
+{
+  //int num_elements = 4;
+  //std::string elements[] = {"H", "C", "N", "O"};
+
+  //int num_elements = 10;
+  //std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
+
+  int num_elements = 5;
+  std::string elements[] = {"H", "C", "N", "O", "S"};
+
+  std::ofstream output("count.txt");
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<int> counts(num_elements, 0);
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      for (int i = 0; i < num_elements; ++i) {
+        if (structures[nc].atom_symbol[n] == elements[i]) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    for (int i = 0; i < num_elements; ++i) {
+      output << counts[i] << " ";
+    }
+    output << "\n";
+  }
+  output.close();
+}
+
+static void shift_energy_multiple_species(std::vector<Structure>& structures)
+{
+  //int num_elements = 4;
+  //std::string elements[] = {"H", "C", "N", "O"};
+  //double delta_energy[] = {-3.2598,   -7.1457,   -7.6629,   -5.6500};
+
+  /*int num_elements = 10;
+  std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
+  double delta_energy[] = {
+    0.001254026014518,   
+    0.102890390836071,   
+    0.148235407508952,   
+    0.204097843036162,   
+    0.271400629040059,   
+    0.928501138100502,
+    1.083209903212600,   
+    1.252197567336926,   
+    7.004441200065508,   
+    0.810198990224952};
+  for (int i = 0; i < num_elements; ++i) {
+    delta_energy[i] *= 1.0e4;
+  }*/
+
+  int num_elements = 5;
+  std::string elements[] = {"H", "C", "N", "O", "S"};
+  double delta_energy[] = {-1.265276327295640,  -1.880752053284493,  -4.451413902725383,  -2.004796016966084,  -2.060841966465145};
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<int> counts(num_elements, 0);
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      for (int i = 0; i < num_elements; ++i) {
+        if (structures[nc].atom_symbol[n] == elements[i]) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    for (int i = 0; i < num_elements; ++i) {
+      structures[nc].energy += counts[i] * delta_energy[i];
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
@@ -863,6 +936,8 @@ int main(int argc, char* argv[])
 #ifdef ZHEYONG
   std::cout << "8: add D3\n";
 #endif
+  std::cout << "9: get composition\n";
+  std::cout << "10: shift energy for multiple species\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -983,6 +1058,28 @@ int main(int argc, char* argv[])
     add_d3(structures_input, functional);
     write(output_filename, structures_input);
 #endif
+  } else if (option == 9) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    get_composition(structures_input);
+  } else if (option == 10) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    shift_energy_multiple_species(structures_input);
+    write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
@@ -991,3 +1088,5 @@ int main(int argc, char* argv[])
   std::cout << "Done." << std::endl;
   return EXIT_SUCCESS;
 }
+
+
