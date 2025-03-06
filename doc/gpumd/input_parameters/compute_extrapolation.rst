@@ -11,7 +11,7 @@ The extrapolation grade `gamma` can be considered as the uncertainty of a struct
 
 A structure with large `gamma` tends to have higher energy and force errors.
 
-Similiar methods has been applied to MTP ([Podryabinkin2023]_) and ACE ([Lysogorskiy2023]_). You can refer to their papers for more details.
+Similiar methods have been applied to MTP ([Podryabinkin2023]_) and ACE ([Lysogorskiy2023]_). You can refer to their papers for more details.
 
 Before computing `gamma`, you need to obtain an `active set` from your training set. There are some Python scripts to do it <https://github.com/psn417/nep_active>.
 
