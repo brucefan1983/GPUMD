@@ -18,6 +18,7 @@
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
+#include "property.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -30,35 +31,63 @@
 #include <string>
 #include <vector>
 
-class Extrapolation
+class Extrapolation : public Property
 {
 public:
-  ~Extrapolation();
-  void parse(const char** params, int num_params);
-  void allocate_memory(Force& force, Atom& atom, Box& box);
-  void calculate_gamma();
-  void process(int step);
-  void dump();
-  void output_line2();
+  Extrapolation(const char** params, int num_params);
+
+  void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
+  void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature) override;
+
+  void process(
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force) override;
+
   FILE* f;
   std::vector<GPU_Vector<double>*> asi_data;
   std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
   GPU_Vector<double*> asi_gpu = GPU_Vector<double*>(NUM_ELEMENTS, nullptr);
-  int B_size_per_atom;
   GPU_Vector<float> B;
   // max gamma
   GPU_Vector<float> gamma;
   std::vector<float> gamma_cpu;
-  double max_gamma;
   Atom* atom;
   Box* box;
-  bool activated = false;
+  int B_size_per_atom;
   int check_interval = 1;
   int dump_interval = 1;
   int last_dump = 0;
   double gamma_low = 0;
   double gamma_high = 1e100;
+  double max_gamma;
+  std::string asi_file_name;
 
 private:
-  void load_asi(std::string asi_file_name);
+  void load_asi();
+  void dump();
+  void calculate_gamma();
 };

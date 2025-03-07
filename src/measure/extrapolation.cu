@@ -51,12 +51,58 @@ __global__ void gpu_calculate_gamma(
   }
 }
 
-void Extrapolation::parse(const char** params, int num_params)
+void Extrapolation::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  printf("Initializing extrapolation grade calculation...\n");
+  B_size_per_atom = force.potentials[0]->B_projection_size;
+  if (B_size_per_atom == 0)
+    PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
+  else
+    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
+  B.resize(B_size_per_atom * atom.number_of_atoms);
+  gamma.resize(atom.number_of_atoms);
+  gamma_cpu.resize(atom.number_of_atoms);
+  force.potentials[0]->B_projection = B.data();
+  force.potentials[0]->need_B_projection = true;
+  this->atom = &atom;
+  this->box = &box;
+  f = my_fopen("extrapolation_dump.xyz", "w");
+
+  load_asi();
+
+  printf("gamma_low:      %f\n", gamma_low);
+  printf("gamma_high:     %f\n", gamma_high);
+  printf("check_interval: %d\n", check_interval);
+  printf("dump_interval:  %d\n", dump_interval);
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+}
+
+void Extrapolation::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
+{
+  printf("Closing extrapolation dump file...\n");
+  fclose(f);
+};
+
+Extrapolation::Extrapolation(const char** params, int num_params)
 {
   int i = 1;
   while (i < num_params) {
     if (strcmp(params[i], "asi_file") == 0) {
-      load_asi(params[i + 1]);
+      asi_file_name.assign(params[i + 1]);
       i += 2;
     } else if (strcmp(params[i], "gamma_low") == 0) {
       if (!is_valid_real(params[i + 1], &gamma_low)) {
@@ -82,34 +128,9 @@ void Extrapolation::parse(const char** params, int num_params)
       PRINT_INPUT_ERROR("Wrong input parameter!");
     }
   }
-  printf("gamma_low:      %f\n", gamma_low);
-  printf("gamma_high:     %f\n", gamma_high);
-  printf("check_interval: %d\n", check_interval);
-  printf("dump_interval:  %d\n", dump_interval);
-  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
-void Extrapolation::allocate_memory(Force& force, Atom& atom, Box& box)
-{
-  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-  printf("Initializing extrapolation grade calculation...\n");
-  B_size_per_atom = force.potentials[0]->B_projection_size;
-  if (B_size_per_atom == 0)
-    PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
-  else
-    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
-  B.resize(B_size_per_atom * atom.number_of_atoms);
-  gamma.resize(atom.number_of_atoms);
-  gamma_cpu.resize(atom.number_of_atoms);
-  force.potentials[0]->B_projection = B.data();
-  force.potentials[0]->need_B_projection = true;
-  this->atom = &atom;
-  this->box = &box;
-  activated = true;
-  f = my_fopen("extrapolation_dump.xyz", "w");
-}
-
-void Extrapolation::load_asi(std::string asi_file_name)
+void Extrapolation::load_asi()
 {
   printf("Loading the Active Set Inversion file (ASI): %s\n", asi_file_name.c_str());
   std::ifstream f(asi_file_name);
@@ -154,27 +175,37 @@ void Extrapolation::load_asi(std::string asi_file_name)
   }
 }
 
-void Extrapolation::process(int step)
+void Extrapolation::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
-  if (activated) {
-    if (step % check_interval == 0) {
-      calculate_gamma();
-      max_gamma = 0;
-      for (double g : gamma_cpu) {
-        if (g > max_gamma)
-          max_gamma = g;
-      }
-      if (max_gamma > gamma_high) {
+  if (step % check_interval == 0) {
+    calculate_gamma();
+    max_gamma = 0;
+    for (double g : gamma_cpu) {
+      if (g > max_gamma)
+        max_gamma = g;
+    }
+    if (max_gamma > gamma_high) {
+      dump();
+      printf("Current step: %d, gamma = %f\n", step, max_gamma);
+      PRINT_RUNTIME_ERROR(
+        "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
+    }
+    if (max_gamma >= gamma_low) {
+      if (step == 0 || step - last_dump >= dump_interval) {
+        last_dump = step;
         dump();
-        printf("Current step: %d, gamma = %f\n", step, max_gamma);
-        PRINT_RUNTIME_ERROR(
-          "The extrapolation grade exceeds the upperlimit. Terminating the simulation.");
-      }
-      if (max_gamma >= gamma_low) {
-        if (step == 0 || step - last_dump >= dump_interval) {
-          last_dump = step;
-          dump();
-        }
       }
     }
   }
@@ -197,20 +228,6 @@ void Extrapolation::dump()
   fprintf(f, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2();
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(f, "%s", atom->cpu_atom_symbol[n].c_str());
-    for (int d = 0; d < 3; ++d) {
-      fprintf(f, " %.8f", atom->cpu_position_per_atom[n + num_atoms_total * d]);
-    }
-    fprintf(f, " %8f\n", gamma_cpu[n]);
-  }
-}
-
-void Extrapolation::output_line2()
-{
   fprintf(f, "max_gamma=%.8f", max_gamma);
 
   // PBC
@@ -233,12 +250,13 @@ void Extrapolation::output_line2()
 
   fprintf(f, " Properties=species:S:1:pos:R:3");
   fprintf(f, ":gamma:R:1\n");
-}
 
-Extrapolation::~Extrapolation()
-{
-  if (activated) {
-    printf("Closing extrapolation dump file...\n");
-    fclose(f);
+  // other lines
+  for (int n = 0; n < num_atoms_total; n++) {
+    fprintf(f, "%s", atom->cpu_atom_symbol[n].c_str());
+    for (int d = 0; d < 3; ++d) {
+      fprintf(f, " %.8f", atom->cpu_position_per_atom[n + num_atoms_total * d]);
+    }
+    fprintf(f, " %8f\n", gamma_cpu[n]);
   }
 }
