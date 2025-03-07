@@ -509,6 +509,7 @@ static void shift_energy(std::vector<Structure>& structures)
 static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
 {
   for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].has_sid = true;
     structures[nc].sid = new_sid;
   }
 }
@@ -683,7 +684,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    if (is_considered) {
+    //if (is_considered) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -691,7 +692,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    }
+    //}
   }
   input_energy.close();
   input_force.close();
@@ -712,6 +713,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
   std::ofstream output_omat("omat.xyz");
+  std::ofstream output_protein("protein.xyz");
+  std::ofstream output_ani1xnr("ani1xnr.xyz");
+  std::ofstream output_salex("salex.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
@@ -720,6 +724,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_omat = 0;
   int num_water = 0;
   int num_mp = 0;
+  int num_protein = 0;
+  int num_ani1xnr = 0;
+  int num_salex = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -742,6 +749,15 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "mp") {
       write_one_structure(output_mp, structures[nc]);
         num_mp++;
+    } else if (structures[nc].sid == "protein") {
+      write_one_structure(output_protein, structures[nc]);
+        num_protein++;
+    } else if (structures[nc].sid == "ani1xnr") {
+      write_one_structure(output_ani1xnr, structures[nc]);
+        num_ani1xnr++;
+    } else if (structures[nc].sid == "salex") {
+      write_one_structure(output_salex, structures[nc]);
+        num_salex++;
     } else {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
@@ -755,6 +771,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_omat.close();
   output_water.close();
   output_mp.close();
+  output_protein.close();
+  output_ani1xnr.close();
+  output_salex.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
@@ -763,6 +782,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
+  std::cout << "Number of structures written into protein.xyz = " << num_protein << std::endl;
+  std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
+  std::cout << "Number of structures written into salex.xyz = " << num_salex << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
@@ -825,6 +847,79 @@ static void fps(std::vector<Structure>& structures, double distance_square_min, 
   std::cout << "Number of structures written into not_selected.xyz = " << num2 << std::endl;
 }
 
+static void get_composition(std::vector<Structure>& structures)
+{
+  //int num_elements = 4;
+  //std::string elements[] = {"H", "C", "N", "O"};
+
+  //int num_elements = 10;
+  //std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
+
+  int num_elements = 5;
+  std::string elements[] = {"H", "C", "N", "O", "S"};
+
+  std::ofstream output("count.txt");
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<int> counts(num_elements, 0);
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      for (int i = 0; i < num_elements; ++i) {
+        if (structures[nc].atom_symbol[n] == elements[i]) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    for (int i = 0; i < num_elements; ++i) {
+      output << counts[i] << " ";
+    }
+    output << "\n";
+  }
+  output.close();
+}
+
+static void shift_energy_multiple_species(std::vector<Structure>& structures)
+{
+  //int num_elements = 4;
+  //std::string elements[] = {"H", "C", "N", "O"};
+  //double delta_energy[] = {-3.2598,   -7.1457,   -7.6629,   -5.6500};
+
+  /*int num_elements = 10;
+  std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
+  double delta_energy[] = {
+    0.001254026014518,   
+    0.102890390836071,   
+    0.148235407508952,   
+    0.204097843036162,   
+    0.271400629040059,   
+    0.928501138100502,
+    1.083209903212600,   
+    1.252197567336926,   
+    7.004441200065508,   
+    0.810198990224952};
+  for (int i = 0; i < num_elements; ++i) {
+    delta_energy[i] *= 1.0e4;
+  }*/
+
+  int num_elements = 5;
+  std::string elements[] = {"H", "C", "N", "O", "S"};
+  double delta_energy[] = {-1.265276327295640,  -1.880752053284493,  -4.451413902725383,  -2.004796016966084,  -2.060841966465145};
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    std::vector<int> counts(num_elements, 0);
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      for (int i = 0; i < num_elements; ++i) {
+        if (structures[nc].atom_symbol[n] == elements[i]) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    for (int i = 0; i < num_elements; ++i) {
+      structures[nc].energy += counts[i] * delta_energy[i];
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
@@ -841,6 +936,8 @@ int main(int argc, char* argv[])
 #ifdef ZHEYONG
   std::cout << "8: add D3\n";
 #endif
+  std::cout << "9: get composition\n";
+  std::cout << "10: shift energy for multiple species\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -961,6 +1058,28 @@ int main(int argc, char* argv[])
     add_d3(structures_input, functional);
     write(output_filename, structures_input);
 #endif
+  } else if (option == 9) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    get_composition(structures_input);
+  } else if (option == 10) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    shift_energy_multiple_species(structures_input);
+    write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
@@ -969,3 +1088,5 @@ int main(int argc, char* argv[])
   std::cout << "Done." << std::endl;
   return EXIT_SUCCESS;
 }
+
+
