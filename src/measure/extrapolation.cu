@@ -51,52 +51,6 @@ __global__ void gpu_calculate_gamma(
   }
 }
 
-void Extrapolation::preprocess(
-  const int number_of_steps,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force& force)
-{
-  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-  printf("Initializing extrapolation grade calculation...\n");
-  B_size_per_atom = force.potentials[0]->B_projection_size;
-  if (B_size_per_atom == 0)
-    PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
-  else
-    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
-  B.resize(B_size_per_atom * atom.number_of_atoms);
-  gamma.resize(atom.number_of_atoms);
-  gamma_cpu.resize(atom.number_of_atoms);
-  force.potentials[0]->B_projection = B.data();
-  force.potentials[0]->need_B_projection = true;
-  this->atom = &atom;
-  this->box = &box;
-  f = my_fopen("extrapolation_dump.xyz", "w");
-
-  load_asi();
-
-  printf("gamma_low:      %f\n", gamma_low);
-  printf("gamma_high:     %f\n", gamma_high);
-  printf("check_interval: %d\n", check_interval);
-  printf("dump_interval:  %d\n", dump_interval);
-  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-}
-
-void Extrapolation::postprocess(
-  Atom& atom,
-  Box& box,
-  Integrate& integrate,
-  const int number_of_steps,
-  const double time_step,
-  const double temperature)
-{
-  printf("Closing extrapolation dump file...\n");
-  fclose(f);
-};
-
 Extrapolation::Extrapolation(const char** params, int num_params)
 {
   int i = 1;
@@ -129,6 +83,52 @@ Extrapolation::Extrapolation(const char** params, int num_params)
     }
   }
 }
+
+void Extrapolation::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  printf("Initializing extrapolation grade calculation...\n");
+  B_size_per_atom = force.potentials[0]->B_projection_size;
+  if (B_size_per_atom == 0)
+    PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
+  else
+    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
+  B.resize(B_size_per_atom * atom.number_of_atoms);
+  gamma.resize(atom.number_of_atoms);
+  gamma_cpu.resize(atom.number_of_atoms);
+  force.potentials[0]->B_projection = B.data();
+  force.potentials[0]->need_B_projection = true;
+  this->atom = &atom;
+  this->box = &box;
+  f = my_fopen("extrapolation_dump.xyz", "a");
+
+  load_asi();
+
+  printf("gamma_low:      %f\n", gamma_low);
+  printf("gamma_high:     %f\n", gamma_high);
+  printf("check_interval: %d\n", check_interval);
+  printf("dump_interval:  %d\n", dump_interval);
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+}
+
+void Extrapolation::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
+{
+  printf("Closing extrapolation dump file...\n");
+  fclose(f);
+};
 
 void Extrapolation::load_asi()
 {
