@@ -337,7 +337,8 @@ static __global__ void find_descriptor_small_box(
           q,
           F,
           Fp,
-          B_projection + n1 * B_projection_size);
+          N,
+          B_projection + n1);
     }
     g_pe[n1] += F;
 
