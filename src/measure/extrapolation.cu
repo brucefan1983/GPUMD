@@ -53,6 +53,7 @@ __global__ void gpu_calculate_gamma(
 
 Extrapolation::Extrapolation(const char** params, int num_params)
 {
+  property_name = "compute_extrapolation";
   int i = 1;
   while (i < num_params) {
     if (strcmp(params[i], "asi_file") == 0) {
