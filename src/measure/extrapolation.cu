@@ -32,7 +32,6 @@ __global__ void gpu_calculate_gamma(
   int number_of_particles,
   int B_size_per_atom)
 {
-  float max_gamma = 0;
   double current_gamma;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
@@ -42,12 +41,26 @@ __global__ void gpu_calculate_gamma(
       for (int k = 0; k < B_size_per_atom; k++) {
         current_gamma += B[i * B_size_per_atom + k] * current_asi[j * B_size_per_atom + k];
       }
-      current_gamma = std::abs(current_gamma);
-      if (current_gamma >= max_gamma) {
-        max_gamma = current_gamma;
+      gamma[i * B_size_per_atom + j] = current_gamma;
+    }
+  }
+}
+
+__global__ void test(double* i) { printf("%f --------- ", i[0]); }
+
+__global__ void gpu_calculate_max_gamma(
+  double* gamma_full, double* gamma, int number_of_particles, int B_size_per_atom)
+{
+  double a;
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    gamma[i] = 0;
+    for (int j = 0; j < B_size_per_atom; j++) {
+      a = std::abs(gamma_full[i * B_size_per_atom + j]);
+      if (a > gamma[i]) {
+        gamma[i] = a;
       }
     }
-    gamma[i] = max_gamma;
   }
 }
 
@@ -94,6 +107,7 @@ void Extrapolation::preprocess(
   Box& box,
   Force& force)
 {
+  int N = atom.number_of_atoms;
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("Initializing extrapolation grade calculation...\n");
   B_size_per_atom = force.potentials[0]->B_projection_size;
@@ -101,9 +115,10 @@ void Extrapolation::preprocess(
     PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
   else
     printf("The length of B vector for each atom: %d\n", B_size_per_atom);
-  B.resize(B_size_per_atom * atom.number_of_atoms);
-  gamma.resize(atom.number_of_atoms);
-  gamma_cpu.resize(atom.number_of_atoms);
+  B.resize(B_size_per_atom * N);
+  gamma_full.resize(B_size_per_atom * N);
+  gamma.resize(N);
+  gamma_cpu.resize(N);
   force.potentials[0]->B_projection = B.data();
   force.potentials[0]->need_B_projection = true;
   this->atom = &atom;
@@ -111,6 +126,19 @@ void Extrapolation::preprocess(
   f = my_fopen("extrapolation_dump.xyz", "a");
 
   load_asi();
+  cublasStatus_t stat = cublasCreate(&handle);
+  std::vector<double*> h_A(N), h_x(N), h_y(N);
+  for (int i = 0; i < N; i++) {
+    h_A[i] = asi_cpu[atom.cpu_type[i]];
+    h_x[i] = B.data() + i * B_size_per_atom;
+    h_y[i] = gamma_full.data() + i * B_size_per_atom;
+  }
+  cudaMalloc(&d_A, N * sizeof(double*));
+  cudaMalloc(&d_x, N * sizeof(double*));
+  cudaMalloc(&d_y, N * sizeof(double*));
+  cudaMemcpy(d_A, h_A.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_x, h_x.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_y, h_y.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
 
   printf("gamma_low:      %f\n", gamma_low);
   printf("gamma_high:     %f\n", gamma_high);
@@ -129,6 +157,10 @@ void Extrapolation::postprocess(
 {
   printf("Closing extrapolation dump file...\n");
   fclose(f);
+  cublasDestroy(handle);
+  cudaFree(d_A);
+  cudaFree(d_x);
+  cudaFree(d_y);
 };
 
 void Extrapolation::load_asi()
@@ -167,7 +199,6 @@ void Extrapolation::load_asi()
       a->copy_from_host(asi_temp.data());
       asi_data.push_back(a);
       asi_cpu[type_of_atom] = a->data();
-      asi_gpu.copy_from_host(asi_cpu.data());
     }
     printf("ASI successfully loaded!\n");
     f.close();
@@ -215,8 +246,40 @@ void Extrapolation::process(
 void Extrapolation::calculate_gamma()
 {
   int N = atom->number_of_atoms;
-  gpu_calculate_gamma<<<(N - 1) / 128 + 1, 128>>>(
-    gamma.data(), B.data(), atom->type.data(), asi_gpu.data(), N, B_size_per_atom);
+
+  double alpha = 1.0, beta = 0.0;
+  cublasDgemvBatched(
+    handle,
+    CUBLAS_OP_T,
+    B_size_per_atom,
+    B_size_per_atom,
+    &alpha,
+    d_A,
+    B_size_per_atom,
+    d_x,
+    1,
+    &beta,
+    d_y,
+    1,
+    N);
+
+  // for (int i = 0; i < N; i++)
+  // cublasDgemv(
+  // handle,
+  // CUBLAS_OP_T,
+  // B_size_per_atom,
+  // B_size_per_atom,
+  //&alpha,
+  // A[i],
+  // B_size_per_atom,
+  // x[i],
+  // 1,
+  //&beta,
+  // y[i],
+  // 1);
+
+  gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
+    gamma_full.data(), gamma.data(), N, B_size_per_atom);
   gamma.copy_to_host(gamma_cpu.data());
 }
 

@@ -590,7 +590,7 @@ static __global__ void find_descriptor(
   double* g_virial,
   float* g_sum_fxyz,
   bool need_B_projection,
-  float* B_projection,
+  double* B_projection,
   int B_projection_size)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
