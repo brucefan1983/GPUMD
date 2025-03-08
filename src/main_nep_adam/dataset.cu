@@ -237,7 +237,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
 void Dataset::initialize_gradients_temp(Parameters& para)
 {
-  gradients.resize(N, max_NN_radial, para.number_of_variables, para.number_of_variables_ann, para.dim, para.basis_size_radial);
+  gradients.resize(N, para.number_of_variables, para.number_of_variables_ann, para.dim);
 }
 
 static __global__ void gpu_find_neighbor_number(

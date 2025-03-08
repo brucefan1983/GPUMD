@@ -212,6 +212,9 @@ void Fitness::compute(Parameters& para)
       para.lambda_e = 1.0 + (0.02 - 1.0) * lr / start_lr;
       para.lambda_f = 1.0 + (1000.0 - 1.0) * lr / start_lr;
       para.lambda_v = 1.0 + (50.0 - 1.0) * lr / start_lr;
+      // para.lambda_e = 1.0;
+      // para.lambda_f = 1.0;
+      // para.lambda_v = 1.0;
       potential->find_force(
       para,
       parameters,

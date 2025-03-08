@@ -34,7 +34,9 @@ struct NEP3_Data {
   GPU_Vector<double> descriptors; // descriptors
   GPU_Vector<double> Fp;          // gradient of descriptors
   GPU_Vector<double> Fp2;         // second gradient of descriptors
-  GPU_Vector<double> sum_fxyz;
+  GPU_Vector<double> sum_fxyz;  // Snlm
+  GPU_Vector<double> sum_s2xyz; // Snlm_xyz
+  GPU_Vector<double> sum_s2xyz123; // Snlm_xyz * xyz
   GPU_Vector<double> parameters; // parameters to be optimized
 };
 
