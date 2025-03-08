@@ -15,7 +15,11 @@
 
 #pragma once
 
-#include "cublas_v2.h"
+#ifdef USE_HIP
+#include <hipblas.h>
+#else
+#include <cublas_v2.h>
+#endif
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
