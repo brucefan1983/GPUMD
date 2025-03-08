@@ -24,30 +24,6 @@
     exit(1);                                                                                       \
   } while (0)
 
-__global__ void gpu_calculate_gamma(
-  float* gamma,
-  float* B,
-  int* atom_type,
-  double** asi,
-  int number_of_particles,
-  int B_size_per_atom)
-{
-  double current_gamma;
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_particles) {
-    double* current_asi = asi[atom_type[i]];
-    for (int j = 0; j < B_size_per_atom; j++) {
-      current_gamma = 0;
-      for (int k = 0; k < B_size_per_atom; k++) {
-        current_gamma += B[i * B_size_per_atom + k] * current_asi[j * B_size_per_atom + k];
-      }
-      gamma[i * B_size_per_atom + j] = current_gamma;
-    }
-  }
-}
-
-__global__ void test(double* i) { printf("%f --------- ", i[0]); }
-
 __global__ void gpu_calculate_max_gamma(
   double* gamma_full, double* gamma, int number_of_particles, int B_size_per_atom)
 {
@@ -262,21 +238,6 @@ void Extrapolation::calculate_gamma()
     d_y,
     1,
     N);
-
-  // for (int i = 0; i < N; i++)
-  // cublasDgemv(
-  // handle,
-  // CUBLAS_OP_T,
-  // B_size_per_atom,
-  // B_size_per_atom,
-  //&alpha,
-  // A[i],
-  // B_size_per_atom,
-  // x[i],
-  // 1,
-  //&beta,
-  // y[i],
-  // 1);
 
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);
