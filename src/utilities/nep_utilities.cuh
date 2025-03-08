@@ -164,7 +164,6 @@ static __device__ void apply_ann_one_layer(
   float* q,
   float& energy,
   float* energy_derivative,
-  const int& N,
   float* B_projection)
 {
   for (int n = 0; n < N_neu; ++n) {
@@ -178,11 +177,11 @@ static __device__ void apply_ann_one_layer(
     // calculate B_projection:
     // dE/dw0
     for (int d = 0; d < N_des; ++d)
-      B_projection[(n * (N_des + 2) + d) * N] = tanh_der * q[d] * w1[n];
+      B_projection[n * (N_des + 2) + d] = tanh_der * q[d] * w1[n];
     // dE/db0
-    B_projection[(n * (N_des + 2) + N_des) * N] = -tanh_der * w1[n];
+    B_projection[n * (N_des + 2) + N_des] = -tanh_der * w1[n];
     // dE/dw1
-    B_projection[(n * (N_des + 2) + N_des + 1) * N] = x1;
+    B_projection[n * (N_des + 2) + N_des + 1] = x1;
 
     energy += w1[n] * x1;
     for (int d = 0; d < N_des; ++d) {
