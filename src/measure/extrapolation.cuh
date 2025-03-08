@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "cublas_v2.h"
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -70,11 +71,12 @@ public:
   FILE* f;
   std::vector<GPU_Vector<double>*> asi_data;
   std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
-  GPU_Vector<double*> asi_gpu = GPU_Vector<double*>(NUM_ELEMENTS, nullptr);
-  GPU_Vector<float> B;
+  GPU_Vector<double> B;
   // max gamma
-  GPU_Vector<float> gamma;
-  std::vector<float> gamma_cpu;
+  GPU_Vector<double> gamma_full;
+  GPU_Vector<double> gamma;
+  std::vector<double> gamma_cpu;
+  double **d_A, **d_x, **d_y;
   Atom* atom;
   Box* box;
   int B_size_per_atom;
@@ -85,6 +87,7 @@ public:
   double gamma_high = 1e100;
   double max_gamma;
   std::string asi_file_name;
+  cublasHandle_t handle;
 
 private:
   void load_asi();
