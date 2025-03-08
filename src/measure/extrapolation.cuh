@@ -87,7 +87,7 @@ public:
   double gamma_high = 1e100;
   double max_gamma;
   std::string asi_file_name;
-  cublasHandle_t handle;
+  gpublasHandle_t handle;
 
 private:
   void load_asi();

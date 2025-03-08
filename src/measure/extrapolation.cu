@@ -14,6 +14,7 @@
 */
 
 #include "extrapolation.cuh"
+#include "utilities/gpu_macro.cuh"
 
 #define PRINT_RUNTIME_ERROR(text)                                                                  \
   do {                                                                                             \
@@ -102,20 +103,20 @@ void Extrapolation::preprocess(
   f = my_fopen("extrapolation_dump.xyz", "a");
 
   load_asi();
-  cublasStatus_t stat = cublasCreate(&handle);
   std::vector<double*> h_A(N), h_x(N), h_y(N);
   for (int i = 0; i < N; i++) {
     h_A[i] = asi_cpu[atom.cpu_type[i]];
     h_x[i] = B.data() + i * B_size_per_atom;
     h_y[i] = gamma_full.data() + i * B_size_per_atom;
   }
-  cudaMalloc(&d_A, N * sizeof(double*));
-  cudaMalloc(&d_x, N * sizeof(double*));
-  cudaMalloc(&d_y, N * sizeof(double*));
-  cudaMemcpy(d_A, h_A.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_x, h_x.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_y, h_y.data(), N * sizeof(double*), cudaMemcpyHostToDevice);
+  gpuMalloc(&d_A, N * sizeof(double*));
+  gpuMalloc(&d_x, N * sizeof(double*));
+  gpuMalloc(&d_y, N * sizeof(double*));
+  gpuMemcpy(d_A, h_A.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
+  gpuMemcpy(d_x, h_x.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
+  gpuMemcpy(d_y, h_y.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
 
+  gpublasCreate(&handle);
   printf("gamma_low:      %f\n", gamma_low);
   printf("gamma_high:     %f\n", gamma_high);
   printf("check_interval: %d\n", check_interval);
@@ -133,10 +134,10 @@ void Extrapolation::postprocess(
 {
   printf("Closing extrapolation dump file...\n");
   fclose(f);
-  cublasDestroy(handle);
-  cudaFree(d_A);
-  cudaFree(d_x);
-  cudaFree(d_y);
+  gpublasDestroy(handle);
+  gpuFree(d_A);
+  gpuFree(d_x);
+  gpuFree(d_y);
 };
 
 void Extrapolation::load_asi()
@@ -224,9 +225,9 @@ void Extrapolation::calculate_gamma()
   int N = atom->number_of_atoms;
 
   double alpha = 1.0, beta = 0.0;
-  cublasDgemvBatched(
+  gpublasDgemvBatched(
     handle,
-    CUBLAS_OP_T,
+    GPUBLAS_OP_T,
     B_size_per_atom,
     B_size_per_atom,
     &alpha,
