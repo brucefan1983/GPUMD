@@ -40,7 +40,7 @@ __global__ void gpu_calculate_gamma(
     for (int j = 0; j < B_size_per_atom; j++) {
       current_gamma = 0;
       for (int k = 0; k < B_size_per_atom; k++) {
-        current_gamma += B[i + k * number_of_particles] * current_asi[j * B_size_per_atom + k];
+        current_gamma += B[i * B_size_per_atom + k] * current_asi[j * B_size_per_atom + k];
       }
       current_gamma = std::abs(current_gamma);
       if (current_gamma >= max_gamma) {
