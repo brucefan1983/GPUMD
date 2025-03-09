@@ -109,12 +109,12 @@ void Extrapolation::preprocess(
     h_x[i] = B.data() + i * B_size_per_atom;
     h_y[i] = gamma_full.data() + i * B_size_per_atom;
   }
-  gpuMalloc(&d_A, N * sizeof(double*));
-  gpuMalloc(&d_x, N * sizeof(double*));
-  gpuMalloc(&d_y, N * sizeof(double*));
-  gpuMemcpy(d_A, h_A.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
-  gpuMemcpy(d_x, h_x.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
-  gpuMemcpy(d_y, h_y.data(), N * sizeof(double*), gpuMemcpyHostToDevice);
+  d_A.resize(N);
+  d_x.resize(N);
+  d_y.resize(N);
+  d_A.copy_from_host(h_A.data());
+  d_x.copy_from_host(h_x.data());
+  d_y.copy_from_host(h_y.data());
 
   gpublasCreate(&handle);
   printf("gamma_low:      %f\n", gamma_low);
@@ -135,9 +135,6 @@ void Extrapolation::postprocess(
   printf("Closing extrapolation dump file...\n");
   fclose(f);
   gpublasDestroy(handle);
-  gpuFree(d_A);
-  gpuFree(d_x);
-  gpuFree(d_y);
 };
 
 void Extrapolation::load_asi()
@@ -227,16 +224,16 @@ void Extrapolation::calculate_gamma()
   double alpha = 1.0, beta = 0.0;
   gpublasDgemvBatched(
     handle,
-    GPUBLAS_OP_T,
+    GPUBLAS_OP_N,
     B_size_per_atom,
     B_size_per_atom,
     &alpha,
-    d_A,
+    d_A.data(),
     B_size_per_atom,
-    d_x,
+    d_x.data(),
     1,
     &beta,
-    d_y,
+    d_y.data(),
     1,
     N);
 

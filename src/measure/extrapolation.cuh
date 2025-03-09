@@ -80,7 +80,7 @@ public:
   GPU_Vector<double> gamma_full;
   GPU_Vector<double> gamma;
   std::vector<double> gamma_cpu;
-  double **d_A, **d_x, **d_y;
+  GPU_Vector<double*> d_A, d_x, d_y;
   Atom* atom;
   Box* box;
   int B_size_per_atom;
