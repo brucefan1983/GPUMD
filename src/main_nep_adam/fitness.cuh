@@ -33,6 +33,7 @@ public:
     Parameters& para);
   void report_error(
     Parameters& para,
+    float time_used,
     const int generation,
     const double loss_total,
     const double rmse_energy_train,

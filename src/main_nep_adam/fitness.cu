@@ -155,7 +155,7 @@ void Fitness::compute(Parameters& para)
 
     if (para.train_mode == 0 || para.train_mode == 3) {
       printf(
-        "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-20s\n", 
+        "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-20s%-10s\n", 
         "Step",
         "Total-Loss",
         "RMSE-E-Train",
@@ -164,15 +164,17 @@ void Fitness::compute(Parameters& para)
         "RMSE-E-Test",
         "RMSE-F-Test",
         "RMSE-V-Test",
-        "Learning-Rate");
+        "Learning-Rate",
+        "Time(s)");
     } else {
       printf(
-        "%-8s%-11s%-13s%-13s%-20s\n",
+        "%-8s%-11s%-13s%-13s%-20s%-10s\n",
         "Step", 
         "Total-Loss",
         "RMSE-P-Train",
         "RMSE-P-Test",
-        "Learning-Rate");
+        "Learning-Rate",
+        "Time(s)");
     }
   }
   int deviceCount;
@@ -198,10 +200,13 @@ void Fitness::compute(Parameters& para)
     double mse_force;
     double mse_virial;
     int count;
+    clock_t time_begin;
+    clock_t time_finish;
     for (int step = 0; step < maximum_generation; ++step) {
       int batch_id = step % num_batches;
       int Nc = train_set[batch_id][0].Nc;
       if (batch_id == 0) {
+        time_begin = clock();
         mse_energy = 0.0;
         mse_force = 0.0;
         mse_virial = 0.0;
@@ -236,12 +241,15 @@ void Fitness::compute(Parameters& para)
       optimizer->update(lr, train_set[batch_id][0].gradients.grad_sum.data());
 
       if ((step + 1) % num_batches == 0) {
+        time_finish = clock();
+        float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
         double rmse_energy_train = sqrt(mse_energy / count);
         double rmse_force_train = sqrt(mse_force / count);
         double rmse_virial_train = sqrt(mse_virial / count);
         double total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
         report_error(
           para,
+          time_used,
           step,
           total_loss_train,
           rmse_energy_train,
@@ -432,6 +440,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, double* parameters)
 
 void Fitness::report_error(
   Parameters& para,
+  float time_used,
   const int generation,
   const double loss_total,
   const double rmse_energy_train,
@@ -472,7 +481,7 @@ void Fitness::report_error(
 
   if (para.train_mode == 0 || para.train_mode == 3) {
     printf(
-      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f\n", 
+      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f%-13.5f\n", 
       generation + 1,
       loss_total,
       rmse_energy_train,
@@ -481,10 +490,11 @@ void Fitness::report_error(
       rmse_energy_test,
       rmse_force_test,
       rmse_virial_test,
-      lr);
+      lr,
+      time_used);
     fprintf(
       fid_loss_out,
-      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f\n",
+      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
       generation + 1,
       loss_total,
       rmse_energy_train,
@@ -493,23 +503,26 @@ void Fitness::report_error(
       rmse_energy_test,
       rmse_force_test,
       rmse_virial_test,
-      lr);
+      lr,
+      time_used);
   } else {
     printf(
-      "%-8d%-11.5f%-13.5f%-13.5f%-20.7f\n",
+      "%-8d%-11.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
       generation + 1,
       loss_total,
       rmse_virial_train,
       rmse_virial_test,
-      lr);
+      lr,
+      time_used);
     fprintf(
       fid_loss_out,
-      "%-8d%-11.5f%-13.5f%-13.5f%-20.7f\n",
+      "%-8d%-11.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
       generation + 1,
       loss_total,
       rmse_virial_train,
       rmse_virial_test,
-      lr);
+      lr,
+      time_used);
   }
   fflush(stdout);
   fflush(fid_loss_out);

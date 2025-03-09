@@ -385,16 +385,16 @@ static void __global__ find_max_min(const int N, const double* g_q, double* g_q_
   }
   if (tid == 0) {
     g_q_scaler[bid] = min(g_q_scaler[bid], 1.0 / (s_max[0] - s_min[0]));
-    g_q_scaler[0] = 8.021109302104;
-    g_q_scaler[1] = 0.345944536877;
-    g_q_scaler[2] = 69.268101453680;
-    g_q_scaler[3] = 13.876835543291;
-    g_q_scaler[4] = 44.849951449302;
-    g_q_scaler[5] = 18.837681171027;
-    g_q_scaler[6] = 1.033939693733;
-    g_q_scaler[7] = 12.713894964850;
-    g_q_scaler[8] = 1.755141023996;
-    g_q_scaler[9] = 34.913022114110;
+    // g_q_scaler[0] = 8.021109302104;
+    // g_q_scaler[1] = 0.345944536877;
+    // g_q_scaler[2] = 69.268101453680;
+    // g_q_scaler[3] = 13.876835543291;
+    // g_q_scaler[4] = 44.849951449302;
+    // g_q_scaler[5] = 18.837681171027;
+    // g_q_scaler[6] = 1.033939693733;
+    // g_q_scaler[7] = 12.713894964850;
+    // g_q_scaler[8] = 1.755141023996;
+    // g_q_scaler[9] = 34.913022114110;
   }
 }
 
@@ -824,14 +824,12 @@ static __global__ void compute_grad_radial(
     double* e_wb_grad = g_E_wb_grad + n1_net_index;
     
     double diff[6];
-    if (virial_nums > 0) {
-      diff[0] = g_diff_gpu_v[batch_idx * 6 + 0];
-      diff[1] = g_diff_gpu_v[batch_idx * 6 + 1];
-      diff[2] = g_diff_gpu_v[batch_idx * 6 + 2];
-      diff[3] = g_diff_gpu_v[batch_idx * 6 + 3];
-      diff[4] = g_diff_gpu_v[batch_idx * 6 + 4];
-      diff[5] = g_diff_gpu_v[batch_idx * 6 + 5];
-    }
+    diff[0] = g_diff_gpu_v[batch_idx * 6 + 0];
+    diff[1] = g_diff_gpu_v[batch_idx * 6 + 1];
+    diff[2] = g_diff_gpu_v[batch_idx * 6 + 2];
+    diff[3] = g_diff_gpu_v[batch_idx * 6 + 3];
+    diff[4] = g_diff_gpu_v[batch_idx * 6 + 4];
+    diff[5] = g_diff_gpu_v[batch_idx * 6 + 5];
 
     double feat_xx_sum_i1[MAX_NUM_N] = {0.0};
     double feat_yy_sum_i1[MAX_NUM_N] = {0.0};
@@ -924,20 +922,24 @@ static __global__ void compute_grad_radial(
                     fnp12[k] * fp_xyz[1],
                     fnp12[k] * fp_xyz[2]
                 };
-          double f_c_n1 = qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1;
-          double f_c_n2 = qp_c_tmp[0] * dx_n2 + qp_c_tmp[1] * dy_n2 + qp_c_tmp[2] * dz_n2;
+          // double f_c_n1 = qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1;
+          // double f_c_n2 = qp_c_tmp[0] * dx_n2 + qp_c_tmp[1] * dy_n2 + qp_c_tmp[2] * dz_n2;
           int grad_c_index = c_index + annmb.num_ann;
-          atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
-          atomicAdd(&g_grad_sum[grad_c_index], -f_c_n2 * per_Nc);
+          double grad_c_sum = per_Nc * (qp_c_tmp[0] * (dx_n1 - dx_n2) + qp_c_tmp[1] * (dy_n1 - dy_n2) + qp_c_tmp[2] * (dz_n1 - dz_n2));
+          grad_c_sum += per_Nc_e * g_Fp[n1 + n * N] * fn12[k];
+          grad_c_sum -= virial_nums > 0 ? per_Nc_v * fnp12[k] * (fp_xyz_123[0] * diff[0] + fp_xyz_123[1] * diff[1] + fp_xyz_123[2] * diff[2] + fp_xyz_123[3] * diff[3] + fp_xyz_123[4] * diff[4] + fp_xyz_123[5] * diff[5]) : 0.0;
+          atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
+          // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
+          // atomicAdd(&g_grad_sum[grad_c_index], -f_c_n2 * per_Nc);
 
-          atomicAdd(&g_grad_sum[grad_c_index], g_Fp[n1 + n * N] * fn12[k] * per_Nc_e);
+          // atomicAdd(&g_grad_sum[grad_c_index], g_Fp[n1 + n * N] * fn12[k] * per_Nc_e);
 
-          // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij * α_ij
-          if (virial_nums > 0) {
-            double v_c_n1 = -fnp12[k] * per_Nc_v * (fp_xyz_123[0] * diff[0] + fp_xyz_123[1] * diff[1] + fp_xyz_123[2] * diff[2]
-            + fp_xyz_123[3] * diff[3] + fp_xyz_123[4] * diff[4] + fp_xyz_123[5] * diff[5]);
-            atomicAdd(&g_grad_sum[grad_c_index], v_c_n1);
-          }
+          // // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij * α_ij
+          // if (virial_nums > 0) {
+          //   double v_c_n1 = -fnp12[k] * per_Nc_v * (fp_xyz_123[0] * diff[0] + fp_xyz_123[1] * diff[1] + fp_xyz_123[2] * diff[2]
+          //   + fp_xyz_123[3] * diff[3] + fp_xyz_123[4] * diff[4] + fp_xyz_123[5] * diff[5]);
+          //   atomicAdd(&g_grad_sum[grad_c_index], v_c_n1);
+          // }
         }
  
         feat_x[n] = gnp12 * tmp_xyz[0];
@@ -978,19 +980,25 @@ static __global__ void compute_grad_radial(
             sum_dfeat_w0[1] += dfeat_w0_scaler[1] * g_ep_wb[w0_index_dim];
             sum_dfeat_w0[2] += dfeat_w0_scaler[2] * g_ep_wb[w0_index_dim];
           }
-          double f_w0_n1 = sum_dfeat_w0[0] * dx_n1 + sum_dfeat_w0[1] * dy_n1 + sum_dfeat_w0[2] * dz_n1;
-          double f_w0_n2 = -sum_dfeat_w0[0] * dx_n2 - sum_dfeat_w0[1] * dy_n2 - sum_dfeat_w0[2] * dz_n2;
-          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n1 * per_Nc);
-          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n2 * per_Nc);
+          // double f_w0_n1 = sum_dfeat_w0[0] * dx_n1 + sum_dfeat_w0[1] * dy_n1 + sum_dfeat_w0[2] * dz_n1;
+          // double f_w0_n2 = -sum_dfeat_w0[0] * dx_n2 - sum_dfeat_w0[1] * dy_n2 - sum_dfeat_w0[2] * dz_n2;
+          double grad_w0_sum = per_Nc * (sum_dfeat_w0[0] * (dx_n1 - dx_n2) + sum_dfeat_w0[1] * (dy_n1 - dy_n2) + sum_dfeat_w0[2] * (dz_n1 - dz_n2));
+          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
+          // atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n1 * per_Nc);
+          // atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n2 * per_Nc);
         }
-        double f_w1_n1 = sum_dfeat_w1b0[0] * dx_n1 + sum_dfeat_w1b0[1] * dy_n1 + sum_dfeat_w1b0[2] * dz_n1;
-        double f_w1_n2 = -sum_dfeat_w1b0[0] * dx_n2 - sum_dfeat_w1b0[1] * dy_n2 - sum_dfeat_w1b0[2] * dz_n2;
-        double f_b0_n1 = sum_dfeat_w1b0[3] * dx_n1 + sum_dfeat_w1b0[4] * dy_n1 + sum_dfeat_w1b0[5] * dz_n1;
-        double f_b0_n2 = -sum_dfeat_w1b0[3] * dx_n2 - sum_dfeat_w1b0[4] * dy_n2 - sum_dfeat_w1b0[5] * dz_n2;
-        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n1 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n2 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n1 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n2 * per_Nc);
+        // double f_w1_n1 = sum_dfeat_w1b0[0] * dx_n1 + sum_dfeat_w1b0[1] * dy_n1 + sum_dfeat_w1b0[2] * dz_n1;
+        // double f_w1_n2 = -sum_dfeat_w1b0[0] * dx_n2 - sum_dfeat_w1b0[1] * dy_n2 - sum_dfeat_w1b0[2] * dz_n2;
+        // double f_b0_n1 = sum_dfeat_w1b0[3] * dx_n1 + sum_dfeat_w1b0[4] * dy_n1 + sum_dfeat_w1b0[5] * dz_n1;
+        // double f_b0_n2 = -sum_dfeat_w1b0[3] * dx_n2 - sum_dfeat_w1b0[4] * dy_n2 - sum_dfeat_w1b0[5] * dz_n2;
+        double grad_w1_sum = per_Nc * (sum_dfeat_w1b0[0] * (dx_n1 - dx_n2) + sum_dfeat_w1b0[1] * (dy_n1 - dy_n2) + sum_dfeat_w1b0[2] * (dz_n1 - dz_n2));
+        double grad_b0_sum = per_Nc * (sum_dfeat_w1b0[3] * (dx_n1 - dx_n2) + sum_dfeat_w1b0[4] * (dy_n1 - dy_n2) + sum_dfeat_w1b0[5] * (dz_n1 - dz_n2));
+        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], grad_w1_sum);
+        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], grad_b0_sum);
+        // atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n1 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n2 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n1 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n2 * per_Nc);
       }
 
       for (int j = 0; j < neighbor_number; ++j) {
@@ -1035,21 +1043,24 @@ static __global__ void compute_grad_radial(
             int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2_tmp; 
             double q_c_scaler = fn12[k] * g_q_scaler[n];
-            double f_c_n1 = feat_xyz_sum[0] * q_c_scaler * dx_n1 + feat_xyz_sum[1] * q_c_scaler * dy_n1 + feat_xyz_sum[2] * q_c_scaler * dz_n1;
-            double f_c_n2 = -feat_xyz_sum[0] * q_c_scaler * dx_n2 - feat_xyz_sum[1] * q_c_scaler * dy_n2 - feat_xyz_sum[2] * q_c_scaler * dz_n2;
+            // double f_c_n1 = feat_xyz_sum[0] * q_c_scaler * dx_n1 + feat_xyz_sum[1] * q_c_scaler * dy_n1 + feat_xyz_sum[2] * q_c_scaler * dz_n1;
+            // double f_c_n2 = -feat_xyz_sum[0] * q_c_scaler * dx_n2 - feat_xyz_sum[1] * q_c_scaler * dy_n2 - feat_xyz_sum[2] * q_c_scaler * dz_n2;
             int grad_c_index = c_index + annmb.num_ann;
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n2 * per_Nc);
+            double grad_c_sum = per_Nc * q_c_scaler * (feat_xyz_sum[0] * (dx_n1 - dx_n2) + feat_xyz_sum[1] * (dy_n1 - dy_n2) + feat_xyz_sum[2] * (dz_n1 - dz_n2));
+            grad_c_sum -= virial_nums > 0 ? per_Nc_v * q_c_scaler * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]) : 0.0;
+            atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n2 * per_Nc);
 
-            if (virial_nums > 0) {
-              double v_c_n1_sum = -q_c_scaler * per_Nc_v * (feat_123_sum[0] * diff[0] 
-              + feat_123_sum[1] * diff[1] 
-              + feat_123_sum[2] * diff[2] 
-              + feat_123_sum[3] * diff[3] 
-              + feat_123_sum[4] * diff[4] 
-              + feat_123_sum[5] * diff[5]);
-              atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum);
-            }
+            // if (virial_nums > 0) {
+            //   double v_c_n1_sum = -q_c_scaler * per_Nc_v * (feat_123_sum[0] * diff[0] 
+            //   + feat_123_sum[1] * diff[1] 
+            //   + feat_123_sum[2] * diff[2] 
+            //   + feat_123_sum[3] * diff[3] 
+            //   + feat_123_sum[4] * diff[4] 
+            //   + feat_123_sum[5] * diff[5]);
+            //   atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum);
+            // }
           }
         }
       }
@@ -1098,19 +1109,22 @@ static __global__ void compute_grad_radial(
               double q_c_scaler_ang = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
 
               int grad_c_index = c_index + annmb.num_ann;
-              double f_c_n1_3b = feat_xyz_sum[0] * q_c_scaler_ang * dx_n1 + feat_xyz_sum[1] * q_c_scaler_ang * dy_n1 + feat_xyz_sum[2] * q_c_scaler_ang * dz_n1;
-              double f_c_n2_3b = -feat_xyz_sum[0] * q_c_scaler_ang * dx_n2 - feat_xyz_sum[1] * q_c_scaler_ang * dy_n2 - feat_xyz_sum[2] * q_c_scaler_ang * dz_n2;
-              atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_3b * per_Nc);
-              atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_3b * per_Nc);
-              if (virial_nums > 0) {
-                double v_c_n1_sum_3b = q_c_scaler_ang * per_Nc_v * (feat_123_sum[0] * diff[0] 
-                + feat_123_sum[1] * diff[1] 
-                + feat_123_sum[2] * diff[2] 
-                + feat_123_sum[3] * diff[3] 
-                + feat_123_sum[4] * diff[4] 
-                + feat_123_sum[5] * diff[5]);
-                atomicAdd(&g_grad_sum[grad_c_index], -v_c_n1_sum_3b);
-              }
+              // double f_c_n1_3b = feat_xyz_sum[0] * q_c_scaler_ang * dx_n1 + feat_xyz_sum[1] * q_c_scaler_ang * dy_n1 + feat_xyz_sum[2] * q_c_scaler_ang * dz_n1;
+              // double f_c_n2_3b = -feat_xyz_sum[0] * q_c_scaler_ang * dx_n2 - feat_xyz_sum[1] * q_c_scaler_ang * dy_n2 - feat_xyz_sum[2] * q_c_scaler_ang * dz_n2;
+              double grad_c_sum_3b = per_Nc * q_c_scaler_ang * (feat_xyz_sum[0] * (dx_n1 - dx_n2) + feat_xyz_sum[1] * (dy_n1 - dy_n2) + feat_xyz_sum[2] * (dz_n1 - dz_n2));
+              grad_c_sum_3b -= virial_nums > 0 ? per_Nc_v * q_c_scaler_ang * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]) : 0.0;
+              atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum_3b);
+              // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_3b * per_Nc);
+              // atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_3b * per_Nc);
+              // if (virial_nums > 0) {
+              //   double v_c_n1_sum_3b = q_c_scaler_ang * per_Nc_v * (feat_123_sum[0] * diff[0] 
+              //   + feat_123_sum[1] * diff[1] 
+              //   + feat_123_sum[2] * diff[2] 
+              //   + feat_123_sum[3] * diff[3] 
+              //   + feat_123_sum[4] * diff[4] 
+              //   + feat_123_sum[5] * diff[5]);
+              //   atomicAdd(&g_grad_sum[grad_c_index], -v_c_n1_sum_3b);
+              // }
             }
           }
         }
@@ -1156,14 +1170,17 @@ static __global__ void compute_grad_radial(
           sum_dfeat_w0[4] += dfeat_w0_scaler[4] * g_ep_wb[w0_index_dim];
           sum_dfeat_w0[5] += dfeat_w0_scaler[5] * g_ep_wb[w0_index_dim];
         }
-        double e_w0_n1 = e_wb_grad[j * annmb.dim + d] * per_Nc_e;
-        atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], e_w0_n1);
-        if (virial_nums > 0) {
-          double v_w0_n1 = per_Nc_v * (sum_dfeat_w0[0] * diff[0] + sum_dfeat_w0[1] * diff[1] 
-          + sum_dfeat_w0[2] * diff[2] + sum_dfeat_w0[3] * diff[3] 
-          + sum_dfeat_w0[4] * diff[4] + sum_dfeat_w0[5] * diff[5]);
-          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], -v_w0_n1);
-        }
+        // double e_w0_n1 = e_wb_grad[j * annmb.dim + d] * per_Nc_e;
+        // atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], e_w0_n1);
+        double grad_ev_w0_sum = per_Nc_e * e_wb_grad[j * annmb.dim + d];
+        grad_ev_w0_sum -= virial_nums > 0 ? per_Nc_v * (sum_dfeat_w0[0] * diff[0] + sum_dfeat_w0[1] * diff[1] + sum_dfeat_w0[2] * diff[2] + sum_dfeat_w0[3] * diff[3] + sum_dfeat_w0[4] * diff[4] + sum_dfeat_w0[5] * diff[5]) : 0.0;
+        atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_ev_w0_sum);
+        // if (virial_nums > 0) {
+        //   double v_w0_n1 = per_Nc_v * (sum_dfeat_w0[0] * diff[0] + sum_dfeat_w0[1] * diff[1] 
+        //   + sum_dfeat_w0[2] * diff[2] + sum_dfeat_w0[3] * diff[3] 
+        //   + sum_dfeat_w0[4] * diff[4] + sum_dfeat_w0[5] * diff[5]);
+        //   atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], -v_w0_n1);
+        // }
       }
       double e_b0_n1 = e_wb_grad[annmb.num_neurons1 * annmb.dim + j] * per_Nc_e;
       double e_w1_n1 = e_wb_grad[annmb.num_neurons1 * annmb.dim + annmb.num_neurons1 + j] * per_Nc_e;
@@ -1265,14 +1282,12 @@ static __global__ void compute_grad_angular(
     int n1_net_index_wb = n1 * annmb.num_ann * annmb.dim + t1_net_index * annmb.dim;
     
     double diff[6];
-    if (virial_nums > 0) {
-      diff[0] = g_diff_gpu_v[batch_idx * 6 + 0];
-      diff[1] = g_diff_gpu_v[batch_idx * 6 + 1];
-      diff[2] = g_diff_gpu_v[batch_idx * 6 + 2];
-      diff[3] = g_diff_gpu_v[batch_idx * 6 + 3];
-      diff[4] = g_diff_gpu_v[batch_idx * 6 + 4];
-      diff[5] = g_diff_gpu_v[batch_idx * 6 + 5];
-    }
+    diff[0] = g_diff_gpu_v[batch_idx * 6 + 0];
+    diff[1] = g_diff_gpu_v[batch_idx * 6 + 1];
+    diff[2] = g_diff_gpu_v[batch_idx * 6 + 2];
+    diff[3] = g_diff_gpu_v[batch_idx * 6 + 3];
+    diff[4] = g_diff_gpu_v[batch_idx * 6 + 4];
+    diff[5] = g_diff_gpu_v[batch_idx * 6 + 5];
 
     double feat_xx_sum_i1[MAX_LN] = {0.0};
     double feat_yy_sum_i1[MAX_LN] = {0.0};
@@ -1340,13 +1355,17 @@ static __global__ void compute_grad_angular(
           gnp12 += fnp12[k] * annmb.c[c_index];
           accumulate_ec(N, paramb.L_max, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], fnp12[k], &g_sum_fxyz[n1], &g_sum_s2xyz[n1], &g_sum_s2xyz123[n1], Fp, &e_c, qp_c_tmp, qp_c_tmp123);
           int grad_c_index = c_index + annmb.num_ann;
-          double f_c_n1 = qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1;
-          atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
-          atomicAdd(&g_grad_sum[grad_c_index], e_c * per_Nc_e);
-          if (virial_nums > 0) {
-            double v_c_n1 = -per_Nc_v * (qp_c_tmp123[0] * diff[0] + qp_c_tmp123[1] * diff[1] + qp_c_tmp123[2] * diff[2] + qp_c_tmp123[3] * diff[3] + qp_c_tmp123[4] * diff[4] + qp_c_tmp123[5] * diff[5]);
-            atomicAdd(&g_grad_sum[grad_c_index], v_c_n1);
-          }
+          // double f_c_n1 = qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1;
+          double grad_c_sum = per_Nc * (qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1);
+          grad_c_sum += per_Nc_e * e_c;
+          grad_c_sum -= virial_nums > 0 ? per_Nc_v * (qp_c_tmp123[0] * diff[0] + qp_c_tmp123[1] * diff[1] + qp_c_tmp123[2] * diff[2] + qp_c_tmp123[3] * diff[3] + qp_c_tmp123[4] * diff[4] + qp_c_tmp123[5] * diff[5]) : 0.0;
+          atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
+          // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1 * per_Nc);
+          // atomicAdd(&g_grad_sum[grad_c_index], e_c * per_Nc_e);
+          // if (virial_nums > 0) {
+          //   double v_c_n1 = -per_Nc_v * (qp_c_tmp123[0] * diff[0] + qp_c_tmp123[1] * diff[1] + qp_c_tmp123[2] * diff[2] + qp_c_tmp123[3] * diff[3] + qp_c_tmp123[4] * diff[4] + qp_c_tmp123[5] * diff[5]);
+          //   atomicAdd(&g_grad_sum[grad_c_index], v_c_n1);
+          // }
         }
         accumulate_dfe(N, paramb.L_max, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, &g_sum_fxyz[n1], &s[n * NUM_OF_ABC], &sum_s2xyz[n * NUM_OF_ABC * 3], &feat_x[n], &feat_y[n], &feat_z[n], &feat_123_xx[n], &feat_123_yy[n], &feat_123_zz[n], &feat_123_xy[n], &feat_123_yz[n], &feat_123_zx[n]);
         for (int l = 0; l < paramb.num_L; ++l) {
@@ -1382,19 +1401,25 @@ static __global__ void compute_grad_angular(
             sum_dfeat_w0[1] += dfeat_w0_scaler[1] * g_ep_wb[w0_index_dim];
             sum_dfeat_w0[2] += dfeat_w0_scaler[2] * g_ep_wb[w0_index_dim];
           }
-          double f_w0_n1 = sum_dfeat_w0[0] * dx_n1 + sum_dfeat_w0[1] * dy_n1 + sum_dfeat_w0[2] * dz_n1;
-          double f_w0_n2 = -sum_dfeat_w0[0] * dx_n2 - sum_dfeat_w0[1] * dy_n2 - sum_dfeat_w0[2] * dz_n2;
-          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n1 * per_Nc);
-          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n2 * per_Nc);
+          // double f_w0_n1 = sum_dfeat_w0[0] * dx_n1 + sum_dfeat_w0[1] * dy_n1 + sum_dfeat_w0[2] * dz_n1;
+          // double f_w0_n2 = -sum_dfeat_w0[0] * dx_n2 - sum_dfeat_w0[1] * dy_n2 - sum_dfeat_w0[2] * dz_n2;
+          double grad_w0_sum = per_Nc * (sum_dfeat_w0[0] * (dx_n1 - dx_n2) + sum_dfeat_w0[1] * (dy_n1 - dy_n2) + sum_dfeat_w0[2] * (dz_n1 - dz_n2));
+          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
+          // atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n1 * per_Nc);
+          // atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], f_w0_n2 * per_Nc);
         }
-        double f_w1_n1 = sum_dfeat_w1b0[0] * dx_n1 + sum_dfeat_w1b0[1] * dy_n1 + sum_dfeat_w1b0[2] * dz_n1;
-        double f_w1_n2 = -sum_dfeat_w1b0[0] * dx_n2 - sum_dfeat_w1b0[1] * dy_n2 - sum_dfeat_w1b0[2] * dz_n2;
-        double f_b0_n1 = sum_dfeat_w1b0[3] * dx_n1 + sum_dfeat_w1b0[4] * dy_n1 + sum_dfeat_w1b0[5] * dz_n1;
-        double f_b0_n2 = -sum_dfeat_w1b0[3] * dx_n2 - sum_dfeat_w1b0[4] * dy_n2 - sum_dfeat_w1b0[5] * dz_n2;
-        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n1 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n2 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n1 * per_Nc);
-        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n2 * per_Nc);
+        // double f_w1_n1 = sum_dfeat_w1b0[0] * dx_n1 + sum_dfeat_w1b0[1] * dy_n1 + sum_dfeat_w1b0[2] * dz_n1;
+        // double f_w1_n2 = -sum_dfeat_w1b0[0] * dx_n2 - sum_dfeat_w1b0[1] * dy_n2 - sum_dfeat_w1b0[2] * dz_n2;
+        // double f_b0_n1 = sum_dfeat_w1b0[3] * dx_n1 + sum_dfeat_w1b0[4] * dy_n1 + sum_dfeat_w1b0[5] * dz_n1;
+        // double f_b0_n2 = -sum_dfeat_w1b0[3] * dx_n2 - sum_dfeat_w1b0[4] * dy_n2 - sum_dfeat_w1b0[5] * dz_n2;
+        double grad_w1_sum = per_Nc * (sum_dfeat_w1b0[0] * (dx_n1 - dx_n2) + sum_dfeat_w1b0[1] * (dy_n1 - dy_n2) + sum_dfeat_w1b0[2] * (dz_n1 - dz_n2));
+        double grad_b0_sum = per_Nc * (sum_dfeat_w1b0[3] * (dx_n1 - dx_n2) + sum_dfeat_w1b0[4] * (dy_n1 - dy_n2) + sum_dfeat_w1b0[5] * (dz_n1 - dz_n2));
+        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], grad_w1_sum);
+        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], grad_b0_sum);
+        // atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n1 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], f_w1_n2 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n1 * per_Nc);
+        // atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], f_b0_n2 * per_Nc);
       }
       for (int j = 0; j < neighbor_number; ++j) {
         int index = j * N + n1;
@@ -1470,16 +1495,20 @@ static __global__ void compute_grad_angular(
             c_index += t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
             accumulate_fc(N, paramb.L_max, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], fnp12[k], &s[n * NUM_OF_ABC], &sum_s2xyz[n * NUM_OF_ABC * 3], Fp, qp_c_tmp1, qp_c_tmp2);
             int grad_c_index = c_index + annmb.num_ann;
-            double f_c_n1_all = f_c_n1[0] * dx_n1 + f_c_n1[1] * dy_n1 + f_c_n1[2] * dz_n1;
-            double f_c_n2_1 = -f_c_n1[0] * dx_n2 - f_c_n1[1] * dy_n2 - f_c_n1[2] * dz_n2;
-            double f_c_n2_2 = -(qp_c_tmp1[0] * dx_n2_tmp + qp_c_tmp1[1] * dy_n2_tmp + qp_c_tmp1[2] * dz_n2_tmp) - (qp_c_tmp2[0] * dx_n2 + qp_c_tmp2[1] * dy_n2 + qp_c_tmp2[2] * dz_n2);
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_all * per_Nc);
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_1 * per_Nc);
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_2 * per_Nc);
-            if (virial_nums > 0) {
-              double v_c_n1_sum = -per_Nc_v * (v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5]);
-              atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum);
-            }
+            // double f_c_n1_all = f_c_n1[0] * dx_n1 + f_c_n1[1] * dy_n1 + f_c_n1[2] * dz_n1;
+            // double f_c_n2_1 = -f_c_n1[0] * dx_n2 - f_c_n1[1] * dy_n2 - f_c_n1[2] * dz_n2;
+            // double f_c_n2_2 = -(qp_c_tmp1[0] * dx_n2_tmp + qp_c_tmp1[1] * dy_n2_tmp + qp_c_tmp1[2] * dz_n2_tmp) - (qp_c_tmp2[0] * dx_n2 + qp_c_tmp2[1] * dy_n2 + qp_c_tmp2[2] * dz_n2);
+            double grad_c_sum = per_Nc * (f_c_n1[0] * (dx_n1 - dx_n2) + f_c_n1[1] * (dy_n1 - dy_n2) + f_c_n1[2] * (dz_n1 - dz_n2));
+            grad_c_sum -= per_Nc * (qp_c_tmp1[0] * dx_n2_tmp + qp_c_tmp1[1] * dy_n2_tmp + qp_c_tmp1[2] * dz_n2_tmp + qp_c_tmp2[0] * dx_n2 + qp_c_tmp2[1] * dy_n2 + qp_c_tmp2[2] * dz_n2);
+            grad_c_sum -= virial_nums > 0 ? per_Nc_v * (v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5]) : 0.0;
+            atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_all * per_Nc);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_1 * per_Nc);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_2 * per_Nc);
+            // if (virial_nums > 0) {
+            //   double v_c_n1_sum = -per_Nc_v * (v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5]);
+            //   atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum);
+            // }
           }
         }
       } // end of loop over neighbors' neighbors
@@ -1524,15 +1553,18 @@ static __global__ void compute_grad_angular(
             int c_index = (nr * (paramb.basis_size_radial + 1) + kr) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2r; 
             double q_c_scaler = fn12[kr] * g_q_scaler[nr];
-            double f_c_n1_2b = feat_xyz_sum[0] * q_c_scaler * dx_n1 + feat_xyz_sum[1] * q_c_scaler * dy_n1 + feat_xyz_sum[2] * q_c_scaler * dz_n1;
-            double f_c_n2_2b = -feat_xyz_sum[0] * q_c_scaler * dx_n2 - feat_xyz_sum[1] * q_c_scaler * dy_n2 - feat_xyz_sum[2] * q_c_scaler * dz_n2;
+            // double f_c_n1_2b = feat_xyz_sum[0] * q_c_scaler * dx_n1 + feat_xyz_sum[1] * q_c_scaler * dy_n1 + feat_xyz_sum[2] * q_c_scaler * dz_n1;
+            // double f_c_n2_2b = -feat_xyz_sum[0] * q_c_scaler * dx_n2 - feat_xyz_sum[1] * q_c_scaler * dy_n2 - feat_xyz_sum[2] * q_c_scaler * dz_n2;
             int grad_c_index = c_index + annmb.num_ann;
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_2b * per_Nc);
-            atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_2b * per_Nc);
-            if (virial_nums > 0) {
-              double v_c_n1_sum_2b = -q_c_scaler * per_Nc_v * ((feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]));
-              atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum_2b);
-            }
+            double grad_c_sum_2b = per_Nc * q_c_scaler * (feat_xyz_sum[0] * (dx_n1 - dx_n2) + feat_xyz_sum[1] * (dy_n1 - dy_n2) + feat_xyz_sum[2] * (dz_n1 - dz_n2));
+            grad_c_sum_2b -= virial_nums > 0 ? per_Nc_v * q_c_scaler * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]) : 0.0;
+            atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum_2b);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n1_2b * per_Nc);
+            // atomicAdd(&g_grad_sum[grad_c_index], f_c_n2_2b * per_Nc);
+            // if (virial_nums > 0) {
+            //   double v_c_n1_sum_2b = -q_c_scaler * per_Nc_v * ((feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]));
+            //   atomicAdd(&g_grad_sum[grad_c_index], v_c_n1_sum_2b);
+            // }
           }
         }
       } // end of loop over neighbors' neighbors
@@ -2160,7 +2192,7 @@ void NEP3::find_force(
     }
 
     if (require_grad) {
-        print_memory_info("before");
+        // print_memory_info("before");
         compute_grad_radial<<<grid_size, block_size>>>(
         dataset[device_id].N,
         nep_data[device_id].NN_radial.data(),
@@ -2202,7 +2234,7 @@ void NEP3::find_force(
         dataset[device_id].gradients.Fp_wb.data(),
         dataset[device_id].gradients.grad_sum.data());
       CUDA_CHECK_KERNEL
-      print_memory_info("middle");
+      // print_memory_info("middle");
       compute_grad_angular<<<grid_size, block_size>>>(
         dataset[device_id].N,
         nep_data[device_id].NN_angular.data(),
@@ -2245,12 +2277,12 @@ void NEP3::find_force(
         dataset[device_id].gradients.Fp_wb.data(),
         dataset[device_id].gradients.grad_sum.data());
       CUDA_CHECK_KERNEL
-      print_memory_info("after");
-        std::vector<double>grad_c_sum(para.number_of_variables);
-      CHECK(cudaMemcpy(grad_c_sum.data(), dataset[device_id].gradients.grad_sum.data(), para.number_of_variables * sizeof(double), cudaMemcpyDeviceToHost));
-      for (int j = 0; j < para.number_of_variables; ++j) {
-        printf("%d %f\n", j, grad_c_sum[j]);
-      }
+      // print_memory_info("after");
+      //   std::vector<double>grad_c_sum(para.number_of_variables);
+      // CHECK(cudaMemcpy(grad_c_sum.data(), dataset[device_id].gradients.grad_sum.data(), para.number_of_variables * sizeof(double), cudaMemcpyDeviceToHost));
+      // for (int j = 0; j < para.number_of_variables; ++j) {
+      //   printf("%d %f\n", j, grad_c_sum[j]);
+      // }
     }
 
     if (zbl.enabled) {
