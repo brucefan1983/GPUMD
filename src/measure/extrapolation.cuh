@@ -73,14 +73,11 @@ public:
     Force& force) override;
 
   FILE* f;
-  std::vector<GPU_Vector<double>*> asi_data;
-  std::vector<double*> asi_cpu = std::vector<double*>(NUM_ELEMENTS, nullptr);
-  GPU_Vector<double> B;
-  // max gamma
-  GPU_Vector<double> gamma_full;
-  GPU_Vector<double> gamma;
-  std::vector<double> gamma_cpu;
-  GPU_Vector<double*> d_A, d_x, d_y;
+  std::vector<std::unique_ptr<GPU_Vector<double>>> asi_list;
+  GPU_Vector<double> B;          // N x B_size
+  GPU_Vector<double> gamma_full; // each component: N x B_size
+  GPU_Vector<double> gamma;      // maximum of each component: N
+  GPU_Vector<double*> blas_A, blas_x, blas_y;
   Atom* atom;
   Box* box;
   int B_size_per_atom;
@@ -89,7 +86,7 @@ public:
   int last_dump = 0;
   double gamma_low = 0;
   double gamma_high = 1e100;
-  double max_gamma;
+  double max_gamma; // global maximum
   std::string asi_file_name;
   gpublasHandle_t handle;
 
