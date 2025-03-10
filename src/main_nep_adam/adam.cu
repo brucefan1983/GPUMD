@@ -32,36 +32,36 @@ static __global__ void initialize_curand_states(curandState* state, int N, int s
 
 static __global__ void update_moments(
   const int N,
-  const double beta1,
-  const double beta2,
-  const double* __restrict__ gradients,
-  double* __restrict__ m,
-  double* __restrict__ v)
+  const float beta1,
+  const float beta2,
+  const float* __restrict__ gradients,
+  float* __restrict__ m,
+  float* __restrict__ v)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    const double g = gradients[i];
-    m[i] = beta1 * m[i] + (1.0 - beta1) * g;
-    v[i] = beta2 * v[i] + (1.0 - beta2) * g * g;
+    const float g = gradients[i];
+    m[i] = beta1 * m[i] + (1.0f - beta1) * g;
+    v[i] = beta2 * v[i] + (1.0f - beta2) * g * g;
   }
 }
 
 static __global__ void apply_updates(
   const int N,
-  const double lr,
-  const double beta1_t,
-  const double beta2_t,
-  const double eps,
-  const double weight_decay,
-  const double* __restrict__ m,
-  const double* __restrict__ v,
-  double* __restrict__ parameters)
+  const float lr,
+  const float beta1_t,
+  const float beta2_t,
+  const float eps,
+  const float weight_decay,
+  const float* __restrict__ m,
+  const float* __restrict__ v,
+  float* __restrict__ parameters)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     // calculate bias correction
-    const double m_hat = m[i] / (1.0 - beta1_t);
-    const double v_hat = v[i] / (1.0 - beta2_t);
+    const float m_hat = m[i] / (1.0f - beta1_t);
+    const float v_hat = v[i] / (1.0f - beta2_t);
     
     // update parameters
     parameters[i] -= lr * (m_hat / (sqrt(v_hat) + eps) + weight_decay * parameters[i]);
@@ -70,21 +70,21 @@ static __global__ void apply_updates(
 
 __global__ void adam_update(
     const int N,
-    const double step_size,  // = lr * sqrt(1 - beta2^t)/(1 - beta1^t)
-    const double beta1_power,// = beta1^t
-    const double beta2_power,// = beta2^t
-    const double eps,
-    double* __restrict__ m,
-    double* __restrict__ v,
-    double* __restrict__ param)
+    const float step_size,  // = lr * sqrt(1 - beta2^t)/(1 - beta1^t)
+    const float beta1_power,// = beta1^t
+    const float beta2_power,// = beta2^t
+    const float eps,
+    float* __restrict__ m,
+    float* __restrict__ v,
+    float* __restrict__ param)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N) {
-        double bc1 = 1.0 - beta1_power;
-        double bc2 = 1.0 - beta2_power;
+        float bc1 = 1.0f - beta1_power;
+        float bc2 = 1.0f - beta2_power;
 
-        double m_hat = m[i] / bc1;   
-        double v_hat = v[i] / bc2;   
+        float m_hat = m[i] / bc1;   
+        float v_hat = v[i] / bc2;   
 
         // param[i] -= step_size * (m_hat / (sqrt(v_hat) + eps));
         param[i] = param[i] - step_size * (m_hat / (sqrt(v_hat) + eps));
@@ -101,8 +101,8 @@ Adam::Adam(Parameters& para)
   // initialize the CPU vectors
   parameters.resize(number_of_variables);
   // gradients.resize(number_of_variables);
-  m.resize(number_of_variables, 0.0);
-  v.resize(number_of_variables, 0.0);
+  m.resize(number_of_variables, 0.0f);
+  v.resize(number_of_variables, 0.0f);
 
   // initialize the GPU vectors
   cudaSetDevice(0);
@@ -124,9 +124,9 @@ static __global__ void gpu_create_paramters(
   const int num_neurons1,
   const int number_of_variables_ann,
   const int number_of_variables,
-  const double* energy_shift,
+  const float* energy_shift,
   curandState* g_state,
-  double* g_parameters)
+  float* g_parameters)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -135,22 +135,22 @@ static __global__ void gpu_create_paramters(
     int type_idx = (n * num_types) / number_of_variables_ann;
     int param_idx = n % ((dim + 2) * num_neurons1 + 1);
     if (param_idx < dim * num_neurons1) {
-      double std = 1.0 / sqrt(static_cast<double>(dim + num_neurons1));
+      float std = 1.0f / sqrt(static_cast<float>(dim + num_neurons1));
       g_parameters[n] = curand_normal(&state) * std;
     } else if (param_idx < (dim + 1) * num_neurons1) {
       g_parameters[n] = curand_normal(&state);
     } else if (param_idx < (dim + 2) * num_neurons1) {
-      double std = 1.0 / sqrt(static_cast<double>(num_neurons1 + 1));
+      float std = 1.0f / sqrt(static_cast<float>(num_neurons1 + 1));
       g_parameters[n] = curand_normal(&state) * std;
     } else {
-      double mean = energy_shift[type_idx];
+      float mean = energy_shift[type_idx];
       g_parameters[n] = mean + curand_normal(&state);
     }
   } else if (n < number_of_variables) {
     curandState state = g_state[n];
-    double r1 = curand_normal(&state);
-    double r2 = curand_uniform(&state) - 0.5;
-    g_parameters[n] = 0.1 * r1 + r2;
+    float r1 = curand_normal(&state);
+    float r2 = curand_uniform(&state) - 0.5f;
+    g_parameters[n] = 0.1f * r1 + r2;
   }
 }
 
@@ -288,7 +288,7 @@ void Adam::initialize_parameters(Parameters& para)
   }
 }
 
-void Adam::update(double lr, double* gradients) {
+void Adam::update(float lr, float* gradients) {
   const int block_size = 256;
   const int grid_size = (number_of_variables + block_size - 1) / block_size + 1;
 
@@ -303,8 +303,8 @@ void Adam::update(double lr, double* gradients) {
   CUDA_CHECK_KERNEL
   
   // calculate bias correction
-  const double beta1_t = pow(beta1, step + 1);
-  const double beta2_t = pow(beta2, step + 1);
+  const float beta1_t = pow(beta1, step + 1);
+  const float beta2_t = pow(beta2, step + 1);
 
   // apply parameter updates
   apply_updates<<<grid_size, block_size>>>(
@@ -339,7 +339,7 @@ void Adam::output_parameters(Parameters& para) {
   fclose(fid);
 }
 
-double* Adam::get_parameters()
+float* Adam::get_parameters()
 {
   return parameters.data();
 }

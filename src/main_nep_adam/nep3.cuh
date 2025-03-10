@@ -25,19 +25,19 @@ struct NEP3_Data {
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
   GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<double> x12_radial;
-  GPU_Vector<double> y12_radial;
-  GPU_Vector<double> z12_radial;
-  GPU_Vector<double> x12_angular;
-  GPU_Vector<double> y12_angular;
-  GPU_Vector<double> z12_angular;
-  GPU_Vector<double> descriptors; // descriptors
-  GPU_Vector<double> Fp;          // gradient of descriptors
-  GPU_Vector<double> Fp2;         // second gradient of descriptors
-  GPU_Vector<double> sum_fxyz;  // Snlm
-  GPU_Vector<double> sum_s2xyz; // Snlm_xyz
-  GPU_Vector<double> sum_s2xyz123; // Snlm_xyz * xyz
-  GPU_Vector<double> parameters; // parameters to be optimized
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+  GPU_Vector<float> descriptors; // descriptors
+  GPU_Vector<float> Fp;          // gradient of descriptors
+  GPU_Vector<float> Fp2;         // second gradient of descriptors
+  GPU_Vector<float> sum_fxyz;  // Snlm
+  GPU_Vector<float> sum_s2xyz; // Snlm_xyz
+  GPU_Vector<float> sum_s2xyz123; // Snlm_xyz * xyz
+  GPU_Vector<float> parameters; // parameters to be optimized
 };
 
 class NEP3 : public Potential
@@ -46,13 +46,13 @@ public:
   struct ParaMB {
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    double typewise_cutoff_radial_factor = 2.5;
-    double typewise_cutoff_angular_factor = 2.0;
+    float typewise_cutoff_radial_factor = 2.5f;
+    float typewise_cutoff_angular_factor = 2.0f;
     float typewise_cutoff_zbl_factor = 0.65f;
-    double rc_radial = 0.0;     // radial cutoff
-    double rc_angular = 0.0;    // angular cutoff
-    double rcinv_radial = 0.0;  // inverse of the radial cutoff
-    double rcinv_angular = 0.0; // inverse of the angular cutoff
+    float rc_radial = 0.0f;     // radial cutoff
+    float rc_angular = 0.0f;    // angular cutoff
+    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
+    float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int basis_size_radial = 0;
     int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -72,24 +72,24 @@ public:
     int num_neurons1 = 0;           // number of neurons in the hidden layer
     int num_ann = 0;                // number of ANN
     int num_para = 0;               // number of parameters
-    const double* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
-    const double* b0[NUM_ELEMENTS]; // bias for the hidden layer
-    const double* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const double* b1[10]; // bias for the output layer
+    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
+    const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
+    const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
+    const float* b1[10]; // bias for the output layer
     // for the scalar part of polarizability
-    const double* w0_pol[10]; // weight from the input layer to the hidden layer
-    const double* b0_pol[10]; // bias for the hidden layer
-    const double* w1_pol[10]; // weight from the hidden layer to the output layer
-    const double* b1_pol[10]; // bias for the output layer
+    const float* w0_pol[10]; // weight from the input layer to the hidden layer
+    const float* b0_pol[10]; // bias for the hidden layer
+    const float* w1_pol[10]; // weight from the hidden layer to the output layer
+    const float* b1_pol[10]; // bias for the output layer
     // for elements in descriptor
-    const double* c;
+    const float* c;
   };
 
   struct ZBL {
     bool enabled = false;
     bool flexibled = false;
-    float rc_inner = 1.0;
-    float rc_outer = 2.0;
+    float rc_inner = 1.0f;
+    float rc_outer = 2.0f;
     int num_types;
     float para[550];
     int atomic_numbers[NUM_ELEMENTS];
@@ -104,7 +104,7 @@ public:
     int deviceCount);
   void find_force(
     Parameters& para,
-    const double* parameters,
+    const float* parameters,
     bool require_grad,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
@@ -116,5 +116,5 @@ private:
   ANN annmb[16];
   NEP3_Data nep_data[16];
   ZBL zbl;
-  void update_potential(Parameters& para, const double* parameters, ANN& ann);
+  void update_potential(Parameters& para, const float* parameters, ANN& ann);
 };

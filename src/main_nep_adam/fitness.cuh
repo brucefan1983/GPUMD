@@ -35,13 +35,13 @@ public:
     Parameters& para,
     float time_used,
     const int generation,
-    const double loss_total,
-    const double rmse_energy_train,
-    const double rmse_force_train,
-    const double rmse_virial_train,
-    const double lr,
-    double* step_parameters);
-  void predict(Parameters& para, double* step_parameters);
+    const float loss_total,
+    const float rmse_energy_train,
+    const float rmse_force_train,
+    const float rmse_virial_train,
+    const float lr,
+    float* step_parameters);
+  void predict(Parameters& para, float* step_parameters);
 
 protected:
   bool has_test_set = false;
@@ -51,11 +51,11 @@ protected:
   int number_of_variables_ann = 0; // number of variables in ANN
   int number_of_variables_descriptor = 0; // number of variables in descriptor
   int maximum_generation = 10000; // maximum number of iterations
-  double lr = 1e-3; // learning rate
-  double start_lr = 1e-3;     // start learning rate
-  double stop_lr = 3.51e-08; // stop learning rate
+  float lr = 1e-3f; // learning rate
+  float start_lr = 1e-3f;     // start learning rate
+  float stop_lr = 3.51e-08f; // stop learning rate
   int decay_step = 5000; // decay 
-  double decay_rate; // decay rate
+  float decay_rate; // decay rate
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;
@@ -67,13 +67,13 @@ protected:
     bool is_stress,
     int num_components,
     FILE* fid,
-    double* prediction,
-    double* reference,
+    float* prediction,
+    float* reference,
     Dataset& dataset);
-  void update_learning_rate(double& lr, int step); // Update learning rate
+  void update_learning_rate(float& lr, int step); // Update learning rate
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
   void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, double* step_parameters);
+  void write_nep_txt(FILE* fid_nep, Parameters& para, float* step_parameters);
 };

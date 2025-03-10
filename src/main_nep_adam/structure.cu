@@ -28,15 +28,15 @@
 #include <string>
 #include <vector>
 
-static double get_area(const double* a, const double* b)
+static float get_area(const float* a, const float* b)
 {
-  double s1 = a[1] * b[2] - a[2] * b[1];
-  double s2 = a[2] * b[0] - a[0] * b[2];
-  double s3 = a[0] * b[1] - a[1] * b[0];
+  float s1 = a[1] * b[2] - a[2] * b[1];
+  float s2 = a[2] * b[0] - a[0] * b[2];
+  float s3 = a[0] * b[1] - a[1] * b[0];
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-static double get_det(const double* box)
+static float get_det(const float* box)
 {
   return box[0] * (box[4] * box[8] - box[5] * box[7]) +
          box[1] * (box[5] * box[6] - box[3] * box[8]) +
@@ -45,10 +45,10 @@ static double get_det(const double* box)
 
 static void change_box(const Parameters& para, Structure& structure)
 {
-  double a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
-  double b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
-  double c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
-  double det = get_det(structure.box_original);
+  float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
+  float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
+  float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
+  float det = get_det(structure.box_original);
   structure.volume = abs(det);
   structure.num_cell[0] = int(ceil(2.0f * para.rc_radial / (structure.volume / get_area(b, c))));
   structure.num_cell[1] = int(ceil(2.0f * para.rc_radial / (structure.volume / get_area(c, a))));
@@ -238,12 +238,12 @@ static void read_one_structure(
   }
   // if stresses are available, read them and convert them to per atom virials
   bool has_stress = false;
-  std::vector<double> virials_from_stress(6);
+  std::vector<float> virials_from_stress(6);
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string stress_string = "stress=";
     if (tokens[n].substr(0, stress_string.length()) == stress_string) {
       has_stress = true;
-      double volume = abs(get_det(structure.box_original));
+      float volume = abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
         virials_from_stress[reduced_index[m]] = get_double_from_token(
@@ -259,7 +259,7 @@ static void read_one_structure(
   }
   if (structure.has_virial && has_stress) {
     // assert stresses and virials are consistent
-    const double tol = 1e-3;
+    const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
         if (para.prediction == 0) {
@@ -461,7 +461,7 @@ static void find_permuted_indices(
   const std::vector<Structure>& structures,
   std::vector<int>& permuted_indices)
 {
-  std::vector<double> energy(structures.size());
+  std::vector<float> energy(structures.size());
   for (int nc = 0; nc < structures.size(); ++nc) {
     energy[nc] = structures[nc].energy;
   }

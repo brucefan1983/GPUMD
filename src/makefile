@@ -20,7 +20,7 @@ CUDA_ARCH=-arch=sm_86
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++17 -O3 $(CUDA_ARCH) -DUSE_DP
+CFLAGS = -std=c++17 -O3 $(CUDA_ARCH)
 endif
 INC = -I./
 LDFLAGS = 
