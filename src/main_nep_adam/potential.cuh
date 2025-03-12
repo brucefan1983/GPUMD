@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include "gradients.cuh" 
 #include <vector>
 class Dataset;
 class Parameters;
@@ -31,4 +32,5 @@ public:
     bool calculate_q_scaler,
     bool calculate_neighbor,
     int DeviceCount) = 0;
+  virtual Gradients& getGradients() = 0;
 };

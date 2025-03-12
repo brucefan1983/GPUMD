@@ -17,6 +17,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "gradients.cuh"
 class Parameters;
 class Dataset;
 
@@ -111,10 +112,14 @@ public:
     bool calculate_neighbor,
     int deviceCount);
 
+  Gradients gradients;
+  virtual Gradients& getGradients() override {return gradients;}
+
 private:
   ParaMB paramb;
   ANN annmb[16];
   NEP3_Data nep_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, const float* parameters, ANN& ann);
+  void initialize_gradients(Parameters& para, const int N);
 };

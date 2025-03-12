@@ -348,6 +348,12 @@ void NEP3::update_potential(Parameters& para, const float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+void NEP3::initialize_gradients(Parameters& para, const int N)
+{
+  gradients.resize(N, para.number_of_variables, para.number_of_variables_ann, para.dim);
+  gradients.clear();
+}
+
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
 {
   const int tid = threadIdx.x;
@@ -1937,8 +1943,8 @@ void NEP3::find_force(
     CHECK(cudaSetDevice(device_id));
     CHECK(cudaMemset(nep_data[device_id].Fp2.data(), 0, nep_data[device_id].Fp2.size() * sizeof(float)));
     // CHECK(cudaMemset(dataset[device_id].gradients.Fp_wb.data(), 0, dataset[device_id].gradients.Fp_wb.size() * sizeof(float)));
-    CHECK(cudaMemset(dataset[device_id].gradients.grad_sum.data(), 0.0f, dataset[device_id].gradients.grad_sum.size() * sizeof(float)));
-    CHECK(cudaMemset(dataset[device_id].gradients.E_wb_grad.data(), 0.0f, dataset[device_id].gradients.E_wb_grad.size() * sizeof(float)));
+    // CHECK(cudaMemset(dataset[device_id].gradients.grad_sum.data(), 0.0f, dataset[device_id].gradients.grad_sum.size() * sizeof(float)));
+    // CHECK(cudaMemset(dataset[device_id].gradients.E_wb_grad.data(), 0.0f, dataset[device_id].gradients.E_wb_grad.size() * sizeof(float)));
     CHECK(cudaMemset(nep_data[device_id].sum_s2xyz.data(), 0.0f, nep_data[device_id].sum_s2xyz.size() * sizeof(float)));
     CHECK(cudaMemset(nep_data[device_id].sum_s2xyz123.data(), 0.0f, nep_data[device_id].sum_s2xyz123.size() * sizeof(float)));
     nep_data[device_id].parameters.copy_from_host(parameters);
@@ -2026,6 +2032,7 @@ void NEP3::find_force(
     CUDA_CHECK_KERNEL
 
     if (require_grad) {
+      initialize_gradients(para, dataset[device_id].N);
       if (para.train_mode == 2) {
         apply_ann_pol<true><<<grid_size, block_size>>>(
           dataset[device_id].N,
@@ -2037,8 +2044,8 @@ void NEP3::find_force(
           dataset[device_id].virial.data(),
           nep_data[device_id].Fp.data(),
           nep_data[device_id].Fp2.data(),
-          dataset[device_id].gradients.Fp_wb.data(),
-          dataset[device_id].gradients.E_wb_grad.data());
+          gradients.Fp_wb.data(),
+          gradients.E_wb_grad.data());
         CUDA_CHECK_KERNEL
       } else if (para.train_mode == 3) {
         apply_ann_temperature<true><<<grid_size, block_size>>>(
@@ -2052,8 +2059,8 @@ void NEP3::find_force(
           dataset[device_id].energy.data(),
           nep_data[device_id].Fp.data(),
           nep_data[device_id].Fp2.data(),
-          dataset[device_id].gradients.Fp_wb.data(),
-          dataset[device_id].gradients.E_wb_grad.data());
+          gradients.Fp_wb.data(),
+          gradients.E_wb_grad.data());
         CUDA_CHECK_KERNEL
       } else {
         apply_ann<true><<<grid_size, block_size>>>(
@@ -2066,11 +2073,11 @@ void NEP3::find_force(
           dataset[device_id].energy.data(),
           nep_data[device_id].Fp.data(),
           nep_data[device_id].Fp2.data(),
-          dataset[device_id].gradients.Fp_wb.data(),
-          dataset[device_id].gradients.E_wb_grad.data());
+          gradients.Fp_wb.data(),
+          gradients.E_wb_grad.data());
         CUDA_CHECK_KERNEL
         // std::vector<float> Fp_wb_host(dataset[device_id].N * para.number_of_variables_ann * para.dim);
-        // CHECK(cudaMemcpy(Fp_wb_host.data(), dataset[device_id].gradients.Fp_wb.data(), dataset[device_id].N * para.number_of_variables_ann * para.dim * sizeof(float), cudaMemcpyDeviceToHost));
+        // CHECK(cudaMemcpy(Fp_wb_host.data(), gradients.Fp_wb.data(), dataset[device_id].N * para.number_of_variables_ann * para.dim * sizeof(float), cudaMemcpyDeviceToHost));
         // for (int i = 0; i < dataset[device_id].N; ++i) {
         //   for (int j = 0; j < para.number_of_variables_ann; ++j) {
         //     for (int k = 0; k < para.dim; ++k) {
@@ -2079,7 +2086,7 @@ void NEP3::find_force(
         //   }
         // }
         // std::vector<float> E_wb_grad_host(dataset[device_id].N * para.number_of_variables_ann);
-        // CHECK(cudaMemcpy(E_wb_grad_host.data(), dataset[device_id].gradients.E_wb_grad.data(), dataset[device_id].N * para.number_of_variables_ann * sizeof(float), cudaMemcpyDeviceToHost));
+        // CHECK(cudaMemcpy(E_wb_grad_host.data(), gradients.E_wb_grad.data(), dataset[device_id].N * para.number_of_variables_ann * sizeof(float), cudaMemcpyDeviceToHost));
         // for (int i = 0; i < dataset[device_id].N; ++i) {
         //   for (int j = 0; j < para.number_of_variables_ann; ++j) {
         //     printf("E_wb_grad[%d][%d] = %f\n", i, j, E_wb_grad_host[i * para.number_of_variables_ann + j]);
@@ -2220,7 +2227,7 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data(),
         nep_data[device_id].Fp2.data(),
         nep_data[device_id].sum_fxyz.data(),
-        dataset[device_id].gradients.E_wb_grad.data(),
+        gradients.E_wb_grad.data(),
         dataset[device_id].diff_gpu_e.data(),
         dataset[device_id].diff_gpu_v.data(),
         dataset[device_id].force_ref_gpu.data(),
@@ -2231,8 +2238,8 @@ void NEP3::find_force(
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].gradients.Fp_wb.data(),
-        dataset[device_id].gradients.grad_sum.data());
+        gradients.Fp_wb.data(),
+        gradients.grad_sum.data());
       CUDA_CHECK_KERNEL
       // print_memory_info("middle");
       compute_grad_angular<<<grid_size, block_size>>>(
@@ -2274,12 +2281,12 @@ void NEP3::find_force(
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].gradients.Fp_wb.data(),
-        dataset[device_id].gradients.grad_sum.data());
+        gradients.Fp_wb.data(),
+        gradients.grad_sum.data());
       CUDA_CHECK_KERNEL
       // print_memory_info("after");
       //   std::vector<float>grad_c_sum(para.number_of_variables);
-      // CHECK(cudaMemcpy(grad_c_sum.data(), dataset[device_id].gradients.grad_sum.data(), para.number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
+      // CHECK(cudaMemcpy(grad_c_sum.data(), gradients.grad_sum.data(), para.number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
       // for (int j = 0; j < para.number_of_variables; ++j) {
       //   printf("%d %f\n", j, grad_c_sum[j]);
       // }

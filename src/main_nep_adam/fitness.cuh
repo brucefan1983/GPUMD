@@ -34,7 +34,8 @@ public:
   void report_error(
     Parameters& para,
     float time_used,
-    const int generation,
+    const int step,
+    const int epoch,
     const float loss_total,
     const float rmse_energy_train,
     const float rmse_force_train,

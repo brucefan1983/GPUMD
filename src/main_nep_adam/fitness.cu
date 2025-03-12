@@ -41,6 +41,7 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   // start_lr = para.start_lr;
   // stop_lr = para.stop_lr;
   // decay_step = para.decay_step;
+  decay_step = 2000;
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -200,6 +201,7 @@ void Fitness::compute(Parameters& para)
     float mse_force;
     float mse_virial;
     int count;
+    int epoch = 0;
     clock_t time_begin;
     clock_t time_finish;
     for (int step = 0; step < maximum_generation; ++step) {
@@ -217,9 +219,6 @@ void Fitness::compute(Parameters& para)
       para.lambda_e = 1.0f + (0.02f - 1.0f) * lr / start_lr;
       para.lambda_f = 1.0f + (1000.0f - 1.0f) * lr / start_lr;
       para.lambda_v = 1.0f + (50.0f - 1.0f) * lr / start_lr;
-      // para.lambda_e = 1.0;
-      // para.lambda_f = 1.0;
-      // para.lambda_v = 1.0;
       potential->find_force(
       para,
       parameters,
@@ -238,7 +237,8 @@ void Fitness::compute(Parameters& para)
       mse_force += mse_force_train * Nc;
       mse_virial += mse_virial_train * Nc;
       count += Nc;
-      optimizer->update(lr, train_set[batch_id][0].gradients.grad_sum.data());
+      auto& grad = potential->getGradients();
+      optimizer->update(lr, grad.grad_sum.data());
 
       if ((step + 1) % num_batches == 0) {
         time_finish = clock();
@@ -246,19 +246,21 @@ void Fitness::compute(Parameters& para)
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
         float rmse_virial_train = sqrt(mse_virial / count);
-        float total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
+        float total_loss_train = (mse_energy  + mse_force + mse_virial) / count;
         report_error(
           para,
           time_used,
           step,
+          epoch,
           total_loss_train,
           rmse_energy_train,
           rmse_force_train,
           rmse_virial_train,
           lr,
-          optimizer->get_parameters()
+          parameters
         );
         optimizer->output_parameters(para);
+        epoch++;
       }
     } // end of step loop
   } else {
@@ -441,7 +443,8 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
 void Fitness::report_error(
   Parameters& para,
   float time_used,
-  const int generation,
+  const int step,
+  const int epoch,
   const float loss_total,
   const float rmse_energy_train,
   const float rmse_force_train,
@@ -466,13 +469,13 @@ void Fitness::report_error(
   write_nep_txt(fid_nep, para, parameters);
   fclose(fid_nep);
 
-  if (0 == (generation + 1) % 100000) {
+  if (0 == (epoch + 1) % 100) {
     time_t rawtime;
     time(&rawtime);
     struct tm* timeinfo = localtime(&rawtime);
     char buffer[200];
-    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
-    std::string filename(buffer + std::to_string(generation + 1) + ".txt");
+    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
+    std::string filename(buffer + std::to_string(epoch + 1) + ".txt");
 
     FILE* fid_nep = my_fopen(filename.c_str(), "w");
     write_nep_txt(fid_nep, para, parameters);
@@ -482,7 +485,7 @@ void Fitness::report_error(
   if (para.train_mode == 0 || para.train_mode == 3) {
     printf(
       "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f%-13.5f\n", 
-      generation + 1,
+      step + 1,
       loss_total,
       rmse_energy_train,
       rmse_force_train,
@@ -495,7 +498,7 @@ void Fitness::report_error(
     fprintf(
       fid_loss_out,
       "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
-      generation + 1,
+      step + 1,
       loss_total,
       rmse_energy_train,
       rmse_force_train,
@@ -508,7 +511,7 @@ void Fitness::report_error(
   } else {
     printf(
       "%-8d%-11.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
-      generation + 1,
+      step + 1,
       loss_total,
       rmse_virial_train,
       rmse_virial_test,
@@ -517,7 +520,7 @@ void Fitness::report_error(
     fprintf(
       fid_loss_out,
       "%-8d%-11.5f%-13.5f%-13.5f%-20.7f%-13.5f\n",
-      generation + 1,
+      step + 1,
       loss_total,
       rmse_virial_train,
       rmse_virial_test,
@@ -549,7 +552,7 @@ void Fitness::report_error(
     }
   }
 
-  if (0 == (generation + 1) % 1000) {
+  if (0 == (epoch + 1) % 10) {
     predict(para, parameters);
   }
 }

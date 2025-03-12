@@ -235,11 +235,6 @@ void Dataset::initialize_gpu_data(Parameters& para)
   type_sum.copy_from_host(type_sum_cpu.data());
 }
 
-void Dataset::initialize_gradients_temp(Parameters& para)
-{
-  gradients.resize(N, para.number_of_variables, para.number_of_variables_ann, para.dim);
-}
-
 static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
@@ -395,7 +390,6 @@ void Dataset::construct(
   initialize_gpu_data(para);
   find_neighbor(para);
   if (require_grad) {
-    initialize_gradients_temp(para);
     batch_idx.resize(N);
     const int block_size = 32;
     const int grid_size = (N - 1) / block_size + 1;

@@ -15,7 +15,6 @@
 
 #pragma once
 #include "structure.cuh"
-#include "gradients.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Parameters;
@@ -75,7 +74,6 @@ public:
   std::vector<bool> has_virial;
 
   std::vector<Structure> structures;
-  Gradients gradients;
 
   void
   construct(Parameters& para, std::vector<Structure>& structures, bool require_grad, int n1, int n2, int device_id);
@@ -91,6 +89,5 @@ private:
   bool find_has_type(Parameters& para);
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
-  void initialize_gradients_temp(Parameters& para);
   void find_neighbor(Parameters& para);
 };

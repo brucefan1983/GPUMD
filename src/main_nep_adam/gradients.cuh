@@ -23,6 +23,11 @@ struct Gradients {
     Fp_wb.resize(N * number_of_variables_ann * dim);
     // print_memory_info("after Fp_wb.resize");
   }
+  void clear() {
+    E_wb_grad.fill(0.0f);
+    grad_sum.fill(0.0f);
+    Fp_wb.fill(0.0f);
+  }
   GPU_Vector<float> E_wb_grad;      // energy w.r.t. w0, b0, w1, b1
   GPU_Vector<float> grad_sum;
   GPU_Vector<float> Fp_wb;          // gradient of descriptors w.r.t. w0, b0, w1, b1
