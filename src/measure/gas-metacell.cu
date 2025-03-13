@@ -52,11 +52,12 @@ torch::Dict<std::string, torch::Tensor> TorchMetaCell::predict(
         return outputs;
 }
 
-void TorchMetaCell::process(Box& box,GPU_Vector<double>& virial){
+void TorchMetaCell::process(Box& box,GPU_Vector<double>& positions,GPU_Vector<double>& virial){
 
     this->box_to_tri(box);
     torch::cuda::synchronize();
     torch::Tensor torch_cell = torch::from_blob(cpu_b_vector.data(), {9}, torch::dtype(torch::kFloat64)).to(torch::kCUDA).reshape({3,3});
+    torch::Tensor torch_pos = _FromCudaMemory(positions.data(),positions.size()).reshape({3,-1}).transpose(0,1);
     torch::Dict<std::string, torch::Tensor> inputs;
     inputs.insert("cell", torch_cell);
     inputs.insert("cv_traj",torch_cv_traj);
@@ -78,10 +79,15 @@ void TorchMetaCell::process(Box& box,GPU_Vector<double>& virial){
       auto out_pressure = output_dict.at("pressure");
     //   std::cout<<torch::matmul(cell_rotinv,tot_virial)<<std::endl;
       auto tot_cell_force = (tot_virial/volume)-out_pressure+cell_force;//(xx yy zz xy xz yz yx zx zy)
+      auto sym_cell_force = (tot_cell_force.transpose(0,1) + tot_cell_force)/2;
       std::cout<<tot_cell_force<<std::endl;
       auto delta_L = output_dict.at("delta_L");
-      auto new_cell = torch_cell+(delta_L*tot_cell_force/tot_cell_force.norm());
+      auto new_cell = torch_cell+(delta_L*sym_cell_force/sym_cell_force.norm());
+      auto deform = torch::matmul(torch::inverse(torch_cell),new_cell);
       this->tri_to_box(box,new_cell);
+      // std::cout<<deform<<std::endl;
+      torch_pos.copy_(torch::matmul(torch_pos,deform));
+      
     }
     if(now_step%config.cv_log_interval==0){
       this->logCV_runtime();
@@ -117,7 +123,7 @@ void TorchMetaCell::logCV_runtime(void){
     // 创建一个 TensorAccessor 对象来访问张量数据
     auto tensor_data = cpu_tensor.accessor<double, 1>();
     // 打开文件
-    std::string log_name = "GASCVlog.txt";
+    std::string log_name = "GASMetaCellLog.txt";
 
     std::ofstream file(log_name,std::ios::app);
     if (!file.is_open()) {

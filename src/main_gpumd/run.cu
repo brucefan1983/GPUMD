@@ -260,12 +260,6 @@ void Run::perform_a_run()
         atom.mass);
     }
 
-#ifdef USE_GAS
-    if(is_metacell){
-      p_gasmc->process(box,atom.virial_per_atom);
-    }
-#endif
-
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
       measure.plmd.process(
@@ -281,6 +275,12 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     mc.compute(step, number_of_steps, atom, box, group);
+
+#ifdef USE_GAS
+    if(is_metacell){
+      p_gasmc->process(box,atom.position_per_atom,atom.virial_per_atom);
+    }
+#endif
 
     measure.process(
       number_of_steps,

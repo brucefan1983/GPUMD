@@ -2,6 +2,57 @@
 #include "gas-metad.cuh"
 #include "model/read_xyz.cuh"
 
+namespace{
+  std::vector<std::vector<double>> readFileToVector(const std::string& filename) {
+    std::ifstream file(filename);  // 打开文件
+    if (!file.is_open()) {
+        std::cerr << "无法打开文件: " << filename << std::endl;
+        throw std::runtime_error("无法打开文件");
+    }
+
+    std::vector<std::vector<double>> data;  // 存储每一行的浮点数
+    std::string line;
+
+    // 逐行读取文件
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::vector<double> row;
+        double value;
+
+        // 逐个浮点数读取并存入当前行的vector
+        while (ss >> value) {
+            row.push_back(value);
+        }
+
+        data.push_back(row);  // 将当前行添加到data中
+    }
+
+    file.close();  // 关闭文件
+    return data;
+}
+
+
+torch::Tensor vectorToTensor(const std::vector<std::vector<double>>& data) {
+    // 获取数据的维度
+    auto m = data.size();           // 行数
+    auto n = data.empty() ? 0 : data[0].size();  // 列数
+
+    // 将二维std::vector平展为一维std::vector
+    std::vector<double> flat_data;
+    for (const auto& row : data) {
+        flat_data.insert(flat_data.end(), row.begin(), row.end());
+    }
+
+    // 创建张量 (m, n)，数据类型为 double
+    torch::Tensor tensor = torch::from_blob(flat_data.data(), {(long)m, (long)n}, torch::kFloat64);
+
+    return tensor.clone();  // 返回一个副本，确保数据不受外部修改的影响
+}
+
+}
+
+
+
 static __global__ void find_neighbor_list_large_box_gas(
   const float neighbor_rc,
   const int N,
@@ -100,53 +151,6 @@ static __global__ void find_neighbor_list_large_box_gas(
 
   g_NN_radial[n1] = count_radial;
 }
-
-
-
-// static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
-// {
-//   int number_of_rounds = (N - 1) / 1024 + 1;
-//   __shared__ double s_data[1024];
-//   s_data[threadIdx.x] = 0.0;
-//   for (int round = 0; round < number_of_rounds; ++round) {
-//     int n = threadIdx.x + round * 1024;
-//     if (n < N) {
-//       s_data[threadIdx.x] += g_data[n + blockIdx.x * N];
-//     }
-//   }
-//   __syncthreads();
-//   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-//     if (threadIdx.x < offset) {
-//       s_data[threadIdx.x] += s_data[threadIdx.x + offset];
-//     }
-//     __syncthreads();
-//   }
-//   if (threadIdx.x == 0) {
-//     g_data_sum[blockIdx.x] = s_data[0];
-//   }
-// }
-
-// static void __global__ gpu_scale_virial(
-//   const int N,
-//   const double* factors,
-//   double* g_sxx,
-//   double* g_syy,
-//   double* g_szz,
-//   double* g_sxy,
-//   double* g_sxz,
-//   double* g_syz)
-// {
-//   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (i < N) {
-//     g_sxx[i] *= factors[0];
-//     g_syy[i] *= factors[1];
-//     g_szz[i] *= factors[2];
-//     g_sxy[i] *= factors[3];
-//     g_sxz[i] *= factors[4];
-//     g_syz[i] *= factors[5];
-//   }
-// }
-
 
 torch::Tensor NL2Indices(torch::Tensor& torch_NL,int n_atoms_NL){
     int NL_size = torch_NL.size(0);
@@ -273,6 +277,55 @@ TorchMetad::TorchMetad(std::string model_path,std::string cfg_path,int n_atoms){
 
 }
 
+TorchMetad::TorchMetad(std::string model_path,std::string cfg_path,std::string gaussian_path,int n_atoms){
+    this->n_atoms_ = n_atoms;
+    // 读取文件，设定参数
+    try {
+        // torch::jit::GraphOptimizerEnabledGuard guard{true};
+        torch::jit::setGraphExecutorOptimize(true);
+        // 加载 TorchScript 模型
+        model = torch::jit::load(model_path, torch::kCUDA);
+        model.eval(); // 设置为评估模式
+        std::cout << "[GAS-Info] GASCVModel loaded successfully from " << model_path << std::endl;
+    } catch (const c10::Error& e) {
+        std::cerr << "Error loading the model: "<< model_path << e.what() << std::endl;
+        throw e;
+    }
+    // 接受 GASConfig 参数
+    try {
+        config = Config::fromFile(cfg_path);
+        std::cout << "[GAS-Info] GASConfig loaded successfully from " << cfg_path << std::endl;
+    } catch (const c10::Error& e) {
+        std::cerr << "Error loading the Config: "<< cfg_path << e.what() << std::endl;
+        throw e;
+    }
+
+    cell_count.resize(n_atoms_);
+    cell_count_sum.resize(n_atoms_);
+    cell_contents.resize(n_atoms_);
+    NN_radial.resize(n_atoms_);
+    NL_radial.resize(n_atoms_*config.max_neighbors);
+    
+    //读取高斯峰历史
+    auto history = readFileToVector(gaussian_path);
+    auto torch_history = vectorToTensor(history).to(torch::kCUDA);
+    torch_history = torch_history.index({torch::indexing::Slice(), torch::indexing::Slice(1, torch_history.size(1))});
+    int history_num = torch_history.size(0);
+    saved_cv_nums = history_num;
+
+    torch_cv_traj = torch::empty({config.max_cv_nums,config.cv_size}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_now_cvs = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_delta_cv_save = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_bias = torch::empty({},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
+
+    torch_cv_traj.index({torch::indexing::Slice(0,history_num), torch::indexing::Slice()})= torch_history;
+    cpu_b_vector = std::vector<double>(9); // Box
+    // gpu_v_vector.resize(6);
+    // gpu_v_factor.resize(9);
+    torch::cuda::synchronize();
+
+}
+
 
 torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
     const torch::Dict<std::string, torch::Tensor>& inputs) {
@@ -285,9 +338,9 @@ torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
         for (const auto& item : result) {
             auto key = item.key().toStringRef();
             auto value = item.value().toTensor();
-            #ifdef USE_GAS_DEBUG
-            std::cout<<key<<value<<std::endl;
-            #endif
+            // #ifdef USE_GAS_DEBUG
+            if(key.compare("side_array") && key.compare("cv_traj") && key.compare("")){std::cout<<key<<value<<std::endl;}
+            // #endif
             outputs.insert(key, value);
         }
         return outputs;
@@ -350,11 +403,11 @@ void TorchMetad::compute(
     torch_force+=output_dict.at("forces");
     mean_bias_force = output_dict.at("forces").norm(2,1).mean().clone().detach();
     auto cell_virial = output_dict.at("virial");//reschedule to xx yy zz xy yz xz yx zx zy
-    // std::cout<<cell_virial<<std::endl;
     torch_virial+=(cell_virial.unsqueeze(0)/n_atoms);
     torch::cuda::synchronize();
-    if(now_step%config.cv_storage_interval==0){
+    if(now_step>0 && now_step%config.cv_storage_interval==0){
       this->appendCVtoTraj(is_opt);
+      this->logCV_runtime(gaussian_name);
     }
     if(now_step%config.cv_log_interval==0){
       this->logCV_runtime();
@@ -435,6 +488,36 @@ void TorchMetad::logCV_runtime(void){
     // 关闭文件
     file.close();
 }
+void TorchMetad::logCV_runtime(std::string& path){
+    auto log_cv_tensor = torch_now_cvs;
+    torch::Tensor cv_cpu_tensor = log_cv_tensor.to(torch::kCPU);
+    torch::Tensor bias_cpu_tensor = this->torch_bias.to(torch::kCPU);
+    torch::Tensor cpu_tensor = torch::cat({bias_cpu_tensor.squeeze(0).reshape({-1}),cv_cpu_tensor},0).reshape({-1});
+
+    // 创建一个 TensorAccessor 对象来访问张量数据
+    auto tensor_data = cpu_tensor.accessor<double, 1>();
+    // 打开文件
+    std::string log_name = path;
+
+    std::ofstream file(log_name,std::ios::app);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " <<log_name<< std::endl;
+        return;
+    }
+    // 写入张量数据
+    for (int j = 0; j < cpu_tensor.size(0); ++j) {
+                file << tensor_data[j];
+                if (j < cpu_tensor.size(0) - 1) {
+                    file << "\t\t";  // 使用 tab 分隔列
+                }
+            }
+            file << "\n";  // 换行分隔行
+
+    // 关闭文件
+    file.close();
+}
+
+
 
 void TorchMetad::box_to_tri(Box& box){
         if (box.triclinic == 0) {
@@ -457,18 +540,6 @@ void TorchMetad::box_to_tri(Box& box){
         cpu_b_vector[6] = box.cpu_h[2];
         cpu_b_vector[7] = box.cpu_h[5];
         cpu_b_vector[8] = box.cpu_h[8];
-        // cpu_b_vector[0] = box.cpu_h[0];
-        // cpu_b_vector[1] = box.cpu_h[1];
-        // cpu_b_vector[2] = box.cpu_h[2];
-        // cpu_b_vector[3] = box.cpu_h[3];
-        // cpu_b_vector[4] = box.cpu_h[4];
-        // cpu_b_vector[5] = box.cpu_h[5];
-        // cpu_b_vector[6] = box.cpu_h[6];
-        // cpu_b_vector[7] = box.cpu_h[7];
-        // cpu_b_vector[8] = box.cpu_h[8];
       }
 }
-
-
-
 #endif

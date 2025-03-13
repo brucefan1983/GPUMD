@@ -115,7 +115,7 @@ public:
     TorchMetaCell(std::string model_path,std::string cfg_path);
     TorchMetaCell(void);
 
-    void process(Box& box,GPU_Vector<double>& virial);
+    void process(Box& box,GPU_Vector<double>& positions,GPU_Vector<double>& virial);
 
     torch::Dict<std::string, torch::Tensor> predict(const torch::Dict<std::string, torch::Tensor>& inputs);
     torch::Tensor _FromCudaMemory(double* d_array, int size);

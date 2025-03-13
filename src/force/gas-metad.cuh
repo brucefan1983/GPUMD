@@ -106,13 +106,12 @@ struct Config {
     }
 };
 
-
-
 struct TorchMetad : public Potential
 {
 public:
 
     TorchMetad(std::string model_path,std::string cfg_path,int n_atoms);
+    TorchMetad(std::string model_path,std::string cfg_path,std::string gaussian_path,int n_atoms);
     TorchMetad(int n_atoms);
     void compute_large_box(Box& box,const GPU_Vector<double>& position_per_atom);
     void get_neighbor_list(Box& box,const GPU_Vector<double>& position_per_atom);
@@ -141,6 +140,7 @@ public:
     torch::Tensor _FromCudaMemory(double* d_array, int size);
     void box_to_tri(Box& box);
     void logCV_runtime(void);
+    void logCV_runtime(std::string& path);
     void appendCVtoTraj(bool is_opt);
 
     static std::unique_ptr<TorchMetad> parse_GASMD(const char** param, int num_param, const int number_of_atoms) {
@@ -150,13 +150,20 @@ public:
        }
        else if (num_param==2)
        {
-        throw std::runtime_error("Error parsing GASMD: params shapes like \"GASMD model.pt cfg.yaml\", but found "+ std::string(param[0])+std::string(param[1]));
+        throw std::runtime_error("Error parsing GASMD: params shapes like \"GASMD model.pt cfg.yaml gaussian.txt\", but found "+ std::string(param[0])+std::string(param[1]));
        }
-       else if (num_param>=3)
+       else if (num_param==3)
        {
         std::string model_path = param[1];
         std::string cfg_path = param[2];
         return std::make_unique<TorchMetad>(model_path,cfg_path,number_of_atoms);
+       }
+       else if (num_param==4)
+       {
+        std::string model_path = param[1];
+        std::string cfg_path = param[2];
+        std::string gaussian_path =param[3];
+        return std::make_unique<TorchMetad>(model_path,cfg_path,gaussian_path,number_of_atoms);
        }
        else{
         throw std::runtime_error("Error parsing GASMD: params shapes like \"GASMD model.pt cfg.yaml\"");
@@ -194,6 +201,9 @@ private:
     // torch-model
     torch::jit::script::Module model; // TorchScript 模型
     torch::Tensor mean_bias_force;
+
+    // name
+    std::string gaussian_name = "GASGaussian.txt";
 };
 
 #endif
