@@ -66,6 +66,8 @@ public:
     int num_c_radial = 0;
     int version = 4; // 3 for NEP3 and 4 for NEP4
     int atomic_numbers[NUM_ELEMENTS];
+    int N_times_max_NN_radial;
+    int N_times_max_NN_angular;
   };
 
   struct ANN {
