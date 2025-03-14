@@ -9,7 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: 
-      image: nvidia/cuda:11.2.2-devel-ubuntu20.04  # 使用适合你的CUDA版本的官方NVIDIA容器
+      image: nvidia/cuda:12.2.2-devel-ubuntu22.04  # 使用适合你的CUDA版本的官方NVIDIA容器
+
 
     steps:
       - name: Checkout code

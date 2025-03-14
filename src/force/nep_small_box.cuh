@@ -16,8 +16,8 @@
 #include "model/box.cuh"
 #include "nep.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_utilities.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_utilities.cuh"
 
 #ifdef USE_KEPLER
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
@@ -166,7 +166,10 @@ static __global__ void find_descriptor_small_box(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_B_projection,
+  double* B_projection,
+  int B_projection_size)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -263,7 +266,8 @@ static __global__ void find_descriptor_small_box(
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -311,16 +315,29 @@ static __global__ void find_descriptor_small_box(
         F,
         Fp);
     } else {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
+      if (!need_B_projection)
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp);
+      else
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp,
+          B_projection + n1 * B_projection_size);
     }
     g_pe[n1] += F;
 
@@ -452,7 +469,8 @@ static __global__ void find_descriptor_small_box(
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -665,7 +683,18 @@ static __global__ void find_force_angular_small_box(
           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
                       g_gnp_angular[index_right_all] * weight_right;
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #else
       float fc12, fcp12;
@@ -692,7 +721,18 @@ static __global__ void find_force_angular_small_box(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #endif
       double s_sxx = 0.0;
