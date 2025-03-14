@@ -34,12 +34,18 @@ do
              else
                    echo Energy=$ener Lattice=\"$latt\" "Config_type=$configuration Weight=1.0 Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
              fi
-             max_tauc=$(grep "tauc" $i | awk '{print $4}' | sort -nr | head -n 1)
-             if (( $(echo "$max_tauc < 1" | bc -l) ))
+             if grep -q "taud" "$i"
              then
-               cell_a=$(grep "NORM_A" $i | awk '{print $3}')
-               cell_b=$(grep "NORM_B" $i | awk '{print $3}')
-               cell_c=$(grep "NORM_B" $i | awk '{print $3}')
+               if grep -q "NORM" "$i"
+               then
+                 cell_a=$(grep "NORM_A" $i | awk '{print $3}')
+                 cell_b=$(grep "NORM_B" $i | awk '{print $3}')
+                 cell_c=$(grep "NORM_C" $i | awk '{print $3}')
+               else
+                 cell_a=$(grep "_cell_length_a" "$(dirname "$i")/STRU.cif" | awk '{print $2}')
+                 cell_b=$(grep "_cell_length_b" "$(dirname "$i")/STRU.cif" | awk '{print $2}')
+                 cell_c=$(grep "_cell_length_c" "$(dirname "$i")/STRU.cif" | awk '{print $2}')
+               fi
                grep "tauc" $i | awk '{printf "%.8f %.8f %.8f\n", $2*'$cell_a', $3*'$cell_b', $4*'$cell_c'}' > $writ_dire/position.tem
              else
                grep "tauc" $i | awk '{printf "%.8f %.8f %.8f\n", $2, $3, $4}' > $writ_dire/position.tem
