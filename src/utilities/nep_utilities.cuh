@@ -596,8 +596,8 @@ static __device__ __forceinline__ void calculate_s_one(
   s[0] = sum_fxyz[index_0] * C3B[L_square_minus_1] * Fp_factor;
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
-    const int index_s = index_base + k;
-    const int index_s0 = index_s * N;
+    int index_s = index_base + k;
+    int index_s0 = index_s * N;
     s[k] = sum_fxyz[index_s0] * C3B[L_square_minus_1 + k] * Fp_factor;
   }
 }
@@ -616,8 +616,8 @@ static __device__ __forceinline__ void calculate_s_one(
   const int index_0 = index_base * N;
   s[0] = 2.0f * sum_fxyz[index_0] * C3B[L_square_minus_1];
   for (int k = 1; k < L_twice_plus_1; ++k) {
-    const int index_s = index_base + k;
-    const int index_s0 = index_s * N;
+    int index_s = index_base + k;
+    int index_s0 = index_s * N;
     s[k] = 4.0f * sum_fxyz[index_s0] * C3B[L_square_minus_1 + k];
   }
 }
@@ -645,38 +645,38 @@ static __device__ __forceinline__ void calculate_ec_one(
   const int index_0 = index_base * N;
   const int index_1 = index_0 * 3;
   const int index_123 = index_1 * 2;
-  const float baseC3B = C3B[L_square_minus_1];
-  const float base_s_c = s_c[0];
-  (*ec) += sum_fxyz[index_0] * baseC3B * base_s_c * Fp_factor;
-  s[0] = sum_fxyz[index_0] * baseC3B * Fp_factor;
-  f[0] = sum_s2xyz[index_1] * baseC3B * base_s_c * Fp_factor;
-  f[1] = sum_s2xyz[index_1 + N * 1] * baseC3B * base_s_c * Fp_factor;
-  f[2] = sum_s2xyz[index_1 + N * 2] * baseC3B * base_s_c * Fp_factor;
-  f123[0] = sum_s2xyz123[index_123] * baseC3B * base_s_c * Fp_factor; // index合并访问测试?
-  f123[1] = sum_s2xyz123[index_123 + N * 1] * baseC3B * base_s_c * Fp_factor;
-  f123[2] = sum_s2xyz123[index_123 + N * 2] * baseC3B * base_s_c * Fp_factor;
-  f123[3] = sum_s2xyz123[index_123 + N * 3] * baseC3B * base_s_c * Fp_factor;
-  f123[4] = sum_s2xyz123[index_123 + N * 4] * baseC3B * base_s_c * Fp_factor;
-  f123[5] = sum_s2xyz123[index_123 + N * 5] * baseC3B * base_s_c * Fp_factor;
+  const float base_factor = C3B[L_square_minus_1] * Fp_factor;
+  const float base_factor_s_c = base_factor * s_c[0];
+  (*ec) += sum_fxyz[index_0] * base_factor_s_c;
+  s[0] = sum_fxyz[index_0] * base_factor;
+  f[0] = sum_s2xyz[index_1] * base_factor_s_c;
+  f[1] = sum_s2xyz[index_1 + N * 1] * base_factor_s_c;
+  f[2] = sum_s2xyz[index_1 + N * 2] * base_factor_s_c;
+  f123[0] = sum_s2xyz123[index_123] * base_factor_s_c; // index合并访问测试?
+  f123[1] = sum_s2xyz123[index_123 + N * 1] * base_factor_s_c;
+  f123[2] = sum_s2xyz123[index_123 + N * 2] * base_factor_s_c;
+  f123[3] = sum_s2xyz123[index_123 + N * 3] * base_factor_s_c;
+  f123[4] = sum_s2xyz123[index_123 + N * 4] * base_factor_s_c;
+  f123[5] = sum_s2xyz123[index_123 + N * 5] * base_factor_s_c;
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
-    const int index_s = index_base + k;
-    const int index_s0 = index_s * N;
-    const int index_s1 = index_s0 * 3;
-    const int index_s123 = index_s1 * 2;
-    const float c3b_val = C3B[L_square_minus_1 + k];
-    const float s_c_val = s_c[k];
-    (*ec) += sum_fxyz[index_s0] * c3b_val * s_c_val * Fp_factor;
-    s[k] = sum_fxyz[index_s0] * c3b_val * Fp_factor;
-    f[0] += sum_s2xyz[index_s1] * c3b_val * s_c_val * Fp_factor;
-    f[1] += sum_s2xyz[index_s1 + N * 1] * c3b_val * s_c_val * Fp_factor;
-    f[2] += sum_s2xyz[index_s1 + N * 2] * c3b_val * s_c_val * Fp_factor;
-    f123[0] += sum_s2xyz123[index_s123] * c3b_val * s_c_val * Fp_factor;
-    f123[1] += sum_s2xyz123[index_s123 + N * 1] * c3b_val * s_c_val * Fp_factor;
-    f123[2] += sum_s2xyz123[index_s123 + N * 2] * c3b_val * s_c_val * Fp_factor;
-    f123[3] += sum_s2xyz123[index_s123 + N * 3] * c3b_val * s_c_val * Fp_factor;
-    f123[4] += sum_s2xyz123[index_s123 + N * 4] * c3b_val * s_c_val * Fp_factor;
-    f123[5] += sum_s2xyz123[index_s123 + N * 5] * c3b_val * s_c_val * Fp_factor;
+    int index_s = index_base + k;
+    int index_s0 = index_s * N;
+    int index_s1 = index_s0 * 3;
+    int index_s123 = index_s1 * 2;
+    float c3b_val = C3B[L_square_minus_1 + k] * Fp_factor;
+    float s_c_val = c3b_val * s_c[k];
+    (*ec) += sum_fxyz[index_s0] * s_c_val;
+    s[k] = sum_fxyz[index_s0] * c3b_val;
+    f[0] += sum_s2xyz[index_s1] * s_c_val;
+    f[1] += sum_s2xyz[index_s1 + N * 1] * s_c_val;
+    f[2] += sum_s2xyz[index_s1 + N * 2] * s_c_val;
+    f123[0] += sum_s2xyz123[index_s123] * s_c_val;
+    f123[1] += sum_s2xyz123[index_s123 + N * 1] * s_c_val;
+    f123[2] += sum_s2xyz123[index_s123 + N * 2] * s_c_val;
+    f123[3] += sum_s2xyz123[index_s123 + N * 3] * s_c_val;
+    f123[4] += sum_s2xyz123[index_s123 + N * 4] * s_c_val;
+    f123[5] += sum_s2xyz123[index_s123 + N * 5] * s_c_val;
   }
 }
 
@@ -696,23 +696,23 @@ static __device__ __forceinline__ void calculate_fc_one(
   const int L_twice_plus_1 = 2 * L + 1;
   const int L_square_minus_1 = L * L - 1;
   float Fp_factor = 2.0f * Fp[L_minus_1 * n_max_angular_plus_1 + n];
-  int index_1 = L_square_minus_1 * 3;
-  const float baseC3B = C3B[L_square_minus_1];
-  const float base_s_c = s_c[0];
-  s[0] = sum_fxyz[L_square_minus_1] * baseC3B * Fp_factor;
-  f[0] += sum_s2xyz[index_1] * baseC3B * base_s_c * Fp_factor;
-  f[1] += sum_s2xyz[index_1 + 1] * baseC3B * base_s_c * Fp_factor;
-  f[2] += sum_s2xyz[index_1 + 2] * baseC3B * base_s_c * Fp_factor;
+  const int index_1 = L_square_minus_1 * 3;
+  const float base_factor = C3B[L_square_minus_1] * Fp_factor;
+  const float base_factor_s_c = base_factor * s_c[0];
+  s[0] = sum_fxyz[L_square_minus_1] * base_factor;
+  f[0] += sum_s2xyz[index_1] * base_factor_s_c;
+  f[1] += sum_s2xyz[index_1 + 1] * base_factor_s_c;
+  f[2] += sum_s2xyz[index_1 + 2] * base_factor_s_c;
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
     int index_s = L_square_minus_1 + k;
     int index_s1 = index_s * 3;
-    float c3b_val = C3B[L_square_minus_1 + k];
-    float s_c_val = s_c[k];
-    s[k] = sum_fxyz[index_s] * c3b_val * Fp_factor;
-    f[0] += sum_s2xyz[index_s1] * c3b_val * s_c_val * Fp_factor;
-    f[1] += sum_s2xyz[index_s1 + 1] * c3b_val * s_c_val * Fp_factor;
-    f[2] += sum_s2xyz[index_s1 + 2] * c3b_val * s_c_val * Fp_factor;
+    float c3b_val = C3B[L_square_minus_1 + k] * Fp_factor;
+    float s_c_val = c3b_val * s_c[k];
+    s[k] = sum_fxyz[index_s] * c3b_val;
+    f[0] += sum_s2xyz[index_s1] * s_c_val;
+    f[1] += sum_s2xyz[index_s1 + 1] * s_c_val;
+    f[2] += sum_s2xyz[index_s1 + 2] * s_c_val;
   }
 }
 
@@ -729,12 +729,13 @@ static __device__ __forceinline__ void calculate_qc_one(
   const int L_square_minus_1 = L * L - 1;
   const int index_base = n * NUM_OF_ABC + L_square_minus_1;
   const int index_0 = index_base * N;
-  (*qc) = 2.0f * sum_fxyz[index_0] * C3B[L_square_minus_1] * s_c[0];
+  float qc_sum = 2.0f * sum_fxyz[index_0] * C3B[L_square_minus_1] * s_c[0];
   for (int k = 1; k < L_twice_plus_1; ++k) {
-    const int index_s = index_base + k;
-    const int index_s0 = index_s * N;
-    (*qc) += 4.0f * sum_fxyz[index_s0] * C3B[L_square_minus_1 + k] * s_c[k];
+    int index_s = index_base + k;
+    int index_s0 = index_s * N;
+    qc_sum += 4.0f * sum_fxyz[index_s0] * C3B[L_square_minus_1 + k] * s_c[k];
   }
+  (*qc) = qc_sum;
 }
 
 template <int L>
@@ -762,72 +763,44 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) {
-        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_1[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      float coeff;
+      switch(L) {
+        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
+        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
+        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
+        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
+        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
+        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
+        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
+        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
       }
-      if (L == 2) {
-        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_2[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 3) {
-        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_3[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 4) {
-        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_4[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 5) {
-        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 6) {
-        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 7) {
-        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_7[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 8) {
-        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_8[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      z_factor += coeff * z_pow[n2];
+      if (n2 > 0) {
+        dz_factor += coeff * n2 * z_pow[n2 - 1];
       }
     }
     if (n1 == 0) {
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
-        f12[d] += s[0] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
+        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
       }
     } else {
       float real_part_n1 = n1 * real_part;
       float imag_part_n1 = n1 * imag_part;
+      float z_factor_fn = z_factor * fn;
       for (int d = 0; d < 3; ++d) {
         float real_part_dx = dx[d];
         float imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
-        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
+        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float factor1 = xy_temp * z_factor * fnp;
+      float factor2 = xy_temp * fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
-        f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
+        f12[d] += factor1 * r12[d] + factor2 * dz[d];
       }
     }
   }
@@ -860,81 +833,53 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) {
-        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_1[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      float coeff;
+      switch(L) {
+        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
+        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
+        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
+        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
+        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
+        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
+        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
+        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
       }
-      if (L == 2) {
-        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_2[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 3) {
-        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_3[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 4) {
-        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_4[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 5) {
-        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 6) {
-        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 7) {
-        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_7[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 8) {
-        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_8[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      z_factor += coeff * z_pow[n2];
+      if (n2 > 0) {
+        dz_factor += coeff * n2 * z_pow[n2 - 1];
       }
     }
     if (n1 == 0) {
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += s[0] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f123[d] += s[0] * r12_original[d] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f123[d1+3] += s[0] * r12_original[d1] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
+        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d] += s[0] * r12_original[d] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d1+3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
       }
     } else {
       float real_part_n1 = n1 * real_part;
       float imag_part_n1 = n1 * imag_part;
+      float z_factor_fn = z_factor * fn;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         float real_part_dx = dx[d];
         float imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
-        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
-        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn * r12_original[d];
-        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn * r12_original[d1];
+        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
+        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d];
+        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d1];
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float factor1 = xy_temp * z_factor * fnp;
+      float factor2 = xy_temp * fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f123[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d];
-        f123[d1+3] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d1];
+        f12[d] += factor1 * r12[d] + factor2 * dz[d];
+        f123[d] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        f123[d1+3] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
   }
@@ -973,68 +918,38 @@ static __device__ __forceinline__ void calculate_fxyz_one(
     float dz_factor = 0.0f;
     float z_factor_i1 = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) {
-        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_1[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      float coeff;
+      switch(L) {
+        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
+        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
+        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
+        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
+        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
+        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
+        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
+        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
       }
-      if (L == 2) {
-        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_2[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 3) {
-        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_3[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 4) {
-        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_4[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 5) {
-        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 6) {
-        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 7) {
-        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_7[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 8) {
-        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_8[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      z_factor += coeff * z_pow[n2];
+      if (n2 > 0) {
+        dz_factor += coeff * n2 * z_pow[n2 - 1];
       }
     }
     z_factor_i1 = z_factor * fn;
     if (n1 == 0) {
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       s_i1[s_index++] = z_factor_i1;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += s[0] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[d + 3 * start_index] = z_factor * fnp * r12[d] + fn * dz_factor * dz[d];
-        f123[d] += s[0] * r12_original[d] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f123[d1+3] += s[0] * r12_original[d1] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
+        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[d + 3 * start_index] = factor1 * r12[d] + factor2 * dz[d];
+        f123[d] += s[0] * r12_original[d] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d1+3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
       }
     } else {
       float real_part_n1 = n1 * real_part;
       float imag_part_n1 = n1 * imag_part;
+      float z_factor_fn = z_factor * fn;
       int abc = 3 * (start_index + 2 * n1 - 1);
       s_i1[s_index++] = z_factor_i1 * real_part_s_i1;
       s_i1[s_index++] = z_factor_i1 * imag_part_s_i1;
@@ -1044,21 +959,23 @@ static __device__ __forceinline__ void calculate_fxyz_one(
         float real_part_dx = dx[d];
         float imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
-        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
-        sf[d + abc] = real_part_dx * z_factor * fn;
-        sf[d + abc + 3] = imag_part_dy * z_factor * fn;
-        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn * r12_original[d];
-        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn * r12_original[d1];
+        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
+        sf[d + abc] = real_part_dx * z_factor_fn;
+        sf[d + abc + 3] = imag_part_dy * z_factor_fn;
+        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d];
+        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d1];
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[d + abc] += real_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[d + abc + 3] += imag_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        f123[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d];
-        f123[d1+3] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d1];
+        f12[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[d + abc] += real_part * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[d + abc + 3] += imag_part * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        f123[d1+3] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
   }
@@ -1096,66 +1013,36 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) {
-        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_1[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      float coeff;
+      switch(L) {
+        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
+        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
+        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
+        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
+        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
+        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
+        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
+        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
       }
-      if (L == 2) {
-        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_2[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 3) {
-        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_3[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 4) {
-        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_4[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 5) {
-        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 6) {
-        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 7) {
-        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_7[n1][n2] * n2 * z_pow[n2 - 1];
-        }
-      }
-      if (L == 8) {
-        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
-        if (n2 > 0) {
-          dz_factor += Z_COEFFICIENT_8[n1][n2] * n2 * z_pow[n2 - 1];
-        }
+      z_factor += coeff * z_pow[n2];
+      if (n2 > 0) {
+        dz_factor += coeff * n2 * z_pow[n2 - 1];
       }
     }
     if (n1 == 0) {
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += s[0] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[N * (d + 3 * start_index + N_ABC)] += z_factor * fnp * r12[d] + fn * dz_factor * dz[d];
-        sf123[N * (d + 6 * start_index + N_ABC123)] += (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d];
-        sf123[N * ((d1 + 3) + 6 * start_index + N_ABC123)] += (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d1];
+        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[N * (d + 3 * start_index + N_ABC)] += factor1 * r12[d] + factor2 * dz[d];
+        sf123[N * (d + 6 * start_index + N_ABC123)] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        sf123[N * ((d1 + 3) + 6 * start_index + N_ABC123)] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     } else {
       float real_part_n1 = n1 * real_part;
       float imag_part_n1 = n1 * imag_part;
+      float z_factor_fn = z_factor * fn;
       int abc = 3 * (start_index + 2 * n1 - 1);
       int abc123 = 2 * abc;
       for (int d = 0; d < 3; ++d) {
@@ -1166,28 +1053,30 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         int index123_off = N * ((d1 + 3) + abc123 + N_ABC123); 
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
-        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
-        sf[index] += real_part_dx * z_factor * fn;
-        sf[index + 3 * N] += imag_part_dy * z_factor * fn;
-        sf123[index123] += real_part_dx * z_factor * fn * r12_original[d];
-        sf123[index123 + 6 * N] += imag_part_dy * z_factor * fn * r12_original[d];
-        sf123[index123_off] += real_part_dx * z_factor * fn * r12_original[d1];
-        sf123[index123_off + 6 * N] += imag_part_dy * z_factor * fn * r12_original[d1];
+        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
+        sf[index] += real_part_dx * z_factor_fn;
+        sf[index + 3 * N] += imag_part_dy * z_factor_fn;
+        sf123[index123] += real_part_dx * z_factor_fn * r12_original[d];
+        sf123[index123 + 6 * N] += imag_part_dy * z_factor_fn * r12_original[d];
+        sf123[index123_off] += real_part_dx * z_factor_fn * r12_original[d1];
+        sf123[index123_off + 6 * N] += imag_part_dy * z_factor_fn * r12_original[d1];
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
         int index = N * (d + abc + N_ABC);
         int index123 = N * (d + abc123 + N_ABC123);
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         int index123_off = N * ((d1 + 3) + abc123 + N_ABC123); 
-        f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[index] += real_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf[index + 3 * N] += imag_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
-        sf123[index123] += real_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d];
-        sf123[index123 + 6 * N] += imag_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d];
-        sf123[index123_off] += real_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d1];
-        sf123[index123_off + 6 * N] += imag_part * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]) * r12_original[d1];
+        f12[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[index] += real_part * (factor1 * r12[d] + factor2 * dz[d]);
+        sf[index + 3 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]);
+        sf123[index123] += real_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        sf123[index123 + 6 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        sf123[index123_off] += real_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
+        sf123[index123_off + 6 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
   }
@@ -1224,15 +1113,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<1>(N, n, n_max_angular_plus_1, sum_fxyz, s1);
     calculate_fxyz_one<1>(d12inv, fn, fnp, s1, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[0] += f[0];
-    feat_y[0] += f[1];
-    feat_z[0] += f[2];
-    feat_123_xx[0] += f123[0];
-    feat_123_yy[0] += f123[1];
-    feat_123_zz[0] += f123[2];
-    feat_123_xy[0] += f123[3];
-    feat_123_yz[0] += f123[4];
-    feat_123_zx[0] += f123[5];
+    feat_x[0] = f[0];
+    feat_y[0] = f[1];
+    feat_z[0] = f[2];
+    feat_123_xx[0] = f123[0];
+    feat_123_yy[0] = f123[1];
+    feat_123_zz[0] = f123[2];
+    feat_123_xy[0] = f123[3];
+    feat_123_yz[0] = f123[4];
+    feat_123_zx[0] = f123[5];
   }
 
   if (L_max >= 2) {
@@ -1241,15 +1130,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<2>(N, n, n_max_angular_plus_1, sum_fxyz, s2);
     calculate_fxyz_one<2>(d12inv, fn, fnp, s2, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[n_max_angular_plus_1] += f[0];
-    feat_y[n_max_angular_plus_1] += f[1];
-    feat_z[n_max_angular_plus_1] += f[2];
-    feat_123_xx[n_max_angular_plus_1] += f123[0];
-    feat_123_yy[n_max_angular_plus_1] += f123[1];
-    feat_123_zz[n_max_angular_plus_1] += f123[2];
-    feat_123_xy[n_max_angular_plus_1] += f123[3];
-    feat_123_yz[n_max_angular_plus_1] += f123[4];
-    feat_123_zx[n_max_angular_plus_1] += f123[5];
+    feat_x[n_max_angular_plus_1] = f[0];
+    feat_y[n_max_angular_plus_1] = f[1];
+    feat_z[n_max_angular_plus_1] = f[2];
+    feat_123_xx[n_max_angular_plus_1] = f123[0];
+    feat_123_yy[n_max_angular_plus_1] = f123[1];
+    feat_123_zz[n_max_angular_plus_1] = f123[2];
+    feat_123_xy[n_max_angular_plus_1] = f123[3];
+    feat_123_yz[n_max_angular_plus_1] = f123[4];
+    feat_123_zx[n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 3) {
@@ -1258,15 +1147,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<3>(N, n, n_max_angular_plus_1, sum_fxyz, s3);
     calculate_fxyz_one<3>(d12inv, fn, fnp, s3, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[2 * n_max_angular_plus_1] += f[0];
-    feat_y[2 * n_max_angular_plus_1] += f[1];
-    feat_z[2 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[2 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[2 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[2 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[2 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[2 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[2 * n_max_angular_plus_1] += f123[5];
+    feat_x[2 * n_max_angular_plus_1] = f[0];
+    feat_y[2 * n_max_angular_plus_1] = f[1];
+    feat_z[2 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[2 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[2 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[2 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[2 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[2 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[2 * n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 4) {
@@ -1275,15 +1164,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<4>(N, n, n_max_angular_plus_1, sum_fxyz, s4);
     calculate_fxyz_one<4>(d12inv, fn, fnp, s4, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[3 * n_max_angular_plus_1] += f[0];
-    feat_y[3 * n_max_angular_plus_1] += f[1];
-    feat_z[3 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[3 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[3 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[3 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[3 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[3 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[3 * n_max_angular_plus_1] += f123[5];
+    feat_x[3 * n_max_angular_plus_1] = f[0];
+    feat_y[3 * n_max_angular_plus_1] = f[1];
+    feat_z[3 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[3 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[3 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[3 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[3 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[3 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[3 * n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 5) {
@@ -1292,15 +1181,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<5>(N, n, n_max_angular_plus_1, sum_fxyz, s5);
     calculate_fxyz_one<5>(d12inv, fn, fnp, s5, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[4 * n_max_angular_plus_1] += f[0];
-    feat_y[4 * n_max_angular_plus_1] += f[1];
-    feat_z[4 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[4 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[4 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[4 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[4 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[4 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[4 * n_max_angular_plus_1] += f123[5];
+    feat_x[4 * n_max_angular_plus_1] = f[0];
+    feat_y[4 * n_max_angular_plus_1] = f[1];
+    feat_z[4 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[4 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[4 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[4 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[4 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[4 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[4 * n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 6) {
@@ -1309,15 +1198,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<6>(N, n, n_max_angular_plus_1, sum_fxyz, s6);
     calculate_fxyz_one<6>(d12inv, fn, fnp, s6, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[5 * n_max_angular_plus_1] += f[0];
-    feat_y[5 * n_max_angular_plus_1] += f[1];
-    feat_z[5 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[5 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[5 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[5 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[5 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[5 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[5 * n_max_angular_plus_1] += f123[5];
+    feat_x[5 * n_max_angular_plus_1] = f[0];
+    feat_y[5 * n_max_angular_plus_1] = f[1];
+    feat_z[5 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[5 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[5 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[5 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[5 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[5 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[5 * n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 7) {
@@ -1326,15 +1215,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<7>(N, n, n_max_angular_plus_1, sum_fxyz, s7);
     calculate_fxyz_one<7>(d12inv, fn, fnp, s7, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[6 * n_max_angular_plus_1] += f[0];
-    feat_y[6 * n_max_angular_plus_1] += f[1];
-    feat_z[6 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[6 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[6 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[6 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[6 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[6 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[6 * n_max_angular_plus_1] += f123[5];
+    feat_x[6 * n_max_angular_plus_1] = f[0];
+    feat_y[6 * n_max_angular_plus_1] = f[1];
+    feat_z[6 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[6 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[6 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[6 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[6 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[6 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[6 * n_max_angular_plus_1] = f123[5];
   }
 
   if (L_max >= 8) {
@@ -1343,15 +1232,15 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f123[6] = {0.0f};
     calculate_s_one<8>(N, n, n_max_angular_plus_1, sum_fxyz, s8);
     calculate_fxyz_one<8>(d12inv, fn, fnp, s8, r12unit, r12, s_i1, sum_s2xyz, f, f123);
-    feat_x[7 * n_max_angular_plus_1] += f[0];
-    feat_y[7 * n_max_angular_plus_1] += f[1];
-    feat_z[7 * n_max_angular_plus_1] += f[2];
-    feat_123_xx[7 * n_max_angular_plus_1] += f123[0];
-    feat_123_yy[7 * n_max_angular_plus_1] += f123[1];
-    feat_123_zz[7 * n_max_angular_plus_1] += f123[2];
-    feat_123_xy[7 * n_max_angular_plus_1] += f123[3];
-    feat_123_yz[7 * n_max_angular_plus_1] += f123[4];
-    feat_123_zx[7 * n_max_angular_plus_1] += f123[5];
+    feat_x[7 * n_max_angular_plus_1] = f[0];
+    feat_y[7 * n_max_angular_plus_1] = f[1];
+    feat_z[7 * n_max_angular_plus_1] = f[2];
+    feat_123_xx[7 * n_max_angular_plus_1] = f123[0];
+    feat_123_yy[7 * n_max_angular_plus_1] = f123[1];
+    feat_123_zz[7 * n_max_angular_plus_1] = f123[2];
+    feat_123_xy[7 * n_max_angular_plus_1] = f123[3];
+    feat_123_yz[7 * n_max_angular_plus_1] = f123[4];
+    feat_123_zx[7 * n_max_angular_plus_1] = f123[5];
   }
 }
 
@@ -1497,31 +1386,17 @@ calculate_sc_one(
   float imag_part = y12;
   for (int n1 = 0; n1 <= L; ++n1) {
     int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
-    float z_factor = 0.0;
+    float z_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      if (L == 1) {
-        z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
-      }
-      if (L == 2) {
-        z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2];
-      }
-      if (L == 3) {
-        z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2];
-      }
-      if (L == 4) {
-        z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
-      }
-      if (L == 5) {
-        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
-      }
-      if (L == 6) {
-        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
-      }
-      if (L == 7) {
-        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
-      }
-      if (L == 8) {
-        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
+      switch(L) {
+        case 1: z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2]; break;
+        case 2: z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2]; break;
+        case 3: z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2]; break;
+        case 4: z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2]; break;
+        case 5: z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2]; break;
+        case 6: z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2]; break;
+        case 7: z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2]; break;
+        case 8: z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2]; break;
       }
     }
     z_factor *= fn;
@@ -1837,52 +1712,55 @@ static __device__ __forceinline__ void accumulate_qc(
 {
   const float d12inv = 1.0f / d12;
   const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
-  if (L == 1) {
-    float sc1[3];
-    calculate_sc_one<1>(r12unit[0], r12unit[1], r12unit[2], fn, sc1);
-    calculate_qc_one<1>(N, n, n_max_angular_plus_1, sum_fxyz, sc1, q_c);
-  }
-
-  if (L == 2) {
-    float sc2[5];
-    calculate_sc_one<2>(r12unit[0], r12unit[1], r12unit[2], fn, sc2);
-    calculate_qc_one<2>(N, n, n_max_angular_plus_1, sum_fxyz, sc2, q_c);
-  }
-
-  if (L == 3) {
-    float sc3[7];
-    calculate_sc_one<3>(r12unit[0], r12unit[1], r12unit[2], fn, sc3);
-    calculate_qc_one<3>(N, n, n_max_angular_plus_1, sum_fxyz, sc3, q_c);
-  }
-
-  if (L == 4) {
-    float sc4[9];
-    calculate_sc_one<4>(r12unit[0], r12unit[1], r12unit[2], fn, sc4);
-    calculate_qc_one<4>(N, n, n_max_angular_plus_1, sum_fxyz, sc4, q_c);
-  }
-
-  if (L == 5) {
-    float sc5[11];
-    calculate_sc_one<5>(r12unit[0], r12unit[1], r12unit[2], fn, sc5);
-    calculate_qc_one<5>(N, n, n_max_angular_plus_1, sum_fxyz, sc5, q_c);
-  }
-
-  if (L == 6) {
-    float sc6[13];
-    calculate_sc_one<6>(r12unit[0], r12unit[1], r12unit[2], fn, sc6);
-    calculate_qc_one<6>(N, n, n_max_angular_plus_1, sum_fxyz, sc6, q_c);
-  }
-
-  if (L == 7) {
-    float sc7[15];
-    calculate_sc_one<7>(r12unit[0], r12unit[1], r12unit[2], fn, sc7);
-    calculate_qc_one<7>(N, n, n_max_angular_plus_1, sum_fxyz, sc7, q_c);
-  }
-
-  if (L == 8) {
-    float sc8[17];
-    calculate_sc_one<8>(r12unit[0], r12unit[1], r12unit[2], fn, sc8);
-    calculate_qc_one<8>(N, n, n_max_angular_plus_1, sum_fxyz, sc8, q_c);
+  switch(L) {
+    case 1: {
+      float sc1[3];
+      calculate_sc_one<1>(r12unit[0], r12unit[1], r12unit[2], fn, sc1);
+      calculate_qc_one<1>(N, n, n_max_angular_plus_1, sum_fxyz, sc1, q_c);
+      break;
+    }
+    case 2: {
+      float sc2[5];
+      calculate_sc_one<2>(r12unit[0], r12unit[1], r12unit[2], fn, sc2);
+      calculate_qc_one<2>(N, n, n_max_angular_plus_1, sum_fxyz, sc2, q_c);
+      break;
+    }
+    case 3: {
+      float sc3[7];
+      calculate_sc_one<3>(r12unit[0], r12unit[1], r12unit[2], fn, sc3);
+      calculate_qc_one<3>(N, n, n_max_angular_plus_1, sum_fxyz, sc3, q_c);
+      break;
+    }
+    case 4: {
+      float sc4[9];
+      calculate_sc_one<4>(r12unit[0], r12unit[1], r12unit[2], fn, sc4);
+      calculate_qc_one<4>(N, n, n_max_angular_plus_1, sum_fxyz, sc4, q_c);
+      break;
+    }
+    case 5: {
+      float sc5[11];
+      calculate_sc_one<5>(r12unit[0], r12unit[1], r12unit[2], fn, sc5);
+      calculate_qc_one<5>(N, n, n_max_angular_plus_1, sum_fxyz, sc5, q_c);
+      break;
+    }
+    case 6: {
+      float sc6[13];
+      calculate_sc_one<6>(r12unit[0], r12unit[1], r12unit[2], fn, sc6);
+      calculate_qc_one<6>(N, n, n_max_angular_plus_1, sum_fxyz, sc6, q_c);
+      break;
+    }
+    case 7: {
+      float sc7[15];
+      calculate_sc_one<7>(r12unit[0], r12unit[1], r12unit[2], fn, sc7);
+      calculate_qc_one<7>(N, n, n_max_angular_plus_1, sum_fxyz, sc7, q_c);
+      break;
+    }
+    case 8: {
+      float sc8[17];
+      calculate_sc_one<8>(r12unit[0], r12unit[1], r12unit[2], fn, sc8);
+      calculate_qc_one<8>(N, n, n_max_angular_plus_1, sum_fxyz, sc8, q_c);
+      break;
+    }
   }
 }
 
