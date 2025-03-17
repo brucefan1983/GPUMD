@@ -32,7 +32,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard force/*.cu)        \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)    
+	$(wildcard utilities/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard utilities/*.cu)
