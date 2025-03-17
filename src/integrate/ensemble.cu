@@ -458,7 +458,10 @@ static __global__ void gpu_find_thermo_instant_temperature(
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
-          s_data[tid] += g_sxy[n];
+          mass = g_mass[n];
+          vx = g_vx[n];
+          vy = g_vy[n];
+          s_data[tid] += g_sxy[n] + vx * vy * mass;
         }
       }
       __syncthreads();
@@ -477,7 +480,10 @@ static __global__ void gpu_find_thermo_instant_temperature(
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
-          s_data[tid] += g_sxz[n];
+          mass = g_mass[n];
+          vx = g_vx[n];
+          vz = g_vz[n];
+          s_data[tid] += g_sxz[n] + vx * vz * mass;
         }
       }
       __syncthreads();
@@ -496,7 +502,10 @@ static __global__ void gpu_find_thermo_instant_temperature(
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
-          s_data[tid] += g_syz[n];
+          mass = g_mass[n];
+          vz = g_vz[n];
+          vy = g_vy[n];
+          s_data[tid] += g_syz[n] + vy * vz * mass;
         }
       }
       __syncthreads();
@@ -515,7 +524,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
 
 // Find some thermodynamic properties:
 // g_thermo[0-7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
-static __global__ void gpu_find_thermo_target_temperature(
+/*static __global__ void gpu_find_thermo_target_temperature(
   const int N,
   const int N_temperature,
   const double T,
@@ -699,7 +708,7 @@ static __global__ void gpu_find_thermo_target_temperature(
       }
       break;
   }
-}
+}*/
 
 // wrapper of the above kernel
 void Ensemble::find_thermo(
@@ -721,7 +730,9 @@ void Ensemble::find_thermo(
     num_atoms_for_temperature -= group[0].cpu_size[move_group];
   }
 
-  if (use_target_temperature) {
+  // might clean up the code here after extensive tests 
+
+  /*if (use_target_temperature) {
     gpu_find_thermo_target_temperature<<<8, 1024>>>(
       number_of_atoms,
       num_atoms_for_temperature,
@@ -739,7 +750,7 @@ void Ensemble::find_thermo(
       virial_per_atom.data() + number_of_atoms * 4,
       virial_per_atom.data() + number_of_atoms * 5,
       thermo.data());
-  } else {
+  } else {*/
     gpu_find_thermo_instant_temperature<<<8, 1024>>>(
       number_of_atoms,
       num_atoms_for_temperature,
@@ -757,7 +768,7 @@ void Ensemble::find_thermo(
       virial_per_atom.data() + number_of_atoms * 4,
       virial_per_atom.data() + number_of_atoms * 5,
       thermo.data());
-  }
+  //}
 
   GPU_CHECK_KERNEL
 }
