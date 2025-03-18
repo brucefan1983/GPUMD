@@ -27,11 +27,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -357,7 +357,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 #endif
 
   initialize_dftd3();
-  B_projection_size = annmb.dim * (annmb.dim + 2);
+  B_projection_size = annmb.num_neurons1 * (annmb.dim + 2);
 }
 
 NEP::~NEP(void)
