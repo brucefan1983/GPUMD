@@ -652,7 +652,7 @@ static __device__ __forceinline__ void calculate_ec_one(
   f[0] = sum_s2xyz[index_1] * base_factor_s_c;
   f[1] = sum_s2xyz[index_1 + N * 1] * base_factor_s_c;
   f[2] = sum_s2xyz[index_1 + N * 2] * base_factor_s_c;
-  f123[0] = sum_s2xyz123[index_123] * base_factor_s_c; // index合并访问测试?
+  f123[0] = sum_s2xyz123[index_123] * base_factor_s_c; 
   f123[1] = sum_s2xyz123[index_123 + N * 1] * base_factor_s_c;
   f123[2] = sum_s2xyz123[index_123 + N * 2] * base_factor_s_c;
   f123[3] = sum_s2xyz123[index_123 + N * 3] * base_factor_s_c;
@@ -1084,6 +1084,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
 
 static __device__ __forceinline__ void accumulate_dfe(
   const int N,
+  const int NM,
   const int L_max,
   const int n,
   const int n_max_angular_plus_1,
@@ -1106,6 +1107,7 @@ static __device__ __forceinline__ void accumulate_dfe(
 {
   const float d12inv = 1.0f / d12;
   const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
+  // const int NM_nmax = n_max_angular_plus_1 * NM;
 
   if (L_max >= 1) {
     float s1[3];
