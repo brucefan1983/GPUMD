@@ -847,7 +847,7 @@ static __global__ void compute_grad_radial_NM(
   int index = i1 * N + n1;
   int n2 = g_NL[index];
   int t2 = g_type[n2];
-  const int type_base = t1 * paramb.num_types + t2;
+  int type_base = t1 * paramb.num_types + t2;
   float fx_ref_n2 = g_fx_ref[n2];
   float fy_ref_n2 = g_fy_ref[n2];
   float fz_ref_n2 = g_fz_ref[n2];
@@ -881,11 +881,8 @@ static __global__ void compute_grad_radial_NM(
   find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
   float fn12[MAX_NUM_N];
   float fnp12[MAX_NUM_N];
+  find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
   float tmp_xyz[3] = {d12inv * r12[0], d12inv * r12[1], d12inv * r12[2]};
-  float feat_x[MAX_NUM_N] = {0.0f};
-  float feat_y[MAX_NUM_N] = {0.0f};
-  float feat_z[MAX_NUM_N] = {0.0f};
-
   float tmp_xyz_123[6] = {
     tmp_xyz[0] * r12[0], // xx
     tmp_xyz[1] * r12[1], // yy
@@ -894,6 +891,9 @@ static __global__ void compute_grad_radial_NM(
     tmp_xyz[2] * r12[1], // yz
     tmp_xyz[0] * r12[2]  // zx
   };
+  float feat_x[MAX_NUM_N] = {0.0f};
+  float feat_y[MAX_NUM_N] = {0.0f};
+  float feat_z[MAX_NUM_N] = {0.0f};
   float feat_123_xx[MAX_NUM_N] = {0.0f};
   float feat_123_yy[MAX_NUM_N] = {0.0f};
   float feat_123_zz[MAX_NUM_N] = {0.0f};
@@ -901,39 +901,36 @@ static __global__ void compute_grad_radial_NM(
   float feat_123_yz[MAX_NUM_N] = {0.0f};
   float feat_123_zx[MAX_NUM_N] = {0.0f};
 
-  find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+  int n_base, c_index, grad_c_index;
+  float gnp12, gFp_val, fp_xyz[3], fp_xyz_123[6], qp_c_tmp[3], grad_c_sum;
+  int n2_tmp, t2_tmp, ln;
+  float E2, q_c_scaler, q_c_ang, q_c_scaler_ang;
   for (int n = 0; n <= paramb.n_max_radial; ++n) {
-    int n_base = n * (paramb.basis_size_radial + 1);
-    float gnp12 = 0.0f;
-    float gFp_val = __ldg(&g_Fp[n1 + n * N]);
+    n_base = n * (paramb.basis_size_radial + 1);
+    gnp12 = 0.0f;
+    gFp_val = g_Fp[n1 + n * N];
     // E'(n) * ∂d_ij/∂α_ij
-    float fp_xyz[3] = {
-      gFp_val * tmp_xyz[0],
-      gFp_val * tmp_xyz[1],
-      gFp_val * tmp_xyz[2]
-    };
+    fp_xyz[0] = gFp_val * tmp_xyz[0];
+    fp_xyz[1] = gFp_val * tmp_xyz[1];
+    fp_xyz[2] = gFp_val * tmp_xyz[2];
     // E'(n) * ∂d_ij/∂α_ij * α_ij
-    float fp_xyz_123[6] = {
-      gFp_val * tmp_xyz_123[0],
-      gFp_val * tmp_xyz_123[1],
-      gFp_val * tmp_xyz_123[2],
-      gFp_val * tmp_xyz_123[3],
-      gFp_val * tmp_xyz_123[4],
-      gFp_val * tmp_xyz_123[5]
-    };
+    fp_xyz_123[0] = gFp_val * tmp_xyz_123[0];
+    fp_xyz_123[1] = gFp_val * tmp_xyz_123[1];
+    fp_xyz_123[2] = gFp_val * tmp_xyz_123[2];
+    fp_xyz_123[3] = gFp_val * tmp_xyz_123[3];
+    fp_xyz_123[4] = gFp_val * tmp_xyz_123[4];
+    fp_xyz_123[5] = gFp_val * tmp_xyz_123[5];
 
     for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-      int c_index = (n_base + k) * paramb.num_types_sq + type_base;
+      c_index = (n_base + k) * paramb.num_types_sq + type_base;
       gnp12 += fnp12[k] * __ldg(&annmb.c[c_index]);
       // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij 
-      float qp_c_tmp[3] = {
-                fnp12[k] * fp_xyz[0],
-                fnp12[k] * fp_xyz[1],
-                fnp12[k] * fp_xyz[2]
-            };
-      int grad_c_index = c_index + annmb.num_ann;
-      float grad_c_sum = qp_c_tmp[0] * dx_diff + qp_c_tmp[1] * dy_diff + qp_c_tmp[2] * dz_diff;
-      grad_c_sum += per_Nc_e * __ldg(&g_Fp[n1 + n * N]) * fn12[k];
+      qp_c_tmp[0] = fnp12[k] * fp_xyz[0];
+      qp_c_tmp[1] = fnp12[k] * fp_xyz[1];
+      qp_c_tmp[2] = fnp12[k] * fp_xyz[2];
+      grad_c_index = c_index + annmb.num_ann;
+      grad_c_sum = qp_c_tmp[0] * dx_diff + qp_c_tmp[1] * dy_diff + qp_c_tmp[2] * dz_diff;
+      grad_c_sum += per_Nc_e * g_Fp[n1 + n * N] * fn12[k];
       grad_c_sum -= fnp12[k] * (fp_xyz_123[0] * diff[0] + fp_xyz_123[1] * diff[1] + fp_xyz_123[2] * diff[2] + fp_xyz_123[3] * diff[3] + fp_xyz_123[4] * diff[4] + fp_xyz_123[5] * diff[5]);
       atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
     }
@@ -953,9 +950,9 @@ static __global__ void compute_grad_radial_NM(
   for (int n = 0; n <= paramb.n_max_radial; ++n) {
     float feat_xyz_sum[3] = {0.0f};
     float feat_123_sum[6] = {0.0f};
-    int n_base = n * (paramb.basis_size_radial + 1);
+    n_base = n * (paramb.basis_size_radial + 1);
     for (int m = 0; m <= paramb.n_max_radial; ++m) {
-      float E2 = __ldg(&g_Fp2[n1 + (m + n * annmb.dim) * N]); //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
+      E2 = g_Fp2[n1 + (m + n * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
       feat_xyz_sum[0] += feat_x[m] * E2;
       feat_xyz_sum[1] += feat_y[m] * E2;
       feat_xyz_sum[2] += feat_z[m] * E2;
@@ -969,15 +966,14 @@ static __global__ void compute_grad_radial_NM(
     for (int k = 0; k <= paramb.basis_size_radial; ++k) {
       float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
       for (int j = 0; j < neighbor_number; ++j) {
-        int index = j * N + n1;
-        int n2_tmp = g_NL[index];
-        int t2_tmp = g_type[n2_tmp];
-        float x12 = g_x12[index];
-        float y12 = g_y12[index];
-        float z12 = g_z12[index];
-        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-        float fc12;
-        float rc = paramb.rc_radial;
+        index = j * N + n1;
+        n2_tmp = g_NL[index];
+        t2_tmp = g_type[n2_tmp];
+        r12[0] = g_x12[index];
+        r12[1] = g_y12[index];
+        r12[2] = g_z12[index];
+        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        rc = paramb.rc_radial;
         if (paramb.use_typewise_cutoff) {
           rc = min(
             (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
@@ -985,55 +981,53 @@ static __global__ void compute_grad_radial_NM(
               paramb.typewise_cutoff_radial_factor,
             rc);
         }
-        float rcinv = 1.0f / rc;
+        rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
-
-        float fn12[MAX_NUM_N];
         find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-        float q_c_scaler = fn12[k] * g_q_scaler[n];
-        float grad_c_sum = q_c_scaler * (feat_xyz_sum[0] * dx_diff + feat_xyz_sum[1] * dy_diff + feat_xyz_sum[2] * dz_diff);
+        q_c_scaler = fn12[k] * g_q_scaler[n];
+        grad_c_sum = q_c_scaler * (feat_xyz_sum[0] * dx_diff + feat_xyz_sum[1] * dy_diff + feat_xyz_sum[2] * dz_diff);
         grad_c_sum -= q_c_scaler * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]);
         local_grad_c_sum[t2_tmp] += grad_c_sum;
       }
-      for (int t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
-        int type_base = t1 * paramb.num_types + t2_tmp;
-        int c_index = (n_base + k) * paramb.num_types_sq + type_base;
-        int grad_c_index = c_index + annmb.num_ann;
+      for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
+        type_base = t1 * paramb.num_types + t2_tmp;
+        c_index = (n_base + k) * paramb.num_types_sq + type_base;
+        grad_c_index = c_index + annmb.num_ann;
         atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
       }
     }
   }
   for (int na = 0; na <= paramb.n_max_angular; ++na) {
-    int n_base = na * (paramb.basis_size_angular + 1);
+    n_base = na * (paramb.basis_size_angular + 1);
     for (int ka = 0; ka <= paramb.basis_size_angular; ++ka) {
       float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
       for (int ia = 0; ia < neighbor_number_ang; ++ia) {
-        int index = ia * N + n1;
-        int n2a = g_NL_ang[index];
-        int t2a = g_type[n2a];
-        float r12[3] = {g_x12_ang[index], g_y12_ang[index], g_z12_ang[index]};
-        float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        float fc12;
-        float rc = paramb.rc_angular;
+        index = ia * N + n1;
+        n2_tmp = g_NL_ang[index];
+        t2_tmp = g_type[n2_tmp];
+        r12[0] = g_x12_ang[index];
+        r12[1] = g_y12_ang[index];
+        r12[2] = g_z12_ang[index];
+        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
           rc = min(
             (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-            COVALENT_RADIUS[paramb.atomic_numbers[t2a]]) *
+            COVALENT_RADIUS[paramb.atomic_numbers[t2_tmp]]) *
               paramb.typewise_cutoff_angular_factor,
             rc);
         }
-        float rcinv = 1.0f / rc;
+        rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
-        float fn12[MAX_NUM_N];
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float f_c_n1[3] = {0.0f};
         float v_c_n1[6] = {0.0f};
         for (int l = 0; l < paramb.num_L; ++l) {
           float feat_xyz_sum[3] = {0.0f};
           float feat_123_sum[6] = {0.0f};
-          int ln = l * (paramb.n_max_angular + 1) + na;
+          ln = l * (paramb.n_max_angular + 1) + na;
           for (int ma = 0; ma <= paramb.n_max_radial; ++ma) {
-            float E2 = __ldg(&g_Fp2[n1 + (ma + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N]); //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
+            E2 = g_Fp2[n1 + (ma + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
             feat_xyz_sum[0] += feat_x[ma] * E2;
             feat_xyz_sum[1] += feat_y[ma] * E2;
             feat_xyz_sum[2] += feat_z[ma] * E2;
@@ -1044,9 +1038,8 @@ static __global__ void compute_grad_radial_NM(
             feat_123_sum[4] += feat_123_yz[ma] * E2;
             feat_123_sum[5] += feat_123_zx[ma] * E2;
           }
-          float q_c_ang = 0.0f;
           accumulate_qc(N, l + 1, na, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[ka], &g_sum_fxyz[n1], &q_c_ang);
-          float q_c_scaler_ang = q_c_ang * __ldg(&g_q_scaler[paramb.n_max_radial + 1 + ln]);
+          q_c_scaler_ang = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
           f_c_n1[0] += feat_xyz_sum[0] * q_c_scaler_ang;
           f_c_n1[1] += feat_xyz_sum[1] * q_c_scaler_ang;
           f_c_n1[2] += feat_xyz_sum[2] * q_c_scaler_ang;
@@ -1057,19 +1050,20 @@ static __global__ void compute_grad_radial_NM(
           v_c_n1[4] += feat_123_sum[4] * q_c_scaler_ang;
           v_c_n1[5] += feat_123_sum[5] * q_c_scaler_ang;
         }
-        float grad_c_sum_3b = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff;
-        grad_c_sum_3b -= v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5];
-        local_grad_c_sum[t2a] += grad_c_sum_3b;
+        grad_c_sum = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff; // grad_c_sum_3b
+        grad_c_sum -= v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5];
+        local_grad_c_sum[t2_tmp] += grad_c_sum;
       }
-      for (int t2a = 0; t2a < paramb.num_types; ++t2a) {
-        int type_base = t1 * paramb.num_types + t2a + paramb.num_c_radial;
-        int c_index = (n_base + ka) * paramb.num_types_sq + type_base;
-        int grad_c_index = c_index + annmb.num_ann;
-        atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2a]);
+      for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
+        type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
+        c_index = (n_base + ka) * paramb.num_types_sq + type_base;
+        grad_c_index = c_index + annmb.num_ann;
+        atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
       }
     }
   }
-
+  int w0_index_dim, w1_index_dim, b0_index_dim;
+  float scale, g_ep_w1b, g_ep_wb0, g_ep_w0b, grad_w0_sum, grad_w1_sum, grad_b0_sum;
   for (int j = 0; j < annmb.num_neurons1; ++j) {
     float sum_dfeat_w1b0[6] = {0.0f};
     float sum_dfeat_w1b0_v[12] = {0.0f};
@@ -1077,7 +1071,7 @@ static __global__ void compute_grad_radial_NM(
       float sum_dfeat_w0[3] = {0.0f};
       float sum_dfeat_w0_v[6] = {0.0f};
       if (d <= paramb.n_max_radial) {
-        float scale = g_q_scaler[d];
+        scale = g_q_scaler[d];
         float dfeat_scaler[3] = {feat_x[d] * scale, feat_y[d] * scale, feat_z[d] * scale}; //make sure feat_x = 0 when d > n_max_radial + 1
         float dfeat_scaler_v[6] = {feat_123_xx[d] * scale, 
                                   feat_123_yy[d] * scale, 
@@ -1085,10 +1079,10 @@ static __global__ void compute_grad_radial_NM(
                                   feat_123_xy[d] * scale, 
                                   feat_123_yz[d] * scale, 
                                   feat_123_zx[d] * scale};
-        int w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + d;//(N_neu * N_des + N_neu + j) * N_des + n
-        int b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + d;//(N_neu * N_des + j) * N_des + n
-        float g_ep_w1b = __ldg(&g_ep_wb[w1_index_dim]);
-        float g_ep_wb0 = __ldg(&g_ep_wb[b0_index_dim]);
+        w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + d;//(N_neu * N_des + N_neu + j) * N_des + n
+        b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + d;//(N_neu * N_des + j) * N_des + n
+        g_ep_w1b = g_ep_wb[w1_index_dim];
+        g_ep_wb0 = g_ep_wb[b0_index_dim];
         sum_dfeat_w1b0[0] += dfeat_scaler[0] * g_ep_w1b;
         sum_dfeat_w1b0[1] += dfeat_scaler[1] * g_ep_w1b;
         sum_dfeat_w1b0[2] += dfeat_scaler[2] * g_ep_w1b;
@@ -1109,33 +1103,26 @@ static __global__ void compute_grad_radial_NM(
         sum_dfeat_w1b0_v[11] += dfeat_scaler_v[5] * g_ep_wb0;
       }
       for (int m = 0; m <= paramb.n_max_radial; ++m) {
-        float scale_m = g_q_scaler[m];
-        float dfeat_w0_scaler[3] = {feat_x[m] * scale_m, feat_y[m] * scale_m, feat_z[m] * scale_m};
-        float dfeat_w0_scaler_v[6] = {feat_123_xx[m] * scale_m, 
-                                      feat_123_yy[m] * scale_m, 
-                                      feat_123_zz[m] * scale_m, 
-                                      feat_123_xy[m] * scale_m, 
-                                      feat_123_yz[m] * scale_m, 
-                                      feat_123_zx[m] * scale_m};
-        int w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + m;
-        float g_ep_w0b = __ldg(&g_ep_wb[w0_index_dim]);
-        sum_dfeat_w0[0] += dfeat_w0_scaler[0] * g_ep_w0b;
-        sum_dfeat_w0[1] += dfeat_w0_scaler[1] * g_ep_w0b;
-        sum_dfeat_w0[2] += dfeat_w0_scaler[2] * g_ep_w0b;
-        sum_dfeat_w0_v[0] += dfeat_w0_scaler_v[0] * g_ep_w0b;
-        sum_dfeat_w0_v[1] += dfeat_w0_scaler_v[1] * g_ep_w0b;
-        sum_dfeat_w0_v[2] += dfeat_w0_scaler_v[2] * g_ep_w0b;
-        sum_dfeat_w0_v[3] += dfeat_w0_scaler_v[3] * g_ep_w0b;
-        sum_dfeat_w0_v[4] += dfeat_w0_scaler_v[4] * g_ep_w0b;
-        sum_dfeat_w0_v[5] += dfeat_w0_scaler_v[5] * g_ep_w0b;
+        scale = g_q_scaler[m];
+        w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + m;
+        g_ep_w0b = g_ep_wb[w0_index_dim];
+        sum_dfeat_w0[0] += feat_x[m] * scale * g_ep_w0b;
+        sum_dfeat_w0[1] += feat_y[m] * scale * g_ep_w0b;
+        sum_dfeat_w0[2] += feat_z[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[0] += feat_123_xx[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[1] += feat_123_yy[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[2] += feat_123_zz[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[3] += feat_123_xy[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[4] += feat_123_yz[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[5] += feat_123_zx[m] * scale * g_ep_w0b;
       }
-      float grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
+      grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
       grad_w0_sum += i1 == 0 ? per_Nc_e * e_wb_grad[j * annmb.dim + d] : 0.0f;
       grad_w0_sum -= sum_dfeat_w0_v[0] * diff[0] + sum_dfeat_w0_v[1] * diff[1] + sum_dfeat_w0_v[2] * diff[2] + sum_dfeat_w0_v[3] * diff[3] + sum_dfeat_w0_v[4] * diff[4] + sum_dfeat_w0_v[5] * diff[5];
       atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
     }
-    float grad_w1_sum = sum_dfeat_w1b0[0] * dx_diff + sum_dfeat_w1b0[1] * dy_diff + sum_dfeat_w1b0[2] * dz_diff;
-    float grad_b0_sum = sum_dfeat_w1b0[3] * dx_diff + sum_dfeat_w1b0[4] * dy_diff + sum_dfeat_w1b0[5] * dz_diff;
+    grad_w1_sum = sum_dfeat_w1b0[0] * dx_diff + sum_dfeat_w1b0[1] * dy_diff + sum_dfeat_w1b0[2] * dz_diff;
+    grad_b0_sum = sum_dfeat_w1b0[3] * dx_diff + sum_dfeat_w1b0[4] * dy_diff + sum_dfeat_w1b0[5] * dz_diff;
     if (i1 == 0) {
       grad_w1_sum += e_wb_grad[b0_index + j] * per_Nc_e;
       grad_b0_sum += e_wb_grad[w0_index + j] * per_Nc_e;
@@ -1664,20 +1651,31 @@ static __global__ void compute_grad_angular_NM(
   if (Idx >= NM) return;
   int n1 = Idx / M;
   int i1 = Idx % M;
-  float Fp[MAX_DIM_ANGULAR] = {0.0f};
-  for (int d = 0; d < paramb.dim_angular; ++d) {
-    Fp[d] = __ldg(&g_Fp[(paramb.n_max_radial + 1 + d) * N + n1]);
-  }
   int neighbor_number = g_NN[n1];
   int neighbor_number_rad = g_NN_rad[n1];
   if (i1 >= neighbor_number) return;
+  // int num_groups = (blockDim.x + M - 1) / M;
+  // int group_id = n1 % num_groups;
+  // printf("Idx: %d, threadIdx.x:%d, blockIdx.x:%d, n1: %d, i1: %d, group: %d, group_id: %d\n", Idx, threadIdx.x, blockIdx.x, n1, i1, num_groups, group_id);
+  // extern __shared__ float s_Fp[];
+  // if (threadIdx.x == 0 || n1 != (Idx-1) / M) {
+  //   for (int d = 0; d < paramb.dim_angular; ++d) {
+  //     s_Fp[group_id * paramb.dim_angular + d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+  //   }
+  // }
+  // __syncthreads();
+  // float* s_Fp_group = s_Fp + group_id * paramb.dim_angular;
+  float Fp[MAX_DIM_ANGULAR] = {0.0f};
+  for (int d = 0; d < paramb.dim_angular; ++d) {
+    Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+  }
   int t1 = g_type[n1];
   int batch_idx = g_batch_idx[n1];
   int Na = g_Na[batch_idx];
   float weight = g_weight[batch_idx];
-  const float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
-  const float per_Nc = weight * 2.0f * lambda_f / Na / 3 / Nc;
-  const float per_Nc_v = virial_nums > 0 ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
+  float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
+  float per_Nc = weight * 2.0f * lambda_f / Na / 3 / Nc;
+  float per_Nc_v = virial_nums > 0 ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
 
   float fx_ref_n1 = g_fx_ref[n1];
   float fy_ref_n1 = g_fy_ref[n1];
@@ -1697,7 +1695,7 @@ static __global__ void compute_grad_angular_NM(
   int t1_net_index = t1 * ((annmb.dim + 2) * annmb.num_neurons1 + 1);
   int n1_net_index_wb = n1 * annmb.num_ann * annmb.dim + t1_net_index * annmb.dim;
   
-  const float diff[6] = {
+  float diff[6] = {
     g_diff_gpu_v[batch_idx * 6 + 0] * per_Nc_v,
     g_diff_gpu_v[batch_idx * 6 + 1] * per_Nc_v,
     g_diff_gpu_v[batch_idx * 6 + 2] * per_Nc_v,
@@ -1709,7 +1707,7 @@ static __global__ void compute_grad_angular_NM(
   int index = i1 * N + n1;
   int n2 = g_NL[index];
   int t2 = g_type[n2];
-  const int type_base = t1 * paramb.num_types + t2 + paramb.num_c_radial;
+  int type_base = t1 * paramb.num_types + t2 + paramb.num_c_radial;
   float fx_ref_n2 = g_fx_ref[n2];
   float fy_ref_n2 = g_fy_ref[n2];
   float fz_ref_n2 = g_fz_ref[n2];
@@ -1724,9 +1722,9 @@ static __global__ void compute_grad_angular_NM(
   dx_n2 *= type_weight_n2;
   dy_n2 *= type_weight_n2;
   dz_n2 *= type_weight_n2;
-  const float dx_diff = per_Nc * (dx_n1 - dx_n2);
-  const float dy_diff = per_Nc * (dy_n1 - dy_n2);
-  const float dz_diff = per_Nc * (dz_n1 - dz_n2);
+  float dx_diff = per_Nc * (dx_n1 - dx_n2);
+  float dy_diff = per_Nc * (dy_n1 - dy_n2);
+  float dz_diff = per_Nc * (dz_n1 - dz_n2);
   float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
   float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
   float feat_x[MAX_LN];
@@ -1755,20 +1753,23 @@ static __global__ void compute_grad_angular_NM(
   float fn12[MAX_NUM_N];
   float fnp12[MAX_NUM_N];
   find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+
+  float gn12, gnp12, e_c, grad_c_sum, qp_c_tmp[3], qp_c_tmp123[6], qp_c_tmp1[3], qp_c_tmp2[3], q_c_ang, q_c_scaler;
+  int n_base, c_index, grad_c_index;
+  int n2_tmp, t2_tmp, ln, feat_offset;
+  float dx_n2_tmp, dy_n2_tmp, dz_n2_tmp, E2;
   for (int n = 0; n <= paramb.n_max_angular; ++n) {
-    float gn12 = 0.0f;
-    float gnp12 = 0.0f;
-    int n_base = n * (paramb.basis_size_angular + 1);
+    gn12 = 0.0f;
+    gnp12 = 0.0f;
+    n_base = n * (paramb.basis_size_angular + 1);
     for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-      float e_c = 0.0f;
-      float qp_c_tmp[3];
-      float qp_c_tmp123[6];
-      int c_index = (n_base + k) * paramb.num_types_sq + type_base;
+      e_c = 0.0f;
+      c_index = (n_base + k) * paramb.num_types_sq + type_base;
       gn12 += fn12[k] * __ldg(&annmb.c[c_index]);
       gnp12 += fnp12[k] * __ldg(&annmb.c[c_index]);
       accumulate_ec(N, paramb.L_max, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], fnp12[k], &g_sum_fxyz[n1], &g_sum_s2xyz[n1], &g_sum_s2xyz123[n1], Fp, &e_c, qp_c_tmp, qp_c_tmp123);
-      int grad_c_index = c_index + annmb.num_ann;
-      float grad_c_sum = per_Nc * (qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1);
+      grad_c_index = c_index + annmb.num_ann;
+      grad_c_sum = per_Nc * (qp_c_tmp[0] * dx_n1 + qp_c_tmp[1] * dy_n1 + qp_c_tmp[2] * dz_n1);
       grad_c_sum += per_Nc_e * e_c;
       grad_c_sum -= qp_c_tmp123[0] * diff[0] + qp_c_tmp123[1] * diff[1] + qp_c_tmp123[2] * diff[2] + qp_c_tmp123[3] * diff[3] + qp_c_tmp123[4] * diff[4] + qp_c_tmp123[5] * diff[5];
       atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
@@ -1776,21 +1777,21 @@ static __global__ void compute_grad_angular_NM(
     accumulate_dfe(N, NM, paramb.L_max, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, &g_sum_fxyz[n1], &s[n * NUM_OF_ABC], &sum_s2xyz[n * NUM_OF_ABC * 3], &feat_x[n], &feat_y[n], &feat_z[n], &feat_123_xx[n], &feat_123_yy[n], &feat_123_zz[n], &feat_123_xy[n], &feat_123_yz[n], &feat_123_zx[n]);
   } // end of loop over n_max_ang
   for (int n = 0; n <= paramb.n_max_angular; ++n) {
-    int n_base = n * (paramb.basis_size_angular + 1);
+    n_base = n * (paramb.basis_size_angular + 1);
     for (int k = 0; k <= paramb.basis_size_angular; ++k) {
       float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
       for (int j = 0; j < neighbor_number; ++j) {
-        int index = j * N + n1;
-        int n2_tmp = g_NL[index];
-        int t2_tmp = g_type[n2_tmp];
-        // int type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
-        float fx_ref_n2 = g_fx_ref[n2_tmp];
-        float fy_ref_n2 = g_fy_ref[n2_tmp];
-        float fz_ref_n2 = g_fz_ref[n2_tmp];
-        float dx_n2_tmp = g_fx[n2_tmp] - fx_ref_n2;
-        float dy_n2_tmp = g_fy[n2_tmp] - fy_ref_n2;
-        float dz_n2_tmp = g_fz[n2_tmp] - fz_ref_n2;
-        float type_weight_n2 = g_type_weight[g_type[n2_tmp]];
+        index = j * N + n1;
+        n2_tmp = g_NL[index];
+        t2_tmp = g_type[n2_tmp];
+        // type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
+        fx_ref_n2 = g_fx_ref[n2_tmp];
+        fy_ref_n2 = g_fy_ref[n2_tmp];
+        fz_ref_n2 = g_fz_ref[n2_tmp];
+        dx_n2_tmp = g_fx[n2_tmp] - fx_ref_n2;
+        dy_n2_tmp = g_fy[n2_tmp] - fy_ref_n2;
+        dz_n2_tmp = g_fz[n2_tmp] - fz_ref_n2;
+        type_weight_n2 = g_type_weight[g_type[n2_tmp]];
         if (force_delta > 0.0f) {
           float force_magnitude = sqrt(fx_ref_n2 * fx_ref_n2 + fy_ref_n2 * fy_ref_n2 + fz_ref_n2 * fz_ref_n2);
           type_weight_n2 *= sqrt(force_delta / (force_delta + force_magnitude));
@@ -1798,10 +1799,11 @@ static __global__ void compute_grad_angular_NM(
         dx_n2_tmp *= type_weight_n2;
         dy_n2_tmp *= type_weight_n2;
         dz_n2_tmp *= type_weight_n2;
-        float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-        float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        float fc12, fcp12;
-        float rc = paramb.rc_angular;
+        r12[0] = g_x12[index];
+        r12[1] = g_y12[index];
+        r12[2] = g_z12[index];
+        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
           rc = min(
             (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
@@ -1809,22 +1811,18 @@ static __global__ void compute_grad_angular_NM(
               paramb.typewise_cutoff_angular_factor,
             rc);
         }
-        float rcinv = 1.0f / rc;
+        rcinv = 1.0f / rc;
         find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-        float fn12[MAX_NUM_N];
-        float fnp12[MAX_NUM_N];
         find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
         float f_c_n1[3] = {0.0f};
         float v_c_n1[6] = {0.0f};
-        float qp_c_tmp1[3];
-        float qp_c_tmp2[3] = {0.0f};
         for (int l = 0; l < paramb.num_L; ++l) {
           float feat_xyz_sum[3] = {0.0f};
           float feat_123_sum[6] = {0.0f};
-          int ln = l * (paramb.n_max_angular + 1) + n;
+          ln = l * (paramb.n_max_angular + 1) + n;
           for (int m = 0; m < paramb.dim_angular; ++m) {
-            int feat_offset = n1 + ((paramb.n_max_radial + 1 + m) + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
-            float E2 = __ldg(&g_Fp2[feat_offset]);
+            feat_offset = n1 + ((paramb.n_max_radial + 1 + m) + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
+            E2 = g_Fp2[feat_offset];
             feat_xyz_sum[0] += feat_x[m] * E2;
             feat_xyz_sum[1] += feat_y[m] * E2;
             feat_xyz_sum[2] += feat_z[m] * E2;
@@ -1835,9 +1833,8 @@ static __global__ void compute_grad_angular_NM(
             feat_123_sum[4] += feat_123_yz[m] * E2;
             feat_123_sum[5] += feat_123_zx[m] * E2;
           }
-          float q_c_ang = 0.0f;
           accumulate_qc(N, l + 1, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], &g_sum_fxyz[n1], &q_c_ang);
-          float q_c_scaler = q_c_ang * __ldg(&g_q_scaler[paramb.n_max_radial + 1 + ln]);
+          q_c_scaler = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
           f_c_n1[0] += feat_xyz_sum[0] * q_c_scaler;
           f_c_n1[1] += feat_xyz_sum[1] * q_c_scaler;
           f_c_n1[2] += feat_xyz_sum[2] * q_c_scaler;
@@ -1848,19 +1845,19 @@ static __global__ void compute_grad_angular_NM(
           v_c_n1[4] += feat_123_sum[4] * q_c_scaler;
           v_c_n1[5] += feat_123_sum[5] * q_c_scaler;
         }
-        // int c_index = (n_base + k) * paramb.num_types_sq + type_base;
+        // c_index = (n_base + k) * paramb.num_types_sq + type_base;
         accumulate_fc(N, paramb.L_max, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], fnp12[k], &s[n * NUM_OF_ABC], &sum_s2xyz[n * NUM_OF_ABC * 3], Fp, qp_c_tmp1, qp_c_tmp2);
-        // int grad_c_index = c_index + annmb.num_ann;
-        float grad_c_sum = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff;
+        // grad_c_index = c_index + annmb.num_ann;
+        grad_c_sum = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff;
         grad_c_sum -= per_Nc * (qp_c_tmp1[0] * dx_n2_tmp + qp_c_tmp1[1] * dy_n2_tmp + qp_c_tmp1[2] * dz_n2_tmp + qp_c_tmp2[0] * dx_n2 + qp_c_tmp2[1] * dy_n2 + qp_c_tmp2[2] * dz_n2);
         grad_c_sum -= v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5];
         // atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
         local_grad_c_sum[t2_tmp] += grad_c_sum;
       }
-      for (int t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
-        int type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
-        int c_index = (n_base + k) * paramb.num_types_sq + type_base;
-        int grad_c_index = c_index + annmb.num_ann;
+      for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
+        type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
+        c_index = (n_base + k) * paramb.num_types_sq + type_base;
+        grad_c_index = c_index + annmb.num_ann;
         atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
       }
     }
@@ -1868,9 +1865,9 @@ static __global__ void compute_grad_angular_NM(
   for (int nr = 0; nr <= paramb.n_max_radial; ++nr) {
     float feat_xyz_sum[3] = {0.0f};
     float feat_123_sum[6] = {0.0f};
-    int n_base = nr * (paramb.basis_size_radial + 1);
+    n_base = nr * (paramb.basis_size_radial + 1);
     for (int mr = 0; mr < paramb.dim_angular; ++mr) {
-      float E2 = __ldg(&g_Fp2[n1 + ((paramb.n_max_radial + 1 + mr) + nr * annmb.dim) * N]); //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
+      E2 = g_Fp2[n1 + ((paramb.n_max_radial + 1 + mr) + nr * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
       feat_xyz_sum[0] += feat_x[mr] * E2;
       feat_xyz_sum[1] += feat_y[mr] * E2;
       feat_xyz_sum[2] += feat_z[mr] * E2;
@@ -1884,40 +1881,39 @@ static __global__ void compute_grad_angular_NM(
     for (int kr = 0; kr <= paramb.basis_size_radial; ++kr) {
       float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
       for (int ir = 0; ir < neighbor_number_rad; ++ir) {
-        int index = ir * N + n1;
-        int n2r = g_NL_rad[index];
-        int t2r = g_type[n2r];
-        float x12 = g_x12_rad[index];
-        float y12 = g_y12_rad[index];
-        float z12 = g_z12_rad[index];
-        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-        float fc12;
-        float rc = paramb.rc_radial;
+        index = ir * N + n1;
+        n2_tmp = g_NL_rad[index];
+        t2_tmp = g_type[n2_tmp];
+        r12[0] = g_x12_rad[index];
+        r12[1] = g_y12_rad[index];
+        r12[2] = g_z12_rad[index];
+        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        rc = paramb.rc_radial;
         if (paramb.use_typewise_cutoff) {
           rc = min(
             (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-            COVALENT_RADIUS[paramb.atomic_numbers[t2r]]) *
+            COVALENT_RADIUS[paramb.atomic_numbers[t2_tmp]]) *
               paramb.typewise_cutoff_radial_factor,
             rc);
         }
-        float rcinv = 1.0f / rc;
+        rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
-
-        float fn12[MAX_NUM_N];
         find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-        float q_c_scaler = fn12[kr] * __ldg(&g_q_scaler[nr]);
-        float grad_c_sum_2b = q_c_scaler * (feat_xyz_sum[0] * dx_diff + feat_xyz_sum[1] * dy_diff + feat_xyz_sum[2] * dz_diff);
-        grad_c_sum_2b -= q_c_scaler * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]);
-        local_grad_c_sum[t2r] += grad_c_sum_2b;
+        q_c_scaler = fn12[kr] * g_q_scaler[nr];
+        grad_c_sum = q_c_scaler * (feat_xyz_sum[0] * dx_diff + feat_xyz_sum[1] * dy_diff + feat_xyz_sum[2] * dz_diff);  // grad_c_sum_2b
+        grad_c_sum -= q_c_scaler * (feat_123_sum[0] * diff[0] + feat_123_sum[1] * diff[1] + feat_123_sum[2] * diff[2] + feat_123_sum[3] * diff[3] + feat_123_sum[4] * diff[4] + feat_123_sum[5] * diff[5]);
+        local_grad_c_sum[t2_tmp] += grad_c_sum;
       }
-      for (int t2r = 0; t2r < paramb.num_types; ++t2r) {
-        int type_base = t1 * paramb.num_types + t2r;
-        int c_index = (n_base + kr) * paramb.num_types_sq + type_base;
-        int grad_c_index = c_index + annmb.num_ann;
-        atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2r]);
+      for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
+        type_base = t1 * paramb.num_types + t2_tmp;
+        c_index = (n_base + kr) * paramb.num_types_sq + type_base;
+        grad_c_index = c_index + annmb.num_ann;
+        atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
       }
     }
   } // end of loop over neighbors' neighbors
+  int index_dim, w0_index_dim, w1_index_dim, b0_index_dim;
+  float scale, g_ep_w1b, g_ep_wb0, g_ep_w0b, grad_w0_sum, grad_w1_sum, grad_b0_sum;
   for (int j = 0; j < annmb.num_neurons1; ++j) {
     float sum_dfeat_w1b0[6] = {0.0f};
     float sum_dfeat_w1b0_v[12] = {0.0f};
@@ -1925,8 +1921,8 @@ static __global__ void compute_grad_angular_NM(
       float sum_dfeat_w0[3] = {0.0f};
       float sum_dfeat_w0_v[6] = {0.0f};
       if (d < paramb.dim_angular) {
-        int index_ang_d = d + paramb.n_max_radial + 1;
-        float scale = __ldg(&g_q_scaler[index_ang_d]);
+        index_dim = d + paramb.n_max_radial + 1;
+        scale = g_q_scaler[index_dim];
         float dfeat_scaler[3] = {feat_x[d] * scale, feat_y[d] * scale, feat_z[d] * scale};
         float dfeat_scaler_v[6] = {feat_123_xx[d] * scale, 
                                   feat_123_yy[d] * scale, 
@@ -1934,10 +1930,10 @@ static __global__ void compute_grad_angular_NM(
                                   feat_123_xy[d] * scale, 
                                   feat_123_yz[d] * scale, 
                                   feat_123_zx[d] * scale};
-        int w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + index_ang_d;//(N_neu * N_des + N_neu + j) * N_des + n
-        int b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + index_ang_d;//(N_neu * N_des + j) * N_des + n
-        float g_ep_w1b = __ldg(&g_ep_wb[w1_index_dim]);
-        float g_ep_wb0 = __ldg(&g_ep_wb[b0_index_dim]);
+        w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + index_dim;//(N_neu * N_des + N_neu + j) * N_des + n
+        b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + index_dim;//(N_neu * N_des + j) * N_des + n
+        g_ep_w1b = g_ep_wb[w1_index_dim];
+        g_ep_wb0 = g_ep_wb[b0_index_dim];
         sum_dfeat_w1b0[0] += dfeat_scaler[0] * g_ep_w1b;
         sum_dfeat_w1b0[1] += dfeat_scaler[1] * g_ep_w1b;
         sum_dfeat_w1b0[2] += dfeat_scaler[2] * g_ep_w1b;
@@ -1958,35 +1954,28 @@ static __global__ void compute_grad_angular_NM(
         sum_dfeat_w1b0_v[11] += dfeat_scaler_v[5] * g_ep_wb0;
       }
       for (int m = 0; m < paramb.dim_angular; ++m) {
-        int index_ang_m = m + paramb.n_max_radial + 1;
-        float scale_m = __ldg(&g_q_scaler[index_ang_m]);
-        float dfeat_w0_scaler[3] = {feat_x[m] * scale_m, feat_y[m] * scale_m, feat_z[m] * scale_m};
-        float dfeat_w0_scaler_v[6] = {feat_123_xx[m] * scale_m, 
-                                      feat_123_yy[m] * scale_m, 
-                                      feat_123_zz[m] * scale_m, 
-                                      feat_123_xy[m] * scale_m, 
-                                      feat_123_yz[m] * scale_m, 
-                                      feat_123_zx[m] * scale_m};
-        int w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + index_ang_m;
-        float g_ep_w0b = __ldg(&g_ep_wb[w0_index_dim]);
-        sum_dfeat_w0[0] += dfeat_w0_scaler[0] * g_ep_w0b;
-        sum_dfeat_w0[1] += dfeat_w0_scaler[1] * g_ep_w0b;
-        sum_dfeat_w0[2] += dfeat_w0_scaler[2] * g_ep_w0b;
-        sum_dfeat_w0_v[0] += dfeat_w0_scaler_v[0] * g_ep_w0b;
-        sum_dfeat_w0_v[1] += dfeat_w0_scaler_v[1] * g_ep_w0b;
-        sum_dfeat_w0_v[2] += dfeat_w0_scaler_v[2] * g_ep_w0b;
-        sum_dfeat_w0_v[3] += dfeat_w0_scaler_v[3] * g_ep_w0b;
-        sum_dfeat_w0_v[4] += dfeat_w0_scaler_v[4] * g_ep_w0b;
-        sum_dfeat_w0_v[5] += dfeat_w0_scaler_v[5] * g_ep_w0b;
+        index_dim = m + paramb.n_max_radial + 1;
+        scale = g_q_scaler[index_dim];
+        w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + index_dim;
+        g_ep_w0b = g_ep_wb[w0_index_dim];
+        sum_dfeat_w0[0] += feat_x[m] * scale * g_ep_w0b;
+        sum_dfeat_w0[1] += feat_y[m] * scale * g_ep_w0b;
+        sum_dfeat_w0[2] += feat_z[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[0] += feat_123_xx[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[1] += feat_123_yy[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[2] += feat_123_zz[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[3] += feat_123_xy[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[4] += feat_123_yz[m] * scale * g_ep_w0b;
+        sum_dfeat_w0_v[5] += feat_123_zx[m] * scale * g_ep_w0b;
       }
-      float grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
+      grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
       grad_w0_sum -= sum_dfeat_w0_v[0] * diff[0] + sum_dfeat_w0_v[1] * diff[1] 
                     + sum_dfeat_w0_v[2] * diff[2] + sum_dfeat_w0_v[3] * diff[3] 
                     + sum_dfeat_w0_v[4] * diff[4] + sum_dfeat_w0_v[5] * diff[5];
       atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
     }
-    float grad_w1_sum = sum_dfeat_w1b0[0] * dx_diff + sum_dfeat_w1b0[1] * dy_diff + sum_dfeat_w1b0[2] * dz_diff;
-    float grad_b0_sum = sum_dfeat_w1b0[3] * dx_diff + sum_dfeat_w1b0[4] * dy_diff + sum_dfeat_w1b0[5] * dz_diff;
+    grad_w1_sum = sum_dfeat_w1b0[0] * dx_diff + sum_dfeat_w1b0[1] * dy_diff + sum_dfeat_w1b0[2] * dz_diff;
+    grad_b0_sum = sum_dfeat_w1b0[3] * dx_diff + sum_dfeat_w1b0[4] * dy_diff + sum_dfeat_w1b0[5] * dz_diff;
     grad_w1_sum -= sum_dfeat_w1b0_v[0] * diff[0] + sum_dfeat_w1b0_v[1] * diff[1] 
                   + sum_dfeat_w1b0_v[2] * diff[2] + sum_dfeat_w1b0_v[3] * diff[3] 
                   + sum_dfeat_w1b0_v[4] * diff[4] + sum_dfeat_w1b0_v[5] * diff[5];
@@ -2732,9 +2721,6 @@ void NEP3::find_force(
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(cudaSetDevice(device_id));
     CHECK(cudaMemset(nep_data[device_id].Fp2.data(), 0, nep_data[device_id].Fp2.size() * sizeof(float)));
-    // CHECK(cudaMemset(dataset[device_id].gradients.Fp_wb.data(), 0, dataset[device_id].gradients.Fp_wb.size() * sizeof(float)));
-    // CHECK(cudaMemset(dataset[device_id].gradients.grad_sum.data(), 0.0f, dataset[device_id].gradients.grad_sum.size() * sizeof(float)));
-    // CHECK(cudaMemset(dataset[device_id].gradients.E_wb_grad.data(), 0.0f, dataset[device_id].gradients.E_wb_grad.size() * sizeof(float)));
     CHECK(cudaMemset(nep_data[device_id].sum_s2xyz.data(), 0.0f, nep_data[device_id].sum_s2xyz.size() * sizeof(float)));
     CHECK(cudaMemset(nep_data[device_id].sum_s2xyz123.data(), 0.0f, nep_data[device_id].sum_s2xyz123.size() * sizeof(float)));
     nep_data[device_id].parameters.copy_from_host(parameters);
@@ -3032,7 +3018,7 @@ void NEP3::find_force(
       // CUDA_CHECK_KERNEL
 
       const int NM_radial = dataset[device_id].N * dataset[device_id].max_NN_radial;
-      const int threads_per_block = 256;
+      const int threads_per_block = 32;
       const int blocks_per_grid = (NM_radial + threads_per_block - 1) / threads_per_block;
       compute_grad_radial_NM<<<blocks_per_grid, threads_per_block>>>(
         dataset[device_id].N,
@@ -3122,6 +3108,8 @@ void NEP3::find_force(
 
       const int NM_angular = dataset[device_id].N * dataset[device_id].max_NN_angular;
       const int blocks_per_grid_angular = (NM_angular + threads_per_block - 1) / threads_per_block;
+      // const int num_groups = (threads_per_block + dataset[device_id].max_NN_angular - 1) / dataset[device_id].max_NN_angular;
+      // size_t sharedMemSize = num_groups * paramb.dim_angular * sizeof(float);
       // const int tmp_xyz_size = NM_angular * paramb.L_max * (paramb.n_max_angular + 1);
       // GPU_Vector<float> feat_x(tmp_xyz_size);
       // GPU_Vector<float> feat_y(tmp_xyz_size);

@@ -181,36 +181,45 @@ static __device__ void apply_ann_one_layer_w2nd(
   float* ep_wb,   // derivative of e_wb_grad w.r.t q[n]
   float* e_wb_grad) // energy w.r.t. w0, b0, w1, b1
 {
+  const int offset_b0 = N_des * N_neu;
+  const int offset_w1 = offset_b0 + N_neu;
   for (int j = 0; j < N_neu; ++j) {
+    const int j_N_des = j * N_des;
     float w0_times_q = 0.0f;
     for (int n = 0; n < N_des; ++n) {
-      w0_times_q += w0[j * N_des + n] * q[n];
+      w0_times_q += w0[j_N_des + n] * q[n];
     }
-    float x1 = tanh(w0_times_q + b0[j]);
-    float tanh_der = 1.0f - x1 * x1;
-    float tanh_der2 = -2.0f * x1 * tanh_der;  // second derivative of tanh
-    float delta_1 = w1[j] * tanh_der;
-    energy += w1[j] * x1;
+    const float x1 = tanh(w0_times_q + b0[j]);
+    const float tanh_der = 1.0f - x1 * x1;
+    const float tanh_der2 = -2.0f * x1 * tanh_der;  // second derivative of tanh
+    const float w1j = w1[j];
+    const float delta_1 = w1j * tanh_der;
+    energy += w1j * x1;
     for (int n = 0; n < N_des; ++n) {
-      float tmp1 = tanh_der * w0[j * N_des + n]; // derivative of tanh w.r.t. q[n]
-      float tmp2 = w1[j] * tanh_der2;
-      energy_derivative[n] += w1[j] * tmp1;
-      ep_wb[(N_neu * N_des + N_neu + j) * N_des + n] = tmp1; // derivative of e_wb_grad[w1] w.r.t. q[n]
-      ep_wb[(N_neu * N_des + j) * N_des + n] = tmp2 * w0[j * N_des + n]; // derivative of e_wb_grad[b0] w.r.t. q[n]
+      const int idx_w0 = j_N_des + n;
+      const float w0jn = w0[idx_w0]; 
+      float tmp1 = tanh_der * w0jn; // derivative of tanh w.r.t. q[n]
+      float tmp2 = w1j * tanh_der2;
+      energy_derivative[n] += w1j * tmp1;
+      ep_wb[(offset_w1 + j) * N_des + n] = tmp1; // derivative of e_wb_grad[w1] w.r.t. q[n]
+      ep_wb[(offset_b0 + j) * N_des + n] = tmp2 * w0jn; // derivative of e_wb_grad[b0] w.r.t. q[n]
       // second derivative
+      const float tmp2_qn = tmp2 * q[n];
       for (int m = 0; m < N_des; ++m) {
-        float tmp3 = tanh_der2 * w0[j * N_des + n] * w0[j * N_des + m];
-        energy_derivative2[(n * N_des + m) * N] += w1[j] * tmp3;
-        ep_wb[(j * N_des + n) * N_des + m] = tmp2 * w0[j * N_des + m] * q[n]; // derivative of e_wb_grad[w0] w.r.t. q[n]
-        ep_wb[(j * N_des + n) * N_des + m] += (m == n) ? delta_1 : 0.0f; 
+        const int idx_m = j_N_des + m;
+        const float w0jm = w0[idx_m];
+        const float tmp3 = tanh_der2 * w0jn * w0jm;
+        energy_derivative2[(n * N_des + m) * N] += w1j * tmp3;
+        ep_wb[idx_w0 * N_des + m] = tmp2_qn * w0jm; // derivative of e_wb_grad[w0] w.r.t. q[n]
+        ep_wb[idx_w0 * N_des + m] += (m == n) ? delta_1 : 0.0f; 
       }
-      e_wb_grad[j * N_des + n] += delta_1 * q[n]; // energy w.r.t. w0
+      e_wb_grad[idx_w0] += delta_1 * q[n]; // energy w.r.t. w0
     }
-    e_wb_grad[N_neu * N_des + j] += delta_1; // energy w.r.t. b0
-    e_wb_grad[N_neu * N_des + N_neu + j] += x1; // energy w.r.t. w1
-    e_wb_grad[N_neu * N_des + N_neu + N_neu] = 1.0f; // energy w.r.t. b1
+    e_wb_grad[offset_b0 + j] += delta_1; // energy w.r.t. b0
+    e_wb_grad[offset_w1 + j] += x1; // energy w.r.t. w1
     // w0 (N_neu * N_des), b0 (N_neu), w1 (N_neu), b1 (1)
   }
+  e_wb_grad[offset_w1 + N_neu] = 1.0f; // energy w.r.t. b1
   energy += w1[N_neu];
 }
 static __device__ void apply_ann_one_layer(
@@ -1607,6 +1616,9 @@ static __device__ __forceinline__ void accumulate_fc(
     float s1[3];
     float sc1[3];
     float f[3] = {0.0f};
+    qp_c2[0] = 0.0f;
+    qp_c2[1] = 0.0f;
+    qp_c2[2] = 0.0f;
     calculate_sc_one<1>(r12unit[0], r12unit[1], r12unit[2], fn, sc1);
     calculate_fc_one<1>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sc1, s1, qp_c2);
     accumulate_f12_one<1>(d12inv, fn, fnp, s1, r12unit, f);

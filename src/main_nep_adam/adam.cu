@@ -279,7 +279,7 @@ void Adam::initialize_parameters(Parameters& para)
     // gpu_parameters.copy_from_host(parameters.data());
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
-        int count = fscanf(fid_restart, "%lf", &parameters[n]);
+        int count = fscanf(fid_restart, "%f", &parameters[n]);
         PRINT_SCANF_ERROR(count, 1, "Reading error for nep.restart.");
     }
     fclose(fid_restart);
