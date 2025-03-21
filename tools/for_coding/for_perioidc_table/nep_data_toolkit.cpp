@@ -398,17 +398,6 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
         exit(1);
       }
       read_one_structure(input, structure);
-
-      // correct my early mistakes; no side effect
-      if (structure.sid == "" || structure.sid == "\"oc20\"") {
-        structure.sid = "oc20"; // remove the quote
-        structure.energy_weight = 1.0; // energy should be trained for OC20
-      }
-      // correct my early mistakes; no side effect
-      if (structure.sid == "\"spice\"") {
-        structure.sid = "spice"; // remove the quote
-      }
-
       structures.emplace_back(structure);
     }
     input.close();
@@ -486,24 +475,11 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void shift_energy(std::vector<Structure>& structures)
+static void set_energy_weight_to_zero(std::vector<Structure>& structures)
 {
-  std::ifstream input_energy("energy_train.out");
-
-  double energy_to_be_shifted = 0.0;
-
   for (int nc = 0; nc < structures.size(); ++nc) {
-    double energy_nep = 0.0;
-    double energy_ref = 0.0;
-    input_energy >> energy_nep >> energy_ref;
-    energy_to_be_shifted += energy_ref - energy_nep;
+    structures[nc].energy_weight = 0;
   }
-  energy_to_be_shifted /= structures.size();
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures[nc].energy -= energy_to_be_shifted * structures[nc].num_atom;
-  }
-
-  std::cout << "Energy is decreased by " << energy_to_be_shifted << " eV/atom" << std::endl;
 }
 
 static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
@@ -931,7 +907,7 @@ int main(int argc, char* argv[])
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
   std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
-  std::cout << "6: shift energy\n";
+  std::cout << "6: set energy_weight to zero\n";
   std::cout << "7: add or change sid\n";
 #ifdef ZHEYONG
   std::cout << "8: add D3\n";
@@ -1022,7 +998,7 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    shift_energy(structures_input);
+    set_energy_weight_to_zero(structures_input);
     write(output_filename, structures_input);
   } else if (option == 7) {
     std::cout << "Please enter the input xyz filename: ";
