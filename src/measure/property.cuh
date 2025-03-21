@@ -29,6 +29,9 @@ class Property
 {
 public:
 
+  Property(void);
+  virtual ~Property(void);
+
   std::string property_name = "";
 
   virtual void preprocess(
