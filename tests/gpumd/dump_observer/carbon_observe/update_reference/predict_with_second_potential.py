@@ -11,12 +11,12 @@ for structure in structures:
     atoms.calc = calc
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    atoms.calc = None
 
     info = {}
     info['Time'] = atoms.info['Time']
     info['energy'] = energy
     atoms.info = info
-    
     arrays = {}
     arrays['numbers'] = atoms.arrays['numbers']
     arrays['positions'] = atoms.arrays['positions']

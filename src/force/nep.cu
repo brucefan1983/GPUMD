@@ -27,11 +27,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -357,6 +357,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 #endif
 
   initialize_dftd3();
+  B_projection_size = annmb.num_neurons1 * (annmb.dim + 2);
 }
 
 NEP::~NEP(void)
@@ -587,7 +588,10 @@ static __global__ void find_descriptor(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_B_projection,
+  double* B_projection,
+  int B_projection_size)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -695,7 +699,8 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -747,16 +752,29 @@ static __global__ void find_descriptor(
         F,
         Fp);
     } else {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
+      if (!need_B_projection)
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp);
+      else
+        apply_ann_one_layer(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp,
+          B_projection + n1 * B_projection_size);
     }
     g_pe[n1] += F;
 
@@ -979,7 +997,18 @@ static __global__ void find_partial_force_angular(
           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
                       g_gnp_angular[index_right_all] * weight_right;
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #else
       float fc12, fcp12;
@@ -1007,7 +1036,18 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 #endif
       g_f12x[index] = f12[0];
@@ -1234,7 +1274,10 @@ void NEP::compute_large_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_B_projection,
+    B_projection,
+    B_projection_size);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
@@ -1366,6 +1409,30 @@ void NEP::compute_small_box(
     r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    std::vector<int> cpu_NN_radial(type.size());
+    std::vector<int> cpu_NN_angular(type.size());
+    NN_radial.copy_to_host(cpu_NN_radial.data());
+    NN_angular.copy_to_host(cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < cpu_NN_radial[n]) {
+        radial_actual = cpu_NN_radial[n];
+      }
+      if (angular_actual < cpu_NN_angular[n]) {
+        angular_actual = cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
+
   const bool is_polarizability = paramb.model_type == 2;
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1392,7 +1459,10 @@ void NEP::compute_small_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_B_projection,
+    B_projection,
+    B_projection_size);
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
@@ -1679,7 +1749,8 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
 #endif
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -1938,6 +2009,30 @@ void NEP::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
+
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    std::vector<int> cpu_NN_radial(type.size());
+    std::vector<int> cpu_NN_angular(type.size());
+    NN_radial.copy_to_host(cpu_NN_radial.data());
+    NN_angular.copy_to_host(cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < cpu_NN_radial[n]) {
+        radial_actual = cpu_NN_radial[n];
+      }
+      if (angular_actual < cpu_NN_angular[n]) {
+        angular_actual = cpu_NN_angular[n];
+      }
+    }
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
+  }
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     temperature,
