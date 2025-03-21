@@ -607,18 +607,16 @@ static void split_into_accurate_and_inaccurate(
   int num1 = 0;
   int num2 = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    bool energy_is_small = structures[nc].energy < 0.0;
     bool force_is_small = true;
     for (int n = 0; n < structures[nc].num_atom; ++n) {
       double fx = structures[nc].fx[n];
       double fy = structures[nc].fy[n];
       double fz = structures[nc].fz[n];
-      if (fx * fx + fy * fy + fz * fz > 400.0) {
+      if (fx * fx + fy * fy + fz * fz > 1600.0) {
         force_is_small = false;
         break;
       }
     }
-    bool is_considered = (energy_is_small || structures[nc].energy_weight < 0.5f) && force_is_small;
 
     bool is_accurate = true;
 
@@ -660,7 +658,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    //if (is_considered) {
+    if (force_is_small) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -668,7 +666,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    //}
+    }
   }
   input_energy.close();
   input_force.close();
