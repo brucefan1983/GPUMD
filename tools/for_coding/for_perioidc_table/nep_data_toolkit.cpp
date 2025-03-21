@@ -684,7 +684,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_ch("ch.xyz");
   std::ofstream output_unep1("unep1.xyz");
   std::ofstream output_oc20("oc20.xyz");
-  std::ofstream output_oc22("oc22.xyz");
+  std::ofstream output_chonps("chonps.xyz");
   std::ofstream output_spice("spice.xyz");
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
@@ -692,10 +692,13 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_protein("protein.xyz");
   std::ofstream output_ani1xnr("ani1xnr.xyz");
   std::ofstream output_salex("salex.xyz");
+  std::ofstream output_mof("mof.xyz");
+  std::ofstream output_sse_vasp("sse_vasp.xyz");
+  std::ofstream output_sse_abacus("sse_abacus.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_oc20 = 0;
-  int num_oc22 = 0;
+  int num_chonps = 0;
   int num_spice = 0;
   int num_omat = 0;
   int num_water = 0;
@@ -703,6 +706,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_protein = 0;
   int num_ani1xnr = 0;
   int num_salex = 0;
+  int num_mof = 0;
+  int num_sse_vasp = 0;
+  int num_sse_abacus = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -713,9 +719,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "oc20") {
       write_one_structure(output_oc20, structures[nc]);
         num_oc20++;
-    } else if (structures[nc].sid == "oc22") {
-      write_one_structure(output_oc22, structures[nc]);
-        num_oc22++;
+    } else if (structures[nc].sid == "chonps") {
+      write_one_structure(output_chonps, structures[nc]);
+        num_chonps++;
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
@@ -734,7 +740,16 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "salex") {
       write_one_structure(output_salex, structures[nc]);
         num_salex++;
-    } else {
+    } else if (structures[nc].sid == "mof") {
+      write_one_structure(output_mof, structures[nc]);
+        num_mof++;
+    } else if (structures[nc].sid == "sse_abacus") {
+      write_one_structure(output_sse_abacus, structures[nc]);
+        num_sse_abacus++;
+    } else if (structures[nc].sid == "sse_vasp") {
+      write_one_structure(output_sse_vasp, structures[nc]);
+        num_sse_vasp++;
+    } else if (structures[nc].sid == "omat") {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
     } 
@@ -742,7 +757,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_ch.close();
   output_unep1.close();
   output_oc20.close();
-  output_oc22.close();
+  output_chonps.close();
   output_spice.close();
   output_omat.close();
   output_water.close();
@@ -750,10 +765,13 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_protein.close();
   output_ani1xnr.close();
   output_salex.close();
+  output_mof.close();
+  output_sse_abacus.close();
+  output_sse_vasp.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
-  std::cout << "Number of structures written into oc22.xyz = " << num_oc22 << std::endl;
+  std::cout << "Number of structures written into chonps.xyz = " << num_chonps << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
@@ -761,6 +779,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into protein.xyz = " << num_protein << std::endl;
   std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
   std::cout << "Number of structures written into salex.xyz = " << num_salex << std::endl;
+  std::cout << "Number of structures written into mof.xyz = " << num_mof << std::endl;
+  std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
+  std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
