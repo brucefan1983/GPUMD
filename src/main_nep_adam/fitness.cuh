@@ -52,11 +52,17 @@ protected:
   int number_of_variables_ann = 0; // number of variables in ANN
   int number_of_variables_descriptor = 0; // number of variables in descriptor
   int maximum_generation = 10000; // maximum number of iterations
-  float lr = 1e-3f; // learning rate
-  float start_lr = 1e-3f;     // start learning rate
-  float stop_lr = 3.51e-08f; // stop learning rate
-  int decay_step = 5000; // decay 
+  float lr; // learning rate
+  float start_lr;     // start learning rate
+  float stop_lr; // stop learning rate
+  int decay_step; // decay 
   float decay_rate; // decay rate
+  float start_pref_e;   
+  float start_pref_f;   
+  float start_pref_v;   
+  float stop_pref_e;    
+  float stop_pref_f;    
+  float stop_pref_v;    
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;

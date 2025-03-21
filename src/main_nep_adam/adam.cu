@@ -96,7 +96,7 @@ Adam::Adam(Parameters& para)
 {
   // initialize the parameters
   number_of_variables = para.number_of_variables;
-  weight_decay = para.lambda_2;
+  weight_decay = para.weight_decay;
 
   // initialize the CPU vectors
   parameters.resize(number_of_variables);

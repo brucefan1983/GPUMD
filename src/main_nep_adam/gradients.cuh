@@ -16,11 +16,11 @@ static void print_memory_info(const char* stage) {
 
 struct Gradients {
   void resize(int N, int num_variables, int number_of_variables_ann, int dim) {
-    grad_sum.resize(num_variables);
+    grad_sum.resize(num_variables, 0.0f);
     // print_memory_info("after grad_sum.resize");
-    E_wb_grad.resize(N * number_of_variables_ann);
+    E_wb_grad.resize(N * number_of_variables_ann, 0.0f);
     // print_memory_info("after E_wb_grad.resize");
-    Fp_wb.resize(N * number_of_variables_ann * dim);
+    Fp_wb.resize(N * number_of_variables_ann * dim, 0.0f);
     // print_memory_info("after Fp_wb.resize");
   }
   void clear() {

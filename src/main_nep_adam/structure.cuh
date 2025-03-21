@@ -22,7 +22,6 @@ struct Structure {
   int num_cell[3];
   int num_atom;
   int has_virial;
-  int has_temperature;
   float weight;
   float energy;
   float virial[6];

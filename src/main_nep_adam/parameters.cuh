@@ -24,24 +24,31 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // nep version, can be 3 or 4 or 5
+  int version;            // only version 0 is supported
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
-  int population_size;    // population size for SNES
-  int maximum_generation; // maximum number of generations for SNES;
+  int epoch;              // number of epochs for training
+  int maximum_generation; // maximum number of generations for training;
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the 3body spherical harmonics
-  int L_max_4body;        // maximum order of the 4body spherical harmonics
-  int L_max_5body;        // maximum order of the 5body spherical harmonics
   float rc_radial;        // radial cutoff distance
   float rc_angular;       // angular cutoff distance
-  float lambda_1;         // weight parameter for L1 regularization loss
-  float lambda_2;         // weight parameter for L2 regularization loss
+  float weight_decay;     // Adam with decoupled weight decay (AdamW)
+  float lr;               // current learning rate
+  float start_lr;         // start learning rate
+  float stop_lr;          // stop learning rate
+  int decay_step;         // decay step for learning rate
+  float start_pref_e;     // initial weight for energy RMSE loss
+  float start_pref_f;     // initial weight for force RMSE loss
+  float start_pref_v;     // initial weight for virial RMSE loss
+  float stop_pref_e;      // final weight for energy RMSE loss
+  float stop_pref_f;      // final weight for force RMSE loss
+  float stop_pref_v;      // final weight for virial RMSE loss
   float lambda_e;         // weight parameter for energy RMSE loss
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
@@ -51,10 +58,7 @@ public:
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
-  float initial_para;
-  float sigma0;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_radial_factor;
@@ -62,7 +66,6 @@ public:
   float typewise_cutoff_zbl_factor;
 
   // check if a parameter has been set:
-  bool is_train_mode_set;
   bool is_prediction_set;
   bool is_version_set;
   bool is_type_set;
@@ -71,14 +74,18 @@ public:
   bool is_basis_size_set;
   bool is_l_max_set;
   bool is_neuron_set;
-  bool is_lambda_1_set;
-  bool is_lambda_2_set;
-  bool is_lambda_e_set;
-  bool is_lambda_f_set;
-  bool is_lambda_v_set;
+  bool is_weight_decay_set;
+  bool is_lr_set;
+  bool is_stop_lr_set;
+  bool is_decay_step_set;
+  bool is_start_pref_e_set;
+  bool is_start_pref_f_set;
+  bool is_start_pref_v_set;
+  bool is_stop_pref_e_set;
+  bool is_stop_pref_f_set;
+  bool is_stop_pref_v_set;
   bool is_lambda_shear_set;
   bool is_batch_set;
-  bool is_population_set;
   bool is_generation_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
@@ -115,7 +122,6 @@ private:
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
-  void parse_mode(const char** param, int num_param);
   void parse_prediction(const char** param, int num_param);
   void parse_version(const char** param, int num_param);
   void parse_type(const char** param, int num_param);
@@ -126,18 +132,20 @@ private:
   void parse_basis_size(const char** param, int num_param);
   void parse_l_max(const char** param, int num_param);
   void parse_neuron(const char** param, int num_param);
-  void parse_lambda_1(const char** param, int num_param);
-  void parse_lambda_2(const char** param, int num_param);
-  void parse_lambda_e(const char** param, int num_param);
-  void parse_lambda_f(const char** param, int num_param);
-  void parse_lambda_v(const char** param, int num_param);
+  void parse_weight_decay(const char** param, int num_param);
+  void parse_lr(const char** param, int num_param);
+  void parse_stop_lr(const char** param, int num_param);
+  void parse_decay_step(const char** param, int num_param);
+  void parse_start_pref_e(const char** param, int num_param);
+  void parse_start_pref_f(const char** param, int num_param);
+  void parse_start_pref_v(const char** param, int num_param);
+  void parse_stop_pref_e(const char** param, int num_param);
+  void parse_stop_pref_f(const char** param, int num_param);
+  void parse_stop_pref_v(const char** param, int num_param);
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
-  void parse_population(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);
-  void parse_initial_para(const char** param, int num_param);
-  void parse_sigma0(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
 };

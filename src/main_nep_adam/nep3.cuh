@@ -60,7 +60,6 @@ public:
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 1, 2, ..., L_max
     int dim_angular;
-    int num_L;
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
@@ -78,12 +77,7 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* b1[10]; // bias for the output layer
-    // for the scalar part of polarizability
-    const float* w0_pol[10]; // weight from the input layer to the hidden layer
-    const float* b0_pol[10]; // bias for the hidden layer
-    const float* w1_pol[10]; // weight from the hidden layer to the output layer
-    const float* b1_pol[10]; // bias for the output layer
+    // const float* b1[10]; // bias for the output layer
     // for elements in descriptor
     const float* c;
   };

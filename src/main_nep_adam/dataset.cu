@@ -33,7 +33,6 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].weight = structures_input[n_input].weight;
     structures[n].has_virial = structures_input[n_input].has_virial;
     structures[n].energy = structures_input[n_input].energy;
-    structures[n].has_temperature = structures_input[n_input].has_temperature;
     structures[n].temperature = structures_input[n_input].temperature;
     structures[n].volume = structures_input[n_input].volume;
     for (int k = 0; k < 6; ++k) {
@@ -130,9 +129,7 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0 || para.train_mode == 3) {
-    printf("Number of configurations having virial = %d.\n", num_virial_configurations);
-  }
+  printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 
   Na.resize(Nc);
   Na_sum.resize(Nc);
@@ -560,7 +557,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
           rmse_array[t] += rmse_temp;
-          count_array[t] += (para.train_mode != 1) ? 6 : 3;
+          count_array[t] += 6;
         }
       }
     }

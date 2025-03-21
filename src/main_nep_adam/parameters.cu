@@ -50,7 +50,6 @@ Parameters::Parameters()
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
   is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
@@ -59,14 +58,12 @@ void Parameters::set_default_parameters()
   is_basis_size_set = false;
   is_l_max_set = false;
   is_neuron_set = false;
-  is_lambda_1_set = false;
-  is_lambda_2_set = false;
-  is_lambda_e_set = false;
-  is_lambda_f_set = false;
-  is_lambda_v_set = false;
+  is_weight_decay_set = false;
+  is_lr_set = false;
+  is_stop_lr_set = false;
+  is_decay_step_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
-  is_population_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
@@ -74,9 +71,8 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
 
-  train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
-  version = 0;                 // NEP4 is the best
+  version = 0;                 // 
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
@@ -84,20 +80,26 @@ void Parameters::set_default_parameters()
   n_max_radial = 4;            // a relatively small value to achieve high speed
   n_max_angular = 4;           // a relatively small value to achieve high speed
   L_max = 4;                   // the only supported value
-  L_max_4body = 2;             // default is to include 4body
-  L_max_5body = 0;             // default is not to include 5body
   num_neurons1 = 30;           // a relatively small value to achieve high speed
-  lambda_1 = lambda_2 = -1.0f; // automatic regularization
+  weight_decay = 0.0f;         // no weight decay by default
+  lr = 1e-3f;                 
+  start_lr = 1e-3f;   
+  stop_lr = 3.51e-08f;         
+  decay_step = 2000;         
+  start_pref_e = 0.02f;
+  start_pref_f = 1000.0f;
+  start_pref_v = 50.0f;
+  stop_pref_e = 1.0f;
+  stop_pref_f = 1.0f;
+  stop_pref_v = 1.0f;
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
-  batch_size = 1000;           // large enough in most cases
+  batch_size = 4;           // mini-batch for adam optimizer
   use_full_batch = 0;          // default is not to enable effective full-batch
-  population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
-  initial_para = 1.0f;
-  sigma0 = 0.1f;
+  epoch = 30;               
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
@@ -156,30 +158,9 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (version == 5 && train_mode != 0) {
-    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
-  }
-
-  if (train_mode != 0 && train_mode != 3) {
-    // take virial as dipole or polarizability
-    lambda_e = lambda_f = 0.0f;
-    enable_zbl = false;
-    if (!is_lambda_v_set) {
-      lambda_v = 1.0f;
-    }
-  }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
-    dim_angular += n_max_angular + 1;
-  }
-  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
-    dim_angular += n_max_angular + 1;
-  }
   dim = dim_radial + dim_angular;
-  if (train_mode == 3) {
-    dim += 1; // concatenate temeprature with descriptors
-  }
   q_scaler_cpu.resize(dim, 1.0e10f);
 #ifdef USE_FIXED_SCALER
   for (int n = 0; n < q_scaler_cpu.size(); ++n) {
@@ -196,24 +177,9 @@ void Parameters::calculate_parameters()
     (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
-    number_of_variables += number_of_variables_ann;
-  }
 
-  if (version != 3) {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-  } else {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
-    }
+  if (!is_weight_decay_set) {
+    weight_decay = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
 
   int deviceCount;
@@ -235,18 +201,7 @@ void Parameters::report_inputs()
   printf("Input or default parameters:\n");
 
   std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
-  }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
-  } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
-  }
+  printf("model_type = %s.\n", train_mode_name.c_str());
 
   std::string calculation_mode_name = "train";
   if (prediction == 1) {
@@ -341,12 +296,8 @@ void Parameters::report_inputs()
 
   if (is_l_max_set) {
     printf("    (input)   l_max_3body = %d.\n", L_max);
-    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
-    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
   } else {
     printf("    (default) l_max_3body = %d.\n", L_max);
-    printf("    (default) l_max_4body = %d.\n", L_max_4body);
-    printf("    (default) l_max_5body = %d.\n", L_max_5body);
   }
 
   if (is_neuron_set) {
@@ -355,34 +306,64 @@ void Parameters::report_inputs()
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
-  if (is_lambda_1_set) {
-    printf("    (input)   lambda_1 = %g.\n", lambda_1);
+  if (is_weight_decay_set) {
+    printf("    (input)   weight_decay = %g.\n", weight_decay);
   } else {
-    printf("    (default) lambda_1 = %g.\n", lambda_1);
+    printf("    (default) weight_decay = %g.\n", weight_decay);
   }
 
-  if (is_lambda_2_set) {
-    printf("    (input)   lambda_2 = %g.\n", lambda_2);
+  if (is_lr_set) {
+    printf("    (input)   start learning rate = %g.\n", start_lr);
   } else {
-    printf("    (default) lambda_2 = %g.\n", lambda_2);
+    printf("    (default) start learning rate = %g.\n", start_lr);
   }
 
-  if (is_lambda_e_set) {
-    printf("    (input)   lambda_e = %g.\n", lambda_e);
+  if (is_stop_lr_set) {
+    printf("    (input)   stop learing rate = %g.\n", stop_lr);
   } else {
-    printf("    (default) lambda_e = %g.\n", lambda_e);
+    printf("    (default) stop learing rate = %g.\n", stop_lr);
   }
 
-  if (is_lambda_f_set) {
-    printf("    (input)   lambda_f = %g.\n", lambda_f);
+  if (is_decay_step_set) {
+    printf("    (input)   decay steps = %d.\n", decay_step);
   } else {
-    printf("    (default) lambda_f = %g.\n", lambda_f);
+    printf("    (default) decay steps = %d.\n", decay_step);
   }
 
-  if (is_lambda_v_set) {
-    printf("    (input)   lambda_v = %g.\n", lambda_v);
+  if (is_start_pref_e_set) {
+    printf("    (input)   start_pref_e = %g.\n", start_pref_e);
   } else {
-    printf("    (default) lambda_v = %g.\n", lambda_v);
+    printf("    (default) start_pref_e = %g.\n", start_pref_e);
+  }
+
+  if (is_start_pref_f_set) {
+    printf("    (input)   start_pref_f = %g.\n", start_pref_f);
+  } else {
+    printf("    (default) start_pref_f = %g.\n", start_pref_f);
+  }
+
+  if (is_start_pref_v_set) {
+    printf("    (input)   start_pref_v = %g.\n", start_pref_v);
+  } else {
+    printf("    (default) start_pref_v = %g.\n", start_pref_v);
+  }
+
+  if (is_stop_pref_e_set) {
+    printf("    (input)   stop_pref_e = %g.\n", stop_pref_e);
+  } else {
+    printf("    (default) stop_pref_e = %g.\n", stop_pref_e);
+  }
+
+  if (is_stop_pref_f_set) {
+    printf("    (input)   stop_pref_f = %g.\n", stop_pref_f);
+  } else {
+    printf("    (default) stop_pref_f = %g.\n", stop_pref_f);
+  }
+
+  if (is_stop_pref_v_set) {
+    printf("    (input)   stop_pref_v = %g.\n", stop_pref_v);
+  } else {
+    printf("    (default) stop_pref_v = %g.\n", stop_pref_v);
   }
 
   if (is_lambda_shear_set) {
@@ -399,17 +380,8 @@ void Parameters::report_inputs()
 
   if (is_batch_set) {
     printf("    (input)   batch size = %d.\n", batch_size);
-    if (use_full_batch) {
-      printf("        enable effective full-batch.\n");
-    }
   } else {
     printf("    (default) batch size = %d.\n", batch_size);
-  }
-
-  if (is_population_set) {
-    printf("    (input)   population size = %d.\n", population_size);
-  } else {
-    printf("    (default) population size = %d.\n", population_size);
   }
 
   if (is_generation_set) {
@@ -426,7 +398,7 @@ void Parameters::report_inputs()
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
     "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    number_of_variables_ann);
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -439,9 +411,7 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
-  } else if (strcmp(param[0], "prediction") == 0) {
+  if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
     parse_version(param, num_param);
@@ -459,20 +429,28 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_neuron(param, num_param);
   } else if (strcmp(param[0], "batch") == 0) {
     parse_batch(param, num_param);
-  } else if (strcmp(param[0], "population") == 0) {
-    parse_population(param, num_param);
   } else if (strcmp(param[0], "generation") == 0) {
     parse_generation(param, num_param);
-  } else if (strcmp(param[0], "lambda_1") == 0) {
-    parse_lambda_1(param, num_param);
-  } else if (strcmp(param[0], "lambda_2") == 0) {
-    parse_lambda_2(param, num_param);
-  } else if (strcmp(param[0], "lambda_e") == 0) {
-    parse_lambda_e(param, num_param);
-  } else if (strcmp(param[0], "lambda_f") == 0) {
-    parse_lambda_f(param, num_param);
-  } else if (strcmp(param[0], "lambda_v") == 0) {
-    parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "weight_decay") == 0) {
+    parse_weight_decay(param, num_param);
+  } else if (strcmp(param[0], "learning_rate") == 0) {
+    parse_lr(param, num_param);
+  } else if (strcmp(param[0], "stop_lr") == 0) {
+    parse_stop_lr(param, num_param);
+  } else if (strcmp(param[0], "decay_step") == 0) {
+    parse_decay_step(param, num_param);
+  } else if (strcmp(param[0], "start_pref_e") == 0) {
+    parse_start_pref_e(param, num_param);
+  } else if (strcmp(param[0], "stop_pref_e") == 0) {
+    parse_stop_pref_e(param, num_param);
+  } else if (strcmp(param[0], "start_pref_f") == 0) {
+    parse_start_pref_f(param, num_param);
+  } else if (strcmp(param[0], "stop_pref_f") == 0) {
+    parse_stop_pref_f(param, num_param);
+  } else if (strcmp(param[0], "start_pref_v") == 0) {
+    parse_start_pref_v(param, num_param);
+  } else if (strcmp(param[0], "stop_pref_v") == 0) {
+    parse_stop_pref_v(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -481,31 +459,12 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
-  } else if (strcmp(param[0], "initial_para") == 0) {
-    parse_initial_para(param, num_param);
-  } else if (strcmp(param[0], "sigma0") == 0) {
-    parse_sigma0(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
-  }
-}
-
-void Parameters::parse_mode(const char** param, int num_param)
-{
-  is_train_mode_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
-  }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
-    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
 
@@ -533,6 +492,9 @@ void Parameters::parse_version(const char** param, int num_param)
   }
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
+  }
+  if (version != 0) {
+    PRINT_INPUT_ERROR("version should be 0.");
   }
 }
 
@@ -715,8 +677,8 @@ void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param != 2 && num_param != 3 && num_param != 4) {
-    PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("l_max should only have 1 parameter for 3-body descriptors.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
@@ -726,30 +688,6 @@ void Parameters::parse_l_max(const char** param, int num_param)
   }
   if (L_max > 8) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should <= 8.");
-  }
-
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &L_max_4body)) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
-    }
-    if (L_max_4body != 0 && L_max_4body != 2) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
-    }
-    if (L_max < L_max_4body) {
-      PRINT_INPUT_ERROR("l_max_4body should <= l_max_3body.");
-    }
-  }
-
-  if (num_param == 4) {
-    if (!is_valid_int(param[3], &L_max_5body)) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should be an integer.\n");
-    }
-    if (L_max_5body != 0 && L_max_5body != 1) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should = 0 or 1.");
-    }
-    if (L_max_4body == 0 && L_max_5body == 1) {
-      PRINT_INPUT_ERROR("cannot have l_max_4body = 0 with l_max_5body = 1.");
-    }
   }
 }
 
@@ -771,97 +709,190 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_1(const char** param, int num_param)
+void Parameters::parse_weight_decay(const char** param, int num_param)
 {
-  is_lambda_1_set = true;
+  is_weight_decay_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_1 should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("weight_decay should have 1 parameter.\n");
   }
 
-  double lambda_1_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_1_tmp)) {
-    PRINT_INPUT_ERROR("L1 regularization loss weight should be a number.\n");
+  double weight_decay_tmp = 0.0;
+  if (!is_valid_real(param[1], &weight_decay_tmp)) {
+    PRINT_INPUT_ERROR("Adam with decoupled weight decay should be a number.\n");
   }
-  lambda_1 = lambda_1_tmp;
+  weight_decay = weight_decay_tmp;
 
-  if (lambda_1 < 0.0f) {
-    PRINT_INPUT_ERROR("L1 regularization loss weight should >= 0.");
+  if (weight_decay < 0.0f) {
+    PRINT_INPUT_ERROR("weight decay should >= 0.");
   }
 }
 
-void Parameters::parse_lambda_2(const char** param, int num_param)
+void Parameters::parse_lr(const char** param, int num_param)
 {
-  is_lambda_2_set = true;
+  is_lr_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_2 should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("learning_rate should have 1 parameter.\n");
   }
 
-  double lambda_2_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_2_tmp)) {
-    PRINT_INPUT_ERROR("L2 regularization loss weight should be a number.\n");
+  double lr_tmp = 0.0;
+  if (!is_valid_real(param[1], &lr_tmp)) {
+    PRINT_INPUT_ERROR("start learning rate should be a number.\n");
   }
-  lambda_2 = lambda_2_tmp;
+  lr = lr_tmp;
+  start_lr = lr;
 
-  if (lambda_2 < 0.0f) {
-    PRINT_INPUT_ERROR("L2 regularization loss weight should >= 0.");
+  if (lr < 0.0f) {
+    PRINT_INPUT_ERROR("learning rate should > 0.");
   }
 }
 
-void Parameters::parse_lambda_e(const char** param, int num_param)
+void Parameters::parse_stop_lr(const char** param, int num_param)
 {
-  is_lambda_e_set = true;
+  is_stop_lr_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_e should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("stop_lr rate should have 1 parameter.\n");
   }
 
-  double lambda_e_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_e_tmp)) {
+  double stop_lr_tmp = 0.0;
+  if (!is_valid_real(param[1], &stop_lr_tmp)) {
+    PRINT_INPUT_ERROR("stop learning rate should be a number.\n");
+  }
+  stop_lr = stop_lr_tmp;
+
+  if (stop_lr < 0.0f) {
+    PRINT_INPUT_ERROR("stop learning rate should > 0.");
+  }
+}
+
+void Parameters::parse_decay_step(const char** param, int num_param)
+{
+  is_decay_step_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("decay_step should have 1 parameter.\n");
+  }
+
+  if (!is_valid_int(param[1], &decay_step)) {
+    PRINT_INPUT_ERROR("decay steps for learning rate should be a number.\n");
+  }
+  if (decay_step < 0) {
+    PRINT_INPUT_ERROR("decay_step should >= 0.");
+  }
+}
+
+void Parameters::parse_start_pref_e(const char** param, int num_param)
+{
+  is_start_pref_e_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("start_pref_e should have 1 parameter.\n");
+  }
+
+  double start_pref_e_tmp = 0.0;
+  if (!is_valid_real(param[1], &start_pref_e_tmp)) {
     PRINT_INPUT_ERROR("Energy loss weight should be a number.\n");
   }
-  lambda_e = lambda_e_tmp;
+  start_pref_e = start_pref_e_tmp;
 
-  if (lambda_e < 0.0f) {
+  if (start_pref_e < 0.0f) {
     PRINT_INPUT_ERROR("Energy loss weight should >= 0.");
   }
 }
 
-void Parameters::parse_lambda_f(const char** param, int num_param)
+void Parameters::parse_stop_pref_e(const char** param, int num_param)
 {
-  is_lambda_f_set = true;
+  is_stop_pref_e_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_f should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("stop_pref_e should have 1 parameter.\n");
   }
 
-  double lambda_f_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_f_tmp)) {
+  double stop_pref_e_tmp = 0.0;
+  if (!is_valid_real(param[1], &stop_pref_e_tmp)) {
+    PRINT_INPUT_ERROR("Energy loss weight should be a number.\n");
+  }
+  stop_pref_e = stop_pref_e_tmp;
+
+  if (stop_pref_e < 0.0f) {
+    PRINT_INPUT_ERROR("Energy loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_start_pref_f(const char** param, int num_param)
+{
+  is_start_pref_f_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("start_pref_f should have 1 parameter.\n");
+  }
+
+  double start_pref_f_tmp = 0.0;
+  if (!is_valid_real(param[1], &start_pref_f_tmp)) {
     PRINT_INPUT_ERROR("Force loss weight should be a number.\n");
   }
-  lambda_f = lambda_f_tmp;
+  start_pref_f = start_pref_f_tmp;
 
-  if (lambda_f < 0.0f) {
+  if (start_pref_f < 0.0f) {
     PRINT_INPUT_ERROR("Force loss weight should >= 0.");
   }
 }
 
-void Parameters::parse_lambda_v(const char** param, int num_param)
+void Parameters::parse_stop_pref_f(const char** param, int num_param)
 {
-  is_lambda_v_set = true;
+  is_stop_pref_f_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_v should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("stop_pref_f should have 1 parameter.\n");
   }
 
-  double lambda_v_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_v_tmp)) {
+  double stop_pref_f_tmp = 0.0;
+  if (!is_valid_real(param[1], &stop_pref_f_tmp)) {
+    PRINT_INPUT_ERROR("Force loss weight should be a number.\n");
+  }
+  stop_pref_f = stop_pref_f_tmp;
+
+  if (stop_pref_f < 0.0f) {
+    PRINT_INPUT_ERROR("Force loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_start_pref_v(const char** param, int num_param)
+{
+  is_start_pref_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("start_pref_v should have 1 parameter.\n");
+  }
+
+  double start_pref_v_tmp = 0.0;
+  if (!is_valid_real(param[1], &start_pref_v_tmp)) {
     PRINT_INPUT_ERROR("Virial loss weight should be a number.\n");
   }
-  lambda_v = lambda_v_tmp;
+  start_pref_v = start_pref_v_tmp;
 
-  if (lambda_v < 0.0f) {
+  if (start_pref_v < 0.0f) {
+    PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_stop_pref_v(const char** param, int num_param)
+{
+  is_stop_pref_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("stop_pref_v should have 1 parameter.\n");
+  }
+
+  double stop_pref_v_tmp = 0.0;
+  if (!is_valid_real(param[1], &stop_pref_v_tmp)) {
+    PRINT_INPUT_ERROR("Virial loss weight should be a number.\n");
+  }
+  stop_pref_v = stop_pref_v_tmp;
+
+  if (stop_pref_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
   }
 }
@@ -909,39 +940,6 @@ void Parameters::parse_batch(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_population(const char** param, int num_param)
-{
-  is_population_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("The population keyword must be followed by a parameter.\n");
-  }
-  if (!is_valid_int(param[1], &population_size)) {
-    PRINT_INPUT_ERROR("population size should be an integer.\n");
-  }
-  if (population_size < 10) {
-    PRINT_INPUT_ERROR("population size should >= 10.");
-  } else if (population_size > 200) {
-    PRINT_INPUT_ERROR("population size should <= 200.");
-  }
-
-  int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
-  int fully_used_device = population_size % deviceCount;
-  int population_should_increase;
-  if (fully_used_device != 0) {
-    population_should_increase = deviceCount - fully_used_device;
-    population_size += population_should_increase;
-  } else {
-    population_should_increase = 0;
-  }
-  if (population_should_increase != 0) {
-    printf("The input population size is not divisible by the number of GPUs.\n");
-    printf("This causes an inefficient use of resources.\n");
-    printf("The population size has therefore been increased to %d.\n", population_size);
-  }
-}
-
 void Parameters::parse_generation(const char** param, int num_param)
 {
   is_generation_set = true;
@@ -956,40 +954,6 @@ void Parameters::parse_generation(const char** param, int num_param)
     PRINT_INPUT_ERROR("maximum number of generations should >= 0.");
   } else if (maximum_generation > 10000000) {
     PRINT_INPUT_ERROR("maximum number of generations should <= 10000000.");
-  }
-}
-
-void Parameters::parse_initial_para(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("initial_para should have 1 parameter.\n");
-  }
-
-  double initial_para_tmp = 0.0;
-  if (!is_valid_real(param[1], &initial_para_tmp)) {
-    PRINT_INPUT_ERROR("initial_para should be a number.\n");
-  }
-  initial_para = initial_para_tmp;
-
-  if (initial_para < 0.1 || initial_para > 1.0) {
-    PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
-  }
-}
-
-void Parameters::parse_sigma0(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("sigma0 should have 1 parameter.\n");
-  }
-
-  double sigma0_tmp = 0.0;
-  if (!is_valid_real(param[1], &sigma0_tmp)) {
-    PRINT_INPUT_ERROR("sigma0 should be a number.\n");
-  }
-  sigma0 = sigma0_tmp;
-
-  if (sigma0 < 0.01 || sigma0 > 0.1) {
-    PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
   }
 }
 
