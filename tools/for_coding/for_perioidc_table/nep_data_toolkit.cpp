@@ -398,17 +398,6 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
         exit(1);
       }
       read_one_structure(input, structure);
-
-      // correct my early mistakes; no side effect
-      if (structure.sid == "" || structure.sid == "\"oc20\"") {
-        structure.sid = "oc20"; // remove the quote
-        structure.energy_weight = 1.0; // energy should be trained for OC20
-      }
-      // correct my early mistakes; no side effect
-      if (structure.sid == "\"spice\"") {
-        structure.sid = "spice"; // remove the quote
-      }
-
       structures.emplace_back(structure);
     }
     input.close();
@@ -486,24 +475,11 @@ static void write(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
-static void shift_energy(std::vector<Structure>& structures)
+static void set_energy_weight_to_zero(std::vector<Structure>& structures)
 {
-  std::ifstream input_energy("energy_train.out");
-
-  double energy_to_be_shifted = 0.0;
-
   for (int nc = 0; nc < structures.size(); ++nc) {
-    double energy_nep = 0.0;
-    double energy_ref = 0.0;
-    input_energy >> energy_nep >> energy_ref;
-    energy_to_be_shifted += energy_ref - energy_nep;
+    structures[nc].energy_weight = 0;
   }
-  energy_to_be_shifted /= structures.size();
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures[nc].energy -= energy_to_be_shifted * structures[nc].num_atom;
-  }
-
-  std::cout << "Energy is decreased by " << energy_to_be_shifted << " eV/atom" << std::endl;
 }
 
 static void change_sid(std::vector<Structure>& structures, const std::string& new_sid)
@@ -631,18 +607,16 @@ static void split_into_accurate_and_inaccurate(
   int num1 = 0;
   int num2 = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    bool energy_is_small = structures[nc].energy < 0.0;
     bool force_is_small = true;
     for (int n = 0; n < structures[nc].num_atom; ++n) {
       double fx = structures[nc].fx[n];
       double fy = structures[nc].fy[n];
       double fz = structures[nc].fz[n];
-      if (fx * fx + fy * fy + fz * fz > 400.0) {
+      if (fx * fx + fy * fy + fz * fz > 1600.0) {
         force_is_small = false;
         break;
       }
     }
-    bool is_considered = (energy_is_small || structures[nc].energy_weight < 0.5f) && force_is_small;
 
     bool is_accurate = true;
 
@@ -684,7 +658,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    //if (is_considered) {
+    if (force_is_small) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -692,7 +666,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    //}
+    }
   }
   input_energy.close();
   input_force.close();
@@ -707,26 +681,30 @@ static void split_with_sid(const std::vector<Structure>& structures)
 {
   std::ofstream output_ch("ch.xyz");
   std::ofstream output_unep1("unep1.xyz");
-  std::ofstream output_oc20("oc20.xyz");
-  std::ofstream output_oc22("oc22.xyz");
+  std::ofstream output_hydrate("hydrate.xyz");
+  std::ofstream output_chonps("chonps.xyz");
   std::ofstream output_spice("spice.xyz");
   std::ofstream output_water("water.xyz");
   std::ofstream output_mp("mp.xyz");
   std::ofstream output_omat("omat.xyz");
   std::ofstream output_protein("protein.xyz");
   std::ofstream output_ani1xnr("ani1xnr.xyz");
-  std::ofstream output_salex("salex.xyz");
+  std::ofstream output_mof("mof.xyz");
+  std::ofstream output_sse_vasp("sse_vasp.xyz");
+  std::ofstream output_sse_abacus("sse_abacus.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
-  int num_oc20 = 0;
-  int num_oc22 = 0;
+  int num_hydrate = 0;
+  int num_chonps = 0;
   int num_spice = 0;
   int num_omat = 0;
   int num_water = 0;
   int num_mp = 0;
   int num_protein = 0;
   int num_ani1xnr = 0;
-  int num_salex = 0;
+  int num_mof = 0;
+  int num_sse_vasp = 0;
+  int num_sse_abacus = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -734,12 +712,12 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "unep1") {
       write_one_structure(output_unep1, structures[nc]);
         num_unep1++;
-    } else if (structures[nc].sid == "oc20") {
-      write_one_structure(output_oc20, structures[nc]);
-        num_oc20++;
-    } else if (structures[nc].sid == "oc22") {
-      write_one_structure(output_oc22, structures[nc]);
-        num_oc22++;
+    } else if (structures[nc].sid == "hydrate") {
+      write_one_structure(output_hydrate, structures[nc]);
+        num_hydrate++;
+    } else if (structures[nc].sid == "chonps") {
+      write_one_structure(output_chonps, structures[nc]);
+        num_chonps++;
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
         num_spice++;
@@ -755,36 +733,46 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "ani1xnr") {
       write_one_structure(output_ani1xnr, structures[nc]);
         num_ani1xnr++;
-    } else if (structures[nc].sid == "salex") {
-      write_one_structure(output_salex, structures[nc]);
-        num_salex++;
-    } else {
+    } else if (structures[nc].sid == "mof") {
+      write_one_structure(output_mof, structures[nc]);
+        num_mof++;
+    } else if (structures[nc].sid == "sse_abacus") {
+      write_one_structure(output_sse_abacus, structures[nc]);
+        num_sse_abacus++;
+    } else if (structures[nc].sid == "sse_vasp") {
+      write_one_structure(output_sse_vasp, structures[nc]);
+        num_sse_vasp++;
+    } else if (structures[nc].sid == "omat") {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
     } 
   }
   output_ch.close();
   output_unep1.close();
-  output_oc20.close();
-  output_oc22.close();
+  output_hydrate.close();
+  output_chonps.close();
   output_spice.close();
   output_omat.close();
   output_water.close();
   output_mp.close();
   output_protein.close();
   output_ani1xnr.close();
-  output_salex.close();
+  output_mof.close();
+  output_sse_abacus.close();
+  output_sse_vasp.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
-  std::cout << "Number of structures written into oc20.xyz = " << num_oc20 << std::endl;
-  std::cout << "Number of structures written into oc22.xyz = " << num_oc22 << std::endl;
+  std::cout << "Number of structures written into hydrate.xyz = " << num_hydrate << std::endl;
+  std::cout << "Number of structures written into chonps.xyz = " << num_chonps << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
   std::cout << "Number of structures written into mp.xyz = " << num_mp << std::endl;
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
   std::cout << "Number of structures written into protein.xyz = " << num_protein << std::endl;
   std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
-  std::cout << "Number of structures written into salex.xyz = " << num_salex << std::endl;
+  std::cout << "Number of structures written into mof.xyz = " << num_mof << std::endl;
+  std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
+  std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
@@ -931,7 +919,7 @@ int main(int argc, char* argv[])
   std::cout << "3: split into accurate.xyz and inaccurate.xyz\n";
   std::cout << "4: split according to sid\n";
   std::cout << "5: descriptor-space subsampling\n";
-  std::cout << "6: shift energy\n";
+  std::cout << "6: set energy_weight to zero\n";
   std::cout << "7: add or change sid\n";
 #ifdef ZHEYONG
   std::cout << "8: add D3\n";
@@ -1022,7 +1010,7 @@ int main(int argc, char* argv[])
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    shift_energy(structures_input);
+    set_energy_weight_to_zero(structures_input);
     write(output_filename, structures_input);
   } else if (option == 7) {
     std::cout << "Please enter the input xyz filename: ";
