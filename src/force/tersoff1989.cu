@@ -407,7 +407,7 @@ static __global__ void find_force_tersoff_step1(
 }
 
 // step 2: calculate all the partial forces dU_i/dr_ij
-static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersoff_step2(
+static __global__ void find_force_tersoff_step2(
   const int number_of_particles,
   const int N1,
   const int N2,
