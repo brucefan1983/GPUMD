@@ -218,6 +218,24 @@ void Extrapolation::calculate_gamma()
   int N = atom->number_of_atoms;
 
   double alpha = 1.0, beta = 0.0;
+
+#if defined(__CUDACC__) && (CUDA_VERSION < 12000)
+  for (int i = 0; i < N; i++) {
+    gpublasDgemv(
+      handle,
+      GPUBLAS_OP_N,
+      B_size_per_atom,
+      B_size_per_atom,
+      &alpha,
+      blas_A[i],
+      B_size_per_atom,
+      blas_x[i],
+      1,
+      &beta,
+      blas_y[i],
+      1);
+  }
+#else
   gpublasDgemvBatched(
     handle,
     GPUBLAS_OP_N,
@@ -232,6 +250,7 @@ void Extrapolation::calculate_gamma()
     blas_y.data(),
     1,
     N);
+#endif
 
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);

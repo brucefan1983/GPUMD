@@ -140,7 +140,10 @@
 #define gpublasSgemv cublasSgemv
 #define gpublasSgemm cublasSgemm
 #define gpublasSdgmm cublasSdgmm
+#define gpublasDgemv cublasDgemv
+#if (CUDA_VERSION >= 12000)
 #define gpublasDgemvBatched cublasDgemvBatched
+#endif
 #define gpublasDestroy cublasDestroy
 #define gpublasCreate cublasCreate
 #define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
