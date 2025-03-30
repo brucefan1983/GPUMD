@@ -58,7 +58,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/viscosity.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
-#include "model/check_distance.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
@@ -145,8 +144,6 @@ Run::Run()
   print_line_2();
 
   initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
-
-  calculate_min_atomic_distance(atom, box);
 
   allocate_memory_gpu(group, atom, thermo);
 
