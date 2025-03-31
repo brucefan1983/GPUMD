@@ -554,6 +554,5 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);
-  atom.heat_per_atom.resize(N * 5);
   thermo.resize(12);
 }
