@@ -430,9 +430,8 @@ void NEP_MULTIGPU::allocate_memory()
     nep_data[gpu].NN_angular.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].NL_angular.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].Fp.resize(nep_temp_data.num_atoms_per_gpu * annmb[gpu].dim);
-    nep_data[gpu].sum_fxyz.resize(
-      nep_temp_data.num_atoms_per_gpu * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-
+    nep_data[gpu].sum_fxyz.resize(nep_temp_data.num_atoms_per_gpu * (paramb.n_max_angular + 1) * 
+      ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[gpu].type.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].position.resize(nep_temp_data.num_atoms_per_gpu * 3);
     nep_data[gpu].potential.resize(nep_temp_data.num_atoms_per_gpu);
@@ -969,8 +968,8 @@ static __global__ void find_descriptor(
 #endif
       }
       find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
     }
 
@@ -1216,8 +1215,11 @@ static __global__ void find_partial_force_angular(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
+      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+        sum_fxyz[n * NUM_OF_ABC + abc] = 
+          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
+      }
     }
 
     int t1 = g_type[n1];
@@ -2098,8 +2100,8 @@ static __global__ void find_descriptor(
 #endif
       }
       find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
     }
 
