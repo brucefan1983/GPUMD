@@ -493,7 +493,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_msd") == 0) {
     std::unique_ptr<Property> property;
-    property.reset(new MSD(param, num_param, group));
+    property.reset(new MSD(param, num_param, group, atom));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
     std::unique_ptr<Property> property;
