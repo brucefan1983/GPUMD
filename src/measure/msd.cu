@@ -279,9 +279,12 @@ void MSD::postprocess(
   grouping_method_ = -1;
 }
 
-MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups)
+MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
 {
   parse(param, num_param, groups);
+  atom.unwrapped_position.resize(atom.number_of_atoms * 3);
+  atom.position_temp.resize(atom.number_of_atoms * 3);
+  atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
   property_name = "compute_msd";
 }
 
