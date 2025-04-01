@@ -28,6 +28,7 @@ public:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   float sum_energy_ref;                  // sum of reference energy for Nc
+  int sum_virial_Nc;                     // sum of configurations with virial
   bool all_type;  // whether include all types for structures
 
 
@@ -71,7 +72,8 @@ public:
   GPU_Vector<float> diff_gpu_e; // error in energy (before squared)
   GPU_Vector<float> diff_gpu_v; // error in virial (before squared)
   std::vector<bool> has_type;
-  std::vector<bool> has_virial;
+  std::vector<int> has_virial;
+  GPU_Vector<int> has_virial_gpu;
 
   std::vector<Structure> structures;
 

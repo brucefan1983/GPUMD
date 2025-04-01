@@ -62,14 +62,21 @@ void Parameters::set_default_parameters()
   is_lr_set = false;
   is_stop_lr_set = false;
   is_decay_step_set = false;
+  is_start_pref_e_set = false;
+  is_start_pref_f_set = false;
+  is_start_pref_v_set = false;
+  is_stop_pref_e_set = false;
+  is_stop_pref_f_set = false;
+  is_stop_pref_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
-  is_generation_set = false;
+  is_epoch_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
+  is_use_energy_shift_set = false;
 
   prediction = 0;              // not prediction mode
   version = 0;                 // 
@@ -81,30 +88,31 @@ void Parameters::set_default_parameters()
   n_max_angular = 4;           // a relatively small value to achieve high speed
   L_max = 4;                   // the only supported value
   num_neurons1 = 30;           // a relatively small value to achieve high speed
-  weight_decay = 0.0f;         // no weight decay by default
-  lr = 1e-3f;                 
-  start_lr = 1e-3f;   
-  stop_lr = 3.51e-08f;         
-  decay_step = 2000;         
-  start_pref_e = 0.02f;
-  start_pref_f = 1000.0f;
-  start_pref_v = 50.0f;
-  stop_pref_e = 1.0f;
-  stop_pref_f = 1.0f;
-  stop_pref_v = 1.0f;
-  lambda_e = lambda_f = 1.0f;  // energy and force are more important
-  lambda_v = 0.1f;             // virial is less important
+  weight_decay = 0.0f;         // no weight decay by default (Adam). In general, 1e-6 ~ 1e-4 for AdamW
+  lr = 5e-4f;                 
+  start_lr = 5e-4f;   
+  stop_lr = 5e-7f;         
+  decay_step = 5000;   
+  start_pref_e = 0.2f;
+  start_pref_f = 100.0f;
+  start_pref_v = 0.1f;
+  stop_pref_e = 10.0f;
+  stop_pref_f = 10.0f;
+  stop_pref_v = 0.5f;      
+  lambda_e = 1.0f;           // energy important
+  lambda_f = 50.0f;         // force is more important
+  lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 4;           // mini-batch for adam optimizer
   use_full_batch = 0;          // default is not to enable effective full-batch
-  maximum_generation = 100000; // a good starting point
-  epoch = 30;               
+  epoch = 50;               
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  use_energy_shift = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -178,15 +186,13 @@ void Parameters::calculate_parameters()
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
-  if (!is_weight_decay_set) {
-    weight_decay = sqrt(number_of_variables * 1.0e-6f / num_types);
-  }
-
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     CHECK(cudaSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
+    s_max[device_id].resize(dim, -1000000.0f);
+    s_min[device_id].resize(dim, +1000000.0f);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
     energy_shift_gpu.resize(num_types, 0.0f);
   }
@@ -384,10 +390,10 @@ void Parameters::report_inputs()
     printf("    (default) batch size = %d.\n", batch_size);
   }
 
-  if (is_generation_set) {
-    printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
+  if (is_epoch_set) {
+    printf("    (input)   maximum number of epochs = %d.\n", epoch);
   } else {
-    printf("    (default) maximum number of generations = %d.\n", maximum_generation);
+    printf("    (default) maximum number of epochs = %d.\n", epoch);
   }
 
   // some calcuated parameters:
@@ -429,8 +435,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_neuron(param, num_param);
   } else if (strcmp(param[0], "batch") == 0) {
     parse_batch(param, num_param);
-  } else if (strcmp(param[0], "generation") == 0) {
-    parse_generation(param, num_param);
+  } else if (strcmp(param[0], "epoch") == 0) {
+    parse_epoch(param, num_param);
   } else if (strcmp(param[0], "weight_decay") == 0) {
     parse_weight_decay(param, num_param);
   } else if (strcmp(param[0], "learning_rate") == 0) {
@@ -463,6 +469,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "use_energy_shift") == 0) {
+    parse_use_energy_shift(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -940,20 +948,20 @@ void Parameters::parse_batch(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_generation(const char** param, int num_param)
+void Parameters::parse_epoch(const char** param, int num_param)
 {
-  is_generation_set = true;
+  is_epoch_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("generation should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("epoch should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &maximum_generation)) {
-    PRINT_INPUT_ERROR("maximum number of generations should be an integer.\n");
+  if (!is_valid_int(param[1], &epoch)) {
+    PRINT_INPUT_ERROR("maximum number of epochs should be an integer.\n");
   }
-  if (maximum_generation < 0) {
-    PRINT_INPUT_ERROR("maximum number of generations should >= 0.");
-  } else if (maximum_generation > 10000000) {
-    PRINT_INPUT_ERROR("maximum number of generations should <= 10000000.");
+  if (epoch < 0) {
+    PRINT_INPUT_ERROR("maximum number of epochs should >= 0.");
+  } else if (epoch > 6000) {
+    PRINT_INPUT_ERROR("maximum number of epochs should <= 6000.");
   }
 }
 
@@ -1009,5 +1017,19 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
 
   if (typewise_cutoff_zbl_factor < 0.5f) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
+  }
+}
+
+void Parameters::parse_use_energy_shift(const char** param, int num_param)
+{
+  is_use_energy_shift_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("use_energy_shift should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &use_energy_shift)) {
+    PRINT_INPUT_ERROR("use_energy_shift should be an integer.\n");
+  }
+  if (use_energy_shift != 0 && use_energy_shift != 1) {
+    PRINT_INPUT_ERROR("use_energy_shift should = 0 or 1.");
   }
 }

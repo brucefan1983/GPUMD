@@ -23,6 +23,7 @@ Get the fitness
 #include "structure.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/least_square.cuh"
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -34,7 +35,7 @@ Get the fitness
 Fitness::Fitness(Parameters& para, Adam* adam)
   : optimizer(adam)
 {
-  maximum_generation = para.maximum_generation;
+  maximum_epochs = para.epoch;
   number_of_variables = para.number_of_variables;
   number_of_variables_ann = para.number_of_variables_ann;
   number_of_variables_descriptor = para.number_of_variables_descriptor;
@@ -55,6 +56,7 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   std::vector<Structure> structures_train;
   read_structures(true, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  maximum_steps = num_batches * maximum_epochs;
   printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
   int batch_size_old = para.batch_size;
@@ -155,29 +157,18 @@ void Fitness::compute(Parameters& para)
   } else {
     printf("Started predicting.\n");
   }
-
   print_line_2();
 
-  if (para.prediction == 0) {
-    printf(
-      "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-15s%-10s\n", 
-      "Step",
-      "Total-Loss",
-      "RMSE-E-Train",
-      "RMSE-F-Train", 
-      "RMSE-V-Train",
-      "RMSE-E-Test",
-      "RMSE-F-Test",
-      "RMSE-V-Test",
-      "Learning-Rate",
-      "Time(s)");
-  }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
 
   if (para.prediction == 0) {
     float* parameters = optimizer->get_parameters();
+    std::vector<int> batch_indices(num_batches);
+    std::vector<std::vector<int>> batch_type_sums(num_batches);
+    std::vector<float> batch_energies(num_batches);
     for (int n = 0; n < num_batches; ++n) {
+      batch_indices[n] = n;
       potential->find_force(
         para,
         parameters,
@@ -190,30 +181,82 @@ void Fitness::compute(Parameters& para)
 #endif
         true,
         1);
+      std::vector<int> type_sum_host(para.num_types);
+      train_set[n][0].type_sum.copy_to_host(type_sum_host.data());
+      batch_type_sums[n] = type_sum_host;
+      batch_energies[n] = train_set[n][0].sum_energy_ref;
     }
+    if (para.use_energy_shift) {
+      computeMultiBatchEnergyShift(
+        para.num_types,
+        num_batches,
+        batch_type_sums,
+        batch_energies,
+        para.energy_shift_gpu.data(),
+        false);  // Is it output in detail
+      para.calculate_energy_shift = false;
+    
+      std::vector<float> energy_per_type_host(para.num_types);
+      CHECK(cudaMemcpy(energy_per_type_host.data(), para.energy_shift_gpu.data(),
+                      sizeof(float) * para.num_types, cudaMemcpyDeviceToHost));
+      for (int i = 0; i < para.num_types; ++i) {
+        printf("biased %d initialization of neural networks = %f\n", i, energy_per_type_host[i]);
+      }
+      print_line_2();
+    optimizer->initialize_parameters(para);
+    }
+    printf(
+      "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-15s%-10s\n", 
+      "Epoch",
+      "Total-Loss",
+      "RMSE-E-Train",
+      "RMSE-F-Train", 
+      "RMSE-V-Train",
+      "RMSE-E-Test",
+      "RMSE-F-Test",
+      "RMSE-V-Test",
+      "Learning-Rate",
+      "Time(s)");
     float mse_energy;
     float mse_force;
     float mse_virial;
     int count;
+    int count_virial;
     int epoch = 0;
     clock_t time_begin;
     clock_t time_finish;
-    static float track_total_time = 0.0f;  // 静态变量保存累计时间
-    for (int step = 0; step < maximum_generation; ++step) {
+    static float track_total_time = 0.0f; 
+    for (int step = 0; step < maximum_steps; ++step) {
       int batch_id = step % num_batches;
-      int Nc = train_set[batch_id][0].Nc;
       if (batch_id == 0) {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(batch_indices.begin(), batch_indices.end(), g);
         time_begin = clock();
         mse_energy = 0.0f;
         mse_force = 0.0f;
         mse_virial = 0.0f;
         count = 0;
+        count_virial = 0;
       }
+      batch_id = batch_indices[batch_id];
+      int Nc = train_set[batch_id][0].Nc;
+      int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
       // printf("Finding force for batch %d\n", batch_id);
-      update_learning_rate(lr, step);
-      para.lambda_e = stop_pref_e + (start_pref_e - stop_pref_e) * lr / start_lr;
-      para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * lr / start_lr;
-      para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * lr / start_lr;
+      update_learning_rate_cos(lr, step, num_batches, para);
+      if (step < num_batches) {
+        float progress = float(step) / num_batches;
+        float smooth_progress = 0.5f * (1.0f - cosf(progress * PI));
+        para.lambda_e = start_pref_e + (stop_pref_e - start_pref_e) * smooth_progress;
+        para.lambda_f = start_pref_f - 0.4f * start_pref_f * smooth_progress;
+        para.lambda_v = start_pref_v + (stop_pref_v - start_pref_v) * smooth_progress;
+      } else {
+        float progress = float(step - num_batches) / (maximum_steps - num_batches);
+        float smooth_progress = 0.5f * (1.0f + cosf(PI * progress));
+        para.lambda_e = stop_pref_e;
+        para.lambda_f = stop_pref_f + (0.6f * start_pref_f - stop_pref_f) * smooth_progress;
+        para.lambda_v = stop_pref_v;
+      }
       potential->find_force(
       para,
       parameters,
@@ -230,10 +273,11 @@ void Fitness::compute(Parameters& para)
       float mse_virial_train = rmse_virial_array.back();
       mse_energy += mse_energy_train * Nc;
       mse_force += mse_force_train * Nc;
-      mse_virial += mse_virial_train * Nc;
+      mse_virial += mse_virial_train * virial_Nc;
       count += Nc;
+      count_virial += virial_Nc;
       auto& grad = potential->getGradients();
-      optimizer->update(lr, grad.grad_sum.data());
+      optimizer->update(lr, grad.grad_sum.data(), num_batches, maximum_steps);
 
       if ((step + 1) % num_batches == 0) {
         time_finish = clock();
@@ -241,12 +285,11 @@ void Fitness::compute(Parameters& para)
         track_total_time += time_used;  // 累加当前epoch的时间
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
-        float rmse_virial_train = sqrt(mse_virial / count);
-        float total_loss_train = (mse_energy  + mse_force + mse_virial) / count;
+        float rmse_virial_train = sqrt(mse_virial / count_virial);
+        float total_loss_train = (mse_energy  + mse_force) / count + mse_virial / count_virial;
         report_error(
           para,
           track_total_time,  // 使用累计总时间
-          step,
           epoch,
           total_loss_train,
           rmse_energy_train,
@@ -290,13 +333,31 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-void Fitness::update_learning_rate(float& lr, int step) {
-  if (step >= maximum_generation) {
+void Fitness::update_learning_rate(float& lr, int step, Parameters& para) {
+  if (step >= maximum_steps) {
     lr = stop_lr;
   } else if (step % decay_step == 0 && step != 0) {
-    decay_rate = exp(log(stop_lr / start_lr) / (maximum_generation / decay_step));
+    decay_rate = exp(log(stop_lr / start_lr) / (maximum_steps / decay_step));
     lr = start_lr * pow(decay_rate, step / decay_step);
   }
+  para.lambda_e = stop_pref_e + (start_pref_e - stop_pref_e) * lr / start_lr;
+  para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * lr / start_lr;
+  para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * lr / start_lr;
+}
+
+void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para) {
+  const int warmup_epochs = 1;
+  const int warmup_steps = warmup_epochs * num_batches;
+  float progress;
+  if (step < warmup_steps) {
+    progress = float(step) / warmup_steps;
+    float smooth_progress = 0.5f * (1.0f - cosf((1.0f - progress) * PI)); // start_lr -> 0
+    // float smooth_progress = 0.5f * (1.0f - cosf(progress * PI));   // 0 -> start_lr
+    lr = start_lr * smooth_progress;
+    return;
+  }
+  progress = float(step - warmup_steps) / (maximum_steps - warmup_steps);
+  lr = stop_lr + 0.5f * (start_lr - stop_lr) * (1.0f + cosf(PI * progress));
 }
 
 void Fitness::output(
@@ -399,7 +460,6 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
 void Fitness::report_error(
   Parameters& para,
   float time_used,
-  const int step,
   const int epoch,
   const float loss_total,
   const float rmse_energy_train,
@@ -440,7 +500,7 @@ void Fitness::report_error(
 
   printf(
     "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n", 
-    step + 1,
+    epoch + 1,
     loss_total,
     rmse_energy_train,
     rmse_force_train,
@@ -453,7 +513,7 @@ void Fitness::report_error(
   fprintf(
     fid_loss_out,
     "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n",
-    step + 1,
+    epoch + 1,
     loss_total,
     rmse_energy_train,
     rmse_force_train,

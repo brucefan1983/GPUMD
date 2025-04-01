@@ -336,7 +336,7 @@ void NEP3::initialize_gradients(Parameters& para, const int N)
   // gradients.clear();
 }
 
-static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
+static void __global__ find_max_min(const int N, const float* g_q, float* g_s_max, float* g_s_min, float* g_q_scaler)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -372,7 +372,10 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
     __syncthreads();
   }
   if (tid == 0) {
-    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+    // g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+    g_s_max[bid] = max(g_s_max[bid], s_max[0]);
+    g_s_min[bid] = min(g_s_min[bid], s_min[0]);
+    g_q_scaler[bid] = 1.0f / (g_s_max[bid] - g_s_min[bid]);
     // g_q_scaler[0] = 8.021109302104;
     // g_q_scaler[1] = 0.345944536877;
     // g_q_scaler[2] = 69.268101453680;
@@ -577,6 +580,7 @@ static __global__ void compute_grad_radial_NM(
   const float lambda_f,
   const float lambda_v,
   const int virial_nums,
+  const int* __restrict__ g_has_virial,
   const float* __restrict__ g_type_weight,
   const float force_delta,
   const int* __restrict__ g_batch_idx,
@@ -620,7 +624,7 @@ static __global__ void compute_grad_radial_NM(
   float weight = g_weight[batch_idx];
   const float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
   const float per_Nc = weight * 2.0f * lambda_f / Na / 3 / Nc;
-  const float per_Nc_v = virial_nums > 0 ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
+  const float per_Nc_v = (g_has_virial[batch_idx] && virial_nums > 0) ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
 
   float fx_ref_n1 = g_fx_ref[n1];
   float fy_ref_n1 = g_fy_ref[n1];
@@ -805,68 +809,70 @@ static __global__ void compute_grad_radial_NM(
       }
     }
   }
-  for (int na = 0; na <= paramb.n_max_angular; ++na) {
-    n_base = na * (paramb.basis_size_angular + 1);
-    for (int ka = 0; ka <= paramb.basis_size_angular; ++ka) {
-      float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
-      for (int ia = 0; ia < neighbor_number_ang; ++ia) {
-        index = ia * N + n1;
-        n2_tmp = g_NL_ang[index];
-        t2_tmp = g_type[n2_tmp];
-        r12[0] = g_x12_ang[index];
-        r12[1] = g_y12_ang[index];
-        r12[2] = g_z12_ang[index];
-        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-            COVALENT_RADIUS[paramb.atomic_numbers[t2_tmp]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
-        rcinv = 1.0f / rc;
-        find_fc(rc, rcinv, d12, fc12);
-        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
-        float f_c_n1[3] = {0.0f};
-        float v_c_n1[6] = {0.0f};
-        for (int l = 0; l < paramb.L_max; ++l) {
-          float feat_xyz_sum[3] = {0.0f};
-          float feat_123_sum[6] = {0.0f};
-          ln = l * (paramb.n_max_angular + 1) + na;
-          for (int ma = 0; ma <= paramb.n_max_radial; ++ma) {
-            E2 = g_Fp2[n1 + (ma + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
-            feat_xyz_sum[0] += feat_x[ma] * E2;
-            feat_xyz_sum[1] += feat_y[ma] * E2;
-            feat_xyz_sum[2] += feat_z[ma] * E2;
-            feat_123_sum[0] += feat_123_xx[ma] * E2;
-            feat_123_sum[1] += feat_123_yy[ma] * E2;
-            feat_123_sum[2] += feat_123_zz[ma] * E2;
-            feat_123_sum[3] += feat_123_xy[ma] * E2;
-            feat_123_sum[4] += feat_123_yz[ma] * E2;
-            feat_123_sum[5] += feat_123_zx[ma] * E2;
+  if (neighbor_number_ang > 0) {
+    for (int na = 0; na <= paramb.n_max_angular; ++na) {
+      n_base = na * (paramb.basis_size_angular + 1);
+      for (int ka = 0; ka <= paramb.basis_size_angular; ++ka) {
+        float local_grad_c_sum[NUM_ELEMENTS] = {0.0f};
+        for (int ia = 0; ia < neighbor_number_ang; ++ia) {
+          index = ia * N + n1;
+          n2_tmp = g_NL_ang[index];
+          t2_tmp = g_type[n2_tmp];
+          r12[0] = g_x12_ang[index];
+          r12[1] = g_y12_ang[index];
+          r12[2] = g_z12_ang[index];
+          d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+          rc = paramb.rc_angular;
+          if (paramb.use_typewise_cutoff) {
+            rc = min(
+              (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+              COVALENT_RADIUS[paramb.atomic_numbers[t2_tmp]]) *
+                paramb.typewise_cutoff_angular_factor,
+              rc);
           }
-          accumulate_qc(N, l + 1, na, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[ka], &g_sum_fxyz[n1], &q_c_ang);
-          q_c_scaler_ang = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
-          f_c_n1[0] += feat_xyz_sum[0] * q_c_scaler_ang;
-          f_c_n1[1] += feat_xyz_sum[1] * q_c_scaler_ang;
-          f_c_n1[2] += feat_xyz_sum[2] * q_c_scaler_ang;
-          v_c_n1[0] += feat_123_sum[0] * q_c_scaler_ang;
-          v_c_n1[1] += feat_123_sum[1] * q_c_scaler_ang;
-          v_c_n1[2] += feat_123_sum[2] * q_c_scaler_ang;
-          v_c_n1[3] += feat_123_sum[3] * q_c_scaler_ang;
-          v_c_n1[4] += feat_123_sum[4] * q_c_scaler_ang;
-          v_c_n1[5] += feat_123_sum[5] * q_c_scaler_ang;
+          rcinv = 1.0f / rc;
+          find_fc(rc, rcinv, d12, fc12);
+          find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+          float f_c_n1[3] = {0.0f};
+          float v_c_n1[6] = {0.0f};
+          for (int l = 0; l < paramb.L_max; ++l) {
+            float feat_xyz_sum[3] = {0.0f};
+            float feat_123_sum[6] = {0.0f};
+            ln = l * (paramb.n_max_angular + 1) + na;
+            for (int ma = 0; ma <= paramb.n_max_radial; ++ma) {
+              E2 = g_Fp2[n1 + (ma + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
+              feat_xyz_sum[0] += feat_x[ma] * E2;
+              feat_xyz_sum[1] += feat_y[ma] * E2;
+              feat_xyz_sum[2] += feat_z[ma] * E2;
+              feat_123_sum[0] += feat_123_xx[ma] * E2;
+              feat_123_sum[1] += feat_123_yy[ma] * E2;
+              feat_123_sum[2] += feat_123_zz[ma] * E2;
+              feat_123_sum[3] += feat_123_xy[ma] * E2;
+              feat_123_sum[4] += feat_123_yz[ma] * E2;
+              feat_123_sum[5] += feat_123_zx[ma] * E2;
+            }
+            accumulate_qc(N, l + 1, na, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[ka], &g_sum_fxyz[n1], &q_c_ang);
+            q_c_scaler_ang = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
+            f_c_n1[0] += feat_xyz_sum[0] * q_c_scaler_ang;
+            f_c_n1[1] += feat_xyz_sum[1] * q_c_scaler_ang;
+            f_c_n1[2] += feat_xyz_sum[2] * q_c_scaler_ang;
+            v_c_n1[0] += feat_123_sum[0] * q_c_scaler_ang;
+            v_c_n1[1] += feat_123_sum[1] * q_c_scaler_ang;
+            v_c_n1[2] += feat_123_sum[2] * q_c_scaler_ang;
+            v_c_n1[3] += feat_123_sum[3] * q_c_scaler_ang;
+            v_c_n1[4] += feat_123_sum[4] * q_c_scaler_ang;
+            v_c_n1[5] += feat_123_sum[5] * q_c_scaler_ang;
+          }
+          grad_c_sum = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff; // grad_c_sum_3b
+          grad_c_sum -= v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5];
+          local_grad_c_sum[t2_tmp] += grad_c_sum;
         }
-        grad_c_sum = f_c_n1[0] * dx_diff + f_c_n1[1] * dy_diff + f_c_n1[2] * dz_diff; // grad_c_sum_3b
-        grad_c_sum -= v_c_n1[0] * diff[0] + v_c_n1[1] * diff[1] + v_c_n1[2] * diff[2] + v_c_n1[3] * diff[3] + v_c_n1[4] * diff[4] + v_c_n1[5] * diff[5];
-        local_grad_c_sum[t2_tmp] += grad_c_sum;
-      }
-      for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
-        type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
-        c_index = (n_base + ka) * paramb.num_types_sq + type_base;
-        grad_c_index = c_index + annmb.num_ann;
-        atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
+        for (t2_tmp = 0; t2_tmp < paramb.num_types; ++t2_tmp) {
+          type_base = t1 * paramb.num_types + t2_tmp + paramb.num_c_radial;
+          c_index = (n_base + ka) * paramb.num_types_sq + type_base;
+          grad_c_index = c_index + annmb.num_ann;
+          atomicAdd(&g_grad_sum[grad_c_index], local_grad_c_sum[t2_tmp]);
+        }
       }
     }
   }
@@ -1421,6 +1427,7 @@ static __global__ void compute_grad_angular_NM(
   const float lambda_f,
   const float lambda_v,
   const int virial_nums,
+  const int* __restrict__ g_has_virial,
   const float*  __restrict__ g_type_weight,
   const float force_delta,
   const int* __restrict__ g_batch_idx,
@@ -1483,7 +1490,7 @@ static __global__ void compute_grad_angular_NM(
   float weight = g_weight[batch_idx];
   float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
   float per_Nc = weight * 2.0f * lambda_f / Na / 3 / Nc;
-  float per_Nc_v = virial_nums > 0 ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
+  float per_Nc_v = (g_has_virial[batch_idx] && virial_nums > 0) ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
 
   float fx_ref_n1 = g_fx_ref[n1];
   float fy_ref_n1 = g_fy_ref[n1];
@@ -2588,6 +2595,8 @@ void NEP3::find_force(
       find_max_min<<<annmb[device_id].dim, 1024>>>(
         dataset[device_id].N,
         nep_data[device_id].descriptors.data(),
+        para.s_max[device_id].data(),
+        para.s_min[device_id].data(),
         para.q_scaler_gpu[device_id].data());
       CUDA_CHECK_KERNEL
     }
@@ -2752,52 +2761,54 @@ void NEP3::find_force(
       //   gradients.Fp_wb.data(),
       //   gradients.grad_sum.data());
       // CUDA_CHECK_KERNEL
-
       const int NM_radial = dataset[device_id].N * dataset[device_id].max_NN_radial;
       const int threads_per_block = 32;
-      const int blocks_per_grid = (NM_radial + threads_per_block - 1) / threads_per_block;
-      compute_grad_radial_NM<<<blocks_per_grid, threads_per_block>>>(
-        dataset[device_id].N,
-        dataset[device_id].max_NN_radial,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].Na.data(),
-        dataset[device_id].Nc,
-        para.lambda_e,
-        para.lambda_f,
-        para.lambda_v,
-        virial_nums,
-        dataset[device_id].type_weight_gpu.data(),
-        para.force_delta,
-        dataset[device_id].batch_idx.data(),
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
-        nep_data[device_id].Fp.data(),
-        nep_data[device_id].Fp2.data(),
-        nep_data[device_id].sum_fxyz.data(),
-        gradients.E_wb_grad.data(),
-        dataset[device_id].diff_gpu_e.data(),
-        dataset[device_id].diff_gpu_v.data(),
-        dataset[device_id].force_ref_gpu.data(),
-        dataset[device_id].force_ref_gpu.data() + dataset[device_id].N,
-        dataset[device_id].force_ref_gpu.data() + dataset[device_id].N * 2,
-        dataset[device_id].weight_gpu.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        para.q_scaler_gpu[device_id].data(),
-        gradients.Fp_wb.data(),
-        gradients.grad_sum.data());
-      CUDA_CHECK_KERNEL
+      if (NM_radial > 0) {
+        const int blocks_per_grid = (NM_radial + threads_per_block - 1) / threads_per_block;
+        compute_grad_radial_NM<<<blocks_per_grid, threads_per_block>>>(
+          dataset[device_id].N,
+          dataset[device_id].max_NN_radial,
+          nep_data[device_id].NN_radial.data(),
+          nep_data[device_id].NL_radial.data(),
+          nep_data[device_id].NN_angular.data(),
+          nep_data[device_id].NL_angular.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].Na.data(),
+          dataset[device_id].Nc,
+          para.lambda_e,
+          para.lambda_f,
+          para.lambda_v,
+          virial_nums,
+          dataset[device_id].has_virial_gpu.data(),
+          dataset[device_id].type_weight_gpu.data(),
+          para.force_delta,
+          dataset[device_id].batch_idx.data(),
+          dataset[device_id].type.data(),
+          nep_data[device_id].x12_radial.data(),
+          nep_data[device_id].y12_radial.data(),
+          nep_data[device_id].z12_radial.data(),
+          nep_data[device_id].x12_angular.data(),
+          nep_data[device_id].y12_angular.data(),
+          nep_data[device_id].z12_angular.data(),
+          nep_data[device_id].Fp.data(),
+          nep_data[device_id].Fp2.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          gradients.E_wb_grad.data(),
+          dataset[device_id].diff_gpu_e.data(),
+          dataset[device_id].diff_gpu_v.data(),
+          dataset[device_id].force_ref_gpu.data(),
+          dataset[device_id].force_ref_gpu.data() + dataset[device_id].N,
+          dataset[device_id].force_ref_gpu.data() + dataset[device_id].N * 2,
+          dataset[device_id].weight_gpu.data(),
+          dataset[device_id].force.data(),
+          dataset[device_id].force.data() + dataset[device_id].N,
+          dataset[device_id].force.data() + dataset[device_id].N * 2,
+          para.q_scaler_gpu[device_id].data(),
+          gradients.Fp_wb.data(),
+          gradients.grad_sum.data());
+        CUDA_CHECK_KERNEL
+      }
 
       // compute_grad_angular<<<grid_size, block_size>>>(
       //   dataset[device_id].N,
@@ -2841,66 +2852,68 @@ void NEP3::find_force(
       //   gradients.Fp_wb.data(),
       //   gradients.grad_sum.data());
       // CUDA_CHECK_KERNEL
-
       const int NM_angular = dataset[device_id].N * dataset[device_id].max_NN_angular;
-      const int blocks_per_grid_angular = (NM_angular + threads_per_block - 1) / threads_per_block;
-      // const int num_groups = (threads_per_block + dataset[device_id].max_NN_angular - 1) / dataset[device_id].max_NN_angular;
-      // size_t sharedMemSize = num_groups * paramb.dim_angular * sizeof(float);
-      // const int tmp_xyz_size = NM_angular * paramb.L_max * (paramb.n_max_angular + 1);
-      // GPU_Vector<float> feat_x(tmp_xyz_size);
-      // GPU_Vector<float> feat_y(tmp_xyz_size);
-      // GPU_Vector<float> feat_z(tmp_xyz_size);
-      compute_grad_angular_NM<<<blocks_per_grid_angular, threads_per_block>>>(
-        dataset[device_id].N,
-        dataset[device_id].max_NN_angular,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].Na.data(),
-        dataset[device_id].Nc,
-        para.lambda_e,
-        para.lambda_f,
-        para.lambda_v,
-        virial_nums,
-        dataset[device_id].type_weight_gpu.data(),
-        para.force_delta,
-        dataset[device_id].batch_idx.data(),
-        dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].Fp.data(),
-        nep_data[device_id].Fp2.data(),
-        nep_data[device_id].sum_fxyz.data(),
-        nep_data[device_id].sum_s2xyz.data(),
-        nep_data[device_id].sum_s2xyz123.data(),
-        dataset[device_id].diff_gpu_e.data(),
-        dataset[device_id].diff_gpu_v.data(),
-        dataset[device_id].force_ref_gpu.data(),
-        dataset[device_id].force_ref_gpu.data() + dataset[device_id].N,
-        dataset[device_id].force_ref_gpu.data() + dataset[device_id].N * 2,
-        dataset[device_id].weight_gpu.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        para.q_scaler_gpu[device_id].data(),
-        gradients.Fp_wb.data(),
-        // feat_x.data(),
-        // feat_y.data(),
-        // feat_z.data(),
-        gradients.grad_sum.data());
-      CUDA_CHECK_KERNEL
-      //   std::vector<float>grad_c_sum(para.number_of_variables);
-      // CHECK(cudaMemcpy(grad_c_sum.data(), gradients.grad_sum.data(), para.number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
-      // for (int j = 0; j < para.number_of_variables; ++j) {
-      //   printf("%d %f\n", j, grad_c_sum[j]);
-      // }
+      if (NM_angular > 0) {
+        const int blocks_per_grid_angular = (NM_angular + threads_per_block - 1) / threads_per_block;
+        // const int num_groups = (threads_per_block + dataset[device_id].max_NN_angular - 1) / dataset[device_id].max_NN_angular;
+        // size_t sharedMemSize = num_groups * paramb.dim_angular * sizeof(float);
+        // const int tmp_xyz_size = NM_angular * paramb.L_max * (paramb.n_max_angular + 1);
+        // GPU_Vector<float> feat_x(tmp_xyz_size);
+        // GPU_Vector<float> feat_y(tmp_xyz_size);
+        // GPU_Vector<float> feat_z(tmp_xyz_size);
+        compute_grad_angular_NM<<<blocks_per_grid_angular, threads_per_block>>>(
+          dataset[device_id].N,
+          dataset[device_id].max_NN_angular,
+          nep_data[device_id].NN_angular.data(),
+          nep_data[device_id].NL_angular.data(),
+          nep_data[device_id].NN_radial.data(),
+          nep_data[device_id].NL_radial.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].Na.data(),
+          dataset[device_id].Nc,
+          para.lambda_e,
+          para.lambda_f,
+          para.lambda_v,
+          virial_nums,
+          dataset[device_id].has_virial_gpu.data(),
+          dataset[device_id].type_weight_gpu.data(),
+          para.force_delta,
+          dataset[device_id].batch_idx.data(),
+          dataset[device_id].type.data(),
+          nep_data[device_id].x12_angular.data(),
+          nep_data[device_id].y12_angular.data(),
+          nep_data[device_id].z12_angular.data(),
+          nep_data[device_id].x12_radial.data(),
+          nep_data[device_id].y12_radial.data(),
+          nep_data[device_id].z12_radial.data(),
+          nep_data[device_id].Fp.data(),
+          nep_data[device_id].Fp2.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          nep_data[device_id].sum_s2xyz.data(),
+          nep_data[device_id].sum_s2xyz123.data(),
+          dataset[device_id].diff_gpu_e.data(),
+          dataset[device_id].diff_gpu_v.data(),
+          dataset[device_id].force_ref_gpu.data(),
+          dataset[device_id].force_ref_gpu.data() + dataset[device_id].N,
+          dataset[device_id].force_ref_gpu.data() + dataset[device_id].N * 2,
+          dataset[device_id].weight_gpu.data(),
+          dataset[device_id].force.data(),
+          dataset[device_id].force.data() + dataset[device_id].N,
+          dataset[device_id].force.data() + dataset[device_id].N * 2,
+          para.q_scaler_gpu[device_id].data(),
+          gradients.Fp_wb.data(),
+          // feat_x.data(),
+          // feat_y.data(),
+          // feat_z.data(),
+          gradients.grad_sum.data());
+        CUDA_CHECK_KERNEL
+        //   std::vector<float>grad_c_sum(para.number_of_variables);
+        // CHECK(cudaMemcpy(grad_c_sum.data(), gradients.grad_sum.data(), para.number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
+        // for (int j = 0; j < para.number_of_variables; ++j) {
+        //   printf("%d %f\n", j, grad_c_sum[j]);
+        // }
+      }
     }
 
     if (zbl.enabled) {

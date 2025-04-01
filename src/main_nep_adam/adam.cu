@@ -91,12 +91,102 @@ __global__ void adam_update(
     }
 }
 
+__global__ void compute_gradient_norm(const float* grad, int n, float* norm_result)
+{
+  __shared__ float shared_sum[1024];
+  const int tid = threadIdx.x;
+  shared_sum[tid] = 0.0f;
+  
+  for (int i = tid; i < n; i += blockDim.x) {
+    shared_sum[tid] += grad[i] * grad[i];
+  }
+  __syncthreads();
+  
+  for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    if (tid < stride) {
+      shared_sum[tid] += shared_sum[tid + stride];
+    }
+    __syncthreads();
+  }
+  
+  if (tid == 0) {
+    *norm_result = shared_sum[0];
+  }
+}
+
+__global__ void apply_gradient_clipping(float* grad, int n, float norm, float max_norm)
+{
+  const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (norm > max_norm) {
+    float scale = max_norm / norm;
+    if (tid < n) {
+      grad[tid] *= scale;
+    }
+  }
+}
+
+void clip_gradients(int step, float* d_grad, int size, int num_batches, int maximum_steps) 
+{
+  // float max_norm;
+  // float progress;
+  // if (step < num_batches) {
+  //   progress = float(step) / num_batches;
+  //   max_norm = 0.5f + 2.5f * progress;
+  // } else {
+  //   progress = float(step - num_batches) / (maximum_steps - num_batches);
+  //   max_norm = 3.0f + 7.0f * progress;
+  // }
+  static float avg_norm = -1.0f; 
+  static float max_seen_norm = 0.0f;
+  static const int warmup_steps = num_batches; 
+
+  float* d_norm;
+  CHECK(cudaMalloc(&d_norm, sizeof(float)));
+  CHECK(cudaMemset(d_norm, 0, sizeof(float)));
+  
+  // calculate the norm of the gradient
+  int block_size = 1024;
+  compute_gradient_norm<<<1, block_size>>>(d_grad, size, d_norm);
+  
+  // apply gradient clipping
+  int grid_size = (size + block_size - 1) / block_size;
+  float h_norm;
+  CHECK(cudaMemcpy(&h_norm, d_norm, sizeof(float), cudaMemcpyDeviceToHost));
+  h_norm = sqrt(h_norm);
+  
+  if (avg_norm < 0) {
+    avg_norm = h_norm;
+  } else {
+    avg_norm = 0.9f * avg_norm + 0.1f * h_norm;
+  }
+  max_seen_norm = max(max_seen_norm, h_norm);
+  
+  float max_norm;
+  if (step < warmup_steps) {
+    max_norm = h_norm * 0.1f;
+  } else if (step == warmup_steps) {
+    max_norm = avg_norm * 0.2f;
+  } else {
+    float base_norm = avg_norm * 0.2f;
+    float max_allowed = avg_norm * 2.0f;
+    
+    float progress = float(step - warmup_steps) / (maximum_steps - warmup_steps);
+    max_norm = base_norm + (max_allowed - base_norm) * progress;
+  }
+  
+  apply_gradient_clipping<<<grid_size, block_size>>>(d_grad, size, h_norm, max_norm);
+  
+  CHECK(cudaFree(d_norm));
+}
 
 Adam::Adam(Parameters& para)
 {
   // initialize the parameters
   number_of_variables = para.number_of_variables;
   weight_decay = para.weight_decay;
+  beta1 = 0.97f;  
+  beta2 = 0.9998f;
+  eps = 1e-4f;    
 
   // initialize the CPU vectors
   parameters.resize(number_of_variables);
@@ -135,16 +225,18 @@ static __global__ void gpu_create_paramters(
     int type_idx = (n * num_types) / number_of_variables_ann;
     int param_idx = n % ((dim + 2) * num_neurons1 + 1);
     if (param_idx < dim * num_neurons1) {
-      float std = 1.0f / sqrt(static_cast<float>(dim + num_neurons1));
+      // float std = 1.0f / sqrt(static_cast<float>(dim + num_neurons1));
+      float std = sqrt(2.0f / (dim + num_neurons1));
       g_parameters[n] = curand_normal(&state) * std;
     } else if (param_idx < (dim + 1) * num_neurons1) {
-      g_parameters[n] = curand_normal(&state);
+      g_parameters[n] = 0.01f * curand_normal(&state);
     } else if (param_idx < (dim + 2) * num_neurons1) {
-      float std = 1.0f / sqrt(static_cast<float>(num_neurons1 + 1));
+      // float std = 1.0f / sqrt(static_cast<float>(num_neurons1 + 1));
+      float std = sqrt(2.0f / (num_neurons1 + 1));
       g_parameters[n] = curand_normal(&state) * std;
     } else {
       float mean = energy_shift[type_idx];
-      g_parameters[n] = mean + curand_normal(&state);
+      g_parameters[n] = mean + 0.01f * curand_normal(&state);
     }
   } else if (n < number_of_variables) {
     curandState state = g_state[n];
@@ -288,10 +380,11 @@ void Adam::initialize_parameters(Parameters& para)
   }
 }
 
-void Adam::update(float lr, float* gradients) {
+void Adam::update(float lr, float* gradients, int num_batches, int maximum_steps) {
   const int block_size = 256;
   const int grid_size = (number_of_variables + block_size - 1) / block_size + 1;
 
+  clip_gradients(step, gradients, number_of_variables, num_batches, maximum_steps);
   update_moments<<<grid_size, block_size>>>(
     number_of_variables,
     beta1,

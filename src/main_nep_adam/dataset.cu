@@ -19,7 +19,7 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/least_square.cuh"
+// #include "utilities/least_square.cuh"
 #include <algorithm> 
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
@@ -71,14 +71,20 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
 bool Dataset::find_has_type(Parameters& para)
 {
   has_type.resize((para.num_types + 1) * Nc, false);
-  has_virial.resize(Nc, false);
+  has_virial.resize(Nc, 0);
+  sum_virial_Nc = 0;
   for (int n = 0; n < Nc; ++n) {
     has_type[para.num_types * Nc + n] = true;
     for (int na = 0; na < structures[n].num_atom; ++na) {
       has_type[structures[n].type[na] * Nc + n] = true;
     }
     has_virial[n] = structures[n].has_virial;
+    if (has_virial[n]) {
+      sum_virial_Nc++;
+    }
   }
+  has_virial_gpu.resize(Nc);
+  has_virial_gpu.copy_from_host(has_virial.data());
 
   // Verify if each type in num_types has at least one true value
   bool all_types_present = true;
@@ -397,20 +403,20 @@ void Dataset::construct(
       Na_sum.data(),
       batch_idx.data());
     CUDA_CHECK_KERNEL
-    if (para.calculate_energy_shift && all_type) {
-      computeEnergyPerTypeReg(para.num_types,
-                              type_sum.data(),
-                              sum_energy_ref,
-                              0.001f,
-                              para.energy_shift_gpu.data());
-      para.calculate_energy_shift = false;
-      std::vector<float> energy_per_type_host(para.num_types);
-      CHECK(cudaMemcpy(energy_per_type_host.data(), para.energy_shift_gpu.data(),
-                      sizeof(float) * para.num_types, cudaMemcpyDeviceToHost));
-      for (int i = 0; i < para.num_types; ++i) {
-        printf("energy_per_type_host[%d] = %f\n", i, energy_per_type_host[i]);
-      }
-    }
+    // if (fabs(sum_energy_ref) > 0.1f && para.calculate_energy_shift && all_type) {
+    //   computeEnergyPerTypeReg(para.num_types,
+    //                           type_sum.data(),
+    //                           sum_energy_ref,
+    //                           0.001f,
+    //                           para.energy_shift_gpu.data());
+    //   para.calculate_energy_shift = false;
+    //   std::vector<float> energy_per_type_host(para.num_types);
+    //   CHECK(cudaMemcpy(energy_per_type_host.data(), para.energy_shift_gpu.data(),
+    //                   sizeof(float) * para.num_types, cudaMemcpyDeviceToHost));
+    //   for (int i = 0; i < para.num_types; ++i) {
+    //     printf("energy_per_type[%d] = %f\n", i, energy_per_type_host[i]);
+    //   }
+    // }
   }
 }
 

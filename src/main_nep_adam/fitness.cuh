@@ -34,7 +34,6 @@ public:
   void report_error(
     Parameters& para,
     float time_used,
-    const int step,
     const int epoch,
     const float loss_total,
     const float rmse_energy_train,
@@ -51,12 +50,13 @@ protected:
   int number_of_variables = 10; // number of variables
   int number_of_variables_ann = 0; // number of variables in ANN
   int number_of_variables_descriptor = 0; // number of variables in descriptor
-  int maximum_generation = 10000; // maximum number of iterations
+  int maximum_epochs = 50; // maximum number of epochs
+  int maximum_steps = 10000; // maximum number of steps
   float lr; // learning rate
   float start_lr;     // start learning rate
   float stop_lr; // stop learning rate
   int decay_step; // decay 
-  float decay_rate; // decay rate
+  float decay_rate; // decay rate 
   float start_pref_e;   
   float start_pref_f;   
   float start_pref_v;   
@@ -77,7 +77,8 @@ protected:
     float* prediction,
     float* reference,
     Dataset& dataset);
-  void update_learning_rate(float& lr, int step); // Update learning rate
+  void update_learning_rate(float& lr, int step, Parameters& para); // Update learning rate
+  void update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with cosine decay
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);

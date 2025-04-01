@@ -1,5 +1,10 @@
 #include <iostream>
 #include <cuda_runtime.h>
+#include <cusolverDn.h>
+#include <vector>
+#include "utilities/gpu_vector.cuh"
+#include <cusolverDn.h>
+#include <cublas_v2.h>
 
 #define CHECK_CUDA_ERROR(call)                                           \
     do {                                                                 \
@@ -12,6 +17,15 @@
         }                                                                \
     } while (0)
 
+#define CHECK_CUSOLVER(call)                                              \
+{                                                                         \
+    cusolverStatus_t status = call;                                       \
+    if (status != CUSOLVER_STATUS_SUCCESS) {                              \
+        fprintf(stderr, "cuSOLVER错误: %d 于文件 %s 行 %d\n", status,     \
+                __FILE__, __LINE__);                                      \
+        exit(EXIT_FAILURE);                                               \
+    }                                                                     \
+}
 
 // -------------------------------------------
 // - A_d：整型数组，大小 n，存放 type_sum (每种原子类型的个数)
@@ -163,4 +177,238 @@ void computeEnergyPerTypeReg(int num_types,
     CHECK_CUDA_ERROR(cudaFree(b_d));
     CHECK_CUDA_ERROR(cudaFree(lambda_d));
     // CHECK_CUDA_ERROR(cudaFree(x_d));
+}
+
+void computeMultiBatchEnergyShift(
+    int num_types,
+    int num_batches,
+    const std::vector<std::vector<int>>& batch_type_sums,
+    const std::vector<float>& batch_energies,
+    float* energy_per_type,
+    bool verbose)
+{
+    if (verbose) {
+        printf("Computing energy shifts for %d batches (using direct least squares method):\n", num_batches);
+        for (int i = 0; i < num_batches; i++) {
+            printf("Batch %d: ", i);
+            for (int t = 0; t < num_types; t++) {
+                printf("Type%d=%d ", t, batch_type_sums[i][t]);
+            }
+            printf("Energy=%.6f\n", batch_energies[i]);
+        }
+    }
+    
+    std::vector<float> energy_per_atom(num_batches);
+    float min_epa = 1e10f;
+    float max_epa = -1e10f;
+    float total_energy = 0.0f;
+    int total_atoms = 0;
+    
+    std::vector<int> total_atoms_by_type(num_types, 0);
+    
+    for (int i = 0; i < num_batches; i++) {
+        int atoms_in_batch = 0;
+        for (int t = 0; t < num_types; t++) {
+            atoms_in_batch += batch_type_sums[i][t];
+            total_atoms_by_type[t] += batch_type_sums[i][t];
+        }
+        
+        energy_per_atom[i] = batch_energies[i] / atoms_in_batch;
+        min_epa = std::min(min_epa, energy_per_atom[i]);
+        max_epa = std::max(max_epa, energy_per_atom[i]);
+        
+        total_energy += batch_energies[i];
+        total_atoms += atoms_in_batch;
+    }
+    
+    float avg_epa = total_energy / total_atoms;
+    
+    if (verbose) {
+        printf("Energy per atom statistics:\n");
+        printf("  Min: %.6f, Max: %.6f, Avg: %.6f eV/atom\n", min_epa, max_epa, avg_epa);
+        printf("Atom type distribution:\n");
+        for (int t = 0; t < num_types; t++) {
+            printf("  Type %d: %d atoms (%.1f%%)\n", 
+                  t, total_atoms_by_type[t], 
+                  100.0f * total_atoms_by_type[t] / total_atoms);
+        }
+    }
+    
+    // Build regularized least squares system
+    std::vector<float> AtA(num_types * num_types, 0.0f);
+    std::vector<float> Atb(num_types, 0.0f);
+    
+    // Populate A^T*A and A^T*b
+    for (int i = 0; i < num_types; i++) {
+        for (int j = 0; j < num_types; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < num_batches; k++) {
+                sum += batch_type_sums[k][i] * batch_type_sums[k][j];
+            }
+            
+            // Add small regularization term for numerical stability
+            if (i == j) {
+                sum += 0.001f;
+            }
+            
+            AtA[i * num_types + j] = sum;
+        }
+        
+        float sum = 0.0f;
+        for (int k = 0; k < num_batches; k++) {
+            sum += batch_type_sums[k][i] * batch_energies[k];
+        }
+        Atb[i] = sum;
+    }
+    
+    // Solve the equation
+    std::vector<float> x(num_types, 0.0f);
+    bool system_solved = false;
+    
+    // Attempt direct solution
+    try {
+        std::vector<float> A = AtA;  // Make a copy
+        std::vector<float> b = Atb;
+        
+        // Gaussian elimination
+        for (int i = 0; i < num_types; i++) {
+            // Find pivot element
+            int max_row = i;
+            float max_val = fabs(A[i * num_types + i]);
+            for (int j = i + 1; j < num_types; j++) {
+                if (fabs(A[j * num_types + i]) > max_val) {
+                    max_row = j;
+                    max_val = fabs(A[j * num_types + i]);
+                }
+            }
+            
+            // Check if pivot is too small (near-singular)
+            if (max_val < 1e-10f) {
+                if (verbose) {
+                    printf("Warning: Near-singular matrix detected during elimination step %d\n", i);
+                }
+                break;
+            }
+            
+            // Swap rows
+            if (max_row != i) {
+                for (int j = i; j < num_types; j++) {
+                    std::swap(A[i * num_types + j], A[max_row * num_types + j]);
+                }
+                std::swap(b[i], b[max_row]);
+            }
+            
+            // Elimination
+            for (int j = i + 1; j < num_types; j++) {
+                float factor = A[j * num_types + i] / A[i * num_types + i];
+                b[j] -= factor * b[i];
+                for (int k = i; k < num_types; k++) {
+                    A[j * num_types + k] -= factor * A[i * num_types + k];
+                }
+            }
+        }
+        
+        // Back substitution
+        for (int i = num_types - 1; i >= 0; i--) {
+            float sum = 0.0f;
+            for (int j = i + 1; j < num_types; j++) {
+                sum += A[i * num_types + j] * x[j];
+            }
+            
+            // Check diagonal element
+            if (fabs(A[i * num_types + i]) < 1e-10f) {
+                if (verbose) {
+                    printf("Warning: Near-zero diagonal element detected during back substitution step %d\n", i);
+                }
+                break;
+            }
+            
+            x[i] = (b[i] - sum) / A[i * num_types + i];
+        }
+        
+        system_solved = true;
+    }
+    catch (const std::exception& e) {
+        if (verbose) {
+            printf("Error solving equations: %s\n", e.what());
+        }
+    }
+    
+    // If solution fails, use fallback method
+    if (!system_solved) {
+        if (verbose) {
+            printf("Using fallback method: based on average energy per atom\n");
+        }
+        
+        // Apply slightly different average energy per atom for each type
+        for (int t = 0; t < num_types; t++) {
+            // Introduce small variations to avoid perfect symmetry
+            x[t] = avg_epa * (0.95f + 0.02f * t);
+        }
+    }
+    
+    // Check for extreme outliers only
+    for (int t = 0; t < num_types; t++) {
+        // Only intervene for clearly unreasonable values
+        if (x[t] > -0.1f || x[t] < -50.0f) {
+            float safe_value = avg_epa * 0.95f;
+            if (verbose) {
+                printf("Warning: Type %d shift value %.6f out of reasonable range, adjusting to %.6f\n", 
+                       t, x[t], safe_value);
+            }
+            x[t] = safe_value;
+        }
+    }
+    
+    CHECK_CUDA_ERROR(cudaMemcpy(energy_per_type, x.data(), sizeof(float) * num_types, cudaMemcpyHostToDevice));
+    
+    if (verbose) {
+        printf("Computed energy shift values:\n");
+        for (int t = 0; t < num_types; t++) {
+            printf("  Type %d: %.6f\n", t, x[t]);
+        }
+        
+        // Calculate fitting quality
+        float total_residual = 0.0f;
+        
+        for (int i = 0; i < num_batches && i < 10; i++) {
+            float computed_energy = 0.0f;
+            for (int j = 0; j < num_types; j++) {
+                computed_energy += batch_type_sums[i][j] * x[j];
+            }
+            float residual = batch_energies[i] - computed_energy;
+            total_residual += residual * residual;
+            
+            printf("Batch %d: Original=%.6f, Computed=%.6f, Residual=%.6f\n", 
+                   i, batch_energies[i], computed_energy, residual);
+        }
+        
+        // Show last few batches
+        if (num_batches > 10) {
+            printf("...\n");
+            for (int i = std::max(10, num_batches-5); i < num_batches; i++) {
+                float computed_energy = 0.0f;
+                for (int j = 0; j < num_types; j++) {
+                    computed_energy += batch_type_sums[i][j] * x[j];
+                }
+                float residual = batch_energies[i] - computed_energy;
+                total_residual += residual * residual;
+                
+                printf("Batch %d: Original=%.6f, Computed=%.6f, Residual=%.6f\n", 
+                       i, batch_energies[i], computed_energy, residual);
+            }
+        }
+        
+        // Complete residual calculation for all batches
+        for (int i = 10; i < std::max(10, num_batches-5); i++) {
+            float computed_energy = 0.0f;
+            for (int j = 0; j < num_types; j++) {
+                computed_energy += batch_type_sums[i][j] * x[j];
+            }
+            float residual = batch_energies[i] - computed_energy;
+            total_residual += residual * residual;
+        }
+        
+        printf("Total residual squared: %.6f\n", total_residual);
+    }
 }

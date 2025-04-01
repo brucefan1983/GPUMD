@@ -28,8 +28,7 @@ public:
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
-  int epoch;              // number of epochs for training
-  int maximum_generation; // maximum number of generations for training;
+  int epoch;              // maximum number of epochs for training
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
@@ -58,6 +57,7 @@ public:
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  int use_energy_shift;  // 1 for using energy shift for biased initialization of neural networks
   int prediction; // 0=no, 1=yes
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
@@ -86,12 +86,13 @@ public:
   bool is_stop_pref_v_set;
   bool is_lambda_shear_set;
   bool is_batch_set;
-  bool is_generation_set;
+  bool is_epoch_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
+  bool is_use_energy_shift_set;
   bool calculate_energy_shift = true;
 
   // other parameters
@@ -111,6 +112,8 @@ public:
   std::vector<float> zbl_para;        // parameters of zbl potential
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
+  GPU_Vector<float> s_max[16];        // used to scale some descriptor components (GPU)
+  GPU_Vector<float> s_min[16];        // used to scale some descriptor components (GPU)
   GPU_Vector<float> energy_shift_gpu; // Energy shift for biased initialization of neural networks (GPU)
 
 private:
@@ -145,7 +148,8 @@ private:
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
-  void parse_generation(const char** param, int num_param);
+  void parse_epoch(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
+  void parse_use_energy_shift(const char** param, int num_param);
 };
