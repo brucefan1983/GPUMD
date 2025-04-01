@@ -1,6 +1,8 @@
 #!/bin/bash
 
 #Read all frames of exyz and then calculate
+#Please use the high-precision AIMD file of cp2k as the input *. inp file. And set the total number of steps for MD in *. inp to 1. 
+#At this point, the function of this script is equivalent to high-precision single point energy calculation
 
 # CP2K environment setup
 source /home/chen/software/cp2k-2024.1/tools/toolchain/install/setup
