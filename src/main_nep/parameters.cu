@@ -187,13 +187,6 @@ void Parameters::calculate_parameters()
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
   }
-  q_scaler_cpu.resize(dim, 1.0e10f);
-  
-  if (fine_tune) {
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      q_scaler_cpu[n] = 0.01f;
-    }
-  }
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
@@ -232,6 +225,29 @@ void Parameters::calculate_parameters()
     }
   }
 
+  q_scaler_cpu.resize(dim, 1.0e10f);
+  if (fine_tune) {
+    std::ifstream input(fine_tune_nep_txt);
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open foundation model file.");
+    }
+    std::vector<std::string> tokens;
+    const int NUM89 = 89;
+    const int num_ann_per_element = (dim + 2) * num_neurons1;
+    const int num_ann = NUM89 * num_ann_per_element + 1;
+    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
+    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+    for (int n = 0; n < num_tot + 7; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
+  }
+
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -267,7 +283,7 @@ void Parameters::check_foundation_model()
 
   // third line, cutoff
   tokens = get_tokens(input);
-  if (tokens.size() != 8) {
+  if (tokens.size() != 5) {
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
   temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
@@ -278,28 +294,16 @@ void Parameters::check_foundation_model()
   if (temp != rc_angular) {
     PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
   }
-  temp = get_double_from_token(tokens[5], __FILE__, __LINE__);
-  if (temp != typewise_cutoff_radial_factor) {
-    PRINT_INPUT_ERROR("Radial factor for typewise cutoff mismatches with foundation model.");
-  }
-  temp = get_double_from_token(tokens[6], __FILE__, __LINE__);
-  if (temp != typewise_cutoff_angular_factor) {
-    PRINT_INPUT_ERROR("Angular factor for typewise cutoff mismatches with foundation model.");
-  }
-  temp = get_double_from_token(tokens[7], __FILE__, __LINE__);
-  if (temp != typewise_cutoff_zbl_factor) {
-    PRINT_INPUT_ERROR("ZBL factor for typewise cutoff mismatches with foundation model.");
-  }
 
   // 4th line, n_max
   tokens = get_tokens(input);
   if (tokens.size() != 3) {
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
-  if (8 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+  if (n_max_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
   }
-  if (8 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+  if (n_max_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("n_max_angular mismatches with foundation model.");
   }
 
