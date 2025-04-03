@@ -565,6 +565,47 @@ static __global__ void gpu_sum_virial_error(
   }
 }
 
+static __global__ void compute_grad_e_without_neighbor(
+  const int N,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const int Nc,
+  const float lambda_e,
+  const int* __restrict__ g_batch_idx,
+  const int* __restrict__ g_type,
+  float* __restrict__ g_E_wb_grad,
+  const float* __restrict__ g_diff_gpu_e,
+  const float* __restrict__ g_weight,
+  float* g_grad_sum)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  const int w0_index = annmb.dim * annmb.num_neurons1;
+  const int b0_index = w0_index + annmb.num_neurons1;
+  if (n1 >= N) return;
+  int batch_idx = g_batch_idx[n1];
+  int t1 = g_type[n1];
+  float weight = g_weight[batch_idx];
+  const float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
+
+  int t1_net_index = t1 * ((annmb.dim + 2) * annmb.num_neurons1 + 1);
+  int n1_net_index = n1 * annmb.num_ann + t1_net_index;
+
+  float* e_wb_grad = g_E_wb_grad + n1_net_index;
+
+  for (int j = 0; j < annmb.num_neurons1; ++j) {
+    for (int d = 0; d < annmb.dim; ++d) {
+      float grad_w0_sum = per_Nc_e * e_wb_grad[j * annmb.dim + d];
+      atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
+    }
+    float grad_w1_sum = e_wb_grad[b0_index + j] * per_Nc_e;
+    float grad_b0_sum = e_wb_grad[w0_index + j] * per_Nc_e;
+    atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], grad_w1_sum);
+    atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], grad_b0_sum);
+  }
+  float e_b1_n1 = e_wb_grad[annmb.num_neurons1 * annmb.dim + annmb.num_neurons1 + annmb.num_neurons1] * per_Nc_e;
+  atomicAdd(&g_grad_sum[t1_net_index + annmb.num_neurons1 * annmb.dim + annmb.num_neurons1 + annmb.num_neurons1], e_b1_n1);
+}
+
 static __global__ void compute_grad_radial_NM(
   const int N,
   const int M,
@@ -617,14 +658,15 @@ static __global__ void compute_grad_radial_NM(
   int i1 = Idx % M;
   int neighbor_number = g_NN[n1];
   int neighbor_number_ang = g_NN_ang[n1];
-  if (i1 >= neighbor_number) return;
-  int t1 = g_type[n1];
   int batch_idx = g_batch_idx[n1];
   int Na = g_Na[batch_idx];
+  bool no_neighbor_isolated_atom = ((Na == 1) && neighbor_number == 0);
+  if (i1 >= neighbor_number && !no_neighbor_isolated_atom) return;
+  int t1 = g_type[n1];
   float weight = g_weight[batch_idx];
   const float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
-  const float per_Nc = weight * 2.0f * lambda_f / Na / 3 / Nc;
-  const float per_Nc_v = (g_has_virial[batch_idx] && virial_nums > 0) ? weight * 2.0f * lambda_v / virial_nums : 0.0f;
+  const float per_Nc = no_neighbor_isolated_atom ? 0.0f : weight * 2.0f * lambda_f / Na / 3 / Nc;
+  const float per_Nc_v = no_neighbor_isolated_atom ? 0.0f : ((g_has_virial[batch_idx] && virial_nums > 0) ? weight * 2.0f * lambda_v / virial_nums : 0.0f);
 
   float fx_ref_n1 = g_fx_ref[n1];
   float fy_ref_n1 = g_fy_ref[n1];
@@ -742,7 +784,9 @@ static __global__ void compute_grad_radial_NM(
       qp_c_tmp[2] = fnp12[k] * fp_xyz[2];
       grad_c_index = c_index + annmb.num_ann;
       grad_c_sum = qp_c_tmp[0] * dx_diff + qp_c_tmp[1] * dy_diff + qp_c_tmp[2] * dz_diff;
-      grad_c_sum += per_Nc_e * g_Fp[n1 + n * N] * fn12[k];
+      if (!no_neighbor_isolated_atom) {
+        grad_c_sum += per_Nc_e * g_Fp[n1 + n * N] * fn12[k];
+      }
       grad_c_sum -= fnp12[k] * (fp_xyz_123[0] * diff[0] + fp_xyz_123[1] * diff[1] + fp_xyz_123[2] * diff[2] + fp_xyz_123[3] * diff[3] + fp_xyz_123[4] * diff[4] + fp_xyz_123[5] * diff[5]);
       atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
     }
@@ -2808,8 +2852,22 @@ void NEP3::find_force(
           gradients.Fp_wb.data(),
           gradients.grad_sum.data());
         CUDA_CHECK_KERNEL
+      } else {
+        const int blocks_per_grid = (dataset[device_id].N + threads_per_block - 1) / threads_per_block;
+        compute_grad_e_without_neighbor<<<blocks_per_grid, threads_per_block>>>(
+          dataset[device_id].N,
+          paramb,
+          annmb[device_id],
+          dataset[device_id].Nc,
+          para.lambda_e,
+          dataset[device_id].batch_idx.data(),
+          dataset[device_id].type.data(),
+          gradients.E_wb_grad.data(),
+          dataset[device_id].diff_gpu_e.data(),
+          dataset[device_id].weight_gpu.data(),
+          gradients.grad_sum.data());
+        CUDA_CHECK_KERNEL
       }
-
       // compute_grad_angular<<<grid_size, block_size>>>(
       //   dataset[device_id].N,
       //   nep_data[device_id].NN_angular.data(),

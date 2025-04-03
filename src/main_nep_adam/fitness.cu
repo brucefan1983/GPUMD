@@ -231,6 +231,7 @@ void Fitness::compute(Parameters& para)
       if (batch_id == 0) {
         std::random_device rd;
         std::mt19937 g(rd());
+        // std::mt19937 g(2025);
         std::shuffle(batch_indices.begin(), batch_indices.end(), g);
         time_begin = clock();
         mse_energy = 0.0f;
