@@ -266,31 +266,34 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  const int num_atoms = atom.position_per_atom.size() / 3;
-  gpu_copy_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms,
-    atom.position_per_atom.data(),
-    atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2,
-    atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms,
-    atom.position_temp.data() + num_atoms * 2);
-  GPU_CHECK_KERNEL
+  if (atom.unwrapped_position.size() > 0) {
+    gpu_copy_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
+      atom.number_of_atoms,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + atom.number_of_atoms,
+      atom.position_per_atom.data() + atom.number_of_atoms * 2,
+      atom.position_temp.data(),
+      atom.position_temp.data() + atom.number_of_atoms,
+      atom.position_temp.data() + atom.number_of_atoms * 2);
+    GPU_CHECK_KERNEL
+  }
 
   ensemble->compute1(time_step, group, box, atom, thermo);
 
-  gpu_update_unwrapped_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms,
-    atom.position_per_atom.data(),
-    atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2,
-    atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms,
-    atom.position_temp.data() + num_atoms * 2,
-    atom.unwrapped_position.data(),
-    atom.unwrapped_position.data() + num_atoms,
-    atom.unwrapped_position.data() + num_atoms * 2);
-  GPU_CHECK_KERNEL
+  if (atom.unwrapped_position.size() > 0) {
+    gpu_update_unwrapped_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
+      atom.number_of_atoms,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + atom.number_of_atoms,
+      atom.position_per_atom.data() + atom.number_of_atoms * 2,
+      atom.position_temp.data(),
+      atom.position_temp.data() + atom.number_of_atoms,
+      atom.position_temp.data() + atom.number_of_atoms * 2,
+      atom.unwrapped_position.data(),
+      atom.unwrapped_position.data() + atom.number_of_atoms,
+      atom.unwrapped_position.data() + atom.number_of_atoms * 2);
+    GPU_CHECK_KERNEL
+  }
 }
 
 void Integrate::compute2(

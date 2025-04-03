@@ -46,6 +46,7 @@ void HNEMD::preprocess(
   if (!compute)
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
+  atom.heat_per_atom.resize(atom.number_of_atoms * 5);
 }
 
 static __global__ void

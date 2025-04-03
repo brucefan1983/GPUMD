@@ -46,6 +46,7 @@ void HNEMDEC::preprocess(
   if (compute == -1)
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
+  atom.heat_per_atom.resize(atom.number_of_atoms * 5);
 
   // find atom types' mass and factor
   number_of_types = atom.cpu_type_size.size();

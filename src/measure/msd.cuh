@@ -18,6 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Group;
+class Atom;
 
 class MSD : public Property
 {
@@ -59,7 +60,7 @@ public:
     const double time_step,
     const double temperature);
 
-  MSD(const char** param, const int num_param, const std::vector<Group>& groups);
+  MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom);
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
 
 private:

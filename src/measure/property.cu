@@ -13,9 +13,15 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "property.cuh"
 
-class Box;
-class Atom;
 
-void calculate_min_atomic_distance(const Atom& atom, const Box& box);
+Property::Property(void)
+{
+  // nothing now
+}
+  
+Property::~Property(void)
+{
+  // nothing now
+}

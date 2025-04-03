@@ -42,6 +42,7 @@ void HAC::preprocess(
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
     heat_all.resize(NUM_OF_HEAT_COMPONENTS * number_of_frames);
+    atom.heat_per_atom.resize(atom.number_of_atoms * 5);
   }
 }
 
