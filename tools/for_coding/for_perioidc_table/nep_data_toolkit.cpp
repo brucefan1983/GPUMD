@@ -679,19 +679,20 @@ static void split_into_accurate_and_inaccurate(
 
 static void split_with_sid(const std::vector<Structure>& structures)
 {
-  std::ofstream output_ch("ch.xyz");
-  std::ofstream output_unep1("unep1.xyz");
-  std::ofstream output_hydrate("hydrate.xyz");
-  std::ofstream output_chonps("chonps.xyz");
-  std::ofstream output_spice("spice.xyz");
-  std::ofstream output_water("water.xyz");
-  std::ofstream output_mp("mp.xyz");
-  std::ofstream output_omat("omat.xyz");
-  std::ofstream output_protein("protein.xyz");
-  std::ofstream output_ani1xnr("ani1xnr.xyz");
-  std::ofstream output_mof("mof.xyz");
-  std::ofstream output_sse_vasp("sse_vasp.xyz");
-  std::ofstream output_sse_abacus("sse_abacus.xyz");
+  std::ofstream output_ch("../ch/train.xyz");
+  std::ofstream output_unep1("../unep1/train.xyz");
+  std::ofstream output_hydrate("../hydrate/train.xyz");
+  std::ofstream output_chonps("../chonps/train.xyz");
+  std::ofstream output_spice("../spice/train.xyz");
+  std::ofstream output_water("../water/train.xyz");
+  std::ofstream output_mp("../mp/train.xyz");
+  std::ofstream output_omat("../omat/train.xyz");
+  std::ofstream output_protein("../protein/train.xyz");
+  std::ofstream output_ani1xnr("../ani1xnr/train.xyz");
+  std::ofstream output_mof("../mof/train.xyz");
+  std::ofstream output_sse_vasp("../sse_vasp/train.xyz");
+  std::ofstream output_sse_abacus("../sse_abacus/train.xyz");
+  std::ofstream output_cspbx("../cspbx/train.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
   int num_hydrate = 0;
@@ -705,6 +706,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_mof = 0;
   int num_sse_vasp = 0;
   int num_sse_abacus = 0;
+  int num_cspbx = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -745,7 +747,10 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "omat") {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
-    } 
+    } else if (structures[nc].sid == "cspbx") {
+      write_one_structure(output_cspbx, structures[nc]);
+        num_cspbx++;
+    }
   }
   output_ch.close();
   output_unep1.close();
@@ -760,6 +765,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_mof.close();
   output_sse_abacus.close();
   output_sse_vasp.close();
+  output_cspbx.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
   std::cout << "Number of structures written into hydrate.xyz = " << num_hydrate << std::endl;
@@ -773,6 +779,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into mof.xyz = " << num_mof << std::endl;
   std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
   std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
+  std::cout << "Number of structures written into cspbx.xyz = " << num_cspbx << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
