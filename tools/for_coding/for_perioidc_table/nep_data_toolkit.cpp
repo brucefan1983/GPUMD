@@ -689,7 +689,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_omat("../omat/train.xyz");
   std::ofstream output_protein("../protein/train.xyz");
   std::ofstream output_ani1xnr("../ani1xnr/train.xyz");
-  std::ofstream output_mof("../mof/train.xyz");
   std::ofstream output_sse_vasp("../sse_vasp/train.xyz");
   std::ofstream output_sse_abacus("../sse_abacus/train.xyz");
   std::ofstream output_cspbx("../cspbx/train.xyz");
@@ -703,7 +702,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_mp = 0;
   int num_protein = 0;
   int num_ani1xnr = 0;
-  int num_mof = 0;
   int num_sse_vasp = 0;
   int num_sse_abacus = 0;
   int num_cspbx = 0;
@@ -735,9 +733,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "ani1xnr") {
       write_one_structure(output_ani1xnr, structures[nc]);
         num_ani1xnr++;
-    } else if (structures[nc].sid == "mof") {
-      write_one_structure(output_mof, structures[nc]);
-        num_mof++;
     } else if (structures[nc].sid == "sse_abacus") {
       write_one_structure(output_sse_abacus, structures[nc]);
         num_sse_abacus++;
@@ -762,7 +757,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_mp.close();
   output_protein.close();
   output_ani1xnr.close();
-  output_mof.close();
   output_sse_abacus.close();
   output_sse_vasp.close();
   output_cspbx.close();
@@ -776,7 +770,6 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into omat.xyz = " << num_omat << std::endl;
   std::cout << "Number of structures written into protein.xyz = " << num_protein << std::endl;
   std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
-  std::cout << "Number of structures written into mof.xyz = " << num_mof << std::endl;
   std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
   std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
   std::cout << "Number of structures written into cspbx.xyz = " << num_cspbx << std::endl;
@@ -915,6 +908,48 @@ static void shift_energy_multiple_species(std::vector<Structure>& structures)
   }
 }
 
+static void get_structures_with_given_species(
+  std::string& outputfile,
+  std::vector<Structure>& structures,
+  int num_species,
+  std::vector<std::string>& given_species)
+{
+  std::ofstream output(outputfile);
+  if (!output.is_open()) {
+    std::cout << "Failed to open " << outputfile << std::endl;
+    exit(1);
+  }
+  std::cout << outputfile << " is opened." << std::endl;
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+
+    int is_valid_structure = true;
+    
+    for (int n = 0; n < structures[nc].num_atom; ++ n) {
+
+      bool match = false;
+      for (int k = 0; k < num_species; ++k) {
+        if (structures[nc].atom_symbol[n] == given_species[k]) {
+          match = true;
+          break;
+        }
+      }
+
+      if (!match) {
+        is_valid_structure = false;
+        break;
+      }
+    }
+
+    if (is_valid_structure) {
+      write_one_structure(output, structures[nc]);
+    }
+  }
+
+  output.close();
+  std::cout << outputfile << " is closed." << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
@@ -933,6 +968,7 @@ int main(int argc, char* argv[])
 #endif
   std::cout << "9: get composition\n";
   std::cout << "10: shift energy for multiple species\n";
+  std::cout << "11: get structures with given species\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1075,6 +1111,26 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     shift_energy_multiple_species(structures_input);
     write(output_filename, structures_input);
+  } else if (option == 11) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::cout << "Please enter the number of species: ";
+    int num_species;
+    std::cin >> num_species;
+    std::vector<std::string> given_species(num_species);
+    for (int n = 0; n < num_species; ++n) {
+      std::cout << "Please enter species " << n << ": ";
+      std::cin >> given_species[n];
+    }
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    get_structures_with_given_species(output_filename, structures_input, num_species, given_species);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
