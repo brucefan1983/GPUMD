@@ -157,7 +157,7 @@ void Extrapolation::load_asi()
         type_of_atom,
         shape1,
         shape2);
-      asi_list.emplace_back(std::make_unique<GPU_Vector<double>>(B_size, Memory_Type::managed));
+      asi_list.emplace_back(new GPU_Vector<double>(B_size, Memory_Type::managed));
       auto& asi = asi_list.back();
       for (int i = 0; i < B_size; ++i) {
         f >> (*asi)[i];
