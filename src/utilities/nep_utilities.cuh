@@ -902,10 +902,85 @@ static __device__ __forceinline__ void calculate_fxyz_one(
   const float* s,
   const float* r12,
   const float* r12_original,
-  float* s_i1,
-  float* sf,
   float* f12,
   float* f123)
+{
+  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  float z_pow[L + 1] = {1.0f};
+  for (int n = 1; n <= L; ++n) {
+    z_pow[n] = r12[2] * z_pow[n - 1];
+  }
+
+  float real_part = 1.0f;
+  float imag_part = 0.0f;
+  for (int n1 = 0; n1 <= L; ++n1) {
+    int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
+    float z_factor = 0.0f;
+    float dz_factor = 0.0f;
+    for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
+      float coeff;
+      switch(L) {
+        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
+        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
+        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
+        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
+        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
+        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
+        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
+        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
+      }
+      z_factor += coeff * z_pow[n2];
+      if (n2 > 0) {
+        dz_factor += coeff * n2 * z_pow[n2 - 1];
+      }
+    }
+    if (n1 == 0) {
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
+      for (int d = 0; d < 3; ++d) {
+        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
+        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d] += s[0] * r12_original[d] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d1+3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
+      }
+    } else {
+      float real_part_n1 = n1 * real_part;
+      float imag_part_n1 = n1 * imag_part;
+      float z_factor_fn = z_factor * fn;
+      for (int d = 0; d < 3; ++d) {
+        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
+        float real_part_dx = dx[d];
+        float imag_part_dy = dy[d];
+        complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
+        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
+        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d];
+        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d1];
+      }
+      complex_product(r12[0], r12[1], real_part, imag_part);
+      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      float factor1 = z_factor * fnp;
+      float factor2 = fn * dz_factor;
+      for (int d = 0; d < 3; ++d) {
+        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
+        f12[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        f123[d1+3] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
+      }
+    }
+  }
+}
+
+template <int L>
+static __device__ __forceinline__ void calculate_s_i1_one(
+  const float d12inv,
+  const float fn,
+  const float fnp,
+  const float* s,
+  const float* r12,
+  float* s_i1,
+  float* sf)
 {
   const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
   const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
@@ -949,11 +1024,7 @@ static __device__ __forceinline__ void calculate_fxyz_one(
       float factor2 = fn * dz_factor;
       s_i1[s_index++] = z_factor_i1;
       for (int d = 0; d < 3; ++d) {
-        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
         sf[d + 3 * start_index] = factor1 * r12[d] + factor2 * dz[d];
-        f123[d] += s[0] * r12_original[d] * (factor1 * r12[d] + factor2 * dz[d]);
-        f123[d1+3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
       }
     } else {
       float real_part_n1 = n1 * real_part;
@@ -964,29 +1035,66 @@ static __device__ __forceinline__ void calculate_fxyz_one(
       s_i1[s_index++] = z_factor_i1 * imag_part_s_i1;
       complex_product(r12[0], r12[1], real_part_s_i1, imag_part_s_i1);
       for (int d = 0; d < 3; ++d) {
-        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         float real_part_dx = dx[d];
         float imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
-        f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
         sf[d + abc] = real_part_dx * z_factor_fn;
         sf[d + abc + 3] = imag_part_dy * z_factor_fn;
-        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d];
-        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d1];
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
       float factor1 = z_factor * fnp;
       float factor2 = fn * dz_factor;
       for (int d = 0; d < 3; ++d) {
-        int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        f12[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]);
         sf[d + abc] += real_part * (factor1 * r12[d] + factor2 * dz[d]);
         sf[d + abc + 3] += imag_part * (factor1 * r12[d] + factor2 * dz[d]);
-        f123[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
-        f123[d1+3] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
+  }
+}
+
+
+static __device__ __forceinline__ void calculate_s_i1(
+  const int L_max,
+  const float d12_i1,
+  const float* r12_i1,
+  const float gn,
+  const float gnp,
+  const float* sum_fxyz,
+  float* s_i1,
+  float* sum_s2xyz)
+{
+  const float d12inv_i1 = 1.0f / d12_i1;
+  const float r12unit_i1[3] = {r12_i1[0]*d12inv_i1, r12_i1[1]*d12inv_i1, r12_i1[2]*d12inv_i1};
+  if (L_max >= 1) {
+    calculate_s_i1_one<1>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 2) {
+    calculate_s_i1_one<2>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 3) {
+    calculate_s_i1_one<3>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 4) {
+    calculate_s_i1_one<4>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 5) {
+    calculate_s_i1_one<5>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 6) {
+    calculate_s_i1_one<6>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 7) {
+    calculate_s_i1_one<7>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
+  }
+
+  if (L_max >= 8) {
+    calculate_s_i1_one<8>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
   }
 }
 
@@ -1102,8 +1210,6 @@ static __device__ __forceinline__ void accumulate_dfe(
   float fn,
   float fnp,
   const float* sum_fxyz,
-  float* s_i1,
-  float* sum_s2xyz,
   float* feat_x,
   float* feat_y,
   float* feat_z,
@@ -1123,7 +1229,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<1>(N, n, n_max_angular_plus_1, sum_fxyz, s1);
-    calculate_fxyz_one<1>(d12inv, fn, fnp, s1, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<1>(d12inv, fn, fnp, s1, r12unit, r12, f, f123);
     feat_x[0] = f[0];
     feat_y[0] = f[1];
     feat_z[0] = f[2];
@@ -1140,7 +1246,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<2>(N, n, n_max_angular_plus_1, sum_fxyz, s2);
-    calculate_fxyz_one<2>(d12inv, fn, fnp, s2, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<2>(d12inv, fn, fnp, s2, r12unit, r12, f, f123);
     feat_x[n_max_angular_plus_1] = f[0];
     feat_y[n_max_angular_plus_1] = f[1];
     feat_z[n_max_angular_plus_1] = f[2];
@@ -1157,7 +1263,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<3>(N, n, n_max_angular_plus_1, sum_fxyz, s3);
-    calculate_fxyz_one<3>(d12inv, fn, fnp, s3, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<3>(d12inv, fn, fnp, s3, r12unit, r12, f, f123);
     feat_x[2 * n_max_angular_plus_1] = f[0];
     feat_y[2 * n_max_angular_plus_1] = f[1];
     feat_z[2 * n_max_angular_plus_1] = f[2];
@@ -1174,7 +1280,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<4>(N, n, n_max_angular_plus_1, sum_fxyz, s4);
-    calculate_fxyz_one<4>(d12inv, fn, fnp, s4, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<4>(d12inv, fn, fnp, s4, r12unit, r12, f, f123);
     feat_x[3 * n_max_angular_plus_1] = f[0];
     feat_y[3 * n_max_angular_plus_1] = f[1];
     feat_z[3 * n_max_angular_plus_1] = f[2];
@@ -1191,7 +1297,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<5>(N, n, n_max_angular_plus_1, sum_fxyz, s5);
-    calculate_fxyz_one<5>(d12inv, fn, fnp, s5, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<5>(d12inv, fn, fnp, s5, r12unit, r12, f, f123);
     feat_x[4 * n_max_angular_plus_1] = f[0];
     feat_y[4 * n_max_angular_plus_1] = f[1];
     feat_z[4 * n_max_angular_plus_1] = f[2];
@@ -1208,7 +1314,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<6>(N, n, n_max_angular_plus_1, sum_fxyz, s6);
-    calculate_fxyz_one<6>(d12inv, fn, fnp, s6, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<6>(d12inv, fn, fnp, s6, r12unit, r12, f, f123);
     feat_x[5 * n_max_angular_plus_1] = f[0];
     feat_y[5 * n_max_angular_plus_1] = f[1];
     feat_z[5 * n_max_angular_plus_1] = f[2];
@@ -1225,7 +1331,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<7>(N, n, n_max_angular_plus_1, sum_fxyz, s7);
-    calculate_fxyz_one<7>(d12inv, fn, fnp, s7, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<7>(d12inv, fn, fnp, s7, r12unit, r12, f, f123);
     feat_x[6 * n_max_angular_plus_1] = f[0];
     feat_y[6 * n_max_angular_plus_1] = f[1];
     feat_z[6 * n_max_angular_plus_1] = f[2];
@@ -1242,7 +1348,7 @@ static __device__ __forceinline__ void accumulate_dfe(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_s_one<8>(N, n, n_max_angular_plus_1, sum_fxyz, s8);
-    calculate_fxyz_one<8>(d12inv, fn, fnp, s8, r12unit, r12, s_i1, sum_s2xyz, f, f123);
+    calculate_fxyz_one<8>(d12inv, fn, fnp, s8, r12unit, r12, f, f123);
     feat_x[7 * n_max_angular_plus_1] = f[0];
     feat_y[7 * n_max_angular_plus_1] = f[1];
     feat_z[7 * n_max_angular_plus_1] = f[2];

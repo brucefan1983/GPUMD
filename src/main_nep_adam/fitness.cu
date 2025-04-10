@@ -286,8 +286,8 @@ void Fitness::compute(Parameters& para)
         track_total_time += time_used;  // 累加当前epoch的时间
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
-        float rmse_virial_train = sqrt(mse_virial / count_virial);
-        float total_loss_train = (mse_energy  + mse_force) / count + mse_virial / count_virial;
+        float rmse_virial_train = count_virial > 0 ? sqrt(mse_virial / count_virial) : 0.0f;
+        float total_loss_train = (mse_energy  + mse_force) / count + (count_virial > 0 ? mse_virial / count_virial : 0.0f);
         report_error(
           para,
           track_total_time,  // 使用累计总时间
