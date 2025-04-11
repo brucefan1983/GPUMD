@@ -10,7 +10,7 @@ This keyword is used to deform the simulation box, which can be used to do tensi
 Syntax
 ------
 
-The :attr:`deform` keyord requires 4 parameters::
+The :attr:`deform` keyword requires 4 parameters::
 
   deform <A_per_step> <deform_x> <deform_y> <deform_z>
 
