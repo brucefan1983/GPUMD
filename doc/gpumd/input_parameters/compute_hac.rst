@@ -49,8 +49,3 @@ Example 2
 
 This is similar to the above example but with one expection:
 The :term:`HAC`/:term:`RTC` data will be averaged for every 10 data before outputing, generating :math:`10^4` rows of data in the output file.
-
-Related tutorial
-----------------
-
-The use of the :attr:`compute_hac` keyword is illustrated in the tutorial on :ref:`thermal transport from EMD simulations <tutorials>`.

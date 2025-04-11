@@ -16,10 +16,6 @@ The full command reads::
 
 Here, the :attr:`group_label` refers to the grouping method 0 defined in the :ref:`simulation model file <model_xyz>`.
 
-Example
--------
-The use of this keyword is illustrated in the :ref:`tutorial on thermal transport from NEMD and HNEMD simulations <tutorials>`.
-
 Caveats
 -------
 This keyword is not propagating, which means that it only affects the simulation within the run it belongs to.
