@@ -57,8 +57,3 @@ Example 2
    compute_hnemd 1000 0 0.00001 0
 
 This is similar to the above example, but the external driving force is applied along the :math:`y` direction.
-
-Related tutorial
-----------------
-
-The use of the :attr:`compute_hnemd` keyword is illustrated in :ref:`the tutorial on calculating the thermal conductivity via HNEMD simulations <tutorials>`.
