@@ -4,8 +4,8 @@
     Ref:
         dpdata: https://github.com/deepmodeling/dpdata
     Run:
-        python deep2xyz.py deepmd-npy nepxyz
-        python deep2xyz.py deepmd-mixed nepxyz
+        python deep2xyz.py deepmd-npy nepxyz-from-npy
+        python deep2xyz.py deepmd-mixed nepxyz-from-mixed
 """
 
 import os
