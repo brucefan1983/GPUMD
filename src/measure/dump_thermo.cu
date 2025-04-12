@@ -59,7 +59,12 @@ void Dump_Thermo::preprocess(
 {
   if (dump_) {
     fid_ = my_fopen("thermo.out", "a");
-  }
+    // header
+    fprintf(
+      fid_,
+      "# T (K) K (eV) U (eV) Pxx (GPa) Pyy (GPa) Pzz (GPa) Pyz (GPa) Pzx (GPa) Pxy (GPa) "
+      "ax (A) ay (A) az (A) bx (A) by (A) bz (A) cx (A) cy (A) cz (A)\n");
+    }
 }
 
 void Dump_Thermo::process(
