@@ -19,6 +19,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    dftd3
    change_box
    deform
+   move
    ensemble
    ensemble_standard
    ensemble_mttk

@@ -24,13 +24,13 @@ This software is distributed under the GNU General Public License (GPL) version 
 * When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* Go to the directory of an example and type one of the following commands:
+* Go to the directory of an example in the [examples directory](examples) and type one of the following commands:
   * `path/to/gpumd`
   * `path/to/nep`
 
-## Colab tutorial
+## Tutorials
 * We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine.
-* You can also check other offline tutorials in the examples.
+* We also provide many tutorials and examples in the [GPUMD-Tutorials repository](https://github.com/brucefan1983/GPUMD-Tutorials).
 
 ## Manual
 * For users and developers:
