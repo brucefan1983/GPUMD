@@ -60,8 +60,8 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
 {
   printf("Dump extended XYZ.\n");
 
-  if (num_param < 4) {
-    PRINT_INPUT_ERROR("dump_xyz should have at least 1 parameter.\n");
+  if (num_param < 5) {
+    PRINT_INPUT_ERROR("dump_xyz should have at least 4 parameters.\n");
   }
 
   // grouping_method
@@ -96,58 +96,18 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   }
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("dump interval should > 0.");
+  } else {
+    printf("    every %d steps.\n", dump_interval_);
   }
 
-  printf("    every %d steps.\n", dump_interval_);
+  // filename
+  filename_ = param[4];
+  printf("    into file %s.\n", filename_.c_str());
 
   has_velocity_ = 0;
   has_force_ = 0;
   has_potential_ = 0;
   separated_ = 0;
-
-  if (num_param >= 5) {
-    if (!is_valid_int(param[4], &has_velocity_)) {
-      PRINT_INPUT_ERROR("has_velocity should be an integer.");
-    }
-    if (has_velocity_ == 0) {
-      printf("    without velocity data.\n");
-    } else {
-      printf("    with velocity data.\n");
-    }
-  }
-
-  if (num_param >= 6) {
-    if (!is_valid_int(param[5], &has_force_)) {
-      PRINT_INPUT_ERROR("has_force should be an integer.");
-    }
-    if (has_force_ == 0) {
-      printf("    without force data.\n");
-    } else {
-      printf("    with force data.\n");
-    }
-  }
-
-  if (num_param >= 7) {
-    if (!is_valid_int(param[6], &has_potential_)) {
-      PRINT_INPUT_ERROR("has_potential should be an integer.");
-    }
-    if (has_potential_ == 0) {
-      printf("    without potential data.\n");
-    } else {
-      printf("    with potential data.\n");
-    }
-  }
-
-  if (num_param >= 8) {
-    if (!is_valid_int(param[7], &separated_)) {
-      PRINT_INPUT_ERROR("separated should be an integer.");
-    }
-    if (separated_ == 0) {
-      printf("    dump_xyz into dump.xyz.\n");
-    } else {
-      printf("    dump_xyz into separated dump.*.xyz.\n");
-    }
-  }
 }
 
 void Dump_XYZ::preprocess(
@@ -160,7 +120,7 @@ void Dump_XYZ::preprocess(
   Force& force)
 {
   if (separated_ == 0) {
-    fid_ = my_fopen("file1.xyz", "a");
+    fid_ = my_fopen(filename_.c_str(), "a");
   }
 
   gpu_total_virial_.resize(6);

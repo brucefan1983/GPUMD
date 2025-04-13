@@ -66,8 +66,8 @@ private:
   int has_force_ = 0;
   int has_potential_ = 0;
   int separated_ = 0;
+  std::string filename_;
   FILE* fid_;
-  char filename_[200];
   void output_line2(
     const double time,
     const Box& box,
