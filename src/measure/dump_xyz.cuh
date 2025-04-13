@@ -58,13 +58,19 @@ public:
     const double time_step,
     const double temperature);
 
+  struct Quantities {
+    bool has_velocity_ = false;
+    bool has_force_ = false;
+    bool has_potential_ = false;
+  };
+
 private:
+
+
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
-  int has_velocity_ = 0;
-  int has_force_ = 0;
-  int has_potential_ = 0;
+  Quantities quantities;
   int separated_ = 0;
   std::string filename_;
   FILE* fid_;
