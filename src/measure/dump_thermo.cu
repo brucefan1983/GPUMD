@@ -44,7 +44,6 @@ void Dump_Thermo::parse(const char** param, int num_param)
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("thermo dump interval should > 0.");
   }
-  dump_ = true;
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
@@ -93,8 +92,6 @@ void Dump_Thermo::process(
   Atom& atom,
   Force& force)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
@@ -149,8 +146,5 @@ void Dump_Thermo::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (dump_) {
-    fclose(fid_);
-    dump_ = false;
-  }
+  fclose(fid_);
 }
