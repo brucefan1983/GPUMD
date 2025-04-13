@@ -50,21 +50,48 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_XYZ::Dump_XYZ(const char** param, int num_param) 
+Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups) 
 {
-  parse(param, num_param);
+  parse(param, num_param, groups);
   property_name = "dump_xyz";
 }
 
-void Dump_XYZ::parse(const char** param, int num_param)
+void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   printf("Dump extended XYZ.\n");
 
-  if (num_param < 2) {
+  if (num_param < 4) {
     PRINT_INPUT_ERROR("dump_xyz should have at least 1 parameter.\n");
   }
 
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  // grouping_method
+  if (!is_valid_int(param[1], &grouping_method_)) {
+    PRINT_INPUT_ERROR("grouping method of dump_xyz should be integer.");
+  }
+  if (grouping_method_ < 0) {
+    printf("    for the whole system.\n");
+  } else {
+    if (grouping_method_ >= int(groups.size())) {
+      PRINT_INPUT_ERROR("grouping method exceeds the bound.");
+    }
+    printf("    for grouping method %d.\n", grouping_method_);
+  }
+
+  // group_id
+  if (!is_valid_int(param[2], &group_id_)) {
+    PRINT_INPUT_ERROR("group id of dump_xyz should be integer.");
+  }
+  if (grouping_method_ >= 0) {
+    if (group_id_ >= groups[grouping_method_].number) {
+      PRINT_INPUT_ERROR("group id exceeds the bound.");
+    }
+    if (group_id_ < 0) {
+      PRINT_INPUT_ERROR("group id is negative.");
+    }
+    printf("    for group id %d.\n", group_id_);
+  }
+
+  if (!is_valid_int(param[3], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -78,8 +105,8 @@ void Dump_XYZ::parse(const char** param, int num_param)
   has_potential_ = 0;
   separated_ = 0;
 
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &has_velocity_)) {
+  if (num_param >= 5) {
+    if (!is_valid_int(param[4], &has_velocity_)) {
       PRINT_INPUT_ERROR("has_velocity should be an integer.");
     }
     if (has_velocity_ == 0) {
@@ -89,8 +116,8 @@ void Dump_XYZ::parse(const char** param, int num_param)
     }
   }
 
-  if (num_param >= 4) {
-    if (!is_valid_int(param[3], &has_force_)) {
+  if (num_param >= 6) {
+    if (!is_valid_int(param[5], &has_force_)) {
       PRINT_INPUT_ERROR("has_force should be an integer.");
     }
     if (has_force_ == 0) {
@@ -100,8 +127,8 @@ void Dump_XYZ::parse(const char** param, int num_param)
     }
   }
 
-  if (num_param >= 5) {
-    if (!is_valid_int(param[4], &has_potential_)) {
+  if (num_param >= 7) {
+    if (!is_valid_int(param[6], &has_potential_)) {
       PRINT_INPUT_ERROR("has_potential should be an integer.");
     }
     if (has_potential_ == 0) {
@@ -111,8 +138,8 @@ void Dump_XYZ::parse(const char** param, int num_param)
     }
   }
 
-  if (num_param >= 6) {
-    if (!is_valid_int(param[5], &separated_)) {
+  if (num_param >= 8) {
+    if (!is_valid_int(param[7], &separated_)) {
       PRINT_INPUT_ERROR("separated should be an integer.");
     }
     if (separated_ == 0) {

@@ -20,12 +20,13 @@
 #include <vector>
 class Box;
 class Atom;
+class Group;
 
 class Dump_XYZ : public Property
 {
 public:
-  Dump_XYZ(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups);
+  void parse(const char** param, int num_param, const std::vector<Group>& groups);
   virtual void preprocess(
     const int number_of_steps,
     const double time_step,
@@ -58,6 +59,8 @@ public:
     const double temperature);
 
 private:
+  int grouping_method_ = -1;
+  int group_id_ = -1;
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;

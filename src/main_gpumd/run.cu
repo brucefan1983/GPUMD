@@ -458,7 +458,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_xyz") == 0) {
     std::unique_ptr<Property> property;
-    property.reset(new Dump_XYZ(param, num_param));
+    property.reset(new Dump_XYZ(param, num_param, group));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_beads") == 0) {
     std::unique_ptr<Property> property;
