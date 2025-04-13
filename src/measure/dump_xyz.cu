@@ -58,7 +58,6 @@ Dump_XYZ::Dump_XYZ(const char** param, int num_param)
 
 void Dump_XYZ::parse(const char** param, int num_param)
 {
-  dump_ = true;
   printf("Dump extended XYZ.\n");
 
   if (num_param < 2) {
@@ -133,19 +132,17 @@ void Dump_XYZ::preprocess(
   Box& box,
   Force& force)
 {
-  if (dump_) {
-    if (separated_ == 0) {
-      fid_ = my_fopen("dump.xyz", "a");
-    }
+  if (separated_ == 0) {
+    fid_ = my_fopen("file1.xyz", "a");
+  }
 
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    if (has_potential_) {
-      cpu_potential_per_atom_.resize(atom.number_of_atoms);
-    }
+  gpu_total_virial_.resize(6);
+  cpu_total_virial_.resize(6);
+  if (has_force_) {
+    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  }
+  if (has_potential_) {
+    cpu_potential_per_atom_.resize(atom.number_of_atoms);
   }
 }
 
@@ -241,8 +238,6 @@ void Dump_XYZ::process(
   Atom& atom,
   Force& force)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
@@ -307,10 +302,7 @@ void Dump_XYZ::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (dump_) {
-    if (separated_ == 0) {
-      fclose(fid_);
-    }
-    dump_ = false;
+  if (separated_ == 0) {
+    fclose(fid_);
   }
 }

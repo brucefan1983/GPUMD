@@ -58,7 +58,6 @@ public:
     const double temperature);
 
 private:
-  bool dump_ = false;
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
