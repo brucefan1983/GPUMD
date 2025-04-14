@@ -135,6 +135,14 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       quantities.has_unwrapped_position_ = true;
       printf("    has unwrapped position.\n");
     }
+    if (strcmp(param[m], "mass") == 0) {
+      quantities.has_mass_ = true;
+      printf("    has mass.\n");
+    }
+    if (strcmp(param[m], "virial") == 0) {
+      quantities.has_virial_ = true;
+      printf("    has virial.\n");
+    }
   }
 }
 
@@ -161,6 +169,9 @@ void Dump_XYZ::preprocess(
   }
   if (quantities.has_unwrapped_position_) {
     cpu_unwrapped_position_.resize(atom.number_of_atoms * 3);
+  }
+  if (quantities.has_virial_) {
+    cpu_virial_per_atom_.resize(atom.number_of_atoms * 9);
   }
 }
 
@@ -228,6 +239,9 @@ void Dump_XYZ::output_line2(
   // Properties
   fprintf(fid_, " Properties=species:S:1:pos:R:3");
 
+  if (quantities.has_mass_) {
+    fprintf(fid_, ":mass:R:1");
+  }
   if (quantities.has_velocity_) {
     fprintf(fid_, ":vel:R:3");
   }
@@ -239,6 +253,9 @@ void Dump_XYZ::output_line2(
   }
   if (quantities.has_unwrapped_position_) {
     fprintf(fid_, ":unwrapped_position:R:3");
+  }
+  if (quantities.has_virial_) {
+    fprintf(fid_, ":virial:R:9");
   }
 
   // Over
@@ -264,6 +281,9 @@ void Dump_XYZ::process(
 
   const int num_atoms_total = atom.position_per_atom.size() / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
+  if (quantities.has_mass_) {
+    atom.mass.copy_to_host(atom.cpu_mass.data());
+  }
   if (quantities.has_velocity_) {
     atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
   }
@@ -275,6 +295,9 @@ void Dump_XYZ::process(
   }
   if (quantities.has_unwrapped_position_) {
     atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
+  }
+  if (quantities.has_virial_) {
+    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
   }
 
   if (separated_) {
@@ -294,6 +317,9 @@ void Dump_XYZ::process(
     for (int d = 0; d < 3; ++d) {
       fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
     }
+    if (quantities.has_mass_) {
+      fprintf(fid_, " %.8f", atom.cpu_mass[n]);
+    }
     if (quantities.has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
@@ -312,6 +338,12 @@ void Dump_XYZ::process(
     if (quantities.has_unwrapped_position_) {
       for (int d = 0; d < 3; ++d) {
         fprintf(fid_, " %.8f", cpu_unwrapped_position_[n + num_atoms_total * d]);
+      }
+    }
+    if (quantities.has_virial_) {
+      const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
+      for (int d = 0; d < 9; ++d) {
+        fprintf(fid_, " %.8f", cpu_virial_per_atom_[n + num_atoms_total * index[d]]);
       }
     }
     fprintf(fid_, "\n");

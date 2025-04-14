@@ -63,6 +63,8 @@ public:
     bool has_force_ = false;
     bool has_potential_ = false;
     bool has_unwrapped_position_ = false;
+    bool has_mass_ = false;
+    bool has_virial_ = false;
   };
 
 private:
@@ -84,6 +86,7 @@ private:
   std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
+  std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
 };
