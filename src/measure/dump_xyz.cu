@@ -262,173 +262,6 @@ void Dump_XYZ::output_line2(
   fprintf(fid_, "\n");
 }
 
-void Dump_XYZ::process_all(
-  int step,
-  const double global_time,
-  Box& box,
-  GPU_Vector<double>& thermo,
-  Atom& atom)
-{
-  const int num_atoms_total = atom.position_per_atom.size() / 3;
-  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  if (quantities.has_mass_) {
-    atom.mass.copy_to_host(atom.cpu_mass.data());
-  }
-  if (quantities.has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-  }
-  if (quantities.has_force_) {
-    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-  if (quantities.has_potential_) {
-    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
-  }
-  if (quantities.has_unwrapped_position_) {
-    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
-  }
-  if (quantities.has_virial_) {
-    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
-  }
-
-  if (separated_) {
-    std::string filename = filename_ + std::to_string(step + 1);
-    fid_ = my_fopen(filename.data(), "w");
-  }
-
-  // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
-
-  // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
-    for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
-    }
-    if (quantities.has_mass_) {
-      fprintf(fid_, " %.8f", atom.cpu_mass[n]);
-    }
-    if (quantities.has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
-      for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", atom.cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
-      }
-    }
-    if (quantities.has_force_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
-      }
-    }
-    if (quantities.has_potential_) {
-      fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
-    }
-    if (quantities.has_unwrapped_position_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_unwrapped_position_[n + num_atoms_total * d]);
-      }
-    }
-    if (quantities.has_virial_) {
-      const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-      for (int d = 0; d < 9; ++d) {
-        fprintf(fid_, " %.8f", cpu_virial_per_atom_[n + num_atoms_total * index[d]]);
-      }
-    }
-    fprintf(fid_, "\n");
-  }
-  if (separated_ == 0) {
-    fflush(fid_);
-  } else {
-    fclose(fid_);
-  }
-}
-
-void Dump_XYZ::process_group(
-  int step,
-  const double global_time,
-  Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo,
-  Atom& atom)
-{
-  const int num_atoms_total = atom.position_per_atom.size() / 3;
-  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  if (quantities.has_mass_) {
-    atom.mass.copy_to_host(atom.cpu_mass.data());
-  }
-  if (quantities.has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-  }
-  if (quantities.has_force_) {
-    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-  if (quantities.has_potential_) {
-    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
-  }
-  if (quantities.has_unwrapped_position_) {
-    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
-  }
-  if (quantities.has_virial_) {
-    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
-  }
-
-  if (separated_) {
-    std::string filename = filename_ + std::to_string(step + 1);
-    fid_ = my_fopen(filename.data(), "w");
-  }
-
-  // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
-
-  // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
-    for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
-    }
-    if (quantities.has_mass_) {
-      fprintf(fid_, " %.8f", atom.cpu_mass[n]);
-    }
-    if (quantities.has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
-      for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", atom.cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
-      }
-    }
-    if (quantities.has_force_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
-      }
-    }
-    if (quantities.has_potential_) {
-      fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
-    }
-    if (quantities.has_unwrapped_position_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_unwrapped_position_[n + num_atoms_total * d]);
-      }
-    }
-    if (quantities.has_virial_) {
-      const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-      for (int d = 0; d < 9; ++d) {
-        fprintf(fid_, " %.8f", cpu_virial_per_atom_[n + num_atoms_total * index[d]]);
-      }
-    }
-    fprintf(fid_, "\n");
-  }
-  if (separated_ == 0) {
-    fflush(fid_);
-  } else {
-    fclose(fid_);
-  }
-}
-
 void Dump_XYZ::process(
   const int number_of_steps,
   int step,
@@ -438,18 +271,98 @@ void Dump_XYZ::process(
   const double temperature,
   Integrate& integrate,
   Box& box,
-  std::vector<Group>& group,
+  std::vector<Group>& groups,
   GPU_Vector<double>& thermo,
   Atom& atom,
   Force& force)
 {
   if ((step + 1) % dump_interval_ != 0)
     return;
-  
-  if (grouping_method_ < 0) {
-    process_all(step, global_time, box, thermo, atom);
+
+  int number_of_atoms_to_dump = atom.number_of_atoms;
+  if (grouping_method_ >= 0) {
+    number_of_atoms_to_dump = groups[grouping_method_].cpu_size[group_id_];
+  }
+
+  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
+  if (quantities.has_mass_) {
+    atom.mass.copy_to_host(atom.cpu_mass.data());
+  }
+  if (quantities.has_velocity_) {
+    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
+  }
+  if (quantities.has_force_) {
+    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+  }
+  if (quantities.has_potential_) {
+    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
+  }
+  if (quantities.has_unwrapped_position_) {
+    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
+  }
+  if (quantities.has_virial_) {
+    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
+  }
+
+  if (separated_) {
+    std::string filename = filename_ + std::to_string(step + 1);
+    fid_ = my_fopen(filename.data(), "w");
+  }
+
+  // line 1
+  fprintf(fid_, "%d\n", number_of_atoms_to_dump);
+
+  // line 2
+  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
+
+  // other lines
+  for (int n = 0; n < number_of_atoms_to_dump; n++) {
+
+    int m = n;
+    if (grouping_method_ >= 0) {
+      int group_size_sum = groups[grouping_method_].cpu_size_sum[group_id_];
+      m = groups[grouping_method_].cpu_contents[group_size_sum + n];
+    }
+
+    fprintf(fid_, "%s", atom.cpu_atom_symbol[m].c_str());
+    for (int d = 0; d < 3; ++d) {
+      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[m + atom.number_of_atoms * d]);
+    }
+    if (quantities.has_mass_) {
+      fprintf(fid_, " %.8f", atom.cpu_mass[m]);
+    }
+    if (quantities.has_velocity_) {
+      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+      for (int d = 0; d < 3; ++d) {
+        fprintf(
+          fid_, " %.8f", atom.cpu_velocity_per_atom[m + atom.number_of_atoms * d] * natural_to_A_per_fs);
+      }
+    }
+    if (quantities.has_force_) {
+      for (int d = 0; d < 3; ++d) {
+        fprintf(fid_, " %.8f", cpu_force_per_atom_[m + atom.number_of_atoms * d]);
+      }
+    }
+    if (quantities.has_potential_) {
+      fprintf(fid_, " %.8f", cpu_potential_per_atom_[m]);
+    }
+    if (quantities.has_unwrapped_position_) {
+      for (int d = 0; d < 3; ++d) {
+        fprintf(fid_, " %.8f", cpu_unwrapped_position_[m + atom.number_of_atoms * d]);
+      }
+    }
+    if (quantities.has_virial_) {
+      const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
+      for (int d = 0; d < 9; ++d) {
+        fprintf(fid_, " %.8f", cpu_virial_per_atom_[m + atom.number_of_atoms * index[d]]);
+      }
+    }
+    fprintf(fid_, "\n");
+  }
+  if (separated_ == 0) {
+    fflush(fid_);
   } else {
-    process_group(step, global_time, box, group, thermo, atom);
+    fclose(fid_);
   }
 }
 

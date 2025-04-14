@@ -90,19 +90,4 @@ private:
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
-
-  void process_all(
-    int step,
-    const double global_time,
-    Box& box,
-    GPU_Vector<double>& thermo,
-    Atom& atom);
-
-  void process_group(
-    int step,
-    const double global_time,
-    Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo,
-    Atom& atom);
 };
