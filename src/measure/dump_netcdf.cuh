@@ -16,26 +16,46 @@
 #ifdef USE_NETCDF
 
 #pragma once
-
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Box;
 
-class DUMP_NETCDF
+class DUMP_NETCDF : public Property
 {
 public:
+  DUMP_NETCDF(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms);
-  void process(
-    const int step,
-    const double global_time,
-    const Box& box,
-    const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
-  void postprocess();
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   bool dump_ = false;

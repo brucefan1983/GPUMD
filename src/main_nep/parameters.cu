@@ -189,12 +189,6 @@ void Parameters::calculate_parameters()
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
   }
-  q_scaler_cpu.resize(dim, 1.0e10f);
-#ifdef USE_FIXED_SCALER
-  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-    q_scaler_cpu[n] = 0.01f;
-  }
-#endif
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
@@ -233,6 +227,29 @@ void Parameters::calculate_parameters()
     }
   }
 
+  q_scaler_cpu.resize(dim, 1.0e10f);
+  if (fine_tune) {
+    std::ifstream input(fine_tune_nep_txt);
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open foundation model file.");
+    }
+    std::vector<std::string> tokens;
+    const int NUM89 = 89;
+    const int num_ann_per_element = (dim + 2) * num_neurons1;
+    const int num_ann = NUM89 * num_ann_per_element + 1;
+    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
+    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+    for (int n = 0; n < num_tot + 7; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
+  }
+
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -242,10 +259,103 @@ void Parameters::calculate_parameters()
   }
 }
 
+void Parameters::check_foundation_model()
+{
+  std::ifstream input(fine_tune_nep_txt);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open foundation model file.");
+  }
+  std::vector<std::string> tokens;
+  // first line, not used
+  tokens = get_tokens(input);
+  
+  // second line, zbl
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  float temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != zbl_rc_inner) {
+    PRINT_INPUT_ERROR("ZBL inner cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != zbl_rc_outer) {
+    PRINT_INPUT_ERROR("ZBL outer cutoff mismatches with foundation model.");
+  }
+
+  // third line, cutoff
+  tokens = get_tokens(input);
+  if (tokens.size() != 5) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != rc_radial) {
+    PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != rc_angular) {
+    PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
+  }
+
+  // 4th line, n_max
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (n_max_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
+  }
+  if (n_max_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_angular mismatches with foundation model.");
+  }
+
+  // 5th line, basis_size
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (basis_size_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_radial mismatches with foundation model.");
+  }
+  if (basis_size_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_angular mismatches with foundation model.");
+  }
+
+  // 6th line, l_max
+  tokens = get_tokens(input);
+  if (tokens.size() != 4) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (L_max != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max mismatches with foundation model.");
+  }
+  if (L_max_4body != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max_4body mismatches with foundation model.");
+  }
+  if (L_max_5body != get_int_from_token(tokens[3], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max_5body mismatches with foundation model.");
+  }
+
+  // 7th line, ANN
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
+  }
+
+  input.close();
+}
+
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
     PRINT_INPUT_ERROR("type in nep.in has not been set.");
+  }
+
+  if (fine_tune) {
+    check_foundation_model();
   }
 
   printf("Input or default parameters:\n");
@@ -448,6 +558,11 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
   }
 
+  if (fine_tune) {
+    printf("    (input)   will fine-tune based on %s and %s.\n", 
+      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
+  }
+
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
@@ -525,6 +640,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "has_charge") == 0) {
     parse_has_charge(param, num_param);
+  } else if (strcmp(param[0], "fine_tune") == 0) {
+    parse_fine_tune(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1137,3 +1254,14 @@ void Parameters::parse_has_charge(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_fine_tune(const char** param, int num_param)
+{
+  fine_tune = 1;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
+  }
+
+  fine_tune_nep_txt = param[1];
+  fine_tune_nep_restart = param[2];
+}

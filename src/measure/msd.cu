@@ -132,12 +132,19 @@ __global__ void gpu_find_msd(
 
 } // namespace
 
-void MSD::preprocess(const int num_atoms, const double time_step, const std::vector<Group>& groups)
+void MSD::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& groups,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_)
     return;
 
-  num_atoms_ = (grouping_method_ < 0) ? num_atoms : groups[grouping_method_].cpu_size[group_id_];
+  num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   x_.resize(num_atoms_ * num_correlation_steps_);
@@ -150,7 +157,19 @@ void MSD::preprocess(const int num_atoms, const double time_step, const std::vec
   num_time_origins_ = 0;
 }
 
-void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Vector<double>& xyz)
+void MSD::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& groups,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -160,15 +179,15 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
   const int sample_step = step / sample_interval_;
   const int correlation_step = sample_step % num_correlation_steps_;
   const int step_offset = correlation_step * num_atoms_;
-  const int number_of_atoms_total = xyz.size() / 3;
+  const int number_of_atoms_total = atom.number_of_atoms;
 
   // copy the position data at the current step to appropriate place
   if (grouping_method_ < 0) {
     gpu_copy_position<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_,
-      xyz.data(),
-      xyz.data() + number_of_atoms_total,
-      xyz.data() + 2 * number_of_atoms_total,
+      atom.unwrapped_position.data(),
+      atom.unwrapped_position.data() + number_of_atoms_total,
+      atom.unwrapped_position.data() + 2 * number_of_atoms_total,
       x_.data() + step_offset,
       y_.data() + step_offset,
       z_.data() + step_offset);
@@ -178,9 +197,9 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
       num_atoms_,
       group_offset,
       groups[grouping_method_].contents.data(),
-      xyz.data(),
-      xyz.data() + number_of_atoms_total,
-      xyz.data() + 2 * number_of_atoms_total,
+      atom.unwrapped_position.data(),
+      atom.unwrapped_position.data() + number_of_atoms_total,
+      atom.unwrapped_position.data() + 2 * number_of_atoms_total,
       x_.data() + step_offset,
       y_.data() + step_offset,
       z_.data() + step_offset);
@@ -207,7 +226,13 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
   }
 }
 
-void MSD::postprocess()
+void MSD::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute_)
     return;
@@ -252,6 +277,15 @@ void MSD::postprocess()
 
   compute_ = false;
   grouping_method_ = -1;
+}
+
+MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
+{
+  parse(param, num_param, groups);
+  atom.unwrapped_position.resize(atom.number_of_atoms * 3);
+  atom.position_temp.resize(atom.number_of_atoms * 3);
+  atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+  property_name = "compute_msd";
 }
 
 void MSD::parse(const char** param, const int num_param, const std::vector<Group>& groups)

@@ -74,6 +74,12 @@ const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 bool DUMP_NETCDF::append = false;
 
+DUMP_NETCDF::DUMP_NETCDF(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_netcdf";
+}
+
 void DUMP_NETCDF::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -120,7 +126,14 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
   }
 }
 
-void DUMP_NETCDF::preprocess(const int number_of_atoms)
+void DUMP_NETCDF::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -167,7 +180,7 @@ void DUMP_NETCDF::preprocess(const int number_of_atoms)
   NC_CHECK(nc_def_dim(
     ncid, FRAME_STR, NC_UNLIMITED, &frame_dim)); // unlimited number of steps (can append)
   NC_CHECK(nc_def_dim(ncid, SPATIAL_STR, 3, &spatial_dim));         // number of spatial dimensions
-  NC_CHECK(nc_def_dim(ncid, ATOM_STR, number_of_atoms, &atom_dim)); // number of atoms in system
+  NC_CHECK(nc_def_dim(ncid, ATOM_STR, atom.number_of_atoms, &atom_dim)); // number of atoms in system
   NC_CHECK(nc_def_dim(ncid, CELL_SPATIAL_STR, 3, &cell_spatial_dim)); // unitcell lengths
   NC_CHECK(nc_def_dim(ncid, CELL_ANGULAR_STR, 3, &cell_angular_dim)); // unitcell angles
   NC_CHECK(nc_def_dim(ncid, LABEL_STR, 10, &label_dim));              // needed for cell_angular
@@ -314,7 +327,8 @@ void DUMP_NETCDF::write(
   // Get cell lengths and angles
   double cell_lengths[3];
   double cell_angles[3];
-  if (box.triclinic) {
+  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
+      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
     const double* t = box.cpu_h;
     double cosgamma, cosbeta, cosalpha;
     cell_lengths[0] = sqrt(t[0] * t[0] + t[3] * t[3] + t[6] * t[6]); // a-side
@@ -331,8 +345,8 @@ void DUMP_NETCDF::write(
 
   } else {
     cell_lengths[0] = box.cpu_h[0];
-    cell_lengths[1] = box.cpu_h[1];
-    cell_lengths[2] = box.cpu_h[2];
+    cell_lengths[1] = box.cpu_h[4];
+    cell_lengths[2] = box.cpu_h[8];
 
     cell_angles[0] = 90;
     cell_angles[1] = 90;
@@ -436,7 +450,13 @@ void DUMP_NETCDF::write(
   }
 }
 
-void DUMP_NETCDF::postprocess()
+void DUMP_NETCDF::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     dump_ = false;
@@ -445,14 +465,18 @@ void DUMP_NETCDF::postprocess()
 }
 
 void DUMP_NETCDF::process(
-  const int step,
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const Box& box,
-  const std::vector<int>& cpu_type,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -464,11 +488,11 @@ void DUMP_NETCDF::process(
   write(
     global_time,
     box,
-    cpu_type,
-    position_per_atom,
-    cpu_position_per_atom,
-    velocity_per_atom,
-    cpu_velocity_per_atom);
+    atom.cpu_type,
+    atom.position_per_atom,
+    atom.cpu_position_per_atom,
+    atom.velocity_per_atom,
+    atom.cpu_velocity_per_atom);
   NC_CHECK(nc_close(ncid));
 }
 

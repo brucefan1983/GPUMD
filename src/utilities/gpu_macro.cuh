@@ -20,7 +20,7 @@
 #include <hip/hip_runtime.h>
 
 // memory manipulation
-#define gpuMalloc hipMalloc 
+#define gpuMalloc hipMalloc
 #define gpuMallocManaged hipMallocManaged
 #define gpuFree hipFree
 #define gpuMemcpy hipMemcpy
@@ -34,7 +34,7 @@
 #define gpuMemset hipMemset
 
 // error handling
-#define gpuError_t hipError_t 
+#define gpuError_t hipError_t
 #define gpuSuccess hipSuccess
 #define gpuGetErrorString hipGetErrorString
 #define gpuGetLastError hipGetLastError
@@ -64,10 +64,12 @@
 #define gpublasSgemv hipblasSgemv
 #define gpublasSgemm hipblasSgemm
 #define gpublasSdgmm hipblasSdgmm
+#define gpublasDgemvBatched hipblasDgemvBatched
 #define gpublasDestroy hipblasDestroy
 #define gpublasCreate hipblasCreate
 #define GPUBLAS_SIDE_LEFT HIPBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N HIPBLAS_OP_N
+#define GPUBLAS_OP_T HIPBLAS_OP_T
 
 // lapack
 #define gpuDoubleComplex hipDoubleComplex
@@ -108,7 +110,7 @@
 #define gpuMemset cudaMemset
 
 // error handling
-#define gpuError_t cudaError_t 
+#define gpuError_t cudaError_t
 #define gpuSuccess cudaSuccess
 #define gpuGetErrorString cudaGetErrorString
 #define gpuGetLastError cudaGetLastError
@@ -138,10 +140,15 @@
 #define gpublasSgemv cublasSgemv
 #define gpublasSgemm cublasSgemm
 #define gpublasSdgmm cublasSdgmm
+#define gpublasDgemv cublasDgemv
+#if (CUDA_VERSION >= 12000)
+#define gpublasDgemvBatched cublasDgemvBatched
+#endif
 #define gpublasDestroy cublasDestroy
 #define gpublasCreate cublasCreate
 #define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N CUBLAS_OP_N
+#define GPUBLAS_OP_T CUBLAS_OP_T
 
 // lapack
 #define gpuDoubleComplex cuDoubleComplex
@@ -153,7 +160,7 @@
 #define GPUSOLVER_EIG_MODE_NOVECTOR CUSOLVER_EIG_MODE_NOVECTOR
 #define GPUSOLVER_EIG_MODE_VECTOR CUSOLVER_EIG_MODE_VECTOR
 #define GPUSOLVER_FILL_MODE_LOWER CUBLAS_FILL_MODE_LOWER // why cublas?
-#define gpusolverSyevjInfo_t syevjInfo_t // why not cusolverSyevjInfo_t?
+#define gpusolverSyevjInfo_t syevjInfo_t                 // why not cusolverSyevjInfo_t?
 #define gpusolverDnCreateSyevjInfo cusolverDnCreateSyevjInfo
 #define gpusolverDnDestroySyevjInfo cusolverDnDestroySyevjInfo
 #define gpusolverDnZheevj_bufferSize cusolverDnZheevj_bufferSize

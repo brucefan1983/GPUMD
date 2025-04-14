@@ -14,7 +14,7 @@
 */
 
 #pragma once
-
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -23,21 +23,41 @@ class Atom;
 class Group;
 class Force;
 
-class Active
+class Active : public Property
 {
 public:
+  Active(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, const int number_of_files, Force& force);
-  void process(
-    int step,
-    const double global_time,
-    const int number_of_atoms_fixed,
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
     std::vector<Group>& group,
-    Box& box,
     Atom& atom,
-    Force& force,
-    GPU_Vector<double>& thermo);
-  void postprocess();
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   bool check_ = false;

@@ -76,7 +76,12 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
   GPU_CHECK_KERNEL
 
-  initialize_mu_and_sigma(para);
+  if (para.fine_tune) {
+    initialize_mu_and_sigma_fine_tune(para);
+  } else {
+    initialize_mu_and_sigma(para);
+  }
+  
   calculate_utility();
   find_type_of_variable(para);
   compute(para, fitness_function);
@@ -107,6 +112,95 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
+  gpuSetDevice(0); // normally use GPU-0
+  gpu_mu.copy_from_host(mu.data());
+  gpu_sigma.copy_from_host(sigma.data());
+}
+
+void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
+{
+  // This map is needed because the foundation model misses 5 elements between H-Pu
+  const int element_map[94] = {
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+    20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
+    40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,
+    60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+    80,81,82,0,0,0,0,0,83,84,85,86,87,88
+  };
+  // read in the whole foundation file first
+  const int NUM89 = 89;
+  const int num_ann_per_element = (para.dim + 2) * para.num_neurons1;
+  const int num_ann = NUM89 * num_ann_per_element + 1;
+  const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+  std::vector<float> restart_mu(num_tot);
+  std::vector<float> restart_sigma(num_tot);
+
+  std::ifstream input(para.fine_tune_nep_restart);
+  if (!input.is_open()) {
+    std::cout << "Cannot open the foundation model file " << para.fine_tune_nep_restart << std::endl;
+    exit(1);
+  }
+  std::vector<std::string> tokens;
+    
+  for (int n = 0; n < num_tot; ++n) {
+    tokens = get_tokens(input);
+    if (tokens.size() != 2) {
+      std::cout << "Foundation model file should have two columns.\n";
+      exit(1);
+    }
+    restart_mu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    restart_sigma[n] = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  }
+
+  // get the required part
+  int count = 0;
+  for (int i = 0; i < para.num_types; ++ i) {
+    int element_index = element_map[para.atomic_numbers[i] - 1];
+    for (int j = 0; j < num_ann_per_element; ++j) {
+      mu[count] = restart_mu[element_index * num_ann_per_element + j];
+      sigma[count] = restart_sigma[element_index * num_ann_per_element + j];
+      ++count;
+    }
+  }
+  ++count; // the global bias
+
+  // radial descriptors
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int element_index_1 = element_map[para.atomic_numbers[t1] - 1];
+          int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+          int t12 = element_index_1 * NUM89 + element_index_2;
+          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
+          sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+          ++count;
+        }
+      }
+    }
+  }
+
+  // angular descriptors
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          int element_index_1 = element_map[para.atomic_numbers[t1] - 1];
+          int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+          int t12 = element_index_1 * NUM89 + element_index_2;
+          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+          sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+          ++count;
+        }
+      }
+    }
+  }
+
+  input.close();
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
