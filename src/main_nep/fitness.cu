@@ -623,27 +623,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
   if (!atomic) {
     output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   } else {
-    for (int nc = 0; nc < dataset.Nc; ++nc) {
-      int offset = dataset.Na_sum_cpu[nc];
-      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-        int n = offset + m;
-        fprintf(
-          fid_polarizability,
-          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
-          dataset.virial_cpu[n],
-          dataset.virial_cpu[n + dataset.N],
-          dataset.virial_cpu[n + dataset.N * 2],
-          dataset.virial_cpu[n + dataset.N * 3],
-          dataset.virial_cpu[n + dataset.N * 4],
-          dataset.virial_cpu[n + dataset.N * 5],
-          dataset.avirial_ref_cpu[n],
-          dataset.avirial_ref_cpu[n + dataset.N],
-          dataset.avirial_ref_cpu[n + dataset.N * 2],
-          dataset.avirial_ref_cpu[n + dataset.N * 3],
-          dataset.avirial_ref_cpu[n + dataset.N * 4],
-          dataset.avirial_ref_cpu[n + dataset.N * 5]);
-      }
-    }
+    output_atomic(false, 6, fid_polarizability, dataset.virial_cpu, dataset.virial_ref_cpu, dataset);
   }
 }
 
