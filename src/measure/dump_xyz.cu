@@ -263,22 +263,12 @@ void Dump_XYZ::output_line2(
 }
 
 void Dump_XYZ::process_all(
-  const int number_of_steps,
   int step,
-  const int fixed_group,
-  const int move_group,
   const double global_time,
-  const double temperature,
-  Integrate& integrate,
   Box& box,
-  std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  Atom& atom,
-  Force& force)
+  Atom& atom)
 {
-  if ((step + 1) % dump_interval_ != 0)
-    return;
-
   const int num_atoms_total = atom.position_per_atom.size() / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   if (quantities.has_mass_) {
@@ -356,22 +346,13 @@ void Dump_XYZ::process_all(
 }
 
 void Dump_XYZ::process_group(
-  const int number_of_steps,
   int step,
-  const int fixed_group,
-  const int move_group,
   const double global_time,
-  const double temperature,
-  Integrate& integrate,
   Box& box,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  Atom& atom,
-  Force& force)
+  Atom& atom)
 {
-  if ((step + 1) % dump_interval_ != 0)
-    return;
-
   const int num_atoms_total = atom.position_per_atom.size() / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   if (quantities.has_mass_) {
@@ -466,31 +447,9 @@ void Dump_XYZ::process(
     return;
   
   if (grouping_method_ < 0) {
-    process_all(number_of_steps,
-      step,
-      fixed_group,
-      move_group,
-      global_time,
-      temperature,
-      integrate,
-      box,
-      group,
-      thermo,
-      atom,
-      force);
+    process_all(step, global_time, box, thermo, atom);
   } else {
-    process_group(number_of_steps,
-      step,
-      fixed_group,
-      move_group,
-      global_time,
-      temperature,
-      integrate,
-      box,
-      group,
-      thermo,
-      atom,
-      force);
+    process_group(step, global_time, box, group, thermo, atom);
   }
 }
 

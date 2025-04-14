@@ -92,30 +92,17 @@ private:
     GPU_Vector<double>& gpu_thermo);
 
   void process_all(
-    const int number_of_steps,
     int step,
-    const int fixed_group,
-    const int move_group,
     const double global_time,
-    const double temperature,
-    Integrate& integrate,
+    Box& box,
+    GPU_Vector<double>& thermo,
+    Atom& atom);
+
+  void process_group(
+    int step,
+    const double global_time,
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
-    Atom& atom,
-    Force& force);
-
-  void process_group(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    Atom& atom);
 };
