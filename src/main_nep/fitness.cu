@@ -599,21 +599,7 @@ void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
   if (!atomic) {
     output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   } else {
-    for (int nc = 0; nc < dataset.Nc; ++nc) {
-      int offset = dataset.Na_sum_cpu[nc];
-      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-        int n = offset + m;
-        fprintf(
-          fid_dipole,
-          "%g %g %g %g %g %g\n",
-          dataset.virial_cpu[n],
-          dataset.virial_cpu[n + dataset.N],
-          dataset.virial_cpu[n + dataset.N * 2],
-          dataset.avirial_ref_cpu[n],
-          dataset.avirial_ref_cpu[n + dataset.N],
-          dataset.avirial_ref_cpu[n + dataset.N * 2]);
-      }
-    }
+    output_atomic(false, 3, fid_dipole, dataset.virial_cpu, dataset.virial_ref_cpu, dataset);
   }
 }
 
