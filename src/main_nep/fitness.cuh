@@ -54,6 +54,13 @@ protected:
     float* prediction,
     float* reference,
     Dataset& dataset);
+    void output_atomic(
+      bool is_stress,
+      int num_components,
+      FILE* fid,
+      float* prediction,
+      float* reference,
+      Dataset& dataset);
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset, bool atomic);
   void update_charge(FILE* fid_charge, Dataset& dataset);

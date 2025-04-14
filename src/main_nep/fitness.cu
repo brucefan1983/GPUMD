@@ -281,6 +281,40 @@ void Fitness::output(
   }
 }
 
+void Fitness::output_atomic(
+  bool is_stress,
+  int num_components,
+  FILE* fid,
+  float* prediction,
+  float* reference,
+  Dataset& dataset)
+{
+for (int nc = 0; nc < dataset.Nc; ++nc) {
+  int offset = dataset.Na_sum_cpu[nc];
+  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+    for (int n = 0; n < num_components; ++n) {
+      int index = n * dataset.N + offset + m;
+      if (!is_stress) {
+        fprintf(fid, "%g ", prediction[index] / dataset.Na_cpu[nc]);
+      } else {
+        fprintf(fid, "%g ", prediction[index] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+      }
+    }
+    for (int n = 0; n < num_components; ++n) {
+      float ref_value = reference[n * dataset.N + offset + m];
+      if (is_stress) {
+        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+      }
+      if (n == num_components - 1) {
+        fprintf(fid, "%g\n", ref_value);
+      } else {
+        fprintf(fid, "%g ", ref_value);
+      }
+    }
+  }
+}
+}
+
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
@@ -544,42 +578,8 @@ void Fitness::update_energy_force_virial(
     output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
     output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   } else {
-    for (int nc = 0; nc < dataset.Nc; ++nc) {
-      int offset = dataset.Na_sum_cpu[nc];
-      for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-        int n = offset + m;
-        fprintf(
-          fid_virial,
-          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
-          dataset.virial_cpu[n] / dataset.Na_cpu[nc],
-          dataset.virial_cpu[n + dataset.N] / dataset.Na_cpu[nc],
-          dataset.virial_cpu[n + dataset.N * 2] / dataset.Na_cpu[nc],
-          dataset.virial_cpu[n + dataset.N * 3] / dataset.Na_cpu[nc],
-          dataset.virial_cpu[n + dataset.N * 4] / dataset.Na_cpu[nc],
-          dataset.virial_cpu[n + dataset.N * 5] / dataset.Na_cpu[nc],
-          dataset.avirial_ref_cpu[n],
-          dataset.avirial_ref_cpu[n + dataset.N],
-          dataset.avirial_ref_cpu[n + dataset.N * 2],
-          dataset.avirial_ref_cpu[n + dataset.N * 3],
-          dataset.avirial_ref_cpu[n + dataset.N * 4],
-          dataset.avirial_ref_cpu[n + dataset.N * 5]);
-        fprintf(
-          fid_stress,
-          "%g %g %g %g %g %g %g %g %g %g %g %g\n",
-          dataset.virial_cpu[n] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.virial_cpu[n + dataset.N] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.virial_cpu[n + dataset.N * 2] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.virial_cpu[n + dataset.N * 3] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.virial_cpu[n + dataset.N * 4] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.virial_cpu[n + dataset.N * 5] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n + dataset.N] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n + dataset.N * 2] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n + dataset.N * 3] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n + dataset.N * 4] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION,
-          dataset.avirial_ref_cpu[n + dataset.N * 5] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
-      }
-    }
+    output_atomic(false, 6, fid_virial, dataset.virial_cpu, dataset.virial_ref_cpu, dataset);
+    output_atomic(true, 6, fid_stress, dataset.virial_cpu, dataset.virial_ref_cpu, dataset);
   }
 }
 
