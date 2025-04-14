@@ -14,20 +14,17 @@ File format
 There are 18 columns in this output file, each containing the values of a quantity at increasing time points::
 
   column   1 2 3 4  5  6  7   8   9   10 11 12 13 14 15 16 17 18
-  quantity T K U Px Py Pz Pyz Pxz Pxy ax ay az bx by bz cx cy cz
+  quantity T K U Pxx Pyy Pzz Pyz Pxz Pxy ax ay az bx by bz cx cy cz
 
 * :attr:`T` is the temperature (in units of K)
 * :attr:`K` is the kinetic energy (in units of eV) of the system
 * :attr:`U` is the potential energy (in units of eV) of the system
-* :attr:`Px` is the pressure (in units of GPa) in the x direction
-* :attr:`Py` is the pressure (in units of GPa) in the y direction
-* :attr:`Pz` is the pressure (in units of GPa) in the z direction
+* :attr:`Pxx` is the pressure (in units of GPa) in the xx direction
+* :attr:`Pyy` is the pressure (in units of GPa) in the yy direction
+* :attr:`Pzz` is the pressure (in units of GPa) in the zz direction
 * :attr:`Pyz` is the pressure (in units of GPa) in the yz direction
 * :attr:`Pxz` is the pressure (in units of GPa) in the xz direction
 * :attr:`Pxy` is the pressure (in units of GPa) in the xy direction
-* :attr:`Lx` is the box length (in units of Ångstrom) in the x direction
-* :attr:`Ly` is the box length (in units of Ångstrom) in the y direction
-* :attr:`Lz` is the box length (in units of Ångstrom) in the z direction
 * :attr:`ax ay az bx by bz cx cy cz` are the components (in units of Ångstrom) of the triclinic box matrix formed by the following vectors:
 
   .. math::

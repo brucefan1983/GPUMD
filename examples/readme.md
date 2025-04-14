@@ -1,23 +1,7 @@
-# Examples and tutorials of GPUMD
+# Examples demonstrating the usage of GPUMD
 
-## List of examples (only the initial creator is listed)
-
-
-| folder                                     | creator       | potential | description                                        |
-| ---------------------------------------    | ------------- | --------- | ---------------------------------------------------|
-| 01_Carbon_examples_for_JCP_2022_paper      | Penghua Ying  | NEP       | Some examples for Ref. [1] |
-| 02_Carbon_density_of_states                | Zheyong Fan   | Tersoff   | Phonon density of states of graphene |
-| 03_Carbon_thermal_transport_emd            | Zheyong Fan   | Tersoff   | Thermal transport in graphene from EMD |
-| 04_Carbon_thermal_transport_nemd_and_hnemd | Zheyong Fan   | Tersoff   | Thermal transport in graphene from NEMD and NEMD |
-| 05_Carbon_phonon_vibration_viewer          | Ting Liang    | Tersoff   | Visualizing the phonon modes in a type of diamond nanowire. |
-| 06_Silicon_phonon_dispersion               | Zheyong Fan   | Tersoff   | Phonon dispersions of silicon.  |
-| 07_Silicon_thermal_expansion               | Zheyong Fan   | Tersoff   | Thermal expansion of silicon based on classical MD. |
-| 08_Silicon_melt                            | Zheyong Fan   | NEP       | Melting point of silicon from two-phase method. |
-| 09_Silicon_diffusion                       | Zheyong Fan   | NEP       | Diffusion coefficient of liquid silicon from VAC and MSD. |
-| 10_Silicon_viscosity                       | Zheyong Fan   | NEP       | Viscosity of liquid silicon from Green-Kubo. |
-| 11_NEP_potential_PbTe                      | Zheyong Fan   | NEP       | Train a NEP potential model for PbTe. |
-| 12_NEP_dipole_QM7B                         | Nan Xu        | NEP       | Train a NEP dipole model for QM7B database. |
-| 13_NEP_polarizability_QM7B                 | Nan Xu        | NEP       | Train a NEP polarizability model for QM7B database. |
+This fold contains a few simple examples demonstrating the usage of `nep` and `gpumd` excutables.
+Please see the [GPUMD-Tutorials respository](https://github.com/brucefan1983/GPUMD-Tutorials) for more realistic examples and tutorials on the applications of the GPUMD package and related tools.
 
 
 ## How to run the examples?
@@ -54,8 +38,11 @@ potential YOUR_NEP_MODEL.txt y # force to partition along the y direction (the b
 potential YOUR_NEP_MODEL.txt z # force to partition along the z direction (the c direction for triclinic box)
 ```
 
-## References
+## List of examples
 
-[1] Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
-[GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
-
+| Folder                 | Description                                        |
+| -----------------------| ---------------------------------------------------|
+| nep_train              | Training a NEP model for PbTe using the `nep` executable. |
+| nep_prediction         | Predicting a `train.xyz` dataset using the `nep` executable. |
+| gpumd_static           | Doing a static calculation using the `gpumd` executable. |
+| gpumd_dynamic          | Doing a dynamic simulation using the `gpumd` executable. |

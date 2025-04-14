@@ -44,7 +44,6 @@ void Dump_Thermo::parse(const char** param, int num_param)
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("thermo dump interval should > 0.");
   }
-  dump_ = true;
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
@@ -57,9 +56,26 @@ void Dump_Thermo::preprocess(
   Box& box,
   Force& force)
 {
-  if (dump_) {
-    fid_ = my_fopen("thermo.out", "a");
-  }
+  fid_ = my_fopen("thermo.out", "a");
+  // header
+  fprintf(fid_, "# col 1: T K\n");
+  fprintf(fid_, "# col 2: K eV\n");
+  fprintf(fid_, "# col 3: U eV\n");
+  fprintf(fid_, "# col 4: Pxx GPa\n");
+  fprintf(fid_, "# col 5: Pyy GPa\n");
+  fprintf(fid_, "# col 6: Pzz GPa\n");
+  fprintf(fid_, "# col 7: Pyz GPa\n");
+  fprintf(fid_, "# col 8: Pzx GPa\n");
+  fprintf(fid_, "# col 9: Pxy GPa\n");
+  fprintf(fid_, "# col 10: ax A\n");
+  fprintf(fid_, "# col 11: ay A\n");
+  fprintf(fid_, "# col 12: az A\n");
+  fprintf(fid_, "# col 13: bx A\n");
+  fprintf(fid_, "# col 14: by A\n");
+  fprintf(fid_, "# col 15: bz A\n");
+  fprintf(fid_, "# col 16: cx A\n");
+  fprintf(fid_, "# col 17: cy A\n");
+  fprintf(fid_, "# col 18: cz A\n");
 }
 
 void Dump_Thermo::process(
@@ -76,8 +92,6 @@ void Dump_Thermo::process(
   Atom& atom,
   Force& force)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
@@ -132,8 +146,5 @@ void Dump_Thermo::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (dump_) {
-    fclose(fid_);
-    dump_ = false;
-  }
+  fclose(fid_);
 }

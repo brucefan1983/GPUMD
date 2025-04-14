@@ -14,7 +14,6 @@ In addition to :ref:`several empirical interatomic potentials <potentials>`, it 
    installation
    theory/index
    potentials/index
-   tutorials/index
 
 .. toctree::
    :maxdepth: 2

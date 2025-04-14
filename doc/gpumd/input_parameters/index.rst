@@ -15,9 +15,11 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    velocity
    correct_velocity
    potential
+   compute_extrapolation
    dftd3
    change_box
    deform
+   move
    ensemble
    ensemble_standard
    ensemble_mttk

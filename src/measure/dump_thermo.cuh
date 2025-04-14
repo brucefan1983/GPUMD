@@ -57,7 +57,6 @@ public:
     const double temperature);
 
 private:
-  bool dump_ = false;
   int dump_interval_ = 1;
   FILE* fid_;
   char filename_[200];

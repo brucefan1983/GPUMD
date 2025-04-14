@@ -25,40 +25,40 @@ Run simulation according to the inputs in the run.in file.
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
-#include "measure/measure.cuh"
-#include "measure/property.cuh"
-#include "measure/compute.cuh"
-#include "measure/dos.cuh"
-#include "measure/hac.cuh"
-#include "measure/shc.cuh"
-#include "measure/msd.cuh"
-#include "measure/sdc.cuh"
-#include "measure/rdf.cuh"
+#include "measure/active.cuh"
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
-#include "measure/viscosity.cuh"
-#include "measure/lsqt.cuh"
-#include "measure/hnemd_kappa.cuh"
-#include "measure/hnemdec_kappa.cuh"
-#include "measure/modal_analysis.cuh"
-#include "measure/plumed.cuh"
-#include "measure/dump_netcdf.cuh"
+#include "measure/compute.cuh"
+#include "measure/dos.cuh"
+#include "measure/dump_beads.cuh"
+#include "measure/dump_dipole.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
+#include "measure/dump_netcdf.cuh"
+#include "measure/dump_observer.cuh"
+#include "measure/dump_polarizability.cuh"
 #include "measure/dump_position.cuh"
 #include "measure/dump_restart.cuh"
+#include "measure/dump_shock_nemd.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
-#include "measure/dump_shock_nemd.cuh"
-#include "measure/dump_dipole.cuh"
-#include "measure/dump_polarizability.cuh"
-#include "measure/dump_beads.cuh"
-#include "measure/dump_observer.cuh"
-#include "measure/active.cuh"
+#include "measure/extrapolation.cuh"
+#include "measure/hac.cuh"
+#include "measure/hnemd_kappa.cuh"
+#include "measure/hnemdec_kappa.cuh"
+#include "measure/lsqt.cuh"
+#include "measure/measure.cuh"
+#include "measure/modal_analysis.cuh"
+#include "measure/msd.cuh"
+#include "measure/plumed.cuh"
+#include "measure/property.cuh"
+#include "measure/rdf.cuh"
+#include "measure/sdc.cuh"
+#include "measure/shc.cuh"
+#include "measure/viscosity.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
-#include "model/check_distance.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
@@ -144,8 +144,6 @@ Run::Run()
   print_line_2();
 
   initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
-
-  calculate_min_atomic_distance(atom, box);
 
   allocate_memory_gpu(group, atom, thermo);
 
@@ -328,13 +326,7 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(
-    atom,
-    box,
-    integrate,
-    number_of_steps,
-    time_step,
-    integrate.temperature2);
+  measure.finalize(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
   electron_stop.finalize();
   add_force.finalize();
@@ -487,6 +479,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     std::unique_ptr<Property> property;
     property.reset(new Active(param, num_param));
     measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_extrapolation") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Extrapolation(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_dos") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new DOS(param, num_param, group));
@@ -497,7 +493,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_msd") == 0) {
     std::unique_ptr<Property> property;
-    property.reset(new MSD(param, num_param, group));
+    property.reset(new MSD(param, num_param, group, atom));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
     std::unique_ptr<Property> property;
