@@ -108,8 +108,15 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   }
 
   // filename
-  filename_ = param[4];
-  printf("    into file %s.\n", filename_.c_str());
+  std::string filename_temp = param[4];
+  printf("    into file %s.\n", filename_temp.c_str());
+  if (filename_temp.back() == '*') {
+    separated_ = 1;
+    filename_ = filename_temp.substr(0, filename_temp.size() - 1);
+  } else {
+    separated_ = 0;
+    filename_ = filename_temp;
+  }
 
   for (int m = 5; m < num_param; ++m) {
     if (strcmp(param[m], "velocity") == 0) {
@@ -129,7 +136,6 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       printf("    has unwrapped position.\n");
     }
   }
-  separated_ = 0;
 }
 
 void Dump_XYZ::preprocess(
@@ -272,7 +278,7 @@ void Dump_XYZ::process(
   }
 
   if (separated_) {
-    std::string filename = "dump." + std::to_string(step + 1) + ".xyz";
+    std::string filename = filename_ + std::to_string(step + 1);
     fid_ = my_fopen(filename.data(), "w");
   }
 
