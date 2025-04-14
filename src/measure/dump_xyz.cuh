@@ -69,7 +69,6 @@ public:
 
 private:
 
-
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
@@ -77,16 +76,46 @@ private:
   int separated_ = 0;
   std::string filename_;
   FILE* fid_;
-  void output_line2(
-    const double time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
+
   std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+
+  void output_line2(
+    const double time,
+    const Box& box,
+    const std::vector<std::string>& cpu_atom_symbol,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo);
+
+  void process_all(
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
+
+  void process_group(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 };
