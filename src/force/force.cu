@@ -156,7 +156,7 @@ void Force::parse_potential(
       PRINT_INPUT_ERROR("potential should contain ILP potential file and NEP potential file.\n");
     }
     potential.reset(new ILP_NEP_TMD(fid_potential, param[2], num_types, number_of_atoms));
-  } else if (strcmp(potential_name, "ilp_nep") == 0) {
+  } else if (strcmp(potential_name, "nep_ilp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain an ILP potential file and a NEP map file.\n");
     }
