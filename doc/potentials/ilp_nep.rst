@@ -5,8 +5,9 @@
 ILP+NEP potential
 =================
 
-The hybrid ILP+NEP potential in :program:`GPUMD` combines the NEP potential for intralyer
-interactions and the ILP potential for interlayer interactions to simulate vdw materials,
+The hybrid ILP+NEP potential in :program:`GPUMD` combines the NEP potential, 
+[Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4), for intralyer
+interactions and the ILP potential [Ouyang2018]_ [Ouyang2020]_ for interlayer interactions to simulate vdw materials,
 graphene, :math:`h`-BN and TMDs.
 
 Potential form

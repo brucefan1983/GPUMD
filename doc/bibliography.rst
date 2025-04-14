@@ -284,3 +284,15 @@ Bibliography
    | *Active learning strategies for atomic cluster expansion models*
    | Phys. Rev. M **7**, 043801 (2023)
    | DOI: `10.1103/PhysRevMaterials.7.043801 <https://doi.org/10.1103/PhysRevMaterials.7.043801>`_
+
+.. [Ouyang2018]
+   | Wengen Ouyang, Davide Mandelli, Michael Urbakh, and Oded Hod
+   | *Nanoserpents: graphene nanoribbon motion on two-dimensional hexagonal materials*
+   | Nano Lett. **18**, 6009-6016 (2018)
+   | DOI: `10.1021/acs.nanolett.8b02848 <https://doi.org/10.1021/acs.nanolett.8b02848>`
+
+.. [Ouyang2020]
+   | Wengen Ouyang, Ido Azuri, Davide Mandelli, Alexandre Tkatchenko, Leeor Kronik, Michael Urbakh, and Oded Hod
+   | *Mechanical and tribological properties of layered materials under high pressure: assessing the importance of many-body dispersion effects*
+   | J. Chem. Theory Comput. **16(1)**, 666-676 (2020)
+   | DOI: `10.1021/acs.jctc.9b00908 <https://doi.org/10.1021/acs.jctc.9b00908>`
