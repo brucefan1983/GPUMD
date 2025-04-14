@@ -58,24 +58,24 @@ void Dump_Thermo::preprocess(
 {
   fid_ = my_fopen("thermo.out", "a");
   // header
-  fprintf(fid_, "# col 1: [T] [K]\n");
-  fprintf(fid_, "# col 2: [K] [eV]\n");
-  fprintf(fid_, "# col 3: [U] [eV]\n");
-  fprintf(fid_, "# col 4: [Pxx] [GPa]\n");
-  fprintf(fid_, "# col 5: [Pyy] [GPa]\n");
-  fprintf(fid_, "# col 6: [Pzz] [GPa]\n");
-  fprintf(fid_, "# col 7: [Pyz] [GPa]\n");
-  fprintf(fid_, "# col 8: [Pzx] [GPa]\n");
-  fprintf(fid_, "# col 9: [Pxy] [GPa]\n");
-  fprintf(fid_, "# col 10: [ax] [A]\n");
-  fprintf(fid_, "# col 11: [ay] [A]\n");
-  fprintf(fid_, "# col 12: [az] [A]\n");
-  fprintf(fid_, "# col 13: [bx] [A]\n");
-  fprintf(fid_, "# col 14: [by] [A]\n");
-  fprintf(fid_, "# col 15: [bz] [A]\n");
-  fprintf(fid_, "# col 16: [cx] [A]\n");
-  fprintf(fid_, "# col 17: [cy] [A]\n");
-  fprintf(fid_, "# col 18: [cz] [A]\n");
+  fprintf(fid_, "# col 1: T K\n");
+  fprintf(fid_, "# col 2: K eV\n");
+  fprintf(fid_, "# col 3: U eV\n");
+  fprintf(fid_, "# col 4: Pxx GPa\n");
+  fprintf(fid_, "# col 5: Pyy GPa\n");
+  fprintf(fid_, "# col 6: Pzz GPa\n");
+  fprintf(fid_, "# col 7: Pyz GPa\n");
+  fprintf(fid_, "# col 8: Pzx GPa\n");
+  fprintf(fid_, "# col 9: Pxy GPa\n");
+  fprintf(fid_, "# col 10: ax A\n");
+  fprintf(fid_, "# col 11: ay A\n");
+  fprintf(fid_, "# col 12: az A\n");
+  fprintf(fid_, "# col 13: bx A\n");
+  fprintf(fid_, "# col 14: by A\n");
+  fprintf(fid_, "# col 15: bz A\n");
+  fprintf(fid_, "# col 16: cx A\n");
+  fprintf(fid_, "# col 17: cy A\n");
+  fprintf(fid_, "# col 18: cz A\n");
 }
 
 void Dump_Thermo::process(
