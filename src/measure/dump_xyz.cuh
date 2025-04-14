@@ -25,7 +25,7 @@ class Group;
 class Dump_XYZ : public Property
 {
 public:
-  Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups);
+  Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
   virtual void preprocess(
     const int number_of_steps,
@@ -62,6 +62,7 @@ public:
     bool has_velocity_ = false;
     bool has_force_ = false;
     bool has_potential_ = false;
+    bool has_unwrapped_position_ = false;
   };
 
 private:
@@ -80,6 +81,7 @@ private:
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
+  std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   GPU_Vector<double> gpu_total_virial_;

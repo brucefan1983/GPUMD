@@ -50,9 +50,16 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups) 
+Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom) 
 {
   parse(param, num_param, groups);
+  if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
+    atom.unwrapped_position.resize(atom.number_of_atoms * 3);
+    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+  }
+  if (atom.position_temp.size() < atom.number_of_atoms * 3) {
+    atom.position_temp.resize(atom.number_of_atoms * 3);
+  }
   property_name = "dump_xyz";
 }
 
@@ -117,6 +124,10 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       quantities.has_potential_ = true;
       printf("    has potential.\n");
     }
+    if (strcmp(param[m], "unwrapped_position") == 0) {
+      quantities.has_unwrapped_position_ = true;
+      printf("    has unwrapped position.\n");
+    }
   }
   separated_ = 0;
 }
@@ -141,6 +152,9 @@ void Dump_XYZ::preprocess(
   }
   if (quantities.has_potential_) {
     cpu_potential_per_atom_.resize(atom.number_of_atoms);
+  }
+  if (quantities.has_unwrapped_position_) {
+    cpu_unwrapped_position_.resize(atom.number_of_atoms * 3);
   }
 }
 
@@ -217,6 +231,9 @@ void Dump_XYZ::output_line2(
   if (quantities.has_potential_) {
     fprintf(fid_, ":energy_atom:R:1");
   }
+  if (quantities.has_unwrapped_position_) {
+    fprintf(fid_, ":unwrapped_position:R:3");
+  }
 
   // Over
   fprintf(fid_, "\n");
@@ -250,6 +267,9 @@ void Dump_XYZ::process(
   if (quantities.has_potential_) {
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
   }
+  if (quantities.has_unwrapped_position_) {
+    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
+  }
 
   if (separated_) {
     std::string filename = "dump." + std::to_string(step + 1) + ".xyz";
@@ -282,6 +302,11 @@ void Dump_XYZ::process(
     }
     if (quantities.has_potential_) {
       fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
+    }
+    if (quantities.has_unwrapped_position_) {
+      for (int d = 0; d < 3; ++d) {
+        fprintf(fid_, " %.8f", cpu_unwrapped_position_[n + num_atoms_total * d]);
+      }
     }
     fprintf(fid_, "\n");
   }
