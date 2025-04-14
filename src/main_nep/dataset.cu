@@ -22,6 +22,7 @@
 #include "utilities/nep_utilities.cuh"
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
@@ -72,6 +73,12 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
       structures[n].fz[na] = structures_input[n_input].fz[na];
     }
 
+    if (structures[n].has_atomic_virial != structures[0].has_atomic_virial) {
+      throw std::runtime_error("All structures must have the same has_atomic_virial flag.");
+    }
+    if (structures[n].atomic_virial_diag_only != structures[0].atomic_virial_diag_only) {
+      throw std::runtime_error("All structures must have the same atomic_virial_diag_only flag.");
+    }
     if (structures[n].has_atomic_virial) {
       structures[n].avirialxx.resize(structures[n].num_atom);
       structures[n].avirialyy.resize(structures[n].num_atom);
