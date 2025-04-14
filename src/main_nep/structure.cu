@@ -91,8 +91,7 @@ static void read_force(
   const Parameters& para,
   Structure& structure,
   std::string& xyz_filename,
-  int& line_number,
-  int train_mode)
+  int& line_number)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
