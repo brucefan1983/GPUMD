@@ -519,7 +519,7 @@ void MC_Minimizer_Local::compute(
       box,
       i,
       j,
-      rc_radius * rc_radius * (scale_factor + 2) * (scale_factor + 2),
+      rc_radius * rc_radius * (scale_factor + 2.2) * (scale_factor + 2.2),
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
