@@ -14,7 +14,7 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump some data to dump.xyz in the extended XYZ format
+Dump per-atom data to user-specified file(s) in the extended XYZ format
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"
