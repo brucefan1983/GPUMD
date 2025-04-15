@@ -90,6 +90,7 @@ with three different options for specifying :attr:`pressure_control_parameters`:
   
   It is sufficient for the elastic constant tensor :attr:`C_ab` to be a (very rough) estimate as long as it is of the right magnitude.
   It is used to convert the coupling constant (or relaxation time, see :ref:`here <choice_of_parameters>`) of the barostat into suitable internal units.
+  If a elastic constant component exceeds 2000 GPa, the coupling constant for that component will be zero and that box component will not be changed. 
 
 :attr:`npt_scr`
 ^^^^^^^^^^^^^^^
