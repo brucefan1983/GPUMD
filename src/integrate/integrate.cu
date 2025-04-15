@@ -553,6 +553,9 @@ void Integrate::parse_ensemble(
     }
     for (int i = 0; i < 6; i++) {
       pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
+      if (elastic_modulus[i] > 2.0e3) {
+        pressure_coupling[i] = 0.0;
+      }
     }
   }
 
@@ -726,6 +729,9 @@ void Integrate::parse_ensemble(
         }
         for (int i = 0; i < 6; i++) {
           pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
+          if (elastic_modulus[i] > 2.0e3) {
+            pressure_coupling[i] = 0.0;
+          }
         }
       }
     }
