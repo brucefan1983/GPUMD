@@ -24,7 +24,7 @@
 
 class Atom;
 
-class Add_Random_Force
+class Add_Restorative_Force
 {
 public:
   void parse(const char** param, int num_param, int number_of_atoms);
@@ -32,7 +32,7 @@ public:
   void finalize();
 
 private:
-  GPU_Vector<gpurandState> curand_states_;
   int num_calls_ = 0;
-  double force_variance_ = 0.0;
+  double force_constant_ = 0.0;
+  double z0_ = 0.0;
 };
