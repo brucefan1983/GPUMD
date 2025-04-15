@@ -304,16 +304,16 @@ void Fitness::compute(Parameters& para)
       }
     } // end of step loop
   } else {
-    std::ifstream input("nep.txt");
+    std::ifstream input("gmlp.txt");
     if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open nep.txt.");
+      PRINT_INPUT_ERROR("Failed to open gmlp.txt.");
     }
     std::vector<std::string> tokens;
     float parameters[number_of_variables];
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
-      tokens[0] == "nep4_zbl") {
+      tokens[0] == "gmlp_zbl") {
       num_lines_to_be_skipped = 6;
     }
 
@@ -398,11 +398,11 @@ void Fitness::output(
 
 void Fitness::write_gmlp_txt(FILE* fid_gmlp, Parameters& para, float* parameters)
 {
-  if (para.version == 0) {
+  if (para.version == 1) {
     if (para.enable_zbl) {
-      fprintf(fid_gmlp, "nep4_zbl %d ", para.num_types);
+      fprintf(fid_gmlp, "gmlp_zbl %d ", para.num_types);
     } else {
-      fprintf(fid_gmlp, "nep4 %d ", para.num_types);
+      fprintf(fid_gmlp, "gmlp %d ", para.num_types);
     }
   }
 
@@ -481,7 +481,7 @@ void Fitness::report_error(
     rmse_virial_test = sqrt(rmse_virial_test_array.back()); 
   }
 
-  FILE* fid_gmlp = my_fopen("nep.txt", "w");
+  FILE* fid_gmlp = my_fopen("gmlp.txt", "w");
   write_gmlp_txt(fid_gmlp, para, parameters);
   fclose(fid_gmlp);
 
@@ -490,7 +490,7 @@ void Fitness::report_error(
     time(&rawtime);
     struct tm* timeinfo = localtime(&rawtime);
     char buffer[200];
-    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
+    strftime(buffer, sizeof(buffer), "gmlp_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
     std::string filename(buffer + std::to_string(epoch + 1) + ".txt");
 
     FILE* fid_gmlp = my_fopen(filename.c_str(), "w");

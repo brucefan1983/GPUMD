@@ -248,7 +248,7 @@ static __global__ void gpu_create_paramters(
 
 void Adam::initialize_parameters(Parameters& para)
 {
-  FILE* fid_restart = fopen("nep.restart", "r");
+  FILE* fid_restart = fopen("gmlp.restart", "r");
   if (fid_restart == NULL) {
     cudaSetDevice(0); // normally use GPU-0
     gpu_create_paramters<<<(number_of_variables - 1) / 128 + 1, 128>>>(
@@ -372,7 +372,7 @@ void Adam::initialize_parameters(Parameters& para)
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
         int count = fscanf(fid_restart, "%f", &parameters[n]);
-        PRINT_SCANF_ERROR(count, 1, "Reading error for nep.restart.");
+        PRINT_SCANF_ERROR(count, 1, "Reading error for gmlp.restart.");
     }
     fclose(fid_restart);
     cudaSetDevice(0); // normally use GPU-0
@@ -425,7 +425,7 @@ void Adam::update(float lr, float* gradients, int num_batches, int maximum_steps
 void Adam::output_parameters(Parameters& para) {
   cudaSetDevice(0); 
   gpu_parameters.copy_to_host(parameters.data());
-  FILE* fid = fopen("nep.restart", "w");
+  FILE* fid = fopen("gmlp.restart", "w");
   for (int i = 0; i < number_of_variables; ++i) {
     fprintf(fid, "%15.7e\n", parameters[i]);
   }

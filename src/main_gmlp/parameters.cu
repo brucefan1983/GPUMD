@@ -32,11 +32,11 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 Parameters::Parameters()
 {
   print_line_1();
-  printf("Started reading nep.in.\n");
+  printf("Started reading gmlp.in.\n");
   print_line_2();
 
   set_default_parameters();
-  read_nep_in();
+  read_gmlp_in();
   if (is_zbl_set) {
     read_zbl_in();
   }
@@ -44,7 +44,7 @@ Parameters::Parameters()
   report_inputs();
 
   print_line_1();
-  printf("Finished reading nep.in.\n");
+  printf("Finished reading gmlp.in.\n");
   print_line_2();
 }
 
@@ -79,7 +79,7 @@ void Parameters::set_default_parameters()
   is_use_energy_shift_set = false;
 
   prediction = 0;              // not prediction mode
-  version = 0;                 // 
+  version = 1;                 // only 1 for now
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
@@ -123,11 +123,11 @@ void Parameters::set_default_parameters()
   flexible_zbl = false; // default Universal ZBL
 }
 
-void Parameters::read_nep_in()
+void Parameters::read_gmlp_in()
 {
-  std::ifstream input("nep.in");
+  std::ifstream input("gmlp.in");
   if (!input.is_open()) {
-    std::cout << "Failed to open nep.in." << std::endl;
+    std::cout << "Failed to open gmlp.in." << std::endl;
     exit(1);
   }
 
@@ -176,7 +176,7 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  if (version == 0) {
+  if (version == 1) {
     number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types;
   }
 
@@ -201,7 +201,7 @@ void Parameters::calculate_parameters()
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
-    PRINT_INPUT_ERROR("type in nep.in has not been set.");
+    PRINT_INPUT_ERROR("type in gmlp.in has not been set.");
   }
 
   printf("Input or default parameters:\n");
@@ -220,9 +220,9 @@ void Parameters::report_inputs()
   }
 
   if (is_version_set) {
-    printf("    (input)   use NEP version %d.\n", version);
+    printf("    (input)   use GMLP version %d.\n", version);
   } else {
-    printf("    (default) use NEP version %d.\n", version);
+    printf("    (default) use GMLP version %d.\n", version);
   }
   printf("    (input)   number of atom types = %d.\n", num_types);
   if (is_type_weight_set) {
@@ -268,11 +268,11 @@ void Parameters::report_inputs()
   }
 
   if (is_use_typewise_cutoff_set) {
-    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (input)   use %s cutoff for GMLP.\n", use_typewise_cutoff ? "typewise" : "global");
     printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
     printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
   } else {
-    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (default) use %s cutoff for GMLP.\n", use_typewise_cutoff ? "typewise" : "global");
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
@@ -501,8 +501,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version != 0) {
-    PRINT_INPUT_ERROR("version should be 0.");
+  if (version != 1) {
+    PRINT_INPUT_ERROR("version should be 1.");
   }
 }
 
@@ -536,7 +536,7 @@ void Parameters::parse_type(const char** param, int num_param)
     }
     atomic_numbers.emplace_back(atomic_number);
     if (!is_valid_element) {
-      PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
+      PRINT_INPUT_ERROR("Some element in gmlp.in is not in the periodic table.");
     }
   }
 }
