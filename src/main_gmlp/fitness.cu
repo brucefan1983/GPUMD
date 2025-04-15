@@ -18,7 +18,7 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep3.cuh"
+#include "gmlp.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -133,7 +133,7 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   }
 
   potential.reset(
-    new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    new GMLP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
     
   optimizer->initialize_parameters(para);
 
@@ -313,8 +313,7 @@ void Fitness::compute(Parameters& para)
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
-      tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" || tokens[0] == "nep3_zbl_temperature" ||
-      tokens[0] == "nep4_zbl_temperature") {
+      tokens[0] == "nep4_zbl") {
       num_lines_to_be_skipped = 6;
     }
 
@@ -397,30 +396,30 @@ void Fitness::output(
   }
 }
 
-void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
+void Fitness::write_gmlp_txt(FILE* fid_gmlp, Parameters& para, float* parameters)
 {
   if (para.version == 0) {
     if (para.enable_zbl) {
-      fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+      fprintf(fid_gmlp, "nep4_zbl %d ", para.num_types);
     } else {
-      fprintf(fid_nep, "nep4 %d ", para.num_types);
+      fprintf(fid_gmlp, "nep4 %d ", para.num_types);
     }
   }
 
   for (int n = 0; n < para.num_types; ++n) {
-    fprintf(fid_nep, "%s ", para.elements[n].c_str());
+    fprintf(fid_gmlp, "%s ", para.elements[n].c_str());
   }
-  fprintf(fid_nep, "\n");
+  fprintf(fid_gmlp, "\n");
   if (para.enable_zbl) {
     if (para.flexible_zbl) {
-      fprintf(fid_nep, "zbl 0 0\n");
+      fprintf(fid_gmlp, "zbl 0 0\n");
     } else {
-      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
+      fprintf(fid_gmlp, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
   }
   if (para.use_typewise_cutoff || para.use_typewise_cutoff_zbl) {
     fprintf(
-      fid_nep,
+      fid_gmlp,
       "cutoff %g %g %d %d %g %g %g\n",
       para.rc_radial,
       para.rc_angular,
@@ -431,29 +430,29 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* parameters)
       para.typewise_cutoff_zbl_factor);
   } else {
     fprintf(
-      fid_nep,
+      fid_gmlp,
       "cutoff %g %g %d %d\n",
       para.rc_radial,
       para.rc_angular,
       max_NN_radial,
       max_NN_angular);
   }
-  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d\n", para.L_max);
+  fprintf(fid_gmlp, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
+  fprintf(fid_gmlp, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
+  fprintf(fid_gmlp, "l_max %d\n", para.L_max);
 
-  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  fprintf(fid_gmlp, "ANN %d %d\n", para.num_neurons1, 0);
   for (int m = 0; m < para.number_of_variables; ++m) {
-    fprintf(fid_nep, "%15.7e\n", parameters[m]);
+    fprintf(fid_gmlp, "%15.7e\n", parameters[m]);
   }
   CHECK(cudaSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
+    fprintf(fid_gmlp, "%15.7e\n", para.q_scaler_cpu[d]);
   }
   if (para.flexible_zbl) {
     for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
-      fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
+      fprintf(fid_gmlp, "%15.7e\n", para.zbl_para[d]);
     }
   }
 }
@@ -482,9 +481,9 @@ void Fitness::report_error(
     rmse_virial_test = sqrt(rmse_virial_test_array.back()); 
   }
 
-  FILE* fid_nep = my_fopen("nep.txt", "w");
-  write_nep_txt(fid_nep, para, parameters);
-  fclose(fid_nep);
+  FILE* fid_gmlp = my_fopen("nep.txt", "w");
+  write_gmlp_txt(fid_gmlp, para, parameters);
+  fclose(fid_gmlp);
 
   if (0 == (epoch + 1) % 100) {
     time_t rawtime;
@@ -494,9 +493,9 @@ void Fitness::report_error(
     strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
     std::string filename(buffer + std::to_string(epoch + 1) + ".txt");
 
-    FILE* fid_nep = my_fopen(filename.c_str(), "w");
-    write_nep_txt(fid_nep, para, parameters);
-    fclose(fid_nep);
+    FILE* fid_gmlp = my_fopen(filename.c_str(), "w");
+    write_gmlp_txt(fid_gmlp, para, parameters);
+    fclose(fid_gmlp);
   }
 
   printf(

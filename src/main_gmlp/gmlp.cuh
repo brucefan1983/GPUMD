@@ -21,7 +21,7 @@
 class Parameters;
 class Dataset;
 
-struct NEP3_Data {
+struct GMLP_Data {
   GPU_Vector<int> NN_radial;  // radial neighbor number
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
@@ -41,7 +41,7 @@ struct NEP3_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
-class NEP3 : public Potential
+class GMLP : public Potential
 {
 public:
   struct ParaMB {
@@ -63,7 +63,7 @@ public:
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
-    int version = 4; // 3 for NEP3 and 4 for NEP4
+    int version = 1; 
     int atomic_numbers[NUM_ELEMENTS];
     int N_times_max_NN_radial;
     int N_times_max_NN_angular;
@@ -92,7 +92,7 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP3(
+  GMLP(
     Parameters& para,
     int N,
     int N_times_max_NN_radial,
@@ -114,7 +114,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP3_Data nep_data[16];
+  GMLP_Data gmlp_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, const float* parameters, ANN& ann);
   void initialize_gradients(Parameters& para, const int N);

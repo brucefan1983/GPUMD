@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
   print_gpu_information();
 
   print_line_1();
-  printf("Started running nep.\n");
+  printf("Started running gmlp.\n");
   print_line_2();
 
   clock_t time_begin = clock();
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
   print_line_2();
 
   print_line_1();
-  printf("Finished running nep.\n");
+  printf("Finished running gmlp.\n");
   print_line_2();
 
   return EXIT_SUCCESS;
@@ -69,10 +69,9 @@ void print_welcome_information(void)
 {
   printf("\n");
   printf("***************************************************************\n");
-  printf("*                 Welcome to use GPUMD                        *\n");
-  printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*              Master version after 3.9.5                     *\n");
-  printf("*              This is the nep executable                     *\n");
+  printf("*                 Welcome to use GMLP                         *\n");
+  printf("*    (Gradient-based Machine Learning Potentials)             *\n");
+  printf("*              Master version after 1.0.0                     *\n");
   printf("***************************************************************\n");
   printf("\n");
 }

@@ -83,5 +83,5 @@ protected:
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
   void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* step_parameters);
+  void write_gmlp_txt(FILE* fid_gmlp, Parameters& para, float* step_parameters);
 };

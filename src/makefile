@@ -30,21 +30,21 @@ LIBS = -lcublas -lcusolver
 ###########################################################
 # source files
 ###########################################################
-# SOURCES_GPUMD =                   \
-# 	$(wildcard main_gpumd/*.cu)   \
-# 	$(wildcard minimize/*.cu)     \
-# 	$(wildcard phonon/*.cu)       \
-# 	$(wildcard integrate/*.cu)    \
-# 	$(wildcard mc/*.cu)           \
-# 	$(wildcard force/*.cu)        \
-# 	$(wildcard measure/*.cu)      \
-# 	$(wildcard model/*.cu)        \
-# 	$(wildcard utilities/*.cu)
-# SOURCES_NEP =                     \
-# 	$(wildcard main_nep/*.cu)     \
-# 	$(wildcard utilities/*.cu)
-SOURCES_NEP_ADAM =                     \
-	$(wildcard main_nep_adam/*.cu)     \
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.cu)   \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard phonon/*.cu)       \
+	$(wildcard integrate/*.cu)    \
+	$(wildcard mc/*.cu)           \
+	$(wildcard force/*.cu)        \
+	$(wildcard measure/*.cu)      \
+	$(wildcard model/*.cu)        \
+	$(wildcard utilities/*.cu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.cu)     \
+	$(wildcard utilities/*.cu)
+SOURCES_GMLP =                     \
+	$(wildcard main_gmlp/*.cu)     \
 	$(wildcard utilities/*.cu)
 
 
@@ -54,11 +54,11 @@ SOURCES_NEP_ADAM =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
-OBJ_NEP_ADAM = $(SOURCES_NEP_ADAM:.cu=.obj)
+OBJ_GMLP = $(SOURCES_GMLP:.cu=.obj)
 else
-# OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
-# OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-OBJ_NEP_ADAM = $(SOURCES_NEP_ADAM:.cu=.o)
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
+OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_GMLP = $(SOURCES_GMLP:.cu=.o)
 endif
 
 
@@ -76,18 +76,18 @@ HEADERS =                         \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
-	$(wildcard main_nep_adam/*.cuh)
+	$(wildcard main_gmlp/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep nep_adam
-# gpumd: $(OBJ_GPUMD)
-# 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-# nep: $(OBJ_NEP)
-# 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-nep_adam: $(OBJ_NEP_ADAM)
+all: gpumd nep gmlp
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+nep: $(OBJ_NEP)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+gmlp: $(OBJ_GMLP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 
@@ -115,30 +115,30 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep_adam/%.obj: main_nep_adam/%.cu $(HEADERS)
+main_gmlp/%.obj: main_gmlp/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
-# integrate/%.o: integrate/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# mc/%.o: mc/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# minimize/%.o: minimize/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# force/%.o: force/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# measure/%.o: measure/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# model/%.o: model/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# phonon/%.o: phonon/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-# main_nep/%.o: main_nep/%.cu $(HEADERS)
-# 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep_adam/%.o: main_nep_adam/%.cu $(HEADERS)
+model/%.o: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.o: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gmlp/%.o: main_gmlp/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
@@ -150,6 +150,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o nep_adam
+	rm -f */*.o gpumd nep gmlp
 endif
 
