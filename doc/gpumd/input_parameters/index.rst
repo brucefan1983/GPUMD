@@ -71,6 +71,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    
    active
    dump_exyz
+   dump_xyz
    dump_beads
    dump_observer
    dump_dipole

@@ -42,6 +42,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dump_shock_nemd.cuh"
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
+#include "measure/dump_xyz.cuh"
 #include "measure/extrapolation.cuh"
 #include "measure/hac.cuh"
 #include "measure/hnemd_kappa.cuh"
@@ -454,6 +455,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dump_exyz") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Dump_EXYZ(param, num_param));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "dump_xyz") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_XYZ(param, num_param, group, atom));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_beads") == 0) {
     std::unique_ptr<Property> property;
