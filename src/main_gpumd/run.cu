@@ -552,7 +552,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
-  } else if (strcmp(param[0], "add_random_force") == 0) {
+  } else if (strcmp(param[0], "add_restorative_force") == 0) {
     add_restorative_force.parse(param, num_param, atom.number_of_atoms);
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
