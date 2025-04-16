@@ -229,3 +229,4 @@ Create a new conda environment with Python and activate it::
 Download DP source code and compile the source files following DP docs. Here are the cmake commands::
 
     >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
+    >> $ cd deepmd-kit/source
