@@ -244,3 +244,5 @@ The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba7208
 ::
 
     >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
+    >> $ cd ${GPUMD}/src
+    >> $ vi makefile
