@@ -146,3 +146,6 @@ GPUMD supports DP potential project
 
 0 Program Introduction
 ----------------------
+
+0.1 Necessary instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
