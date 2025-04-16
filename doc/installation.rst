@@ -219,3 +219,5 @@ Then run the following installation command::
 3.1 Conda environment
 ~~~~~~~~~~~~~~~~~~~~~
 Create a new conda environment with Python and activate it::
+
+    >> $ conda create -n tf-gpu2  python=3.9
