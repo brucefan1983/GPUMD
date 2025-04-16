@@ -140,7 +140,6 @@ Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
 
 GPUMD supports DP potential project
 =====================================
-
 - Author: 徐克 (kickhsu[at]gmail.com)
 - Author: 卜何凯 (hekai_bu[at]whu.edu.cn)
 
@@ -185,7 +184,6 @@ After running according to the above steps, using ``dp -h`` can successfully dis
 2.1 GPUMD-DP installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
-
 ::
 
     >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
