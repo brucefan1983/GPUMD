@@ -140,11 +140,10 @@ Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
 
 GPUMD supports DP potential project
 =====================================
-- Author: 徐克 (kickhsu[at]gmail.com)
-- Author: 卜何凯 (hekai_bu[at]whu.edu.cn)
 
 0 Program Introduction
 ----------------------
+
 
 0.1 Necessary instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
