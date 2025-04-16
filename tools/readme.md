@@ -13,7 +13,6 @@
 | add_groups           | Yuwen Zhang  | 984307703@qq.com | Generate grouping method(s) for `model.xyz`.                 |
 | castep2exyz          | Yanzhou Wang | yanzhowang@gmail.com   | Get `train.xyz` from `CASTEP` outputs.                       |
 | cp2k2xyz             | Zherui Chen  | chenzherui0124@foxmail.com | Get `train.xyz` from `CP2K` outputs or vice versa.           |
-| deep2nep             | Ke Xu        | twtdq@qq.com                                     | Oudated?                                                     |
 | doc_3.3.1            | Zheyong Fan  | brucenju@gmail.com | Documentation for some parts of GPUMD-v3.3.1.                |
 | dp2xyz               | Ke Xu        | twtdq@qq.com        | Convert `DP` training data to `xyz` format.                  |
 | exyz2pdb             | Zherui Chen | chenzherui0124@foxmail.com  | Convert `exyz` to `pdb`. |
