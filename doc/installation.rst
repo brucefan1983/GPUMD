@@ -237,3 +237,6 @@ Download DP source code and compile the source files following DP docs. Here are
     >> $ make install
 
 We just need the DP C++ interface, so we don't source all DP environment. The libraries will be installed in ``path_to_install``.
+
+3.4 Configure the makefile of ``GPUMD``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
