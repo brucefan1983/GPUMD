@@ -218,3 +218,4 @@ Then run the following installation command::
 
 3.1 Conda environment
 ~~~~~~~~~~~~~~~~~~~~~
+Create a new conda environment with Python and activate it::
