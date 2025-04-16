@@ -271,3 +271,6 @@ Or add the environment permanently to the ``~/.bashrc``::
 
     >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
     >> $ source ~/.bashrc
+
+3.6 Run Test
+~~~~~~~~~~~~
