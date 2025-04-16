@@ -196,3 +196,5 @@ Modify ``makefile`` as follows:
 - Line 19 is changed from ``CUDA_ARCH=-arch=sm_60`` to ``CUDA_ARCH=-arch=sm_89`` (for RTX 4090). Modify according to the corresponding graphics card model.
 - Line 25 is changed from ``INC = -I./`` to ``INC = -I./ -I/root/miniconda3/deepmd-kit/source/build/path_to_install/include/deepmd``
 - Line 27 is changed from ``LIBS = -lcublas -lcusolver`` to ``LIBS = -lcublas -lcusolver -L/root/miniconda3/deepmd-kit/source/build/path_to_install/lib -ldeepmd_cc``
+
+Then run the following installation command::
