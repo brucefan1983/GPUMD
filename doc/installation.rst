@@ -192,3 +192,5 @@ The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba7208
     >> $ cd ${GPUMD}/src-v0.1
 
 Modify ``makefile`` as follows:
+
+- Line 19 is changed from ``CUDA_ARCH=-arch=sm_60`` to ``CUDA_ARCH=-arch=sm_89`` (for RTX 4090). Modify according to the corresponding graphics card model.
