@@ -256,7 +256,10 @@ Then link the DP C++ libraries. Add the following two lines to update the includ
 ``INC += -Ipath_to_install/include/deepmd``
 
 ``LDFLAGS += -Lpath_to_install/lib -ldeepmd_cc``
-
 ::
 
     >> $ make gpumd -j
+
+3.5 Run ``GPUMD``
+~~~~~~~~~~~~~~~~~
+
