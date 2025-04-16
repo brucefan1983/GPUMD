@@ -228,11 +228,9 @@ Download DP source code and compile the source files following DP docs. Here are
 
     >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
     >> $ cd deepmd-kit/source
-    >> $ mkdir build
-    >> $ cd build
+    >> $ mkdir build && cd build
     >> $ cmake -DENABLE_TENSORFLOW=TRUE -DUSE_CUDA_TOOLKIT=TRUE -DCMAKE_INSTALL_PREFIX=`path_to_install` -DUSE_TF_PYTHON_LIBS=TRUE ../
-    >> $ make -j
-    >> $ make install
+    >> $ make -j && make install
 
 We just need the DP C++ interface, so we don't source all DP environment. The libraries will be installed in ``path_to_install``.
 
