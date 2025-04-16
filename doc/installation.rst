@@ -179,3 +179,5 @@ Use the latest version of DP installation steps::
     >> $ sh deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh -p /root/autodl-tmp/deepmd-kit -u # Just keep pressing Enter/yes.
     >> $ source /root/autodl-tmp/deepmd-kit/bin/activate /root/autodl-tmp/deepmd-kit
     >> $ dp -h
+
+After running according to the above steps, using ``dp -h`` can successfully display no errors.
