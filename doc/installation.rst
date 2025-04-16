@@ -222,3 +222,4 @@ Create a new conda environment with Python and activate it::
 
     >> $ conda create -n tf-gpu2  python=3.9
     >> $ conda install -c conda-forge cudatoolkit=11.8
+    >> $ pip install --upgrade tensorflow
