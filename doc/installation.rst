@@ -168,3 +168,4 @@ And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run
 
 2.0 DP installation (Offline version)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Use the latest version of DP installation steps::
