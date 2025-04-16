@@ -181,3 +181,6 @@ Use the latest version of DP installation steps::
     >> $ dp -h
 
 After running according to the above steps, using ``dp -h`` can successfully display no errors.
+
+2.1 GPUMD-DP installation
+~~~~~~~~~~~~~~~~~~~~~~~~~
