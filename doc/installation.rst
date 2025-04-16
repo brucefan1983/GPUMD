@@ -252,3 +252,5 @@ Configure the makefile of GPUMD. The DP code is included by macro definition ``U
 ``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_TENSORFLOW``
 
 Then link the DP C++ libraries. Add the following two lines to update the include and link paths and compile GPUMD:
+
+``INC += -Ipath_to_install/include/deepmd``
