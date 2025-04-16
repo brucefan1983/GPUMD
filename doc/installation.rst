@@ -133,3 +133,7 @@ The setup instructions are below:
 * Follow the remaining :program:`GPUMD` installation instructions
 
 Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
+
+.. _use_dp_in_gpumd:
+.. index::
+   single: Deep Potential
