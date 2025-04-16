@@ -154,3 +154,4 @@ GPUMD supports DP potential project
 
 0.2 Installation Dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- You must ensure that the new version of DP is installed and can run normally. This program contains DP-related dependencies.
