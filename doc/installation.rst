@@ -268,3 +268,6 @@ When running GPUMD, if an error occurs stating that the DP libraries could not b
     LD_LIBRARY_PATH=path_to_install/lib:$LD_LIBRARY_PATH
 
 Or add the environment permanently to the ``~/.bashrc``::
+
+    >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
+    >> $ source ~/.bashrc
