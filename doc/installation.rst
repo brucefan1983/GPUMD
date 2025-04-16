@@ -200,3 +200,4 @@ Modify ``makefile`` as follows:
 Then run the following installation command::
 
     >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> /root/.bashrc
+    >> $ source /root/.bashrc
