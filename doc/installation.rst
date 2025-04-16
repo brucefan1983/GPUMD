@@ -232,3 +232,4 @@ Download DP source code and compile the source files following DP docs. Here are
     >> $ cd deepmd-kit/source
     >> $ mkdir build
     >> $ cd build
+    >> $ cmake -DENABLE_TENSORFLOW=TRUE -DUSE_CUDA_TOOLKIT=TRUE -DCMAKE_INSTALL_PREFIX=`path_to_install` -DUSE_TF_PYTHON_LIBS=TRUE ../
