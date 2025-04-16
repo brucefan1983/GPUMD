@@ -248,3 +248,5 @@ The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba7208
     >> $ vi makefile
 
 Configure the makefile of GPUMD. The DP code is included by macro definition ``USE_TENSORFLOW``. So add it to ``CFLAGS``:
+
+``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_TENSORFLOW``
