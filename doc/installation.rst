@@ -282,3 +282,7 @@ This DP interface requires two files: a setting file and a DP potential file. Th
 Notice
 ~~~~~~~
 The type list in the setting file and the potential file must be the same.
+
+Example
+~~~~~~~
+* Some water simulations using the ``DP`` model in ``GPUMD``: https://github.com/brucefan1983/GPUMD/discussions
