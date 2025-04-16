@@ -264,3 +264,5 @@ Then link the DP C++ libraries. Add the following two lines to update the includ
 ~~~~~~~~~~~~~~~~~
 
 When running GPUMD, if an error occurs stating that the DP libraries could not be found, add the library path temporarily with::
+
+    LD_LIBRARY_PATH=path_to_install/lib:$LD_LIBRARY_PATH
