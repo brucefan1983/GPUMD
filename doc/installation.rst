@@ -208,3 +208,4 @@ Then run the following installation command::
 ::
 
     >> $ cd /root/miniconda3/GPUMD-bu0/tests/dp
+    >> $ ../../src/gpumd
