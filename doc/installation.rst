@@ -263,3 +263,4 @@ Then link the DP C++ libraries. Add the following two lines to update the includ
 3.5 Run ``GPUMD``
 ~~~~~~~~~~~~~~~~~
 
+When running GPUMD, if an error occurs stating that the DP libraries could not be found, add the library path temporarily with::
