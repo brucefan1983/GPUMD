@@ -14,12 +14,14 @@ Syntax
 
    dump_xyz <grouping_method> <group_id> <inverval> <filename> {<property_1> <property_2> ...}
 
-* :attr:`grouping_method` and :attr:`group_id` are the grouping method and the related group ID to be used. 
+* :attr:`grouping_method` and :attr:`group_id` are the grouping method and the related group ID to be used.
+
 If :attr:`grouping_method` is negative, :attr:`group_id` will be ignored and data for the whole system will be output.
 
 * :attr:`interval` is the output interval (number of steps) of the data.
 
-* :attr:`filename` is the output file. 
+* :attr:`filename` is the output file.
+
 If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
 
 * Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, and :attr:`unwrapped_position`.

@@ -13,7 +13,6 @@
 | add_groups           | Yuwen Zhang  | 984307703@qq.com | Generate grouping method(s) for `model.xyz`.                 |
 | castep2exyz          | Yanzhou Wang | yanzhowang@gmail.com   | Get `train.xyz` from `CASTEP` outputs.                       |
 | cp2k2xyz             | Zherui Chen  | chenzherui0124@foxmail.com | Get `train.xyz` from `CP2K` outputs or vice versa.           |
-| deep2nep             | Ke Xu        | twtdq@qq.com                                     | Oudated?                                                     |
 | doc_3.3.1            | Zheyong Fan  | brucenju@gmail.com | Documentation for some parts of GPUMD-v3.3.1.                |
 | dp2xyz               | Ke Xu        | twtdq@qq.com        | Convert `DP` training data to `xyz` format.                  |
 | exyz2pdb             | Zherui Chen | chenzherui0124@foxmail.com  | Convert `exyz` to `pdb`. |
@@ -22,9 +21,7 @@
 | gmx2exyz             | Zherui Chen  | chenzherui0124@foxmail.com  | Convert the `trr` trajectory of `gmx` to the `exyz` trajectory. |
 | gpumdkit             | Zihan Yan    | yanzihan@westlake.edu.cn            | A shell toolkit for GPUMD.                                   |
 | md_tersoff           | Zheyong Fan  | brucenju@gmail.com  | Already in MD book; can be removed later.                    |
-| mtp2nep              | Who? |                                                     | Outdated?                                                    |
 | mtp2xyz              | Ke Xu | twtdq@qq.com       | Convert `MTP` training data to xyz format.                   |
-| nep2xyz              | Ke Xu        | twtdq@qq.com                                        | Outdated?                                                    |
 | orca2xyz | Zherui Chen | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
 | pbc_mol | Zherui Chen | chenzherui0124@foxmail.com | It processes XYZ trajectory files of molecular simulations to ensure that molecules remain intact across periodic boundaries in the simulation box. |
 | pca_sampling         | Penghua Ying | hityingph@163.com | Farthest-point sampling based on `calorine`.                 |
