@@ -143,3 +143,6 @@ GPUMD supports DP potential project
 
 - Author: 徐克 (kickhsu[at]gmail.com)
 - Author: 卜何凯 (hekai_bu[at]whu.edu.cn)
+
+0 Program Introduction
+----------------------
