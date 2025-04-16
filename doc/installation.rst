@@ -215,3 +215,6 @@ Then run the following installation command::
 
 3.0 DP installation (Online version)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+3.1 Conda environment
+~~~~~~~~~~~~~~~~~~~~~
