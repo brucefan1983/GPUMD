@@ -254,3 +254,5 @@ Configure the makefile of GPUMD. The DP code is included by macro definition ``U
 Then link the DP C++ libraries. Add the following two lines to update the include and link paths and compile GPUMD:
 
 ``INC += -Ipath_to_install/include/deepmd``
+
+``LDFLAGS += -Lpath_to_install/lib -ldeepmd_cc``
