@@ -206,3 +206,5 @@ Then run the following installation command::
 2.2 Running Tests
 ~~~~~~~~~~~~~~~~~
 ::
+
+    >> $ cd /root/miniconda3/GPUMD-bu0/tests/dp
