@@ -159,3 +159,4 @@ GPUMD supports DP potential project
 
 1 Installation details
 ----------------------
+Use the instance in AutoDL for testing.
