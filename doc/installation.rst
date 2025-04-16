@@ -162,3 +162,6 @@ GPUMD supports DP potential project
 Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact 徐克.
 
 And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run GPUMD-DP directly, which can be shared with the account that provides the user ID. Then, you will not require the following process and can be used directly.
+
+2 GPUMD-DP installation (Offline version)
+-------------------------------------------
