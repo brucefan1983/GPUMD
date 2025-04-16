@@ -137,3 +137,6 @@ Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
 .. _use_dp_in_gpumd:
 .. index::
    single: Deep Potential
+
+GPUMD supports DP potential project
+=====================================
