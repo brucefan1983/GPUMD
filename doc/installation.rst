@@ -143,7 +143,7 @@ GPUMD supports DP potential project
 
 0 Program Introduction
 ----------------------
-
+This is the beginning of GPUMD's support for other machine learning potential functions.
 
 0.1 Necessary instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
