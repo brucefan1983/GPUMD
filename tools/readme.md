@@ -21,7 +21,6 @@
 | gmx2exyz             | Zherui Chen  | chenzherui0124@foxmail.com  | Convert the `trr` trajectory of `gmx` to the `exyz` trajectory. |
 | gpumdkit             | Zihan Yan    | yanzihan@westlake.edu.cn            | A shell toolkit for GPUMD.                                   |
 | md_tersoff           | Zheyong Fan  | brucenju@gmail.com  | Already in MD book; can be removed later.                    |
-| mtp2nep              | Who? |                                                     | Outdated?                                                    |
 | mtp2xyz              | Ke Xu | twtdq@qq.com       | Convert `MTP` training data to xyz format.                   |
 | orca2xyz | Zherui Chen | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
 | pbc_mol | Zherui Chen | chenzherui0124@foxmail.com | It processes XYZ trajectory files of molecular simulations to ensure that molecules remain intact across periodic boundaries in the simulation box. |
