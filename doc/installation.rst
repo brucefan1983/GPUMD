@@ -211,8 +211,9 @@ Then run the following installation command::
 3 GPUMD-DP installation (Online version)
 -------------------------------------------
 
-3.0 DP installation (Online version)
+3.0 Introduction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is to use the online method to install the `GPUMD-DP` version, you need to connect the machine to the Internet and use github and other websites.
 
 3.1 Conda environment
 ~~~~~~~~~~~~~~~~~~~~~
