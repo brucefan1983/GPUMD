@@ -157,7 +157,7 @@ This is the beginning of GPUMD's support for other machine learning potential fu
 
 1 Installation details
 ----------------------
-Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact 徐克.
+Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact Ke Xu (twtdq@qq.com).
 
 And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run GPUMD-DP directly, which can be shared with the account that provides the user ID. Then, you will not require the following process and can be used directly.
 
