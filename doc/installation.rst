@@ -212,3 +212,6 @@ Then run the following installation command::
 
 3 GPUMD-DP installation (Online version)
 -------------------------------------------
+
+3.0 DP installation (Online version)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
