@@ -38,3 +38,10 @@ syn match GPUMDComment "#\(.*&\s*\n\)*.*$"
 "-------------------------
 " NEP syntax rules (strings/numbers/comments)
 "-------------------------
+syn region NEPString start=+'+ end=+'+ oneline
+syn region NEPString start=+"+ end=+"+ oneline
+syn match NEPNumber "\<[0-9]\+[ij]\=\>"
+syn match NEPFloat "\<[0-9]\+\.[0-9]*\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
+syn match NEPFloat "\.[0-9]\+\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
+syn match NEPFloat "\<[0-9]\+[edED][-+]\=[0-9]\+[ij]\=\>"
+syn match NEPComment "#\(.*&\s*\n\)*.*$"
