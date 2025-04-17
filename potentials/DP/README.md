@@ -11,3 +11,5 @@
 - The installation environment requirements of GPUMD itself must be met.
 
 ## Run Test
+
+This DP interface need two files: setting file and DP potential file. The first file is very easy, used to make GPUMD know the atom number and types. For example:
