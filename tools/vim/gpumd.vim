@@ -19,3 +19,4 @@ syn keyword GPUMDensemble nve nvt_ber nvt_nhc nvt_bdp nvt_lan nvt_bao npt_ber np
 " NEP related syntax definition
 "-------------------------
 syn keyword NEPsets zbl use_typewise_cutoff_zbl use_typewise_cutoff n_max basis_size l_max neuron force_delta population
+syn keyword NEPkws cutoff batch
