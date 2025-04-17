@@ -34,3 +34,7 @@ syn match GPUMDFloat "\<[0-9]\+\.[0-9]*\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
 syn match GPUMDFloat "\.[0-9]\+\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
 syn match GPUMDFloat "\<[0-9]\+[edED][-+]\=[0-9]\+[ij]\=\>"
 syn match GPUMDComment "#\(.*&\s*\n\)*.*$"
+
+"-------------------------
+" NEP syntax rules (strings/numbers/comments)
+"-------------------------
