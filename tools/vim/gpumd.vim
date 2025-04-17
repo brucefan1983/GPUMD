@@ -27,3 +27,10 @@ syn keyword NEPlambda lambda_1 lambda_2 lambda_e lambda_f lambda_v lambda_shear
 "-------------------------
 " GPUMD syntax rules (strings/numbers/comments)
 "-------------------------
+syn region GPUMDString start=+'+ end=+'+ oneline
+syn region GPUMDString start=+"+ end=+"+ oneline
+syn match GPUMDNumber "\<[0-9]\+[ij]\=\>"
+syn match GPUMDFloat "\<[0-9]\+\.[0-9]*\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
+syn match GPUMDFloat "\.[0-9]\+\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
+syn match GPUMDFloat "\<[0-9]\+[edED][-+]\=[0-9]\+[ij]\=\>"
+syn match GPUMDComment "#\(.*&\s*\n\)*.*$"
