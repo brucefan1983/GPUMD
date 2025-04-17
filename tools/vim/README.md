@@ -14,8 +14,15 @@ syntax on
 set expandtab
 ```
 2. Create directories `~/.vim/syntax` and `~/.vim/ftdetect`;
-3. Copy `gpumd.vim` to `~/.vim/syntax/gpumd.vim`
-4. Copy `filetype.vim` to `~/.vim/ftdetect/gpumd.vim`
+3. Create file `~/.vim/mysyntax.vim` to contain:
+```
+augroup syntax
+au  BufNewFile,BufReadPost run.in so ~/.vim/syntax/gpumd.vim
+au  BufNewFile,BufReadPost nep.in so ~/.vim/syntax/gpumd.vim
+augroup END
+```
+4. Copy `gpumd.vim` to `~/.vim/syntax/gpumd.vim`
+5. Copy `filetype.vim` to `~/.vim/ftdetect/gpumd.vim`
 
 ## contact
 
