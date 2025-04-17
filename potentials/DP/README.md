@@ -19,3 +19,5 @@ This DP interface requires two files: a setting file and a `DP` potential file. 
 ## Notice
 
 The type list of setting file and potential file must be the same.
+
+## References
