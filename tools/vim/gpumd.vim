@@ -45,3 +45,7 @@ syn match NEPFloat "\<[0-9]\+\.[0-9]*\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
 syn match NEPFloat "\.[0-9]\+\([edED][-+]\=[0-9]\+\)\=[ij]\=\>"
 syn match NEPFloat "\<[0-9]\+[edED][-+]\=[0-9]\+[ij]\=\>"
 syn match NEPComment "#\(.*&\s*\n\)*.*$"
+
+"-------------------------
+" Highlight link definition
+"-------------------------
