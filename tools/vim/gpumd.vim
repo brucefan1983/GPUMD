@@ -8,3 +8,4 @@ syn clear
 " GPUMD core syntax definition
 "-------------------------
 syn keyword GPUMDpot potential
+syn keyword GPUMDsetup replicate velocity correct_velocity potential dftd3 change_box deform ensemble fix time_step plumed mc electron_stop add_force add_efield active
