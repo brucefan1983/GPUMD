@@ -22,3 +22,4 @@ syn keyword NEPsets zbl use_typewise_cutoff_zbl use_typewise_cutoff n_max basis_
 syn keyword NEPkws cutoff batch
 syn keyword NEPinput version model_type type type_weight
 syn keyword NEPrun generation prediction
+syn keyword NEPlambda lambda_1 lambda_2 lambda_e lambda_f lambda_v lambda_shear
