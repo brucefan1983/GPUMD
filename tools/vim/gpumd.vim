@@ -49,3 +49,27 @@ syn match NEPComment "#\(.*&\s*\n\)*.*$"
 "-------------------------
 " Highlight link definition
 "-------------------------
+if !exists("did_GPUMD_syntax_inits")
+  let did_GPUMD_syntax_inits = 1
+  hi link GPUMDdump     Function
+  hi link GPUMDpot      Typedef
+  hi link GPUMDsetup    Typedef
+  hi link GPUMDcompute  Define
+  hi link GPUMDrun      Statement
+  hi link GPUMDspecial  Special
+  hi link GPUMDensemble Constant
+  hi link GPUMDString   String
+  hi link GPUMDNumber   Number
+  hi link GPUMDFloat    Float
+  hi link GPUMDComment  Comment
+
+  hi link NEPsets       Function
+  hi link NEPkws        Typedef
+  hi link NEPinput      Define
+  hi link NEPrun        Statement
+  hi link NEPlambda     Special
+  hi link NEPString     String
+  hi link NEPNumber     Number
+  hi link NEPFloat      Float
+  hi link NEPComment    Comment
+endif
