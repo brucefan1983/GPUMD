@@ -15,3 +15,5 @@
 This DP interface requires two files: a setting file and a `DP` potential file. The first file is very simple and is used to inform `GPUMD` of the atom number and types. For example, the `dp.txt` is shown in here for use the `potential dp.txt DP_POTENTIAL_FILE.pb` command in the `run.in` file:
 
 ```dp 2 O H```
+
+## Notice
