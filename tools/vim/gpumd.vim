@@ -8,12 +8,14 @@ syn clear
 " GPUMD core syntax definition
 "-------------------------
 syn keyword GPUMDpot potential
-syn keyword GPUMDsetup replicate velocity correct_velocity potential dftd3 change_box deform ensemble fix time_step plumed mc electron_stop add_force add_efield active
-syn keyword GPUMDdump dump_exyz dump_beads dump_observer dump_dipole dump_polarizability dump_force dump_netcdf dump_position dump_restart dump_thermo dump_velocity dump_shock_nemd
-syn keyword GPUMDcompute compute compute_cohesive compute_dos compute_elastic compute_gkma compute_hac compute_hnema compute_hnemd compute_hnemdec compute_phonon compute_sdc compute_msd compute_shc compute_viscosity compute_lsqt compute_rdf
+syn keyword GPUMDsetup replicate velocity correct_velocity potential dftd3 change_box deform
+syn keyword GPUMDsetup ensemble fix time_step plumed mc electron_stop add_force add_efield active
+syn keyword GPUMDdump dump_netcdf dump_position dump_restart dump_thermo dump_velocity dump_shock_nemd
+syn keyword GPUMDdump dump_exyz dump_beads dump_observer dump_dipole dump_polarizability dump_force
+syn keyword GPUMDcompute compute compute_cohesive compute_dos compute_elastic
+syn keyword GPUMDcompute compute_gkma compute_hac compute_hnema compute_hnemd compute_hnemdec
+syn keyword GPUMDcompute compute_phonon compute_sdc compute_msd compute_shc compute_viscosity compute_lsqt compute_rdf
 syn keyword GPUMDrun minimize run
-" syn keyword GPUMDspecial seed dp pbe temp tperiod pperiod x y z aniso tswitch tequil lambda vp k thickness qmass mu group kappa temperature potential force virial jp jk num_dos_points cubic bin_size f_bin_size atom observe average precision single double interval bin_size
-" syn keyword GPUMDensemble nve nvt_ber nvt_nhc nvt_bdp nvt_lan nvt_bao npt_ber npt_scr npt_mttk heat_nhc heat_bdp heat_lan pimd rpmd trpmd ti_spring ti_as ti_rs ti wall_piston wall_mirror wall_harmonic msst nphug canonical sgc vcsgc sd fire
 
 "-------------------------
 " NEP related syntax definition
@@ -56,8 +58,6 @@ if !exists("did_GPUMD_syntax_inits")
   hi link GPUMDsetup    Typedef
   hi link GPUMDcompute  Define
   hi link GPUMDrun      Statement
-" hi link GPUMDspecial  Special
-" hi link GPUMDensemble Constant
   hi link GPUMDString   String
   hi link GPUMDNumber   Number
   hi link GPUMDFloat    Float
