@@ -21,3 +21,7 @@ This DP interface requires two files: a setting file and a `DP` potential file. 
 The type list of setting file and potential file must be the same.
 
 ## References
+
+- [Installation for `GPUMD-DP`](https://github.com/Kick-H/GPUMD/blob/master/doc/installation.rst)
+- [Tutorials for `GPUMD-DP`](https://github.com/brucefan1983/GPUMD-Tutorials/tree/main/examples/14_DP)
+- [DeePMD-kit](https://github.com/deepmodeling/deepmd-kit)
