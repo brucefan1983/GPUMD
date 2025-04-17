@@ -73,3 +73,5 @@ if !exists("did_GPUMD_syntax_inits")
   hi link NEPFloat      Float
   hi link NEPComment    Comment
 endif
+
+let b:current_syntax = "GPUMD"
