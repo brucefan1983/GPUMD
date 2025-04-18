@@ -287,7 +287,7 @@ void Fitness::compute(Parameters& para)
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
         float rmse_virial_train = count_virial > 0 ? sqrt(mse_virial / count_virial) : 0.0f;
-        float total_loss_train = (mse_energy  + mse_force) / count + (count_virial > 0 ? mse_virial / count_virial : 0.0f);
+        float total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
         report_error(
           para,
           track_total_time,  // 使用累计总时间

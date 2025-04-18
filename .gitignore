@@ -7,6 +7,7 @@ src/*/*.obj
 src/*/*.o
 src/gpumd*
 src/nep*
+src/gmlp*
 
 .history
 .vscode
@@ -18,6 +19,9 @@ public.*
 
 /nep
 /gpumd*
+/gmlp
 
 __pycache__/
 */__pycache__/
+README.gmlp.md
+push-to-both.sh
