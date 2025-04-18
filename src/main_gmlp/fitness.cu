@@ -439,7 +439,7 @@ void Fitness::write_gmlp_txt(FILE* fid_gmlp, Parameters& para, float* parameters
   }
   fprintf(fid_gmlp, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_gmlp, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_gmlp, "l_max %d\n", para.L_max);
+  fprintf(fid_gmlp, "l_max %d 0 0\n", para.L_max);
 
   fprintf(fid_gmlp, "ANN %d %d\n", para.num_neurons1, 0);
   for (int m = 0; m < para.number_of_variables; ++m) {

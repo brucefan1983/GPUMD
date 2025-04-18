@@ -321,16 +321,28 @@ static __global__ void find_descriptor_small_box(
     }
 
     if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
+      if (paramb.model_type == 4) {
+        one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[t1],
         annmb.b0[t1],
         annmb.w1[t1],
-        annmb.b1,
         q,
         F,
         Fp);
+      } else {
+        apply_ann_one_layer_nep5(
+          annmb.dim,
+          annmb.num_neurons1,
+          annmb.w0[t1],
+          annmb.b0[t1],
+          annmb.w1[t1],
+          annmb.b1,
+          q,
+          F,
+          Fp);
+      }
     } else {
       apply_ann_one_layer(
         annmb.dim,

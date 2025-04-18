@@ -104,7 +104,8 @@ void Force::parse_potential(
     strcmp(potential_name, "nep3_temperature") == 0 ||
     strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||
-    strcmp(potential_name, "nep4_zbl_temperature") == 0) {
+    strcmp(potential_name, "nep4_zbl_temperature") == 0 ||
+    strcmp(potential_name, "gmlp") == 0) {
     int num_gpus;
     CHECK(cudaGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
