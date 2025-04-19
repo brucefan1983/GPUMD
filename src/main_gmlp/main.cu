@@ -70,7 +70,8 @@ void print_welcome_information(void)
   printf("\n");
   printf("***************************************************************\n");
   printf("*                 Welcome to use GMLP                         *\n");
-  printf("*    (Gradient-based Machine Learning Potentials)             *\n");
+  printf("*      (Gradient-based Machine Learning Potentials)           *\n");
+  printf("*             Potential extension for GPUMD                   *\n");
   printf("*              Master version after 1.0.0                     *\n");
   printf("***************************************************************\n");
   printf("\n");

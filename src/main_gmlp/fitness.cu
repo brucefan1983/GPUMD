@@ -245,19 +245,6 @@ void Fitness::compute(Parameters& para)
       int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
       // printf("Finding force for batch %d\n", batch_id);
       update_learning_rate_cos(lr, step, num_batches, para);
-      if (step < num_batches) {
-        float progress = float(step) / num_batches;
-        float smooth_progress = 0.5f * (1.0f - cosf(progress * PI));
-        para.lambda_e = start_pref_e + (stop_pref_e - start_pref_e) * smooth_progress;
-        para.lambda_f = start_pref_f - 0.4f * start_pref_f * smooth_progress;
-        para.lambda_v = start_pref_v + (stop_pref_v - start_pref_v) * smooth_progress;
-      } else {
-        float progress = float(step - num_batches) / (maximum_steps - num_batches);
-        float smooth_progress = 0.5f * (1.0f + cosf(PI * progress));
-        para.lambda_e = stop_pref_e;
-        para.lambda_f = stop_pref_f + (0.6f * start_pref_f - stop_pref_f) * smooth_progress;
-        para.lambda_v = stop_pref_v;
-      }
       potential->find_force(
       para,
       parameters,
@@ -283,14 +270,14 @@ void Fitness::compute(Parameters& para)
       if ((step + 1) % num_batches == 0) {
         time_finish = clock();
         float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
-        track_total_time += time_used;  // 累加当前epoch的时间
+        track_total_time += time_used; 
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
         float rmse_virial_train = count_virial > 0 ? sqrt(mse_virial / count_virial) : 0.0f;
-        float total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
+        float total_loss_train = rmse_energy_train + rmse_force_train + rmse_virial_train;
         report_error(
           para,
-          track_total_time,  // 使用累计总时间
+          track_total_time, 
           epoch,
           total_loss_train,
           rmse_energy_train,
@@ -346,18 +333,24 @@ void Fitness::update_learning_rate(float& lr, int step, Parameters& para) {
 }
 
 void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para) {
-  const int warmup_epochs = 1;
+  const int warmup_epochs = 1;  // warmup & restart
   const int warmup_steps = warmup_epochs * num_batches;
-  float progress;
+  float progress, smooth_progress;
   if (step < warmup_steps) {
     progress = float(step) / warmup_steps;
-    float smooth_progress = 0.5f * (1.0f - cosf((1.0f - progress) * PI)); // start_lr -> 0
-    // float smooth_progress = 0.5f * (1.0f - cosf(progress * PI));   // 0 -> start_lr
-    lr = start_lr * smooth_progress;
+    lr = start_lr - (start_lr - stop_lr) * (0.5f * (1.0f + cosf((1.0f - progress) * PI)));
+    smooth_progress = 0.5f * (1.0f - cosf(progress * PI));
+    para.lambda_e = start_pref_e + (stop_pref_e - start_pref_e) * smooth_progress;
+    para.lambda_f = start_pref_f - 0.2f * start_pref_f * smooth_progress;
+    para.lambda_v = start_pref_v + (stop_pref_v - start_pref_v) * smooth_progress;
     return;
   }
   progress = float(step - warmup_steps) / (maximum_steps - warmup_steps);
-  lr = stop_lr + 0.5f * (start_lr - stop_lr) * (1.0f + cosf(PI * progress));
+  smooth_progress = 0.5f * (1.0f + cosf(PI * progress));
+  lr = stop_lr + (start_lr - stop_lr) * smooth_progress;
+  para.lambda_e = stop_pref_e;
+  para.lambda_f = stop_pref_f + (0.8f * start_pref_f - stop_pref_f) * smooth_progress;
+  para.lambda_v = stop_pref_v;
 }
 
 void Fitness::output(
