@@ -18,3 +18,4 @@ Interatomic potentials
    fcp
    nep
    nep_ilp
+   sw_ilp
