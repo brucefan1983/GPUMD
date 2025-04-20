@@ -18,6 +18,7 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
+#include <cstdint>
 #include <vector>
 
 // C, h-BN, TMD
