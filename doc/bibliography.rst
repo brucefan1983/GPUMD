@@ -296,3 +296,21 @@ Bibliography
    | *Mechanical and tribological properties of layered materials under high pressure: assessing the importance of many-body dispersion effects*
    | J. Chem. Theory Comput. **16(1)**, 666-676 (2020)
    | DOI: `10.1021/acs.jctc.9b00908 <https://doi.org/10.1021/acs.jctc.9b00908>`_
+
+.. [Stillinger1985]
+   | Frank H. Stillinger and Thomas A. Weber
+   | *Computer simulation of local order in condensed phases of silicon*
+   | Phys. Rev. B **31**, 5262-5271 (1985)
+   | DOI: `10.1103/PhysRevB.31.5262 <https://doi.org/10.1103/PhysRevB.31.5262>`_
+
+.. [Jiang2015]
+   | Jinwu Jiang
+   | *Parametrization of Stillinger-Weber potential based on valence force field model: application to single-layer MoS2 and black phosphorus*
+   | Nanotechnology **26**, 315706 (2015)
+   | DOI: `10.1088/0957-4484/26/31/315706 <https://doi.org/10.1088/0957-4484/26/31/315706>`_
+
+.. [Jiang2019]
+   | Jinwu Jiang
+   | *Misfit strain-induced buckling for transition-metal dichalcogenide lateral heterostructures: a molecular dynamics study*
+   | Acta Mech. Solida Sin. **32**, 17-28 (2019)
+   | DOI: `10.1007/s10338-018-0049-z <https://doi.org/10.1007/s10338-018-0049-z>`_

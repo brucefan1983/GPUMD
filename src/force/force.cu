@@ -163,7 +163,7 @@ void Force::parse_potential(
     FILE* fid_nep_map = my_fopen(param[2], "r");
     potential.reset(new ILP_NEP(fid_potential, fid_nep_map, num_types, number_of_atoms));
     fclose(fid_nep_map);
-  } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
+  } else if (strcmp(potential_name, "sw_ilp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
     }
