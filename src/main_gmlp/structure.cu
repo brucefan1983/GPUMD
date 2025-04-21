@@ -161,7 +161,7 @@ static void read_one_structure(
       has_energy_in_exyz = true;
       structure.energy = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      // structure.energy /= structure.num_atom;
+      structure.energy /= structure.num_atom;
     }
   }
   if (!has_energy_in_exyz) {
@@ -214,7 +214,7 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        // structure.virial[reduced_index[m]] /= structure.num_atom;
+        structure.virial[reduced_index[m]] /= structure.num_atom;
       }
     }
   }
@@ -234,8 +234,8 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        // virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
-        virials_from_stress[reduced_index[m]] *= -volume;
+        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+        // virials_from_stress[reduced_index[m]] *= -volume;
       }
     }
   }

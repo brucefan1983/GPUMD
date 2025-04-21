@@ -372,10 +372,10 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_s_ma
     __syncthreads();
   }
   if (tid == 0) {
-    // g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
-    g_s_max[bid] = max(g_s_max[bid], s_max[0]);
-    g_s_min[bid] = min(g_s_min[bid], s_min[0]);
-    g_q_scaler[bid] = 1.0f / (g_s_max[bid] - g_s_min[bid]);
+    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+    // g_s_max[bid] = max(g_s_max[bid], s_max[0]);
+    // g_s_min[bid] = min(g_s_min[bid], s_min[0]);
+    // g_q_scaler[bid] = 1.0f / (g_s_max[bid] - g_s_min[bid]);
     // g_q_scaler[0] = 8.021109302104;
     // g_q_scaler[1] = 0.345944536877;
     // g_q_scaler[2] = 69.268101453680;
@@ -503,7 +503,7 @@ static __global__ void gpu_sum_pe_error(
   }
 
   if (tid == 0) {
-    float diff = (s_pe[0] - g_pe_ref[bid]) / Na;
+    float diff = (s_pe[0] / Na - g_pe_ref[bid]);
     diff_gpu[bid] = diff;
     error_gpu[bid] = diff * diff;
   }
@@ -557,7 +557,7 @@ static __global__ void gpu_sum_virial_error(
   if (tid == 0) {
     float error_sum = 0.0f;
     for (int d = 0; d < 6; ++d) {
-      float diff = (s_virial[d * blockDim.x + 0] - g_virial_ref[d * gridDim.x + bid]) / Na;
+      float diff = (s_virial[d * blockDim.x + 0] / Na - g_virial_ref[d * gridDim.x + bid]);
       error_sum += (d >= 3) ? (shear_weight * diff * diff) : (diff * diff);
       diff_gpu[bid * 6 + d] = (d >= 3) ? shear_weight * diff : diff;
     }

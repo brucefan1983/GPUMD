@@ -206,7 +206,7 @@ void Fitness::compute(Parameters& para)
     optimizer->initialize_parameters(para);
     }
     printf(
-      "%-8s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-15s%-10s\n", 
+      "%-8s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-15s%-10s\n", 
       "Epoch",
       "Total-Loss",
       "RMSE-E-Train",
@@ -274,7 +274,7 @@ void Fitness::compute(Parameters& para)
         float rmse_energy_train = sqrt(mse_energy / count);
         float rmse_force_train = sqrt(mse_force / count);
         float rmse_virial_train = count_virial > 0 ? sqrt(mse_virial / count_virial) : 0.0f;
-        float total_loss_train = rmse_energy_train + rmse_force_train + rmse_virial_train;
+        float total_loss_train = para.lambda_e * rmse_energy_train + para.lambda_f * rmse_force_train + para.lambda_v * rmse_virial_train;
         report_error(
           para,
           track_total_time, 
@@ -369,7 +369,7 @@ void Fitness::output(
         data_nc += prediction[offset + m];
       }
       if (!is_stress) {
-        fprintf(fid, "%g ", data_nc);
+        fprintf(fid, "%g ", data_nc / dataset.Na_cpu[nc]);
       } else {
         fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
       }
@@ -377,8 +377,8 @@ void Fitness::output(
     for (int n = 0; n < num_components; ++n) {
       float ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
-        // ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
-        ref_value /= dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        // ref_value /= dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
       }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
@@ -492,7 +492,7 @@ void Fitness::report_error(
   }
 
   printf(
-    "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n", 
+    "%-8d%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n", 
     epoch + 1,
     loss_total,
     rmse_energy_train,
@@ -505,7 +505,7 @@ void Fitness::report_error(
     time_used);
   fprintf(
     fid_loss_out,
-    "%-8d%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n",
+    "%-8d%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-15.7f%-13.5f\n",
     epoch + 1,
     loss_total,
     rmse_energy_train,
