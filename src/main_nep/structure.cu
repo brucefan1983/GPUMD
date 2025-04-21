@@ -91,7 +91,8 @@ static void read_force(
   const Parameters& para,
   Structure& structure,
   std::string& xyz_filename,
-  int& line_number)
+  int& line_number,
+  int train_mode)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -125,7 +126,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4) {
+    if (num_columns > 4 && train_mode == 0) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -483,7 +484,8 @@ static void read_one_structure(
     para,
     structure,
     xyz_filename,
-    line_number);
+    line_number,
+    para.train_mode);
 }
 
 static void read_exyz(
