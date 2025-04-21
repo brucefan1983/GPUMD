@@ -125,7 +125,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && train_mode == 0) {
+    if (num_columns > 4) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -483,8 +483,7 @@ static void read_one_structure(
     para,
     structure,
     xyz_filename,
-    line_number,
-    para.train_mode);
+    line_number);
 }
 
 static void read_exyz(
