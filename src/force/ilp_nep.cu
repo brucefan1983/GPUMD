@@ -144,6 +144,9 @@ static __global__ void check_para_gpu(
 
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 {
+#ifdef USE_TABLE
+  printf("Sorry, NEP+ILP potential doesn't support USE_TABLE flag to accelerate now.");
+#endif
   // read ILP elements
   printf("Use %d-element ILP potential with elements:\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE_ILP_NEP)) {
@@ -329,11 +332,11 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
         parambs[i].use_typewise_cutoff = true;
       }
     }
-  #ifdef USE_TABLE
-    if (paramb.use_typewise_cutoff) {
-      PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
-    }
-  #endif
+//  #ifdef USE_TABLE
+//    if (paramb.use_typewise_cutoff) {
+//      PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
+//    }
+//  #endif
 
     // n_max 10 8
     tokens = get_tokens(input);
@@ -520,10 +523,10 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
-#ifdef USE_TABLE
-  construct_table(parameters.data());
-  printf("    use tabulated radial functions to speed up.\n");
-#endif
+// #ifdef USE_TABLE
+//   construct_table(parameters.data());
+//   printf("    use tabulated radial functions to speed up.\n");
+// #endif
 
   // updata nep parameters and ann parameters
   // calc buffer size
@@ -2272,10 +2275,10 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gn_radial,
-  const float* __restrict__ g_gn_angular,
-#endif
+// #ifdef USE_TABLE
+//   const float* __restrict__ g_gn_radial,
+//   const float* __restrict__ g_gn_angular,
+// #endif
   double* g_pe,
   float* g_Fp,
   double* g_virial,
@@ -2306,20 +2309,20 @@ static __global__ void find_descriptor(
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + g_type[n2];
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        q[n] +=
-          g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-      }
-#else
+// #ifdef USE_TABLE
+//       int index_left, index_right;
+//       float weight_left, weight_right;
+//       find_index_and_weight(
+//         d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
+//       int t12 = t1 * paramb.num_types + g_type[n2];
+//       for (int n = 0; n <= paramb.n_max_radial; ++n) {
+//         q[n] +=
+//           g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+//             weight_left +
+//           g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+//             weight_right;
+//       }
+// #else
       float fc12;
       int t2 = type_map[g_type[n2] + type_offset];
       // float rc = paramb.rc_radial;
@@ -2362,7 +2365,7 @@ static __global__ void find_descriptor(
         }
         q[n] += gn12;
       }
-#endif
+// #endif
     }
 
     // get angular descriptors
@@ -2377,19 +2380,19 @@ static __global__ void find_descriptor(
         apply_mic(box, x12double, y12double, z12double);
         float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-#ifdef USE_TABLE
-        int index_left, index_right;
-        float weight_left, weight_right;
-        find_index_and_weight(
-          d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
-        int t12 = t1 * paramb.num_types + g_type[n2];
-        float gn12 =
-          g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_left +
-          g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_right;
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-#else
+// #ifdef USE_TABLE
+//         int index_left, index_right;
+//         float weight_left, weight_right;
+//         find_index_and_weight(
+//           d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
+//         int t12 = t1 * paramb.num_types + g_type[n2];
+//         float gn12 =
+//           g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+//             weight_left +
+//           g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+//             weight_right;
+//         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+// #else
         float fc12;
         int t2 = type_map[g_type[n2] + type_offset];
         // float rc = paramb.rc_angular;
@@ -2426,7 +2429,7 @@ static __global__ void find_descriptor(
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
-#endif
+// #endif
       }
       // find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       find_q(paramb_int[LMAX], paramb_int[NUML], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
@@ -2543,9 +2546,9 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gnp_radial,
-#endif
+// #ifdef USE_TABLE
+//   const float* __restrict__ g_gnp_radial,
+// #endif
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -2588,32 +2591,32 @@ static __global__ void find_force_radial(
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + t2;
-      int t21 = t2 * paramb.num_types + t1;
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gnp12 =
-          g_gnp_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gnp_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-        float gnp21 =
-          g_gnp_radial[(index_left * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gnp_radial[(index_right * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp12 * r12[d];
-          f21[d] -= tmp21 * r12[d];
-        }
-      }
-#else
+// #ifdef USE_TABLE
+//       int index_left, index_right;
+//       float weight_left, weight_right;
+//       find_index_and_weight(
+//         d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
+//       int t12 = t1 * paramb.num_types + t2;
+//       int t21 = t2 * paramb.num_types + t1;
+//       for (int n = 0; n <= paramb.n_max_radial; ++n) {
+//         float gnp12 =
+//           g_gnp_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+//             weight_left +
+//           g_gnp_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+//             weight_right;
+//         float gnp21 =
+//           g_gnp_radial[(index_left * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
+//             weight_left +
+//           g_gnp_radial[(index_right * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
+//             weight_right;
+//         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+//         float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
+//         for (int d = 0; d < 3; ++d) {
+//           f12[d] += tmp12 * r12[d];
+//           f21[d] -= tmp21 * r12[d];
+//         }
+//       }
+// #else
       float fc12, fcp12;
       // float rc = paramb.rc_radial;
       // if (paramb.use_typewise_cutoff) {
@@ -2658,7 +2661,7 @@ static __global__ void find_force_radial(
           f21[d] -= tmp21 * r12[d];
         }
       }
-#endif
+// #endif
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
@@ -2718,10 +2721,10 @@ static __global__ void find_partial_force_angular(
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gn_angular,
-  const float* __restrict__ g_gnp_angular,
-#endif
+// #ifdef USE_TABLE
+//   const float* __restrict__ g_gn_angular,
+//   const float* __restrict__ g_gnp_angular,
+// #endif
   float* g_f12x,
   float* g_f12y,
   float* g_f12z)
@@ -2765,24 +2768,24 @@ static __global__ void find_partial_force_angular(
       float r12[3] = {float(x12double), float(y12double), float(z12double)};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + g_type[n2];
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        int index_left_all =
-          (index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
-        int index_right_all =
-          (index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
-        float gn12 =
-          g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
-        float gnp12 = g_gnp_angular[index_left_all] * weight_left +
-                      g_gnp_angular[index_right_all] * weight_right;
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-      }
-#else
+// #ifdef USE_TABLE
+//       int index_left, index_right;
+//       float weight_left, weight_right;
+//       find_index_and_weight(
+//         d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
+//       int t12 = t1 * paramb.num_types + g_type[n2];
+//       for (int n = 0; n <= paramb.n_max_angular; ++n) {
+//         int index_left_all =
+//           (index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
+//         int index_right_all =
+//           (index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
+//         float gn12 =
+//           g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
+//         float gnp12 = g_gnp_angular[index_left_all] * weight_left +
+//                       g_gnp_angular[index_right_all] * weight_right;
+//         accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+//       }
+// #else
       float fc12, fcp12;
       int t2 = type_map[g_type[n2] + type_offset];
       // float rc = paramb.rc_angular;
@@ -2830,7 +2833,7 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(paramb_int[LMAX], paramb_int[NUML], n, paramb_int[NMAXA] + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
-#endif
+// #endif
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
       g_f12z[index] = f12[2];
@@ -3372,10 +3375,10 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-#ifdef USE_TABLE
-    nep_data.gn_radial.data(),
-    nep_data.gn_angular.data(),
-#endif
+// #ifdef USE_TABLE
+//     nep_data.gn_radial.data(),
+//     nep_data.gn_angular.data(),
+// #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
@@ -3400,9 +3403,9 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     nep_data.Fp.data(),
-#ifdef USE_TABLE
-    nep_data.gnp_radial.data(),
-#endif
+// #ifdef USE_TABLE
+//     nep_data.gnp_radial.data(),
+// #endif
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
@@ -3428,10 +3431,10 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data() + N * 2,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
-#ifdef USE_TABLE
-    nep_data.gn_angular.data(),
-    nep_data.gnp_angular.data(),
-#endif
+// #ifdef USE_TABLE
+//     nep_data.gn_angular.data(),
+//     nep_data.gnp_angular.data(),
+// #endif
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data());
