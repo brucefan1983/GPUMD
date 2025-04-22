@@ -145,7 +145,9 @@ static __global__ void check_para_gpu(
 ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 {
 #ifdef USE_TABLE
-  printf("Sorry, NEP+ILP potential doesn't support USE_TABLE flag to accelerate now.");
+  printf("=============================================================================\n");
+  printf("NEP+ILP potential doesn't support `USE_TABLE` and uses normal version of NEP.\n");
+  printf("=============================================================================\n\n");
 #endif
   // read ILP elements
   printf("Use %d-element ILP potential with elements:\n", num_types);
