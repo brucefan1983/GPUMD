@@ -571,11 +571,11 @@ void Fitness::update_energy_force_virial(
   output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
 
   if (!atomic) {
-    output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-    output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+    output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   } else {
-    output_atomic(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-    output_atomic(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output_atomic(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+    output_atomic(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   }
 }
 
@@ -593,9 +593,9 @@ void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
   if (!atomic) {
-    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   } else {
-    output_atomic(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output_atomic(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   }
 }
 
@@ -603,9 +603,9 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
   if (!atomic) {
-    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   } else {
-    output_atomic(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output_atomic(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   }
 }
 
