@@ -10,7 +10,8 @@ The hybrid :term:`NEP` + :term:`ILP` potential in :program:`GPUMD` combines the 
 interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_ 
 for interlayer interactions to simulate van der Waals materials. 
 Now this hybrid potential supports to simulate homo- and heterostructures based on 
-graphene, :math:`h`-BN and transition metal dichalcogenides (TMDs) layered materials.
+graphene, :math:`h`-BN and transition metal dichalcogenides (TMDs) layered materials. 
+The :term:`nep` potential here doesn't support :attr:`USE_TABLE` flag to accelerate now.
 
 Potential form
 --------------
