@@ -65,9 +65,16 @@ The command::
 
 means that one wants to optimize box using hydrostatic strain during the energy minimization process.
 
+Example 5
+^^^^^^^^^^^^^
+If you want to ouput the optimized structure, use `dump_exyz` in the `nve` ensamble like the following command::
+
+  minimize fire 1.0e-5 1000 1
+  ensemble    nve
+  dump_exyz   1
+  run         1
 
 Caveats
 -------
 
 * This keyword should occur after the :ref:`potential keyword <kw_potential>`.
-* Currently, the simulation box is fixed during the energy minimization.
