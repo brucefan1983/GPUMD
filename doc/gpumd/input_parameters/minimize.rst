@@ -66,12 +66,12 @@ The command::
 means that one wants to optimize box using hydrostatic strain during the energy minimization process.
 
 Example 5
-^^^^^^^^^^^^^
-If you want to ouput the optimized structure, use `dump_exyz` in the `nve` ensemble like the following command::
+^^^^^^^^^
+If you want to ouput the optimized structure, use `dump_xyz` in the `nve` ensemble like the following command::
 
   minimize fire 1.0e-5 1000 1
   ensemble    nve
-  dump_exyz   1
+  dump_xyz    -1 0 1 dump.xyz
   run         1
 
 Caveats
