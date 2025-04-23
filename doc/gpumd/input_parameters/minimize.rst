@@ -70,8 +70,10 @@ Example 5
 If you want to ouput the optimized structure, use `dump_xyz` in the `nve` ensemble like the following command::
 
   minimize fire 1.0e-5 1000 1
+
   ensemble    nve
-  dump_xyz    -1 0 1 dump.xyz
+  time_step   0
+  dump_xyz    -1 0 1 relaxed.xyz
   run         1
 
 Caveats
