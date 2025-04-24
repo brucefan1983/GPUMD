@@ -57,7 +57,7 @@ public:
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int use_energy_shift;  // 1 for using energy shift for biased initialization of neural networks
+  int energy_shift;  // 1 for using energy shift for biased initialization of neural networks
   int prediction; // 0=no, 1=yes
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
@@ -92,7 +92,7 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
-  bool is_use_energy_shift_set;
+  bool is_energy_shift_set;
   bool calculate_energy_shift = true;
 
   // other parameters
@@ -151,5 +151,5 @@ private:
   void parse_epoch(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
-  void parse_use_energy_shift(const char** param, int num_param);
+  void parse_energy_shift(const char** param, int num_param);
 };

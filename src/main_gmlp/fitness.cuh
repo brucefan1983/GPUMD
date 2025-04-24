@@ -79,6 +79,7 @@ protected:
     Dataset& dataset);
   void update_learning_rate(float& lr, int step, Parameters& para); // Update learning rate
   void update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with cosine decay
+  void update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with cosine decay
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);

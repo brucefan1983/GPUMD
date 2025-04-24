@@ -179,10 +179,10 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
-    energy_ref_cpu[n] = structures[n].energy;
+    energy_ref_cpu[n] = structures[n].energy / structures[n].num_atom;
     sum_energy_ref += structures[n].energy; 
     for (int k = 0; k < 6; ++k) {
-      virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
+      virial_ref_cpu[k * Nc + n] = structures[n].virial[k] / structures[n].num_atom;
     }
     for (int k = 0; k < 18; ++k) {
       box_cpu[k + n * 18] = structures[n].box[k];

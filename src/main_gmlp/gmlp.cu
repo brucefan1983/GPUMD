@@ -415,7 +415,7 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     
-    if constexpr (IsTraining) {
+    if (IsTraining) {
       // float Fp2[MAX_DIM * MAX_DIM] = {0.0f};// 列优先：Fp2[d2 + d1 * annmb.dim] = Fp2[d2][d1] --> feat0, Fp2[0][0], Fp2[1][0]; feat1, Fp2[1][0], Fp2[1][1] --> g_Fp2[n1 + (d2 + d1 * annmb.dim) * N] = g_Fp2[n1][d2][d1]
       int type_offset = n1 * annmb.num_ann + type * ((annmb.dim + 2) * annmb.num_neurons1 + 1); 
       int type_offset_2 = n1 * annmb.num_ann * annmb.dim + type * ((annmb.dim + 2) * annmb.num_neurons1 + 1) * annmb.dim;

@@ -76,7 +76,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
-  is_use_energy_shift_set = false;
+  is_energy_shift_set = false;
 
   prediction = 0;              // not prediction mode
   version = 1;                 // only 1 for now
@@ -112,7 +112,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
-  use_energy_shift = 0;
+  energy_shift = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -469,8 +469,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
-  } else if (strcmp(param[0], "use_energy_shift") == 0) {
-    parse_use_energy_shift(param, num_param);
+  } else if (strcmp(param[0], "energy_shift") == 0) {
+    parse_energy_shift(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -960,8 +960,8 @@ void Parameters::parse_epoch(const char** param, int num_param)
   }
   if (epoch < 0) {
     PRINT_INPUT_ERROR("maximum number of epochs should >= 0.");
-  } else if (epoch > 6000) {
-    PRINT_INPUT_ERROR("maximum number of epochs should <= 6000.");
+  } else if (epoch > 10000) {
+    PRINT_INPUT_ERROR("maximum number of epochs should <= 10000.");
   }
 }
 
@@ -1020,16 +1020,16 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   }
 }
 
-void Parameters::parse_use_energy_shift(const char** param, int num_param)
+void Parameters::parse_energy_shift(const char** param, int num_param)
 {
-  is_use_energy_shift_set = true;
+  is_energy_shift_set = true;
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("use_energy_shift should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("energy_shift should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &use_energy_shift)) {
-    PRINT_INPUT_ERROR("use_energy_shift should be an integer.\n");
+  if (!is_valid_int(param[1], &energy_shift)) {
+    PRINT_INPUT_ERROR("energy_shift should be an integer.\n");
   }
-  if (use_energy_shift != 0 && use_energy_shift != 1) {
-    PRINT_INPUT_ERROR("use_energy_shift should = 0 or 1.");
+  if (energy_shift != 0 && energy_shift != 1) {
+    PRINT_INPUT_ERROR("energy_shift should = 0 or 1.");
   }
 }

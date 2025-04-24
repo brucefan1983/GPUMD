@@ -222,10 +222,11 @@ void computeMultiBatchEnergyShift(
     }
     
     float avg_epa = total_energy / total_atoms;
+    float range_epa = max_epa - min_epa;
     
     if (verbose) {
         printf("Energy per atom statistics:\n");
-        printf("  Min: %.6f, Max: %.6f, Avg: %.6f eV/atom\n", min_epa, max_epa, avg_epa);
+        printf("  Min: %.6f, Max: %.6f, Avg: %.6f, Range: %.6f eV/atom\n", min_epa, max_epa, avg_epa, range_epa);
         printf("Atom type distribution:\n");
         for (int t = 0; t < num_types; t++) {
             printf("  Type %d: %d atoms (%.1f%%)\n", 
@@ -348,17 +349,17 @@ void computeMultiBatchEnergyShift(
     }
     
     // Check for extreme outliers only
-    for (int t = 0; t < num_types; t++) {
-        // Only intervene for clearly unreasonable values
-        if (x[t] > -0.1f || x[t] < -50.0f) {
-            float safe_value = avg_epa * 0.95f;
-            if (verbose) {
-                printf("Warning: Type %d shift value %.6f out of reasonable range, adjusting to %.6f\n", 
-                       t, x[t], safe_value);
-            }
-            x[t] = safe_value;
-        }
-    }
+    // for (int t = 0; t < num_types; t++) {
+    //     // Only intervene for clearly unreasonable values
+    //     if (x[t] > -0.1f || x[t] < -50.0f) {
+    //         float safe_value = avg_epa * 0.95f;
+    //         if (verbose) {
+    //             printf("Warning: Type %d shift value %.6f out of reasonable range, adjusting to %.6f\n", 
+    //                    t, x[t], safe_value);
+    //         }
+    //         x[t] = safe_value;
+    //     }
+    // }
     
     CHECK_CUDA_ERROR(cudaMemcpy(energy_per_type, x.data(), sizeof(float) * num_types, cudaMemcpyHostToDevice));
     
