@@ -38,10 +38,7 @@ The driver class calculating force and related quantities.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
-#include <fstream>
 #include <iostream>
-#include <sstream>
-#include <string>
 #include <vector>
 
 #define BLOCK_SIZE 128
@@ -71,28 +68,6 @@ void Force::check_types(const char* file_potential)
   }
 }
 
-static int get_number_of_types_eam_alloy(const char* filename_potential)
-{
-  std::ifstream input_potential(filename_potential);
-  std::string line;
-  for (int i = 0; i < 4; ++i) {
-    if (!std::getline(input_potential, line)) {
-      throw std::runtime_error("Potential file has fewer than 4 lines");
-    }
-  }
-  input_potential.close();
-  std::istringstream iss(line);
-  int Nelements;
-  if (!(iss >> Nelements)) {
-    throw std::runtime_error(
-      "Failed to read number of elements from fourth line of potential file");
-  }
-  if (Nelements < 0) {
-    throw std::runtime_error("Number of elements cannot be negative");
-  }
-  return Nelements;
-}
-
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
@@ -100,27 +75,14 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
 
-  bool is_eam_alloy = false;
-  if (num_param == 3) {
-    if (strcmp(param[2], "eam/alloy") == 0) {
-      is_eam_alloy = true;
-    }
-  }
-
   std::unique_ptr<Potential> potential;
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
-  int num_types;
-  if (!is_eam_alloy) {
-    int count = fscanf(fid_potential, "%s", potential_name);
-    if (count != 1) {
-      PRINT_INPUT_ERROR("reading error for potential file.");
-    }
-    num_types = get_number_of_types(fid_potential);
-  } else {
-    num_types = get_number_of_types_eam_alloy(param[1]);
+  int count = fscanf(fid_potential, "%s", potential_name);
+  if (count != 1) {
+    PRINT_INPUT_ERROR("reading error for potential file.");
   }
-
+  int num_types = get_number_of_types(fid_potential);
   number_of_atoms_ = number_of_atoms;
   bool is_nep = false;
   // determine the potential
@@ -134,6 +96,8 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "eam/alloy") == 0) {
+    potential.reset(new EAMAlloy(param[1], number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
@@ -210,12 +174,7 @@ void Force::parse_potential(
     potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
     fclose(fid_sw);
   } else {
-
-    if (is_eam_alloy) {
-      potential.reset(new EAMAlloy(param[1], number_of_atoms));
-    } else {
-      PRINT_INPUT_ERROR("illegal potential model.\n");
-    }
+    PRINT_INPUT_ERROR("illegal potential model.\n");
   }
   fclose(fid_potential);
 

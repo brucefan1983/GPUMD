@@ -449,23 +449,6 @@ static std::string get_filename_potential()
   }
 }
 
-static bool check_eam_alloy()
-{
-  std::ifstream input_run("run.in");
-
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() == 3) {
-      if (tokens[0] == "potential" && tokens[2] == "eam/alloy") {
-        return true;
-      }
-    }
-  }
-  input_run.close();
-  return false;
-}
-
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
@@ -474,56 +457,26 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
     exit(1);
   }
 
-  if (check_eam_alloy()) {
-    std::string line;
-    for (int i = 0; i < 4; ++i) {
-      if (!std::getline(input_potential, line)) {
-        throw std::runtime_error("Potential file has fewer than 4 lines");
-      }
-    }
-
-    std::istringstream iss(line);
-    int Nelements;
-    if (!(iss >> Nelements)) {
-      throw std::runtime_error(
-        "Failed to read number of elements from fourth line of potential file");
-    }
-    if (Nelements < 0) {
-      throw std::runtime_error("Number of elements cannot be negative");
-    }
-
-    std::vector<std::string> atom_symbols;
-    atom_symbols.reserve(Nelements);
-    std::string element;
-    for (int i = 0; i < Nelements; ++i) {
-      if (!(iss >> element)) {
-        throw std::runtime_error("Insufficient elements in fourth line of potential file");
-      }
-      atom_symbols.push_back(element);
-    }
-    input_potential.close();
-    return atom_symbols;
-  } else {
-    std::vector<std::string> tokens = get_tokens(input_potential);
-    if (tokens.size() < 3) {
-      std::cout << "The first line of the potential file should have at least 3 items."
-                << std::endl;
-      exit(1);
-    }
-
-    int number_of_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    if (tokens.size() != 2 + number_of_types) {
-      std::cout << "The first line of the potential file should have " << number_of_types
-                << " atom symbols." << std::endl;
-      exit(1);
-    }
-    std::vector<std::string> atom_symbols(number_of_types);
-    for (int n = 0; n < number_of_types; ++n) {
-      atom_symbols[n] = tokens[2 + n];
-    }
-    input_potential.close();
-    return atom_symbols;
+  std::vector<std::string> tokens = get_tokens(input_potential);
+  if (tokens.size() < 3) {
+    std::cout << "The first line of the potential file should have at least 3 items." << std::endl;
+    exit(1);
   }
+
+  int number_of_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (tokens.size() != 2 + number_of_types) {
+    std::cout << "The first line of the potential file should have " << number_of_types
+              << " atom symbols." << std::endl;
+    exit(1);
+  }
+
+  std::vector<std::string> atom_symbols(number_of_types);
+  for (int n = 0; n < number_of_types; ++n) {
+    atom_symbols[n] = tokens[2 + n];
+  }
+
+  input_potential.close();
+  return atom_symbols;
 }
 
 void initialize_position(
