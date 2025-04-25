@@ -2173,3 +2173,11 @@ void NEP::compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }
+
+const GPU_Vector<int>& NEP::get_NN_radial_ptr() {
+  return nep_data.NN_radial;  // Return by reference
+}
+
+const GPU_Vector<int>& NEP::get_NL_radial_ptr() {
+  return nep_data.NL_radial;  // Return by reference
+}

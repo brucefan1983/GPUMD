@@ -1,0 +1,8 @@
+potential nep.txt
+potential nep4_dipole.txt
+time_step 1
+velocity 300
+ensemble nve
+dump_dipole 1
+dump_position 1
+run 10

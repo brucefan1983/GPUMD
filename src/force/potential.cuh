@@ -63,6 +63,18 @@ public:
     GPU_Vector<double>& virial,
     std::vector<Group>& group) {};
 
+  virtual const GPU_Vector<int>& get_NN_radial_ptr() {
+      static GPU_Vector<int> dummy_NN;
+      return dummy_NN;  // Return the const reference to NN_radial
+  }
+  
+  virtual const GPU_Vector<int>& get_NL_radial_ptr() {
+    static GPU_Vector<int> dummy_NL;
+      return dummy_NL;  // Return the const reference to NL_radial
+  }
+  
+
+
 protected:
   void find_properties_many_body(
     Box& box,

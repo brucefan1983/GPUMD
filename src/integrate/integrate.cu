@@ -30,6 +30,7 @@ The driver class for the various integrators.
 #include "ensemble_pimd.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
+#include "ensemble_ti_liquid.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
 #include "ensemble_wall_harmonic.cuh"
@@ -139,6 +140,8 @@ void Integrate::initialize(
     case -9: // ti_as
       break;
     case -10:
+      break;
+    case -11: // ti_liquid
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -301,15 +304,21 @@ void Integrate::compute2(
   const double step_over_number_of_steps,
   const std::vector<Group>& group,
   Box& box,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+  Atom& atom,  
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
   } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
+  } else if (type == -11 ) {
+    // Eller whatever vi valde för nummer för ti_liquid
+    ensemble->compute3(time_step, group, box, atom, thermo, force);
+    return;
   }
+
 
   ensemble->compute2(time_step, group, box, atom, thermo);
 }
@@ -435,6 +444,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "wall_harmonic") == 0) {
     type = -10;
     ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
+  } else if (strcmp(param[1], "ti_liquid") == 0) {
+    type = -11;
+    ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -878,6 +890,8 @@ void Integrate::parse_ensemble(
     case -9:
       break;
     case -10:
+      break;    
+    case -11:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

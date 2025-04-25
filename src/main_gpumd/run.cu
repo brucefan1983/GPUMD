@@ -293,7 +293,7 @@ void Run::perform_a_run()
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom);
 
-    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 
     mc.compute(step, number_of_steps, atom, box, group);
 
