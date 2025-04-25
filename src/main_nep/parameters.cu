@@ -1030,12 +1030,9 @@ void Parameters::parse_atomic_v(const char** param, int num_param)
     PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
   }
 
-  int atomic_v_temp = 0;
-  if (!is_valid_int(param[1], &atomic_v_temp)) {
+  if (!is_valid_int(param[1], &atomic_v)) {
     PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
   }
-
-  atomic_v = atomic_v_temp;
 
   if (atomic_v != 0 && atomic_v != 1) {
     PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
