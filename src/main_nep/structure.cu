@@ -421,11 +421,7 @@ static void read_one_structure(
         }
         if (sub_tokens[k * 3] == "force" || sub_tokens[k * 3] == "forces") {
           force_position = k;
-        }
-        if (sub_tokens[k * 3] == "avirial" || sub_tokens[k * 3] == "atomic_virial") {
-          avirial_position = k;
-          structure.has_atomic_virial = true;
-        }        
+        }   
         if (sub_tokens[k * 3] == "adipole" || sub_tokens[k * 3] == "atomic_dipole") {
           avirial_position = k;
           structure.has_atomic_virial = true;
