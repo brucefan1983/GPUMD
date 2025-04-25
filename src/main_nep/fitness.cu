@@ -291,9 +291,9 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
     for (int n = 0; n < num_components; ++n) {
       int index = n * dataset.N + offset + m;
       if (!is_stress) {
-        fprintf(fid, "%g ", prediction[index] / dataset.Na_cpu[nc]);
+        fprintf(fid, "%g ", prediction[index]);
       } else {
-        fprintf(fid, "%g ", prediction[index] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+        fprintf(fid, "%g ", prediction[index] * dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
       }
     }
     for (int n = 0; n < num_components; ++n) {
