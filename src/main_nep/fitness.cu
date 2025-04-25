@@ -278,7 +278,6 @@ void Fitness::output(
 }
 
 void Fitness::output_atomic(
-  bool is_stress,
   int num_components,
   FILE* fid,
   float* prediction,
@@ -290,17 +289,10 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
   for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
     for (int n = 0; n < num_components; ++n) {
       int index = n * dataset.N + offset + m;
-      if (!is_stress) {
-        fprintf(fid, "%g ", prediction[index]);
-      } else {
-        fprintf(fid, "%g ", prediction[index] * dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
-      }
+      fprintf(fid, "%g ", prediction[index]);
     }
     for (int n = 0; n < num_components; ++n) {
       float ref_value = reference[n * dataset.N + offset + m];
-      if (is_stress) {
-        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
-      }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
       } else {
@@ -518,7 +510,7 @@ void Fitness::report_error(
         FILE* fid_energy = my_fopen("energy_test.out", "w");
         FILE* fid_virial = my_fopen("virial_test.out", "w");
         FILE* fid_stress = my_fopen("stress_test.out", "w");
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0], para.atomic_v);
+        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
         fclose(fid_energy);
         fclose(fid_force);
         fclose(fid_virial);
@@ -546,7 +538,7 @@ void Fitness::report_error(
 }
 
 void Fitness::update_energy_force_virial(
-  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset, bool atomic)
+  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset)
 {
   dataset.energy.copy_to_host(dataset.energy_cpu.data());
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
@@ -570,13 +562,8 @@ void Fitness::update_energy_force_virial(
 
   output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
 
-  if (!atomic) {
-    output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-    output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-  } else {
-    output_atomic(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
-    output_atomic(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
-  }
+  output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
 
 void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
@@ -595,7 +582,7 @@ void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
   if (!atomic) {
     output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   } else {
-    output_atomic(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+    output_atomic(3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   }
 }
 
@@ -605,7 +592,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
   if (!atomic) {
     output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   } else {
-    output_atomic(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+    output_atomic(6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
   }
 }
 
@@ -623,7 +610,7 @@ void Fitness::predict(Parameters& para, float* elite)
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_energy_force_virial(
-        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0], para.atomic_v);
+        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
       if (para.charge_mode) {
         update_charge(fid_charge, train_set[batch_id][0]);
       }
