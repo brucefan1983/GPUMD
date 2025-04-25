@@ -174,12 +174,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
   if (structures[0].has_atomic_virial) {
-    if (structures[0].atomic_virial_diag_only) {
-      avirial_ref_cpu.resize(N * 3);
-    }
-    else {
-      avirial_ref_cpu.resize(N * 6);
-    }
+    avirial_ref_cpu.resize(N * (structures[0].atomic_virial_diag_only ? 3 : 6));
   }
   temperature_ref_cpu.resize(N);
 
@@ -228,11 +223,8 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
-  if (structures[0].atomic_virial_diag_only) {
-    avirial_ref_gpu.resize(N * 3);
-  }
-  else {
-    avirial_ref_gpu.resize(N * 6);
+  if (structures[0].has_atomic_virial) {
+    avirial_ref_gpu.resize(N * (structures[0].atomic_virial_diag_only ? 3 : 6));
   }
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
@@ -241,7 +233,9 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
-  avirial_ref_gpu.copy_from_host(avirial_ref_cpu.data());
+  if (structures[0].has_atomic_virial) {
+    avirial_ref_gpu.copy_from_host(avirial_ref_cpu.data());
+  }
   temperature_ref_gpu.copy_from_host(temperature_ref_cpu.data());
 
   box.resize(Nc * 18);
