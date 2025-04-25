@@ -1,11 +1,11 @@
 clear; close all;
 
-data = table2array(readtable('thermo.out', 'FileType', 'text', 'CommentStyle', '#'));
+load thermo.out;
 
-t = (1:size(data,1))*0.01;
+t = (1:size(thermo,1))*0.01;
 
 figure;
-plot(t, data(:,1));
+plot(t, thermo(:,1));
 xlabel('Time (ps)');
 ylabel('Temperature (K)');
 
