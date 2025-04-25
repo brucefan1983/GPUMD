@@ -57,26 +57,6 @@ void Dump_Thermo::preprocess(
   Force& force)
 {
   fid_ = my_fopen("thermo.out", "a");
-  // header
-  fprintf(fid_, "# ");
-  fprintf(fid_, "T(K) "); // col 1
-  fprintf(fid_, "K(eV) "); // col 2
-  fprintf(fid_, "U(eV) "); // col 3
-  fprintf(fid_, "Pxx(GPa) "); // col 4
-  fprintf(fid_, "Pyy(GPa) "); // col 5
-  fprintf(fid_, "Pzz(GPa) "); // col 6
-  fprintf(fid_, "Pyz(GPa) "); // col 7
-  fprintf(fid_, "Pzx(GPa) "); // col 8
-  fprintf(fid_, "Pxy(GPa) "); // col 9
-  fprintf(fid_, "ax(A) "); // col 10
-  fprintf(fid_, "ay(A) "); // col 11
-  fprintf(fid_, "az(A) "); // col 12
-  fprintf(fid_, "bx(A) "); // col 13
-  fprintf(fid_, "by(A) "); // col 14
-  fprintf(fid_, "bz(A) "); // col 15
-  fprintf(fid_, "cx(A) "); // col 16
-  fprintf(fid_, "cy(A) "); // col 17
-  fprintf(fid_, "cz(A)\n"); // col 18
 }
 
 void Dump_Thermo::process(
