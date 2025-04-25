@@ -56,7 +56,7 @@ public:
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
-  bool atomic_v;
+  int atomic_v;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_radial_factor;

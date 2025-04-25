@@ -102,7 +102,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   initial_para = 1.0f;
   sigma0 = 0.1f;
-  atomic_v = false;
+  atomic_v = 0;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
