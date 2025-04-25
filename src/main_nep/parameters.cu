@@ -169,6 +169,12 @@ void Parameters::calculate_parameters()
     }
   }
 
+  if (train_mode == 0) {
+    if (atomic_v == 1) {
+      PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
+    }
+  }
+
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
