@@ -56,6 +56,7 @@ public:
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
+  int atomic_v;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_radial_factor;
@@ -82,6 +83,7 @@ public:
   bool is_lambda_e_set;
   bool is_lambda_f_set;
   bool is_lambda_v_set;
+  bool is_atomic_v_set;
   bool is_lambda_shear_set;
   bool is_batch_set;
   bool is_population_set;
@@ -144,6 +146,7 @@ private:
   void parse_generation(const char** param, int num_param);
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
+  void parse_atomic_v(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
