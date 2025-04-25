@@ -950,6 +950,58 @@ static void get_structures_with_given_species(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
+static void get_structures_with_given_species_no_subsystems(
+  std::string& outputfile,
+  std::vector<Structure>& structures,
+  int num_species,
+  std::vector<std::string>& given_species)
+{
+  std::ofstream output(outputfile);
+  if (!output.is_open()) {
+    std::cout << "Failed to open " << outputfile << std::endl;
+    exit(1);
+  }
+  std::cout << outputfile << " is opened." << std::endl;
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+
+    std::vector<bool> has_at_least_one(num_species);
+    for (int k = 0; k < num_species; ++k) {
+      has_at_least_one[k] = false;
+    }
+
+    int is_valid_structure = true;
+    
+    for (int n = 0; n < structures[nc].num_atom; ++ n) {
+
+      bool match = false;
+      for (int k = 0; k < num_species; ++k) {
+        if (structures[nc].atom_symbol[n] == given_species[k]) {
+          match = true;
+          has_at_least_one[k] = true;
+          //break;
+        }
+      }
+
+      if (!match) {
+        is_valid_structure = false;
+        break;
+      }
+    }
+
+    for (int k = 0; k < num_species; ++k) {
+      is_valid_structure = is_valid_structure && has_at_least_one[k];
+    }
+
+    if (is_valid_structure) {
+      write_one_structure(output, structures[nc]);
+    }
+  }
+
+  output.close();
+  std::cout << outputfile << " is closed." << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
