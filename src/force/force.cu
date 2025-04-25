@@ -19,8 +19,13 @@ The driver class calculating force and related quantities.
 #include "dp.cuh"
 #endif
 #include "eam.cuh"
+#include "eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#include "ilp_nep.cuh"
+#include "ilp_nep_gr_hbn.cuh"
+#include "ilp_nep_tmd.cuh"
+#include "ilp_tmd_sw.cuh"
 #include "lj.cuh"
 #include "nep.cuh"
 #include "nep_multigpu.cuh"
@@ -28,10 +33,6 @@ The driver class calculating force and related quantities.
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
-#include "ilp_tmd_sw.cuh"
-#include "ilp_nep_gr_hbn.cuh"
-#include "ilp_nep_tmd.cuh"
-#include "ilp_nep.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -59,8 +60,9 @@ void Force::check_types(const char* file_potential)
       atom_types[n] = token;
     } else {
       if (token != atom_types[n]) {
-        PRINT_INPUT_ERROR("The atomic species and/or the order of the species are not consistent "
-                          "between the multiple potentials.\n");
+        PRINT_INPUT_ERROR(
+          "The atomic species and/or the order of the species are not consistent "
+          "between the multiple potentials.\n");
       }
     }
   }
@@ -94,16 +96,15 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "eam/alloy") == 0) {
+    potential.reset(new EAMAlloy(param[1], number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
-    strcmp(potential_name, "nep5") == 0 || 
-    strcmp(potential_name, "nep5_zbl") == 0 ||
-    strcmp(potential_name, "nep3") == 0 ||
-    strcmp(potential_name, "nep3_zbl") == 0 || 
-    strcmp(potential_name, "nep4") == 0 ||
-    strcmp(potential_name, "nep4_zbl") == 0 || 
+    strcmp(potential_name, "nep5") == 0 || strcmp(potential_name, "nep5_zbl") == 0 ||
+    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
+    strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
     strcmp(potential_name, "nep3_dipole") == 0 ||
     strcmp(potential_name, "nep3_polarizability") == 0 ||
     strcmp(potential_name, "nep4_dipole") == 0 ||
@@ -137,13 +138,15 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
-  #ifdef USE_TENSORFLOW
+#ifdef USE_TENSORFLOW
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR("The potential command should contain two parameters, the setting file and the DP potential file name.\n");
+      PRINT_INPUT_ERROR(
+        "The potential command should contain two parameters, the setting file and the DP "
+        "potential file name.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
-  #endif
+#endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_nep_gr_hbn") == 0) {
@@ -257,7 +260,6 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   s_f[tid] = f;
   __syncthreads();
 
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
@@ -310,9 +312,7 @@ void Force::finalize()
 }
 
 void Force::set_hnemd_parameters(
-  const double hnemd_fe_x,
-  const double hnemd_fe_y,
-  const double hnemd_fe_z)
+  const double hnemd_fe_x, const double hnemd_fe_y, const double hnemd_fe_z)
 {
   if (compute_hnemd_ || compute_hnemdec_ >= 0) {
     PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
@@ -660,7 +660,6 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
   }
   s_t[tid] = t;
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
