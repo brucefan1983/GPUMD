@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
 #include <cstring>
 
 void print_welcome_information();
@@ -36,16 +37,16 @@ int main(int argc, char* argv[])
   print_line_2();
 
   CHECK(gpuDeviceSynchronize());
-  clock_t time_begin = clock();
+  const auto time_begin = std::chrono::high_resolution_clock::now();
 
   Run run;
 
   CHECK(gpuDeviceSynchronize());
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+  const auto time_finish = std::chrono::high_resolution_clock::now();
+  const std::chrono::duration<double> time_used = time_finish - time_begin;
 
   print_line_1();
-  printf("Time used = %f s.\n", time_used);
+  printf("Time used = %f s.\n", time_used.count());
   print_line_2();
 
   print_line_1();
