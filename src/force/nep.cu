@@ -967,7 +967,7 @@ static __global__ void find_partial_force_angular(
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] = 
+        sum_fxyz[n * NUM_OF_ABC + abc] =
           g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
       }
     }
@@ -2173,3 +2173,7 @@ void NEP::compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }
+
+const GPU_Vector<int>& NEP::get_NN_radial_ptr() { return nep_data.NN_radial; }
+
+const GPU_Vector<int>& NEP::get_NL_radial_ptr() { return nep_data.NL_radial; }

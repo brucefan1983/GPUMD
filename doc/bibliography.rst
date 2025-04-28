@@ -314,3 +314,21 @@ Bibliography
    | *Misfit strain-induced buckling for transition-metal dichalcogenide lateral heterostructures: a molecular dynamics study*
    | Acta Mech. Solida Sin. **32**, 17-28 (2019)
    | DOI: `10.1007/s10338-018-0049-z <https://doi.org/10.1007/s10338-018-0049-z>`_
+
+.. [Leite2016]
+   | Rodolfo Paula Leite, Rodrigo Freitas, Rodolfo Azevedo and Maurice de Koning
+   | *The Uhlenbeck-Ford model: Exact virial coefficients and application as a reference system in fluid-phase free-energy calculations*
+   | J. Chem. Phys. 145, 194101 (2016)
+   | DOI: `10.1063/1.4967775 <https://doi.org/10.1063/1.4967775>`_
+
+.. [Leite2019]
+   | Rodolfo Paula Leite and Maurice de Koning
+   | *Nonequilibrium free-energy calculations of fluids using LAMMPS*
+   | Computational Materials Science, Volume 159, 316-326 (2019)
+   | DOI: `10.1016/j.commatsci.2018.12.029 <https://doi.org/10.1016/j.commatsci.2018.12.029>`_
+
+.. [Menon2021]
+   | Sarath Menon, Yury Lysogorskiy, Jutta Rogal and Ralf Drautz
+   | *Automated free-energy calculation from atomistic simulations*
+   | Phys. Rev. Materials 5, 103801, (2021)
+   | DOI: `10.1103/PhysRevMaterials.5.103801 <https://doi.org/10.1103/PhysRevMaterials.5.103801>`_
