@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstring>
 #define BLOCK_SIZE_FORCE 64
 
 class CubicSpline
