@@ -14,6 +14,7 @@
 */
 
 #include "property.cuh"
+#include <cstring>
 
 
 Property::Property(void)

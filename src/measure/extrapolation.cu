@@ -15,6 +15,7 @@
 
 #include "extrapolation.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 #define PRINT_RUNTIME_ERROR(text)                                                                  \
   do {                                                                                             \
