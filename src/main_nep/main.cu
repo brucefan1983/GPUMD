@@ -73,7 +73,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*              Master version after 3.9.5                     *\n");
+  printf("*                     version 4.0                             *\n");
   printf("*              This is the nep executable                     *\n");
   printf("***************************************************************\n");
   printf("\n");
