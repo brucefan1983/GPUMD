@@ -1,4 +1,4 @@
-.. _kw_ensemble_ti_spring:
+.. _kw_ensemble_ti_liquid:
 
 :attr:`ensemble` (TI_Liquid)
 ============================
