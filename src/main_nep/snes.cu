@@ -31,6 +31,7 @@ https://doi.org/10.1145/2001576.2001692
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <cstring>
 
 static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {

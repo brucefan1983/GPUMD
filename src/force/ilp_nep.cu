@@ -28,6 +28,7 @@ TODO:
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstring>
 // TODO
 // #include <iomanip>
 
