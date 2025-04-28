@@ -126,11 +126,11 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  
+
   const GPU_Vector<int>& get_NN_radial_ptr();
 
   const GPU_Vector<int>& get_NL_radial_ptr();
-  
+
 private:
   ParaMB paramb;
   ANN annmb;

@@ -14,11 +14,11 @@
 */
 
 #pragma once
+#include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "force/force.cuh"
 #include <vector>
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
@@ -50,9 +50,8 @@ public:
     Atom& atom,
     GPU_Vector<double>& thermo,
     Force& force){
-      
-    };
-  
+
+  };
 
   void find_thermo(
     const bool use_target_temperature,

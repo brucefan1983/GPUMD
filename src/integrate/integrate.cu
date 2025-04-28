@@ -304,7 +304,7 @@ void Integrate::compute2(
   const double step_over_number_of_steps,
   const std::vector<Group>& group,
   Box& box,
-  Atom& atom,  
+  Atom& atom,
   GPU_Vector<double>& thermo,
   Force& force)
 {
@@ -313,12 +313,10 @@ void Integrate::compute2(
   } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
-  } else if (type == -11 ) {
-    // Eller whatever vi valde för nummer för ti_liquid
+  } else if (type == -11) {
     ensemble->compute3(time_step, group, box, atom, thermo, force);
     return;
   }
-
 
   ensemble->compute2(time_step, group, box, atom, thermo);
 }
@@ -505,8 +503,9 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 3;
-      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      if (
+        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
       }
     } else if (num_param == 8) { // isotropic
@@ -520,8 +519,9 @@ void Integrate::parse_ensemble(
         PRINT_INPUT_ERROR("elastic modulus should > 0.");
       }
       num_target_pressure_components = 1;
-      if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-          box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      if (
+        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
       }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -687,8 +687,9 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 3;
-          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+          if (
+            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
           }
         } else if (num_param == 9) { // isotropic
@@ -702,8 +703,9 @@ void Integrate::parse_ensemble(
             PRINT_INPUT_ERROR("elastic modulus should > 0.");
           }
           num_target_pressure_components = 1;
-          if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-              box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+          if (
+            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
           }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -890,7 +892,7 @@ void Integrate::parse_ensemble(
     case -9:
       break;
     case -10:
-      break;    
+      break;
     case -11:
       break;
     case 21:

@@ -14,117 +14,91 @@
 */
 
 #include "ensemble_ti_liquid.cuh"
-#include "utilities/gpu_macro.cuh"
 #include "force/force.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <cstring>
 #include <unordered_map>
 
 namespace
 {
 
-  static __global__ void init_UF_force(
-    int number_of_atoms,
-    double* fx_UF,
-    double* fy_UF,
-    double* fz_UF
-  )
-  {
-      
-    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+static __global__ void
+init_UF_force(int number_of_atoms, double* fx_UF, double* fy_UF, double* fz_UF)
+{
 
-    if (i < number_of_atoms) {
-      fx_UF[i] = 0;
-      fy_UF[i] = 0;
-      fz_UF[i] = 0;
-    }
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (i < number_of_atoms) {
+    fx_UF[i] = 0;
+    fy_UF[i] = 0;
+    fz_UF[i] = 0;
   }
+}
 
-  static __global__ void calc_UF_force(
-    int number_of_atoms,
-    Box box,
-    double lambda,
-    double* eUF,
-    double sigma_sqrd,
-    double p,
-    double beta,
-    const int* g_NN,
-    const int* g_NL,
-    double* g_x,
-    double* g_y,
-    double* g_z,
-    double* fx,
-    double* fy,
-    double* fz,
-    double* fx_UF,
-    double* fy_UF,
-    double* fz_UF
-  )
-  {
-    const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //printf("After const int i\n");
-    if (i < number_of_atoms) {
-      
-      double tmp_fx_UF = 0;
-      double tmp_fy_UF = 0;
-      double tmp_fz_UF = 0;
-      double x1 = g_x[i];
-      double y1 = g_y[i];
-      double z1 = g_z[i];
-      double eUF_i = 0;
-        
-      //const int N_test = g_NN.size();
-  
-        for (int i1 = 0; i1 < g_NN[i]; ++i1) {
-          
-          int n2 = g_NL[i + number_of_atoms * i1];
-          
-          //int n2 = g_NL[i + number_of_atoms * i1];
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          double x12 = double(x12double);
-          double y12 = double(y12double);
-          double z12 = double(z12double);
-          double d12_sqrd = x12 * x12 + y12 * y12 + z12 * z12;
-          double factor = - 2*p / (  beta * sigma_sqrd * ( exp( (d12_sqrd / sigma_sqrd ) ) - 1 ) );
-  
-          //if (d12_sqrd < 0){
-          //  printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
-          //}
-          //if (i == 0){
-          //printf("\nx12 %f, y12 %f, z12 %f\nf12_x %f, f12_y %f, f12_z %f \n", x12, y12, z12,x12 * factor,y12 * factor,z12 * factor);
-          //}
-          tmp_fx_UF = x12 * factor;   
-          tmp_fy_UF = y12 * factor;
-          tmp_fz_UF = z12 * factor;
-          eUF_i -= p / beta * logf( 1 - exp( - d12_sqrd / sigma_sqrd  ) );
+static __global__ void calc_UF_force(
+  int number_of_atoms,
+  Box box,
+  double lambda,
+  double* eUF,
+  double sigma_sqrd,
+  double p,
+  double beta,
+  const int* g_NN,
+  const int* g_NL,
+  double* g_x,
+  double* g_y,
+  double* g_z,
+  double* fx,
+  double* fy,
+  double* fz,
+  double* fx_UF,
+  double* fy_UF,
+  double* fz_UF)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-          fx_UF[i] += tmp_fx_UF/2;
-          fx_UF[n2] -= tmp_fx_UF/2;
+  if (i < number_of_atoms) {
 
-          fy_UF[i] += tmp_fy_UF/2;
-          fy_UF[n2] -= tmp_fy_UF/2;
+    double tmp_fx_UF = 0;
+    double tmp_fy_UF = 0;
+    double tmp_fz_UF = 0;
+    double x1 = g_x[i];
+    double y1 = g_y[i];
+    double z1 = g_z[i];
+    double eUF_i = 0;
 
-          fz_UF[i] += tmp_fz_UF/2;
-          fz_UF[n2] -= tmp_fz_UF/2;
+    for (int i1 = 0; i1 < g_NN[i]; ++i1) {
 
-          //if (i == 3 && n2 == 10){
-          //  printf("fx: %f, fy: %f, fz: %f, e_UF: %f\n p1: [%f, %f, %f], p2: [%f, %f, %f]\n", tmp_fx_UF, tmp_fy_UF,tmp_fz_UF, -p / beta * logf( 1 - exp( - d12_sqrd / sigma_sqrd  ) ), x1, y1, z1, g_x[n2], g_y[n2], g_z[n2]);
-          //}
-            
-          
-        }
-      // TODO symmetrize; thus is dUi / drij,
-      // we need to run another kernel that computes Fi = dUi / drij - dUj / drij
-      // and then save the forces to fx, fy and fz.
-      // compare with `find_force_radial` in `nep.cu`.
-      //printf("Force %f\n", fx[i]);
-      //printf("Force %f, %f, %f,    UF x:%f, y:%f, z:%f \n",fx[i],fy[i],fz[i], fx_UF,fy_UF,fz_UF);
-      
-      eUF[i] = eUF_i / 2; 
+      int n2 = g_NL[i + number_of_atoms * i1];
+
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      double x12 = double(x12double);
+      double y12 = double(y12double);
+      double z12 = double(z12double);
+      double d12_sqrd = x12 * x12 + y12 * y12 + z12 * z12;
+      double factor = -2 * p / (beta * sigma_sqrd * (exp((d12_sqrd / sigma_sqrd)) - 1));
+
+      tmp_fx_UF = x12 * factor;
+      tmp_fy_UF = y12 * factor;
+      tmp_fz_UF = z12 * factor;
+      eUF_i -= p / beta * logf(1 - exp(-d12_sqrd / sigma_sqrd));
+
+      fx_UF[i] += tmp_fx_UF / 2;
+      fx_UF[n2] -= tmp_fx_UF / 2;
+
+      fy_UF[i] += tmp_fy_UF / 2;
+      fy_UF[n2] -= tmp_fy_UF / 2;
+
+      fz_UF[i] += tmp_fz_UF / 2;
+      fz_UF[n2] -= tmp_fz_UF / 2;
     }
+
+    eUF[i] = eUF_i / 2;
   }
+}
 
 static __global__ void gpu_add_UF_force(
   int number_of_atoms,
@@ -147,23 +121,15 @@ static __global__ void gpu_add_UF_force(
   double* fz_UF)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  //printf("After const int i\n");
-    
-    
-    fx[i] = (1 - lambda) * fx[i] + lambda * fx_UF[i]; //(1 - lambda) * fx[i] + lambda * fx_UF;
-    fy[i] = (1 - lambda) * fy[i] + lambda * fy_UF[i]; //(1 - lambda) * fy[i] + lambda * fy_UF;
-    fz[i] = (1 - lambda) * fz[i] + lambda * fz_UF[i]; //(1 - lambda) * fz[i] + lambda * fz_UF;
 
-   //if (lambda > 0.75) {
-   //  //if (i == 0){
-    // printf("F_uf: %f, %f, %f\n F_xyz: %f, %f, %f\n\n", fx_UF[i], fy_UF[i], fz_UF[i],fx[i], fy[i], fz[i]);
-   ////}
-  //}
+  fy[i] = (1 - lambda) * fy[i] + lambda * fy_UF[i];
+  fz[i] = (1 - lambda) * fz[i] + lambda * fz_UF[i];
+  fx[i] = (1 - lambda) * fx[i] + lambda * fx_UF[i];
 }
 
 static __global__ void gpu_get_UF_sum(const int N, double* eUF)
 {
-  //<<<1, 1024>>>
+
   int tid = threadIdx.x;
   int patch, n;
   int number_of_patches = (N - 1) / 1024 + 1;
@@ -224,17 +190,6 @@ Ensemble_TI_Liquid::Ensemble_TI_Liquid(const char** params, int num_params)
       if (!is_valid_real(params[i + 1], &p))
         PRINT_INPUT_ERROR("Wrong inputs for p keyword.");
       i += 2;
-      // TODO: Modify
-    //} else if (strcmp(params[i], "spring") == 0) {
-    //  i++;
-    //  auto_k = false;
-    //  double _k;
-    //  while (i < num_params) {
-    //    if (!is_valid_real(params[i + 1], &_k))
-    //      PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
-    //    spring_map[params[i]] = _k;
-    //    i += 2;
-    //  }
     } else {
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
@@ -248,40 +203,39 @@ Ensemble_TI_Liquid::Ensemble_TI_Liquid(const char** params, int num_params)
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
-double Ensemble_TI_Liquid::fe(double x, const double coef[4], const double sum_spline[106], int index) {
+double
+Ensemble_TI_Liquid::fe(double x, const double coef[4], const double sum_spline[106], int index)
+{
   double result;
   double x_0 = 0.0;
 
   if (x < 0.0025) {
-      result = coef[0] * (x * x) / 2.0 + coef[1] * x;
-      return result;
+    result = coef[0] * (x * x) / 2.0 + coef[1] * x;
+    return result;
   } else if (x < 0.1) {
-      if (static_cast<int>(x * 10000) % 25 == 0) {
-          return sum_spline[index - 1];
-      } else {
-          x_0 = 0.0025 * static_cast<int>(x * 400);
-      }
+    if (static_cast<int>(x * 10000) % 25 == 0) {
+      return sum_spline[index - 1];
+    } else {
+      x_0 = 0.0025 * static_cast<int>(x * 400);
+    }
   } else if (x < 1) {
-      if (static_cast<int>(x * 1000) % 25 == 0) {
-          return sum_spline[index - 1];
-      } else {
-          x_0 = 0.025 * static_cast<int>(x * 40);
-      }
+    if (static_cast<int>(x * 1000) % 25 == 0) {
+      return sum_spline[index - 1];
+    } else {
+      x_0 = 0.025 * static_cast<int>(x * 40);
+    }
   } else if (x < 4) {
-      if (static_cast<int>(x * 100) % 10 == 0) {
-          return sum_spline[index - 1];
-      } else {
-          x_0 = 0.1 * static_cast<int>(x * 10);
-      }
+    if (static_cast<int>(x * 100) % 10 == 0) {
+      return sum_spline[index - 1];
+    } else {
+      x_0 = 0.1 * static_cast<int>(x * 10);
+    }
   } else {
-      return sum_spline[index];
+    return sum_spline[index];
   }
 
-  result = sum_spline[index - 1] +
-           coef[0] * (x * x - x_0 * x_0) / 2.0 +
-           coef[1] * (x - x_0) +
-           (coef[2] - 1.0) * std::log(x / x_0) -
-           coef[3] * (1.0 / x - 1.0 / x_0);
+  result = sum_spline[index - 1] + coef[0] * (x * x - x_0 * x_0) / 2.0 + coef[1] * (x - x_0) +
+           (coef[2] - 1.0) * std::log(x / x_0) - coef[3] * (1.0 / x - 1.0 / x_0);
 
   return result;
 }
@@ -301,27 +255,13 @@ void Ensemble_TI_Liquid::init()
   fprintf(output_file, "lambda,dlambda,pe,eUF\n");
   int N = atom->number_of_atoms;
 
-  //printf("We are in TI-liquid\n");
-
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
   GPU_CHECK_KERNEL
 
-  
   thermo_cpu.resize(thermo->size());
   gpu_eUF.resize(N);
-  
-  //gpu_k.resize(N, 0);
-  //cpu_k.resize(N, 0);
-  //gpu_espring.resize(N);
-  //position_0.resize(3 * N);
-  //CHECK(gpuMemcpy(
-  //  position_0.data(),
-  //  atom->position_per_atom.data(),
-  //  sizeof(double) * position_0.size(),
-  //  gpuMemcpyDeviceToDevice));
-//
 }
 
 void Ensemble_TI_Liquid::find_thermo()
@@ -335,90 +275,84 @@ void Ensemble_TI_Liquid::find_thermo()
     atom->velocity_per_atom,
     atom->virial_per_atom,
     *thermo);
-    
-  //printf("Thermo: %f, %f, %f, %f, %f\n",thermo_cpu[0],thermo_cpu[1],thermo_cpu[2],thermo_cpu[3],thermo_cpu[4]);
-  //printf("Before thermo\n");
+
   thermo->copy_to_host(thermo_cpu.data());
-  //printf("After thermo\n");
+
   pe = thermo_cpu[1];
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
 Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
 {
-  // TODO: Implement UF free energy
+
   double kT = K_B * temperature;
   int N = atom->number_of_atoms;
   const std::vector<double>& masses = atom->cpu_mass;
   const std::vector<int>& types = atom->cpu_type;
   std::unordered_map<int, int> species_count;
 
-  V = box->get_volume() / N;
+  V = box->get_volume() / N; // 1/V is the number density, rho
 
-  double x_UF = pow(PI * sigma_sqrd, 1.5) / ( 2.0 * V ); // 1/V is the number density, rho
-  printf("x_UF: %f\n", x_UF);
+  double x_UF = pow(PI * sigma_sqrd, 1.5) / (2.0 * V);
 
   int index = 0;
   if (x_UF < 0.1) {
-      index = 0 + static_cast<int>(x_UF * 400);
+    index = 0 + static_cast<int>(x_UF * 400);
   } else if (x_UF < 1) {
-      index = 40 + static_cast<int>(x_UF * 40 - 4);
+    index = 40 + static_cast<int>(x_UF * 40 - 4);
   } else if (x_UF < 4) {
-      index = 76 + static_cast<int>(x_UF * 10 - 10);
+    index = 76 + static_cast<int>(x_UF * 10 - 10);
   } else {
-      index = 105;
+    index = 105;
   }
 
   double coef[4] = {0.0};
-  for (int n = 0; n < 4; n++){
+  for (int n = 0; n < 4; n++) {
     if (p == 1) {
       coef[n] = spline1[index][n];
     } else if (p == 25) {
       coef[n] = spline25[index][n];
-    }else if (p == 50) {
+    } else if (p == 50) {
       coef[n] = spline50[index][n];
-    }else if (p == 75) {
+    } else if (p == 75) {
       coef[n] = spline75[index][n];
-    }else if (p == 100) {
+    } else if (p == 100) {
       coef[n] = spline100[index][n];
     }
   }
 
   double sum_spline[106] = {0.0};
-  for (int n = 0; n < 106; n++){
+  for (int n = 0; n < 106; n++) {
     if (p == 1) {
-        sum_spline[n] =  sum_spline1[n];
+      sum_spline[n] = sum_spline1[n];
     } else if (p == 25) {
-        sum_spline[n] =  sum_spline25[n];
+      sum_spline[n] = sum_spline25[n];
     } else if (p == 50) {
-        sum_spline[n] =  sum_spline50[n];
+      sum_spline[n] = sum_spline50[n];
     } else if (p == 75) {
-        sum_spline[n] =  sum_spline75[n];
+      sum_spline[n] = sum_spline75[n];
     } else {
-        sum_spline[n] =  sum_spline100[n];
+      sum_spline[n] = sum_spline100[n];
     }
   }
   double F_UF = 0;
-  
-  F_UF = fe(x_UF, coef,sum_spline, index) * kT * N;
+
+  F_UF = fe(x_UF, coef, sum_spline, index) * kT * N;
 
   double c_sum = 0;
   double de_broigle_sum = 0;
 
   for (int i = 0; i < N; ++i) {
-    de_broigle_sum += log(HBAR * sqrt(2 * PI / (masses[i]  * kT)));
+    de_broigle_sum += log(HBAR * sqrt(2 * PI / (masses[i] * kT)));
     species_count[types[i]]++;
   }
 
-  printf("mass: %f\n", masses[0]);
-
   for (const auto& entry : species_count) {
-    //int type = entry.first;
     int count = entry.second;
     double cn = static_cast<double>(count) / N;
     printf("cn: %f\n", cn);
     if (cn > 0) {
-        c_sum += cn * log(cn);
+      c_sum += cn * log(cn);
     }
   }
 
@@ -427,7 +361,7 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
 
   printf("rho: %f\n", 1 / V);
 
-  double F_IG = N * kT *(log(1 / V) - 1 + c_sum) + 3 * kT * de_broigle_sum;
+  double F_IG = N * kT * (log(1 / V) - 1 + c_sum) + 3 * kT * de_broigle_sum;
   printf("F_IG / N: %f\n", F_IG / N);
   printf("F_UF / N: %f\n", F_UF / N);
   E_ref = (F_UF + F_IG) / N;
@@ -462,15 +396,12 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
 
 void Ensemble_TI_Liquid::add_UF_force(Force& force)
 {
-  //printf("GET N\n");
+
   int N = atom->number_of_atoms;
-  //printf("N: %i\n", N);
 
-  //printf("GET NN\n");
-  const GPU_Vector<int>& NN = force.potentials[0]->get_NN_radial_ptr(); 
+  const GPU_Vector<int>& NN = force.potentials[0]->get_NN_radial_ptr();
 
-  //printf("GET NL\n");
-  const GPU_Vector<int>& NL = force.potentials[0]->get_NL_radial_ptr(); 
+  const GPU_Vector<int>& NL = force.potentials[0]->get_NL_radial_ptr();
 
   GPU_Vector<double> fx_UF;
   fx_UF.resize(N);
@@ -479,12 +410,7 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
   GPU_Vector<double> fz_UF;
   fz_UF.resize(N);
 
-  init_UF_force<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    fx_UF.data(),
-    fy_UF.data(),
-    fz_UF.data());
-
+  init_UF_force<<<(N - 1) / 128 + 1, 128>>>(N, fx_UF.data(), fy_UF.data(), fz_UF.data());
 
   calc_UF_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
@@ -506,7 +432,6 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
     fy_UF.data(),
     fz_UF.data());
 
-  
   gpu_add_UF_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
     *box,
@@ -526,7 +451,7 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
     fx_UF.data(),
     fy_UF.data(),
     fz_UF.data());
-  cudaDeviceSynchronize();  
+  cudaDeviceSynchronize();
 }
 
 double Ensemble_TI_Liquid::get_UF_sum()
@@ -554,7 +479,7 @@ void Ensemble_TI_Liquid::find_lambda()
   find_thermo();
   int N = atom->number_of_atoms;
   bool need_output = false;
-  
+
   if (*current_step < t_equil) {
     avg_pressure += pressure / t_equil;
   }
@@ -571,17 +496,10 @@ void Ensemble_TI_Liquid::find_lambda()
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     need_output = true;
   }
-  
-  //UPDATE FOR TI LIQUID
+
   if (need_output) {
     eUF = get_UF_sum();
-    fprintf(
-      output_file,
-      "%e,%e,%e,%e\n",
-      lambda,
-      dlambda,
-      pe / N,
-      eUF / N);
+    fprintf(output_file, "%e,%e,%e,%e\n", lambda, dlambda, pe / N, eUF / N);
     E_diff += 0.5 * (pe - eUF) * abs(dlambda) / N;
   }
 }
@@ -594,16 +512,12 @@ void Ensemble_TI_Liquid::compute3(
   GPU_Vector<double>& thermo,
   Force& force_object)
 {
-  //force = force_object;
-  //printf("Finding lambda\n");
+
   find_lambda();
-  //printf("%f\n", lambda);
-  //printf("Add UF force\n");
-  
-  add_UF_force(force_object); //CHANGE TO GET UF FORCE AND THEN ADD UF FORCE
+
+  add_UF_force(force_object);
 
   Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
-  
 }
 
 double Ensemble_TI_Liquid::switch_func(double t)
