@@ -42,14 +42,16 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   lr = para.lr;
   start_lr = para.start_lr;
   stop_lr = para.stop_lr;
-  decay_step = para.decay_step;
-  start_pref_e = para.start_pref_e;  
-  start_pref_f = para.start_pref_f;
-  start_pref_v = para.start_pref_v;
-  stop_pref_e = para.stop_pref_e;
-  stop_pref_f = para.stop_pref_f;
-  stop_pref_v = para.stop_pref_v;
-
+  // decay_step = para.decay_step;
+  // start_pref_e = para.start_pref_e;  
+  // start_pref_f = para.start_pref_f;
+  // start_pref_v = para.start_pref_v;
+  // stop_pref_e = para.stop_pref_e;
+  // stop_pref_f = para.stop_pref_f;
+  // stop_pref_v = para.stop_pref_v;
+  if (maximum_epochs > 500) {
+    printf("Warning: Training with epochs > 500 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training as needed.\n");
+  }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
 
@@ -244,7 +246,7 @@ void Fitness::compute(Parameters& para)
       int Nc = train_set[batch_id][0].Nc;
       int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
       // printf("Finding force for batch %d\n", batch_id);
-      if (maximum_epochs <= 100) {
+      if (maximum_epochs <= 500) {
         update_learning_rate_cos(lr, step, num_batches, para);
       } else {
         update_learning_rate_cos_restart(lr, step, num_batches, para);
@@ -269,7 +271,7 @@ void Fitness::compute(Parameters& para)
       count += Nc;
       count_virial += virial_Nc;
       auto& grad = potential->getGradients();
-      optimizer->update(lr, grad.grad_sum.data(), num_batches, maximum_steps);
+      optimizer->update(lr, grad.grad_sum.data());
 
       if ((step + 1) % num_batches == 0) {
         time_finish = clock();
@@ -324,17 +326,17 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-void Fitness::update_learning_rate(float& lr, int step, Parameters& para) {
-  if (step >= maximum_steps) {
-    lr = stop_lr;
-  } else if (step % decay_step == 0 && step != 0) {
-    decay_rate = exp(log(stop_lr / start_lr) / (maximum_steps / decay_step));
-    lr = start_lr * pow(decay_rate, step / decay_step);
-  }
-  para.lambda_e = stop_pref_e + (start_pref_e - stop_pref_e) * lr / start_lr;
-  para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * lr / start_lr;
-  para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * lr / start_lr;
-}
+// void Fitness::update_learning_rate(float& lr, int step, Parameters& para) {
+//   if (step >= maximum_steps) {
+//     lr = stop_lr;
+//   } else if (step % decay_step == 0 && step != 0) {
+//     decay_rate = exp(log(stop_lr / start_lr) / (maximum_steps / decay_step));
+//     lr = start_lr * pow(decay_rate, step / decay_step);
+//   }
+//   para.lambda_e = stop_pref_e + (start_pref_e - stop_pref_e) * lr / start_lr;
+//   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * lr / start_lr;
+//   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * lr / start_lr;
+// }
 
 void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para) {
   const int warmup_epochs = 1;  // warmup & restart
@@ -348,9 +350,9 @@ void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Par
     // para.lambda_f = start_pref_f - 0.2f * start_pref_f * smooth_progress;
     // para.lambda_v = start_pref_v + (stop_pref_v - start_pref_v) * smooth_progress;
     lr = stop_lr + progress * (start_lr - stop_lr);
-    para.lambda_e = start_pref_e;
-    para.lambda_f = start_pref_f;
-    para.lambda_v = start_pref_v;
+    // para.lambda_e = start_pref_e;
+    // para.lambda_f = start_pref_f;
+    // para.lambda_v = start_pref_v;
     return;
   }
   progress = float(step - warmup_steps) / (maximum_steps - warmup_steps);
@@ -359,20 +361,20 @@ void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Par
   // para.lambda_e = stop_pref_e;
   // para.lambda_f = stop_pref_f + (0.8f * start_pref_f - stop_pref_f) * smooth_progress;
   // para.lambda_v = stop_pref_v;
-  if (progress < 0.3f) {
-    para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
-    para.lambda_f = start_pref_f;
-    para.lambda_v = start_pref_v; 
-  } else if (progress < 0.7f) {
-    float mid_progress = (progress - 0.3f) / 0.4f;
-    para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
-    para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
-    para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
-  } else {
-    para.lambda_e = stop_pref_e;
-    para.lambda_f = stop_pref_f;
-    para.lambda_v = stop_pref_v;
-  }
+  // if (progress < 0.3f) {
+  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
+  //   para.lambda_f = start_pref_f;
+  //   para.lambda_v = start_pref_v; 
+  // } else if (progress < 0.7f) {
+  //   float mid_progress = (progress - 0.3f) / 0.4f;
+  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
+  //   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
+  //   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
+  // } else {
+  //   para.lambda_e = stop_pref_e;
+  //   para.lambda_f = stop_pref_f;
+  //   para.lambda_v = stop_pref_v;
+  // }
 }
 
 void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para) {
@@ -382,15 +384,13 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
   if (step < warmup_steps) {
     progress = float(step) / warmup_steps;
     lr = stop_lr + progress * (start_lr - stop_lr);
-    smooth_progress = 0.5f * (1.0f - cosf(progress * PI));
-    para.lambda_e = start_pref_e;
-    para.lambda_f = start_pref_f;
-    para.lambda_v = start_pref_v;
+    // para.lambda_e = start_pref_e;
+    // para.lambda_f = start_pref_f;
+    // para.lambda_v = start_pref_v;
     return;
   }
-  const int initial_restart_period = 100 * num_batches;  // Initial restart cycle (100 epochs)
-  const int min_cycle_length = 10 * num_batches;
-  const float period_factor = 0.7f;                     // Period length decay factor
+  const int initial_restart_period = 150 * num_batches;  // Initial restart cycle (150 epochs)
+  const float period_factor = 2.0f;                     // Period length decay factor
   const float decay_factor = 0.12f;                      // Learning rate upper limit decay factor
   
   int steps_since_warmup = step - warmup_steps;
@@ -404,7 +404,6 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
     cycle_start_step = cumulative_steps;
     current_cycle++;
     cycle_length = int(initial_restart_period * powf(period_factor, current_cycle));
-    if (cycle_length < min_cycle_length) cycle_length = min_cycle_length;
   }
   
   int steps_in_current_cycle = steps_since_warmup - cycle_start_step;
@@ -416,20 +415,20 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
   smooth_progress = 0.5f * (1.0f + cosf(PI * cycle_progress));
   lr = stop_lr + (cycle_max_lr - stop_lr) * smooth_progress;
   
-  if (cycle_progress < 0.3f) {
-    para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
-    para.lambda_f = start_pref_f;
-    para.lambda_v = start_pref_v; 
-  } else if (cycle_progress < 0.7f) {
-    float mid_progress = (cycle_progress - 0.3f) / 0.4f;
-    para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
-    para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
-    para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
-  } else {
-    para.lambda_e = stop_pref_e;
-    para.lambda_f = stop_pref_f;
-    para.lambda_v = stop_pref_v;
-  }
+  // if (cycle_progress < 0.3f) {
+  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
+  //   para.lambda_f = start_pref_f;
+  //   para.lambda_v = start_pref_v; 
+  // } else if (cycle_progress < 0.7f) {
+  //   float mid_progress = (cycle_progress - 0.3f) / 0.4f;
+  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
+  //   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
+  //   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
+  // } else {
+  //   para.lambda_e = stop_pref_e;
+  //   para.lambda_f = stop_pref_f;
+  //   para.lambda_v = stop_pref_v;
+  // }
 }
 
 void Fitness::output(

@@ -61,13 +61,13 @@ void Parameters::set_default_parameters()
   is_weight_decay_set = false;
   is_lr_set = false;
   is_stop_lr_set = false;
-  is_decay_step_set = false;
-  is_start_pref_e_set = false;
-  is_start_pref_f_set = false;
-  is_start_pref_v_set = false;
-  is_stop_pref_e_set = false;
-  is_stop_pref_f_set = false;
-  is_stop_pref_v_set = false;
+  // is_decay_step_set = false;
+  // is_start_pref_e_set = false;
+  // is_start_pref_f_set = false;
+  // is_start_pref_v_set = false;
+  // is_stop_pref_e_set = false;
+  // is_stop_pref_f_set = false;
+  // is_stop_pref_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
   is_epoch_set = false;
@@ -89,18 +89,18 @@ void Parameters::set_default_parameters()
   L_max = 4;                   // the only supported value
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   weight_decay = 0.0f;         // no weight decay by default (Adam). In general, 1e-6 ~ 1e-4 for AdamW
-  lr = 5e-4f;                 
-  start_lr = 5e-4f;   
-  stop_lr = 5e-7f;         
-  decay_step = 5000;   
-  start_pref_e = 0.2f;
-  start_pref_f = 100.0f;
-  start_pref_v = 0.1f;
-  stop_pref_e = 10.0f;
-  stop_pref_f = 10.0f;
-  stop_pref_v = 0.5f;      
+  lr = 1e-3f;                 
+  start_lr = 1e-3f;   
+  stop_lr = 1e-7f;         
+  // decay_step = 5000;   
+  // start_pref_e = 0.2f;
+  // start_pref_f = 100.0f;
+  // start_pref_v = 0.1f;
+  // stop_pref_e = 10.0f;
+  // stop_pref_f = 10.0f;
+  // stop_pref_v = 0.5f;      
   lambda_e = 1.0f;           // energy important
-  lambda_f = 50.0f;         // force is more important
+  lambda_f = 2.0f;         // force is more important
   lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
@@ -330,6 +330,7 @@ void Parameters::report_inputs()
     printf("    (default) stop learing rate = %g.\n", stop_lr);
   }
 
+  /*
   if (is_decay_step_set) {
     printf("    (input)   decay steps = %d.\n", decay_step);
   } else {
@@ -370,6 +371,24 @@ void Parameters::report_inputs()
     printf("    (input)   stop_pref_v = %g.\n", stop_pref_v);
   } else {
     printf("    (default) stop_pref_v = %g.\n", stop_pref_v);
+  }
+  */
+  if (is_lambda_e_set) {
+    printf("    (input)   lambda_e = %g.\n", lambda_e);
+  } else {
+    printf("    (default) lambda_e = %g.\n", lambda_e);
+  }
+
+  if (is_lambda_f_set) {
+    printf("    (input)   lambda_f = %g.\n", lambda_f);
+  } else {
+    printf("    (default) lambda_f = %g.\n", lambda_f);
+  }
+
+  if (is_lambda_v_set) {
+    printf("    (input)   lambda_v = %g.\n", lambda_v);
+  } else {
+    printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
   if (is_lambda_shear_set) {
@@ -443,20 +462,26 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lr(param, num_param);
   } else if (strcmp(param[0], "stop_lr") == 0) {
     parse_stop_lr(param, num_param);
-  } else if (strcmp(param[0], "decay_step") == 0) {
-    parse_decay_step(param, num_param);
-  } else if (strcmp(param[0], "start_pref_e") == 0) {
-    parse_start_pref_e(param, num_param);
-  } else if (strcmp(param[0], "stop_pref_e") == 0) {
-    parse_stop_pref_e(param, num_param);
-  } else if (strcmp(param[0], "start_pref_f") == 0) {
-    parse_start_pref_f(param, num_param);
-  } else if (strcmp(param[0], "stop_pref_f") == 0) {
-    parse_stop_pref_f(param, num_param);
-  } else if (strcmp(param[0], "start_pref_v") == 0) {
-    parse_start_pref_v(param, num_param);
-  } else if (strcmp(param[0], "stop_pref_v") == 0) {
-    parse_stop_pref_v(param, num_param);
+  // } else if (strcmp(param[0], "decay_step") == 0) {
+  //   parse_decay_step(param, num_param);
+  // } else if (strcmp(param[0], "start_pref_e") == 0) {
+  //   parse_start_pref_e(param, num_param);
+  // } else if (strcmp(param[0], "stop_pref_e") == 0) {
+  //   parse_stop_pref_e(param, num_param);
+  // } else if (strcmp(param[0], "start_pref_f") == 0) {
+  //   parse_start_pref_f(param, num_param);
+  // } else if (strcmp(param[0], "stop_pref_f") == 0) {
+  //   parse_stop_pref_f(param, num_param);
+  // } else if (strcmp(param[0], "start_pref_v") == 0) {
+  //   parse_start_pref_v(param, num_param);
+  // } else if (strcmp(param[0], "stop_pref_v") == 0) {
+  //   parse_stop_pref_v(param, num_param);
+  } else if (strcmp(param[0], "lambda_e") == 0) {
+    parse_lambda_e(param, num_param);
+  } else if (strcmp(param[0], "lambda_f") == 0) {
+    parse_lambda_f(param, num_param);
+  } else if (strcmp(param[0], "lambda_v") == 0) {
+    parse_lambda_v(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -775,6 +800,7 @@ void Parameters::parse_stop_lr(const char** param, int num_param)
   }
 }
 
+/*
 void Parameters::parse_decay_step(const char** param, int num_param)
 {
   is_decay_step_set = true;
@@ -901,6 +927,64 @@ void Parameters::parse_stop_pref_v(const char** param, int num_param)
   stop_pref_v = stop_pref_v_tmp;
 
   if (stop_pref_v < 0.0f) {
+    PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+*/
+
+void Parameters::parse_lambda_e(const char** param, int num_param)
+{
+  is_lambda_e_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_e should have 1 parameter.\n");
+  }
+
+  double lambda_e_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_e_tmp)) {
+    PRINT_INPUT_ERROR("Energy loss weight should be a number.\n");
+  }
+  lambda_e = lambda_e_tmp;
+
+  if (lambda_e < 0.0f) {
+    PRINT_INPUT_ERROR("Energy loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_f(const char** param, int num_param)
+{
+  is_lambda_f_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_f should have 1 parameter.\n");
+  }
+
+  double lambda_f_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_f_tmp)) {
+    PRINT_INPUT_ERROR("Force loss weight should be a number.\n");
+  }
+  lambda_f = lambda_f_tmp;
+
+  if (lambda_f < 0.0f) {
+    PRINT_INPUT_ERROR("Force loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_v(const char** param, int num_param)
+{
+  is_lambda_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_v should have 1 parameter.\n");
+  }
+
+  double lambda_v_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_v_tmp)) {
+    PRINT_INPUT_ERROR("Virial loss weight should be a number.\n");
+  }
+  lambda_v = lambda_v_tmp;
+
+  if (lambda_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
   }
 }

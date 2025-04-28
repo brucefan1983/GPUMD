@@ -23,7 +23,7 @@ public:
   Adam(Parameters&);
 
   // void zero_gradients();
-  void update(float lr, float* gradients, int num_batches, int maximum_steps); // Update moments and parameters
+  void update(float lr, float* gradients); // Update moments and parameters
   float* get_parameters(); // get current parameters pointer
   void output_parameters(Parameters& para); // Output parameters
   void initialize_parameters(Parameters& para); // Initialize optimizer parameters
