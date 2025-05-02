@@ -17,7 +17,9 @@
 
 #pragma once
 #include "property.cuh"
+#include "integrate/integrate.cuh"
 #include "force/potential.cuh"
+#include "force/force.cuh"
 #include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <vector>
