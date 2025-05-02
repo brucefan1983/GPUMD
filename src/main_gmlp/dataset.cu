@@ -68,7 +68,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
   }
 }
 
-bool Dataset::find_has_type(Parameters& para)
+void Dataset::find_has_type(Parameters& para)
 {
   has_type.resize((para.num_types + 1) * Nc, false);
   has_virial.resize(Nc, 0);
@@ -85,27 +85,6 @@ bool Dataset::find_has_type(Parameters& para)
   }
   has_virial_gpu.resize(Nc);
   has_virial_gpu.copy_from_host(has_virial.data());
-
-  // Verify if each type in num_types has at least one true value
-  bool all_types_present = true;
-  for (int t = 0; t < para.num_types; ++t) {
-    bool type_present = false;
-    for (int n = 0; n < Nc; ++n) {
-      if (has_type[t * Nc + n]) {
-        type_present = true;
-        break;
-      }
-    }
-    if (!type_present) {
-      all_types_present = false;
-      break;
-    }
-  }
-
-  if (!all_types_present) {
-    printf("Not all types are present in train set.\n");
-  } 
-  return all_types_present;
 }
 
 void Dataset::find_Na(Parameters& para)
@@ -381,7 +360,7 @@ void Dataset::construct(
 {
   CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
-  all_type = find_has_type(para);
+  find_has_type(para);
 
   error_cpu_e.resize(Nc);
   error_cpu_v.resize(Nc);
@@ -403,20 +382,6 @@ void Dataset::construct(
       Na_sum.data(),
       batch_idx.data());
     CUDA_CHECK_KERNEL
-    // if (fabs(sum_energy_ref) > 0.1f && para.calculate_energy_shift && all_type) {
-    //   computeEnergyPerTypeReg(para.num_types,
-    //                           type_sum.data(),
-    //                           sum_energy_ref,
-    //                           0.001f,
-    //                           para.energy_shift_gpu.data());
-    //   para.calculate_energy_shift = false;
-    //   std::vector<float> energy_per_type_host(para.num_types);
-    //   CHECK(cudaMemcpy(energy_per_type_host.data(), para.energy_shift_gpu.data(),
-    //                   sizeof(float) * para.num_types, cudaMemcpyDeviceToHost));
-    //   for (int i = 0; i < para.num_types; ++i) {
-    //     printf("energy_per_type[%d] = %f\n", i, energy_per_type_host[i]);
-    //   }
-    // }
   }
 }
 
@@ -481,7 +446,7 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_mse_force(Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   const int block_size = 256;
@@ -523,7 +488,7 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   return rmse_array;
 }
 
-std::vector<float> Dataset::get_rmse_energy(
+std::vector<float> Dataset::get_mse_energy(
   Parameters& para,
   const bool use_weight,
   int device_id)
@@ -550,7 +515,7 @@ std::vector<float> Dataset::get_rmse_energy(
   return rmse_array;
 }
 
-std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_mse_virial(Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
 

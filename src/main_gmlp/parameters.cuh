@@ -96,7 +96,6 @@ public:
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_energy_shift_set;
-  bool calculate_energy_shift = true;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector

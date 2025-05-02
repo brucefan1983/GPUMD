@@ -108,6 +108,10 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   int N_times_max_NN_angular = -1;
   max_NN_radial = -1;
   max_NN_angular = -1;
+
+  batch_indices.resize(num_batches);
+  batch_type_sums.resize(num_batches);
+  batch_energies.resize(num_batches);
   if (has_test_set) {
     N = test_set[0].N;
     N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
@@ -132,13 +136,16 @@ Fitness::Fitness(Parameters& para, Adam* adam)
     if (train_set[n][0].max_NN_angular > max_NN_angular) {
       max_NN_angular = train_set[n][0].max_NN_angular;
     }
+    batch_indices[n] = n;
+    std::vector<int> type_sum_host(para.num_types);
+    train_set[n][0].type_sum.copy_to_host(type_sum_host.data());
+    batch_type_sums[n] = type_sum_host;
+    batch_energies[n] = train_set[n][0].sum_energy_ref;
   }
 
   potential.reset(
     new GMLP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
     
-  optimizer->initialize_parameters(para);
-
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
   }
@@ -165,29 +172,6 @@ void Fitness::compute(Parameters& para)
   CHECK(cudaGetDeviceCount(&deviceCount));
 
   if (para.prediction == 0) {
-    float* parameters = optimizer->get_parameters();
-    std::vector<int> batch_indices(num_batches);
-    std::vector<std::vector<int>> batch_type_sums(num_batches);
-    std::vector<float> batch_energies(num_batches);
-    for (int n = 0; n < num_batches; ++n) {
-      batch_indices[n] = n;
-      potential->find_force(
-        para,
-        parameters,
-        false,
-        train_set[n],
-#ifdef USE_FIXED_SCALER
-        false,
-#else
-        true,
-#endif
-        true,
-        1);
-      std::vector<int> type_sum_host(para.num_types);
-      train_set[n][0].type_sum.copy_to_host(type_sum_host.data());
-      batch_type_sums[n] = type_sum_host;
-      batch_energies[n] = train_set[n][0].sum_energy_ref;
-    }
     if (para.energy_shift) {
       computeMultiBatchEnergyShift(
         para.num_types,
@@ -196,7 +180,6 @@ void Fitness::compute(Parameters& para)
         batch_energies,
         para.energy_shift_gpu.data(),
         false);  // Is it output in detail
-      para.calculate_energy_shift = false;
     
       std::vector<float> energy_per_type_host(para.num_types);
       CHECK(cudaMemcpy(energy_per_type_host.data(), para.energy_shift_gpu.data(),
@@ -205,7 +188,6 @@ void Fitness::compute(Parameters& para)
         printf("biased %d initialization of neural networks = %f\n", i, energy_per_type_host[i]);
       }
       print_line_2();
-    optimizer->initialize_parameters(para);
     }
     printf(
       "%-8s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-15s%-10s\n", 
@@ -219,6 +201,24 @@ void Fitness::compute(Parameters& para)
       "RMSE-V-Test",
       "Learning-Rate",
       "Time(s)");
+
+    optimizer->initialize_parameters(para);
+    float* parameters = optimizer->get_parameters();
+    // std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
+    for (int n = 0; n < num_batches; ++n) {
+      potential->find_force(
+        para,
+        parameters,
+        false,
+        train_set[n],
+#ifdef USE_FIXED_SCALER
+        false,
+#else
+        true,
+#endif
+        true,
+        1);
+    }
     float mse_energy;
     float mse_force;
     float mse_virial;
@@ -245,7 +245,6 @@ void Fitness::compute(Parameters& para)
       batch_id = batch_indices[batch_id];
       int Nc = train_set[batch_id][0].Nc;
       int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
-      // printf("Finding force for batch %d\n", batch_id);
       if (maximum_epochs <= 500) {
         update_learning_rate_cos(lr, step, num_batches, para);
       } else {
@@ -259,12 +258,12 @@ void Fitness::compute(Parameters& para)
       false,
       true,
       deviceCount);
-      auto rmse_energy_array = train_set[batch_id][0].get_rmse_energy(para, true, 0);
-      auto rmse_force_array = train_set[batch_id][0].get_rmse_force(para, true, 0);
-      auto rmse_virial_array = train_set[batch_id][0].get_rmse_virial(para, true, 0);
-      float mse_energy_train = rmse_energy_array.back();
-      float mse_force_train = rmse_force_array.back();
-      float mse_virial_train = rmse_virial_array.back();
+      auto mse_energy_array = train_set[batch_id][0].get_mse_energy(para, true, 0);
+      auto mse_force_array = train_set[batch_id][0].get_mse_force(para, true, 0);
+      auto mse_virial_array = train_set[batch_id][0].get_mse_virial(para, true, 0);
+      float mse_energy_train = mse_energy_array.back();
+      float mse_force_train = mse_force_array.back();
+      float mse_virial_train = mse_virial_array.back();
       mse_energy += mse_energy_train * Nc;
       mse_force += mse_force_train * Nc;
       mse_virial += mse_virial_train * virial_Nc;
@@ -339,7 +338,7 @@ void Fitness::compute(Parameters& para)
 // }
 
 void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para) {
-  const int warmup_epochs = 1;  // warmup & restart
+  const int warmup_epochs = 1; 
   const int warmup_steps = warmup_epochs * num_batches;
   float progress, smooth_progress;
   if (step < warmup_steps) {
@@ -378,7 +377,7 @@ void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Par
 }
 
 void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para) {
-  const int warmup_epochs = 1;  // warmup
+  const int warmup_epochs = 1;
   const int warmup_steps = warmup_epochs * num_batches;
   float progress, smooth_progress;
   if (step < warmup_steps) {
@@ -544,12 +543,12 @@ void Fitness::report_error(
   float rmse_virial_test = 0.0f;
   if (has_test_set) {
     potential->find_force(para, parameters, false, test_set, false, true, 1);
-    auto rmse_energy_test_array = test_set[0].get_rmse_energy(para, false, 0);
-    auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, 0);
-    auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, 0);
-    rmse_energy_test = sqrt(rmse_energy_test_array.back());
-    rmse_force_test = sqrt(rmse_force_test_array.back());
-    rmse_virial_test = sqrt(rmse_virial_test_array.back()); 
+    auto mse_energy_test_array = test_set[0].get_mse_energy(para, false, 0);
+    auto mse_force_test_array = test_set[0].get_mse_force(para, false, 0);
+    auto mse_virial_test_array = test_set[0].get_mse_virial(para, false, 0);
+    rmse_energy_test = sqrt(mse_energy_test_array.back());
+    rmse_force_test = sqrt(mse_force_test_array.back());
+    rmse_virial_test = sqrt(mse_virial_test_array.back()); 
   }
 
   FILE* fid_gmlp = my_fopen("gmlp.txt", "w");

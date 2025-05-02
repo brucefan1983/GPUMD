@@ -79,16 +79,16 @@ public:
 
   void
   construct(Parameters& para, std::vector<Structure>& structures, bool require_grad, int n1, int n2, int device_id);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_energy(
+  std::vector<float> get_mse_force(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_mse_energy(
     Parameters& para,
     const bool use_weight,
     int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_mse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
-  bool find_has_type(Parameters& para);
+  void find_has_type(Parameters& para);
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
   void find_neighbor(Parameters& para);

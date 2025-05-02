@@ -372,10 +372,10 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_s_ma
     __syncthreads();
   }
   if (tid == 0) {
-    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
-    // g_s_max[bid] = max(g_s_max[bid], s_max[0]);
-    // g_s_min[bid] = min(g_s_min[bid], s_min[0]);
-    // g_q_scaler[bid] = 1.0f / (g_s_max[bid] - g_s_min[bid]);
+    // g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+    g_s_max[bid] = max(g_s_max[bid], s_max[0]);
+    g_s_min[bid] = min(g_s_min[bid], s_min[0]);
+    g_q_scaler[bid] = 1.0f / (g_s_max[bid] - g_s_min[bid]);
     // g_q_scaler[0] = 8.021109302104;
     // g_q_scaler[1] = 0.345944536877;
     // g_q_scaler[2] = 69.268101453680;

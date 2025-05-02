@@ -70,6 +70,9 @@ protected:
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
+  std::vector<int> batch_indices;
+  std::vector<std::vector<int>> batch_type_sums;
+  std::vector<float> batch_energies;
   void output(
     bool is_stress,
     int num_components,
