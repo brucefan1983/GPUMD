@@ -15,14 +15,28 @@
 
 #pragma once
 
-const int NUM_OF_ABC = 24; // 3 + 5 + 7 + 9 for L_max = 4
+const int NUM_OF_ABC = 80; // 3 + 5 + 7 + 9 + 11 + 13 + 15 + 17 for L_max = 8
 __constant__ float C3B[NUM_OF_ABC] = {
   0.238732414637843f, 0.119366207318922f, 0.119366207318922f, 0.099471839432435f,
   0.596831036594608f, 0.596831036594608f, 0.149207759148652f, 0.149207759148652f,
   0.139260575205408f, 0.104445431404056f, 0.104445431404056f, 1.044454314040563f,
   1.044454314040563f, 0.174075719006761f, 0.174075719006761f, 0.011190581936149f,
   0.223811638722978f, 0.223811638722978f, 0.111905819361489f, 0.111905819361489f,
-  1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f};
+  1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f,
+  0.013677377921960f, 0.102580334414698f, 0.102580334414698f, 2.872249363611549f,
+  2.872249363611549f, 0.119677056817148f, 0.119677056817148f, 2.154187022708661f,
+  2.154187022708661f, 0.215418702270866f, 0.215418702270866f, 0.004041043476943f,
+  0.169723826031592f, 0.169723826031592f, 0.106077391269745f, 0.106077391269745f,
+  0.424309565078979f, 0.424309565078979f, 0.127292869523694f, 0.127292869523694f,
+  2.800443129521260f, 2.800443129521260f, 0.233370260793438f, 0.233370260793438f,
+  0.004662742473395f, 0.004079899664221f, 0.004079899664221f, 0.024479397985326f,
+  0.024479397985326f, 0.012239698992663f, 0.012239698992663f, 0.538546755677165f,
+  0.538546755677165f, 0.134636688919291f, 0.134636688919291f, 3.500553911901575f,
+  3.500553911901575f, 0.250039565135827f, 0.250039565135827f, 0.000082569397966f,
+  0.005944996653579f, 0.005944996653579f, 0.104037441437634f, 0.104037441437634f,
+  0.762941237209318f, 0.762941237209318f, 0.114441185581398f, 0.114441185581398f,
+  5.950941650232678f, 5.950941650232678f, 0.141689086910302f, 0.141689086910302f,
+  4.250672607309055f, 4.250672607309055f, 0.265667037956816f, 0.265667037956816f};
 __constant__ float C4B[5] = {
   -0.007499480826664f,
   -0.134990654879954f,
@@ -49,6 +63,44 @@ __constant__ float Z_COEFFICIENT_4[5][5] = {
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f},
   {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
+__constant__ float Z_COEFFICIENT_5[6][6] = {
+  {0.0f, 15.0f, 0.0f, -70.0f, 0.0f, 63.0f},
+  {1.0f, 0.0f, -14.0f, 0.0f, 21.0f, 0.0f},
+  {0.0f, -1.0f, 0.0f, 3.0f, 0.0f, 0.0f},
+  {-1.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
+__constant__ float Z_COEFFICIENT_6[7][7] = {
+  {-5.0f, 0.0f, 105.0f, 0.0f, -315.0f, 0.0f, 231.0f},
+  {0.0f, 5.0f, 0.0f, -30.0f, 0.0f, 33.0f, 0.0f},
+  {1.0f, 0.0f, -18.0f, 0.0f, 33.0f, 0.0f, 0.0f},
+  {0.0f, -3.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f},
+  {-1.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
+__constant__ float Z_COEFFICIENT_7[8][8] = {
+  {0.0f, -35.0f, 0.0f, 315.0f, 0.0f, -693.0f, 0.0f, 429.0f},
+  {-5.0f, 0.0f, 135.0f, 0.0f, -495.0f, 0.0f, 429.0f, 0.0f},
+  {0.0f, 15.0f, 0.0f, -110.0f, 0.0f, 143.0f, 0.0f, 0.0f},
+  {3.0f, 0.0f, -66.0f, 0.0f, 143.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, -3.0f, 0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {-1.0f, 0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
+__constant__ float Z_COEFFICIENT_8[9][9] = {
+  {35.0f, 0.0f, -1260.0f, 0.0f, 6930.0f, 0.0f, -12012.0f, 0.0f, 6435.0f},
+  {0.0f, -35.0f, 0.0f, 385.0f, 0.0f, -1001.0f, 0.0f, 715.0f, 0.0f},
+  {-1.0f, 0.0f, 33.0f, 0.0f, -143.0f, 0.0f, 143.0f, 0.0f, 0.0f},
+  {0.0f, 3.0f, 0.0f, -26.0f, 0.0f, 39.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, -26.0f, 0.0f, 65.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, -1.0f, 0.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {-1.0f, 0.0f, 15.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
 __constant__ float COVALENT_RADIUS[94] = {
   0.426667f, 0.613333f, 1.6f,     1.25333f, 1.02667f, 1.0f,     0.946667f, 0.84f,    0.853333f,
   0.893333f, 1.86667f,  1.66667f, 1.50667f, 1.38667f, 1.46667f, 1.36f,     1.32f,    1.28f,
@@ -64,8 +116,8 @@ __constant__ float COVALENT_RADIUS[94] = {
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 17;                // basis_size_radial+1 = 16+1
-const int MAX_DIM = 67;                  // 13 + 9 * 6
-const int MAX_DIM_ANGULAR = 54;          // 9 * 6
+const int MAX_DIM = 103;                 // 13 + 9 * 10
+const int MAX_DIM_ANGULAR = 90;          // 9 * 10
 
 static __device__ __forceinline__ void
 complex_product(const float a, const float b, float& real_part, float& imag_part)
@@ -571,6 +623,30 @@ static __device__ __forceinline__ void accumulate_f12_one(
           dz_factor += Z_COEFFICIENT_4[n1][n2] * n2 * z_pow[n2 - 1];
         }
       }
+      if (L == 5) {
+        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
+        if (n2 > 0) {
+          dz_factor += Z_COEFFICIENT_5[n1][n2] * n2 * z_pow[n2 - 1];
+        }
+      }
+      if (L == 6) {
+        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
+        if (n2 > 0) {
+          dz_factor += Z_COEFFICIENT_6[n1][n2] * n2 * z_pow[n2 - 1];
+        }
+      }
+      if (L == 7) {
+        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
+        if (n2 > 0) {
+          dz_factor += Z_COEFFICIENT_7[n1][n2] * n2 * z_pow[n2 - 1];
+        }
+      }
+      if (L == 8) {
+        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
+        if (n2 > 0) {
+          dz_factor += Z_COEFFICIENT_8[n1][n2] * n2 * z_pow[n2 - 1];
+        }
+      }
     }
     if (n1 == 0) {
       for (int d = 0; d < 3; ++d) {
@@ -655,6 +731,30 @@ static __device__ __forceinline__ void accumulate_f12(
     calculate_s_one<4>(n, n_max_angular_plus_1, Fp, sum_fxyz, s4);
     accumulate_f12_one<4>(d12inv, fn_original, fnp_original, s4, r12unit, f12);
   }
+
+  if (L_max >= 5) {
+    float s5[11];
+    calculate_s_one<5>(n, n_max_angular_plus_1, Fp, sum_fxyz, s5);
+    accumulate_f12_one<5>(d12inv, fn_original, fnp_original, s5, r12unit, f12);
+  }
+
+  if (L_max >= 6) {
+    float s6[13];
+    calculate_s_one<6>(n, n_max_angular_plus_1, Fp, sum_fxyz, s6);
+    accumulate_f12_one<6>(d12inv, fn_original, fnp_original, s6, r12unit, f12);
+  }
+
+  if (L_max >= 7) {
+    float s7[15];
+    calculate_s_one<7>(n, n_max_angular_plus_1, Fp, sum_fxyz, s7);
+    accumulate_f12_one<7>(d12inv, fn_original, fnp_original, s7, r12unit, f12);
+  }
+
+  if (L_max >= 8) {
+    float s8[17];
+    calculate_s_one<8>(n, n_max_angular_plus_1, Fp, sum_fxyz, s8);
+    accumulate_f12_one<8>(d12inv, fn_original, fnp_original, s8, r12unit, f12);
+  }
 }
 
 template <int L>
@@ -683,6 +783,18 @@ accumulate_s_one(const float x12, const float y12, const float z12, const float 
       }
       if (L == 4) {
         z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2];
+      }
+      if (L == 5) {
+        z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2];
+      }
+      if (L == 6) {
+        z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2];
+      }
+      if (L == 7) {
+        z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2];
+      }
+      if (L == 8) {
+        z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2];
       }
     }
     z_factor *= fn;
@@ -714,6 +826,18 @@ static __device__ __forceinline__ void accumulate_s(
   }
   if (L_max >= 4) {
     accumulate_s_one<4>(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 5) {
+    accumulate_s_one<5>(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 6) {
+    accumulate_s_one<6>(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 7) {
+    accumulate_s_one<7>(x12, y12, z12, fn, s);
+  }
+  if (L_max >= 8) {
+    accumulate_s_one<8>(x12, y12, z12, fn, s);
   }
 }
 
@@ -750,6 +874,18 @@ static __device__ __forceinline__ void find_q(
   }
   if (L_max >= 4) {
     q[3 * n_max_angular_plus_1 + n] = find_q_one<4>(s);
+  }
+  if (L_max >= 5) {
+    q[4 * n_max_angular_plus_1 + n] = find_q_one<5>(s);
+  }
+  if (L_max >= 6) {
+    q[5 * n_max_angular_plus_1 + n] = find_q_one<6>(s);
+  }
+  if (L_max >= 7) {
+    q[6 * n_max_angular_plus_1 + n] = find_q_one<7>(s);
+  }
+  if (L_max >= 8) {
+    q[7 * n_max_angular_plus_1 + n] = find_q_one<8>(s);
   }
   if (num_L >= L_max + 1) {
     q[L_max * n_max_angular_plus_1 + n] =
