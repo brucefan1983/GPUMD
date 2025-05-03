@@ -928,8 +928,8 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
-    PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  } else if (num_neurons1 > 120) {
+    PRINT_INPUT_ERROR("number of neurons should <= 120.");
   }
 }
 
