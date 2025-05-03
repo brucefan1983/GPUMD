@@ -78,7 +78,7 @@ An example for sampling in the canonical ensemble is::
 This means
 
 * Perform 200 :term:`MC` trials after every 100 :term:`MD` steps.
-* Change the temperature for the :term:`MC` simulation linearly from 500 to 300 K, even though the temperature for the :term:`MD` ensemble is kept to be 300 K.
+* Change the temperature for the :term:`MC` simulation linearly from 500 to 100 K.
 * Only the atoms in group 3 of grouping method 1 will be considered during :term:`MC` sampling. 
 
 Example 2
