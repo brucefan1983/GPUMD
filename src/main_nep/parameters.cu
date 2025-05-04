@@ -432,9 +432,11 @@ void Parameters::report_inputs()
 
   if (is_has_charge_set) {
     if (charge_mode == 1) {
-      printf("    (input)   use NEP-Charge and include real-space.\n");
+      printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
-      printf("    (input)   use NEP-Charge and exclude real-space.\n");
+      printf("    (input)   use NEP-Charge and include k-space only.\n");
+    } else if (charge_mode == 3) {
+      printf("    (input)   use NEP-Charge and include real-space only.\n");
     }
   }
 
@@ -1252,8 +1254,8 @@ void Parameters::parse_has_charge(const char** param, int num_param)
   if (!is_valid_int(param[1], &charge_mode)) {
     PRINT_INPUT_ERROR("charge mode should be an integer.\n");
   }
-  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2) {
-    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2.");
+  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
   }
 }
 
