@@ -451,7 +451,7 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
     fx_UF.data(),
     fy_UF.data(),
     fz_UF.data());
-  cudaDeviceSynchronize();
+  gpuDeviceSynchronize();
 }
 
 double Ensemble_TI_Liquid::get_UF_sum()
