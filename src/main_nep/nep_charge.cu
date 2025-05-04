@@ -1179,63 +1179,83 @@ void NEP_Charge::find_force(
       dataset[device_id].charge.data());
     GPU_CHECK_KERNEL
 
-    find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
-      dataset[device_id].Nc,
-      charge_para.num_kpoints_max,
-      charge_para.alpha,
-      charge_para.alpha_factor,
-      dataset[device_id].box_original.data(),
-      nep_data[device_id].num_kpoints.data(),
-      nep_data[device_id].kx.data(),
-      nep_data[device_id].ky.data(),
-      nep_data[device_id].kz.data(),
-      nep_data[device_id].G.data());
-    GPU_CHECK_KERNEL
+    if (paramb.charge_mode != 3) {
+      find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
+        dataset[device_id].Nc,
+        charge_para.num_kpoints_max,
+        charge_para.alpha,
+        charge_para.alpha_factor,
+        dataset[device_id].box_original.data(),
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].G.data());
+      GPU_CHECK_KERNEL
 
-    find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
-      charge_para.num_kpoints_max,
-      dataset[device_id].Na.data(),
-      dataset[device_id].Na_sum.data(),
-      dataset[device_id].charge.data(),
-      dataset[device_id].r.data(),
-      dataset[device_id].r.data() + dataset[device_id].N,
-      dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
-      nep_data[device_id].kx.data(),
-      nep_data[device_id].ky.data(),
-      nep_data[device_id].kz.data(),
-      nep_data[device_id].S_real.data(),
-      nep_data[device_id].S_imag.data());
-    GPU_CHECK_KERNEL
+      find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
+        charge_para.num_kpoints_max,
+        dataset[device_id].Na.data(),
+        dataset[device_id].Na_sum.data(),
+        dataset[device_id].charge.data(),
+        dataset[device_id].r.data(),
+        dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].r.data() + dataset[device_id].N * 2,
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].S_real.data(),
+        nep_data[device_id].S_imag.data());
+      GPU_CHECK_KERNEL
 
-    find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
-      dataset[device_id].N,
-      charge_para.num_kpoints_max,
-      charge_para.alpha_factor,
-      dataset[device_id].Na.data(),
-      dataset[device_id].Na_sum.data(),
-      dataset[device_id].charge.data(),
-      dataset[device_id].r.data(),
-      dataset[device_id].r.data() + dataset[device_id].N,
-      dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
-      nep_data[device_id].kx.data(),
-      nep_data[device_id].ky.data(),
-      nep_data[device_id].kz.data(),
-      nep_data[device_id].G.data(),
-      nep_data[device_id].S_real.data(),
-      nep_data[device_id].S_imag.data(),
-      nep_data[device_id].D_real.data(),
-      dataset[device_id].force.data(),
-      dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data(),
-      dataset[device_id].energy.data());
-    GPU_CHECK_KERNEL
+      find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
+        dataset[device_id].N,
+        charge_para.num_kpoints_max,
+        charge_para.alpha_factor,
+        dataset[device_id].Na.data(),
+        dataset[device_id].Na_sum.data(),
+        dataset[device_id].charge.data(),
+        dataset[device_id].r.data(),
+        dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].r.data() + dataset[device_id].N * 2,
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].G.data(),
+        nep_data[device_id].S_real.data(),
+        nep_data[device_id].S_imag.data(),
+        nep_data[device_id].D_real.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data(),
+        dataset[device_id].energy.data());
+      GPU_CHECK_KERNEL
+    }
 
     // charge_mode = 1: include real space and self energy
     // charge_mode = 2: exclude real space and self energy
     if (paramb.charge_mode == 1) {
+      find_force_charge_real_space<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        charge_para.alpha,
+        charge_para.two_alpha_over_sqrt_pi,
+        nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(),
+        dataset[device_id].charge.data(),
+        nep_data[device_id].x12_radial.data(),
+        nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data(),
+        dataset[device_id].energy.data(),
+        nep_data[device_id].D_real.data());
+      GPU_CHECK_KERNEL
+    } else if (paramb.charge_mode == 3) {
       find_force_charge_real_space<<<grid_size, block_size>>>(
         dataset[device_id].N,
         charge_para.alpha,
