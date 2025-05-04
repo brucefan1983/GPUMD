@@ -298,6 +298,9 @@ NEP_Charge::NEP_Charge(
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
+  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
+  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
+  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
@@ -918,6 +921,8 @@ static __global__ void find_force_charge_real_space_only(
   const int N,
   const float alpha,
   const float two_alpha_over_sqrt_pi,
+  const float A,
+  const float B,
   const int* g_NN,
   const int* g_NL,
   const float* __restrict__ g_charge,
@@ -954,12 +959,12 @@ static __global__ void find_force_charge_real_space_only(
       float d12inv = 1.0f / d12;
 
       float erfc_r = erfc(alpha * d12) * d12inv;
-      D_real += q2 * erfc_r;
+      D_real += q2 * (erfc_r + A * d12 + B);
       float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
-      f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
+      f2 = -0.5f * K_C_SP * qq * (f2 * d12inv * d12inv - A * d12inv);
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      s_pe += 0.5f * qq * erfc_r;
+      s_pe += 0.5f * qq * (erfc_r + A * d12 + B);
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);
@@ -1330,6 +1335,8 @@ void NEP_Charge::find_force(
         dataset[device_id].N,
         charge_para.alpha,
         charge_para.two_alpha_over_sqrt_pi,
+        charge_para.A,
+        charge_para.B,
         nep_data[device_id].NN_radial.data(),
         nep_data[device_id].NL_radial.data(),
         dataset[device_id].charge.data(),
