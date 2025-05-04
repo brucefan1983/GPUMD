@@ -22,7 +22,7 @@ Some wrappers for the cuSOLVER library
 #include "gpu_macro.cuh"
 #include "gpu_vector.cuh"
 #ifdef USE_HIP
-  #include <hipsolver.h>
+  #include <hipsolver/hipsolver.h>
 #else
   #include <cusolverDn.h>
 #endif

@@ -17,7 +17,7 @@
 #include "ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
-  #include <hiprand_kernel.h>
+  #include <hiprand/hiprand_kernel.h>
 #else
   #include <curand_kernel.h>
 #endif
