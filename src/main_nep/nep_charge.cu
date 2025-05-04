@@ -978,7 +978,7 @@ static __global__ void find_force_charge_real_space_only(
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
     }
-    g_D_real[n1] += K_C_SP * D_real;
+    g_D_real[n1] = K_C_SP * D_real;
     g_virial[n1 + N * 0] += s_virial_xx;
     g_virial[n1 + N * 1] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
