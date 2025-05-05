@@ -35,6 +35,6 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    batch
    population
    generation
-   checkpoint
+   save_potential
    output_descriptor
    fine_tune

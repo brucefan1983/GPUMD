@@ -443,7 +443,7 @@ void Fitness::report_error(
     write_nep_txt(fid_nep, para, elite);
     fclose(fid_nep);
 
-    if (0 == (generation + 1) % para.checkpoint) {
+    if (0 == (generation + 1) % para.save_potential) {
       time_t rawtime;
       time(&rawtime);
       struct tm* timeinfo = localtime(&rawtime);
