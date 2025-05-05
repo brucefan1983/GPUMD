@@ -100,6 +100,7 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  save_potential = 100000;         // by default write a checkpoint nep.txt file every 100000 iterations
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -564,6 +565,12 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
   }
 
+  if (is_save_potential_set) {
+    printf("    (input)   save potential every N = %d generations.\n", save_potential);
+  } else {
+    printf("    (default)   save potential every N = %d generations.\n", save_potential);
+  }
+
   if (fine_tune) {
     printf("    (input)   will fine-tune based on %s and %s.\n", 
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
@@ -648,6 +655,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_has_charge(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
+  } else if (strcmp(param[0], "save_potential") == 0) {
+    parse_save_potential(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1267,4 +1276,19 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+}
+
+void Parameters::parse_save_potential(const char** param, int num_param)
+{
+  is_save_potential_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("save_potential should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &save_potential)) {
+    PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
+  }
+  if (save_potential < 0) {
+    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
+  }
 }

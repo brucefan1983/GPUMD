@@ -30,6 +30,7 @@ public:
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
+  int save_potential;         // number of generations between writing a checkpoint nep.txt file. 
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
@@ -88,6 +89,7 @@ public:
   bool is_batch_set;
   bool is_population_set;
   bool is_generation_set;
+  bool is_save_potential_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
@@ -152,4 +154,5 @@ private:
   void parse_output_descriptor(const char** param, int num_param);
   void parse_has_charge(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
+  void parse_save_potential(const char** param, int num_param);
 };
