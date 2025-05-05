@@ -100,6 +100,7 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  checkpoint = 100000;         // by default write a checkpoint nep.txt file every 100000 iterations
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -648,6 +649,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_has_charge(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
+  } else if (strcmp(param[0], "checkpoint") == 0) {
+    parse_checkpoint(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1267,4 +1270,17 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+}
+
+void Parameters::parse_checkpoint(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("checkpoint should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &checkpoint)) {
+    PRINT_INPUT_ERROR("checkpoint interval should be an integer.\n");
+  }
+  if (checkpoint < 0) {
+    PRINT_INPUT_ERROR("checkpoint interval should be >= 0.");
+  }
 }
