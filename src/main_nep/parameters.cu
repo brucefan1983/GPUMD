@@ -100,6 +100,7 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  save_potential = 100000;         // by default write a checkpoint nep.txt file every 100000 iterations
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -566,6 +567,12 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
   }
 
+  if (is_save_potential_set) {
+    printf("    (input)   save potential every N = %d generations.\n", save_potential);
+  } else {
+    printf("    (default)   save potential every N = %d generations.\n", save_potential);
+  }
+
   if (fine_tune) {
     printf("    (input)   will fine-tune based on %s and %s.\n", 
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
@@ -650,6 +657,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_has_charge(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
+  } else if (strcmp(param[0], "save_potential") == 0) {
+    parse_save_potential(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -840,13 +849,13 @@ void Parameters::parse_n_max(const char** param, int num_param)
   }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 19) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 19.");
+  } else if (n_max_radial > 12) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 19) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
+  } else if (n_max_angular > 8) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 8.");
   }
 }
 
@@ -865,13 +874,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 19) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
+  } else if (basis_size_radial > 16) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 19) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
+  } else if (basis_size_angular > 12) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
   }
 }
 
@@ -930,8 +939,8 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
-    PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  } else if (num_neurons1 > 120) {
+    PRINT_INPUT_ERROR("number of neurons should <= 120.");
   }
 }
 
@@ -1269,4 +1278,19 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+}
+
+void Parameters::parse_save_potential(const char** param, int num_param)
+{
+  is_save_potential_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("save_potential should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &save_potential)) {
+    PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
+  }
+  if (save_potential < 0) {
+    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
+  }
 }
