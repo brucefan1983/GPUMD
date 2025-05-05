@@ -89,6 +89,7 @@ public:
   bool is_batch_set;
   bool is_population_set;
   bool is_generation_set;
+  bool is_save_potential_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
