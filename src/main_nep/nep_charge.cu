@@ -441,17 +441,16 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void zero_force(
-  const int N, float* g_fx, float* g_fy, float* g_fz, float* g_vxx, float* g_vyy, float* g_vzz)
+static __global__ void zero_force(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     g_fx[n1] = 0.0f;
     g_fy[n1] = 0.0f;
     g_fz[n1] = 0.0f;
-    g_vxx[n1] = 0.0f;
-    g_vyy[n1] = 0.0f;
-    g_vzz[n1] = 0.0f;
+    for (int d = 0; d < 6; ++d) {
+      g_v[n1 + N * d] = 0.0f;
+    }
   }
 }
 
@@ -1229,9 +1228,7 @@ void NEP_Charge::find_force(
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data(),
-      dataset[device_id].virial.data() + dataset[device_id].N,
-      dataset[device_id].virial.data() + dataset[device_id].N * 2);
+      dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
     apply_ann<<<grid_size, block_size>>>(
