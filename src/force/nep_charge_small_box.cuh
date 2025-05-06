@@ -281,17 +281,6 @@ static __global__ void find_descriptor_small_box(
     float charge = 0.0f;
     float charge_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-
     apply_ann_one_layer_charge(
       annmb.dim,
       annmb.num_neurons1,
