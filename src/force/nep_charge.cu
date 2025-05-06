@@ -344,6 +344,8 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   charge_para.S_real.resize(charge_para.num_kpoints_max);
   charge_para.S_imag.resize(charge_para.num_kpoints_max);
   charge_para.D_real.resize(num_atoms);
+  charge_para.charge.resize(num_atoms);
+  charge_para.charge_derivative.resize(num_atoms);
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
@@ -575,6 +577,8 @@ static __global__ void find_descriptor(
 #endif
   double* g_pe,
   float* g_Fp,
+  float* g_charge,
+  float* g_charge_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -698,8 +702,10 @@ static __global__ void find_descriptor(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer(
+    apply_ann_one_layer_charge(
       annmb.dim,
       annmb.num_neurons1,
       annmb.w0[t1],
@@ -708,12 +714,16 @@ static __global__ void find_descriptor(
       annmb.b1,
       q,
       F,
-      Fp);
+      Fp,
+      charge,
+      charge_derivative);
 
     g_pe[n1] += F;
+    g_charge[n1] = charge;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
     }
   }
 }
@@ -1199,6 +1209,8 @@ void NEP_Charge::compute_large_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    charge_para.charge.data(),
+    charge_para.charge_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
@@ -1377,6 +1389,8 @@ void NEP_Charge::compute_small_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    charge_para.charge.data(),
+    charge_para.charge_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL

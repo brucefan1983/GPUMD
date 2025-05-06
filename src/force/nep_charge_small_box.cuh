@@ -164,6 +164,8 @@ static __global__ void find_descriptor_small_box(
 #endif
   double* g_pe,
   float* g_Fp,
+  float* g_charge,
+  float* g_charge_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -276,6 +278,8 @@ static __global__ void find_descriptor_small_box(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
 
     apply_ann_one_layer(
       annmb.dim,
@@ -287,10 +291,26 @@ static __global__ void find_descriptor_small_box(
       q,
       F,
       Fp);
+
+    apply_ann_one_layer_charge(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp,
+      charge,
+      charge_derivative);
+
     g_pe[n1] += F;
+    g_charge[n1] = charge;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
     }
   }
 }

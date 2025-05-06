@@ -120,6 +120,8 @@ public:
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
     GPU_Vector<float> D_real;
+    GPU_Vector<float> charge;
+    GPU_Vector<float> charge_derivative;
     GPU_Vector<int> num_kpoints;
   };
 
