@@ -157,24 +157,6 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void compute_small_box(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  void compute_large_box(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
   bool has_dftd3 = false;
   void initialize_dftd3();
 };
