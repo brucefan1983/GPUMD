@@ -367,7 +367,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 #endif
 
   initialize_dftd3();
-  B_projection_size = annmb.num_neurons1 * (annmb.dim + 2);
 }
 
 NEP_Charge::~NEP_Charge(void)
@@ -577,10 +576,7 @@ static __global__ void find_descriptor(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz,
-  bool need_B_projection,
-  double* B_projection,
-  int B_projection_size)
+  float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -1204,10 +1200,7 @@ void NEP_Charge::compute_large_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    need_B_projection,
-    B_projection,
-    B_projection_size);
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1385,10 +1378,7 @@ void NEP_Charge::compute_small_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    need_B_projection,
-    B_projection,
-    B_projection_size);
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(

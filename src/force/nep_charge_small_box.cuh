@@ -165,10 +165,7 @@ static __global__ void find_descriptor_small_box(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz,
-  bool need_B_projection,
-  double* B_projection,
-  int B_projection_size)
+  float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -280,42 +277,16 @@ static __global__ void find_descriptor_small_box(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
-    } else {
-      if (!need_B_projection)
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp);
-      else
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp,
-          B_projection + n1 * B_projection_size);
-    }
+    apply_ann_one_layer(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
