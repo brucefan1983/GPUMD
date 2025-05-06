@@ -122,7 +122,6 @@ public:
     GPU_Vector<float> D_real;
     GPU_Vector<float> charge;
     GPU_Vector<float> charge_derivative;
-    GPU_Vector<int> num_kpoints;
   };
 
   NEP_Charge(const char* file_potential, const int num_atoms);
