@@ -85,50 +85,18 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep3") {
+  if (tokens[0] == "nep3_charge1") {
     paramb.version = 3;
     zbl.enabled = false;
-  } else if (tokens[0] == "nep3_zbl") {
+  } else if (tokens[0] == "nep3_zbl_charge1") {
     paramb.version = 3;
     zbl.enabled = true;
-  } else if (tokens[0] == "nep4") {
+  } else if (tokens[0] == "nep4_charge1") {
     paramb.version = 4;
     zbl.enabled = false;
-  } else if (tokens[0] == "nep4_zbl") {
+  } else if (tokens[0] == "nep4_zbl_charge1") {
     paramb.version = 4;
     zbl.enabled = true;
-  } else if (tokens[0] == "nep5") {
-    paramb.version = 5;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep5_zbl") {
-    paramb.version = 5;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep3_temperature") {
-    paramb.version = 3;
-    paramb.model_type = 3;
-  } else if (tokens[0] == "nep3_zbl_temperature") {
-    paramb.version = 3;
-    paramb.model_type = 3;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep4_temperature") {
-    paramb.version = 4;
-    paramb.model_type = 3;
-  } else if (tokens[0] == "nep4_zbl_temperature") {
-    paramb.version = 4;
-    paramb.model_type = 3;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep3_dipole") {
-    paramb.version = 3;
-    paramb.model_type = 1;
-  } else if (tokens[0] == "nep4_dipole") {
-    paramb.version = 4;
-    paramb.model_type = 1;
-  } else if (tokens[0] == "nep3_polarizability") {
-    paramb.version = 3;
-    paramb.model_type = 2;
-  } else if (tokens[0] == "nep4_polarizability") {
-    paramb.version = 4;
-    paramb.model_type = 2;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
@@ -278,10 +246,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   }
   annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
-  nep_model_type = paramb.model_type;
-  if (paramb.model_type == 3) {
-    annmb.dim += 1;
-  }
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   // calculated parameters:
@@ -296,10 +260,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
   } else {
     annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
-  }
-  if (paramb.model_type == 2) {
-    // Polarizability models have twice as many parameters
-    annmb.num_para_ann *= 2;
   }
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
@@ -385,23 +345,6 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
   }
   ann.b1 = pointer;
   pointer += 1;
-
-  // Possibly read polarizability parameters, which are placed after the regular nep parameters.
-  if (paramb.model_type == 2) {
-    for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-        pointer -= (ann.dim + 2) * ann.num_neurons1;
-      }
-      ann.w0_pol[t] = pointer;
-      pointer += ann.num_neurons1 * ann.dim;
-      ann.b0_pol[t] = pointer;
-      pointer += ann.num_neurons1;
-      ann.w1_pol[t] = pointer;
-      pointer += ann.num_neurons1;
-    }
-    ann.b1_pol = pointer;
-    pointer += 1;
-  }
 
   ann.c = pointer;
 }
@@ -1254,7 +1197,7 @@ void NEP_Charge::compute_large_box(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  bool is_polarizability = paramb.model_type == 2;
+  bool is_polarizability = false;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1284,7 +1227,7 @@ void NEP_Charge::compute_large_box(
     B_projection_size);
   GPU_CHECK_KERNEL
 
-  bool is_dipole = paramb.model_type == 1;
+  bool is_dipole = false;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1437,7 +1380,7 @@ void NEP_Charge::compute_small_box(
     output_file.close();
   }
 
-  const bool is_polarizability = paramb.model_type == 2;
+  const bool is_polarizability = false;
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1469,7 +1412,7 @@ void NEP_Charge::compute_small_box(
     B_projection_size);
   GPU_CHECK_KERNEL
 
-  bool is_dipole = paramb.model_type == 1;
+  bool is_dipole = false;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1884,7 +1827,7 @@ void NEP_Charge::compute_large_box(
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
-  bool is_dipole = paramb.model_type == 1;
+  bool is_dipole = false;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -2066,7 +2009,7 @@ void NEP_Charge::compute_small_box(
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
-  bool is_dipole = paramb.model_type == 1;
+  bool is_dipole = false;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
