@@ -105,6 +105,24 @@ public:
     float h[18];
   };
 
+  struct Charge_Para {
+    int charge_mode = 0;
+    int num_kpoints_max = 50000;
+    float alpha = 0.5f; // 1 / (2 Angstrom)
+    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+    float two_alpha_over_sqrt_pi = 0.564189583547756f;
+    float A;
+    float B;
+    GPU_Vector<float> kx;
+    GPU_Vector<float> ky;
+    GPU_Vector<float> kz;
+    GPU_Vector<float> G;
+    GPU_Vector<float> S_real;
+    GPU_Vector<float> S_imag;
+    GPU_Vector<float> D_real;
+    GPU_Vector<int> num_kpoints;
+  };
+
   NEP_Charge(const char* file_potential, const int num_atoms);
   virtual ~NEP_Charge(void);
   virtual void compute(
@@ -125,6 +143,7 @@ private:
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;
+  Charge_Para charge_para;
 
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE

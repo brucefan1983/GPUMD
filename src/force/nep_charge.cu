@@ -27,6 +27,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -79,7 +80,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     exit(1);
   }
 
-  // nep3 1 C
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
@@ -88,15 +88,51 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   if (tokens[0] == "nep3_charge1") {
     paramb.version = 3;
     zbl.enabled = false;
+    charge_para.charge_mode = 1;
   } else if (tokens[0] == "nep3_zbl_charge1") {
     paramb.version = 3;
     zbl.enabled = true;
+    charge_para.charge_mode = 1;
   } else if (tokens[0] == "nep4_charge1") {
     paramb.version = 4;
     zbl.enabled = false;
+    charge_para.charge_mode = 1;
   } else if (tokens[0] == "nep4_zbl_charge1") {
     paramb.version = 4;
     zbl.enabled = true;
+    charge_para.charge_mode = 1;
+  } else if (tokens[0] == "nep3_charge2") {
+    paramb.version = 3;
+    zbl.enabled = false;
+    charge_para.charge_mode = 2;
+  } else if (tokens[0] == "nep3_zbl_charge2") {
+    paramb.version = 3;
+    zbl.enabled = true;
+    charge_para.charge_mode = 2;
+  } else if (tokens[0] == "nep4_charge2") {
+    paramb.version = 4;
+    zbl.enabled = false;
+    charge_para.charge_mode = 2;
+  } else if (tokens[0] == "nep4_zbl_charge2") {
+    paramb.version = 4;
+    zbl.enabled = true;
+    charge_para.charge_mode = 2;
+  } else if (tokens[0] == "nep3_charge3") {
+    paramb.version = 3;
+    zbl.enabled = false;
+    charge_para.charge_mode = 3;
+  } else if (tokens[0] == "nep3_zbl_charge3") {
+    paramb.version = 3;
+    zbl.enabled = true;
+    charge_para.charge_mode = 3;
+  } else if (tokens[0] == "nep4_charge3") {
+    paramb.version = 4;
+    zbl.enabled = false;
+    charge_para.charge_mode = 3;
+  } else if (tokens[0] == "nep4_zbl_charge3") {
+    paramb.version = 4;
+    zbl.enabled = true;
+    charge_para.charge_mode = 3;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
@@ -295,6 +331,21 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     }
     zbl.num_types = paramb.num_types;
   }
+
+  // charge related parameters and data
+  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
+  charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
+  charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
+  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
+  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
+  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
+  charge_para.kx.resize(charge_para.num_kpoints_max);
+  charge_para.ky.resize(charge_para.num_kpoints_max);
+  charge_para.kz.resize(charge_para.num_kpoints_max);
+  charge_para.G.resize(charge_para.num_kpoints_max);
+  charge_para.S_real.resize(charge_para.num_kpoints_max);
+  charge_para.S_imag.resize(charge_para.num_kpoints_max);
+  charge_para.D_real.resize(num_atoms);
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
