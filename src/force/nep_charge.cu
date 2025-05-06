@@ -524,7 +524,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  const bool is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -658,32 +657,6 @@ static __global__ void find_descriptor(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (is_polarizability) {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0_pol[t1],
-        annmb.b0_pol[t1],
-        annmb.w1_pol[t1],
-        annmb.b1_pol,
-        q,
-        F,
-        Fp);
-      // Add the potential F for this atom to the diagonal of the virial
-      g_virial[n1] = F;
-      g_virial[n1 + N * 1] = F;
-      g_virial[n1 + N * 2] = F;
-
-      // Reset the potential and forces such that they
-      // are zero for the next call to the model. The next call
-      // is not used in the case of is_pol = True, but it doesn't
-      // hurt to clean up.
-      F = 0.0f;
-      for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0f;
-      }
-    }
-
     if (paramb.version == 5) {
       apply_ann_one_layer_nep5(
         annmb.dim,
@@ -742,7 +715,6 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
-  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -840,17 +812,9 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      if (is_dipole) {
-        // The dipole is proportional to minus the sum of the virials times r12
-        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx -= r12_square * f21[0];
-        s_syy -= r12_square * f21[1];
-        s_szz -= r12_square * f21[2];
-      } else {
-        s_sxx += r12[0] * f21[0];
-        s_syy += r12[1] * f21[1];
-        s_szz += r12[2] * f21[2];
-      }
+      s_sxx += r12[0] * f21[0];
+      s_syy += r12[1] * f21[1];
+      s_szz += r12[2] * f21[2];
       s_sxy += r12[0] * f21[1];
       s_sxz += r12[0] * f21[2];
       s_syx += r12[1] * f21[0];
@@ -1197,7 +1161,6 @@ void NEP_Charge::compute_large_box(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  bool is_polarizability = false;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1213,7 +1176,6 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    is_polarizability,
 #ifdef USE_TABLE
     nep_data.gn_radial.data(),
     nep_data.gn_angular.data(),
@@ -1227,7 +1189,6 @@ void NEP_Charge::compute_large_box(
     B_projection_size);
   GPU_CHECK_KERNEL
 
-  bool is_dipole = false;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1242,7 +1203,6 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     nep_data.Fp.data(),
-    is_dipole,
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -1283,7 +1243,7 @@ void NEP_Charge::compute_large_box(
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data(),
-    is_dipole,
+    false,
     position_per_atom,
     force_per_atom,
     virial_per_atom);
@@ -1380,7 +1340,6 @@ void NEP_Charge::compute_small_box(
     output_file.close();
   }
 
-  const bool is_polarizability = false;
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1398,7 +1357,6 @@ void NEP_Charge::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
-    is_polarizability,
 #ifdef USE_TABLE
     nep_data.gn_radial.data(),
     nep_data.gn_angular.data(),
@@ -1412,7 +1370,6 @@ void NEP_Charge::compute_small_box(
     B_projection_size);
   GPU_CHECK_KERNEL
 
-  bool is_dipole = false;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1426,7 +1383,6 @@ void NEP_Charge::compute_small_box(
     r12.data() + size_x12,
     r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
-    is_dipole,
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -1450,7 +1406,6 @@ void NEP_Charge::compute_small_box(
     r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
-    is_dipole,
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
     nep_data.gnp_angular.data(),
@@ -1564,18 +1519,6 @@ void NEP_Charge::compute(
     dftd3.compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
-}
-
-void NEP_Charge::compute(
-  const float temperature,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
-{
-  
 }
 
 const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radial; }

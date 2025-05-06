@@ -19,34 +19,38 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
-struct NEP_Data {
-  GPU_Vector<float> f12x; // 3-body or manybody partial forces
-  GPU_Vector<float> f12y; // 3-body or manybody partial forces
-  GPU_Vector<float> f12z; // 3-body or manybody partial forces
-  GPU_Vector<float> Fp;
-  GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN_radial;    // radial neighbor list
-  GPU_Vector<int> NL_radial;    // radial neighbor list
-  GPU_Vector<int> NN_angular;   // angular neighbor list
-  GPU_Vector<int> NL_angular;   // angular neighbor list
-  GPU_Vector<float> parameters; // parameters to be optimized
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
-  std::vector<int> cpu_NN_radial;
-  std::vector<int> cpu_NN_angular;
-#ifdef USE_TABLE
-  GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
-  GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
-  GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
-  GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
-#endif
-};
 
 class NEP_Charge : public Potential
 {
 public:
+  using Potential::compute;
+
+  struct NEP_Data {
+    GPU_Vector<float> f12x; // 3-body or manybody partial forces
+    GPU_Vector<float> f12y; // 3-body or manybody partial forces
+    GPU_Vector<float> f12z; // 3-body or manybody partial forces
+    GPU_Vector<float> Fp;
+    GPU_Vector<float> sum_fxyz;
+    GPU_Vector<int> NN_radial;    // radial neighbor list
+    GPU_Vector<int> NL_radial;    // radial neighbor list
+    GPU_Vector<int> NN_angular;   // angular neighbor list
+    GPU_Vector<int> NL_angular;   // angular neighbor list
+    GPU_Vector<float> parameters; // parameters to be optimized
+    GPU_Vector<int> cell_count;
+    GPU_Vector<int> cell_count_sum;
+    GPU_Vector<int> cell_contents;
+    std::vector<int> cpu_NN_radial;
+    std::vector<int> cpu_NN_angular;
+#ifdef USE_TABLE
+    GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
+    GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
+    GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
+    GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
+#endif
+  };
+
   NEP_Data nep_data;
+
   struct ParaMB {
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
@@ -84,11 +88,6 @@ public:
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* b1;               // bias for the output layer
     const float* c;
-    // for the scalar part of polarizability
-    const float* w0_pol[10];
-    const float* b0_pol[10];
-    const float* w1_pol[10];
-    const float* b1_pol;
   };
 
   struct ZBL {
@@ -109,15 +108,6 @@ public:
   NEP_Charge(const char* file_potential, const int num_atoms);
   virtual ~NEP_Charge(void);
   virtual void compute(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  virtual void compute(
-    const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

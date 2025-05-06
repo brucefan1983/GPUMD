@@ -158,7 +158,6 @@ static __global__ void find_descriptor_small_box(
   const float* __restrict__ g_x12_angular,
   const float* __restrict__ g_y12_angular,
   const float* __restrict__ g_z12_angular,
-  const bool is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -281,28 +280,6 @@ static __global__ void find_descriptor_small_box(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (is_polarizability) {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0_pol[t1],
-        annmb.b0_pol[t1],
-        annmb.w1_pol[t1],
-        annmb.b1_pol,
-        q,
-        F,
-        Fp);
-      // Add the potential values to the diagonal of the virial
-      g_virial[n1] = F;
-      g_virial[n1 + N * 1] = F;
-      g_virial[n1 + N * 2] = F;
-
-      F = 0.0f;
-      for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0f;
-      }
-    }
-
     if (paramb.version == 5) {
       apply_ann_one_layer_nep5(
         annmb.dim,
@@ -360,7 +337,6 @@ static __global__ void find_force_radial_small_box(
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
   const float* __restrict__ g_Fp,
-  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -435,16 +411,9 @@ static __global__ void find_force_radial_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      if (is_dipole) {
-        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx -= r12_square * f12[0];
-        s_syy -= r12_square * f12[1];
-        s_szz -= r12_square * f12[2];
-      } else {
-        s_sxx -= r12[0] * f12[0];
-        s_syy -= r12[1] * f12[1];
-        s_szz -= r12[2] * f12[2];
-      }
+      s_sxx -= r12[0] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_szz -= r12[2] * f12[2];
       s_sxy -= r12[0] * f12[1];
       s_sxz -= r12[0] * f12[2];
       s_syz -= r12[1] * f12[2];
@@ -489,7 +458,6 @@ static __global__ void find_force_angular_small_box(
   const float* __restrict__ g_z12,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
-  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_angular,
   const float* __restrict__ g_gnp_angular,
@@ -599,16 +567,9 @@ static __global__ void find_force_angular_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      if (is_dipole) {
-        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx -= r12_square * f12[0];
-        s_syy -= r12_square * f12[1];
-        s_szz -= r12_square * f12[2];
-      } else {
-        s_sxx -= r12[0] * f12[0];
-        s_syy -= r12[1] * f12[1];
-        s_szz -= r12[2] * f12[2];
-      }
+      s_sxx -= r12[0] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_szz -= r12[2] * f12[2];
       s_sxy -= r12[0] * f12[1];
       s_sxz -= r12[0] * f12[2];
       s_syz -= r12[1] * f12[2];
