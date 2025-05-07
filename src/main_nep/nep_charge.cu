@@ -871,7 +871,7 @@ static __global__ void find_force_charge_real_space(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-    int q1 = g_charge[n1];
+    float q1 = g_charge[n1];
     float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
     float D_real = -q1 * two_alpha_over_sqrt_pi; // self energy part
 
@@ -943,7 +943,7 @@ static __global__ void find_force_charge_real_space_only(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-    int q1 = g_charge[n1];
+    float q1 = g_charge[n1];
     float s_pe = 0; // no self energy
     float D_real = 0; // no self energy
 
