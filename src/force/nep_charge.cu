@@ -731,7 +731,6 @@ static __global__ void find_descriptor(
 }
 
 static __global__ void find_force_charge_real_space_only(
-  NEP_Charge::ParaMB paramb,
   const int N,
   const NEP_Charge::Charge_Para charge_para,
   const int N1,
@@ -739,7 +738,6 @@ static __global__ void find_force_charge_real_space_only(
   const Box box,
   const int* g_NN,
   const int* g_NL,
-  const int* __restrict__ g_type,
   const float* g_charge,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -783,7 +781,6 @@ static __global__ void find_force_charge_real_space_only(
       float r12[3] = {float(x12double), float(y12double), float(z12double)};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
-      float f, fp;
 
       float erfc_r = erfc(charge_para.alpha * d12) * d12inv;
       D_real += q2 * (erfc_r + charge_para.A * d12 + charge_para.B);
@@ -1309,6 +1306,28 @@ void NEP_Charge::compute_large_box(
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
+
+  if (charge_para.charge_mode == 3) {
+    find_force_charge_real_space_only<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      charge_para,
+      N1,
+      N2,
+      box,
+      nep_data.NN_radial.data(),
+      nep_data.NL_radial.data(),
+      charge_para.charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data(),
+      charge_para.D_real.data());
+    GPU_CHECK_KERNEL
+  }
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
