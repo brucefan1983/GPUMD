@@ -28,6 +28,7 @@ public:
   int num_correlation_steps_ = 100;
   int grouping_method_ = -1;
   int group_id_ = -1;
+  bool msd_over_all_groups_ = false;
 
   virtual void preprocess(
     const int number_of_steps,
@@ -65,6 +66,8 @@ public:
 
 private:
   int num_atoms_;
+  int num_groups_;
+  std::vector<int> num_atoms_per_group_;
   int num_time_origins_;
   double dt_in_natural_units_;
   double dt_in_ps_;

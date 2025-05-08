@@ -130,7 +130,42 @@ __global__ void gpu_find_msd(
   }
 }
 
-} // namespace
+  __global__ void gpu_find_msd_per_group(
+    const int num_atoms,
+    const int num_groups,
+    const int correlation_step,
+    const int num_correlation_steps,
+    const int* group_ids,
+    const double* g_x,
+    const double* g_y,
+    const double* g_z,
+    const double* g_x_start,
+    const double* g_y_start,
+    const double* g_z_start,
+    double* g_msd_x,  // [num_groups * time_lags]
+    double* g_msd_y,
+    double* g_msd_z)
+  {
+    // Do not use a reduction, instead handle each atom independently.
+    // Reduction does not work well, since atoms in the same group are not necessarily
+    // close in memory.
+
+    int n = threadIdx.x + blockIdx.x * blockDim.x;
+    if (n >= num_atoms) return;
+
+    int group = group_ids[n];
+    if (group < 0 || group >= num_groups) return;
+
+    double dx = g_x[n] - g_x_start[n];
+    double dy = g_y[n] - g_y_start[n];
+    double dz = g_z[n] - g_z_start[n];
+
+    int offset = group * num_correlation_steps + correlation_step;
+    atomicAdd(&g_msd_x[offset], dx * dx);
+    atomicAdd(&g_msd_y[offset], dy * dy);
+    atomicAdd(&g_msd_z[offset], dz * dz);
+  }
+} //namespace
 
 void MSD::preprocess(
   const int number_of_steps,
@@ -143,16 +178,34 @@ void MSD::preprocess(
 {
   if (!compute_)
     return;
-
-  num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
+  
+  if (grouping_method_ < 0) {
+    num_atoms_ = atom.number_of_atoms;
+    num_groups_ = 1;
+    num_atoms_per_group_.resize(1);
+    num_atoms_per_group_[0] = num_atoms_;
+  } else if (msd_over_all_groups_) {
+    num_atoms_ = atom.number_of_atoms;
+    num_groups_ = groups[grouping_method_].number;
+    num_atoms_per_group_.resize(num_groups_);
+    for (int i=0; i<num_groups_; i++) {
+      num_atoms_per_group_[i] = groups[grouping_method_].cpu_size[i];
+    }
+  } else {
+    num_atoms_per_group_.resize(1);
+    num_atoms_ = groups[grouping_method_].cpu_size[group_id_];
+    num_groups_ = 1;
+    num_atoms_per_group_[0] = num_atoms_;
+  }
+  
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   x_.resize(num_atoms_ * num_correlation_steps_);
   y_.resize(num_atoms_ * num_correlation_steps_);
   z_.resize(num_atoms_ * num_correlation_steps_);
-  msdx_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
-  msdy_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
-  msdz_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
+  msdx_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
+  msdy_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
+  msdz_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
 
   num_time_origins_ = 0;
 }
@@ -182,7 +235,7 @@ void MSD::process(
   const int number_of_atoms_total = atom.number_of_atoms;
 
   // copy the position data at the current step to appropriate place
-  if (grouping_method_ < 0) {
+  if (grouping_method_ < 0 || msd_over_all_groups_) {
     gpu_copy_position<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_,
       atom.unwrapped_position.data(),
@@ -210,19 +263,40 @@ void MSD::process(
   if (sample_step >= num_correlation_steps_ - 1) {
     ++num_time_origins_;
 
-    gpu_find_msd<<<num_correlation_steps_, 128>>>(
-      num_atoms_,
-      correlation_step,
-      x_.data() + step_offset,
-      y_.data() + step_offset,
-      z_.data() + step_offset,
-      x_.data(),
-      y_.data(),
-      z_.data(),
-      msdx_.data(),
-      msdy_.data(),
-      msdz_.data());
-    GPU_CHECK_KERNEL
+    if (msd_over_all_groups_) {
+      gpu_find_msd_per_group<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
+        num_atoms_,
+        num_groups_,
+        correlation_step,
+        num_correlation_steps_,
+        groups[grouping_method_].contents.data(),
+        x_.data() + step_offset,
+        y_.data() + step_offset,
+        z_.data() + step_offset,
+        x_.data(),
+        y_.data(),
+        z_.data(),
+        msdx_.data(),
+        msdy_.data(),
+        msdz_.data());
+      GPU_CHECK_KERNEL
+
+    } else {
+      gpu_find_msd<<<num_correlation_steps_, 128>>>(
+        num_atoms_,
+        correlation_step,
+        x_.data() + step_offset,
+        y_.data() + step_offset,
+        z_.data() + step_offset,
+        x_.data(),
+        y_.data(),
+        z_.data(),
+        msdx_.data(),
+        msdy_.data(),
+        msdz_.data());
+      GPU_CHECK_KERNEL
+    }
+
   }
 }
 
@@ -238,39 +312,49 @@ void MSD::postprocess(
     return;
 
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
+    
+  std::vector<double> sdc_x(num_correlation_steps_ * num_groups_, 0.0);
+  std::vector<double> sdc_y(num_correlation_steps_ * num_groups_, 0.0);
+  std::vector<double> sdc_z(num_correlation_steps_ * num_groups_, 0.0);
 
   // normalize by the number of atoms and number of time origins
-  const double msd_scaler = 1.0 / ((double)num_atoms_ * (double)num_time_origins_);
-  for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    msdx_[nc] *= msd_scaler;
-    msdy_[nc] *= msd_scaler;
-    msdz_[nc] *= msd_scaler;
-  }
+  for (int group_id=0; group_id < num_groups_; group_id++) {
+    int num_atoms = num_atoms_per_group_[group_id];
+    const double msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
+    int group_index = group_id * num_correlation_steps_;
 
-  std::vector<double> sdc_x(num_correlation_steps_, 0.0);
-  std::vector<double> sdc_y(num_correlation_steps_, 0.0);
-  std::vector<double> sdc_z(num_correlation_steps_, 0.0);
-  const double dt2inv = 0.5 / dt_in_natural_units_;
-  for (int nc = 1; nc < num_correlation_steps_; nc++) {
-    sdc_x[nc] = (msdx_[nc] - msdx_[nc - 1]) * dt2inv;
-    sdc_y[nc] = (msdy_[nc] - msdy_[nc - 1]) * dt2inv;
-    sdc_z[nc] = (msdz_[nc] - msdz_[nc - 1]) * dt2inv;
+    for (int nc = group_index + 0; nc < group_index+num_correlation_steps_; nc++) {
+      msdx_[nc] *= msd_scaler;
+      msdy_[nc] *= msd_scaler;
+      msdz_[nc] *= msd_scaler;
+    }
+
+    const double dt2inv = 0.5 / dt_in_natural_units_;
+    for (int nc = group_index + 1; nc < group_index+num_correlation_steps_; nc++) {
+      sdc_x[nc] = (msdx_[nc] - msdx_[nc - 1]) * dt2inv;
+      sdc_y[nc] = (msdy_[nc] - msdy_[nc - 1]) * dt2inv;
+      sdc_z[nc] = (msdz_[nc] - msdz_[nc - 1]) * dt2inv;
+    }
   }
 
   const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
 
   FILE* fid = fopen("msd.out", "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    fprintf(
-      fid,
-      "%g %g %g %g %g %g %g\n",
-      nc * dt_in_ps_,
-      msdx_[nc],
-      msdy_[nc],
-      msdz_[nc],
-      sdc_x[nc] * sdc_unit_conversion,
-      sdc_y[nc] * sdc_unit_conversion,
-      sdc_z[nc] * sdc_unit_conversion);
+    fprintf(fid, "%g", nc * dt_in_ps_);
+    for (int group_id = 0; group_id < num_groups_; group_id++) {
+      int group_index = group_id * num_correlation_steps_;
+      fprintf(
+        fid,
+        "% g %g %g %g %g %g",
+        msdx_[group_index + nc],
+        msdy_[group_index + nc],
+        msdz_[group_index + nc],
+        sdc_x[group_index + nc] * sdc_unit_conversion,
+        sdc_y[group_index + nc] * sdc_unit_conversion,
+        sdc_z[group_index + nc] * sdc_unit_conversion);
+    }
+    fprintf(fid, "\n");
   }
   fflush(fid);
   fclose(fid);
@@ -322,12 +406,27 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
-  // Process optional arguments
-  for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
-    } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
+  if (strcmp(param[3], "all_groups") == 0) {
+    msd_over_all_groups_ = true;
+    // Compute MSD individually for all groups
+    if (!is_valid_int(param[4], &grouping_method_)) {
+      PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
+    }
+    if (grouping_method_ < 0) {
+      PRINT_INPUT_ERROR("Grouping method should >= 0.");
+    }
+    if (grouping_method_ >= groups.size()) {
+      PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
+    }
+    printf("    will compute MSD for all groups in grouping %d.\n", grouping_method_);
+  } else {
+    // Process optional arguments
+    for (int k = 3; k < num_param; k++) {
+      if (strcmp(param[k], "group") == 0) {
+        parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+      } else {
+        PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
+      }
     }
   }
 }
