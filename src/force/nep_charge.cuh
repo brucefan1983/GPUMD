@@ -19,37 +19,45 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
+struct NEP_Charge_Data {
+  GPU_Vector<float> f12x; // 3-body or manybody partial forces
+  GPU_Vector<float> f12y; // 3-body or manybody partial forces
+  GPU_Vector<float> f12z; // 3-body or manybody partial forces
+  GPU_Vector<float> Fp;
+  GPU_Vector<float> sum_fxyz;
+  GPU_Vector<int> NN_radial;    // radial neighbor list
+  GPU_Vector<int> NL_radial;    // radial neighbor list
+  GPU_Vector<int> NN_angular;   // angular neighbor list
+  GPU_Vector<int> NL_angular;   // angular neighbor list
+  GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+  std::vector<int> cpu_NN_radial;
+  std::vector<int> cpu_NN_angular;
+#ifdef USE_TABLE
+  GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
+  GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
+  GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
+  GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
+#endif
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  GPU_Vector<float> D_real;
+  GPU_Vector<float> charge;
+  GPU_Vector<float> charge_derivative;
+};
 
 class NEP_Charge : public Potential
 {
 public:
   using Potential::compute;
 
-  struct NEP_Data {
-    GPU_Vector<float> f12x; // 3-body or manybody partial forces
-    GPU_Vector<float> f12y; // 3-body or manybody partial forces
-    GPU_Vector<float> f12z; // 3-body or manybody partial forces
-    GPU_Vector<float> Fp;
-    GPU_Vector<float> sum_fxyz;
-    GPU_Vector<int> NN_radial;    // radial neighbor list
-    GPU_Vector<int> NL_radial;    // radial neighbor list
-    GPU_Vector<int> NN_angular;   // angular neighbor list
-    GPU_Vector<int> NL_angular;   // angular neighbor list
-    GPU_Vector<float> parameters; // parameters to be optimized
-    GPU_Vector<int> cell_count;
-    GPU_Vector<int> cell_count_sum;
-    GPU_Vector<int> cell_contents;
-    std::vector<int> cpu_NN_radial;
-    std::vector<int> cpu_NN_angular;
-#ifdef USE_TABLE
-    GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
-    GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
-    GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
-    GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
-#endif
-  };
-
-  NEP_Data nep_data;
+  NEP_Charge_Data nep_data;
 
   struct ParaMB {
     bool use_typewise_cutoff = false;
@@ -113,15 +121,6 @@ public:
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
     float A;
     float B;
-    GPU_Vector<float> kx;
-    GPU_Vector<float> ky;
-    GPU_Vector<float> kz;
-    GPU_Vector<float> G;
-    GPU_Vector<float> S_real;
-    GPU_Vector<float> S_imag;
-    GPU_Vector<float> D_real;
-    GPU_Vector<float> charge;
-    GPU_Vector<float> charge_derivative;
   };
 
   NEP_Charge(const char* file_potential, const int num_atoms);
