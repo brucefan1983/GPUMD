@@ -435,7 +435,7 @@ static __global__ void find_force_radial_small_box(
             weight_left +
           g_gnp_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
             weight_right;
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+        float tmp12 = (g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1]) * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
         }
