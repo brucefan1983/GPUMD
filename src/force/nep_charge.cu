@@ -1552,6 +1552,32 @@ void NEP_Charge::compute_small_box(
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
+  // enforce charge neutrality
+  zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
+  GPU_CHECK_KERNEL
+
+  if (charge_para.charge_mode == 3) {
+    find_force_charge_real_space_only_small_box<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      charge_para,
+      N1,
+      N2,
+      box,
+      NN_radial.data(),
+      NL_radial.data(),
+      nep_data.charge.data(),
+      r12.data(),
+      r12.data() + size_x12,
+      r12.data() + size_x12 * 2,
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  }
+
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1565,6 +1591,8 @@ void NEP_Charge::compute_small_box(
     r12.data() + size_x12,
     r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
+    nep_data.charge_derivative.data(),
+    nep_data.D_real.data(),
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -1587,6 +1615,8 @@ void NEP_Charge::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
+    nep_data.charge_derivative.data(),
+    nep_data.D_real.data(),
     nep_data.sum_fxyz.data(),
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
