@@ -1347,6 +1347,37 @@ void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const 
   nep_data.G.copy_from_host(cpu_G.data(), num_kpoints);
 }
 
+static __global__ void find_structure_factor(
+  const int num_kpoints_max,
+  const int N1,
+  const int N2,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  float* g_S_real,
+  float* g_S_imag)
+{
+  int nk = blockIdx.x * blockDim.x + threadIdx.x;
+  if (nk < num_kpoints_max) {
+    float S_real = 0.0f;
+    float S_imag = 0.0f;
+    for (int n = N1; n < N2; ++n) {
+      float kr = g_kx[nk] * float(g_x[n]) + g_ky[nk] * float(g_y[n]) + g_kz[nk] * float(g_z[n]);
+      const float charge = g_charge[n];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      S_real += charge * cos_kr;
+      S_imag -= charge * sin_kr;
+    }
+    g_S_real[nk] = S_real;
+    g_S_imag[nk] = S_imag;
+  }
+}
+
 // large box fo MD applications
 void NEP_Charge::compute_large_box(
   Box& box,
@@ -1459,6 +1490,20 @@ void NEP_Charge::compute_large_box(
 
   if (charge_para.charge_mode != 3) {
     find_k_and_G(false, box.cpu_h, ebox.h);
+    find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
+      charge_para.num_kpoints_max,
+      N1,
+      N2,
+      nep_data.charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.kx.data(),
+      nep_data.ky.data(),
+      nep_data.kz.data(),
+      nep_data.S_real.data(),
+      nep_data.S_imag.data());
+    GPU_CHECK_KERNEL
   }
 
   if (charge_para.charge_mode == 3) {
@@ -1673,6 +1718,20 @@ void NEP_Charge::compute_small_box(
 
   if (charge_para.charge_mode != 3) {
     find_k_and_G(true, box.cpu_h, ebox.h);
+    find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
+      charge_para.num_kpoints_max,
+      N1,
+      N2,
+      nep_data.charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.kx.data(),
+      nep_data.ky.data(),
+      nep_data.kz.data(),
+      nep_data.S_real.data(),
+      nep_data.S_imag.data());
+    GPU_CHECK_KERNEL
   }
 
   if (charge_para.charge_mode == 3) {
