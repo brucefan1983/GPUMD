@@ -1236,6 +1236,117 @@ static __global__ void find_force_ZBL(
   }
 }
 
+static void cross_product(const float a[3], const float b[3], float c[3])
+{
+  c[0] =  a[1] * b [2] - a[2] * b [1];
+  c[1] =  a[2] * b [0] - a[0] * b [2];
+  c[2] =  a[0] * b [1] - a[1] * b [0];
+}
+
+static float get_area(const float* a, const float* b)
+{
+  const float s1 = a[1] * b[2] - a[2] * b[1];
+  const float s2 = a[2] * b[0] - a[0] * b[2];
+  const float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const float* ebox)
+{
+  float det;
+  float a1[3] = {0.0f};
+  float a2[3] = {0.0f};
+  float a3[3] = {0.0f};
+  if (is_small_box) {
+    det = ebox[0] * (ebox[4] * ebox[8] - ebox[5] * ebox[7]) +
+          ebox[1] * (ebox[5] * ebox[6] - ebox[3] * ebox[8]) +
+          ebox[2] * (ebox[3] * ebox[7] - ebox[4] * ebox[6]);
+    a1[0] = ebox[0];
+    a1[1] = ebox[3];
+    a1[2] = ebox[6];
+    a2[0] = ebox[1];
+    a2[1] = ebox[4];
+    a2[2] = ebox[7];
+    a3[0] = ebox[2];
+    a3[1] = ebox[5];
+    a3[2] = ebox[8];
+  } else {
+    det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+          box[1] * (box[5] * box[6] - box[3] * box[8]) +
+          box[2] * (box[3] * box[7] - box[4] * box[6]);
+    a1[0] = box[0];
+    a1[1] = box[3];
+    a1[2] = box[6];
+    a2[0] = box[1];
+    a2[1] = box[4];
+    a2[2] = box[7];
+    a3[0] = box[2];
+    a3[1] = box[5];
+    a3[2] = box[8];
+  }
+  float b1[3] = {0.0f};
+  float b2[3] = {0.0f};
+  float b3[3] = {0.0f};
+  cross_product(a2, a3, b1);
+  cross_product(a3, a1, b2);
+  cross_product(a1, a2, b3);
+
+  const float two_pi = 6.2831853f;
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    b1[d] *= two_pi_over_det;
+    b2[d] *= two_pi_over_det;
+    b3[d] *= two_pi_over_det;
+  }
+
+  const float volume_k = two_pi * two_pi * two_pi / abs(det);
+  int n1_max = charge_para.alpha * two_pi * get_area(b2, b3) / volume_k;
+  int n2_max = charge_para.alpha * two_pi * get_area(b3, b1) / volume_k;
+  int n3_max = charge_para.alpha * two_pi * get_area(b1, b2) / volume_k;
+  float ksq_max = two_pi * two_pi * charge_para.alpha * charge_para.alpha;
+
+  std::vector<float> cpu_kx;
+  std::vector<float> cpu_ky;
+  std::vector<float> cpu_kz;
+  std::vector<float> cpu_G;
+
+  for (int n1 = 0; n1 <= n1_max; ++n1) {
+    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
+      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+        const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
+        if (nsq > 0) {
+          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+          const float ksq = kx * kx + ky * ky + kz * kz;
+          if (ksq < ksq_max) {
+            cpu_kx.emplace_back(kx);
+            cpu_ky.emplace_back(ky);
+            cpu_kz.emplace_back(kz);
+            float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
+            const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
+            cpu_G.emplace_back(symmetry_factor * G);
+          }
+        }
+      }
+    }
+  }
+
+  int num_kpoints = int(cpu_kx.size());
+  if (num_kpoints > charge_para.num_kpoints_max) {
+    charge_para.num_kpoints_max = num_kpoints;
+    nep_data.kx.resize(charge_para.num_kpoints_max);
+    nep_data.ky.resize(charge_para.num_kpoints_max);
+    nep_data.kz.resize(charge_para.num_kpoints_max);
+    nep_data.G.resize(charge_para.num_kpoints_max);
+  }
+
+  nep_data.kx.copy_from_host(cpu_kx.data(), num_kpoints);
+  nep_data.ky.copy_from_host(cpu_ky.data(), num_kpoints);
+  nep_data.kz.copy_from_host(cpu_kz.data(), num_kpoints);
+  nep_data.G.copy_from_host(cpu_G.data(), num_kpoints);
+}
+
 // large box fo MD applications
 void NEP_Charge::compute_large_box(
   Box& box,
@@ -1345,6 +1456,10 @@ void NEP_Charge::compute_large_box(
   // enforce charge neutrality
   zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
+
+  if (charge_para.charge_mode != 3) {
+    find_k_and_G(false, box.cpu_h, ebox.h);
+  }
 
   if (charge_para.charge_mode == 3) {
     find_force_charge_real_space_only<<<grid_size, BLOCK_SIZE>>>(
@@ -1555,6 +1670,10 @@ void NEP_Charge::compute_small_box(
   // enforce charge neutrality
   zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
+
+  if (charge_para.charge_mode != 3) {
+    find_k_and_G(true, box.cpu_h, ebox.h);
+  }
 
   if (charge_para.charge_mode == 3) {
     find_force_charge_real_space_only_small_box<<<grid_size, BLOCK_SIZE>>>(
