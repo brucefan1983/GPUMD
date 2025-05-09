@@ -29,6 +29,7 @@ The driver class calculating force and related quantities.
 #include "lj.cuh"
 #include "nep.cuh"
 #include "nep_multigpu.cuh"
+#include "nep_charge.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -101,6 +102,22 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
+  } else if (
+    strcmp(potential_name, "nep3_charge1") == 0 || 
+    strcmp(potential_name, "nep3_charge2") == 0 ||
+    strcmp(potential_name, "nep3_charge3") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge1") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge2") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge3") == 0 ||
+    strcmp(potential_name, "nep4_charge1") == 0 ||
+    strcmp(potential_name, "nep4_charge2") == 0 ||
+    strcmp(potential_name, "nep4_charge3") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
+    potential.reset(new NEP_Charge(param[1], number_of_atoms));
+    is_nep = true;
+    check_types(param[1]);
   } else if (
     strcmp(potential_name, "nep5") == 0 || strcmp(potential_name, "nep5_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||

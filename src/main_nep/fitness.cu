@@ -306,19 +306,35 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3 %d ", para.num_types);
+    if (!para.charge_mode) {
+      if (para.version == 3) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep3 %d ", para.num_types);
+        }
+      } else if (para.version == 4) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4 %d ", para.num_types);
+        }
+      } 
+    } else {
+      if (para.version == 3) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep3_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep3_charge%d %d ", para.charge_mode, para.num_types);
+        }
+      } else if (para.version == 4) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+        }
       }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4 %d ", para.num_types);
-      }
-    } 
+    }
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 3) {
       fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
