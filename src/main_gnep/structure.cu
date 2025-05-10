@@ -130,7 +130,7 @@ static void read_force(
       }
     }
     if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in gmlp.in.\n");
+      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in gnep.in.\n");
     }
   }
 }

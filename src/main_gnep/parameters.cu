@@ -32,7 +32,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 Parameters::Parameters()
 {
   print_line_1();
-  printf("Started reading gmlp.in.\n");
+  printf("Started reading gnep.in.\n");
   print_line_2();
 
   set_default_parameters();
@@ -44,7 +44,7 @@ Parameters::Parameters()
   report_inputs();
 
   print_line_1();
-  printf("Finished reading gmlp.in.\n");
+  printf("Finished reading gnep.in.\n");
   print_line_2();
 }
 
@@ -104,7 +104,7 @@ void Parameters::set_default_parameters()
   lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
-  batch_size = 4;           // mini-batch for adam optimizer
+  batch_size = 1;           // mini-batch for adam optimizer
   use_full_batch = 0;          // default is not to enable effective full-batch
   epoch = 50;               
   use_typewise_cutoff = false;
@@ -125,9 +125,9 @@ void Parameters::set_default_parameters()
 
 void Parameters::read_gmlp_in()
 {
-  std::ifstream input("gmlp.in");
+  std::ifstream input("gnep.in");
   if (!input.is_open()) {
-    std::cout << "Failed to open gmlp.in." << std::endl;
+    std::cout << "Failed to open gnep.in." << std::endl;
     exit(1);
   }
 
@@ -201,7 +201,7 @@ void Parameters::calculate_parameters()
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
-    PRINT_INPUT_ERROR("type in gmlp.in has not been set.");
+    PRINT_INPUT_ERROR("type in gnep.in has not been set.");
   }
 
   printf("Input or default parameters:\n");
@@ -220,9 +220,9 @@ void Parameters::report_inputs()
   }
 
   if (is_version_set) {
-    printf("    (input)   use GMLP version %d.\n", version);
+    printf("    (input)   use GNEP version %d.\n", version);
   } else {
-    printf("    (default) use GMLP version %d.\n", version);
+    printf("    (default) use GNEP version %d.\n", version);
   }
   printf("    (input)   number of atom types = %d.\n", num_types);
   if (is_type_weight_set) {
@@ -268,11 +268,11 @@ void Parameters::report_inputs()
   }
 
   if (is_use_typewise_cutoff_set) {
-    printf("    (input)   use %s cutoff for GMLP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (input)   use %s cutoff for GNEP.\n", use_typewise_cutoff ? "typewise" : "global");
     printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
     printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
   } else {
-    printf("    (default) use %s cutoff for GMLP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (default) use %s cutoff for GNEP.\n", use_typewise_cutoff ? "typewise" : "global");
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
@@ -561,7 +561,7 @@ void Parameters::parse_type(const char** param, int num_param)
     }
     atomic_numbers.emplace_back(atomic_number);
     if (!is_valid_element) {
-      PRINT_INPUT_ERROR("Some element in gmlp.in is not in the periodic table.");
+      PRINT_INPUT_ERROR("Some element in gnep.in is not in the periodic table.");
     }
   }
 }

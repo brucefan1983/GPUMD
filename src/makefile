@@ -43,8 +43,8 @@ SOURCES_GPUMD =                   \
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard utilities/*.cu)
-SOURCES_GMLP =                     \
-	$(wildcard main_gmlp/*.cu)     \
+SOURCES_GNEP =                     \
+	$(wildcard main_gnep/*.cu)     \
 	$(wildcard utilities/*.cu)
 
 
@@ -54,11 +54,11 @@ SOURCES_GMLP =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
-OBJ_GMLP = $(SOURCES_GMLP:.cu=.obj)
+OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-OBJ_GMLP = $(SOURCES_GMLP:.cu=.o)
+OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
 endif
 
 
@@ -76,18 +76,18 @@ HEADERS =                         \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
-	$(wildcard main_gmlp/*.cuh)
+	$(wildcard main_gnep/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep gmlp
+all: gpumd nep gnep
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-gmlp: $(OBJ_GMLP)
+gnep: $(OBJ_GNEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 
@@ -115,7 +115,7 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gmlp/%.obj: main_gmlp/%.cu $(HEADERS)
+main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
@@ -138,7 +138,7 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gmlp/%.o: main_gmlp/%.cu $(HEADERS)
+main_gnep/%.o: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
@@ -150,6 +150,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep gmlp
+	rm -f */*.o gpumd nep gnep
 endif
 

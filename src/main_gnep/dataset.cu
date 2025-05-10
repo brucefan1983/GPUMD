@@ -18,7 +18,7 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gmlp_utilities.cuh"
+#include "utilities/gnep_utilities.cuh"
 // #include "utilities/least_square.cuh"
 #include <algorithm> 
 

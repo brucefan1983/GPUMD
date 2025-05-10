@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
   print_gpu_information();
 
   print_line_1();
-  printf("Started running gmlp.\n");
+  printf("Started running gnep.\n");
   print_line_2();
 
   clock_t time_begin = clock();
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
   print_line_2();
 
   print_line_1();
-  printf("Finished running gmlp.\n");
+  printf("Finished running gnep.\n");
   print_line_2();
 
   return EXIT_SUCCESS;
@@ -69,8 +69,8 @@ void print_welcome_information(void)
 {
   printf("\n");
   printf("***************************************************************\n");
-  printf("*                 Welcome to use GMLP                         *\n");
-  printf("*      (Gradient-based Machine Learning Potentials)           *\n");
+  printf("*                 Welcome to use GNEP                         *\n");
+  printf("*      (Gradient-optimized Neuroevolution Potentials)         *\n");
   printf("*             Potential extension for GPUMD                   *\n");
   printf("*              Master version after 1.0.0                     *\n");
   printf("***************************************************************\n");

@@ -129,7 +129,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
-  } else if (tokens[0] == "gmlp") {
+  } else if (tokens[0] == "gnep") {
     paramb.version = 5;
     paramb.model_type = 4;
   } else {

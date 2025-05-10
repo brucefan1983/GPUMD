@@ -22,15 +22,15 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "gmlp.cuh"
+#include "gnep.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "utilities/gmlp_utilities.cuh"
+#include "utilities/gnep_utilities.cuh"
 
 static __global__ void gpu_find_neighbor_list(
-  const GMLP::ParaMB paramb,
+  const GNEP::ParaMB paramb,
   const int N,
   const int* Na,
   const int* Na_sum,
@@ -123,8 +123,8 @@ static __global__ void find_descriptors_radial(
   const int max_NN_radial,
   const int* g_NN,
   const int* g_NL,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -178,8 +178,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -239,7 +239,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-GMLP::GMLP(
+GNEP::GNEP(
   Parameters& para,
   int N,
   int N_times_max_NN_radial,
@@ -294,27 +294,27 @@ GMLP::GMLP(
     annmb[device_id].num_para = para.number_of_variables;
     annmb[device_id].num_ann = para.number_of_variables_ann;
 
-    gmlp_data[device_id].NN_radial.resize(N);
-    gmlp_data[device_id].NN_angular.resize(N);
-    gmlp_data[device_id].NL_radial.resize(N_times_max_NN_radial);
-    gmlp_data[device_id].NL_angular.resize(N_times_max_NN_angular);
-    gmlp_data[device_id].x12_radial.resize(N_times_max_NN_radial);
-    gmlp_data[device_id].y12_radial.resize(N_times_max_NN_radial);
-    gmlp_data[device_id].z12_radial.resize(N_times_max_NN_radial);
-    gmlp_data[device_id].x12_angular.resize(N_times_max_NN_angular);
-    gmlp_data[device_id].y12_angular.resize(N_times_max_NN_angular);
-    gmlp_data[device_id].z12_angular.resize(N_times_max_NN_angular);
-    gmlp_data[device_id].descriptors.resize(N * annmb[device_id].dim);
-    gmlp_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    // gmlp_data[device_id].Fp2.resize(N * annmb[device_id].dim * annmb[device_id].dim);
-    gmlp_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-    // gmlp_data[device_id].sum_s2xyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 3);
-    // gmlp_data[device_id].sum_s2xyz123.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 6);
-    gmlp_data[device_id].parameters.resize(annmb[device_id].num_para);
+    gnep_data[device_id].NN_radial.resize(N);
+    gnep_data[device_id].NN_angular.resize(N);
+    gnep_data[device_id].NL_radial.resize(N_times_max_NN_radial);
+    gnep_data[device_id].NL_angular.resize(N_times_max_NN_angular);
+    gnep_data[device_id].x12_radial.resize(N_times_max_NN_radial);
+    gnep_data[device_id].y12_radial.resize(N_times_max_NN_radial);
+    gnep_data[device_id].z12_radial.resize(N_times_max_NN_radial);
+    gnep_data[device_id].x12_angular.resize(N_times_max_NN_angular);
+    gnep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
+    gnep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
+    gnep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
+    gnep_data[device_id].Fp.resize(N * annmb[device_id].dim);
+    // gnep_data[device_id].Fp2.resize(N * annmb[device_id].dim * annmb[device_id].dim);
+    gnep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+    // gnep_data[device_id].sum_s2xyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 3);
+    // gnep_data[device_id].sum_s2xyz123.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 6);
+    gnep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
 }
 
-void GMLP::update_potential(Parameters& para, const float* parameters, ANN& ann)
+void GNEP::update_potential(Parameters& para, const float* parameters, ANN& ann)
 {
   const float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -330,7 +330,7 @@ void GMLP::update_potential(Parameters& para, const float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
-void GMLP::initialize_gradients(Parameters& para, const int N)
+void GNEP::initialize_gradients(Parameters& para, const int N)
 {
   gradients.resize(N, para.number_of_variables, para.number_of_variables_ann, para.dim);
   // gradients.clear();
@@ -392,8 +392,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_s_ma
 template <bool IsTraining>
 static __global__ void apply_ann(
   const int N,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -567,8 +567,8 @@ static __global__ void gpu_sum_virial_error(
 
 static __global__ void compute_grad_e_without_neighbor(
   const int N,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int Nc,
   const float lambda_e,
   const int* __restrict__ g_batch_idx,
@@ -613,8 +613,8 @@ static __global__ void compute_grad_radial_NM(
   const int* __restrict__ g_NL,
   const int* __restrict__ g_NN_ang,
   const int* __restrict__ g_NL_ang,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_Na,
   const int Nc,
   const float lambda_e,
@@ -1006,8 +1006,8 @@ static __global__ void compute_grad_radial(
   const int* g_NL,
   const int* g_NN_ang,
   const int* g_NL_ang,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_Na,
   const int Nc,
   const float lambda_e,
@@ -1463,8 +1463,8 @@ static __global__ void compute_grad_angular_NM(
   const int* __restrict__ g_NL,
   const int* __restrict__ g_NN_rad,
   const int* __restrict__ g_NL_rad,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_Na,
   const int Nc,
   const float lambda_e,
@@ -1857,8 +1857,8 @@ static __global__ void compute_grad_angular(
   const int* g_NL,
   const int* g_NN_rad,
   const int* g_NL_rad,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_Na,
   const int Nc,
   const float lambda_e,
@@ -2285,8 +2285,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -2374,8 +2374,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const GMLP::ParaMB paramb,
-  const GMLP::ANN annmb,
+  const GNEP::ParaMB paramb,
+  const GNEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -2464,8 +2464,8 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
-  const GMLP::ParaMB paramb,
-  const GMLP::ZBL zbl,
+  const GNEP::ParaMB paramb,
+  const GNEP::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -2556,7 +2556,7 @@ static __global__ void find_force_ZBL(
   }
 }
 
-void GMLP::find_force(
+void GNEP::find_force(
   Parameters& para,
   const float* parameters,
   bool require_grad,
@@ -2568,14 +2568,14 @@ void GMLP::find_force(
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(cudaSetDevice(device_id));
-    // cudaMemset(gmlp_data[device_id].Fp2.data(), 0, gmlp_data[device_id].Fp2.size() * sizeof(float));
-    // cudaMemset(gmlp_data[device_id].sum_s2xyz.data(), 0, gmlp_data[device_id].sum_s2xyz.size() * sizeof(float));
-    // cudaMemset(gmlp_data[device_id].sum_s2xyz123.data(), 0, gmlp_data[device_id].sum_s2xyz123.size() * sizeof(float));
-    gmlp_data[device_id].Fp2.resize(dataset[device_id].N * annmb[device_id].dim * annmb[device_id].dim, 0.0f);
-    gmlp_data[device_id].sum_s2xyz.resize(dataset[device_id].N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 3, 0.0f);
-    gmlp_data[device_id].sum_s2xyz123.resize(dataset[device_id].N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 6, 0.0f);
-    gmlp_data[device_id].parameters.copy_from_host(parameters);
-    update_potential(para, gmlp_data[device_id].parameters.data(), annmb[device_id]);
+    // cudaMemset(gnep_data[device_id].Fp2.data(), 0, gnep_data[device_id].Fp2.size() * sizeof(float));
+    // cudaMemset(gnep_data[device_id].sum_s2xyz.data(), 0, gnep_data[device_id].sum_s2xyz.size() * sizeof(float));
+    // cudaMemset(gnep_data[device_id].sum_s2xyz123.data(), 0, gnep_data[device_id].sum_s2xyz123.size() * sizeof(float));
+    gnep_data[device_id].Fp2.resize(dataset[device_id].N * annmb[device_id].dim * annmb[device_id].dim, 0.0f);
+    gnep_data[device_id].sum_s2xyz.resize(dataset[device_id].N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 3, 0.0f);
+    gnep_data[device_id].sum_s2xyz123.resize(dataset[device_id].N * (paramb.n_max_angular + 1) * NUM_OF_ABC * 6, 0.0f);
+    gnep_data[device_id].parameters.copy_from_host(parameters);
+    update_potential(para, gnep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
@@ -2599,51 +2599,51 @@ void GMLP::find_force(
         dataset[device_id].r.data(),
         dataset[device_id].r.data() + dataset[device_id].N,
         dataset[device_id].r.data() + dataset[device_id].N * 2,
-        gmlp_data[device_id].NN_radial.data(),
-        gmlp_data[device_id].NL_radial.data(),
-        gmlp_data[device_id].NN_angular.data(),
-        gmlp_data[device_id].NL_angular.data(),
-        gmlp_data[device_id].x12_radial.data(),
-        gmlp_data[device_id].y12_radial.data(),
-        gmlp_data[device_id].z12_radial.data(),
-        gmlp_data[device_id].x12_angular.data(),
-        gmlp_data[device_id].y12_angular.data(),
-        gmlp_data[device_id].z12_angular.data());
+        gnep_data[device_id].NN_radial.data(),
+        gnep_data[device_id].NL_radial.data(),
+        gnep_data[device_id].NN_angular.data(),
+        gnep_data[device_id].NL_angular.data(),
+        gnep_data[device_id].x12_radial.data(),
+        gnep_data[device_id].y12_radial.data(),
+        gnep_data[device_id].z12_radial.data(),
+        gnep_data[device_id].x12_angular.data(),
+        gnep_data[device_id].y12_angular.data(),
+        gnep_data[device_id].z12_angular.data());
       CUDA_CHECK_KERNEL
     }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
       dataset[device_id].max_NN_radial,
-      gmlp_data[device_id].NN_radial.data(),
-      gmlp_data[device_id].NL_radial.data(),
+      gnep_data[device_id].NN_radial.data(),
+      gnep_data[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      gmlp_data[device_id].x12_radial.data(),
-      gmlp_data[device_id].y12_radial.data(),
-      gmlp_data[device_id].z12_radial.data(),
-      gmlp_data[device_id].descriptors.data());
+      gnep_data[device_id].x12_radial.data(),
+      gnep_data[device_id].y12_radial.data(),
+      gnep_data[device_id].z12_radial.data(),
+      gnep_data[device_id].descriptors.data());
     CUDA_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      gmlp_data[device_id].NN_angular.data(),
-      gmlp_data[device_id].NL_angular.data(),
+      gnep_data[device_id].NN_angular.data(),
+      gnep_data[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      gmlp_data[device_id].x12_angular.data(),
-      gmlp_data[device_id].y12_angular.data(),
-      gmlp_data[device_id].z12_angular.data(),
-      gmlp_data[device_id].descriptors.data(),
-      gmlp_data[device_id].sum_fxyz.data());
+      gnep_data[device_id].x12_angular.data(),
+      gnep_data[device_id].y12_angular.data(),
+      gnep_data[device_id].z12_angular.data(),
+      gnep_data[device_id].descriptors.data(),
+      gnep_data[device_id].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
         dataset[device_id].N,
-        gmlp_data[device_id].descriptors.data(),
+        gnep_data[device_id].descriptors.data(),
         para.s_max[device_id].data(),
         para.s_min[device_id].data(),
         para.q_scaler_gpu[device_id].data());
@@ -2667,11 +2667,11 @@ void GMLP::find_force(
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        gmlp_data[device_id].descriptors.data(),
+        gnep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].energy.data(),
-        gmlp_data[device_id].Fp.data(),
-        gmlp_data[device_id].Fp2.data(),
+        gnep_data[device_id].Fp.data(),
+        gnep_data[device_id].Fp2.data(),
         gradients.Fp_wb.data(),
         gradients.E_wb_grad.data());
       CUDA_CHECK_KERNEL
@@ -2697,23 +2697,23 @@ void GMLP::find_force(
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        gmlp_data[device_id].descriptors.data(),
+        gnep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].energy.data(),
-        gmlp_data[device_id].Fp.data());
+        gnep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      gmlp_data[device_id].NN_radial.data(),
-      gmlp_data[device_id].NL_radial.data(),
+      gnep_data[device_id].NN_radial.data(),
+      gnep_data[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      gmlp_data[device_id].x12_radial.data(),
-      gmlp_data[device_id].y12_radial.data(),
-      gmlp_data[device_id].z12_radial.data(),
-      gmlp_data[device_id].Fp.data(),
+      gnep_data[device_id].x12_radial.data(),
+      gnep_data[device_id].y12_radial.data(),
+      gnep_data[device_id].z12_radial.data(),
+      gnep_data[device_id].Fp.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
@@ -2723,18 +2723,18 @@ void GMLP::find_force(
     find_force_angular<<<grid_size, block_size>>>(
       require_grad,
       dataset[device_id].N,
-      gmlp_data[device_id].NN_angular.data(),
-      gmlp_data[device_id].NL_angular.data(),
+      gnep_data[device_id].NN_angular.data(),
+      gnep_data[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      gmlp_data[device_id].x12_angular.data(),
-      gmlp_data[device_id].y12_angular.data(),
-      gmlp_data[device_id].z12_angular.data(),
-      gmlp_data[device_id].Fp.data(),
-      gmlp_data[device_id].sum_fxyz.data(),
-      gmlp_data[device_id].sum_s2xyz.data(),
-      gmlp_data[device_id].sum_s2xyz123.data(),
+      gnep_data[device_id].x12_angular.data(),
+      gnep_data[device_id].y12_angular.data(),
+      gnep_data[device_id].z12_angular.data(),
+      gnep_data[device_id].Fp.data(),
+      gnep_data[device_id].sum_fxyz.data(),
+      gnep_data[device_id].sum_s2xyz.data(),
+      gnep_data[device_id].sum_s2xyz123.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
@@ -2771,10 +2771,10 @@ void GMLP::find_force(
     if (require_grad) {
       // compute_grad_radial<<<grid_size, block_size>>>(
       //   dataset[device_id].N,
-      //   gmlp_data[device_id].NN_radial.data(),
-      //   gmlp_data[device_id].NL_radial.data(),
-      //   gmlp_data[device_id].NN_angular.data(),
-      //   gmlp_data[device_id].NL_angular.data(),
+      //   gnep_data[device_id].NN_radial.data(),
+      //   gnep_data[device_id].NL_radial.data(),
+      //   gnep_data[device_id].NN_angular.data(),
+      //   gnep_data[device_id].NL_angular.data(),
       //   paramb,
       //   annmb[device_id],
       //   dataset[device_id].Na.data(),
@@ -2787,15 +2787,15 @@ void GMLP::find_force(
       //   para.force_delta,
       //   dataset[device_id].batch_idx.data(),
       //   dataset[device_id].type.data(),
-      //   gmlp_data[device_id].x12_radial.data(),
-      //   gmlp_data[device_id].y12_radial.data(),
-      //   gmlp_data[device_id].z12_radial.data(),
-      //   gmlp_data[device_id].x12_angular.data(),
-      //   gmlp_data[device_id].y12_angular.data(),
-      //   gmlp_data[device_id].z12_angular.data(),
-      //   gmlp_data[device_id].Fp.data(),
-      //   gmlp_data[device_id].Fp2.data(),
-      //   gmlp_data[device_id].sum_fxyz.data(),
+      //   gnep_data[device_id].x12_radial.data(),
+      //   gnep_data[device_id].y12_radial.data(),
+      //   gnep_data[device_id].z12_radial.data(),
+      //   gnep_data[device_id].x12_angular.data(),
+      //   gnep_data[device_id].y12_angular.data(),
+      //   gnep_data[device_id].z12_angular.data(),
+      //   gnep_data[device_id].Fp.data(),
+      //   gnep_data[device_id].Fp2.data(),
+      //   gnep_data[device_id].sum_fxyz.data(),
       //   gradients.E_wb_grad.data(),
       //   dataset[device_id].diff_gpu_e.data(),
       //   dataset[device_id].diff_gpu_v.data(),
@@ -2817,10 +2817,10 @@ void GMLP::find_force(
         compute_grad_radial_NM<<<blocks_per_grid, threads_per_block>>>(
           dataset[device_id].N,
           dataset[device_id].max_NN_radial,
-          gmlp_data[device_id].NN_radial.data(),
-          gmlp_data[device_id].NL_radial.data(),
-          gmlp_data[device_id].NN_angular.data(),
-          gmlp_data[device_id].NL_angular.data(),
+          gnep_data[device_id].NN_radial.data(),
+          gnep_data[device_id].NL_radial.data(),
+          gnep_data[device_id].NN_angular.data(),
+          gnep_data[device_id].NL_angular.data(),
           paramb,
           annmb[device_id],
           dataset[device_id].Na.data(),
@@ -2834,15 +2834,15 @@ void GMLP::find_force(
           para.force_delta,
           dataset[device_id].batch_idx.data(),
           dataset[device_id].type.data(),
-          gmlp_data[device_id].x12_radial.data(),
-          gmlp_data[device_id].y12_radial.data(),
-          gmlp_data[device_id].z12_radial.data(),
-          gmlp_data[device_id].x12_angular.data(),
-          gmlp_data[device_id].y12_angular.data(),
-          gmlp_data[device_id].z12_angular.data(),
-          gmlp_data[device_id].Fp.data(),
-          gmlp_data[device_id].Fp2.data(),
-          gmlp_data[device_id].sum_fxyz.data(),
+          gnep_data[device_id].x12_radial.data(),
+          gnep_data[device_id].y12_radial.data(),
+          gnep_data[device_id].z12_radial.data(),
+          gnep_data[device_id].x12_angular.data(),
+          gnep_data[device_id].y12_angular.data(),
+          gnep_data[device_id].z12_angular.data(),
+          gnep_data[device_id].Fp.data(),
+          gnep_data[device_id].Fp2.data(),
+          gnep_data[device_id].sum_fxyz.data(),
           gradients.E_wb_grad.data(),
           dataset[device_id].diff_gpu_e.data(),
           dataset[device_id].diff_gpu_v.data(),
@@ -2875,10 +2875,10 @@ void GMLP::find_force(
       }
       // compute_grad_angular<<<grid_size, block_size>>>(
       //   dataset[device_id].N,
-      //   gmlp_data[device_id].NN_angular.data(),
-      //   gmlp_data[device_id].NL_angular.data(),
-      //   gmlp_data[device_id].NN_radial.data(),
-      //   gmlp_data[device_id].NL_radial.data(),
+      //   gnep_data[device_id].NN_angular.data(),
+      //   gnep_data[device_id].NL_angular.data(),
+      //   gnep_data[device_id].NN_radial.data(),
+      //   gnep_data[device_id].NL_radial.data(),
       //   paramb,
       //   annmb[device_id],
       //   dataset[device_id].Na.data(),
@@ -2891,17 +2891,17 @@ void GMLP::find_force(
       //   para.force_delta,
       //   dataset[device_id].batch_idx.data(),
       //   dataset[device_id].type.data(),
-      //   gmlp_data[device_id].x12_angular.data(),
-      //   gmlp_data[device_id].y12_angular.data(),
-      //   gmlp_data[device_id].z12_angular.data(),
-      //   gmlp_data[device_id].x12_radial.data(),
-      //   gmlp_data[device_id].y12_radial.data(),
-      //   gmlp_data[device_id].z12_radial.data(),
-      //   gmlp_data[device_id].Fp.data(),
-      //   gmlp_data[device_id].Fp2.data(),
-      //   gmlp_data[device_id].sum_fxyz.data(),
-      //   gmlp_data[device_id].sum_s2xyz.data(),
-      //   gmlp_data[device_id].sum_s2xyz123.data(),
+      //   gnep_data[device_id].x12_angular.data(),
+      //   gnep_data[device_id].y12_angular.data(),
+      //   gnep_data[device_id].z12_angular.data(),
+      //   gnep_data[device_id].x12_radial.data(),
+      //   gnep_data[device_id].y12_radial.data(),
+      //   gnep_data[device_id].z12_radial.data(),
+      //   gnep_data[device_id].Fp.data(),
+      //   gnep_data[device_id].Fp2.data(),
+      //   gnep_data[device_id].sum_fxyz.data(),
+      //   gnep_data[device_id].sum_s2xyz.data(),
+      //   gnep_data[device_id].sum_s2xyz123.data(),
       //   dataset[device_id].diff_gpu_e.data(),
       //   dataset[device_id].diff_gpu_v.data(),
       //   dataset[device_id].force_ref_gpu.data(),
@@ -2927,10 +2927,10 @@ void GMLP::find_force(
         compute_grad_angular_NM<<<blocks_per_grid_angular, threads_per_block>>>(
           dataset[device_id].N,
           dataset[device_id].max_NN_angular,
-          gmlp_data[device_id].NN_angular.data(),
-          gmlp_data[device_id].NL_angular.data(),
-          gmlp_data[device_id].NN_radial.data(),
-          gmlp_data[device_id].NL_radial.data(),
+          gnep_data[device_id].NN_angular.data(),
+          gnep_data[device_id].NL_angular.data(),
+          gnep_data[device_id].NN_radial.data(),
+          gnep_data[device_id].NL_radial.data(),
           paramb,
           annmb[device_id],
           dataset[device_id].Na.data(),
@@ -2944,17 +2944,17 @@ void GMLP::find_force(
           para.force_delta,
           dataset[device_id].batch_idx.data(),
           dataset[device_id].type.data(),
-          gmlp_data[device_id].x12_angular.data(),
-          gmlp_data[device_id].y12_angular.data(),
-          gmlp_data[device_id].z12_angular.data(),
-          gmlp_data[device_id].x12_radial.data(),
-          gmlp_data[device_id].y12_radial.data(),
-          gmlp_data[device_id].z12_radial.data(),
-          gmlp_data[device_id].Fp.data(),
-          gmlp_data[device_id].Fp2.data(),
-          gmlp_data[device_id].sum_fxyz.data(),
-          gmlp_data[device_id].sum_s2xyz.data(),
-          gmlp_data[device_id].sum_s2xyz123.data(),
+          gnep_data[device_id].x12_angular.data(),
+          gnep_data[device_id].y12_angular.data(),
+          gnep_data[device_id].z12_angular.data(),
+          gnep_data[device_id].x12_radial.data(),
+          gnep_data[device_id].y12_radial.data(),
+          gnep_data[device_id].z12_radial.data(),
+          gnep_data[device_id].Fp.data(),
+          gnep_data[device_id].Fp2.data(),
+          gnep_data[device_id].sum_fxyz.data(),
+          gnep_data[device_id].sum_s2xyz.data(),
+          gnep_data[device_id].sum_s2xyz123.data(),
           dataset[device_id].diff_gpu_e.data(),
           dataset[device_id].diff_gpu_v.data(),
           dataset[device_id].force_ref_gpu.data(),
@@ -2984,12 +2984,12 @@ void GMLP::find_force(
         dataset[device_id].N,
         paramb,
         zbl,
-        gmlp_data[device_id].NN_angular.data(),
-        gmlp_data[device_id].NL_angular.data(),
+        gnep_data[device_id].NN_angular.data(),
+        gnep_data[device_id].NL_angular.data(),
         dataset[device_id].type.data(),
-        gmlp_data[device_id].x12_angular.data(),
-        gmlp_data[device_id].y12_angular.data(),
-        gmlp_data[device_id].z12_angular.data(),
+        gnep_data[device_id].x12_angular.data(),
+        gnep_data[device_id].y12_angular.data(),
+        gnep_data[device_id].z12_angular.data(),
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,

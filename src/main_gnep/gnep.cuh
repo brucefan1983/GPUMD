@@ -21,7 +21,7 @@
 class Parameters;
 class Dataset;
 
-struct GMLP_Data {
+struct GNEP_Data {
   GPU_Vector<int> NN_radial;  // radial neighbor number
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
@@ -41,7 +41,7 @@ struct GMLP_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
-class GMLP : public Potential
+class GNEP : public Potential
 {
 public:
   struct ParaMB {
@@ -92,7 +92,7 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  GMLP(
+  GNEP(
     Parameters& para,
     int N,
     int N_times_max_NN_radial,
@@ -114,7 +114,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  GMLP_Data gmlp_data[16];
+  GNEP_Data gnep_data[16];
   ZBL zbl;
   void update_potential(Parameters& para, const float* parameters, ANN& ann);
   void initialize_gradients(Parameters& para, const int N);
