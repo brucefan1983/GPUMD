@@ -67,6 +67,8 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
 | [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
 | [18]                  | NEMD and NPHug shock methods |
+| [19]                  | SW + ILP (hybrid Stillinger-Weber potential with anisotropic interlayer potential) |
+| [20]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 
 ## References
 
@@ -123,3 +125,9 @@ J. Chem. Phys. **162**, 064109 (2025).
 
 [18] Shuning Pan, Jiuyang Shi, Zhixin Liang, Cong Liu, Junjie Wang, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun, [Shock compression pathways to pyrite silica from machine learning simulations](https://doi.org/10.1103/PhysRevB.110.224101),
 Phys. Rev. B **110**, 224101 (2024).
+
+[19] Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, [Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides](https://doi.org/10.1021/acsnano.4c12148),
+ACS Nano **19**, 16287 (2025).
+
+[20] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Accurate modeling of LEGO-like vdW heterostructures: Integrating machine learned with anisotropic interlayer potentials](https://arxiv.org/abs/2504.12985),
+arXiv:2504.12985 [physics.comp-ph].

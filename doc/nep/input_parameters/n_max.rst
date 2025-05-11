@@ -11,7 +11,7 @@ The syntax is::
   n_max <n_max_R> <n_max_A>
 
 where :attr:`n_max_R` and :attr:`n_max_A` are :math:`n_\mathrm{max}^\mathrm{R}` and :math:`n_\mathrm{max}^\mathrm{A}`, respectively.
-The two parameters must satisfy :math:`0 \leq n_\mathrm{max}^\mathrm{R},n_\mathrm{max}^\mathrm{A} \leq 19`.
+The two parameters must satisfy :math:`0 \leq n_\mathrm{max}^\mathrm{R} \leq 12` and :math:`0 \leq n_\mathrm{max}^\mathrm{A} \leq 8`.
 
 The default values of :math:`n_\mathrm{max}^\mathrm{R}=4` and :math:`n_\mathrm{max}^\mathrm{A}=4` are relatively small but typically yield high speed.
 

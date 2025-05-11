@@ -1,6 +1,6 @@
 # Examples demonstrating the usage of GPUMD
 
-This fold contains a few simple examples demonstrating the usage of `nep` and `gpumd` excutables.
+This folder contains a few simple examples demonstrating the usage of `nep` and `gpumd` excutables.
 Please see the [GPUMD-Tutorials respository](https://github.com/brucefan1983/GPUMD-Tutorials) for more realistic examples and tutorials on the applications of the GPUMD package and related tools.
 
 

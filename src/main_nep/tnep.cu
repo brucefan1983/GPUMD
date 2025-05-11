@@ -31,6 +31,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 
 static __global__ void gpu_find_neighbor_list(
   const TNEP::ParaMB paramb,

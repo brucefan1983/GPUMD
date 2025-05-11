@@ -25,6 +25,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_mttk
    ensemble_heat
    ensemble_pimd
+   ensemble_ti_liquid
    ensemble_ti_spring
    ensemble_ti_as
    ensemble_ti_rs
@@ -71,6 +72,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    
    active
    dump_exyz
+   dump_xyz
    dump_beads
    dump_observer
    dump_dipole

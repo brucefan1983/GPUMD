@@ -39,5 +39,7 @@ Caveats
 -------
 * Currently, one must use the NPT ensemble when using this keyword.
   That is, the code assumes that the pressure components in the directions which are not deformed will be controlled.
+  If one does not want to control the pressure (box) in a direction that is not deformed, 
+  one can set the elastic constant for that direction to be larger than 2000 GPa.
 * In the equilibration stage, it is also recommended to use the NPT ensemble to obtain the zero strain state before applying the deformation.
 * One must control the three pressure components independently when using this keyword.

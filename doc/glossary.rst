@@ -50,6 +50,9 @@ Glossary
    HNEMDEC
         :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
 
+   ILP
+        interlayer potential for van der Waals materials [Ouyang2018]_ [Ouyang2020]_
+
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
 
@@ -118,6 +121,9 @@ Glossary
 
    SVR
         :ref:`stochastic velocity rescaling thermostat <svr_thermostat>` [Bussi2007b]_
+
+   SW
+        Stillinger-Weber potential [Stillinger1985]_
 
    TRPMD
         thermostatted ring-polymer molecular dynamics

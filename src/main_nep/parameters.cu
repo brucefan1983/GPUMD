@@ -65,6 +65,7 @@ void Parameters::set_default_parameters()
   is_lambda_e_set = false;
   is_lambda_f_set = false;
   is_lambda_v_set = false;
+  is_atomic_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
   is_population_set = false;
@@ -99,8 +100,10 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  save_potential = 100000;         // by default write a checkpoint nep.txt file every 100000 iterations
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  atomic_v = 0;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
@@ -167,12 +170,18 @@ void Parameters::calculate_parameters()
     }
   }
 
+  if (train_mode == 0) {
+    if (atomic_v == 1) {
+      PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
+    }
+  }
+
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
     if (!is_lambda_v_set) {
-      lambda_v = 1.0f;
+      lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
@@ -517,6 +526,12 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
+  if (is_atomic_v_set) {
+    printf("    (input)   atomic_v = %d.\n", atomic_v);
+  } else {
+    printf("    (default) atomic_v = %d.\n", atomic_v);
+  }
+
   if (is_lambda_shear_set) {
     printf("    (input)   lambda_shear = %g.\n", lambda_shear);
   } else {
@@ -548,6 +563,12 @@ void Parameters::report_inputs()
     printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
   } else {
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
+  }
+
+  if (is_save_potential_set) {
+    printf("    (input)   save potential every N = %d generations.\n", save_potential);
+  } else {
+    printf("    (default)   save potential every N = %d generations.\n", save_potential);
   }
 
   if (fine_tune) {
@@ -622,6 +643,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "atomic_v") == 0) {
+    parse_atomic_v(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
@@ -632,6 +655,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_has_charge(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
+  } else if (strcmp(param[0], "save_potential") == 0) {
+    parse_save_potential(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -822,13 +847,13 @@ void Parameters::parse_n_max(const char** param, int num_param)
   }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 19) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 19.");
+  } else if (n_max_radial > 12) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 19) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
+  } else if (n_max_angular > 8) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 8.");
   }
 }
 
@@ -847,13 +872,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 19) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
+  } else if (basis_size_radial > 16) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 19) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
+  } else if (basis_size_angular > 12) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
   }
 }
 
@@ -912,8 +937,8 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
-    PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  } else if (num_neurons1 > 120) {
+    PRINT_INPUT_ERROR("number of neurons should <= 120.");
   }
 }
 
@@ -1009,6 +1034,23 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
 
   if (lambda_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_atomic_v(const char** param, int num_param)
+{
+  is_atomic_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
+  }
+
+  if (!is_valid_int(param[1], &atomic_v)) {
+    PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
+  }
+
+  if (atomic_v != 0 && atomic_v != 1) {
+    PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
   }
 }
 
@@ -1234,4 +1276,19 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+}
+
+void Parameters::parse_save_potential(const char** param, int num_param)
+{
+  is_save_potential_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("save_potential should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &save_potential)) {
+    PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
+  }
+  if (save_potential < 0) {
+    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
+  }
 }

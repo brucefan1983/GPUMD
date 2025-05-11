@@ -15,6 +15,7 @@
 
 #include "extrapolation.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 #define PRINT_RUNTIME_ERROR(text)                                                                  \
   do {                                                                                             \
@@ -255,7 +256,7 @@ void Extrapolation::calculate_gamma()
 
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);
-  cudaDeviceSynchronize();
+  gpuDeviceSynchronize();
 }
 
 void Extrapolation::dump()

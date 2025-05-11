@@ -133,3 +133,157 @@ The setup instructions are below:
 * Follow the remaining :program:`GPUMD` installation instructions
 
 Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
+
+.. _use_dp_in_gpumd:
+.. index::
+   single: Deep Potential
+
+GPUMD supports DP potential project
+=====================================
+
+0 Program Introduction
+----------------------
+This is the beginning of GPUMD's support for other machine learning potential functions.
+
+0.1 Necessary instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- This is a test version.
+- Only potential function files ending with ``.pb`` in deepmd are supported, that is, the potential function files of the tensorflow version generated using ``dp --tf`` freeze.
+
+0.2 Installation Dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- You must ensure that the new version of DP is installed and can run normally. This program contains DP-related dependencies.
+- The installation environment requirements of GPUMD itself must be met.
+
+1 Installation details
+----------------------
+Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact Ke Xu (twtdq@qq.com).
+
+And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run GPUMD-DP directly, which can be shared with the account that provides the user ID. Then, you will not require the following process and can be used directly.
+
+2 GPUMD-DP installation (Offline version)
+-------------------------------------------
+
+2.0 DP installation (Offline version)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Use the latest version of DP installation steps::
+
+    >> $ # Copy data and unzip files.
+    >> $ cd /root/autodl-tmp/
+    >> $ wget https://mirror.nju.edu.cn/github-release/deepmodeling/deepmd-kit/v3.0.0/deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 -O deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0
+    >> $ wget https://mirror.nju.edu.cn/github-release/deepmodeling/deepmd-kit/v3.0.0/deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 -O deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1
+    >> $ cat deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 > deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh
+    >> $ # rm deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 # Please use with caution "rm"
+    >> $ sh deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh -p /root/autodl-tmp/deepmd-kit -u # Just keep pressing Enter/yes.
+    >> $ source /root/autodl-tmp/deepmd-kit/bin/activate /root/autodl-tmp/deepmd-kit
+    >> $ dp -h
+
+After running according to the above steps, using ``dp -h`` can successfully display no errors.
+
+2.1 GPUMD-DP installation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
+::
+
+    >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
+    >> $ cd ${GPUMD}/src-v0.1
+
+Modify ``makefile`` as follows:
+
+- Line 19 is changed from ``CUDA_ARCH=-arch=sm_60`` to ``CUDA_ARCH=-arch=sm_89`` (for RTX 4090). Modify according to the corresponding graphics card model.
+- Line 25 is changed from ``INC = -I./`` to ``INC = -I./ -I/root/miniconda3/deepmd-kit/source/build/path_to_install/include/deepmd``
+- Line 27 is changed from ``LIBS = -lcublas -lcusolver`` to ``LIBS = -lcublas -lcusolver -L/root/miniconda3/deepmd-kit/source/build/path_to_install/lib -ldeepmd_cc``
+
+Then run the following installation command::
+
+    >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> /root/.bashrc
+    >> $ source /root/.bashrc
+    >> $ make gpumd -j
+
+2.2 Running Tests
+~~~~~~~~~~~~~~~~~
+::
+
+    >> $ cd /root/miniconda3/GPUMD-bu0/tests/dp
+    >> $ ../../src/gpumd
+
+3 GPUMD-DP installation (Online version)
+-------------------------------------------
+
+3.0 Introduction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is to use the online method to install the `GPUMD-DP` version, you need to connect the machine to the Internet and use github and other websites.
+
+3.1 Conda environment
+~~~~~~~~~~~~~~~~~~~~~
+Create a new conda environment with Python and activate it::
+
+    >> $ conda create -n tf-gpu2  python=3.9
+    >> $ conda install -c conda-forge cudatoolkit=11.8
+    >> $ pip install --upgrade tensorflow
+
+3.3 download deep-kit and install
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download DP source code and compile the source files following DP docs. Here are the cmake commands::
+
+    >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
+    >> $ cd deepmd-kit/source
+    >> $ mkdir build && cd build
+    >> $ cmake -DENABLE_TENSORFLOW=TRUE -DUSE_CUDA_TOOLKIT=TRUE -DCMAKE_INSTALL_PREFIX=`path_to_install` -DUSE_TF_PYTHON_LIBS=TRUE ../
+    >> $ make -j && make install
+
+We just need the DP C++ interface, so we don't source all DP environment. The libraries will be installed in ``path_to_install``.
+
+3.4 Configure the makefile of ``GPUMD``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
+::
+
+    >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
+    >> $ cd ${GPUMD}/src
+    >> $ vi makefile
+
+Configure the makefile of GPUMD. The DP code is included by macro definition ``USE_TENSORFLOW``. So add it to ``CFLAGS``:
+
+``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_TENSORFLOW``
+
+Then link the DP C++ libraries. Add the following two lines to update the include and link paths and compile GPUMD:
+
+``INC += -Ipath_to_install/include/deepmd``
+
+``LDFLAGS += -Lpath_to_install/lib -ldeepmd_cc``
+
+Then, you can install it using the following command::
+
+    >> $ make gpumd -j
+
+3.5 Run ``GPUMD``
+~~~~~~~~~~~~~~~~~
+
+When running GPUMD, if an error occurs stating that the DP libraries could not be found, add the library path temporarily with::
+
+    LD_LIBRARY_PATH=path_to_install/lib:$LD_LIBRARY_PATH
+
+Or add the environment permanently to the ``~/.bashrc``::
+
+    >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
+    >> $ source ~/.bashrc
+
+3.6 Run Test
+~~~~~~~~~~~~
+
+This DP interface requires two files: a setting file and a DP potential file. The first file is very simple and is used to inform GPUMD of the atom number and types. For example, the ``dp.txt`` is shown in here for use the ``potential dp.txt DP_POTENTIAL_FILE.pb`` command in the ``run.in`` file::
+
+    dp 2 O H
+
+Notice
+~~~~~~~
+The type list in the setting file and the potential file must be the same.
+
+Example
+~~~~~~~
+* Some water simulations using the ``DP`` model in ``GPUMD``: https://github.com/brucefan1983/GPUMD/discussions
+
+References
+~~~~~~~~~~
+* DeePMD-kit: https://github.com/deepmodeling/deepmd-kit

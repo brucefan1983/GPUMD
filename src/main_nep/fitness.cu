@@ -277,6 +277,32 @@ void Fitness::output(
   }
 }
 
+void Fitness::output_atomic(
+  int num_components,
+  FILE* fid,
+  float* prediction,
+  float* reference,
+  Dataset& dataset)
+{
+for (int nc = 0; nc < dataset.Nc; ++nc) {
+  int offset = dataset.Na_sum_cpu[nc];
+  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+    for (int n = 0; n < num_components; ++n) {
+      int index = n * dataset.N + offset + m;
+      fprintf(fid, "%g ", prediction[index]);
+    }
+    for (int n = 0; n < num_components; ++n) {
+      float ref_value = reference[n * dataset.N + offset + m];
+      if (n == num_components - 1) {
+        fprintf(fid, "%g\n", ref_value);
+      } else {
+        fprintf(fid, "%g ", ref_value);
+      }
+    }
+  }
+}
+}
+
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
@@ -417,7 +443,7 @@ void Fitness::report_error(
     write_nep_txt(fid_nep, para, elite);
     fclose(fid_nep);
 
-    if (0 == (generation + 1) % 100000) {
+    if (0 == (generation + 1) % para.save_potential) {
       time_t rawtime;
       time(&rawtime);
       struct tm* timeinfo = localtime(&rawtime);
@@ -496,11 +522,11 @@ void Fitness::report_error(
         }
       } else if (para.train_mode == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0]);
+        update_dipole(fid_dipole, test_set[0], para.atomic_v);
         fclose(fid_dipole);
       } else if (para.train_mode == 2) {
         FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0]);
+        update_polarizability(fid_polarizability, test_set[0], para.atomic_v);
         fclose(fid_polarizability);
       }
     }
@@ -535,6 +561,7 @@ void Fitness::update_energy_force_virial(
   }
 
   output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
+
   output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
@@ -549,22 +576,24 @@ void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
   }
 }
 
-void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
+void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  if (!atomic) {
+    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    output_atomic(3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+  }
 }
 
-void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
+void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(
-    false,
-    6,
-    fid_polarizability,
-    dataset.virial_cpu.data(),
-    dataset.virial_ref_cpu.data(),
-    dataset);
+  if (!atomic) {
+    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    output_atomic(6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+  }
 }
 
 void Fitness::predict(Parameters& para, float* elite)
@@ -597,14 +626,14 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_dipole(fid_dipole, train_set[batch_id][0]);
+      update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_dipole);
   } else if (para.train_mode == 2) {
     FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_polarizability(fid_polarizability, train_set[batch_id][0]);
+      update_polarizability(fid_polarizability, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_polarizability);
   }

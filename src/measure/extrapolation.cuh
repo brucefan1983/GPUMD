@@ -16,7 +16,7 @@
 #pragma once
 
 #ifdef USE_HIP
-#include <hipblas.h>
+#include <hipblas/hipblas.h>
 #else
 #include <cublas_v2.h>
 #endif
