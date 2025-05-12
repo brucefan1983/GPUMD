@@ -2144,6 +2144,12 @@ void NEP_Charge::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  if (charge_para.charge_mode != 3) {
+    if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
+      PRINT_INPUT_ERROR("Cannot use non-periodic boundaries with K-space.");
+    }
+  }
+
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
   if (is_small_box) {
     compute_small_box(
