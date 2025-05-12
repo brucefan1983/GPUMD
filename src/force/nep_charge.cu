@@ -1570,6 +1570,29 @@ void NEP_Charge::compute_large_box(
       nep_data.S_real.data(),
       nep_data.S_imag.data());
     GPU_CHECK_KERNEL
+    find_force_charge_reciprocal_space<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      N1,
+      N2,
+      charge_para.num_kpoints_max,
+      charge_para.alpha_factor,
+      nep_data.charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.kx.data(),
+      nep_data.ky.data(),
+      nep_data.kz.data(),
+      nep_data.G.data(),
+      nep_data.S_real.data(),
+      nep_data.S_imag.data(),
+      nep_data.D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
   }
 
   if (charge_para.charge_mode == 3) {
