@@ -68,9 +68,11 @@ private:
   int num_atoms_;
   int num_groups_;
   std::vector<int> num_atoms_per_group_;
+  std::vector<int> group_per_atom_cpu_;
   int num_time_origins_;
   double dt_in_natural_units_;
   double dt_in_ps_;
   GPU_Vector<double> x_, y_, z_;
   GPU_Vector<double> msdx_, msdy_, msdz_;
+  GPU_Vector<int> group_per_atom_gpu_;
 };
