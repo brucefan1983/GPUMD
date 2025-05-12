@@ -1378,6 +1378,72 @@ static __global__ void find_structure_factor(
   }
 }
 
+static __global__ void find_force_charge_reciprocal_space(
+  const int N,
+  const int N1,
+  const int N2,
+  const int num_kpoints,
+  const float alpha_factor,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  const float* g_S_real,
+  const float* g_S_imag,
+  float* g_D_real,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    float temp_energy_sum = 0.0f;
+    float temp_virial_sum[6] = {0.0f};
+    float temp_force_sum[3] = {0.0f};
+    float temp_D_real_sum = 0.0f;
+    for (int nk = 0; nk < num_kpoints; ++nk) {
+      const float kx = g_kx[nk];
+      const float ky = g_ky[nk];
+      const float kz = g_kz[nk];
+      const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
+      const float G = g_G[nk];
+      const float S_real = g_S_real[nk];
+      const float S_imag = g_S_imag[nk];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+      const float GSS = G * (S_real * S_real + S_imag * S_imag);
+      temp_energy_sum += GSS;
+      const float alpha_k_factor = 2.0f * alpha_factor + 2.0f / (kx * kx + ky * ky + kz * kz);
+      temp_virial_sum[0] += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
+      temp_virial_sum[1] += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
+      temp_virial_sum[2] += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
+      temp_virial_sum[3] -= GSS * (alpha_k_factor * kx * ky); // xy
+      temp_virial_sum[4] -= GSS * (alpha_k_factor * ky * kz); // yz
+      temp_virial_sum[5] -= GSS * (alpha_k_factor * kz * kx); // zx
+      temp_D_real_sum += G * (S_real * cos_kr - S_imag * sin_kr);
+      temp_force_sum[0] += kx * imag_term;
+      temp_force_sum[1] += ky * imag_term;
+      temp_force_sum[2] += kz * imag_term;
+    }
+    g_pe[n] += K_C_SP * temp_energy_sum / (N2 - N1);
+    for (int d = 0; d < 6; ++d) {
+      g_virial[n + N * d] += K_C_SP * temp_virial_sum[d] / (N2 - N1);
+    }
+    g_D_real[n] = 2.0f * K_C_SP * temp_D_real_sum;
+    const float charge_factor = K_C_SP * 2.0f * g_charge[n];
+    g_fx[n] += charge_factor * temp_force_sum[0];
+    g_fy[n] += charge_factor * temp_force_sum[1];
+    g_fz[n] += charge_factor * temp_force_sum[2];
+  }
+}
+
 // large box fo MD applications
 void NEP_Charge::compute_large_box(
   Box& box,
@@ -1731,6 +1797,30 @@ void NEP_Charge::compute_small_box(
       nep_data.kz.data(),
       nep_data.S_real.data(),
       nep_data.S_imag.data());
+    GPU_CHECK_KERNEL
+
+    find_force_charge_reciprocal_space<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      N1,
+      N2,
+      charge_para.num_kpoints_max,
+      charge_para.alpha_factor,
+      nep_data.charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.kx.data(),
+      nep_data.ky.data(),
+      nep_data.kz.data(),
+      nep_data.G.data(),
+      nep_data.S_real.data(),
+      nep_data.S_imag.data(),
+      nep_data.D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
     GPU_CHECK_KERNEL
   }
 
