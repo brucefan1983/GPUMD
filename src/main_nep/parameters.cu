@@ -75,7 +75,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
-  is_has_charge_set = false;
+  is_charge_mode_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -431,7 +431,7 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_has_charge_set) {
+  if (is_charge_mode_set) {
     if (charge_mode == 1) {
       printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
@@ -653,8 +653,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
-  } else if (strcmp(param[0], "has_charge") == 0) {
-    parse_has_charge(param, num_param);
+  } else if (strcmp(param[0], "charge_mode") == 0) {
+    parse_charge_mode(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
@@ -1253,12 +1253,12 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_has_charge(const char** param, int num_param)
+void Parameters::parse_charge_mode(const char** param, int num_param)
 {
-  is_has_charge_set = true;
+  is_charge_mode_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("has_charge should have one parameter.\n");
+    PRINT_INPUT_ERROR("charge_mode should have one parameter.\n");
   }
   if (!is_valid_int(param[1], &charge_mode)) {
     PRINT_INPUT_ERROR("charge mode should be an integer.\n");
