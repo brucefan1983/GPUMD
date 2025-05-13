@@ -1339,6 +1339,8 @@ void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const 
     nep_data.ky.resize(charge_para.num_kpoints_max);
     nep_data.kz.resize(charge_para.num_kpoints_max);
     nep_data.G.resize(charge_para.num_kpoints_max);
+    nep_data.S_real.resize(charge_para.num_kpoints_max);
+    nep_data.S_imag.resize(charge_para.num_kpoints_max);
   }
 
   nep_data.kx.copy_from_host(cpu_kx.data(), num_kpoints);
@@ -1432,10 +1434,16 @@ static __global__ void find_force_charge_reciprocal_space(
       temp_force_sum[1] += ky * imag_term;
       temp_force_sum[2] += kz * imag_term;
     }
-    g_pe[n] += K_C_SP * temp_energy_sum / (N2 - N1);
-    for (int d = 0; d < 6; ++d) {
-      g_virial[n + N * d] += K_C_SP * temp_virial_sum[d] / (N2 - N1);
-    }
+    g_pe[n] += K_C_SP * temp_energy_sum / N;
+    g_virial[n + 0 * N] += K_C_SP * temp_virial_sum[0] / N;
+    g_virial[n + 1 * N] += K_C_SP * temp_virial_sum[1] / N;
+    g_virial[n + 2 * N] += K_C_SP * temp_virial_sum[2] / N;
+    g_virial[n + 3 * N] += K_C_SP * temp_virial_sum[3] / N;
+    g_virial[n + 4 * N] += K_C_SP * temp_virial_sum[5] / N;
+    g_virial[n + 5 * N] += K_C_SP * temp_virial_sum[4] / N;
+    g_virial[n + 6 * N] += K_C_SP * temp_virial_sum[3] / N;
+    g_virial[n + 7 * N] += K_C_SP * temp_virial_sum[5] / N;
+    g_virial[n + 8 * N] += K_C_SP * temp_virial_sum[4] / N;
     g_D_real[n] = 2.0f * K_C_SP * temp_D_real_sum;
     const float charge_factor = K_C_SP * 2.0f * g_charge[n];
     g_fx[n] += charge_factor * temp_force_sum[0];
