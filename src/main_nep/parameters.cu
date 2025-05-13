@@ -100,7 +100,8 @@ void Parameters::set_default_parameters()
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
-  save_potential = 100000;         // by default write a checkpoint nep.txt file every 100000 iterations
+  save_potential = 100000;     // write checkpoint nep.txt files at these intervals
+  save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -1284,8 +1285,8 @@ void Parameters::parse_save_potential(const char** param, int num_param)
 {
   is_save_potential_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("save_potential should have 1 parameter.\n");
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("save_potential should have 2 parameters.\n");
   }
   if (!is_valid_int(param[1], &save_potential)) {
     PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
@@ -1293,4 +1294,10 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   if (save_potential < 0) {
     PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
   }
+  if (!is_valid_int(param[2], &save_potential_format)) {
+    PRINT_INPUT_ERROR("save_potential format should be an integer.\n");
+  }
+  if (save_potential_format != 0 && save_potential_format != 1) {
+    PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
+  }  
 }
