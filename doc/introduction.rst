@@ -13,7 +13,7 @@ Python interfaces
 -----------------
 There are several packages that provide Python interfaces to :program:`GPUMD` functionality, including `calorine <https://calorine.materialsmodeling.org>`_, `gpyumd <https://github.com/AlexGabourie/gpyumd>`_, and `pyNEP <https://github.com/bigd4/PyNEP>`_.
 
-Github Discussions
+GitHub discussions
 ------------------
 * For general discussions: https://github.com/brucefan1983/GPUMD/discussions
 * For issue reporting: https://github.com/brucefan1983/GPUMD/issues

@@ -34,8 +34,8 @@ You can find several examples for how to use both the ``gpumd`` and ``nep`` exec
 .. index::
    single: NetCDF setup
 
-NetCDF Setup Instructions
-=========================
+NetCDF setup
+============
 
 To use `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (see :ref:`dump_netcdf keyword <kw_dump_netcdf>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
 First, you must download and install the correct version of NetCDF.
@@ -83,8 +83,8 @@ Following these steps will enable the :ref:`dump_netcdf keyword <kw_dump_netcdf>
 .. index::
    single: PLUMED setup
 
-PLUMED Setup Instructions
-=========================
+PLUMED setup
+============
 
 To use `PLUMED <https://www.plumed.org/>`_ (see :ref:`plumed keyword <kw_plumed>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
 First, you must download and install PLUMED.
@@ -138,34 +138,34 @@ Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
 .. index::
    single: Deep Potential
 
-GPUMD supports DP potential project
-=====================================
+DP potential support
+====================
 
-0 Program Introduction
-----------------------
-This is the beginning of GPUMD's support for other machine learning potential functions.
+Program introduction
+--------------------
+This is the beginning of :program:`GPUMD` support for other machine learned interatomic potentials.
 
-0.1 Necessary instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Necessary instructions
+~~~~~~~~~~~~~~~~~~~~~~
 - This is a test version.
 - Only potential function files ending with ``.pb`` in deepmd are supported, that is, the potential function files of the tensorflow version generated using ``dp --tf`` freeze.
 
-0.2 Installation Dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Installation dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~
 - You must ensure that the new version of DP is installed and can run normally. This program contains DP-related dependencies.
 - The installation environment requirements of GPUMD itself must be met.
 
-1 Installation details
-----------------------
+Installation details
+--------------------
 Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact Ke Xu (twtdq@qq.com).
 
 And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run GPUMD-DP directly, which can be shared with the account that provides the user ID. Then, you will not require the following process and can be used directly.
 
-2 GPUMD-DP installation (Offline version)
--------------------------------------------
+GPUMD-DP installation (Offline version)
+---------------------------------------
 
-2.0 DP installation (Offline version)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DP installation (Offline version)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Use the latest version of DP installation steps::
 
     >> $ # Copy data and unzip files.
@@ -180,8 +180,9 @@ Use the latest version of DP installation steps::
 
 After running according to the above steps, using ``dp -h`` can successfully display no errors.
 
-2.1 GPUMD-DP installation
-~~~~~~~~~~~~~~~~~~~~~~~~~
+GPUMD-DP installation
+~~~~~~~~~~~~~~~~~~~~~
+
 The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
 ::
 
@@ -200,30 +201,30 @@ Then run the following installation command::
     >> $ source /root/.bashrc
     >> $ make gpumd -j
 
-2.2 Running Tests
-~~~~~~~~~~~~~~~~~
+Running tests
+~~~~~~~~~~~~~
 ::
 
     >> $ cd /root/miniconda3/GPUMD-bu0/tests/dp
     >> $ ../../src/gpumd
 
-3 GPUMD-DP installation (Online version)
--------------------------------------------
+GPUMD-DP installation (Online version)
+--------------------------------------
 
-3.0 Introduction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Introduction
+~~~~~~~~~~~~
 This is to use the online method to install the `GPUMD-DP` version, you need to connect the machine to the Internet and use github and other websites.
 
-3.1 Conda environment
-~~~~~~~~~~~~~~~~~~~~~
+Conda environment
+~~~~~~~~~~~~~~~~~
 Create a new conda environment with Python and activate it::
 
     >> $ conda create -n tf-gpu2  python=3.9
     >> $ conda install -c conda-forge cudatoolkit=11.8
     >> $ pip install --upgrade tensorflow
 
-3.3 download deep-kit and install
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download deep-kit and install
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Download DP source code and compile the source files following DP docs. Here are the cmake commands::
 
     >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
@@ -234,8 +235,8 @@ Download DP source code and compile the source files following DP docs. Here are
 
 We just need the DP C++ interface, so we don't source all DP environment. The libraries will be installed in ``path_to_install``.
 
-3.4 Configure the makefile of ``GPUMD``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure the GPUMD makefile
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
 ::
 
@@ -257,8 +258,8 @@ Then, you can install it using the following command::
 
     >> $ make gpumd -j
 
-3.5 Run ``GPUMD``
-~~~~~~~~~~~~~~~~~
+Run GPUMD
+~~~~~~~~~
 
 When running GPUMD, if an error occurs stating that the DP libraries could not be found, add the library path temporarily with::
 
@@ -269,15 +270,15 @@ Or add the environment permanently to the ``~/.bashrc``::
     >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
     >> $ source ~/.bashrc
 
-3.6 Run Test
-~~~~~~~~~~~~
+Run Test
+~~~~~~~~
 
 This DP interface requires two files: a setting file and a DP potential file. The first file is very simple and is used to inform GPUMD of the atom number and types. For example, the ``dp.txt`` is shown in here for use the ``potential dp.txt DP_POTENTIAL_FILE.pb`` command in the ``run.in`` file::
 
     dp 2 O H
 
 Notice
-~~~~~~~
+~~~~~~
 The type list in the setting file and the potential file must be the same.
 
 Example
