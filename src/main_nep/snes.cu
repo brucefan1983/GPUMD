@@ -349,8 +349,16 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
-      tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" || tokens[0] == "nep3_zbl_temperature" ||
-      tokens[0] == "nep4_zbl_temperature" || tokens[0] == "nep5_zbl") {
+      tokens[0] == "nep3_zbl" || 
+      tokens[0] == "nep4_zbl" || 
+      tokens[0] == "nep3_zbl_temperature" ||
+      tokens[0] == "nep4_zbl_temperature" || 
+      tokens[0] == "nep3_zbl_charge1" ||
+      tokens[0] == "nep3_zbl_charge2" ||
+      tokens[0] == "nep3_zbl_charge3" ||
+      tokens[0] == "nep4_zbl_charge1" ||
+      tokens[0] == "nep4_zbl_charge2" ||
+      tokens[0] == "nep4_zbl_charge3") {
       num_lines_to_be_skipped = 6;
     }
 
