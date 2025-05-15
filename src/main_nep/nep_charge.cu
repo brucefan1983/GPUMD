@@ -1075,7 +1075,8 @@ static __global__ void find_k_and_G(
 static __global__ void zero_total_charge(
   const int* Na,
   const int* Na_sum,
-  float* g_charge)
+  float* g_charge,
+  float* g_charge_shifted)
 {
   int tid = threadIdx.x;
   int N1 = Na_sum[blockIdx.x];
@@ -1102,7 +1103,7 @@ static __global__ void zero_total_charge(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024 + N1;
     if (n < N2) {
-      g_charge[n] -= s_charge[0] / (N2 - N1);
+      g_charge_shifted[n] = g_charge[n] - s_charge[0] / (N2 - N1);
     }
   }
 }
@@ -1248,7 +1249,8 @@ void NEP_Charge::find_force(
     zero_total_charge<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
-      dataset[device_id].charge.data());
+      dataset[device_id].charge.data(),
+      dataset[device_id].charge_shifted.data());
     GPU_CHECK_KERNEL
 
     if (paramb.charge_mode != 3) {
@@ -1269,7 +1271,7 @@ void NEP_Charge::find_force(
         charge_para.num_kpoints_max,
         dataset[device_id].Na.data(),
         dataset[device_id].Na_sum.data(),
-        dataset[device_id].charge.data(),
+        dataset[device_id].charge_shifted.data(),
         dataset[device_id].r.data(),
         dataset[device_id].r.data() + dataset[device_id].N,
         dataset[device_id].r.data() + dataset[device_id].N * 2,
@@ -1287,7 +1289,7 @@ void NEP_Charge::find_force(
         charge_para.alpha_factor,
         dataset[device_id].Na.data(),
         dataset[device_id].Na_sum.data(),
-        dataset[device_id].charge.data(),
+        dataset[device_id].charge_shifted.data(),
         dataset[device_id].r.data(),
         dataset[device_id].r.data() + dataset[device_id].N,
         dataset[device_id].r.data() + dataset[device_id].N * 2,
@@ -1316,7 +1318,7 @@ void NEP_Charge::find_force(
         charge_para.two_alpha_over_sqrt_pi,
         nep_data[device_id].NN_radial.data(),
         nep_data[device_id].NL_radial.data(),
-        dataset[device_id].charge.data(),
+        dataset[device_id].charge_shifted.data(),
         nep_data[device_id].x12_radial.data(),
         nep_data[device_id].y12_radial.data(),
         nep_data[device_id].z12_radial.data(),
@@ -1336,7 +1338,7 @@ void NEP_Charge::find_force(
         charge_para.B,
         nep_data[device_id].NN_radial.data(),
         nep_data[device_id].NL_radial.data(),
-        dataset[device_id].charge.data(),
+        dataset[device_id].charge_shifted.data(),
         nep_data[device_id].x12_radial.data(),
         nep_data[device_id].y12_radial.data(),
         nep_data[device_id].z12_radial.data(),

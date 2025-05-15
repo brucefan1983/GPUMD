@@ -159,6 +159,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<int> type_cpu(N);
 
   charge.resize(N);
+  charge_shifted.resize(N);
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
