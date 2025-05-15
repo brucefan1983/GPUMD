@@ -40,6 +40,7 @@ public:
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
 
   GPU_Vector<float> charge;      // calculated charge in GPU
+  GPU_Vector<float> charge_shifted;      // shifted charge in GPU
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU
   GPU_Vector<float> force;       // calculated force in GPU
