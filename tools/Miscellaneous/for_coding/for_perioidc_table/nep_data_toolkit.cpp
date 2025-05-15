@@ -21,6 +21,7 @@ run:
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 static std::string remove_spaces_step1(const std::string& line)
 {
@@ -161,6 +162,7 @@ struct Structure {
   bool has_sid = false;
   bool has_virial = false;
   bool has_stress = false;
+  double charge = 0.0;
   double energy_weight = 1.0;
   double energy;
   double weight;
@@ -229,6 +231,15 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
     if (token.substr(0, sid_string.length()) == sid_string) {
       structure.has_sid = true;
       structure.sid = token.substr(sid_string.length(), token.length());
+    }
+  }
+
+  // get charge (optional)
+  for (const auto& token : tokens) {
+    const std::string charge_string = "charge=";
+    if (token.substr(0, charge_string.length()) == charge_string) {
+      structure.charge = get_double_from_token(
+        token.substr(charge_string.length(), token.length()), __FILE__, __LINE__);
     }
   }
 
@@ -408,6 +419,10 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
 {
   output << structure.num_atom << "\n";
 
+  if (structure.charge != 0.0) {
+    output << "charge=" << structure.charge << " ";
+  }
+
   if (structure.energy_weight != 1.0) {
     output << "energy_weight=" << structure.energy_weight << " ";
   }
@@ -421,7 +436,7 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
   }
   output << "\" ";
 
-  output << "energy=" << structure.energy << " ";
+  output << "energy=" << std::fixed << std::setprecision(6) << structure.energy << " ";
 
   if (structure.has_virial) {
     output << "virial=\"";
