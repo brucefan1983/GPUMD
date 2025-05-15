@@ -215,6 +215,15 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
+  // get total charge (optional; default is 0)
+  for (const auto& token : tokens) {
+    const std::string charge_string = "charge=";
+    if (token.substr(0, charge_string.length()) == charge_string) {
+      structure.charge = get_double_from_token(
+        token.substr(charge_string.length(), token.length()), xyz_filename.c_str(), line_number);
+    }
+  }
+
   structure.has_temperature = false;
   for (const auto& token : tokens) {
     const std::string temperature_string = "temperature=";

@@ -1075,7 +1075,8 @@ static __global__ void find_k_and_G(
 static __global__ void zero_total_charge(
   const int* Na,
   const int* Na_sum,
-  float* g_charge,
+  const float* g_charge_ref,
+  const float* g_charge,
   float* g_charge_shifted)
 {
   int tid = threadIdx.x;
@@ -1103,7 +1104,7 @@ static __global__ void zero_total_charge(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024 + N1;
     if (n < N2) {
-      g_charge_shifted[n] = g_charge[n] - s_charge[0] / (N2 - N1);
+      g_charge_shifted[n] = g_charge[n] + (g_charge_ref[blockIdx.x] - s_charge[0]) / (N2 - N1);
     }
   }
 }
@@ -1245,14 +1246,16 @@ void NEP_Charge::find_force(
       nep_data[device_id].charge_derivative.data());
     GPU_CHECK_KERNEL
 
-    // enforce charge neutrality
+    // enforce total charge is the target
     zero_total_charge<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
+      dataset[device_id].charge_ref_gpu.data(),
       dataset[device_id].charge.data(),
       dataset[device_id].charge_shifted.data());
     GPU_CHECK_KERNEL
 
+    // modes 1 and 2 have reciprocal space
     if (paramb.charge_mode != 3) {
       find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
         dataset[device_id].Nc,
@@ -1309,8 +1312,7 @@ void NEP_Charge::find_force(
       GPU_CHECK_KERNEL
     }
 
-    // charge_mode = 1: include real space and self energy
-    // charge_mode = 2: exclude real space and self energy
+    // mode 1 has real space
     if (paramb.charge_mode == 1) {
       find_force_charge_real_space<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -1329,7 +1331,10 @@ void NEP_Charge::find_force(
         dataset[device_id].energy.data(),
         nep_data[device_id].D_real.data());
       GPU_CHECK_KERNEL
-    } else if (paramb.charge_mode == 3) {
+    } 
+    
+    // mode 3 has real space only
+    if (paramb.charge_mode == 3) {
       find_force_charge_real_space_only<<<grid_size, block_size>>>(
         dataset[device_id].N,
         charge_para.alpha,
