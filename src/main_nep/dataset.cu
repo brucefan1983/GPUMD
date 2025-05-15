@@ -897,7 +897,7 @@ static __global__ void gpu_sum_charge_error(
   }
 
   if (tid == 0) {
-    float diff = s_charge[0] / Na - g_charge_ref[bid];
+    float diff = (s_charge[0] - g_charge_ref[bid]) / Na;
     error_gpu[bid] = diff * diff;
   }
 }
