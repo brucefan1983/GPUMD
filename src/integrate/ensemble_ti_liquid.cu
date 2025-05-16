@@ -86,14 +86,9 @@ static __global__ void calc_UF_force(
       tmp_fz_UF = z12 * factor;
       eUF_i -= p / beta * logf(1 - exp(-d12_sqrd / sigma_sqrd));
 
-      fx_UF[i] += tmp_fx_UF / 2;
-      fx_UF[n2] -= tmp_fx_UF / 2;
-
-      fy_UF[i] += tmp_fy_UF / 2;
-      fy_UF[n2] -= tmp_fy_UF / 2;
-
-      fz_UF[i] += tmp_fz_UF / 2;
-      fz_UF[n2] -= tmp_fz_UF / 2;
+      fx_UF[i] += tmp_fx_UF;
+      fy_UF[i] += tmp_fy_UF;
+      fz_UF[i] += tmp_fz_UF;
     }
 
     eUF[i] = eUF_i / 2;
@@ -189,6 +184,10 @@ Ensemble_TI_Liquid::Ensemble_TI_Liquid(const char** params, int num_params)
     } else if (strcmp(params[i], "p") == 0) {
       if (!is_valid_real(params[i + 1], &p))
         PRINT_INPUT_ERROR("Wrong inputs for p keyword.");
+
+      if (p != 1 && p != 25 && p != 50 && p != 75 && p != 100)
+        PRINT_INPUT_ERROR("Please pick p equal to 1, 25, 50, 75 or 100.");
+
       i += 2;
     } else {
       PRINT_INPUT_ERROR("Unknown keyword.");
@@ -350,20 +349,13 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
   for (const auto& entry : species_count) {
     int count = entry.second;
     double cn = static_cast<double>(count) / N;
-    printf("cn: %f\n", cn);
+    
     if (cn > 0) {
       c_sum += cn * log(cn);
     }
   }
 
-  printf("de broigle %f\n", de_broigle_sum);
-  printf("c_sum %f\n", c_sum);
-
-  printf("rho: %f\n", 1 / V);
-
   double F_IG = N * kT * (log(1 / V) - 1 + c_sum) + 3 * kT * de_broigle_sum;
-  printf("F_IG / N: %f\n", F_IG / N);
-  printf("F_UF / N: %f\n", F_UF / N);
   E_ref = (F_UF + F_IG) / N;
 
   FILE* yaml_file = my_fopen("ti_liquid.yaml", "w");
