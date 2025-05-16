@@ -49,8 +49,8 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   // stop_pref_e = para.stop_pref_e;
   // stop_pref_f = para.stop_pref_f;
   // stop_pref_v = para.stop_pref_v;
-  if (maximum_epochs > 500) {
-    printf("Warning: Training with epochs > 500 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training as needed.\n");
+  if (maximum_epochs > 1000) {
+    printf("Warning: Training with epochs > 1000 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training as needed.\n");
   }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -173,7 +173,7 @@ void Fitness::compute(Parameters& para)
 
   if (para.prediction == 0) {
     if (para.energy_shift) {
-      computeMultiBatchEnergyShift(
+      computeMultiBatchEnergyShiftUniform(
         para.num_types,
         num_batches,
         batch_type_sums,
@@ -245,7 +245,7 @@ void Fitness::compute(Parameters& para)
       batch_id = batch_indices[batch_id];
       int Nc = train_set[batch_id][0].Nc;
       int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
-      if (maximum_epochs <= 500) {
+      if (maximum_epochs <= 1000) {
         update_learning_rate_cos(lr, step, num_batches, para);
       } else {
         update_learning_rate_cos_restart(lr, step, num_batches, para);
@@ -390,7 +390,7 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
   }
   const int initial_restart_period = 150 * num_batches;  // Initial restart cycle (150 epochs)
   const float period_factor = 2.0f;                     // Period length decay factor
-  const float decay_factor = 0.12f;                      // Learning rate upper limit decay factor
+  const float decay_factor = 0.15f;                      // Learning rate upper limit decay factor
   
   int steps_since_warmup = step - warmup_steps;
   int current_cycle = 0;
