@@ -418,6 +418,7 @@ static void read(const std::string& inputfile, std::vector<Structure>& structure
 static void write_one_structure(std::ofstream& output, const Structure& structure)
 {
   output << structure.num_atom << "\n";
+  output << std::fixed << std::setprecision(6);
 
   if (structure.charge != 0.0) {
     output << "charge=" << structure.charge << " ";
@@ -436,7 +437,7 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
   }
   output << "\" ";
 
-  output << "energy=" << std::fixed << std::setprecision(6) << structure.energy << " ";
+  output << "energy=" << structure.energy << " ";
 
   if (structure.has_virial) {
     output << "virial=\"";
@@ -494,6 +495,21 @@ static void set_energy_weight_to_zero(std::vector<Structure>& structures)
 {
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures[nc].energy_weight = 0;
+  }
+}
+
+static void set_box_to_1000(std::vector<Structure>& structures)
+{
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].box[0] = 1000;
+    structures[nc].box[1] = 0;
+    structures[nc].box[2] = 0;
+    structures[nc].box[3] = 0;
+    structures[nc].box[4] = 1000;
+    structures[nc].box[5] = 0;
+    structures[nc].box[6] = 0;
+    structures[nc].box[7] = 0;
+    structures[nc].box[8] = 1000;
   }
 }
 
@@ -1036,6 +1052,7 @@ int main(int argc, char* argv[])
   std::cout << "9: get composition\n";
   std::cout << "10: shift energy for multiple species\n";
   std::cout << "11: get structures with given species\n";
+  std::cout << "12: change box to 1000\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1198,6 +1215,19 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     get_structures_with_given_species(output_filename, structures_input, num_species, given_species);
+  } else if (option == 12) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    set_box_to_1000(structures_input);
+    write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
