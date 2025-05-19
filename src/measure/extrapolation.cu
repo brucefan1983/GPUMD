@@ -137,7 +137,7 @@ void Extrapolation::load_asi()
   printf("Loading the Active Set Inversion file (ASI): %s\n", asi_file_name.c_str());
   std::ifstream f(asi_file_name);
   std::string token;
-  int type_of_atom = 0;
+  int type_of_atom = -1;
   if (f.is_open()) {
     while (f >> token) {
       std::string element = token;
