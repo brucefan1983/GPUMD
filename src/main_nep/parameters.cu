@@ -434,11 +434,11 @@ void Parameters::report_inputs()
 
   if (is_charge_mode_set) {
     if (charge_mode == 1) {
-      printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
+      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %f.\n", lambda_q);
     } else if (charge_mode == 2) {
-      printf("    (input)   use NEP-Charge and include k-space only.\n");
+      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %f.\n", lambda_q);
     } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge and include real-space only.\n");
+      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %f.\n", lambda_q);
     }
   }
 
@@ -634,6 +634,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "lambda_q") == 0) {
+    parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -1037,6 +1039,23 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
 
   if (lambda_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_q(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_q should have 1 parameter.\n");
+  }
+
+  double lambda_q_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_q_tmp)) {
+    PRINT_INPUT_ERROR("Charge loss weight should be a number.\n");
+  }
+  lambda_q = lambda_q_tmp;
+
+  if (lambda_q < 0.0f) {
+    PRINT_INPUT_ERROR("Charge loss weight should >= 0.");
   }
 }
 
