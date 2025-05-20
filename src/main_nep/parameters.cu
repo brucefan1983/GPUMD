@@ -434,11 +434,11 @@ void Parameters::report_inputs()
 
   if (is_charge_mode_set) {
     if (charge_mode == 1) {
-      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %f.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %g.\n", lambda_q);
     } else if (charge_mode == 2) {
-      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %f.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
     } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %f.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
     }
   }
 
