@@ -62,6 +62,9 @@ __global__ void gpu_copy_position(
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < num_atoms) {
+    if (n == 0) {
+      printf("Atom: %d x=%f \n", n, g_x_i[n]);
+    }
     g_x_o[n] = g_x_i[n];
     g_y_o[n] = g_y_i[n];
     g_z_o[n] = g_z_i[n];
@@ -179,6 +182,9 @@ __global__ void gpu_find_msd(
           atomicAdd(&g_msd_y[offset], dy * dy);
           atomicAdd(&g_msd_z[offset], dz * dz);
         }
+        if (n == 0) {
+          printf("Atom: %d Group %d Step %d tid %d bid %d size_sum %d rounds %d dx %f dx2 %f x %f x0 %f \n", n, group, correlation_step, tid, bid, size_sum, number_of_rounds, dx, dx*dx, g_x[n], g_x_start[n + size_sum]);
+        }
       }
     }
   }
@@ -262,6 +268,7 @@ void MSD::process(
   const int correlation_step = sample_step % num_correlation_steps_;
   const int step_offset = correlation_step * num_atoms_;
   const int number_of_atoms_total = atom.number_of_atoms;
+  printf("step=%d sample_step=%d correlation_step=%d step_offset=%d \n", step, sample_step, correlation_step, step_offset);
 
   // copy the position data at the current step to appropriate place
   if (grouping_method_ < 0 || msd_over_all_groups_) {
@@ -349,6 +356,7 @@ void MSD::postprocess(
   // normalize by the number of atoms and number of time origins
   for (int group_id=0; group_id < num_groups_; group_id++) {
     int num_atoms = num_atoms_per_group_[group_id];
+    // num_time_origins_ should be different for each nc
     const double msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
     int group_index = group_id * num_correlation_steps_;
 
