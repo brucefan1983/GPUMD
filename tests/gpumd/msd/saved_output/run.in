@@ -1,6 +1,0 @@
-potential nep.txt
-time_step 1
-velocity 300
-ensemble nve
-compute_msd 1 5
-run 3
