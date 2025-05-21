@@ -235,6 +235,9 @@ void MSD::preprocess(
   msdx_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
   msdy_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
   msdz_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
+  msdx_out_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
+  msdy_out_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
+  msdz_out_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
 
   num_time_origins_ = 0;
 }
@@ -325,21 +328,23 @@ void MSD::process(
         msdz_.data());
       GPU_CHECK_KERNEL
     }
-
+    if (save_output_every_ > 0) {
+      if (0 == (step + 1) % save_output_every_) {
+        time_t rawtime;
+        time(&rawtime);
+        struct tm* timeinfo = localtime(&rawtime);
+        char buffer[200];
+        strftime(buffer, sizeof(buffer), "msd_y%Y_m%m_d%d_h%H_m%M_s%S_step", timeinfo);
+        std::string filename(buffer + std::to_string(step + 1) + ".out");
+        write(filename.c_str());
+      }
+    }
   }
 }
 
-void MSD::postprocess(
-  Atom& atom,
-  Box& box,
-  Integrate& integrate,
-  const int number_of_steps,
-  const double time_step,
-  const double temperature)
-{
-  if (!compute_)
-    return;
 
+void MSD::write(const char* filename)
+{
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
     
   std::vector<double> sdc_x(num_correlation_steps_ * num_groups_, 0.0);
@@ -354,22 +359,22 @@ void MSD::postprocess(
     int group_index = group_id * num_correlation_steps_;
 
     for (int nc = group_index + 0; nc < group_index + num_correlation_steps_; nc++) {
-      msdx_[nc] *= msd_scaler;
-      msdy_[nc] *= msd_scaler;
-      msdz_[nc] *= msd_scaler;
+      msdx_out_[nc] = msdx_[nc] * msd_scaler;
+      msdy_out_[nc] = msdy_[nc] * msd_scaler;
+      msdz_out_[nc] = msdz_[nc] * msd_scaler;
     }
 
     const double dt2inv = 0.5 / dt_in_natural_units_;
     for (int nc = group_index + 1; nc < group_index + num_correlation_steps_; nc++) {
-      sdc_x[nc] = (msdx_[nc] - msdx_[nc - 1]) * dt2inv;
-      sdc_y[nc] = (msdy_[nc] - msdy_[nc - 1]) * dt2inv;
-      sdc_z[nc] = (msdz_[nc] - msdz_[nc - 1]) * dt2inv;
+      sdc_x[nc] = (msdx_out_[nc] - msdx_out_[nc - 1]) * dt2inv;
+      sdc_y[nc] = (msdy_out_[nc] - msdy_out_[nc - 1]) * dt2inv;
+      sdc_z[nc] = (msdz_out_[nc] - msdz_out_[nc - 1]) * dt2inv;
     }
   }
 
   const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
 
-  FILE* fid = fopen("msd.out", "a");
+  FILE* fid = fopen(filename, "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(fid, "%g", nc * dt_in_ps_);
     for (int group_id = 0; group_id < num_groups_; group_id++) {
@@ -377,9 +382,9 @@ void MSD::postprocess(
       fprintf(
         fid,
         "% g %g %g %g %g %g",
-        msdx_[group_index + nc],
-        msdy_[group_index + nc],
-        msdz_[group_index + nc],
+        msdx_out_[group_index + nc],
+        msdy_out_[group_index + nc],
+        msdz_out_[group_index + nc],
         sdc_x[group_index + nc] * sdc_unit_conversion,
         sdc_y[group_index + nc] * sdc_unit_conversion,
         sdc_z[group_index + nc] * sdc_unit_conversion);
@@ -388,7 +393,21 @@ void MSD::postprocess(
   }
   fflush(fid);
   fclose(fid);
+}
 
+
+
+void MSD::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
+{
+  if (!compute_)
+    return;
+  write("msd.out");
   compute_ = false;
   grouping_method_ = -1;
 }
@@ -414,7 +433,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   if (num_param < 3) {
     PRINT_INPUT_ERROR("compute_msd should have at least 2 parameters.\n");
   }
-  if (num_param > 6) {
+  if (num_param > 8) {
     PRINT_INPUT_ERROR("compute_msd has too many parameters.\n");
   }
 
@@ -436,9 +455,11 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
+  for (int k = 3; k < num_param + 3; k++) {
+    if (strcmp(param[k], "group") == 0) {
+      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
 
-  if (num_param > 3) {
-    if (strcmp(param[3], "all_groups") == 0) {
+    } else if (strcmp(param[k], "all_groups") == 0) {
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
       if (!is_valid_int(param[4], &grouping_method_)) {
@@ -451,15 +472,15 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
         PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
       }
       printf("    will compute MSD for all groups in grouping %d.\n", grouping_method_);
-    } else {
-      // Process optional arguments
-      for (int k = 3; k < num_param; k++) {
-        if (strcmp(param[k], "group") == 0) {
-          parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
-        } else {
-          PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
-        }
+      k += 1; // update index for next command
+    } else if (strcmp(param[k], "save_every") == 0) {
+      if (!is_valid_int(param[k+1], &save_output_every_)) {
+        PRINT_INPUT_ERROR("save_every should be an integer.\n");
       }
+      printf("    will save a copy of MSD every %d steps.\n", save_output_every_);
+      k += 1; // update index for next command
+    } else {
+      PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
     }
   }
 }
