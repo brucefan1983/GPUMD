@@ -330,12 +330,7 @@ void MSD::process(
     }
     if (save_output_every_ > 0) {
       if (0 == (step + 1) % save_output_every_) {
-        time_t rawtime;
-        time(&rawtime);
-        struct tm* timeinfo = localtime(&rawtime);
-        char buffer[200];
-        strftime(buffer, sizeof(buffer), "msd_y%Y_m%m_d%d_h%H_m%M_s%S_step", timeinfo);
-        std::string filename(buffer + std::to_string(step + 1) + ".out");
+        std::string filename("msd_" + std::to_string(step + 1) + ".out");
         write(filename.c_str());
       }
     }
