@@ -195,7 +195,7 @@ void MSD::preprocess(
 {
   if (!compute_)
     return;
-  
+    
   if (grouping_method_ < 0) {
     num_atoms_ = atom.number_of_atoms;
     num_groups_ = 1;
@@ -330,7 +330,7 @@ void MSD::process(
     }
     if (save_output_every_ > 0) {
       if (0 == (step + 1) % save_output_every_) {
-        std::string filename("msd_" + std::to_string(step + 1) + ".out");
+        std::string filename("msd_step" + std::to_string(step + 1) + ".out");
         write(filename.c_str());
       }
     }
@@ -450,7 +450,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
-  for (int k = 3; k < num_param + 3; k++) {
+  for (int k = 3; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
 
@@ -472,10 +472,13 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
       if (!is_valid_int(param[k+1], &save_output_every_)) {
         PRINT_INPUT_ERROR("save_every should be an integer.\n");
       }
-      printf("    will save a copy of MSD every %d steps.\n", save_output_every_);
+      printf("    will save a copy of the MSD every %d steps.\n", save_output_every_);
       k += 1; // update index for next command
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
     }
+  }
+  if (msd_over_all_groups_ && grouping_method_ >= 0 && group_id_ >= 0) {
+    PRINT_INPUT_ERROR("Cannot compute MSD over a single group and all groups at the same time");
   }
 }
