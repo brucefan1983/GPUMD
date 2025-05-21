@@ -52,7 +52,7 @@ def md(tmp_path):
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("compute_msd", (1, 5, "all_groups", 0)),
+        ("compute_msd", (1, 5, "all_groups", 0, "save_every", 10)),
         ("dump_xyz", (0, 0, 1, "group_1.xyz", "unwrapped_position")),
         ("dump_xyz", (0, 1, 1, "group_2.xyz", "unwrapped_position")),
         ("dump_xyz", (0, 2, 1, "group_3.xyz", "unwrapped_position")),
