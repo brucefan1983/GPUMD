@@ -254,4 +254,7 @@ void Ensemble_NPHug::get_target_temp()
     printf("    NPHug info: current T: %f K, dHugoniot: %f K\n", t_current, dhugo);
   }
   t_target = t_current + dhugo;
+  if (t_target < 0) {
+    t_target = 0;
+  }
 }
