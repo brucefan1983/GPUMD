@@ -50,7 +50,7 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   // stop_pref_f = para.stop_pref_f;
   // stop_pref_v = para.stop_pref_v;
   if (maximum_epochs > 1000) {
-    printf("Warning: Training with epochs > 1000 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training as needed.\n");
+    printf("Warning: Training with epochs > 1000 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training with cosine annealing with warmup restarts.\n");
   }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -388,11 +388,12 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
     // para.lambda_v = start_pref_v;
     return;
   }
-  const int initial_restart_period = 150 * num_batches;  // Initial restart cycle (150 epochs)
+  const int initial_restart_period = 10 * num_batches;  // Initial restart cycle (10 epochs)
   const float period_factor = 2.0f;                     // Period length decay factor
-  const float decay_factor = 0.15f;                      // Learning rate upper limit decay factor
+  const float decay_factor = 0.8f;                      // Learning rate upper limit decay factor
   
   int steps_since_warmup = step - warmup_steps;
+  int total_steps = maximum_steps - warmup_steps; 
   int current_cycle = 0;
   int cycle_start_step = 0;
   int cycle_length = initial_restart_period;
@@ -403,6 +404,10 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
     cycle_start_step = cumulative_steps;
     current_cycle++;
     cycle_length = int(initial_restart_period * powf(period_factor, current_cycle));
+  }
+
+  if (cumulative_steps + cycle_length > total_steps) {
+    cycle_length = total_steps - cumulative_steps;
   }
   
   int steps_in_current_cycle = steps_since_warmup - cycle_start_step;
