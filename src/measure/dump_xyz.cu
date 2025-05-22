@@ -143,6 +143,10 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       quantities.has_virial_ = true;
       printf("    has virial.\n");
     }
+    if (strcmp(param[m], "group") == 0) {
+      quantities.has_group_ = true;
+      printf("    has group.\n");
+    }
   }
 }
 
@@ -178,6 +182,7 @@ void Dump_XYZ::preprocess(
 void Dump_XYZ::output_line2(
   const double time,
   const Box& box,
+  std::vector<Group>& groups,
   const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo)
@@ -257,6 +262,10 @@ void Dump_XYZ::output_line2(
   if (quantities.has_virial_) {
     fprintf(fid_, ":virial:R:9");
   }
+  if (quantities.has_group_) {
+    const int num_grouping_methods = groups.size();
+    fprintf(fid_, ":group:I:%d", num_grouping_methods);
+  }
 
   // Over
   fprintf(fid_, "\n");
@@ -313,7 +322,7 @@ void Dump_XYZ::process(
   fprintf(fid_, "%d\n", number_of_atoms_to_dump);
 
   // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
+  output_line2(global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
   for (int n = 0; n < number_of_atoms_to_dump; n++) {
@@ -355,6 +364,11 @@ void Dump_XYZ::process(
       const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
       for (int d = 0; d < 9; ++d) {
         fprintf(fid_, " %.8f", cpu_virial_per_atom_[m + atom.number_of_atoms * index[d]]);
+      }
+    }
+    if (quantities.has_group_) {
+      for (int d = 0; d < groups.size(); ++d) {
+        fprintf(fid_, " %d", groups[d].cpu_label[m]);
       }
     }
     fprintf(fid_, "\n");

@@ -24,7 +24,7 @@ If :attr:`grouping_method` is negative, :attr:`group_id` will be ignored and dat
 
 If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, and :attr:`unwrapped_position`.
+* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`group`, and :attr:`unwrapped_position`.
 
 * The wrapped positions will always be included in the output.
 

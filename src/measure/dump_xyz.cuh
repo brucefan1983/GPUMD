@@ -65,6 +65,7 @@ public:
     bool has_unwrapped_position_ = false;
     bool has_mass_ = false;
     bool has_virial_ = false;
+    bool has_group_ = false;
   };
 
 private:
@@ -87,6 +88,7 @@ private:
   void output_line2(
     const double time,
     const Box& box,
+    std::vector<Group>& group,
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
