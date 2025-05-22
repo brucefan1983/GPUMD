@@ -14,3 +14,4 @@ To run one a simulation using the ``gpumd`` executable, one has to prepare at le
    model_xyz
    basis_in
    kpoints_in
+   eigenvector_in
