@@ -36,10 +36,10 @@ The parameters are:
 
 Finally, the third special keyword is :attr:`save_every`.
 This keyword saves the internal :term:`MSD` and :term:`SDC` computed so far during the simulation, which can be helpful during long running simulations.
-The file will have a name formatted as ``msd_step[step].txt``. 
+The file will have a name formatted as ``msd_step[step].out``. 
 The parameters are:
 
-* :attr:`save_every <interval> <group>`, where :attr:`interval` is the number of steps between saving a copy.
+* :attr:`save_every <interval>`, where :attr:`interval` is the number of steps between saving a copy.
 
 
 Examples
@@ -57,6 +57,6 @@ This means that you
 * you would like to compute only over group 1 in group method 1.
 
 
-To compute the :term:`MSD` for all groups in group method 1 and save a copy of the :term:`MSD` every 100 steps, one can write::
+To compute the :term:`MSD` for all groups in group method 1 and save a copy of the :term:`MSD` every 100 000 steps, one can write::
 
-  compute_msd 5 200 all_groups 1 save_every 100
+  compute_msd 5 200 all_groups 1 save_every 100000
