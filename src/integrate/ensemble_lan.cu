@@ -42,6 +42,8 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, double T, double Tc)
 
 Ensemble_LAN::Ensemble_LAN(
   int t,
+  int mg,
+  double* mv,
   int source_input,
   int sink_input,
   int source_size,
@@ -53,6 +55,10 @@ Ensemble_LAN::Ensemble_LAN(
   double dT)
 {
   type = t;
+  move_group = mg;
+  move_velocity[0] = mv[0];
+  move_velocity[1] = mv[1];
+  move_velocity[2] = mv[2];
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;

@@ -60,7 +60,7 @@ void Integrate::initialize(
     if (move_group == fixed_group) {
       PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
     }
-    if (type != 1 && type != 2 && type != 4) {
+    if (type != 1 && type != 2 && type != 4 && type != 22) {
       PRINT_INPUT_ERROR(
         "It is only allowed to use nvt_ber, nvt_nhc, or nvt_bdp with a moving group.");
     }
@@ -158,6 +158,8 @@ void Integrate::initialize(
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
         type,
+        move_group, 
+        move_velocity,
         source,
         sink,
         group[0].cpu_size[source],
