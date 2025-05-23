@@ -904,16 +904,16 @@ static __global__ void find_force_radial(
         s_syy -= r12_square * f21[1];
         s_szz -= r12_square * f21[2];
       } else {
-        s_sxx += r12[0] * f21[0];
-        s_syy += r12[1] * f21[1];
-        s_szz += r12[2] * f21[2];
+        s_sxx -= r12[0] * f12[0];
+        s_syy -= r12[1] * f12[1];
+        s_szz -= r12[2] * f12[2];
       }
-      s_sxy += r12[0] * f21[1];
-      s_sxz += r12[0] * f21[2];
-      s_syx += r12[1] * f21[0];
-      s_syz += r12[1] * f21[2];
-      s_szx += r12[2] * f21[0];
-      s_szy += r12[2] * f21[1];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_syz -= r12[1] * f12[2];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
     }
     g_fx[n1] += s_fx;
     g_fy[n1] += s_fy;
@@ -925,12 +925,12 @@ static __global__ void find_force_radial(
     g_virial[n1 + 0 * N] += s_sxx;
     g_virial[n1 + 1 * N] += s_syy;
     g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
+    g_virial[n1 + 3 * N] += (s_sxy+s_syx)*0.5;
+    g_virial[n1 + 4 * N] += (s_sxz+s_szx)*0.5;
+    g_virial[n1 + 5 * N] += (s_syz+s_szy)*0.5;
+    g_virial[n1 + 6 * N] += (s_sxy+s_syx)*0.5;
+    g_virial[n1 + 7 * N] += (s_sxz+s_szx)*0.5;
+    g_virial[n1 + 8 * N] += (s_syz+s_szy)*0.5;
   }
 }
 

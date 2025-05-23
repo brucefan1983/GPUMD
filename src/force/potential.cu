@@ -263,16 +263,16 @@ static __global__ void gpu_find_force_many_body(
         s_syy -= r12_square * f21y;
         s_szz -= r12_square * f21z;
       } else {
-        s_sxx += x12 * f21x;
-        s_syy += y12 * f21y;
-        s_szz += z12 * f21z;
+        s_sxx -= x12 * f12x;
+        s_syy -= y12 * f12y;
+        s_szz -= z12 * f12z;
       }
-      s_sxy += x12 * f21y;
-      s_sxz += x12 * f21z;
-      s_syx += y12 * f21x;
-      s_syz += y12 * f21z;
-      s_szx += z12 * f21x;
-      s_szy += z12 * f21y;
+      s_sxy -= x12 * f12y;
+      s_sxz -= x12 * f12z;
+      s_syx -= y12 * f12x;
+      s_syz -= y12 * f12z;
+      s_szx -= z12 * f12x;
+      s_szy -= z12 * f12y;
     }
 
     // save force
@@ -287,12 +287,12 @@ static __global__ void gpu_find_force_many_body(
     g_virial[n1 + 0 * number_of_particles] += s_sxx;
     g_virial[n1 + 1 * number_of_particles] += s_syy;
     g_virial[n1 + 2 * number_of_particles] += s_szz;
-    g_virial[n1 + 3 * number_of_particles] += s_sxy;
-    g_virial[n1 + 4 * number_of_particles] += s_sxz;
-    g_virial[n1 + 5 * number_of_particles] += s_syz;
-    g_virial[n1 + 6 * number_of_particles] += s_syx;
-    g_virial[n1 + 7 * number_of_particles] += s_szx;
-    g_virial[n1 + 8 * number_of_particles] += s_szy;
+    g_virial[n1 + 3 * number_of_particles] += (s_sxy+s_syx)*0.5;
+    g_virial[n1 + 4 * number_of_particles] += (s_sxz+s_szx)*0.5;
+    g_virial[n1 + 5 * number_of_particles] += (s_syz+s_szy)*0.5;
+    g_virial[n1 + 6 * number_of_particles] += (s_sxy+s_syx)*0.5;
+    g_virial[n1 + 7 * number_of_particles] += (s_sxz+s_szx)*0.5;
+    g_virial[n1 + 8 * number_of_particles] += (s_syz+s_szy)*0.5;
   }
 }
 
