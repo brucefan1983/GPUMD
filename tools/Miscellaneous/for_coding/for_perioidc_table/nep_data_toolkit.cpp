@@ -521,14 +521,14 @@ static void change_sid(std::vector<Structure>& structures, const std::string& ne
   }
 }
 
-#ifdef ZHEYONG
-
-static float get_volume(const double* box)
+static double get_volume(const double* box)
 {
   return std::abs(box[0] * (box[4] * box[8] - box[5] * box[7]) +
          box[1] * (box[5] * box[6] - box[3] * box[8]) +
          box[2] * (box[3] * box[7] - box[4] * box[6]));
 }
+
+#ifdef ZHEYONG
 
 static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
 {
@@ -706,6 +706,63 @@ static void split_into_accurate_and_inaccurate(
   output_inaccurate.close();
   std::cout << "Number of structures written into accurate.xyz = " << num1 << std::endl;
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
+}
+
+static void get_valid_structures(
+  const std::vector<Structure>& structures, 
+  double energy_threshold, 
+  double force_threshold,
+  double stress_threshold)
+{
+  std::ofstream output_valid("valid.xyz");
+  std::ofstream output_invalid("invalid.xyz");
+  int num1 = 0;
+  int num2 = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    bool is_valid = true;
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      double fx = structures[nc].fx[n];
+      double fy = structures[nc].fy[n];
+      double fz = structures[nc].fz[n];
+      if (fx * fx + fy * fy + fz * fz > force_threshold * force_threshold) {
+        is_valid = false;
+        break;
+      }
+    }
+    if (structures[nc].energy_weight > 0.5f && energy_threshold > 0) {
+      if (structures[nc].energy > energy_threshold) {
+        is_valid = false;
+      }
+    }
+    if (structures[nc].has_stress) {
+      for (int n = 0; n < 9; ++n) {
+        if (std::abs(structures[nc].stress[n] * 160.2) > stress_threshold) {
+          is_valid = false;
+          break;
+        }
+      }
+    }
+    if (structures[nc].has_virial) {
+      for (int n = 0; n < 9; ++n) {
+        if (std::abs(structures[nc].virial[n] / get_volume(structures[nc].box) * 160.2)  > stress_threshold) {
+          is_valid = false;
+          break;
+        }
+      }
+    }
+
+    if (is_valid) {
+      write_one_structure(output_valid, structures[nc]);
+      num1++;
+    } else{
+      write_one_structure(output_invalid, structures[nc]);
+      num2++;
+    }
+  }
+  output_valid.close();
+  output_invalid.close();
+  std::cout << "Number of structures written into valid.xyz = " << num1 << std::endl;
+  std::cout << "Number of structures written into invalid.xyz = " << num2 << std::endl;
 }
 
 static void split_with_sid(const std::vector<Structure>& structures)
@@ -1053,6 +1110,7 @@ int main(int argc, char* argv[])
   std::cout << "10: shift energy for multiple species\n";
   std::cout << "11: get structures with given species\n";
   std::cout << "12: change box to 1000\n";
+  std::cout << "13: get valid structures\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1228,6 +1286,24 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     set_box_to_1000(structures_input);
     write(output_filename, structures_input);
+  } else if (option == 13) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the energy threshold in units of eV/atom (negative to ignore): ";
+    double energy_threshold;
+    std::cin >> energy_threshold;
+    std::cout << "Please enter the force threshold in units of eV/A: ";
+    double force_threshold;
+    std::cin >> force_threshold;
+    std::cout << "Please enter the stress threshold in units of GPa: ";
+    double stress_threshold;
+    std::cin >> stress_threshold;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    get_valid_structures(structures_input, energy_threshold, force_threshold, stress_threshold);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
