@@ -14,7 +14,7 @@
 */
 
 /*----------------------------------------------------------------------------80
-The class dealing with the interlayer potential(ILP) and SW.
+The class dealing with the interlayer potential(ILP) and Tersoff.
 TODO:
 ------------------------------------------------------------------------------*/
 
@@ -166,18 +166,6 @@ ILP_TERSOFF::~ILP_TERSOFF(void)
 
 void ILP_TERSOFF::initialize_tersoff_1988(FILE* fid, int num_atoms)
 {
-  // if (strcmp(potential_name, "tersoff_1988") != 0) {
-  //   PRINT_INPUT_ERROR("Please use Tersoff 1988.");
-  // }
-  // printf("Use Tersoff-1988 (%d-element) potential with element(s):", num_types);
-  // for (int n = 0; n < num_types; ++n) {
-  //   char atom_symbol[10];
-  //   int count = fscanf(fid, "%s", atom_symbol);
-  //   PRINT_SCANF_ERROR(count, 1, "Reading error for Tersoff-1988 potential.");
-  //   printf(" %s", atom_symbol);
-  // }
-  // printf("\n");
-
   int n_entries = num_types * num_types * num_types;
   // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
   std::vector<double> cpu_ters(n_entries * NUM_PARAMS);
@@ -498,13 +486,9 @@ static __device__ void calc_normal(
     n1[1] = pv12[1];
     n1[2] = pv12[2];
     // the magnitude of the normal vector
-    // nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
-    // nn = sqrt(nn2);
-    // nninv = 1.0 / nn;
     nninv = rnorm3df(n1[0], n1[1], n1[2]);
     
-    // TODO
-    // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
+
     // the unit normal vector
     normal[0] = n1[0] * nninv;
     normal[1] = n1[1] * nninv;
@@ -635,14 +619,9 @@ static __device__ void calc_normal(
     n1[0] = (pv12[0] + pv31[0] + pv23[0]) * continv;
     n1[1] = (pv12[1] + pv31[1] + pv23[1]) * continv;
     n1[2] = (pv12[2] + pv31[2] + pv23[2]) * continv;
-    // the magnitude of the normal vector
-    // nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
-    // nn = sqrt(nn2);
 
-    // nninv = 1.0 / nn;
     nninv = rnorm3df(n1[0], n1[1], n1[2]);
-    // TODO
-    // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
+
     // the unit normal vector
     normal[0] = n1[0] * nninv;
     normal[1] = n1[1] * nninv;
@@ -825,22 +804,14 @@ static __global__ void gpu_find_force(
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
-    double tt1,tt2,tt3;
     for (int i1 = 0; i1 < neighor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
 
-      // TODO shared double?
-      tt1 = g_x[n2];
-      tt2 = g_y[n2];
-      tt3 = g_z[n2];
-      x12d = tt1 - x1;
-      y12d = tt2 - y1;
-      z12d = tt3 - z1;
-      // x12d = g_x[n2] - x1;
-      // y12d = g_y[n2] - y1;
-      // z12d = g_z[n2] - z1;
+      x12d = g_x[n2] - x1;
+      y12d = g_y[n2] - y1;
+      z12d = g_z[n2] - z1;
       apply_mic(box, x12d, y12d, z12d);
 
       // save x12, y12, z12 in float
@@ -852,10 +823,7 @@ static __global__ void gpu_find_force(
       rsq = x12f * x12f + y12f * y12f + z12f * z12f;
       r = sqrtf(rsq);
       Rcut = ilp_para.rcut_global[type1][type2];
-      // not in the same layer
-      // if (r >= Rcut || group_label[n1] == group_label[n2]) {
-      //   continue;
-      // }
+
 
       if (r >= Rcut) {
         continue;
@@ -934,7 +902,6 @@ static __global__ void gpu_find_force(
       // store exponents
       // exp0 = exp(-lambda_ * (r - z0));
       // exp1 = exp(-rdsq1);
-      // TODO: use float
       exp0 = expf(-lambda_ * (r - z0));
       exp1 = expf(-rdsq1);
 
