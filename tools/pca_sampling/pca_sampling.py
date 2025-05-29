@@ -22,6 +22,9 @@ from scipy.spatial.distance import cdist
 # Farthest Point Sampling
 def farthest_point_sampling(points, n_samples):
     n_points = points.shape[0]
+    if n_samples >= n_points:
+        print(f"Requested {n_samples} samples, but only {n_points} data points are available. Returning all points.")
+        return list(range(n_points))  # Return all indices if n_samples exceeds n_points
     selected_indices = [np.random.randint(n_points)]
     for _ in range(1, n_samples):
         distances = cdist(points, points[selected_indices])
