@@ -9,7 +9,7 @@ The tools are grouped into three categories for now:
 | **Category**            | **Tools**                                                    |
 | ----------------------- | ------------------------------------------------------------ |
 | Format Conversion       | abacus2xyz, castep2exyz, cp2k2xyz, dp2xyz, exyz2pdb, gmx2exyz, mtp2xyz, orca2xyz, runner2xyz, vasp2xyz, xtd2exyz, xyz2gro |
-| Analysis and Processing | add_groups, get_max_rmse_xyz, pbc_mol, pca_sampling, perturbed2poscar, rdf_adf, select_xyz_frames, shift_energy_to_zero, split_xyz, |
+| Analysis and Processing | add_groups, energy-reference-aligner, get_max_rmse_xyz, pbc_mol, pca_sampling, perturbed2poscar, rdf_adf, select_xyz_frames, shift_energy_to_zero, split_xyz, |
 | Miscellaneous           | doc_3.3.1, for_coding, md_tersoff, vim                       |
 
 ## Packages related to GPUMD and/or NEP:
