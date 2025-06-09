@@ -7,7 +7,8 @@ It supports three distinct energy alignment modes, configurable via the 'ALIGNME
 1.  'REF_GROUP_ALIGNMENT':
     Purpose: To align the energies of specified 'shift_groups' to the average energy baseline
              of a designated 'reference_group'. This is useful when you have a high-accuracy
-             dataset (reference_group) and want to shift other datasets (shift_groups) to its scale.
+             dataset (reference_group) and want to shift other datasets (shift_groups) to its scale. 
+             Grouping is implemented using 'config_type'
     Method: For each shift group, atomic energy baselines (one per element type) are optimized
             by minimizing the mean squared error (MSE) between shifted group energies and the
             mean energy of the reference group.
@@ -63,11 +64,11 @@ Author: Chen Zherui (chenzherui0124@foxmail.com)
 
 import numpy as np
 import re
-import os 
+import os
 from collections import Counter, defaultdict
-from ase.io import read 
-from calorine.calculators import CPUNEP 
-from multiprocessing import Pool, cpu_count 
+from ase.io import read
+from calorine.calculators import CPUNEP
+from multiprocessing import Pool, cpu_count
 
 #######################
 #      SETTINGS       #
@@ -84,106 +85,132 @@ output_xyz_file = 'output_aligned.xyz'
 # 'ZERO_BASELINE_ALIGNMENT': Align all energies to a zero atomic baseline. It can only be used for initial training set preprocessing, and cannot be used for nep.restart. This feature is similar to shift_energy_to_zero. py in the tools folder of gpumd, but allows the use of different DFT programs for calculations
 #                         
 # 'DFT_TO_NEP_ALIGNMENT': Calculate NEP energies, then align DFT energies to NEP energies. It can be used for training set preprocessing and nep.restart. It is recommended to use this feature when fine-tuning the existing nep.txt (such as nep89)
-#                         
-ALIGNMENT_MODE = 'REF_GROUP_ALIGNMENT' 
+#  
+ALIGNMENT_MODE = 'REF_GROUP_ALIGNMENT' # 'REF_GROUP_ALIGNMENT', 'ZERO_BASELINE_ALIGNMENT', 'DFT_TO_NEP_ALIGNMENT'
 
 # --- Mode-Specific Settings ---
+reference_group = "cp2k2xyz" # For 'REF_GROUP_ALIGNMENT' mode ONLY. Ignored otherwise. Grouping is implemented using 'config_type'
+shift_groups = []  # For 'REF_GROUP_ALIGNMENT' mode ONLY. If empty, auto-detects. Ignored otherwise.
 
-# For 'REF_GROUP_ALIGNMENT' mode ONLY:
-# These settings will be ignored if ALIGNMENT_MODE is not 'REF_GROUP_ALIGNMENT'.
-reference_group = "aimd"
-shift_groups = []  # If empty, all config_types except reference_group will be optimized.
+nep_model_file = 'nep.txt' # For 'DFT_TO_NEP_ALIGNMENT' mode ONLY. Ignored otherwise.
 
-# For 'DFT_TO_NEP_ALIGNMENT' mode ONLY:
-# This setting will be ignored if ALIGNMENT_MODE is not 'DFT_TO_NEP_ALIGNMENT'.
-nep_model_file = 'nep.txt' # Path to your NEP model file (e.g., 'nep.txt')
-
-# --- NES Hyperparameters (apply to all modes using NES) ---
+# --- NES Hyperparameters ---
 max_generations = 10000
 population_size = 40
 convergence_tol = 1e-8
 random_seed = 42
 
-#######################
-#   Helper Functions  #
-#######################
+# --- Batch Size for NEP Calculation (only for DFT_TO_NEP_ALIGNMENT mode) ---
+nep_batch_size = 32 # Tune this value to balance memory usage and performance. The larger the batch value, the faster the speed, but the more memory is required
 
-def parse_xyz_frames(xyz_filename):
+##
+#   Helper Functions  #
+##
+
+def parse_xyz_frames_optimized(xyz_filename):
     """
-    Parses XYZ file to extract primary energy, config_type, element counts,
-    original header, and original atom lines (including positions and forces).
-    Also returns ASE Atoms objects for NEP calculation (if needed by mode).
-    Assumes 'energy=' is the primary energy field.
+    Parses XYZ file efficiently for metadata. Does NOT store all atom lines in memory.
+    Instead, it records file offsets and lengths for later retrieval.
+    Returns:
+      frames_metadata: list of dicts with 'primary_energy', 'config_type', 'elem_counts', etc.
+      frame_io_info: list of dicts with 'n_atoms', 'header_offset', 'header_len', 'atom_lines_offset', 'atom_lines_len'
     """
     frames_metadata = []
-    # ase_atoms_list is only needed for DFT_TO_NEP_ALIGNMENT mode, but we parse it always for simplicity.
-    ase_atoms_list = read(xyz_filename, index=':') 
+    frame_io_info = []
     
     with open(xyz_filename, "r") as fin:
-        lines = fin.readlines()
-    
-    i = 0
-    frame_idx = 0
-    while i < len(lines):
-        n_atoms = int(lines[i].strip())
-        header = lines[i + 1].strip()
-
-        # Extract primary energy (e.g., DFT energy)
-        m_energy = re.search(r'energy=([-\d\.Ee]+)', header, re.IGNORECASE)
-        primary_energy = float(m_energy.group(1)) if m_energy else None
-        if primary_energy is None:
-            raise ValueError(f"No 'energy=' found in header: {header} for frame {frame_idx}. This field is required.")
-
-        # Extract config_type
-        m_config = re.search(r'config_type="?([^\s"]+)"?', header, re.IGNORECASE)
-        config_type = m_config.group(1) if m_config else "default_group"
-
-        elem_counts = Counter()
-        original_atom_lines = [] 
+        line_offsets = [] # Stores (line_start_offset, line_length) for each line
+        current_offset = 0
+        for line in fin:
+            line_offsets.append((current_offset, len(line)))
+            current_offset += len(line)
         
-        for j in range(i + 2, i + 2 + n_atoms):
-            line_content = lines[j]
-            elem_symbol = line_content.split()[0]
-            elem_counts[elem_symbol] += 1 
-            original_atom_lines.append(line_content) # Store the full line as-is
-        
-        frames_metadata.append({
-            'primary_energy': primary_energy, # This is the energy that will be shifted
-            'config_type': config_type,
-            'elem_counts': elem_counts,
-            'original_header': header, 
-            'n_atoms': n_atoms,
-            'atoms_obj_idx': frame_idx, # Link to ase_atoms_list for NEP calculation if needed
-            'original_atom_lines': original_atom_lines 
-        })
-        
-        i += 2 + n_atoms
-        frame_idx += 1
-    
-    return frames_metadata, ase_atoms_list
+        # Reset file pointer to beginning for parsing
+        fin.seek(0)
 
-def calculate_nep_worker(ase_atoms_obj, nep_model_file_path):
+        i = 0
+        frame_idx = 0
+        while i < len(line_offsets):
+            # Line 1: n_atoms
+            n_atoms_line_offset = line_offsets[i][0]
+            n_atoms = int(fin.readline().strip())
+            
+            # Line 2: header
+            header_line_offset = line_offsets[i+1][0]
+            header = fin.readline().strip()
+
+            # Atom lines: n_atoms lines
+            atom_lines_start_offset = line_offsets[i+2][0]
+            for _ in range(n_atoms):
+                fin.readline() # Skip atom lines
+            atom_lines_end_offset = fin.tell() 
+
+            atom_lines_len = atom_lines_end_offset - atom_lines_start_offset
+
+            # Extract metadata
+            m_energy = re.search(r'energy=([-\d\.Ee]+)', header, re.IGNORECASE)
+            primary_energy = float(m_energy.group(1)) if m_energy else None
+            if primary_energy is None:
+                raise ValueError(f"No 'energy=' found in header: {header} for frame {frame_idx}. This field is required.")
+
+            m_config = re.search(r'config_type="?([^\s"]+)"?', header, re.IGNORECASE)
+            config_type = m_config.group(1) if m_config else "default_group"
+
+            # Parse atom symbols for element counts (re-reading these specific lines for counts)
+            current_pos = fin.tell() # Store current position
+            fin.seek(atom_lines_start_offset) # Seek back to read atom lines for symbol counting
+            atom_symbols = []
+            for _ in range(n_atoms):
+                atom_line = fin.readline()
+                atom_symbols.append(atom_line.split()[0])
+            fin.seek(current_pos) # Restore file pointer
+            elem_counts = Counter(atom_symbols)
+            
+            frames_metadata.append({
+                'primary_energy': primary_energy,
+                'config_type': config_type,
+                'elem_counts': elem_counts,
+                'original_header': header,
+                'n_atoms': n_atoms,
+                'frame_idx': frame_idx
+            })
+            
+            frame_io_info.append({
+                'n_atoms': n_atoms,
+                'header_offset': header_line_offset,
+                'header_len': line_offsets[i+1][1],
+                'atom_lines_offset': atom_lines_start_offset,
+                'atom_lines_len': atom_lines_len
+            })
+            
+            i += 2 + n_atoms
+            frame_idx += 1
+            
+    return frames_metadata, frame_io_info
+
+def calculate_nep_batch(batch_start_idx, batch_end_idx, nep_model_file_path, input_xyz_file_path):
     """
-    Worker function for parallel NEP calculation.
-    Initializes CPUNEP calculator within the worker process.
+    Calculates NEP energies for a batch of structures.
+    Reads structures using an ASE slice string for contiguous blocks.
     """
-    worker_calc = CPUNEP(nep_model_file_path)
-    ase_atoms_obj.calc = worker_calc
-    energy = ase_atoms_obj.get_potential_energy()
-    forces = ase_atoms_obj.get_forces() 
-    return energy, forces
+    energies = []
+    
+    # Read a batch of structures using a slice string
+    # E.g., index='0:10' reads frames 0 through 9
+    atoms_batch = read(input_xyz_file_path, index=f"{batch_start_idx}:{batch_end_idx}")
+
+    # Initialize calculator
+    calc = CPUNEP(nep_model_file_path)
+    for atoms_obj in atoms_batch:
+        atoms_obj.calc = calc
+        energies.append(atoms_obj.get_potential_energy())
+
+    return energies
 
 def atomic_baseline_cost(param_population, source_energies, element_counts, target_energies=None):
     """
     Generic cost function for NES: minimize MSE of ( (source_energy - sum(n_X * E_X)) - target_energy )^2.
     If target_energies is None, it minimizes MSE of (shifted_source_energy)^2 (i.e., targets zero).
-    Args:
-        param_population: [n_pop, n_elem] -- current population of atomic baseline parameters
-        source_energies: [n_samples,] -- energies to be shifted
-        element_counts: [n_samples, n_elem] -- element counts for each structure
-        target_energies: [n_samples,] or None -- energies to align *to*. If None, aligns to zero.
-    Returns:
-        cost: [n_pop, 1] -- MSE cost for each set of parameters in the population
     """
     shifted_source_energies = source_energies[None, :] - np.dot(param_population, element_counts.T)
     
@@ -194,21 +221,18 @@ def atomic_baseline_cost(param_population, source_energies, element_counts, targ
     return cost
 
 def nes_optimize_atomic_baseline(
-        num_variables,              # Number of atomic species (parameters to optimize)
-        max_generations,            # Maximum NES iterations
-        source_energies,            # [n_samples,] -- Energies to be shifted
-        element_counts,             # [n_samples, n_variables] -- Element counts for each structure
-        target_energies=None,       # [n_samples,] or None -- Energies to align *to*. If None, aligns to zero.
-        pop_size=40,                # NES population size
-        tol=1e-8,                   # Early stopping threshold
-        seed=42,                    # Random seed for reproducibility
-        print_every=100             # Print progress every N generations
+        num_variables,
+        max_generations,
+        source_energies,
+        element_counts,
+        target_energies=None,
+        pop_size=40,
+        tol=1e-8,
+        seed=42,
+        print_every=100
 ):
     """
     NES optimizer for finding atomic reference energies.
-    Returns:
-        best_fitness_history: [actual_gens, 1] -- best fitness per generation
-        elite_solutions: [actual_gens, num_variables] -- best solution per generation
     """
     np.random.seed(seed)
     import random
@@ -248,18 +272,18 @@ def nes_optimize_atomic_baseline(
             break
     return best_fitness_history, elite_solutions
 
-##########################
+##
 #        MAIN LOGIC      #
-##########################
+##
 
 # Ensure full reproducibility by setting seeds globally
 np.random.seed(random_seed)
 import random
 random.seed(random_seed)
 
-# 1. Parse XYZ file to get metadata and ASE Atoms objects
-print(f"Parsing '{input_xyz_file}' for energies and structure metadata...")
-frames_metadata, ase_atoms_list = parse_xyz_frames(input_xyz_file)
+# 1. Parse XYZ file efficiently to get metadata and file I/O info
+print(f"Parsing '{input_xyz_file}' for energies and structure metadata (memory-optimized)...")
+frames_metadata, frame_io_info = parse_xyz_frames_optimized(input_xyz_file)
 
 # 2. Identify all unique elements and config_types
 all_elements = sorted(list(set(e for f in frames_metadata for e in f['elem_counts'])))
@@ -280,7 +304,6 @@ target_energies_for_nes = None # Default target for NES
 
 if ALIGNMENT_MODE == 'REF_GROUP_ALIGNMENT':
     print(f"\n--- Mode: Reference Group Alignment ---")
-    print(f"Reference Group: '{reference_group}'")
     
     # Process groups explicitly in shift_groups or auto-detected, excluding reference group
     if not shift_groups:
@@ -298,9 +321,6 @@ if ALIGNMENT_MODE == 'REF_GROUP_ALIGNMENT':
     ref_mean_energy = np.mean(ref_energies)
     print(f"Mean energy of reference group ('{reference_group}'): {ref_mean_energy:.8f}")
 
-    # Set target for NES to the mean energy of the reference group
-    # This will be passed to nes_optimize_atomic_baseline for each group
-    # A placeholder will be created for each group's specific array.
     # The actual target_energies_for_nes will be np.full_like(group_primary_energies, ref_mean_energy) inside the loop.
 
 elif ALIGNMENT_MODE == 'ZERO_BASELINE_ALIGNMENT':
@@ -320,20 +340,33 @@ elif ALIGNMENT_MODE == 'DFT_TO_NEP_ALIGNMENT':
     if not nep_model_file or not os.path.exists(nep_model_file):
         raise FileNotFoundError(f"NEP model file '{nep_model_file}' not found. Required for DFT_TO_NEP_ALIGNMENT mode.")
 
-    # Calculate NEP energies for all structures in parallel
-    print(f"Calculating NEP energies and forces using '{nep_model_file}'...")
-    num_cores = cpu_count()
-    print(f"Using {num_cores} cores for parallel NEP calculation...")
+    # Calculate NEP energies for all structures in parallel (memory efficient)
+    print(f"Calculating NEP energies in batches...")
+    num_frames = len(frames_metadata)
+    num_batches = int(np.ceil(num_frames / nep_batch_size))
+    
+    # Use a list to store NEP energies in order of frame index
+    all_nep_calculated_energies = [None] * num_frames 
 
-    # Prepare arguments for multiprocessing: pass ASE Atoms objects directly
-    nep_calculation_args = [(atoms_obj, nep_model_file) for atoms_obj in ase_atoms_list]
+    with Pool(cpu_count()) as pool:
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * nep_batch_size
+            end_idx = min((batch_idx + 1) * nep_batch_size, num_frames)
+            
+            # Pass the batch range (start_idx, end_idx) to worker
+            # The worker will read this slice from the file.
+            batch_nep_energies = pool.apply(calculate_nep_batch, 
+  args=(start_idx, end_idx, nep_model_file, input_xyz_file))
+            
+            # Store results back into the main list
+            for i, energy in enumerate(batch_nep_energies):
+                all_nep_calculated_energies[start_idx + i] = energy
+            
+            print(f"  Processed NEP batch {batch_idx+1}/{num_batches} (frames {start_idx}-{end_idx-1})")
 
-    with Pool(num_cores) as pool:
-        nep_results = pool.starmap(calculate_nep_worker, nep_calculation_args)
-
-    # Integrate calculated NEP energies back into frames_metadata. Forces are ignored for output.
-    for i, (nep_energy, _) in enumerate(nep_results): 
-        frames_metadata[i]['nep_energy_calculated'] = nep_energy 
+    # Integrate calculated NEP energies back into frames_metadata
+    for i, nep_energy in enumerate(all_nep_calculated_energies):
+        frames_metadata[i]['nep_energy_calculated'] = nep_energy
 
 else:
     raise ValueError(f"Unknown ALIGNMENT_MODE: '{ALIGNMENT_MODE}'. Please choose from 'REF_GROUP_ALIGNMENT', 'ZERO_BASELINE_ALIGNMENT', or 'DFT_TO_NEP_ALIGNMENT'.")
@@ -380,8 +413,9 @@ for group_name in groups_to_process:
 
 # --- Final Output Writing ---
 print(f"\n--- Writing final aligned energies to '{output_xyz_file}' ---")
-with open(output_xyz_file, "w") as fout:
-    for f_meta in frames_metadata:
+# Open input file in read mode to seek for atom lines
+with open(input_xyz_file, "r") as fin_orig, open(output_xyz_file, "w") as fout:
+    for i, f_meta in enumerate(frames_metadata):
         original_primary_energy = f_meta['primary_energy'] 
         
         shifted_energy = original_primary_energy # Default: no shift if group was not processed
@@ -397,20 +431,19 @@ with open(output_xyz_file, "w") as fout:
             if ALIGNMENT_MODE == 'REF_GROUP_ALIGNMENT' and f_meta['config_type'] == reference_group:
                 print(f"Note: Reference group '{f_meta['config_type']}' energy is kept as original (no shift applied).")
             else:
-                # This warning applies if a config_type was detected but not in groups_to_process (e.g., if it was an empty group)
-                print(f"Warning: config_type '{f_meta['config_type']}' was not processed by NES in this mode. Its energy will remain as original.")
+                print(f"Warning: config_type '{f_meta['config_type']}' was not optimized/processed. Its energy will remain as original.")
             
         # Reconstruct header with updated energy. 
-        # The 'energy=' field in the output now contains the ALIGNED primary energy.
-        # CORRECTED TYPO: re.re.sub -> re.sub
         header_new = re.sub(r'energy=([-\d\.Ee]+)', f'energy={shifted_energy:.8f}', f_meta['original_header'], flags=re.IGNORECASE)
         
         fout.write(f"{f_meta['n_atoms']}\n")
         fout.write(f"{header_new}\n")
         
-        # Write original atom lines (including original forces/coordinates)
-        for atom_line in f_meta['original_atom_lines']:
-            fout.write(atom_line)
+        # Write original atom lines by seeking and reading from the input file
+        io_info = frame_io_info[i]
+        fin_orig.seek(io_info['atom_lines_offset'])
+        atom_lines_data = fin_orig.read(io_info['atom_lines_len'])
+        fout.write(atom_lines_data)
 
 print(f"\nEnergy alignment process complete based on mode '{ALIGNMENT_MODE}'.")
 print(f"Output written to {output_xyz_file}.")
