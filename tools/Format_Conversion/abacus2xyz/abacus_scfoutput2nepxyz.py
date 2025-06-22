@@ -20,6 +20,7 @@ def get_scf_info(root):
                     scf_nmax = int(line.split()[1])
     else:
         scf_nmax = 100
+        print(f"{root} doesn't know the scf_max value, default to 100")
     return scf_nmax
 
 for root, dirs, files in os.walk(os.path.abspath(sys.argv[1])):
