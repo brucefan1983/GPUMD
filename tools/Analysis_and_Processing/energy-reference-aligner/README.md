@@ -1,7 +1,7 @@
 ## Unified Atomic Energy Baseline Aligner for XYZ Trajectory Files
 
 ---
-
+For xyz files generated under the Windows system, please run dos2unix *.xyz before running the program.
 This script provides a flexible tool for aligning energies within multi-frame XYZ trajectory files. It supports three distinct energy alignment modes, configurable via the ALIGNMENT_MODE setting:
 
 ## Alignment Modes
