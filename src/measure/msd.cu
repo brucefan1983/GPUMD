@@ -27,6 +27,7 @@ Calculate:
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <iostream>
 
 
 #ifdef USE_KEPLER
@@ -164,39 +165,91 @@ __global__ void gpu_find_msd(
     double* g_msd_y,
     double* g_msd_z)
   {
-    // Do not use a reduction, instead handle each atom independently.
-    // Reduction does not work well, since atoms in the same group are not necessarily
-    // close in memory.
+    // Each block computes the MSD for one correlation_step
+    // Each thread handles a fraction of all atoms, N_atoms / blockDim.x
+    
+    // Set up locally shared memory
+    // This has size 3 * num_groups * blockDim.x, since each block of size
+    // blockDim.x = 128 atoms can potentially include atoms from all groups.
+    // Note that shared_mem is thus dynamically allocated.
+    extern __shared__ double shared_mem[]; // size: 3 * num_groups * blockDim.x
+    double* s_msd_x = shared_mem;
+    double* s_msd_y = s_msd_x + num_groups * blockDim.x;
+    double* s_msd_z = s_msd_y + num_groups * blockDim.x;
 
-    // Rewrite as a reduction over each group?
     // Need the size_sum! Sum 0 to l, 1 to l, etc.
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int size_sum = bid * num_atoms;
     int number_of_rounds = (num_atoms - 1) / blockDim.x + 1;  // rounds needed to sum over all atoms
 
+    // Initialize the shared memory
+    for (int g = tid; g < num_groups * blockDim.x; g += blockDim.x) {
+      s_msd_x[g] = 0.0;
+      s_msd_y[g] = 0.0;
+      s_msd_z[g] = 0.0;
+    }
+    __syncthreads();  // Synchronize this block of threads
+    
+    // Compute the MSD for each thread, corresponding to an atom,
+    // andd save it in the correct place in the shared memory for
+    // this block of threads.
     for (int round = 0; round < number_of_rounds; ++round) {
       int n = tid + round * blockDim.x;
       if (n < num_atoms) {
 
         int group = group_ids[n];
-        if (group < 0 || group >= num_groups) return;
-
         double dx = g_x[n] - g_x_start[size_sum + n];
         double dy = g_y[n] - g_y_start[size_sum + n];
         double dz = g_z[n] - g_z_start[size_sum + n];
 
-        if (bid <= correlation_step) {
-          int offset = group * num_correlation_steps + correlation_step - bid;
-          atomicAdd(&g_msd_x[offset], dx * dx);
-          atomicAdd(&g_msd_y[offset], dy * dy);
-          atomicAdd(&g_msd_z[offset], dz * dz);
-        } else {
-          int offset = group * num_correlation_steps + correlation_step + gridDim.x - bid;
-          atomicAdd(&g_msd_x[offset], dx * dx);
-          atomicAdd(&g_msd_y[offset], dy * dy);
-          atomicAdd(&g_msd_z[offset], dz * dz);
+        
+        // Save the MSD for this atom to the place in
+        // shared memory corresponding to it's group.
+        int shared_idx = group * blockDim.x + tid;
+        s_msd_x[shared_idx] += dx * dx;  // Safe, since tid is unique
+        s_msd_y[shared_idx] += dy * dy;  
+        s_msd_z[shared_idx] += dz * dz;
+      }
+    }
+    __syncthreads();  // The MSDs have now been computed within this block
+  
+    
+    // Now collect and write the MSD for each group in this block
+    for (int group = 0; group < num_groups; ++group) {
+      __shared__ double red_x[128], red_y[128], red_z[128];
+      int idx = group * blockDim.x + tid;
+      red_x[tid] = s_msd_x[idx];
+      red_y[tid] = s_msd_y[idx];
+      red_z[tid] = s_msd_z[idx];
+      __syncthreads();
+
+
+      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+          red_x[tid] += red_x[tid + offset];
+          red_y[tid] += red_y[tid + offset];
+          red_z[tid] += red_z[tid + offset];
         }
+        __syncthreads();
+      }
+
+      
+      // Write the result from thread 0
+      if (tid == 0) {
+        int offset;
+        if (bid <= correlation_step) {
+          offset = group * num_correlation_steps + correlation_step - bid;
+        } else {
+          offset = group * num_correlation_steps + correlation_step + gridDim.x - bid;
+        }
+        // This might not look thread-safe, but it is okay, 
+        // since each block only works on a single correlation
+        // step at a time. Thus no other block will try to write to
+        // the same group and same correlation step at the same time.
+        g_msd_x[offset] += red_x[0];
+        g_msd_y[offset] += red_y[0];
+        g_msd_z[offset] += red_z[0];
       }
     }
   }
@@ -314,7 +367,13 @@ void MSD::process(
     ++num_time_origins_;
 
     if (msd_over_all_groups_) {
-      gpu_find_msd_per_group<<<num_correlation_steps_, 128>>>(
+      const int block_size = 128;
+      // TODO this will exceed the maximum shared memory size of 48kB for large numbers of groups (>15)
+      // Each thread block needs to hold the MSD for each group and each cartesian direction
+      int dynamically_allocated_shared_memory = 3 * num_groups_ * block_size * sizeof(double);
+      std::cout << "Shared memory size: " << dynamically_allocated_shared_memory << "\n";
+      gpu_find_msd_per_group<<<num_correlation_steps_, block_size, dynamically_allocated_shared_memory>>>(
+      //gpu_find_msd_per_group<<<num_correlation_steps_, block_size>>>(
         num_atoms_,
         num_groups_,
         correlation_step,
