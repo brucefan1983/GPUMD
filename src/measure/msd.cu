@@ -27,7 +27,6 @@ Calculate:
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
-#include <iostream>
 
 
 #ifdef USE_KEPLER
@@ -368,10 +367,8 @@ void MSD::process(
 
     if (msd_over_all_groups_) {
       const int block_size = 128;
-      // TODO this will exceed the maximum shared memory size of 48kB for large numbers of groups (>15)
       // Each thread block needs to hold the MSD for each group and each cartesian direction
       int dynamically_allocated_shared_memory = 3 * num_groups_ * block_size * sizeof(double);
-      std::cout << "Shared memory size: " << dynamically_allocated_shared_memory << "\n";
       gpu_find_msd_per_group<<<num_correlation_steps_, block_size, dynamically_allocated_shared_memory>>>(
       //gpu_find_msd_per_group<<<num_correlation_steps_, block_size>>>(
         num_atoms_,
