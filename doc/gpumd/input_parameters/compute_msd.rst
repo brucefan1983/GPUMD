@@ -39,7 +39,7 @@ This keyword saves the internal :term:`MSD` and :term:`SDC` computed so far duri
 The file will have a name formatted as ``msd_step[step].out``. 
 The parameters are:
 
-* :attr:`save_every <interval>`, where :attr:`interval` is the number of steps between saving a copy.
+* :attr:`save_every <interval>`, where :attr:`interval` is the number of steps between saving a copy. Note that the copy can only be written at most every :attr:`sample_interval` steps. Furthermore, the first ``msd_step[step].out`` file will be written after :attr:`Nc` times :attr:`sample_interval` steps. Subsequent files will be written every :attr:`interval`.
 
 
 Examples
