@@ -367,8 +367,14 @@ void MSD::write(const char* filename)
   // normalize by the number of atoms and number of time origins
   for (int group_id=0; group_id < num_groups_; group_id++) {
     int num_atoms = num_atoms_per_group_[group_id];
-    // num_time_origins_ should be different for each nc
-    const double msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
+    
+    // This is the case for empty groups
+    double msd_scaler = 0.0;
+    if (num_atoms > 0) {
+      // num_time_origins_ should be different for each nc
+      msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
+    } 
+
     int group_index = group_id * num_correlation_steps_;
 
     for (int nc = group_index + 0; nc < group_index + num_correlation_steps_; nc++) {
