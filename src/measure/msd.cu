@@ -368,15 +368,14 @@ void MSD::write(const char* filename)
   for (int group_id=0; group_id < num_groups_; group_id++) {
     int num_atoms = num_atoms_per_group_[group_id];
     
-    // This is the case for empty groups
+    // This is the case for empty groups and if the msd has yet to be computed
     double msd_scaler = 0.0;
-    if (num_atoms > 0) {
+    if (num_atoms > 0 && num_time_origins_ > 0) {
       // num_time_origins_ should be different for each nc
       msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
     } 
 
     int group_index = group_id * num_correlation_steps_;
-
     for (int nc = group_index + 0; nc < group_index + num_correlation_steps_; nc++) {
       msdx_out_[nc] = msdx_[nc] * msd_scaler;
       msdy_out_[nc] = msdy_[nc] * msd_scaler;
