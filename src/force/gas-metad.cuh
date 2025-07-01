@@ -26,6 +26,7 @@ struct Config {
     int n_atoms;
     bool is_opt_=0;
     bool is_obs_=0;
+    int debug_interval=0;
     
 
     // 打印结构体内容
@@ -90,6 +91,7 @@ struct Config {
             config.neighbor_rc = std::stod(configMap.at("neighbor_rc"));
             config.max_neighbors = std::stoi(configMap.at("max_neighbors"));
             config.n_atoms = std::stoi(configMap.at("n_atoms"));
+            config.debug_interval = std::stoi(configMap.at("debug_interval"));
 
             // flag
             config.is_opt_ = (configMap.find("MetaCell")!=configMap.end());
@@ -181,9 +183,11 @@ private:
     int saved_cv_nums=0;
     int now_step = 0;
     int n_atoms_=1;
+    int debug_interval=0;
     torch::Tensor torch_now_cvs;
     torch::Tensor torch_delta_cv_save;
     torch::Tensor torch_cv_traj;
+    torch::Tensor torch_bias_traj;
     torch::Tensor torch_bias;
     torch::Tensor torch_NN;
     torch::Tensor torch_NL;

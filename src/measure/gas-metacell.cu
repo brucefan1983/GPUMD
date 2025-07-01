@@ -64,6 +64,7 @@ void TorchMetaCell::process(Box& box,GPU_Vector<double>& positions,GPU_Vector<do
     inputs.insert("saved_cv_nums",torch::tensor(saved_cv_nums,torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)));
     torch::cuda::synchronize();
     //计算和取出输出
+    std::cout<<"1"<<std::endl;
     auto output_dict = this->predict(inputs);
     torch::cuda::synchronize();
     torch_now_cvs = output_dict.at("cell").reshape({-1});
@@ -80,7 +81,7 @@ void TorchMetaCell::process(Box& box,GPU_Vector<double>& positions,GPU_Vector<do
     //   std::cout<<torch::matmul(cell_rotinv,tot_virial)<<std::endl;
       auto tot_cell_force = (tot_virial/volume)-out_pressure+cell_force;//(xx yy zz xy xz yz yx zx zy)
       auto sym_cell_force = (tot_cell_force.transpose(0,1) + tot_cell_force)/2;
-      std::cout<<tot_cell_force<<std::endl;
+      // std::cout<<tot_cell_force<<std::endl;
       auto delta_L = output_dict.at("delta_L");
       auto new_cell = torch_cell+(delta_L*sym_cell_force/sym_cell_force.norm());
       auto deform = torch::matmul(torch::inverse(torch_cell),new_cell);

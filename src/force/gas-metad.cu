@@ -165,25 +165,25 @@ torch::Tensor NL2Indices(torch::Tensor& torch_NL,int n_atoms_NL){
     return side_array;
 }
 
-// 定义一个函数来对称化应力张量
-torch::Tensor symmetrizeStressTensor(const torch::Tensor& stressTensor) {
-    TORCH_CHECK(stressTensor.sizes() == std::vector<int64_t>({3, 3}), "Input must be a 3x3 matrix.");
-    torch::Tensor symStressTensor = 0.5 * (stressTensor + stressTensor.transpose(0, 1));
-    return symStressTensor;
-}
+// // 定义一个函数来对称化应力张量
+// torch::Tensor symmetrizeStressTensor(const torch::Tensor& stressTensor) {
+//     TORCH_CHECK(stressTensor.sizes() == std::vector<int64_t>({3, 3}), "Input must be a 3x3 matrix.");
+//     torch::Tensor symStressTensor = 0.5 * (stressTensor + stressTensor.transpose(0, 1));
+//     return symStressTensor;
+// }
 
-// 定义一个函数来转换应力张量
-torch::Tensor convertStressTensor(const torch::Tensor& stressTensor) {
-    TORCH_CHECK(stressTensor.sizes() == std::vector<int64_t>({3, 3}), "Input must be a 3x3 matrix.");
-    torch::Tensor symmetricStress = torch::empty({6}, stressTensor.options());
-    symmetricStress[0] = stressTensor[0][0]; // σ_xx
-    symmetricStress[1] = stressTensor[1][1]; // σ_yy
-    symmetricStress[2] = stressTensor[2][2]; // σ_zz
-    symmetricStress[3] = stressTensor[1][2]; // σ_yz
-    symmetricStress[4] = stressTensor[0][2]; // σ_xz
-    symmetricStress[5] = stressTensor[0][1]; // σ_xy
-    return symmetricStress;
-}
+// // 定义一个函数来转换应力张量
+// torch::Tensor convertStressTensor(const torch::Tensor& stressTensor) {
+//     TORCH_CHECK(stressTensor.sizes() == std::vector<int64_t>({3, 3}), "Input must be a 3x3 matrix.");
+//     torch::Tensor symmetricStress = torch::empty({6}, stressTensor.options());
+//     symmetricStress[0] = stressTensor[0][0]; // σ_xx
+//     symmetricStress[1] = stressTensor[1][1]; // σ_yy
+//     symmetricStress[2] = stressTensor[2][2]; // σ_zz
+//     symmetricStress[3] = stressTensor[1][2]; // σ_yz
+//     symmetricStress[4] = stressTensor[0][2]; // σ_xz
+//     symmetricStress[5] = stressTensor[0][1]; // σ_xy
+//     return symmetricStress;
+// }
 
 void TorchMetad::compute_large_box(
   Box& box,
@@ -266,6 +266,7 @@ TorchMetad::TorchMetad(std::string model_path,std::string cfg_path,int n_atoms){
     NL_radial.resize(n_atoms_*config.max_neighbors);
 
     torch_cv_traj = torch::empty({config.max_cv_nums,config.cv_size}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_bias_traj = torch::empty({config.max_cv_nums}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_now_cvs = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_delta_cv_save = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_bias = torch::empty({},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
@@ -309,16 +310,21 @@ TorchMetad::TorchMetad(std::string model_path,std::string cfg_path,std::string g
     //读取高斯峰历史
     auto history = readFileToVector(gaussian_path);
     auto torch_history = vectorToTensor(history).to(torch::kCUDA);
+    auto torch_bias_history = torch_history.index({torch::indexing::Slice(), 0});
     torch_history = torch_history.index({torch::indexing::Slice(), torch::indexing::Slice(1, torch_history.size(1))});
     int history_num = torch_history.size(0);
     saved_cv_nums = history_num;
 
     torch_cv_traj = torch::empty({config.max_cv_nums,config.cv_size}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
+    torch_bias_traj = torch::empty({config.max_cv_nums}, torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_now_cvs = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_delta_cv_save = torch::empty({config.cv_size},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
     torch_bias = torch::empty({},  torch::dtype(torch::kFloat64).device(torch::kCUDA));
 
+    debug_interval = config.debug_interval;
+
     torch_cv_traj.index({torch::indexing::Slice(0,history_num), torch::indexing::Slice()})= torch_history;
+    torch_bias_traj.index({torch::indexing::Slice(0,history_num)})= torch_bias_history;
     cpu_b_vector = std::vector<double>(9); // Box
     // gpu_v_vector.resize(6);
     // gpu_v_factor.resize(9);
@@ -339,7 +345,9 @@ torch::Dict<std::string, torch::Tensor> TorchMetad::predict(
             auto key = item.key().toStringRef();
             auto value = item.value().toTensor();
             // #ifdef USE_GAS_DEBUG
-            if(key.compare("side_array") && key.compare("cv_traj") && key.compare("")){std::cout<<key<<value<<std::endl;}
+            if (config.debug_interval!=0){
+              if(key.compare("side_array") && key.compare("cv_traj") && key.compare("") && now_step%debug_interval==0){std::cout<<key<<value<<std::endl;}
+            }
             // #endif
             outputs.insert(key, value);
         }
@@ -382,13 +390,13 @@ void TorchMetad::compute(
     torch_NL = torch::from_blob(NL_radial.data(), {n_atoms*config.max_neighbors}, torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)).reshape(-1);
     torch::cuda::synchronize();
     torch::Tensor side_array = NL2Indices(torch_NL,n_atoms);
-
     torch::Dict<std::string, torch::Tensor> inputs;
 
     inputs.insert("positions", torch_pos);
     inputs.insert("cell", torch_cell);
     inputs.insert("side_array",side_array);
     inputs.insert("cv_traj",torch_cv_traj);
+    inputs.insert("bias_traj",torch_bias_traj);
     inputs.insert("saved_cv_nums",torch::tensor(saved_cv_nums,torch::TensorOptions().dtype(torch::kInt).device(torch::kCUDA)));
     torch::cuda::synchronize();
     //计算和取出输出
@@ -425,12 +433,14 @@ void TorchMetad::appendCVtoTraj(bool is_opt){
   if(is_opt){
     if(saved_cv_nums==0){
         torch_cv_traj[saved_cv_nums]=torch_now_cvs.clone();
+        torch_bias_traj[saved_cv_nums] = torch_bias.clone();
         saved_cv_nums++;
     }
     else if(saved_cv_nums>0 && saved_cv_nums<config.max_cv_nums){
         auto cv_last = torch_cv_traj[saved_cv_nums-1].clone();
         cv_last+=torch_delta_cv_save;
         torch_cv_traj[saved_cv_nums]=cv_last.clone();
+        torch_bias_traj[saved_cv_nums] = torch_bias.clone();
         saved_cv_nums++;
         auto cpu_cv_storage = cv_last.to(torch::kCPU).reshape({-1});
         auto cpu_cv_data = cpu_cv_storage.accessor<double, 1>();
@@ -452,6 +462,7 @@ void TorchMetad::appendCVtoTraj(bool is_opt){
     // normal version
     if(saved_cv_nums<config.max_cv_nums){
         torch_cv_traj[saved_cv_nums]=torch_now_cvs.clone();
+        torch_bias_traj[saved_cv_nums] = torch_bias.clone();
         saved_cv_nums++;
     }
     else{

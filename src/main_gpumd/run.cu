@@ -354,6 +354,12 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
      p_gasmc = TorchMetaCell::parse_GASMETACELL(param,num_param,atom.number_of_atoms);
      is_metacell = true;
 #endif
+#ifdef USE_GAS_PS
+} else if (strcmp(param[0], "PathSampling") == 0) {
+  std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
+  force.potentials.emplace_back(std::move(p_gas_metad));
+  force.set_multiple_potentials_mode("sum");
+#endif
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
