@@ -150,7 +150,6 @@ Output files
    :maxdepth: 0
    :caption: Contents
    
-   adf_out
    cohesive_out
    compute_out
    D_out

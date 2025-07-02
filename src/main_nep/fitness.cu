@@ -162,11 +162,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-#ifdef USE_FIXED_SCALER
-        false,
-#else
-        true,
-#endif
+        (para.fine_tune ? false : true),
         true,
         deviceCount);
     }
@@ -219,6 +215,7 @@ void Fitness::compute(
               para, energy_shift_per_structure_not_used, true, true, m);
             auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
             auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
+            auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
               float old_value = fitness[deviceCount * n + m + (7 * t + 3) * para.population_size];
@@ -238,6 +235,14 @@ void Fitness::compute(
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
               fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] = new_value;
+              // charge
+              if (para.charge_mode) {
+                old_value = fitness[deviceCount * n + m + (7 * t + 6) * para.population_size];
+                new_value = para.lambda_q * rmse_charge_array[t];
+                new_value = old_value * old_value * count_batch + new_value * new_value;
+                new_value = sqrt(new_value / (count_batch + 1));
+                fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = new_value;
+              }
             }
           }
         }
@@ -281,22 +286,64 @@ void Fitness::output(
   }
 }
 
+void Fitness::output_atomic(
+  int num_components,
+  FILE* fid,
+  float* prediction,
+  float* reference,
+  Dataset& dataset)
+{
+for (int nc = 0; nc < dataset.Nc; ++nc) {
+  int offset = dataset.Na_sum_cpu[nc];
+  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+    for (int n = 0; n < num_components; ++n) {
+      int index = n * dataset.N + offset + m;
+      fprintf(fid, "%g ", prediction[index]);
+    }
+    for (int n = 0; n < num_components; ++n) {
+      float ref_value = reference[n * dataset.N + offset + m];
+      if (n == num_components - 1) {
+        fprintf(fid, "%g\n", ref_value);
+      } else {
+        fprintf(fid, "%g ", ref_value);
+      }
+    }
+  }
+}
+}
+
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3 %d ", para.num_types);
+    if (!para.charge_mode) {
+      if (para.version == 3) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep3 %d ", para.num_types);
+        }
+      } else if (para.version == 4) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4 %d ", para.num_types);
+        }
+      } 
+    } else {
+      if (para.version == 3) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep3_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep3_charge%d %d ", para.charge_mode, para.num_types);
+        }
+      } else if (para.version == 4) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+        }
       }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4 %d ", para.num_types);
-      }
-    } 
+    }
   } else if (para.train_mode == 1) { // dipole model
     if (para.version == 3) {
       fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
@@ -421,13 +468,18 @@ void Fitness::report_error(
     write_nep_txt(fid_nep, para, elite);
     fclose(fid_nep);
 
-    if (0 == (generation + 1) % 100000) {
-      time_t rawtime;
-      time(&rawtime);
-      struct tm* timeinfo = localtime(&rawtime);
-      char buffer[200];
-      strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
-      std::string filename(buffer + std::to_string(generation + 1) + ".txt");
+    if (0 == (generation + 1) % para.save_potential) {
+      std::string filename;
+      if (para.save_potential_format == 1) {
+        time_t rawtime;
+        time(&rawtime);
+        struct tm* timeinfo = localtime(&rawtime);
+        char buffer[200];
+        strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
+        filename = std::string(buffer) + std::to_string(generation + 1) + ".txt";
+      } else {
+        filename = "nep_gen" + std::to_string(generation + 1) + ".txt";
+      }
 
       FILE* fid_nep = my_fopen(filename.c_str(), "w");
       write_nep_txt(fid_nep, para, elite);
@@ -500,11 +552,11 @@ void Fitness::report_error(
         }
       } else if (para.train_mode == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0]);
+        update_dipole(fid_dipole, test_set[0], para.atomic_v);
         fclose(fid_dipole);
       } else if (para.train_mode == 2) {
         FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0]);
+        update_polarizability(fid_polarizability, test_set[0], para.atomic_v);
         fclose(fid_polarizability);
       }
     }
@@ -539,6 +591,7 @@ void Fitness::update_energy_force_virial(
   }
 
   output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
+
   output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
   output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 }
@@ -553,22 +606,24 @@ void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
   }
 }
 
-void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset)
+void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  if (!atomic) {
+    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    output_atomic(3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+  }
 }
 
-void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
+void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  output(
-    false,
-    6,
-    fid_polarizability,
-    dataset.virial_cpu.data(),
-    dataset.virial_ref_cpu.data(),
-    dataset);
+  if (!atomic) {
+    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+  } else {
+    output_atomic(6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+  }
 }
 
 void Fitness::predict(Parameters& para, float* elite)
@@ -601,14 +656,14 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_dipole(fid_dipole, train_set[batch_id][0]);
+      update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_dipole);
   } else if (para.train_mode == 2) {
     FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
-      update_polarizability(fid_polarizability, train_set[batch_id][0]);
+      update_polarizability(fid_polarizability, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_polarizability);
   }

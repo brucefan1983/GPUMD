@@ -474,10 +474,10 @@ void Minimizer_FIRE_Box_Change::compute(
     const double force_max = sqrt(cpu_force_square_max_[0]);
     calculate_total_potential(potential_per_atom);
 
-    if (step % base == 0 || force_max < force_tolerance_) {
+    if (step == 0 || (step + 1) % base == 0 || force_max < force_tolerance_) {
       printf(
         "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A, pressure = %.10f GPa.\n",
-        step,
+        step == 0 ? 0 : (step + 1),
         cpu_total_potential_[0],
         force_max,
         (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3. / box.get_volume() * 160.2176621);

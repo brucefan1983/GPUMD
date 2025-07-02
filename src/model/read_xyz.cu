@@ -26,12 +26,12 @@ The class defining the simulation model.
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
-#include <cstring>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},
@@ -219,23 +219,23 @@ static void read_xyz_line_2(
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
-      printf("Box matrix h = [a, b, c] is\n");
-      for (int d1 = 0; d1 < 3; ++d1) {
-        for (int d2 = 0; d2 < 3; ++d2) {
-          printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
-        }
-        printf("\n");
+    printf("Box matrix h = [a, b, c] is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
       }
+      printf("\n");
+    }
 
-      box.get_inverse();
+    box.get_inverse();
 
-      printf("Inverse box matrix g = inv(h) is\n");
-      for (int d1 = 0; d1 < 3; ++d1) {
-        for (int d2 = 0; d2 < 3; ++d2) {
-          printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
-        }
-        printf("\n");
+    printf("Inverse box matrix g = inv(h) is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
       }
+      printf("\n");
+    }
   }
 
   // properties
@@ -549,14 +549,10 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.charge.resize(N);
   atom.charge.copy_from_host(atom.cpu_charge.data());
   atom.position_per_atom.resize(N * 3);
-  atom.unwrapped_position.resize(N * 3);
-  atom.position_temp.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
-  atom.unwrapped_position.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);
-  atom.heat_per_atom.resize(N * 5);
   thermo.resize(12);
 }

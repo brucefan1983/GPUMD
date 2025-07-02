@@ -100,6 +100,12 @@ static __global__ void initialize_properties(
   }
 }
 
+Dump_Dipole::Dump_Dipole(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_dipole";
+}
+
 void Dump_Dipole::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -115,7 +121,13 @@ void Dump_Dipole::parse(const char** param, int num_param)
 }
 
 void Dump_Dipole::preprocess(
-  const int number_of_atoms, const int number_of_potentials, Force& force)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   if (dump_) {
@@ -128,13 +140,13 @@ void Dump_Dipole::preprocess(
     // Typically in GPUMD we are limited by computational speed, not memory,
     // so we can sacrifice a bit of memory to skip having to recompute the forces
     // & virials with the original potential
-    atom_copy.number_of_atoms = number_of_atoms;
-    atom_copy.force_per_atom.resize(number_of_atoms * 3);
-    atom_copy.virial_per_atom.resize(number_of_atoms * 9);
-    atom_copy.potential_per_atom.resize(number_of_atoms);
+    atom_copy.number_of_atoms = atom.number_of_atoms;
+    atom_copy.force_per_atom.resize(atom.number_of_atoms * 3);
+    atom_copy.virial_per_atom.resize(atom.number_of_atoms * 9);
+    atom_copy.potential_per_atom.resize(atom.number_of_atoms);
 
     // make sure that the second potential is actually a dipole model.
-    if (number_of_potentials != 2) {
+    if (force.potentials.size() != 2) {
       PRINT_INPUT_ERROR("dump_dipole requires two potentials to be specified.");
     }
     // Multiple potentials may only be used with NEPs, so we know that
@@ -146,11 +158,16 @@ void Dump_Dipole::preprocess(
 }
 
 void Dump_Dipole::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
+  const double temperature,
+  Integrate& integrate,
   Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
   Atom& atom,
   Force& force)
 {
@@ -208,7 +225,13 @@ void Dump_Dipole::write_dipole(const int step)
   fflush(file_);
 }
 
-void Dump_Dipole::postprocess()
+void Dump_Dipole::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     fclose(file_);

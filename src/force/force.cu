@@ -19,18 +19,22 @@ The driver class calculating force and related quantities.
 #include "dp.cuh"
 #endif
 #include "eam.cuh"
+#include "eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#include "ilp_nep.cuh"
+#include "ilp_nep_gr_hbn.cuh"
+#include "ilp_nep_tmd.cuh"
+#include "ilp_tmd_sw.cuh"
+#include "ilp_tersoff.cuh"
 #include "lj.cuh"
 #include "nep.cuh"
 #include "nep_multigpu.cuh"
+#include "nep_charge.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
-#include "ilp_tmd_sw.cuh"
-#include "ilp_nep_gr_hbn.cuh"
-#include "ilp_nep_tmd.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -58,8 +62,9 @@ void Force::check_types(const char* file_potential)
       atom_types[n] = token;
     } else {
       if (token != atom_types[n]) {
-        PRINT_INPUT_ERROR("The atomic species and/or the order of the species are not consistent "
-                          "between the multiple potentials.\n");
+        PRINT_INPUT_ERROR(
+          "The atomic species and/or the order of the species are not consistent "
+          "between the multiple potentials.\n");
       }
     }
   }
@@ -93,16 +98,31 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "eam/alloy") == 0) {
+    potential.reset(new EAMAlloy(param[1], number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
-    strcmp(potential_name, "nep5") == 0 || 
-    strcmp(potential_name, "nep5_zbl") == 0 ||
-    strcmp(potential_name, "nep3") == 0 ||
-    strcmp(potential_name, "nep3_zbl") == 0 || 
-    strcmp(potential_name, "nep4") == 0 ||
-    strcmp(potential_name, "nep4_zbl") == 0 || 
+    strcmp(potential_name, "nep3_charge1") == 0 || 
+    strcmp(potential_name, "nep3_charge2") == 0 ||
+    strcmp(potential_name, "nep3_charge3") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge1") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge2") == 0 ||
+    strcmp(potential_name, "nep3_zbl_charge3") == 0 ||
+    strcmp(potential_name, "nep4_charge1") == 0 ||
+    strcmp(potential_name, "nep4_charge2") == 0 ||
+    strcmp(potential_name, "nep4_charge3") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
+    potential.reset(new NEP_Charge(param[1], number_of_atoms));
+    is_nep = true;
+    check_types(param[1]);
+  } else if (
+    strcmp(potential_name, "nep5") == 0 || strcmp(potential_name, "nep5_zbl") == 0 ||
+    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
+    strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
     strcmp(potential_name, "nep3_dipole") == 0 ||
     strcmp(potential_name, "nep3_polarizability") == 0 ||
     strcmp(potential_name, "nep4_dipole") == 0 ||
@@ -136,13 +156,15 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
-  #ifdef USE_TENSORFLOW
+#ifdef USE_TENSORFLOW
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR("The potential command should contain two parameters, the setting file and the DP potential file name.\n");
+      PRINT_INPUT_ERROR(
+        "The potential command should contain two parameters, the setting file and the DP "
+        "potential file name.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
-  #endif
+#endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp_nep_gr_hbn") == 0) {
@@ -155,7 +177,21 @@ void Force::parse_potential(
       PRINT_INPUT_ERROR("potential should contain ILP potential file and NEP potential file.\n");
     }
     potential.reset(new ILP_NEP_TMD(fid_potential, param[2], num_types, number_of_atoms));
-  } else if (strcmp(potential_name, "ilp_tmd_sw") == 0) {
+  } else if (strcmp(potential_name, "nep_ilp") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain an ILP potential file and a NEP map file.\n");
+    }
+    FILE* fid_nep_map = my_fopen(param[2], "r");
+    potential.reset(new ILP_NEP(fid_potential, fid_nep_map, num_types, number_of_atoms));
+    fclose(fid_nep_map);
+  } else if (strcmp(potential_name, "tersoff_ilp") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("potential should contain ILP potential file and Tersoff potential file.\n");
+    }
+    FILE* fid_tersoff = my_fopen(param[2], "r");
+    potential.reset(new ILP_TERSOFF(fid_potential, fid_tersoff, num_types, number_of_atoms));
+    fclose(fid_tersoff);
+  } else if (strcmp(potential_name, "sw_ilp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
     }
@@ -249,7 +285,6 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   s_f[tid] = f;
   __syncthreads();
 
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_f[tid] += s_f[tid + offset];
@@ -295,18 +330,22 @@ static __global__ void initialize_properties(
   }
 }
 
-void Force::set_hnemd_parameters(
-  const bool compute_hnemd,
-  const double hnemd_fe_x,
-  const double hnemd_fe_y,
-  const double hnemd_fe_z)
+void Force::finalize()
 {
-  compute_hnemd_ = compute_hnemd;
-  if (compute_hnemd) {
-    hnemd_fe_[0] = hnemd_fe_x;
-    hnemd_fe_[1] = hnemd_fe_y;
-    hnemd_fe_[2] = hnemd_fe_z;
+  compute_hnemd_ = false;
+  compute_hnemdec_ = -1;
+}
+
+void Force::set_hnemd_parameters(
+  const double hnemd_fe_x, const double hnemd_fe_y, const double hnemd_fe_z)
+{
+  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
+    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
   }
+  compute_hnemd_ = true;
+  hnemd_fe_[0] = hnemd_fe_x;
+  hnemd_fe_[1] = hnemd_fe_y;
+  hnemd_fe_[2] = hnemd_fe_z;
 }
 
 void Force::set_hnemdec_parameters(
@@ -319,6 +358,10 @@ void Force::set_hnemdec_parameters(
   const std::vector<int>& type_size,
   const double T)
 {
+  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
+    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
+  }
+
   int N = mass.size();
   int number_of_types = type_size.size();
   compute_hnemdec_ = compute_hnemdec;
@@ -642,7 +685,6 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
   }
   s_t[tid] = t;
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {

@@ -48,3 +48,19 @@ diff -q thermo.out thermo1.out
 diff -q neighbor.out neighbor1.out
 rm thermo.out neighbor.out
 cd ../..
+
+cd gpumd/silicon_liquid
+echo "#### silicon_liquid"
+../../../src/gpumd > /dev/null
+diff -q movie.xyz movie1.xyz
+diff -q dump.xyz dump1.xyz
+diff -q restart.xyz restart1.xyz
+diff -q force.out force1.out
+diff -q rdf.out rdf1.out
+diff -q adf.out adf1.out
+diff -q sdc.out sdc1.out
+diff -q msd.out msd1.out
+diff -q viscosity.out viscosity1.out
+diff -q neighbor.out neighbor1.out
+rm force.out adf.out rdf.out movie.xyz dump.xyz restart.xyz sdc.out msd.out viscosity.out neighbor.out
+cd ../..

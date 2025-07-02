@@ -52,7 +52,8 @@ public:
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force);
 
   // get inputs from run.in
   void parse_ensemble(

@@ -46,6 +46,7 @@ struct NEP_Data {
 class NEP : public Potential
 {
 public:
+  NEP_Data nep_data;
   struct ParaMB {
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
@@ -126,11 +127,14 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
+  const GPU_Vector<int>& get_NN_radial_ptr();
+
+  const GPU_Vector<int>& get_NL_radial_ptr();
+
 private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
-  NEP_Data nep_data;
   ExpandedBox ebox;
   DFTD3 dftd3;
 

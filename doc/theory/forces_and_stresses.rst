@@ -70,16 +70,16 @@ where
 
    \mathbf{W}_i = \sum_{j \neq i} \boldsymbol{r}_{ij} \otimes \frac{\partial U_j}{\partial \boldsymbol{r}_{ji}}.
 
-The ideal gas part of the stress is isotropic and given by the ideal-gas pressure:
+The ideal gas part of the stress is:
 
 .. math::
    
-   p_{\text{ideal}}=\frac{Nk_{\rm B}T}{V},
+   \frac{\sum_{i} m_i v_i^{\alpha} v_i^{\beta} }{V},
 
-where :math:`N` is the number of particles, :math:`k_\mathrm{B}` is Boltzmann's constant, :math:`T` is the absolute temperature, and :math:`V` is the volume of the system.
+where :math:`m_i` is the mass of particle $i$, :math:`v_i^{\alpha}` is the velocity of particle $i$, and :math:`V` is the volume of the system.
 
 The total stress tensor is thus
 
 .. math::
    
-   \sigma^{\alpha\beta} = -\frac{1}{2V} \sum_{i} \sum_{j \neq i} r_{ij}^{\alpha} F_{ij}^{\beta} + \frac{Nk_{\rm B}T}{V} \delta^{\alpha\beta}.
+   \sigma^{\alpha\beta} = \frac{W^{\alpha\beta} + \sum_{i} m_i v_i^{\alpha} v_i^{\beta}}{V}.

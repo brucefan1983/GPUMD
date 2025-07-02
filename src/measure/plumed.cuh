@@ -16,27 +16,55 @@
 #ifdef USE_PLUMED
 
 #pragma once
+#include "property.cuh"
+#include "integrate/integrate.cuh"
 #include "force/potential.cuh"
 #include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <vector>
 
-class PLUMED
+class PLUMED : public Property
 {
 public:
   int step = 0;
   int interval = 1;
   int use_plumed = 0;
+
+  PLUMED(const char** param, int num_param);
+  
   void parse(const char** param, int num_param);
-  void preprocess(const std::vector<double>& cpu_mass);
   void init(const double ts, const double T);
-  void process(
+
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
     Box& box,
-    GPU_Vector<double>& thermo,
-    GPU_Vector<double>& position,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-  void postprocess(void);
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 protected:
   int n_atom;

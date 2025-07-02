@@ -21,6 +21,12 @@
 class Potential
 {
 public:
+  // size of the B vector (for each atom) in extrapolation grade calculation
+  int B_projection_size = 0;
+  // this points to GPU
+  double* B_projection = nullptr;
+  bool need_B_projection = false;
+
   int N1;
   int N2;
   double rc; // maximum cutoff distance
@@ -47,7 +53,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial){};
 
-  // add group message for ILP TMD SW
+  // add group message for ILPs
   virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
@@ -56,6 +62,18 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     std::vector<Group>& group){};
+
+  virtual const GPU_Vector<int>& get_NN_radial_ptr()
+  {
+    static GPU_Vector<int> dummy_NN;
+    return dummy_NN; // Return the const reference to NN_radial
+  }
+
+  virtual const GPU_Vector<int>& get_NL_radial_ptr()
+  {
+    static GPU_Vector<int> dummy_NL;
+    return dummy_NL; // Return the const reference to NL_radial
+  }
 
 protected:
   void find_properties_many_body(

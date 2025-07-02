@@ -10,7 +10,7 @@ This keyword is used to deform the simulation box, which can be used to do tensi
 Syntax
 ------
 
-The :attr:`deform` keyord requires 4 parameters::
+The :attr:`deform` keyword requires 4 parameters::
 
   deform <A_per_step> <deform_x> <deform_y> <deform_z>
 
@@ -39,5 +39,7 @@ Caveats
 -------
 * Currently, one must use the NPT ensemble when using this keyword.
   That is, the code assumes that the pressure components in the directions which are not deformed will be controlled.
+  If one does not want to control the pressure (box) in a direction that is not deformed, 
+  one can set the elastic constant for that direction to be larger than 2000 GPa.
 * In the equilibration stage, it is also recommended to use the NPT ensemble to obtain the zero strain state before applying the deformation.
 * One must control the three pressure components independently when using this keyword.

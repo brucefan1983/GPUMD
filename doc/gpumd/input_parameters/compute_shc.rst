@@ -97,9 +97,3 @@ Caveats
 This computation can be memory consuming.
 
 If you want to use the in-out decomposition for 2D materials, you need to make the basal plane in the :math:`xy` directions.
-
-
-Related tutorial
-----------------
-
-The use of this keyword is illustrated in the tutorial on the :ref:`thermal transport from NEMD and HNEMD simulations <tutorials>`.

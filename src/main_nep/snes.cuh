@@ -17,7 +17,7 @@
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
-  #include <hiprand_kernel.h>
+  #include <hiprand/hiprand_kernel.h>
 #else
   #include <curand_kernel.h>
 #endif
@@ -61,6 +61,7 @@ protected:
 
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
+  void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
   void compute(Parameters&, Fitness*);

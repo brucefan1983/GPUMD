@@ -17,6 +17,9 @@ Available potential models
 * :ref:`Force constant potential (FCP) <fcp>`
 * :ref:`Lennard-Jones (LJ) potential <lennard_jones_potential>`
 * :ref:`Neuroevolution potential (NEP) <nep_formalism>`
+* :ref:`Hybrid NEP+ILP potential <nep_ilp>`
+* :ref:`Hybrid SW+ILP potential <sw_ilp>`
+* :ref:`Deep Potential (DP) <use_dp_in_gpumd>`
 
 Syntax
 ------
