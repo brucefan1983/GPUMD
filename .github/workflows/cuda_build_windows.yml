@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-2019
 
     steps:
     - name: Checkout code
@@ -17,7 +17,7 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x64
-        vsversion: "2022"
+        vsversion: "2019"
       
     - name: Install CUDA      
       run: |
