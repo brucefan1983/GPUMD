@@ -21,12 +21,12 @@ jobs:
       
     - name: Install CUDA      
       run: |
-        choco install cuda --version=12.2.0.53625
+        choco install cuda --version=12.9.1.576
         
     - name: Build project
       shell: cmd
       run: |
-        set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin
+        set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin
         nvcc --version
         cd src && make
 
