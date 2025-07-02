@@ -129,9 +129,6 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
-  } else if (tokens[0] == "gnep") {
-    paramb.version = 5;
-    paramb.model_type = 4;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
@@ -298,11 +295,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   } else if (paramb.version == 4) {
     annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
   } else {
-    if (paramb.model_type == 4) {
-      annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types;
-    } else {
-      annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
-    }
+    annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
   }
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
@@ -390,10 +383,8 @@ void NEP::update_potential(float* parameters, ANN& ann)
       pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
     }
   }
-  if (paramb.model_type != 4) {
-    ann.b1 = pointer;
-    pointer += 1;
-  }
+  ann.b1 = pointer;
+  pointer += 1;
 
   // Possibly read polarizability parameters, which are placed after the regular nep parameters.
   if (paramb.model_type == 2) {
@@ -751,28 +742,16 @@ static __global__ void find_descriptor(
     }
 
     if (paramb.version == 5) {
-      if (paramb.model_type == 4) {
-        one_layer(
+      apply_ann_one_layer_nep5(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[t1],
         annmb.b0[t1],
         annmb.w1[t1],
+        annmb.b1,
         q,
         F,
         Fp);
-      } else {
-        apply_ann_one_layer_nep5(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp);
-      }
     } else {
       if (!need_B_projection)
         apply_ann_one_layer(

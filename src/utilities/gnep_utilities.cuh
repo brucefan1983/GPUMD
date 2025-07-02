@@ -149,7 +149,7 @@ static __device__ void one_layer(
     for (int d = 0; d < N_des; ++d) {
       w0_times_q += w0[n * N_des + d] * q[d];
     }
-    float x1 = tanh(w0_times_q + b0[n]);
+    float x1 = tanh(w0_times_q - b0[n]);
     float tanh_der = 1.0f - x1 * x1;
     energy += w1[n] * x1;
     for (int d = 0; d < N_des; ++d) {
@@ -157,7 +157,7 @@ static __device__ void one_layer(
       energy_derivative[d] += w1[n] * y1;
     }
   }
-  energy += w1[N_neu];
+  energy -= w1[N_neu];
 }
 
 static __device__ void apply_ann_one_layer_w2nd(
@@ -182,7 +182,7 @@ static __device__ void apply_ann_one_layer_w2nd(
     for (int n = 0; n < N_des; ++n) {
       w0_times_q += w0[j_N_des + n] * q[n];
     }
-    const float x1 = tanh(w0_times_q + b0[j]);
+    const float x1 = tanh(w0_times_q - b0[j]);
     const float tanh_der = 1.0f - x1 * x1;
     const float tanh_der2 = -2.0f * x1 * tanh_der;  // second derivative of tanh
     const float w1j = w1[j];
@@ -195,7 +195,7 @@ static __device__ void apply_ann_one_layer_w2nd(
       float tmp2 = w1j * tanh_der2;
       energy_derivative[n] += w1j * tmp1;
       ep_wb[(offset_w1 + j) * N_des + n] = tmp1; // derivative of e_wb_grad[w1] w.r.t. q[n]
-      ep_wb[(offset_b0 + j) * N_des + n] = tmp2 * w0jn; // derivative of e_wb_grad[b0] w.r.t. q[n]
+      ep_wb[(offset_b0 + j) * N_des + n] = -tmp2 * w0jn; // derivative of e_wb_grad[b0] w.r.t. q[n]
       // second derivative
       const float tmp2_qn = tmp2 * q[n];
       for (int m = 0; m < N_des; ++m) {
@@ -208,12 +208,12 @@ static __device__ void apply_ann_one_layer_w2nd(
       }
       e_wb_grad[idx_w0] += delta_1 * q[n]; // energy w.r.t. w0
     }
-    e_wb_grad[offset_b0 + j] += delta_1; // energy w.r.t. b0
+    e_wb_grad[offset_b0 + j] -= delta_1; // energy w.r.t. b0
     e_wb_grad[offset_w1 + j] += x1; // energy w.r.t. w1
     // w0 (N_neu * N_des), b0 (N_neu), w1 (N_neu), b1 (1)
   }
-  e_wb_grad[offset_w1 + N_neu] = 1.0f; // energy w.r.t. b1
-  energy += w1[N_neu];
+  e_wb_grad[offset_w1 + N_neu] = -1.0f; // energy w.r.t. b1
+  energy -= w1[N_neu];
 }
 static __device__ void apply_ann_one_layer(
   const int N_des,

@@ -51,7 +51,6 @@ Parameters::Parameters()
 void Parameters::set_default_parameters()
 {
   is_prediction_set = false;
-  is_version_set = false;
   is_type_set = false;
   is_cutoff_set = false;
   is_n_max_set = false;
@@ -79,7 +78,6 @@ void Parameters::set_default_parameters()
   is_energy_shift_set = false;
 
   prediction = 0;              // not prediction mode
-  version = 1;                 // only 1 for now
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
@@ -176,9 +174,7 @@ void Parameters::calculate_parameters()
   }
 #endif
 
-  if (version == 1) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types;
-  }
+  number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types;
 
   number_of_variables_descriptor =
     num_types * num_types *
@@ -219,11 +215,6 @@ void Parameters::report_inputs()
     printf("    (default) calculation mode = %s.\n", calculation_mode_name.c_str());
   }
 
-  if (is_version_set) {
-    printf("    (input)   use GNEP version %d.\n", version);
-  } else {
-    printf("    (default) use GNEP version %d.\n", version);
-  }
   printf("    (input)   number of atom types = %d.\n", num_types);
   if (is_type_weight_set) {
     for (int n = 0; n < num_types; ++n) {
@@ -438,8 +429,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   }
   if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
-  } else if (strcmp(param[0], "version") == 0) {
-    parse_version(param, num_param);
   } else if (strcmp(param[0], "type") == 0) {
     parse_type(param, num_param);
   } else if (strcmp(param[0], "cutoff") == 0) {
@@ -513,21 +502,6 @@ void Parameters::parse_prediction(const char** param, int num_param)
   }
   if (prediction != 0 && prediction != 1) {
     PRINT_INPUT_ERROR("prediction should = 0 or 1.");
-  }
-}
-
-void Parameters::parse_version(const char** param, int num_param)
-{
-  is_version_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("version should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &version)) {
-    PRINT_INPUT_ERROR("version should be an integer.\n");
-  }
-  if (version != 1) {
-    PRINT_INPUT_ERROR("version should be 1.");
   }
 }
 

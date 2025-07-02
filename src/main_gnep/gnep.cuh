@@ -63,7 +63,6 @@ public:
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
-    int version = 1; 
     int atomic_numbers[NUM_ELEMENTS];
     int N_times_max_NN_radial;
     int N_times_max_NN_angular;
@@ -97,7 +96,6 @@ public:
     int N,
     int N_times_max_NN_radial,
     int N_times_max_NN_angular,
-    int version,
     int deviceCount);
   void find_force(
     Parameters& para,

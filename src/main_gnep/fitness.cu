@@ -144,7 +144,7 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   }
 
   potential.reset(
-    new GNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    new GNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, deviceCount));
     
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
@@ -296,23 +296,32 @@ void Fitness::compute(Parameters& para)
       }
     } // end of step loop
   } else {
-    std::ifstream input("gnep.txt");
+    std::ifstream input("nep.txt");
     if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open gnep.txt.");
+      PRINT_INPUT_ERROR("Failed to open nep.txt.");
     }
     std::vector<std::string> tokens;
-    float parameters[number_of_variables];
+    std::vector<float> parameters(number_of_variables);
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
-      tokens[0] == "gnep_zbl") {
+      tokens[0] == "nep5_zbl") {
       num_lines_to_be_skipped = 6;
     }
 
     for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }
-    for (int n = 0; n < number_of_variables; ++n) {
+    // for (int n = 0; n < number_of_variables; ++n) {
+    //   tokens = get_tokens(input);
+    //   parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    // }
+    for (int n = 0; n < number_of_variables_ann; ++n) {
+      tokens = get_tokens(input);
+      parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    tokens = get_tokens(input);
+    for (int n = number_of_variables_ann; n < number_of_variables; ++n) {
       tokens = get_tokens(input);
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
@@ -321,7 +330,7 @@ void Fitness::compute(Parameters& para)
       para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
-    predict(para, parameters);
+    predict(para, parameters.data());
   }
 }
 
@@ -473,12 +482,10 @@ void Fitness::output(
 
 void Fitness::write_gnep_txt(FILE* fid_gnep, Parameters& para, float* parameters)
 {
-  if (para.version == 1) {
-    if (para.enable_zbl) {
-      fprintf(fid_gnep, "gnep_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_gnep, "gnep %d ", para.num_types);
-    }
+  if (para.enable_zbl) {
+    fprintf(fid_gnep, "nep5_zbl %d ", para.num_types);
+  } else {
+    fprintf(fid_gnep, "nep5 %d ", para.num_types);
   }
 
   for (int n = 0; n < para.num_types; ++n) {
@@ -517,7 +524,14 @@ void Fitness::write_gnep_txt(FILE* fid_gnep, Parameters& para, float* parameters
   fprintf(fid_gnep, "l_max %d 0 0\n", para.L_max);
 
   fprintf(fid_gnep, "ANN %d %d\n", para.num_neurons1, 0);
-  for (int m = 0; m < para.number_of_variables; ++m) {
+  // for (int m = 0; m < para.number_of_variables; ++m) {
+  //   fprintf(fid_gnep, "%15.7e\n", parameters[m]);
+  // }
+  for (int m = 0; m < para.number_of_variables_ann; ++m) {
+    fprintf(fid_gnep, "%15.7e\n", parameters[m]);
+  }
+  fprintf(fid_gnep, "%15.7e\n", 0.0);
+  for (int m = para.number_of_variables_ann; m < para.number_of_variables; ++m) {
     fprintf(fid_gnep, "%15.7e\n", parameters[m]);
   }
   CHECK(cudaSetDevice(0));
@@ -556,7 +570,7 @@ void Fitness::report_error(
     rmse_virial_test = sqrt(mse_virial_test_array.back()); 
   }
 
-  FILE* fid_gnep = my_fopen("gnep.txt", "w");
+  FILE* fid_gnep = my_fopen("nep.txt", "w");
   write_gnep_txt(fid_gnep, para, parameters);
   fclose(fid_gnep);
 
@@ -565,7 +579,7 @@ void Fitness::report_error(
     time(&rawtime);
     struct tm* timeinfo = localtime(&rawtime);
     char buffer[200];
-    strftime(buffer, sizeof(buffer), "gnep_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
+    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_epoch", timeinfo);
     std::string filename(buffer + std::to_string(epoch + 1) + ".txt");
 
     FILE* fid_gnep = my_fopen(filename.c_str(), "w");

@@ -24,7 +24,6 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // only version 1 is supported
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
@@ -67,7 +66,6 @@ public:
 
   // check if a parameter has been set:
   bool is_prediction_set;
-  bool is_version_set;
   bool is_type_set;
   bool is_cutoff_set;
   bool is_n_max_set;
@@ -128,7 +126,6 @@ private:
   void parse_one_keyword(std::vector<std::string>& tokens);
 
   void parse_prediction(const char** param, int num_param);
-  void parse_version(const char** param, int num_param);
   void parse_type(const char** param, int num_param);
   void parse_type_weight(const char** param, int num_param);
   void parse_zbl(const char** param, int num_param);

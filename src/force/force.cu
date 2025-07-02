@@ -130,8 +130,7 @@ void Force::parse_potential(
     strcmp(potential_name, "nep3_temperature") == 0 ||
     strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||
-    strcmp(potential_name, "nep4_zbl_temperature") == 0 ||
-    strcmp(potential_name, "gnep") == 0) {
+    strcmp(potential_name, "nep4_zbl_temperature") == 0) {
     int num_gpus;
     CHECK(gpuGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG

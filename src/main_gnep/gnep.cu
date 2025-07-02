@@ -248,10 +248,8 @@ GNEP::GNEP(
   int N,
   int N_times_max_NN_radial,
   int N_times_max_NN_angular,
-  int version,
   int deviceCount)
 {
-  paramb.version = version;
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
