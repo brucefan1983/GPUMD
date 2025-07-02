@@ -8,6 +8,12 @@ Glossary
    ACE
         atomic cluster expansion [Drautz2019]_
 
+   ADF
+        angular distribution function
+
+   ARDF
+        angular-dependent radial distribution function
+
    BDP
         :ref:`Bussi-Donadio-Parrinello thermostat <bdp_thermostat>` [Bussi2007b]_
 
@@ -43,6 +49,9 @@ Glossary
 
    HNEMDEC
         :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
+
+   ILP
+        interlayer potential for van der Waals materials [Ouyang2018]_ [Ouyang2020]_
 
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
@@ -112,6 +121,9 @@ Glossary
 
    SVR
         :ref:`stochastic velocity rescaling thermostat <svr_thermostat>` [Bussi2007b]_
+
+   SW
+        Stillinger-Weber potential [Stillinger1985]_
 
    TRPMD
         thermostatted ring-polymer molecular dynamics

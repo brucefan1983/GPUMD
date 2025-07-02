@@ -18,7 +18,9 @@ The class defining the grouping methods
 ------------------------------------------------------------------------------*/
 
 #include "group.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <vector>
+#include <cstring>
 
 void Group::find_size(const int N, const int k)
 {

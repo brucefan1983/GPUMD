@@ -24,8 +24,10 @@ If DEBUG is off, the velocities are different in different runs.
 #include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "velocity.cuh"
 #include <vector>
+#include <cstring>
 
 void Velocity::scale(
   const double initial_temperature,

@@ -119,3 +119,22 @@ The potential file for the version from [Dai2006]_ reads::
   A d c c_0 c_1 c_2 c_3 c_4 B
 
 Here, :attr:`Element` is the chemical symbol of the element.
+
+Table format
+-------------
+
+GPUMD supports the `eam/alloy <https://docs.lammps.org/pair_eam.html>`_ format as defined in LAMMPS.
+
+.. note::
+
+   The user needs to modify the first line of the potential file as follows:
+
+     eam/alloy <num_types> <list of elements>
+
+The last two parts can be directly copied from the fourth line of the original potential file. For example::
+
+   eam/alloy 2 Cu Ni
+
+Since the first three lines are comments, this modification does not affect usage in LAMMPS.
+
+

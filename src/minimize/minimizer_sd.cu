@@ -19,6 +19,10 @@ The SD (steepest decent) minimizer.
 
 #include "force/force.cuh"
 #include "minimizer_sd.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
+
+#define MIN_POSITION_STEP 1e-8
 
 const double decreasing_factor = 0.2;
 const double increasing_factor = 1.2;
@@ -57,6 +61,7 @@ void Minimizer_SD::compute(
 
   int number_of_force_evaluations = 1;
   double position_step = 0.1;
+  int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
   printf("\nEnergy minimization started.\n");
 
@@ -99,11 +104,20 @@ void Minimizer_SD::compute(
       position_step *= increasing_factor;
     }
 
-    int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
     double total_potential_smaller = (cpu_total_potential_[1] > cpu_total_potential_[0])
                                        ? cpu_total_potential_[0]
                                        : cpu_total_potential_[1];
+
+    if (position_step < MIN_POSITION_STEP) {
+      printf(
+        "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A.\n",
+        step + 1,
+        total_potential_smaller,
+        force_max);
+      printf("    Position step is 0, SD minimizer can't find a better solution\n");
+      break;
+    }
 
     if (step == 0) {
       printf(

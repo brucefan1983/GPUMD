@@ -18,13 +18,22 @@ Calculate the stress autocorrelation function and viscosity.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>
+#include <cstring>
 
 #define NUM_OF_COMPONENTS 9
 
-void Viscosity::preprocess(const int number_of_steps)
+void Viscosity::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
@@ -76,23 +85,30 @@ static __global__ void gpu_sum_stress(
 
 void Viscosity::process(
   const int number_of_steps,
-  const int step,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& velocity,
-  const GPU_Vector<double>& virial)
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   if ((step + 1) % sample_interval != 0)
     return;
 
-  const int N = velocity.size() / 3;
+  const int N = atom.number_of_atoms;
 
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
-    N, Nd, nd, mass.data(), velocity.data(), virial.data(), stress_all.data());
-  CUDA_CHECK_KERNEL
+    N, Nd, nd, atom.mass.data(), atom.velocity_per_atom.data(), atom.virial_per_atom.data(), stress_all.data());
+  GPU_CHECK_KERNEL
 }
 
 static __global__ void gpu_correct_stress(const int Nd, double* g_stress_all)
@@ -180,7 +196,12 @@ find_viscosity(const int Nc, const double factor, const double* correlation, dou
 }
 
 void Viscosity::postprocess(
-  const int number_of_steps, const double temperature, const double time_step, const double volume)
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute)
     return;
@@ -196,13 +217,13 @@ void Viscosity::postprocess(
   std::vector<double> correlation_cpu(Nc * NUM_OF_COMPONENTS);
 
   gpu_correct_stress<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   gpu_find_correlation<<<Nc, 128>>>(Nc, Nd, stress_all.data(), correlation_gpu.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   correlation_gpu.copy_to_host(correlation_cpu.data());
 
-  double factor = dt * 0.5 / (K_B * temperature * volume);
+  double factor = dt * 0.5 / (K_B * temperature * box.get_volume());
   factor *= PRESSURE_UNIT_CONVERSION * TIME_UNIT_CONVERSION * 1.0e-6; // Pa s
 
   find_viscosity(Nc, factor, correlation_cpu.data(), viscosity.data());
@@ -225,6 +246,12 @@ void Viscosity::postprocess(
   print_line_2();
 
   compute = 0;
+}
+
+Viscosity::Viscosity(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "compute_viscosity";
 }
 
 void Viscosity::parse(const char** param, int num_param)

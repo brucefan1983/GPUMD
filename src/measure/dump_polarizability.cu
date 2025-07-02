@@ -22,10 +22,12 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void sum_polarizability(
   const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_pol)
@@ -55,18 +57,12 @@ static __global__ void sum_polarizability(
   __syncthreads();
 
   // aggregate the patches in parallel
-#pragma unroll
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_p[tid] += s_p[tid + offset];
     }
     __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_p[tid] += s_p[tid + offset];
-    }
-    __syncwarp();
   }
 
   // save the final value
@@ -105,6 +101,12 @@ static __global__ void initialize_properties(
   }
 }
 
+Dump_Polarizability::Dump_Polarizability(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_polarizability";
+}
+
 void Dump_Polarizability::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -120,7 +122,13 @@ void Dump_Polarizability::parse(const char** param, int num_param)
 }
 
 void Dump_Polarizability::preprocess(
-  const int number_of_atoms, const int number_of_potentials, Force& force)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   if (dump_) {
@@ -133,12 +141,12 @@ void Dump_Polarizability::preprocess(
     // Typically in GPUMD we are limited by computational speed, not memory,
     // so we can sacrifice a bit of memory to skip having to recompute the forces
     // & virials with the original potential
-    atom_copy.number_of_atoms = number_of_atoms;
-    atom_copy.force_per_atom.resize(number_of_atoms * 3);
-    atom_copy.virial_per_atom.resize(number_of_atoms * 9);
-    atom_copy.potential_per_atom.resize(number_of_atoms);
+    atom_copy.number_of_atoms = atom.number_of_atoms;
+    atom_copy.force_per_atom.resize(atom.number_of_atoms * 3);
+    atom_copy.virial_per_atom.resize(atom.number_of_atoms * 9);
+    atom_copy.potential_per_atom.resize(atom.number_of_atoms);
     // make sure that the second potential is actually a polarizability model.
-    if (number_of_potentials != 2) {
+    if (force.potentials.size() != 2) {
       PRINT_INPUT_ERROR("dump_polarizability requires two potentials to be specified.");
     }
     // Multiple potentials may only be used with NEPs, so we know that
@@ -151,11 +159,16 @@ void Dump_Polarizability::preprocess(
 }
 
 void Dump_Polarizability::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
+  const double temperature,
+  Integrate& integrate,
   Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
   Atom& atom,
   Force& force)
 {
@@ -174,7 +187,7 @@ void Dump_Polarizability::process(
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
     gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
@@ -193,7 +206,7 @@ void Dump_Polarizability::process(
   const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
   sum_polarizability<<<6, number_of_threads>>>(
     number_of_atoms, number_of_atoms_per_thread, atom_copy.virial_per_atom.data(), gpu_pol_.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
   gpu_pol_.copy_to_host(cpu_pol_.data());
@@ -221,7 +234,13 @@ void Dump_Polarizability::write_polarizability(const int step)
   fflush(file_);
 }
 
-void Dump_Polarizability::postprocess()
+void Dump_Polarizability::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     fclose(file_);

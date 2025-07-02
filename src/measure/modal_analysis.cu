@@ -30,7 +30,10 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #include "modal_analysis.cuh"
+#include "force/force.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -89,7 +92,7 @@ static __device__ void gpu_bin_reduce(
   }
 
   __syncthreads();
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data_xin[tid] += s_data_xin[tid + offset];
@@ -252,7 +255,7 @@ void MODAL_ANALYSIS::compute_heat(
     mvx.data(),
     mvy.data(),
     mvz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // Scale stress tensor by inv(sqrt(mass))
   prepare_sm<<<grid_size, BLOCK_SIZE>>>(
@@ -271,16 +274,16 @@ void MODAL_ANALYSIS::compute_heat(
     smx.data(),
     smy.data(),
     smz.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   const float alpha = 1.0;
   const float beta = 0.0;
   int stride = 1;
 
   // Calculate modal velocities
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -291,9 +294,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdotx.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -304,9 +307,9 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     xdoty.data(),
     stride);
-  cublasSgemv(
+  gpublasSgemv(
     ma_handle,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     num_participating,
     &alpha,
@@ -320,10 +323,10 @@ void MODAL_ANALYSIS::compute_heat(
 
   // Calculate intermediate value
   // (i.e. heat current without modal velocities)
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -335,10 +338,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmx.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -350,10 +353,10 @@ void MODAL_ANALYSIS::compute_heat(
     &beta,
     jmy.data(),
     num_modes);
-  cublasSgemm(
+  gpublasSgemm(
     ma_handle,
-    CUBLAS_OP_N,
-    CUBLAS_OP_N,
+    GPUBLAS_OP_N,
+    GPUBLAS_OP_N,
     num_modes,
     3,
     num_participating,
@@ -367,9 +370,9 @@ void MODAL_ANALYSIS::compute_heat(
     num_modes);
 
   // calculate modal heat current
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmx.data(),
@@ -378,9 +381,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmx.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmy.data(),
@@ -389,9 +392,9 @@ void MODAL_ANALYSIS::compute_heat(
     stride,
     jmy.data(),
     num_modes);
-  cublasSdgmm(
+  gpublasSdgmm(
     ma_handle,
-    CUBLAS_SIDE_LEFT,
+    GPUBLAS_SIDE_LEFT,
     num_modes,
     3,
     jmz.data(),
@@ -410,7 +413,7 @@ void MODAL_ANALYSIS::compute_heat(
     gpu_update_jm<ACCUMULATE>
       <<<grid_size, BLOCK_SIZE>>>(num_modes, jmx.data(), jmy.data(), jmz.data(), jm.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
@@ -438,13 +441,19 @@ void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream& eigfile, GPU_Vector<fl
 }
 
 void MODAL_ANALYSIS::preprocess(
-  const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute)
     return;
   num_modes = last_mode - first_mode + 1;
   samples_per_output = output_interval / sample_interval;
-  setN(cpu_type_size);
+  setN(atom.cpu_type_size);
 
   if (method == GKMA_METHOD) {
     strcpy(output_file_position, "heatmode.out");
@@ -542,44 +551,50 @@ void MODAL_ANALYSIS::preprocess(
   sqrtmass.resize(num_participating, Memory_Type::managed);
   rsqrtmass.resize(num_participating, Memory_Type::managed);
   gpu_set_mass_terms<<<(num_participating - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
-    num_participating, N1, mass.data(), sqrtmass.data(), rsqrtmass.data());
-  CUDA_CHECK_KERNEL
+    num_participating, N1, atom.mass.data(), sqrtmass.data(), rsqrtmass.data());
+  GPU_CHECK_KERNEL
 
-  cublasCreate(&ma_handle);
+  gpublasCreate(&ma_handle);
 }
 
 void MODAL_ANALYSIS::process(
-  const int step,
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
   const double temperature,
-  const double volume,
-  const double fe,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom)
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   if (!((step + 1) % sample_interval == 0))
     return;
 
-  compute_heat(velocity_per_atom, virial_per_atom);
+  compute_heat(atom.velocity_per_atom, atom.virial_per_atom);
 
   if (method == HNEMA_METHOD && !((step + 1) % output_interval == 0))
     return;
 
   gpu_bin_modes<<<num_bins, BIN_BLOCK>>>(
     num_modes, bin_count.data(), bin_sum.data(), num_bins, jm.data(), bin_out.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (method == HNEMA_METHOD) {
-    float factor = KAPPA_UNIT_CONVERSION / (volume * temperature * fe * (float)samples_per_output);
+    float factor = KAPPA_UNIT_CONVERSION / (box.get_volume() * temperature * fe * (float)samples_per_output);
     int num_bins_stored = num_bins * NUM_OF_HEAT_COMPONENTS;
     gpu_scale_jm<<<(num_bins_stored - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(
       num_bins_stored, factor, bin_out.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   // Compute thermal conductivity and output
-  cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
+  gpuDeviceSynchronize(); // ensure GPU ready to move data to CPU
   FILE* fid = fopen(output_file_position, "a");
   for (int i = 0; i < num_bins; i++) {
     fprintf(
@@ -597,13 +612,264 @@ void MODAL_ANALYSIS::process(
   if (method == HNEMA_METHOD) {
     int grid_size = (num_heat_stored - 1) / BLOCK_SIZE + 1;
     gpu_reset_data<<<grid_size, BLOCK_SIZE>>>(num_heat_stored, jm.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
-void MODAL_ANALYSIS::postprocess()
+void MODAL_ANALYSIS::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute)
     return;
-  cublasDestroy(ma_handle);
+  gpublasDestroy(ma_handle);
+  compute = 0;
+  method = NO_METHOD;
 }
+
+MODAL_ANALYSIS::MODAL_ANALYSIS(
+  const char** param, 
+  int num_param, 
+  const int number_of_types, 
+  int method_input,
+  Force& force)
+{
+  if (method_input == 0) {
+    parse_compute_gkma(param, num_param, number_of_types);
+  } else {
+    parse_compute_hnema(param, num_param, number_of_types);
+    force.set_hnemd_parameters(fe_x, fe_y, fe_z);
+  }
+  property_name = "modal_analysis";
+}
+
+void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const int number_of_types)
+{
+  compute = 1;
+  method = GKMA_METHOD;
+
+  printf("Compute modal heat current using GKMA method.\n");
+
+  /*
+   * There is a hidden feature that allows for specification of atom
+   * types to included (must be contiguously defined like potentials)
+   * -- Works for types only, not groups --
+   */
+
+  if (num_param != 6 && num_param != 9) {
+    PRINT_INPUT_ERROR("compute_gkma should have 5 parameters.\n");
+  }
+  if (
+    !is_valid_int(param[1], &sample_interval) ||
+    !is_valid_int(param[2], &first_mode) ||
+    !is_valid_int(param[3], &last_mode)) {
+    PRINT_INPUT_ERROR("A parameter for GKMA should be an integer.\n");
+  }
+
+  if (strcmp(param[4], "bin_size") == 0) {
+    f_flag = 0;
+    if (!is_valid_int(param[5], &bin_size)) {
+      PRINT_INPUT_ERROR("GKMA bin_size must be an integer.\n");
+    }
+  } else if (strcmp(param[4], "f_bin_size") == 0) {
+    f_flag = 1;
+    if (!is_valid_real(param[5], &f_bin_size)) {
+      PRINT_INPUT_ERROR("GKMA f_bin_size must be a real number.\n");
+    }
+  } else {
+    PRINT_INPUT_ERROR("Invalid binning keyword for compute_gkma.\n");
+  }
+
+  // Parameter checking
+  if (sample_interval < 1 || first_mode < 1 || last_mode < 1)
+    PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
+  if (first_mode > last_mode)
+    PRINT_INPUT_ERROR("first_mode <= last_mode required.\n");
+
+  printf(
+    "    sample_interval is %d.\n"
+    "    first_mode is %d.\n"
+    "    last_mode is %d.\n",
+    sample_interval,
+    first_mode,
+    last_mode);
+
+  if (f_flag) {
+    if (f_bin_size <= 0.0) {
+      PRINT_INPUT_ERROR("bin_size must be greater than zero.\n");
+    }
+    printf(
+      "    Bin by frequency.\n"
+      "    f_bin_size is %f THz.\n",
+      f_bin_size);
+  } else {
+    if (bin_size < 1) {
+      PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
+    }
+    printf(
+      "    Bin by modes.\n"
+      "    bin_size is %d bins.\n",
+      bin_size);
+  }
+
+  // Hidden feature implementation
+  if (num_param == 9) {
+    if (strcmp(param[6], "atom_range") == 0) {
+      if (
+        !is_valid_int(param[7], &atom_begin) ||
+        !is_valid_int(param[8], &atom_end)) {
+        PRINT_INPUT_ERROR("GKMA atom_begin & atom_end must be integers.\n");
+      }
+      if (atom_begin > atom_end) {
+        PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
+      }
+      if (atom_begin < 0) {
+        PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
+      }
+      if (atom_end >= number_of_types) {
+        PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
+      }
+    } else {
+      PRINT_INPUT_ERROR("Invalid GKMA keyword.\n");
+    }
+    printf(
+      "    Use select atom range.\n"
+      "    Atom types %d to %d.\n",
+      atom_begin,
+      atom_end);
+  } else // default behavior
+  {
+    atom_begin = 0;
+    atom_end = number_of_types - 1;
+  }
+}
+
+void MODAL_ANALYSIS::parse_compute_hnema(
+  const char** param, 
+  int num_param, 
+  const int number_of_types)
+{
+  compute = 1;
+  method = HNEMA_METHOD;
+
+  printf("Compute modal thermal conductivity using HNEMA method.\n");
+
+  /*
+   * There is a hidden feature that allows for specification of atom
+   * types to included (must be contiguously defined like potentials)
+   * -- Works for types only, not groups --
+   */
+
+  if (num_param != 10 && num_param != 13) {
+    PRINT_INPUT_ERROR("compute_hnema should have 9 parameters.\n");
+  }
+  if (
+    !is_valid_int(param[1], &sample_interval) ||
+    !is_valid_int(param[2], &output_interval) ||
+    !is_valid_int(param[6], &first_mode) ||
+    !is_valid_int(param[7], &last_mode)) {
+    PRINT_INPUT_ERROR("A parameter for HNEMA should be an integer.\n");
+  }
+
+  // HNEMD driving force parameters
+  if (!is_valid_real(param[3], &fe_x)) {
+    PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
+  }
+  printf("    fe_x = %g /A\n", fe_x);
+  if (!is_valid_real(param[4], &fe_y)) {
+    PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
+  }
+  printf("    fe_y = %g /A\n", fe_y);
+  if (!is_valid_real(param[5], &fe_z)) {
+    PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
+  }
+  printf("    fe_z = %g /A\n", fe_z);
+  fe = sqrt(fe_x * fe_x + fe_y * fe_y + fe_z * fe_z);
+
+  if (strcmp(param[8], "bin_size") == 0) {
+    f_flag = 0;
+    if (!is_valid_int(param[9], &bin_size)) {
+      PRINT_INPUT_ERROR("HNEMA bin_size must be an integer.\n");
+    }
+  } else if (strcmp(param[8], "f_bin_size") == 0) {
+    f_flag = 1;
+    if (!is_valid_real(param[9], &f_bin_size)) {
+      PRINT_INPUT_ERROR("HNEMA f_bin_size must be a real number.\n");
+    }
+  } else {
+    PRINT_INPUT_ERROR("Invalid binning keyword for compute_hnema.\n");
+  }
+
+  // Parameter checking
+  if (sample_interval < 1 || output_interval < 1 || first_mode < 1 || last_mode < 1)
+    PRINT_INPUT_ERROR("compute_hnema parameters must be positive integers.\n");
+  if (first_mode > last_mode)
+    PRINT_INPUT_ERROR("first_mode <= last_mode required.\n");
+  if (output_interval % sample_interval != 0)
+    PRINT_INPUT_ERROR("sample_interval must divide output_interval an integer\n"
+                      " number of times.\n");
+
+  printf(
+    "    sample_interval is %d.\n"
+    "    output_interval is %d.\n"
+    "    first_mode is %d.\n"
+    "    last_mode is %d.\n",
+    sample_interval,
+    output_interval,
+    first_mode,
+    last_mode);
+
+  if (f_flag) {
+    if (f_bin_size <= 0.0) {
+      PRINT_INPUT_ERROR("bin_size must be greater than zero.\n");
+    }
+    printf(
+      "    Bin by frequency.\n"
+      "    f_bin_size is %f THz.\n",
+      f_bin_size);
+  } else {
+    if (bin_size < 1) {
+      PRINT_INPUT_ERROR("compute_hnema parameters must be positive integers.\n");
+    }
+    printf(
+      "    Bin by modes.\n"
+      "    bin_size is %d modes.\n",
+      bin_size);
+  }
+
+  // Hidden feature implementation
+  if (num_param == 13) {
+    if (strcmp(param[10], "atom_range") == 0) {
+      if (
+        !is_valid_int(param[11], &atom_begin) ||
+        !is_valid_int(param[12], &atom_end)) {
+        PRINT_INPUT_ERROR("HNEMA atom_begin & atom_end must be integers.\n");
+      }
+      if (atom_begin > atom_end) {
+        PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
+      }
+      if (atom_begin < 0) {
+        PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
+      }
+      if (atom_end >= number_of_types) {
+        PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
+      }
+    } else {
+      PRINT_INPUT_ERROR("Invalid HNEMA keyword.\n");
+    }
+    printf(
+      "    Use select atom range.\n"
+      "    Atom types %d to %d.\n",
+      atom_begin,
+      atom_end);
+  } else // default behavior
+  {
+    atom_begin = 0;
+    atom_end = number_of_types - 1;
+  }
+}
+

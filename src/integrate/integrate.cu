@@ -30,6 +30,7 @@ The driver class for the various integrators.
 #include "ensemble_pimd.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
+#include "ensemble_ti_liquid.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
 #include "ensemble_wall_harmonic.cuh"
@@ -38,7 +39,9 @@ The driver class for the various integrators.
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 void Integrate::initialize(
   double time_step,
@@ -57,7 +60,7 @@ void Integrate::initialize(
     if (move_group == fixed_group) {
       PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
     }
-    if (type != 1 && type != 2 && type != 4) {
+    if (type != 1 && type != 2 && type != 4 && type != 22) {
       PRINT_INPUT_ERROR(
         "It is only allowed to use nvt_ber, nvt_nhc, or nvt_bdp with a moving group.");
     }
@@ -138,6 +141,8 @@ void Integrate::initialize(
       break;
     case -10:
       break;
+    case -11: // ti_liquid
+      break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
         type,
@@ -153,6 +158,8 @@ void Integrate::initialize(
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
         type,
+        move_group, 
+        move_velocity,
         source,
         sink,
         group[0].cpu_size[source],
@@ -264,31 +271,34 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  const int num_atoms = atom.position_per_atom.size() / 3;
-  gpu_copy_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms,
-    atom.position_per_atom.data(),
-    atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2,
-    atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms,
-    atom.position_temp.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  if (atom.unwrapped_position.size() > 0) {
+    gpu_copy_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
+      atom.number_of_atoms,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + atom.number_of_atoms,
+      atom.position_per_atom.data() + atom.number_of_atoms * 2,
+      atom.position_temp.data(),
+      atom.position_temp.data() + atom.number_of_atoms,
+      atom.position_temp.data() + atom.number_of_atoms * 2);
+    GPU_CHECK_KERNEL
+  }
 
   ensemble->compute1(time_step, group, box, atom, thermo);
 
-  gpu_update_unwrapped_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms,
-    atom.position_per_atom.data(),
-    atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2,
-    atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms,
-    atom.position_temp.data() + num_atoms * 2,
-    atom.unwrapped_position.data(),
-    atom.unwrapped_position.data() + num_atoms,
-    atom.unwrapped_position.data() + num_atoms * 2);
-  CUDA_CHECK_KERNEL
+  if (atom.unwrapped_position.size() > 0) {
+    gpu_update_unwrapped_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
+      atom.number_of_atoms,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + atom.number_of_atoms,
+      atom.position_per_atom.data() + atom.number_of_atoms * 2,
+      atom.position_temp.data(),
+      atom.position_temp.data() + atom.number_of_atoms,
+      atom.position_temp.data() + atom.number_of_atoms * 2,
+      atom.unwrapped_position.data(),
+      atom.unwrapped_position.data() + atom.number_of_atoms,
+      atom.unwrapped_position.data() + atom.number_of_atoms * 2);
+    GPU_CHECK_KERNEL
+  }
 }
 
 void Integrate::compute2(
@@ -297,13 +307,17 @@ void Integrate::compute2(
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
   } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
+  } else if (type == -11) {
+    ensemble->compute3(time_step, group, box, atom, thermo, force);
+    return;
   }
 
   ensemble->compute2(time_step, group, box, atom, thermo);
@@ -430,6 +444,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "wall_harmonic") == 0) {
     type = -10;
     ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
+  } else if (strcmp(param[1], "ti_liquid") == 0) {
+    type = -11;
+    ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -488,7 +505,9 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 3;
-      if (box.triclinic == 1) {
+      if (
+        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
       }
     } else if (num_param == 8) { // isotropic
@@ -502,7 +521,9 @@ void Integrate::parse_ensemble(
         PRINT_INPUT_ERROR("elastic modulus should > 0.");
       }
       num_target_pressure_components = 1;
-      if (box.triclinic == 1) {
+      if (
+        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
       }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -524,9 +545,6 @@ void Integrate::parse_ensemble(
         }
       }
       num_target_pressure_components = 6;
-      if (box.triclinic == 0) {
-        PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-      }
       if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
         PRINT_INPUT_ERROR(
           "Cannot use 6 pressure components with non-periodic boundary in any direction.");
@@ -549,6 +567,9 @@ void Integrate::parse_ensemble(
     }
     for (int i = 0; i < 6; i++) {
       pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
+      if (elastic_modulus[i] > 2.0e3) {
+        pressure_coupling[i] = 0.0;
+      }
     }
   }
 
@@ -668,7 +689,9 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 3;
-          if (box.triclinic == 1) {
+          if (
+            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
           }
         } else if (num_param == 9) { // isotropic
@@ -682,7 +705,9 @@ void Integrate::parse_ensemble(
             PRINT_INPUT_ERROR("elastic modulus should > 0.");
           }
           num_target_pressure_components = 1;
-          if (box.triclinic == 1) {
+          if (
+            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
           }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -704,9 +729,6 @@ void Integrate::parse_ensemble(
             }
           }
           num_target_pressure_components = 6;
-          if (box.triclinic == 0) {
-            PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
-          }
           if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
             PRINT_INPUT_ERROR(
               "Cannot use 6 pressure components with non-periodic boundary in any direction.");
@@ -723,6 +745,9 @@ void Integrate::parse_ensemble(
         }
         for (int i = 0; i < 6; i++) {
           pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
+          if (elastic_modulus[i] > 2.0e3) {
+            pressure_coupling[i] = 0.0;
+          }
         }
       }
     }
@@ -869,6 +894,8 @@ void Integrate::parse_ensemble(
     case -9:
       break;
     case -10:
+      break;
+    case -11:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

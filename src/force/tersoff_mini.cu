@@ -26,6 +26,8 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 #include "tersoff_mini.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 #define BLOCK_SIZE_FORCE 64
 
@@ -224,7 +226,7 @@ static __global__ void find_force_step1(
 }
 
 // step 2: calculate all the partial forces dU_i/dr_ij
-static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
+static __global__ void find_force_step2(
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -371,7 +373,7 @@ void Tersoff_mini::compute(
     position_per_atom.data() + number_of_atoms * 2,
     tersoff_mini_data.b.data(),
     tersoff_mini_data.bp.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -393,7 +395,7 @@ void Tersoff_mini::compute(
     tersoff_mini_data.f12x.data(),
     tersoff_mini_data.f12y.data(),
     tersoff_mini_data.f12z.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(

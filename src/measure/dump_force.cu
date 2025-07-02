@@ -22,9 +22,16 @@ Dump force data to a file at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
+
+Dump_Force::Dump_Force(const char** param, int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "dump_force";
+}
 
 void Dump_Force::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -52,13 +59,20 @@ void Dump_Force::parse(const char** param, int num_param, const std::vector<Grou
   }
 }
 
-void Dump_Force::preprocess(const int number_of_atoms, const std::vector<Group>& groups)
+void Dump_Force::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& groups,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     fid_ = my_fopen("force.out", "a");
 
     if (grouping_method_ < 0) {
-      cpu_force_per_atom.resize(number_of_atoms * 3);
+      cpu_force_per_atom.resize(atom.number_of_atoms * 3);
     } else {
       const int group_size = groups[grouping_method_].cpu_size[group_id_];
       gpu_force_tmp.resize(group_size * 3);
@@ -88,17 +102,28 @@ __global__ void copy_force(
 }
 
 void Dump_Force::process(
-  const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& groups,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int number_of_atoms = force_per_atom.size() / 3;
+  const int number_of_atoms = atom.number_of_atoms;
 
   if (grouping_method_ < 0) {
-    force_per_atom.copy_to_host(cpu_force_per_atom.data());
+    atom.force_per_atom.copy_to_host(cpu_force_per_atom.data());
     for (int n = 0; n < number_of_atoms; n++) {
       fprintf(
         fid_,
@@ -115,16 +140,16 @@ void Dump_Force::process(
       group_size,
       group_size_sum,
       groups[grouping_method_].contents.data(),
-      force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms,
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + number_of_atoms,
+      atom.force_per_atom.data() + 2 * number_of_atoms,
       gpu_force_tmp.data(),
       gpu_force_tmp.data() + group_size,
       gpu_force_tmp.data() + group_size * 2);
     for (int d = 0; d < 3; ++d) {
       double* cpu_f = cpu_force_per_atom.data() + group_size * d;
       double* gpu_f = gpu_force_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(
@@ -139,7 +164,13 @@ void Dump_Force::process(
   fflush(fid_);
 }
 
-void Dump_Force::postprocess()
+void Dump_Force::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     fclose(fid_);

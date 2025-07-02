@@ -20,9 +20,11 @@ Add force to a group of atoms.
 #include "add_force.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static void __global__ add_force(
   const int group_size,
@@ -64,7 +66,7 @@ void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& 
       atom.force_per_atom.data(),
       atom.force_per_atom.data() + num_atoms_total,
       atom.force_per_atom.data() + num_atoms_total * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 

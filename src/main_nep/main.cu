@@ -17,10 +17,13 @@
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
+#include <cstring>
 
 void print_welcome_information(void);
 
@@ -33,26 +36,26 @@ int main(int argc, char* argv[])
   printf("Started running nep.\n");
   print_line_2();
 
-  clock_t time_begin = clock();
+  const auto time_begin1 = std::chrono::high_resolution_clock::now();
   Parameters para;
   Fitness fitness(para);
-  clock_t time_finish = clock();
+  const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
-  float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+  const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;
   print_line_1();
-  printf("Time used for initialization = %f s.\n", time_used);
+  printf("Time used for initialization = %f s.\n", time_used1.count());
   print_line_2();
 
-  time_begin = clock();
+  const auto time_begin2 = std::chrono::high_resolution_clock::now();
   SNES snes(para, &fitness);
-  time_finish = clock();
+  const auto time_finish2 = std::chrono::high_resolution_clock::now();
 
-  time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+  const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
   print_line_1();
   if (para.prediction == 0) {
-    printf("Time used for training = %f s.\n", time_used);
+    printf("Time used for training = %f s.\n", time_used2.count());
   } else {
-    printf("Time used for predicting = %f s.\n", time_used);
+    printf("Time used for predicting = %f s.\n", time_used2.count());
   }
 
   print_line_2();
@@ -70,7 +73,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*              Master version after 3.9.5                     *\n");
+  printf("*                     version 4.2                             *\n");
   printf("*              This is the nep executable                     *\n");
   printf("***************************************************************\n");
   printf("\n");

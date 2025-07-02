@@ -20,7 +20,7 @@ Bibliography
    | Erik Bitzek, Pekka Koskinen, Franz Gähler, Michael Moseler, and Peter Gumbsch
    | *Structural Relaxation Made Simple*
    | Phys. Rev. Lett. **97**, 170201 (2006)
-   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_
+   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevLett.97.170201>`_
 
 .. [Brorsson2021]
    | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, and Paul Erhart
@@ -227,6 +227,12 @@ Bibliography
    | GECCO '11 (Association for Computing Machinery), New York, USA (2011), pp. 845–852
    | DOI: `10.1145/2001576.2001692 <https://doi.org/10.1145/2001576.2001692>`_
 
+.. [Song2024]
+   | Keke Song, Rui Zhao, Jiahui Liu, Yanzhou Wang, Eric Lindgren, Yong Wang, Shunda Chen, Ke Xu, Ting Liang, Penghua Ying, Nan Xu, Zhiqiang Zhao, Jiuyang Shi, Junjie Wang, Shuang Lyu, Zezhu Zeng, Shirong Liang, Haikuan Dong, Ligang Sun, Yue Chen, Zhuhua Zhang, Wanlin Guo, Ping Qian, Jian Sun, Paul Erhart, Tapio Ala-Nissila, Yanjing Su, and Zheyong Fan
+   | *General-purpose machine-learned potential for 16 elemental metals and their alloys*
+   | Nature Communications *15*, 10208 (2024)
+   | DOI: `10.1038/s41467-024-54554-x <https://doi.org/10.1038/s41467-024-54554-x>`_
+
 .. [Tersoff1988]
    | Jerry Tersoff
    | *New empirical approach for the structure and energy of covalent systems*
@@ -267,3 +273,62 @@ Bibliography
    | Computational Materials Science **207**, 111275 (2022)
    | DOI: `10.1016/j.commatsci.2022.111275 <https://doi.org/10.1016/j.commatsci.2022.111275>`_
 
+.. [Podryabinkin2023]
+   | Evgeny Podryabinkin, Kamil Garifullin, Alexander Shapeev, and Ivan Novikov
+   | *MLIP-3: Active learning on atomic environments with moment tensor potentials*
+   | J. Chem. Phys. **159**, 084112 (2023)
+   | DOI: `10.1063/5.0155887 <https://doi.org/10.1063/5.0155887>`_
+
+.. [Lysogorskiy2023]
+   | Yury Lysogorskiy, Anton Bochkarev, Matous Mrovec, and Ralf Drautz
+   | *Active learning strategies for atomic cluster expansion models*
+   | Phys. Rev. M **7**, 043801 (2023)
+   | DOI: `10.1103/PhysRevMaterials.7.043801 <https://doi.org/10.1103/PhysRevMaterials.7.043801>`_
+
+.. [Ouyang2018]
+   | Wengen Ouyang, Davide Mandelli, Michael Urbakh, and Oded Hod
+   | *Nanoserpents: graphene nanoribbon motion on two-dimensional hexagonal materials*
+   | Nano Lett. **18**, 6009-6016 (2018)
+   | DOI: `10.1021/acs.nanolett.8b02848 <https://doi.org/10.1021/acs.nanolett.8b02848>`_
+
+.. [Ouyang2020]
+   | Wengen Ouyang, Ido Azuri, Davide Mandelli, Alexandre Tkatchenko, Leeor Kronik, Michael Urbakh, and Oded Hod
+   | *Mechanical and tribological properties of layered materials under high pressure: assessing the importance of many-body dispersion effects*
+   | J. Chem. Theory Comput. **16(1)**, 666-676 (2020)
+   | DOI: `10.1021/acs.jctc.9b00908 <https://doi.org/10.1021/acs.jctc.9b00908>`_
+
+.. [Stillinger1985]
+   | Frank H. Stillinger and Thomas A. Weber
+   | *Computer simulation of local order in condensed phases of silicon*
+   | Phys. Rev. B **31**, 5262-5271 (1985)
+   | DOI: `10.1103/PhysRevB.31.5262 <https://doi.org/10.1103/PhysRevB.31.5262>`_
+
+.. [Jiang2015]
+   | Jinwu Jiang
+   | *Parametrization of Stillinger-Weber potential based on valence force field model: application to single-layer MoS2 and black phosphorus*
+   | Nanotechnology **26**, 315706 (2015)
+   | DOI: `10.1088/0957-4484/26/31/315706 <https://doi.org/10.1088/0957-4484/26/31/315706>`_
+
+.. [Jiang2019]
+   | Jinwu Jiang
+   | *Misfit strain-induced buckling for transition-metal dichalcogenide lateral heterostructures: a molecular dynamics study*
+   | Acta Mech. Solida Sin. **32**, 17-28 (2019)
+   | DOI: `10.1007/s10338-018-0049-z <https://doi.org/10.1007/s10338-018-0049-z>`_
+
+.. [Leite2016]
+   | Rodolfo Paula Leite, Rodrigo Freitas, Rodolfo Azevedo and Maurice de Koning
+   | *The Uhlenbeck-Ford model: Exact virial coefficients and application as a reference system in fluid-phase free-energy calculations*
+   | J. Chem. Phys. 145, 194101 (2016)
+   | DOI: `10.1063/1.4967775 <https://doi.org/10.1063/1.4967775>`_
+
+.. [Leite2019]
+   | Rodolfo Paula Leite and Maurice de Koning
+   | *Nonequilibrium free-energy calculations of fluids using LAMMPS*
+   | Computational Materials Science, Volume 159, 316-326 (2019)
+   | DOI: `10.1016/j.commatsci.2018.12.029 <https://doi.org/10.1016/j.commatsci.2018.12.029>`_
+
+.. [Menon2021]
+   | Sarath Menon, Yury Lysogorskiy, Jutta Rogal and Ralf Drautz
+   | *Automated free-energy calculation from atomistic simulations*
+   | Phys. Rev. Materials 5, 103801, (2021)
+   | DOI: `10.1103/PhysRevMaterials.5.103801 <https://doi.org/10.1103/PhysRevMaterials.5.103801>`_

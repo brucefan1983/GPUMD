@@ -14,7 +14,11 @@
 */
 
 /*----------------------------------------------------------------------------80
-The neuroevolution potential (NEP)
+1. The Gradient-optimized Neuroevolution Potential (GNEP)
+Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, 
+Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients,
+arXiv:2507.00528.
+2. The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
@@ -2609,7 +2613,7 @@ void GNEP::find_force(
         gnep_data[device_id].x12_angular.data(),
         gnep_data[device_id].y12_angular.data(),
         gnep_data[device_id].z12_angular.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
@@ -2624,7 +2628,7 @@ void GNEP::find_force(
       gnep_data[device_id].y12_radial.data(),
       gnep_data[device_id].z12_radial.data(),
       gnep_data[device_id].descriptors.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
@@ -2638,7 +2642,7 @@ void GNEP::find_force(
       gnep_data[device_id].z12_angular.data(),
       gnep_data[device_id].descriptors.data(),
       gnep_data[device_id].sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
@@ -2647,7 +2651,7 @@ void GNEP::find_force(
         para.s_max[device_id].data(),
         para.s_min[device_id].data(),
         para.q_scaler_gpu[device_id].data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
 
     zero_force<<<grid_size, block_size>>>(
@@ -2658,7 +2662,7 @@ void GNEP::find_force(
       dataset[device_id].virial.data(),
       dataset[device_id].virial.data() + dataset[device_id].N,
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     if (require_grad) {
       initialize_gradients(para, dataset[device_id].N);
@@ -2674,7 +2678,7 @@ void GNEP::find_force(
         gnep_data[device_id].Fp2.data(),
         gradients.Fp_wb.data(),
         gradients.E_wb_grad.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
         // std::vector<float> Fp_wb_host(dataset[device_id].N * para.number_of_variables_ann * para.dim);
         // CHECK(cudaMemcpy(Fp_wb_host.data(), gradients.Fp_wb.data(), dataset[device_id].N * para.number_of_variables_ann * para.dim * sizeof(float), cudaMemcpyDeviceToHost));
         // for (int i = 0; i < dataset[device_id].N; ++i) {
@@ -2701,7 +2705,7 @@ void GNEP::find_force(
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].energy.data(),
         gnep_data[device_id].Fp.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
@@ -2718,7 +2722,7 @@ void GNEP::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_force_angular<<<grid_size, block_size>>>(
       require_grad,
@@ -2739,7 +2743,7 @@ void GNEP::find_force(
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     gpu_sum_pe_error<<<dataset[device_id].Nc, 256, sizeof(float) * 256>>>(
       dataset[device_id].Na.data(),
@@ -2809,7 +2813,7 @@ void GNEP::find_force(
       //   para.q_scaler_gpu[device_id].data(),
       //   gradients.Fp_wb.data(),
       //   gradients.grad_sum.data());
-      // CUDA_CHECK_KERNEL
+      // GPU_CHECK_KERNEL
       const int NM_radial = dataset[device_id].N * dataset[device_id].max_NN_radial;
       const int threads_per_block = 32;
       if (NM_radial > 0) {
@@ -2856,7 +2860,7 @@ void GNEP::find_force(
           para.q_scaler_gpu[device_id].data(),
           gradients.Fp_wb.data(),
           gradients.grad_sum.data());
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       } else {
         const int blocks_per_grid = (dataset[device_id].N + threads_per_block - 1) / threads_per_block;
         compute_grad_e_without_neighbor<<<blocks_per_grid, threads_per_block>>>(
@@ -2871,7 +2875,7 @@ void GNEP::find_force(
           dataset[device_id].diff_gpu_e.data(),
           dataset[device_id].weight_gpu.data(),
           gradients.grad_sum.data());
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
       // compute_grad_angular<<<grid_size, block_size>>>(
       //   dataset[device_id].N,
@@ -2914,7 +2918,7 @@ void GNEP::find_force(
       //   para.q_scaler_gpu[device_id].data(),
       //   gradients.Fp_wb.data(),
       //   gradients.grad_sum.data());
-      // CUDA_CHECK_KERNEL
+      // GPU_CHECK_KERNEL
       const int NM_angular = dataset[device_id].N * dataset[device_id].max_NN_angular;
       if (NM_angular > 0) {
         const int blocks_per_grid_angular = (NM_angular + threads_per_block - 1) / threads_per_block;
@@ -2970,7 +2974,7 @@ void GNEP::find_force(
           // feat_y.data(),
           // feat_z.data(),
           gradients.grad_sum.data());
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
         //   std::vector<float>grad_c_sum(para.number_of_variables);
         // CHECK(cudaMemcpy(grad_c_sum.data(), gradients.grad_sum.data(), para.number_of_variables * sizeof(float), cudaMemcpyDeviceToHost));
         // for (int j = 0; j < para.number_of_variables; ++j) {
@@ -2995,7 +2999,7 @@ void GNEP::find_force(
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data(),
         dataset[device_id].energy.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     } 
   }
 }

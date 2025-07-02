@@ -14,12 +14,12 @@
 */
 
 #pragma once
-
+#include "property.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Compute
+class Compute : public Property
 {
 public:
   int compute_temperature = 0;
@@ -34,19 +34,39 @@ public:
   int output_interval = 1;
   int grouping_method = 0;
 
-  void preprocess(const int N, const std::vector<Group>& group);
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
 
-  void postprocess();
-  void process(
-    const int step,
-    const double energy_transferred[],
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom);
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
+
+  Compute(const char**, int, const std::vector<Group>& group);
   void parse(const char**, int, const std::vector<Group>& group);
 
 private:

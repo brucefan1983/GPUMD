@@ -24,6 +24,7 @@ Calculate:
 #include "sdc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -128,12 +129,19 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
-void SDC::preprocess(const int num_atoms, const double time_step, const std::vector<Group>& groups)
+void SDC::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& groups,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_)
     return;
 
-  num_atoms_ = (grouping_method_ < 0) ? num_atoms : groups[grouping_method_].cpu_size[group_id_];
+  num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   vx_.resize(num_atoms_ * num_correlation_steps_);
@@ -147,7 +155,18 @@ void SDC::preprocess(const int num_atoms, const double time_step, const std::vec
 }
 
 void SDC::process(
-  const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& groups,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -157,15 +176,15 @@ void SDC::process(
   const int sample_step = step / sample_interval_;
   const int correlation_step = sample_step % num_correlation_steps_;
   const int step_offset = correlation_step * num_atoms_;
-  const int number_of_atoms_total = velocity_per_atom.size() / 3;
+  const int number_of_atoms_total = atom.number_of_atoms;
 
   // copy the velocity data at the current step to appropriate place
   if (grouping_method_ < 0) {
     gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total,
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + number_of_atoms_total,
+      atom.velocity_per_atom.data() + 2 * number_of_atoms_total,
       vx_.data() + step_offset,
       vy_.data() + step_offset,
       vz_.data() + step_offset);
@@ -175,14 +194,14 @@ void SDC::process(
       num_atoms_,
       group_offset,
       groups[grouping_method_].contents.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total,
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + number_of_atoms_total,
+      atom.velocity_per_atom.data() + 2 * number_of_atoms_total,
       vx_.data() + step_offset,
       vy_.data() + step_offset,
       vz_.data() + step_offset);
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // start to calculate the VAC when we have enough frames
   if (sample_step >= num_correlation_steps_ - 1) {
@@ -200,16 +219,22 @@ void SDC::process(
       vacx_.data(),
       vacy_.data(),
       vacz_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
-void SDC::postprocess()
+void SDC::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   // normalize by the number of atoms and number of time origins
   const double vac_scaler = 1.0 / ((double)num_atoms_ * (double)num_time_origins_);
@@ -250,6 +275,12 @@ void SDC::postprocess()
 
   compute_ = false;
   grouping_method_ = -1;
+}
+
+SDC::SDC(const char** param, const int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "compute_sdc";
 }
 
 void SDC::parse(const char** param, const int num_param, const std::vector<Group>& groups)

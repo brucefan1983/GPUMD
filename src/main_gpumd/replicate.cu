@@ -14,6 +14,8 @@
 */
 
 #include "replicate.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups)
 {
@@ -41,6 +43,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   new_atoms.number_of_atoms = N;
   new_atoms.cpu_type.resize(N);
   new_atoms.cpu_mass.resize(N);
+  new_atoms.cpu_charge.resize(N);
   new_atoms.cpu_atom_symbol.resize(N);
   new_atoms.cpu_position_per_atom.resize(N * 3);
   new_atoms.cpu_velocity_per_atom.resize(N * 3);
@@ -48,20 +51,17 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   for (int i = 0; i < r[0]; i++) {
     for (int j = 0; j < r[1]; j++) {
       for (int k = 0; k < r[2]; k++) {
-        int ijk[3] = {i, j, k};
         for (int nn = 0; nn < atoms.number_of_atoms; nn++) {
           new_atoms.cpu_type[cur] = atoms.cpu_type[nn];
           new_atoms.cpu_mass[cur] = atoms.cpu_mass[nn];
+          new_atoms.cpu_charge[cur] = atoms.cpu_charge[nn];
           new_atoms.cpu_atom_symbol[cur] = atoms.cpu_atom_symbol[nn];
           for (int m = 0; m < groups.size(); m++)
             new_groups[m].cpu_label[cur] = groups[m].cpu_label[nn];
           for (int d = 0; d < 3; d++) {
             new_atoms.cpu_position_per_atom[cur + d * N] = atoms.cpu_position_per_atom[nn + d * n];
-            if (!box.triclinic)
-              new_atoms.cpu_position_per_atom[cur + d * N] += ijk[d] * box.cpu_h[d];
-            else
-              new_atoms.cpu_position_per_atom[cur + d * N] +=
-                i * box.cpu_h[d * 3] + j * box.cpu_h[d * 3 + 1] + k * box.cpu_h[d * 3 + 2];
+            new_atoms.cpu_position_per_atom[cur + d * N] +=
+              i * box.cpu_h[d * 3] + j * box.cpu_h[d * 3 + 1] + k * box.cpu_h[d * 3 + 2];
             new_atoms.cpu_velocity_per_atom[cur + d * N] = atoms.cpu_velocity_per_atom[nn + d * n];
           }
           cur++;
@@ -71,18 +71,11 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   }
 
   // repeat box
-  if (box.triclinic) {
-    for (int i = 0; i < 9; i++) {
-      int direction = i % 3;
-      box.cpu_h[i] *= r[direction];
-    }
-    box.get_inverse();
-  } else {
-    for (int i = 0; i < 3; i++) {
-      box.cpu_h[i] *= r[i];
-      box.cpu_h[i + 3] *= r[i];
-    }
+  for (int i = 0; i < 9; i++) {
+    int direction = i % 3;
+    box.cpu_h[i] *= r[direction];
   }
+  box.get_inverse();
   // copy to old
   for (int m = 0; m < groups.size(); m++) {
     groups[m].number = new_groups[m].number;
@@ -93,6 +86,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   atoms.number_of_atoms = N;
   atoms.cpu_type.assign(new_atoms.cpu_type.begin(), new_atoms.cpu_type.end());
   atoms.cpu_mass.assign(new_atoms.cpu_mass.begin(), new_atoms.cpu_mass.end());
+  atoms.cpu_charge.assign(new_atoms.cpu_charge.begin(), new_atoms.cpu_charge.end());
   atoms.cpu_atom_symbol.assign(new_atoms.cpu_atom_symbol.begin(), new_atoms.cpu_atom_symbol.end());
   atoms.cpu_position_per_atom.assign(
     new_atoms.cpu_position_per_atom.begin(), new_atoms.cpu_position_per_atom.end());

@@ -6,8 +6,8 @@
 ==========
 
 This file specifies hyperparameters used for training neuroevolution potential (:term:`NEP`) models, the functional form of which is outline :ref:`here <nep_formalism>`.
-The :term:`NEP` approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2) and [Fan2022b]_ (NEP3).
-Currently, we support NEP3, NEP4 (to be published), and NEP5 (to be published), which can be chosen by the :ref:`version keyword <kw_version>`.
+The :term:`NEP` approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4).
+Currently, we support NEP3 and NEP4, which can be chosen by the :ref:`version keyword <kw_version>`.
 
 File format
 -----------
@@ -66,6 +66,8 @@ Keywords
      - weight of force loss term
    * - :ref:`lambda_v <kw_lambda_v>`
      - weight of virial loss term
+   * - :ref:`atomic_v <kw_atomic_v>`
+     - fit atomic or global virial
    * - :ref:`force_delta <kw_force_delta>`
      - bias term that can be used to make smaller forces more accurate
    * - :ref:`batch <kw_batch>`

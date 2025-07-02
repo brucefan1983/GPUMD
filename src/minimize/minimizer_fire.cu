@@ -20,6 +20,8 @@ Reference: PhysRevLett 97, 170201 (2006)
 ------------------------------------------------------------------------------*/
 
 #include "minimizer_fire.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -129,10 +131,10 @@ void Minimizer_FIRE::compute(
     const double force_max = sqrt(cpu_force_square_max_[0]);
     calculate_total_potential(potential_per_atom);
 
-    if (step % base == 0 || force_max < force_tolerance_) {
+    if (step == 0 || (step + 1) % base == 0 || force_max < force_tolerance_) {
       printf(
         "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A.\n",
-        step,
+        step == 0 ? 0 : (step + 1),
         cpu_total_potential_[0],
         force_max);
       if (force_max < force_tolerance_)

@@ -22,8 +22,16 @@ Dump position data to movie.xyz.
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
+
+Dump_Position::Dump_Position(const char** param, int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "dump_position";
+}
 
 void Dump_Position::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -57,7 +65,14 @@ void Dump_Position::parse(const char** param, int num_param, const std::vector<G
   }
 }
 
-void Dump_Position::preprocess()
+void Dump_Position::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     fid_ = my_fopen("movie.xyz", "a");
@@ -92,65 +107,54 @@ __global__ void copy_position(
 
 void Dump_Position::output_line2(const Box& box, const std::vector<std::string>& cpu_atom_symbol)
 {
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+    "Properties=species:S:1:pos:R:3\n",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 }
 
 void Dump_Position::process(
-  const int step,
-  const Box& box,
-  const std::vector<Group>& groups,
-  const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& groups,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = position_per_atom.size() / 3;
+  const int num_atoms_total = atom.number_of_atoms;
 
   if (grouping_method_ < 0) {
-    position_per_atom.copy_to_host(cpu_position_per_atom.data());
+    atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
     fprintf(fid_, "%d\n", num_atoms_total);
-    output_line2(box, cpu_atom_symbol);
+    output_line2(box, atom.cpu_atom_symbol);
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
         fid_,
         precision_str_,
-        cpu_atom_symbol[n].c_str(),
-        cpu_position_per_atom[n],
-        cpu_position_per_atom[n + num_atoms_total],
-        cpu_position_per_atom[n + 2 * num_atoms_total]);
+        atom.cpu_atom_symbol[n].c_str(),
+        atom.cpu_position_per_atom[n],
+        atom.cpu_position_per_atom[n + num_atoms_total],
+        atom.cpu_position_per_atom[n + 2 * num_atoms_total]);
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -160,34 +164,40 @@ void Dump_Position::process(
       group_size,
       group_size_sum,
       groups[grouping_method_].contents.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + num_atoms_total,
-      position_per_atom.data() + 2 * num_atoms_total,
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + num_atoms_total,
+      atom.position_per_atom.data() + 2 * num_atoms_total,
       gpu_position_tmp.data(),
       gpu_position_tmp.data() + group_size,
       gpu_position_tmp.data() + group_size * 2);
     for (int d = 0; d < 3; ++d) {
-      double* cpu_data = cpu_position_per_atom.data() + num_atoms_total * d;
+      double* cpu_data = atom.cpu_position_per_atom.data() + num_atoms_total * d;
       double* gpu_data = gpu_position_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     fprintf(fid_, "%d\n", group_size);
-    output_line2(box, cpu_atom_symbol);
+    output_line2(box, atom.cpu_atom_symbol);
     for (int n = 0; n < group_size; n++) {
       fprintf(
         fid_,
         precision_str_,
-        cpu_atom_symbol[groups[grouping_method_].cpu_contents[group_size_sum + n]].c_str(),
-        cpu_position_per_atom[n],
-        cpu_position_per_atom[n + num_atoms_total],
-        cpu_position_per_atom[n + 2 * num_atoms_total]);
+        atom.cpu_atom_symbol[groups[grouping_method_].cpu_contents[group_size_sum + n]].c_str(),
+        atom.cpu_position_per_atom[n],
+        atom.cpu_position_per_atom[n + num_atoms_total],
+        atom.cpu_position_per_atom[n + 2 * num_atoms_total]);
     }
   }
 
   fflush(fid_);
 }
 
-void Dump_Position::postprocess()
+void Dump_Position::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     fclose(fid_);

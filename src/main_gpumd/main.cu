@@ -15,11 +15,14 @@
 
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
+#include <cstring>
 
 void print_welcome_information();
 
@@ -33,17 +36,17 @@ int main(int argc, char* argv[])
   printf("Started running GPUMD.\n");
   print_line_2();
 
-  CHECK(cudaDeviceSynchronize());
-  clock_t time_begin = clock();
+  CHECK(gpuDeviceSynchronize());
+  const auto time_begin = std::chrono::high_resolution_clock::now();
 
   Run run;
 
-  CHECK(cudaDeviceSynchronize());
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+  CHECK(gpuDeviceSynchronize());
+  const auto time_finish = std::chrono::high_resolution_clock::now();
+  const std::chrono::duration<double> time_used = time_finish - time_begin;
 
   print_line_1();
-  printf("Time used = %f s.\n", time_used);
+  printf("Time used = %f s.\n", time_used.count());
   print_line_2();
 
   print_line_1();
@@ -59,7 +62,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-  printf("*               Master version after 3.9.5                    *\n");
+  printf("*                     version 4.2                             *\n");
   printf("*              This is the gpumd executable                   *\n");
   printf("***************************************************************\n");
   printf("\n");

@@ -14,6 +14,8 @@
 */
 
 #include "ensemble_ti_rs.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -125,7 +127,11 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
-
+  if (t_switch * t_equil < 0) {
+    PRINT_INPUT_ERROR(
+      "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
+      "auto-determine)");
+  }
   // print summary
   if (!(use_barostat && use_thermostat))
     PRINT_INPUT_ERROR("For NPT ensemble, you need to specify thermostat and barostat parameters");

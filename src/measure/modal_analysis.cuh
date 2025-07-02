@@ -18,10 +18,14 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #pragma once
-
+#include "property.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <cublas_v2.h>
+#ifdef USE_HIP
+  #include <hipblas/hipblas.h>
+#else
+  #include <cublas_v2.h>
+#endif
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -32,7 +36,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #define GKMA_METHOD 0
 #define HNEMA_METHOD 1
 
-class MODAL_ANALYSIS
+class MODAL_ANALYSIS : public Property
 {
 public:
   // Bookkeeping variables
@@ -77,17 +81,45 @@ public:
   char eig_file_position[200];
   char output_file_position[200];
 
-  void preprocess(const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass);
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
 
-  void process(
-    const int step,
-    const double temperature,
-    const double volume,
-    const double fe,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom);
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 
-  void postprocess();
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
+  MODAL_ANALYSIS(
+    const char** param, 
+    int num_param, 
+    const int number_of_types, 
+    int method_input,
+    Force& force);
+  void parse_compute_gkma(const char**, int, const int number_of_types);
+  void parse_compute_hnema(const char**, int, const int number_of_types);
 
 private:
   int samples_per_output; // samples to be averaged for output
@@ -97,7 +129,12 @@ private:
   int num_participating;  // Number of particles participating
   int num_heat_stored;    // Number of stored heat current elements
 
-  cublasHandle_t ma_handle;
+  double fe_x = 0.0;
+  double fe_y = 0.0;
+  double fe_z = 0.0;
+  double fe;
+
+  gpublasHandle_t ma_handle;
 
   // stress by by square root mass (intermediate term)
   GPU_Vector<float> smx;

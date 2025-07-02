@@ -29,6 +29,7 @@ Reference for DOS:
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -143,6 +144,12 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
+DOS::DOS(const char** param, const int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "compute_dos";
+}
+
 void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
@@ -195,17 +202,34 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
 }
 
 void DOS::preprocess(
-  const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute_)
     return;
-  initialize_parameters(time_step, groups, mass);
+  initialize_parameters(time_step, group, atom.mass);
   allocate_memory();
-  copy_mass(mass);
+  copy_mass(atom.mass);
 }
 
 void DOS::process(
-  const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute_)
     return;
@@ -214,18 +238,24 @@ void DOS::process(
 
   const int sample_step = step / sample_interval_;
   const int correlation_step = sample_step % num_correlation_steps_;
-  copy_velocity(correlation_step, velocity_per_atom);
+  copy_velocity(correlation_step, atom.velocity_per_atom);
   if (sample_step >= num_correlation_steps_ - 1) {
     find_vac(correlation_step);
   }
 }
 
-void DOS::postprocess()
+void DOS::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute_)
     return;
 
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   normalize_vac();
   output_vac();
@@ -301,7 +331,7 @@ void DOS::copy_mass(const GPU_Vector<double>& mass)
     const int offset = (group_id_ < 0) ? 0 : group_->cpu_size_sum[group_id_];
     gpu_copy_mass<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_, group_->contents.data() + offset, mass.data(), mass_.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 }
 
@@ -338,7 +368,7 @@ void DOS::copy_velocity(const int correlation_step, const GPU_Vector<double>& ve
       }
     }
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::find_vac(const int correlation_step)
@@ -378,7 +408,7 @@ void DOS::find_vac(const int correlation_step)
       vacy_.data(),
       vacz_.data());
   }
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 }
 
 void DOS::normalize_vac()

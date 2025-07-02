@@ -21,10 +21,12 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -68,6 +70,12 @@ static __global__ void initialize_properties(
     g_virial[n1 + 7 * N] = 0.0;
     g_virial[n1 + 8 * N] = 0.0;
   }
+}
+
+Dump_Observer::Dump_Observer(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_observer";
 }
 
 void Dump_Observer::parse(const char** param, int num_param)
@@ -131,12 +139,18 @@ void Dump_Observer::parse(const char** param, int num_param)
 }
 
 void Dump_Observer::preprocess(
-  const int number_of_atoms, const int number_of_potentials, Force& force)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
-    const int number_of_files = (mode_.compare("observe") == 0) ? number_of_potentials : 1;
+    const int number_of_files = (mode_.compare("observe") == 0) ? force.potentials.size() : 1;
     for (int i = 0; i < number_of_files; i++) {
       const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
       std::string exyz_filename = "observer" + file_number + ".xyz";
@@ -147,27 +161,34 @@ void Dump_Observer::preprocess(
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
-      cpu_force_per_atom_.resize(number_of_atoms * 3);
+      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
   }
 }
 
 void Dump_Observer::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
   const double global_time,
-  const int number_of_atoms_fixed,
-  std::vector<Group>& group,
-  Box& box,
-  Atom& atom,
-  Force& force,
+  const double temperature,
   Integrate& integrate,
-  GPU_Vector<double>& thermo)
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   // Only run if should dump, since forces have to be recomputed with each potential.
   if (!dump_)
     return;
   if (((step + 1) % dump_interval_thermo_ != 0) & ((step + 1) % dump_interval_exyz_ != 0))
     return;
+
+  int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+  number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
+
   if (mode_.compare("observe") == 0) {
     // If observing, calculate properties with all potentials.
     const int number_of_potentials = force.potentials.size();
@@ -182,7 +203,7 @@ void Dump_Observer::process(
         atom.force_per_atom.data() + number_of_atoms * 2,
         atom.potential_per_atom.data(),
         atom.virial_per_atom.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
       // Compute new potential properties
       force.potentials[potential_index]->compute(
         box,
@@ -256,33 +277,18 @@ void Dump_Observer::output_line2(
     fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];
@@ -425,26 +431,28 @@ void Dump_Observer::write_thermo(
     thermo[6] * PRESSURE_UNIT_CONVERSION,
     thermo[5] * PRESSURE_UNIT_CONVERSION);
 
-  if (box.triclinic == 0) {
-    fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid_,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
   fflush(fid_);
 }
 
-void Dump_Observer::postprocess()
+void Dump_Observer::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   for (int i = 0; i < exyz_files_.size(); i++) {
     fclose(exyz_files_[i]);

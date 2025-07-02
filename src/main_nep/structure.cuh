@@ -22,9 +22,13 @@ struct Structure {
   int num_cell[3];
   int num_atom;
   int has_virial;
+  int has_atomic_virial;
+  int atomic_virial_diag_only;
   int has_temperature;
   float weight;
-  float energy;
+  float charge = 0.0f;
+  float energy = 0.0f;
+  float energy_weight = 1.0f;
   float virial[6];
   float box_original[9];
   float volume;
@@ -37,6 +41,12 @@ struct Structure {
   std::vector<float> fx;
   std::vector<float> fy;
   std::vector<float> fz;
+  std::vector<float> avirialxx;
+  std::vector<float> avirialyy;
+  std::vector<float> avirialzz;
+  std::vector<float> avirialxy;
+  std::vector<float> avirialyz;
+  std::vector<float> avirialzx;
 };
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);

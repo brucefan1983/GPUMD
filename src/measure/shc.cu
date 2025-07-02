@@ -25,12 +25,20 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "shc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
 const int BLOCK_SIZE_SHC = 128;
 
-void SHC::preprocess(const int N, const std::vector<Group>& group)
+void SHC::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (!compute) {
     return;
@@ -38,11 +46,11 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
 
   num_time_origins = 0;
   if (-1 == group_method) {
-    group_size = N;
+    group_size = atom.number_of_atoms;
     group_num = 1;
   } else {
     if (group_id == -1) {
-      group_size = N;
+      group_size = atom.number_of_atoms;
       group_num = group[group_method].number;
     } else {
       group_size = group[group_method].cpu_size[group_id];
@@ -152,10 +160,18 @@ static __global__ void gpu_copy_data(
 }
 
 void SHC::process(
-  const int step,
-  const std::vector<Group>& group,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!compute) {
     return;
@@ -167,23 +183,23 @@ void SHC::process(
   int correlation_step = sample_step % Nc;  // 0, 1, ..., Nc-1, 0, 1, ...
   int offset = correlation_step * group_size;
 
-  const int N = velocity_per_atom.size() / 3;
+  const int N = atom.number_of_atoms;
 
   const int tensor[3][3] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-  const double* sx_tmp = virial_per_atom.data() + N * tensor[direction][0];
-  const double* sy_tmp = virial_per_atom.data() + N * tensor[direction][1];
-  const double* sz_tmp = virial_per_atom.data() + N * tensor[direction][2];
-  const double* vx_tmp = velocity_per_atom.data();
-  const double* vy_tmp = velocity_per_atom.data() + N;
-  const double* vz_tmp = velocity_per_atom.data() + N * 2;
+  const double* sx_tmp = atom.virial_per_atom.data() + N * tensor[direction][0];
+  const double* sy_tmp = atom.virial_per_atom.data() + N * tensor[direction][1];
+  const double* sz_tmp = atom.virial_per_atom.data() + N * tensor[direction][2];
+  const double* vx_tmp = atom.velocity_per_atom.data();
+  const double* vy_tmp = atom.velocity_per_atom.data() + N;
+  const double* vz_tmp = atom.velocity_per_atom.data() + N * 2;
 
   if (-1 == group_method) {
-    CHECK(cudaMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
+    CHECK(gpuMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, gpuMemcpyDeviceToDevice));
   } else {
     if (group_id == -1) {
       for (int n = 1; n < group_num; ++n) {
@@ -207,7 +223,7 @@ void SHC::process(
           vx_tmp,
           vy_tmp,
           vz_tmp);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
@@ -227,7 +243,7 @@ void SHC::process(
         vy_tmp,
         vz_tmp);
     }
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
   }
 
   if (sample_step >= Nc - 1) {
@@ -248,7 +264,7 @@ void SHC::process(
           vz.data() + offset_s,
           ki_negative.data() + Nc * n,
           ko_negative.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
 
         gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
           group[group_method].cpu_size[n],
@@ -261,7 +277,7 @@ void SHC::process(
           sz.data() + offset_s,
           ki_positive.data() + Nc * n,
           ko_positive.data() + Nc * n);
-        CUDA_CHECK_KERNEL
+        GPU_CHECK_KERNEL
       }
     } else {
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
@@ -275,7 +291,7 @@ void SHC::process(
         vz.data(),
         ki_negative.data(),
         ko_negative.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
 
       gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
         group_size,
@@ -288,7 +304,7 @@ void SHC::process(
         sz.data(),
         ki_positive.data(),
         ko_positive.data());
-      CUDA_CHECK_KERNEL
+      GPU_CHECK_KERNEL
     }
   }
 }
@@ -379,7 +395,13 @@ void SHC::find_shc(const double dt_in_ps, const double d_omega)
   }
 }
 
-void SHC::postprocess(const double time_step)
+void SHC::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (!compute) {
     return;
@@ -498,4 +520,10 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   if (group_id < -1) {
     PRINT_INPUT_ERROR("group ID should >= -1 for computing SHC.");
   }
+}
+
+SHC::SHC(const char** param, int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "compute_shc";
 }

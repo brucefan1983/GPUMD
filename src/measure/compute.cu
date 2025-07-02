@@ -18,15 +18,24 @@ Compute block (space) averages of various per-atom quantities.
 ------------------------------------------------------------------------------*/
 
 #include "compute.cuh"
+#include "integrate/integrate.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
 
 #define DIM 3
 
-void Compute::preprocess(const int N, const std::vector<Group>& group)
+void Compute::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   number_of_scalars = 0;
   if (compute_temperature)
@@ -36,7 +45,7 @@ void Compute::preprocess(const int N, const std::vector<Group>& group)
   if (compute_force)
     number_of_scalars += 3;
   if (compute_virial)
-    number_of_scalars += 3;
+    number_of_scalars += 9;
   if (compute_jp)
     number_of_scalars += 3;
   if (compute_jk)
@@ -51,14 +60,20 @@ void Compute::preprocess(const int N, const std::vector<Group>& group)
   cpu_group_sum_ave.resize(number_of_columns, 0.0);
 
   gpu_group_sum.resize(number_of_columns);
-  gpu_per_atom_x.resize(N);
-  gpu_per_atom_y.resize(N);
-  gpu_per_atom_z.resize(N);
+  gpu_per_atom_x.resize(atom.number_of_atoms);
+  gpu_per_atom_y.resize(atom.number_of_atoms);
+  gpu_per_atom_z.resize(atom.number_of_atoms);
 
   fid = my_fopen("compute.out", "a");
 }
 
-void Compute::postprocess()
+void Compute::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (number_of_scalars == 0)
     return;
@@ -186,7 +201,7 @@ static __global__ void find_group_sum_1(
   }
   __syncthreads();
 
-#pragma unroll
+
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];
@@ -232,7 +247,6 @@ static __global__ void find_group_sum_3(
   }
   __syncthreads();
 
-#pragma unroll
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_fx[tid] += s_fx[tid + offset];
@@ -249,15 +263,104 @@ static __global__ void find_group_sum_3(
   }
 }
 
+static __global__ void find_group_sum_9(
+  const int* g_group_size,
+  const int* g_group_size_sum,
+  const int* g_group_contents,
+  const double* g_xx,
+  const double* g_xy,
+  const double* g_xz,
+  const double* g_yx,
+  const double* g_yy,
+  const double* g_yz,
+  const double* g_zx,
+  const double* g_zy,
+  const double* g_zz,
+  double* g_out)
+{
+  // <<<number_of_groups, 128>>> (one CUDA block for one group of atoms)
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int group_size = g_group_size[bid];
+  int offset = g_group_size_sum[bid];
+  int number_of_patches = (group_size - 1) / 128 + 1;
+  __shared__ double s_xx[128];
+  __shared__ double s_xy[128];
+  __shared__ double s_xz[128];
+  __shared__ double s_yx[128];
+  __shared__ double s_yy[128];
+  __shared__ double s_yz[128];
+  __shared__ double s_zx[128];
+  __shared__ double s_zy[128];
+  __shared__ double s_zz[128];
+  s_xx[tid] = 0.0;
+  s_xy[tid] = 0.0;
+  s_xz[tid] = 0.0;
+  s_yx[tid] = 0.0;
+  s_yy[tid] = 0.0;
+  s_yz[tid] = 0.0;
+  s_zx[tid] = 0.0;
+  s_zy[tid] = 0.0;
+  s_zz[tid] = 0.0;
+
+  for (int patch = 0; patch < number_of_patches; patch++) {
+    int k = tid + patch * 128;
+    if (k < group_size) {
+      int n = g_group_contents[offset + k]; // particle index
+      s_xx[tid] += g_xx[n];
+      s_xy[tid] += g_xy[n];
+      s_xz[tid] += g_xz[n];
+      s_yx[tid] += g_yx[n];
+      s_yy[tid] += g_yy[n];
+      s_yz[tid] += g_yz[n];
+      s_zx[tid] += g_zx[n];
+      s_zy[tid] += g_zy[n];
+      s_zz[tid] += g_zz[n];
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_xx[tid] += s_xx[tid + offset];
+      s_xy[tid] += s_xy[tid + offset];
+      s_xz[tid] += s_xz[tid + offset];
+      s_yx[tid] += s_yx[tid + offset];
+      s_yy[tid] += s_yy[tid + offset];
+      s_yz[tid] += s_yz[tid + offset];
+      s_zx[tid] += s_zx[tid + offset];
+      s_zy[tid] += s_zy[tid + offset];
+      s_zz[tid] += s_zz[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_out[bid + gridDim.x * 0] = s_xx[0];
+    g_out[bid + gridDim.x * 1] = s_xy[0];
+    g_out[bid + gridDim.x * 2] = s_xz[0];
+    g_out[bid + gridDim.x * 3] = s_yx[0];
+    g_out[bid + gridDim.x * 4] = s_yy[0];
+    g_out[bid + gridDim.x * 5] = s_yz[0];
+    g_out[bid + gridDim.x * 6] = s_zx[0];
+    g_out[bid + gridDim.x * 7] = s_zy[0];
+    g_out[bid + gridDim.x * 8] = s_zz[0];
+  }
+}
+
 void Compute::process(
-  const int step,
-  const double energy_transferred[],
-  const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (number_of_scalars == 0)
     return;
@@ -267,25 +370,25 @@ void Compute::process(
   int output_flag = (((step + 1) / sample_interval) % output_interval == 0);
 
   const int Ng = group[grouping_method].number;
-  const int N = mass.size();
+  const int N = atom.number_of_atoms;
 
   int offset = 0;
   if (compute_temperature) {
     find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     find_group_sum_1<<<Ng, 256>>>(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
       gpu_per_atom_x.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_potential) {
@@ -293,9 +396,9 @@ void Compute::process(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      potential_per_atom.data(),
+      atom.potential_per_atom.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_force) {
@@ -303,24 +406,34 @@ void Compute::process(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + 2 * N,
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + N,
+      atom.force_per_atom.data() + 2 * N,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_virial) {
-    find_group_sum_3<<<Ng, 256>>>(
+    // the virial tensor:
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    find_group_sum_9<<<Ng, 128>>>(
       group[grouping_method].size.data(),
       group[grouping_method].size_sum.data(),
       group[grouping_method].contents.data(),
-      virial_per_atom.data(),
-      virial_per_atom.data() + N,
-      virial_per_atom.data() + N * 2,
+      atom.virial_per_atom.data() + N * 0,
+      atom.virial_per_atom.data() + N * 3,
+      atom.virial_per_atom.data() + N * 4,
+      atom.virial_per_atom.data() + N * 6,
+      atom.virial_per_atom.data() + N * 1,
+      atom.virial_per_atom.data() + N * 5,
+      atom.virial_per_atom.data() + N * 7,
+      atom.virial_per_atom.data() + N * 8,
+      atom.virial_per_atom.data() + N * 2,
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
-    offset += Ng * 3;
+    GPU_CHECK_KERNEL
+    offset += Ng * 9;
   }
   if (compute_jp) {
     // the virial tensor:
@@ -329,22 +442,22 @@ void Compute::process(
     // zx zy zz    7 8 2
     find_per_atom_jp<<<(N - 1) / 128 + 1, 128>>>(
       N,
-      virial_per_atom.data(),
-      virial_per_atom.data() + N * 3,
-      virial_per_atom.data() + N * 4,
-      virial_per_atom.data() + N * 6,
-      virial_per_atom.data() + N * 1,
-      virial_per_atom.data() + N * 5,
-      virial_per_atom.data() + N * 7,
-      virial_per_atom.data() + N * 8,
-      virial_per_atom.data() + N * 2,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.virial_per_atom.data(),
+      atom.virial_per_atom.data() + N * 3,
+      atom.virial_per_atom.data() + N * 4,
+      atom.virial_per_atom.data() + N * 6,
+      atom.virial_per_atom.data() + N * 1,
+      atom.virial_per_atom.data() + N * 5,
+      atom.virial_per_atom.data() + N * 7,
+      atom.virial_per_atom.data() + N * 8,
+      atom.virial_per_atom.data() + N * 2,
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -354,21 +467,21 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_jk) {
     find_per_atom_jk<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      potential_per_atom.data(),
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.potential_per_atom.data(),
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -378,20 +491,20 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_momentum) {
     find_per_atom_momentum<<<(N - 1) / 256 + 1, 256>>>(
       N,
-      mass.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N,
+      atom.mass.data(),
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + N,
+      atom.velocity_per_atom.data() + 2 * N,
       gpu_per_atom_x.data(),
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
       group[grouping_method].size.data(),
@@ -401,7 +514,7 @@ void Compute::process(
       gpu_per_atom_y.data(),
       gpu_per_atom_z.data(),
       gpu_group_sum.data() + offset);
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     offset += Ng * 3;
   }
 
@@ -411,7 +524,7 @@ void Compute::process(
     cpu_group_sum_ave[n] += cpu_group_sum[n];
 
   if (output_flag) {
-    output_results(energy_transferred, group);
+    output_results(integrate.ensemble->energy_transferred, group);
     for (int n = 0; n < Ng * number_of_scalars; ++n)
       cpu_group_sum_ave[n] = 0.0;
   }
@@ -438,6 +551,12 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
 
   fprintf(fid, "\n");
   fflush(fid);
+}
+
+Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
+{
+  parse(param, num_param, group);
+  property_name = "compute";
 }
 
 void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)

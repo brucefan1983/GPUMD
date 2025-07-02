@@ -25,7 +25,38 @@ Run simulation according to the inputs in the run.in file.
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
+#include "measure/active.cuh"
+#include "measure/adf.cuh"
+#include "measure/angular_rdf.cuh"
+#include "measure/compute.cuh"
+#include "measure/dos.cuh"
+#include "measure/dump_beads.cuh"
+#include "measure/dump_dipole.cuh"
+#include "measure/dump_exyz.cuh"
+#include "measure/dump_force.cuh"
+#include "measure/dump_netcdf.cuh"
+#include "measure/dump_observer.cuh"
+#include "measure/dump_polarizability.cuh"
+#include "measure/dump_position.cuh"
+#include "measure/dump_restart.cuh"
+#include "measure/dump_shock_nemd.cuh"
+#include "measure/dump_thermo.cuh"
+#include "measure/dump_velocity.cuh"
+#include "measure/dump_xyz.cuh"
+#include "measure/extrapolation.cuh"
+#include "measure/hac.cuh"
+#include "measure/hnemd_kappa.cuh"
+#include "measure/hnemdec_kappa.cuh"
+#include "measure/lsqt.cuh"
 #include "measure/measure.cuh"
+#include "measure/modal_analysis.cuh"
+#include "measure/msd.cuh"
+#include "measure/plumed.cuh"
+#include "measure/property.cuh"
+#include "measure/rdf.cuh"
+#include "measure/sdc.cuh"
+#include "measure/shc.cuh"
+#include "measure/viscosity.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -33,8 +64,11 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
+#include <chrono>
+#include <cstring>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -83,7 +117,7 @@ static void calculate_time_step(
   }
   const int N = velocity_per_atom.size() / 3;
   double* gpu_v2_max;
-  CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
+  CHECK(gpuGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
   gpu_find_largest_v2<<<1, 1024>>>(
     N,
     (N - 1) / 1024 + 1,
@@ -91,9 +125,9 @@ static void calculate_time_step(
     velocity_per_atom.data() + N,
     velocity_per_atom.data() + N * 2,
     gpu_v2_max);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
-  CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), gpuMemcpyDeviceToHost));
   double cpu_v_max = sqrt(cpu_v2_max[0]);
   double time_step_min = max_distance_per_step / cpu_v_max;
 
@@ -180,13 +214,7 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
-#ifdef USE_PLUMED
-  if (measure.plmd.use_plumed == 1) {
-    measure.plmd.init(time_step, integrate.temperature);
-  }
-#endif
-
-  clock_t time_begin = clock();
+  const auto time_begin = std::chrono::high_resolution_clock::now();
 
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
@@ -261,19 +289,12 @@ void Run::perform_a_run()
         atom.mass);
     }
 
-#ifdef USE_PLUMED
-    if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
-      measure.plmd.process(
-        box, thermo, atom.position_per_atom, atom.force_per_atom, atom.virial_per_atom);
-    }
-#endif
-
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom);
 
-    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 
     mc.compute(step, number_of_steps, atom, box, group);
 
@@ -299,23 +320,15 @@ void Run::perform_a_run()
   }
 
   print_line_1();
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
+  const auto time_finish = std::chrono::high_resolution_clock::now();
+  const std::chrono::duration<double> time_used = time_finish - time_begin;
 
-  printf("Time used for this run = %g second.\n", time_used);
-  double run_speed = atom.number_of_atoms * (number_of_steps / time_used);
+  printf("Time used for this run = %g second.\n", time_used.count());
+  double run_speed = atom.number_of_atoms * (number_of_steps * 1.0 / time_used.count());
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(
-    atom,
-    box,
-    integrate,
-    number_of_steps,
-    time_step,
-    integrate.temperature2,
-    box.get_volume(),
-    atom.number_of_beads);
+  measure.finalize(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
   electron_stop.finalize();
   add_force.finalize();
@@ -324,6 +337,7 @@ void Run::perform_a_run()
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
+  force.finalize();
   max_distance_per_step = 0.0;
 }
 
@@ -404,67 +418,135 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(param, num_param, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
-    measure.dump_thermo.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Thermo(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_position") == 0) {
-    measure.dump_position.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Position(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
-    measure.dump_netcdf.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new DUMP_NETCDF(param, num_param));
+    measure.properties.emplace_back(std::move(property));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
 #endif
   } else if (strcmp(param[0], "plumed") == 0) {
 #ifdef USE_PLUMED
-    measure.plmd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new PLUMED(param, num_param));
+    measure.properties.emplace_back(std::move(property));
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
   } else if (strcmp(param[0], "dump_restart") == 0) {
-    measure.dump_restart.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Restart(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_velocity") == 0) {
-    measure.dump_velocity.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Velocity(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_force") == 0) {
-    measure.dump_force.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Force(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_exyz") == 0) {
-    measure.dump_exyz.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_EXYZ(param, num_param));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "dump_xyz") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_XYZ(param, num_param, group, atom));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_beads") == 0) {
-    measure.dump_beads.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Beads(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_observer") == 0) {
-    measure.dump_observer.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Observer(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_shock_nemd") == 0) {
-    measure.dump_shock_nemd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Shock_NEMD(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_dipole") == 0) {
-    measure.dump_dipole.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Dipole(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_polarizability") == 0) {
-    measure.dump_polarizability.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Dump_Polarizability(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "active") == 0) {
-    measure.active.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Active(param, num_param));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_extrapolation") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Extrapolation(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_dos") == 0) {
-    measure.dos.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new DOS(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_sdc") == 0) {
-    measure.sdc.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new SDC(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_msd") == 0) {
-    measure.msd.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new MSD(param, num_param, group, atom));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
-    measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
+    std::unique_ptr<Property> property;
+    property.reset(new RDF(param, num_param, box, number_of_types, number_of_steps));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_adf") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new ADF(param, num_param, box, number_of_types));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new AngularRDF(param, num_param, box, number_of_types, number_of_steps));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hac") == 0) {
-    measure.hac.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HAC(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
-    measure.viscosity.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new Viscosity(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
-    measure.hnemd.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HNEMD(param, num_param, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
-    measure.hnemdec.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new HNEMDEC(param, num_param, force, atom, integrate.temperature1));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_shc") == 0) {
-    measure.shc.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new SHC(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_gkma") == 0) {
-    measure.parse_compute_gkma(param, num_param, number_of_types);
+    std::unique_ptr<Property> property;
+    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 0, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hnema") == 0) {
-    measure.parse_compute_hnema(param, num_param, number_of_types);
+    std::unique_ptr<Property> property;
+    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "deform") == 0) {
     integrate.parse_deform(param, num_param);
   } else if (strcmp(param[0], "compute") == 0) {
-    measure.compute.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Compute(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "fix") == 0) {
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "move") == 0) {
@@ -482,7 +564,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
-    measure.lsqt.parse(param, num_param);
+    std::unique_ptr<Property> property;
+    property.reset(new LSQT(param, num_param));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {
@@ -492,23 +576,26 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Run::parse_velocity(const char** param, int num_param)
 {
-  int seed;
+  int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
     PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
+  } else if (num_param == 4) {
+    // See https://github.com/brucefan1983/GPUMD/pull/768
+    // for the reason for putting this branch here.
+    use_seed = true;
+    if (!is_valid_int(param[3], &seed)) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
   }
+
   if (!is_valid_real(param[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
-  if (num_param == 4) {
-    use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
-      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
-    }
-  }
+
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,
@@ -592,27 +679,6 @@ void Run::parse_run(const char** param, int num_param)
   }
   printf("Run %d steps.\n", number_of_steps);
 
-  bool compute_hnemd = measure.hnemd.compute || (measure.modal_analysis.compute &&
-                                                 measure.modal_analysis.method == HNEMA_METHOD);
-  force.set_hnemd_parameters(
-    compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
-
-  if (!compute_hnemd && (measure.hnemdec.compute != -1)) {
-    if ((measure.hnemdec.compute > number_of_types) || (measure.hnemdec.compute < 0)) {
-      PRINT_INPUT_ERROR(
-        "compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
-    }
-    force.set_hnemdec_parameters(
-      measure.hnemdec.compute,
-      measure.hnemdec.fe_x,
-      measure.hnemdec.fe_y,
-      measure.hnemdec.fe_z,
-      atom.cpu_mass,
-      atom.cpu_type,
-      atom.cpu_type_size,
-      integrate.temperature1);
-  }
-
   // set target temperature for temperature-dependent NEP
   force.temperature = integrate.temperature1;
   force.delta_T = (integrate.temperature2 - integrate.temperature1) / number_of_steps;
@@ -620,7 +686,7 @@ void Run::parse_run(const char** param, int num_param)
   perform_a_run();
 }
 
-static __global__ void gpu_pressure_triclinic(
+static __global__ void gpu_deform_atom(
   int N,
   double mu0,
   double mu1,
@@ -669,9 +735,6 @@ void Run::parse_change_box(const char** param, int num_param)
   }
 
   if (num_param == 7) {
-    if (box.triclinic == 0) {
-      PRINT_INPUT_ERROR("Cannot use orthogonal box with shear deformation.");
-    }
     if (!is_valid_real(param[4], &deformation_matrix[1][2])) {
       PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
     }
@@ -695,12 +758,8 @@ void Run::parse_change_box(const char** param, int num_param)
   printf("    in xy and yz by strain %g.\n", deformation_matrix[0][1]);
 
   for (int d = 0; d < 3; ++d) {
-    if (box.triclinic == 0) {
-      deformation_matrix[d][d] = (box.cpu_h[d] + deformation_matrix[d][d]) / box.cpu_h[d];
-    } else {
-      deformation_matrix[d][d] =
-        (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
-    }
+    deformation_matrix[d][d] =
+      (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
   }
 
   printf("    Deformation matrix =\n");
@@ -712,47 +771,33 @@ void Run::parse_change_box(const char** param, int num_param)
     printf("\n");
   }
 
-  if (box.triclinic == 0) {
-    printf("    Original box lengths are\n");
-    printf("        Lx = %g A\n", box.cpu_h[0]);
-    printf("        Ly = %g A\n", box.cpu_h[1]);
-    printf("        Lz = %g A\n", box.cpu_h[2]);
-  } else {
-    printf("    Original box h = [a, b, c] is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      printf("        ");
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%g ", box.cpu_h[d1 * 3 + d2]);
-      }
-      printf("\n");
+  printf("    Original box h = [a, b, c] is\n");
+  for (int d1 = 0; d1 < 3; ++d1) {
+    printf("        ");
+    for (int d2 = 0; d2 < 3; ++d2) {
+      printf("%g ", box.cpu_h[d1 * 3 + d2]);
     }
+    printf("\n");
   }
 
-  if (box.triclinic == 0) {
-    for (int d = 0; d < 3; ++d) {
-      box.cpu_h[d] *= deformation_matrix[d][d];
-      box.cpu_h[d + 3] = box.cpu_h[d] * 0.5;
-    }
-  } else {
-    double h_old[9];
-    for (int i = 0; i < 9; ++i) {
-      h_old[i] = box.cpu_h[i];
-    }
-
-    for (int r = 0; r < 3; ++r) {
-      for (int c = 0; c < 3; ++c) {
-        double tmp = 0.0;
-        for (int k = 0; k < 3; ++k) {
-          tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
-        }
-        box.cpu_h[r * 3 + c] = tmp;
-      }
-    }
-    box.get_inverse();
+  double h_old[9];
+  for (int i = 0; i < 9; ++i) {
+    h_old[i] = box.cpu_h[i];
   }
+
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      double tmp = 0.0;
+      for (int k = 0; k < 3; ++k) {
+        tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+      }
+      box.cpu_h[r * 3 + c] = tmp;
+    }
+  }
+  box.get_inverse();
 
   const int number_of_atoms = atom.position_per_atom.size() / 3;
-  gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     deformation_matrix[0][0],
     deformation_matrix[0][1],
@@ -766,21 +811,14 @@ void Run::parse_change_box(const char** param, int num_param)
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
-  if (box.triclinic == 0) {
-    printf("    Changed box lengths are\n");
-    printf("        Lx = %g A\n", box.cpu_h[0]);
-    printf("        Ly = %g A\n", box.cpu_h[1]);
-    printf("        Lz = %g A\n", box.cpu_h[2]);
-  } else {
-    printf("    Changed box h = [a, b, c] is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      printf("        ");
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%g ", box.cpu_h[d1 * 3 + d2]);
-      }
-      printf("\n");
+  printf("    Changed box h = [a, b, c] is\n");
+  for (int d1 = 0; d1 < 3; ++d1) {
+    printf("        ");
+    for (int d2 = 0; d2 < 3; ++d2) {
+      printf("%g ", box.cpu_h[d1 * 3 + d2]);
     }
+    printf("\n");
   }
 }

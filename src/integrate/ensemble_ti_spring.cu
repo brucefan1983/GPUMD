@@ -14,6 +14,8 @@
 */
 
 #include "ensemble_ti_spring.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 namespace
 {
@@ -137,6 +139,11 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
+  if (t_switch * t_equil < 0) {
+    PRINT_INPUT_ERROR(
+      "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
+      "auto-determine)");
+  }
   printf(
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
     temperature,
@@ -164,18 +171,18 @@ void Ensemble_TI_Spring::init()
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
   gpu_k.resize(N, 0);
   cpu_k.resize(N, 0);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
-  CHECK(cudaMemcpy(
+  CHECK(gpuMemcpy(
     position_0.data(),
     atom->position_per_atom.data(),
     sizeof(double) * position_0.size(),
-    cudaMemcpyDeviceToDevice));
+    gpuMemcpyDeviceToDevice));
 
   if (!auto_k) {
     for (int i = 0; i < N; i++) {

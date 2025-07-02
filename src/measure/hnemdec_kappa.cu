@@ -23,33 +23,43 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 #include "compute_heat.cuh"
 #include "hnemdec_kappa.cuh"
+#include "force/force.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 3
 #define FILE_NAME_LENGTH 200
 
 void HNEMDEC::preprocess(
-  const std::vector<double>& mass, const std::vector<int>& type, const std::vector<int>& type_size)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (compute == -1)
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
+  atom.heat_per_atom.resize(atom.number_of_atoms * 5);
 
   // find atom types' mass and factor
-  number_of_types = type_size.size();
+  number_of_types = atom.cpu_type_size.size();
   NUM_OF_DIFFUSION_COMPONENTS = 3 * number_of_types;
-  int N = mass.size();
+  int N = atom.number_of_atoms;
   diffusion_all.resize(3 * number_of_types * output_interval);
   cpu_mass_type.resize(number_of_types);
   mass_type.resize(number_of_types);
 
   int find_mass_type = 0;
   for (int i = 0; i < N; i++) {
-    if (cpu_mass_type[type[i]] != mass[i]) {
-      cpu_mass_type[type[i]] = mass[i];
+    if (cpu_mass_type[atom.cpu_type[i]] != atom.cpu_mass[i]) {
+      cpu_mass_type[atom.cpu_type[i]] = atom.cpu_mass[i];
       find_mass_type += 1;
     }
     if (find_mass_type == number_of_types) {
@@ -64,10 +74,10 @@ void HNEMDEC::preprocess(
     double patial_mass = 0;
     for (int i = 0; i < number_of_types; i++) {
       if (i != compute - 1) {
-        patial_mass += type_size[i] * cpu_mass_type[i];
+        patial_mass += atom.cpu_type_size[i] * cpu_mass_type[i];
       }
     }
-    FACTOR = N * (1.0 / patial_mass + 1.0 / (type_size[compute - 1] * cpu_mass_type[compute - 1]));
+    FACTOR = N * (1.0 / patial_mass + 1.0 / (atom.cpu_type_size[compute - 1] * cpu_mass_type[compute - 1]));
     FACTOR = 1.0 / FACTOR;
   }
 }
@@ -98,7 +108,7 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
     __syncthreads();
 
-#pragma unroll
+
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
         s_data[tid] += s_data[tid + offset];
@@ -122,7 +132,7 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
     __syncthreads();
 
-#pragma unroll
+
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
         s_data[tid] += s_data[tid + offset];
@@ -138,35 +148,43 @@ static __global__ void gpu_sum_heat_and_diffusion(
 }
 
 void HNEMDEC::process(
+  const int number_of_steps,
   int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
   const double temperature,
-  const double volume,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential,
-  GPU_Vector<double>& heat_per_atom)
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (compute == -1)
     return;
   const int output_flag = ((step + 1) % output_interval == 0);
   step %= output_interval;
 
-  const int N = velocity_per_atom.size() / 3;
+  const int N = atom.number_of_atoms;
 
-  compute_heat(mass, potential, virial_per_atom, velocity_per_atom, heat_per_atom);
+  compute_heat(
+    atom.mass, 
+    atom.potential_per_atom, 
+    atom.virial_per_atom, 
+    atom.velocity_per_atom, 
+    atom.heat_per_atom);
 
   gpu_sum_heat_and_diffusion<<<NUM_OF_HEAT_COMPONENTS + NUM_OF_DIFFUSION_COMPONENTS, 1024>>>(
     N,
     step,
-    type.data(),
+    atom.type.data(),
     mass_type.data(),
-    velocity_per_atom.data(),
-    heat_per_atom.data(),
+    atom.velocity_per_atom.data(),
+    atom.heat_per_atom.data(),
     heat_all.data(),
     diffusion_all.data());
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   if (output_flag) {
     const int heat_num = NUM_OF_HEAT_COMPONENTS * output_interval;
@@ -191,6 +209,7 @@ void HNEMDEC::process(
       }
     }
 
+    double volume = box.get_volume();
     double factor1, factor2;
     if (compute == 0) {
       factor1 = KAPPA_UNIT_CONVERSION / output_interval;
@@ -219,7 +238,28 @@ void HNEMDEC::process(
   }
 }
 
-void HNEMDEC::postprocess() { compute = -1; }
+void HNEMDEC::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature) { compute = -1; }
+
+HNEMDEC::HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature)
+{
+  parse(param, num_param);
+  property_name = "compute_hnemdec";
+  force.set_hnemdec_parameters(
+    compute,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.cpu_mass,
+    atom.cpu_type,
+    atom.cpu_type_size,
+    temperature);
+}
 
 void HNEMDEC::parse(const char** param, int num_param)
 {
@@ -232,6 +272,11 @@ void HNEMDEC::parse(const char** param, int num_param)
 
   if (!is_valid_int(param[1], &compute)) {
     PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer number.\n");
+  }
+
+  if ((compute > number_of_types) || (compute < 0)) {
+    PRINT_INPUT_ERROR(
+      "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
   }
 
   if (!is_valid_int(param[2], &output_interval)) {

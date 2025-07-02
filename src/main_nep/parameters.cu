@@ -16,6 +16,7 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
@@ -64,6 +65,7 @@ void Parameters::set_default_parameters()
   is_lambda_e_set = false;
   is_lambda_f_set = false;
   is_lambda_v_set = false;
+  is_atomic_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
   is_population_set = false;
@@ -73,6 +75,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
+  is_charge_mode_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -91,18 +94,24 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
+  lambda_q = 0.01f;            // need to test
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
+  save_potential = 100000;     // write checkpoint nep.txt files at these intervals
+  save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
   initial_para = 1.0f;
   sigma0 = 0.1f;
+  atomic_v = 0;
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  output_descriptor = false;
+  charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -156,8 +165,16 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (version == 5 && train_mode != 0) {
-    PRINT_INPUT_ERROR("Can only use NEP5 for potential model.");
+  if (charge_mode) {
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
+    }
+  }
+
+  if (train_mode == 0) {
+    if (atomic_v == 1) {
+      PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
+    }
   }
 
   if (train_mode != 0 && train_mode != 3) {
@@ -165,7 +182,7 @@ void Parameters::calculate_parameters()
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
     if (!is_lambda_v_set) {
-      lambda_v = 1.0f;
+      lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
@@ -180,19 +197,17 @@ void Parameters::calculate_parameters()
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
   }
-  q_scaler_cpu.resize(dim, 1.0e10f);
-#ifdef USE_FIXED_SCALER
-  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-    q_scaler_cpu[n] = 0.01f;
-  }
-#endif
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+    if (charge_mode) {
+      number_of_variables_ann += num_neurons1;
+    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-  } else if (version == 5) {
-    number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types + 1;
+    if (charge_mode) {
+      number_of_variables_ann += num_neurons1 * num_types;
+    }
   }
 
   number_of_variables_descriptor =
@@ -220,19 +235,135 @@ void Parameters::calculate_parameters()
     }
   }
 
+  q_scaler_cpu.resize(dim, 1.0e10f);
+  if (fine_tune) {
+    std::ifstream input(fine_tune_nep_txt);
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open foundation model file.");
+    }
+    std::vector<std::string> tokens;
+    const int NUM89 = 89;
+    const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
+    const int num_ann = NUM89 * num_ann_per_element + 1;
+    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
+    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+    for (int n = 0; n < num_tot + 7; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
+  }
+
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(cudaSetDevice(device_id));
+    CHECK(gpuSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
+}
+
+void Parameters::check_foundation_model()
+{
+  std::ifstream input(fine_tune_nep_txt);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open foundation model file.");
+  }
+  std::vector<std::string> tokens;
+  // first line, not used
+  tokens = get_tokens(input);
+  
+  // second line, zbl
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  float temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != zbl_rc_inner) {
+    PRINT_INPUT_ERROR("ZBL inner cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != zbl_rc_outer) {
+    PRINT_INPUT_ERROR("ZBL outer cutoff mismatches with foundation model.");
+  }
+
+  // third line, cutoff
+  tokens = get_tokens(input);
+  if (tokens.size() != 5) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (temp != rc_radial) {
+    PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
+  }
+  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (temp != rc_angular) {
+    PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
+  }
+
+  // 4th line, n_max
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (n_max_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
+  }
+  if (n_max_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("n_max_angular mismatches with foundation model.");
+  }
+
+  // 5th line, basis_size
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (basis_size_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_radial mismatches with foundation model.");
+  }
+  if (basis_size_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("basis_size_angular mismatches with foundation model.");
+  }
+
+  // 6th line, l_max
+  tokens = get_tokens(input);
+  if (tokens.size() != 4) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (L_max != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max mismatches with foundation model.");
+  }
+  if (L_max_4body != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max_4body mismatches with foundation model.");
+  }
+  if (L_max_5body != get_int_from_token(tokens[3], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("L_max_5body mismatches with foundation model.");
+  }
+
+  // 7th line, ANN
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("Reading error for foundation model.");
+  }
+  if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
+  }
+
+  input.close();
 }
 
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
     PRINT_INPUT_ERROR("type in nep.in has not been set.");
+  }
+
+  if (fine_tune) {
+    check_foundation_model();
   }
 
   printf("Input or default parameters:\n");
@@ -299,6 +430,16 @@ void Parameters::report_inputs()
     }
   } else {
     printf("    (default) will not add the ZBL potential.\n");
+  }
+
+  if (is_charge_mode_set) {
+    if (charge_mode == 1) {
+      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %g.\n", lambda_q);
+    } else if (charge_mode == 2) {
+      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
+    } else if (charge_mode == 3) {
+      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
+    }
   }
 
   if (is_cutoff_set) {
@@ -388,6 +529,12 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
+  if (is_atomic_v_set) {
+    printf("    (input)   atomic_v = %d.\n", atomic_v);
+  } else {
+    printf("    (default) atomic_v = %d.\n", atomic_v);
+  }
+
   if (is_lambda_shear_set) {
     printf("    (input)   lambda_shear = %g.\n", lambda_shear);
   } else {
@@ -419,6 +566,17 @@ void Parameters::report_inputs()
     printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
   } else {
     printf("    (default) maximum number of generations = %d.\n", maximum_generation);
+  }
+
+  if (is_save_potential_set) {
+    printf("    (input)   save potential every N = %d generations.\n", save_potential);
+  } else {
+    printf("    (default)   save potential every N = %d generations.\n", save_potential);
+  }
+
+  if (fine_tune) {
+    printf("    (input)   will fine-tune based on %s and %s.\n", 
+      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
   }
 
   // some calcuated parameters:
@@ -476,6 +634,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "lambda_q") == 0) {
+    parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -488,10 +648,20 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
+  } else if (strcmp(param[0], "atomic_v") == 0) {
+    parse_atomic_v(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "output_descriptor") == 0) {
+    parse_output_descriptor(param, num_param);
+  } else if (strcmp(param[0], "charge_mode") == 0) {
+    parse_charge_mode(param, num_param);
+  } else if (strcmp(param[0], "fine_tune") == 0) {
+    parse_fine_tune(param, num_param);
+  } else if (strcmp(param[0], "save_potential") == 0) {
+    parse_save_potential(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -537,8 +707,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 5) {
-    PRINT_INPUT_ERROR("version should = 3 or 4 or 5.");
+  if (version < 3 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
@@ -682,13 +852,13 @@ void Parameters::parse_n_max(const char** param, int num_param)
   }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 19) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 19.");
+  } else if (n_max_radial > 12) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 19) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
+  } else if (n_max_angular > 8) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 8.");
   }
 }
 
@@ -707,13 +877,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 19) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
+  } else if (basis_size_radial > 16) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 19) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
+  } else if (basis_size_angular > 12) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
   }
 }
 
@@ -772,8 +942,8 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 200) {
-    PRINT_INPUT_ERROR("number of neurons should <= 200.");
+  } else if (num_neurons1 > 120) {
+    PRINT_INPUT_ERROR("number of neurons should <= 120.");
   }
 }
 
@@ -872,6 +1042,40 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_lambda_q(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_q should have 1 parameter.\n");
+  }
+
+  double lambda_q_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_q_tmp)) {
+    PRINT_INPUT_ERROR("Charge loss weight should be a number.\n");
+  }
+  lambda_q = lambda_q_tmp;
+
+  if (lambda_q < 0.0f) {
+    PRINT_INPUT_ERROR("Charge loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_atomic_v(const char** param, int num_param)
+{
+  is_atomic_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
+  }
+
+  if (!is_valid_int(param[1], &atomic_v)) {
+    PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
+  }
+
+  if (atomic_v != 0 && atomic_v != 1) {
+    PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
+  }
+}
+
 void Parameters::parse_lambda_shear(const char** param, int num_param)
 {
   is_lambda_shear_set = true;
@@ -932,7 +1136,7 @@ void Parameters::parse_population(const char** param, int num_param)
   }
 
   int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
+  CHECK(gpuGetDeviceCount(&deviceCount));
   int fully_used_device = population_size % deviceCount;
   int population_should_increase;
   if (fully_used_device != 0) {
@@ -1052,4 +1256,67 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   if (typewise_cutoff_zbl_factor < 0.5f) {
     PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
   }
+}
+
+void Parameters::parse_output_descriptor(const char** param, int num_param)
+{
+  output_descriptor = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_descriptor should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_descriptor)) {
+    PRINT_INPUT_ERROR("output_descriptor should be an integer.\n");
+  }
+  if (output_descriptor < 0 || output_descriptor > 2) {
+    PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
+  }
+}
+
+void Parameters::parse_charge_mode(const char** param, int num_param)
+{
+  is_charge_mode_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("charge_mode should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &charge_mode)) {
+    PRINT_INPUT_ERROR("charge mode should be an integer.\n");
+  }
+  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
+  }
+}
+
+void Parameters::parse_fine_tune(const char** param, int num_param)
+{
+  fine_tune = 1;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
+  }
+
+  fine_tune_nep_txt = param[1];
+  fine_tune_nep_restart = param[2];
+}
+
+void Parameters::parse_save_potential(const char** param, int num_param)
+{
+  is_save_potential_set = true;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("save_potential should have 2 parameters.\n");
+  }
+  if (!is_valid_int(param[1], &save_potential)) {
+    PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
+  }
+  if (save_potential < 0) {
+    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
+  }
+  if (!is_valid_int(param[2], &save_potential_format)) {
+    PRINT_INPUT_ERROR("save_potential format should be an integer.\n");
+  }
+  if (save_potential_format != 0 && save_potential_format != 1) {
+    PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
+  }  
 }

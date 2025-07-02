@@ -17,6 +17,9 @@
 Some CUDA kernels for position scaling in NPT
 ------------------------------------------------------------------------------*/
 
+#pragma once
+#include "utilities/gpu_macro.cuh"
+
 static __global__ void gpu_pressure_orthogonal(
   const int number_of_particles,
   const double scale_factor_x,

@@ -15,14 +15,17 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    velocity
    correct_velocity
    potential
+   compute_extrapolation
    dftd3
    change_box
    deform
+   move
    ensemble
    ensemble_standard
    ensemble_mttk
    ensemble_heat
    ensemble_pimd
+   ensemble_ti_liquid
    ensemble_ti_spring
    ensemble_ti_as
    ensemble_ti_rs
@@ -45,6 +48,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    minimize
    run
    compute
+   compute_adf
    compute_cohesive
    compute_dos
    compute_elastic
@@ -60,6 +64,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_viscosity
    compute_lsqt
    compute_rdf
+   compute_angular_rdf
 
 .. toctree::
    :maxdepth: 1
@@ -67,6 +72,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    
    active
    dump_exyz
+   dump_xyz
    dump_beads
    dump_observer
    dump_dipole

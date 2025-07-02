@@ -22,10 +22,17 @@ Dump velocity data to a file at a given interval.
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
+
+Dump_Velocity::Dump_Velocity(const char** param, int num_param, const std::vector<Group>& groups)
+{
+  parse(param, num_param, groups);
+  property_name = "dump_velocity";
+}
 
 void Dump_Velocity::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -61,7 +68,14 @@ void Dump_Velocity::parse(const char** param, int num_param, const std::vector<G
   print_line_2();
 }
 
-void Dump_Velocity::preprocess()
+void Dump_Velocity::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     fid_ = my_fopen("velocity.out", "a");
@@ -89,28 +103,36 @@ __global__ void copy_velocity(
 }
 
 void Dump_Velocity::process(
-  const int step,
-  const std::vector<Group>& groups,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& groups,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = velocity_per_atom.size() / 3;
+  const int num_atoms_total = atom.number_of_atoms;
   const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
 
   if (grouping_method_ < 0) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
         fid_,
         "%g %g %g\n",
-        cpu_velocity_per_atom[n] * natural_to_A_per_fs,
-        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
-        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
+        atom.cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+        atom.cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
+        atom.cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -120,31 +142,37 @@ void Dump_Velocity::process(
       group_size,
       group_size_sum,
       groups[grouping_method_].contents.data(),
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + num_atoms_total,
-      velocity_per_atom.data() + 2 * num_atoms_total,
+      atom.velocity_per_atom.data(),
+      atom.velocity_per_atom.data() + num_atoms_total,
+      atom.velocity_per_atom.data() + 2 * num_atoms_total,
       gpu_velocity_tmp.data(),
       gpu_velocity_tmp.data() + group_size,
       gpu_velocity_tmp.data() + group_size * 2);
     for (int d = 0; d < 3; ++d) {
-      double* cpu_v = cpu_velocity_per_atom.data() + num_atoms_total * d;
+      double* cpu_v = atom.cpu_velocity_per_atom.data() + num_atoms_total * d;
       double* gpu_v = gpu_velocity_tmp.data() + group_size * d;
-      CHECK(cudaMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      CHECK(gpuMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, gpuMemcpyDeviceToHost));
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(
         fid_,
         "%g %g %g\n",
-        cpu_velocity_per_atom[n] * natural_to_A_per_fs,
-        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
-        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
+        atom.cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+        atom.cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
+        atom.cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
     }
   }
 
   fflush(fid_);
 }
 
-void Dump_Velocity::postprocess()
+void Dump_Velocity::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     fclose(fid_);

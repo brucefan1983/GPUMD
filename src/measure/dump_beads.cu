@@ -23,7 +23,15 @@ Dump bead data in PIMD-related run
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
+
+Dump_Beads::Dump_Beads(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_beads";
+}
 
 void Dump_Beads::parse(const char** param, int num_param)
 {
@@ -62,24 +70,31 @@ void Dump_Beads::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Beads::preprocess(const int number_of_atoms, const int number_of_beads)
+void Dump_Beads::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
-    if (number_of_beads == 0) {
+    if (atom.number_of_beads == 0) {
       PRINT_INPUT_ERROR("Cannot use dump_beads for non-PIMD-related runs.");
     }
-    number_of_beads_ = number_of_beads;
+    number_of_beads_ = atom.number_of_beads;
     fid_.resize(number_of_beads_);
     for (int k = 0; k < number_of_beads_; ++k) {
       std::string filename = "beads_dump_" + std::to_string(k) + ".xyz";
       fid_[k] = my_fopen(filename.c_str(), "a");
     }
-    cpu_position_.resize(number_of_atoms * 3);
+    cpu_position_.resize(atom.number_of_atoms * 3);
     if (has_velocity_) {
-      cpu_velocity_.resize(number_of_atoms * 3);
+      cpu_velocity_.resize(atom.number_of_atoms * 3);
     }
     if (has_force_) {
-      cpu_force_.resize(number_of_atoms * 3);
+      cpu_force_.resize(atom.number_of_atoms * 3);
     }
   }
 }
@@ -94,33 +109,18 @@ void Dump_Beads::output_line2(FILE* fid, const double time, const Box& box)
     fid, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
-  if (box.triclinic == 0) {
-    fprintf(
-      fid,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[1],
-      0.0,
-      0.0,
-      0.0,
-      box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid,
-      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid,
+    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3");
@@ -136,7 +136,19 @@ void Dump_Beads::output_line2(FILE* fid, const double time, const Box& box)
   fprintf(fid, "\n");
 }
 
-void Dump_Beads::process(const int step, const double global_time, const Box& box, Atom& atom)
+void Dump_Beads::process(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -185,7 +197,13 @@ void Dump_Beads::process(const int step, const double global_time, const Box& bo
   }
 }
 
-void Dump_Beads::postprocess()
+void Dump_Beads::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     for (int k = 0; k < number_of_beads_; ++k) {

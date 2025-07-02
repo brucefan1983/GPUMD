@@ -1,0 +1,10 @@
+potential nep.txt
+time_step 1
+velocity 300
+ensemble nve
+compute_msd 1 20
+#compute_msd 1 20 all_groups 0
+#dump_xyz 0 0 1 group_1.xyz unwrapped_position  # dump positions for group 1
+#dump_xyz 0 1 1 group_2.xyz unwrapped_position  # dump positions for group 2
+#dump_xyz 0 2 1 group_3.xyz unwrapped_position  # dump positions for group 3
+run 100

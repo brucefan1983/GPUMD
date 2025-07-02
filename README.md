@@ -24,28 +24,27 @@ This software is distributed under the GNU General Public License (GPL) version 
 * When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* Go to the directory of an example and type one of the following commands:
+* Go to the directory of an example in the [examples directory](examples) and type one of the following commands:
   * `path/to/gpumd`
   * `path/to/nep`
 
-## Colab tutorial
+## Tutorials
 * We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine.
-* You can also check other offline tutorials in the examples.
+* We also provide many tutorials and examples in the [GPUMD-Tutorials repository](https://github.com/brucefan1983/GPUMD-Tutorials).
 
 ## Manual
-* Latest released version: https://gpumd.org/
-* Development version: https://gpumd.org/dev/
+* For users and developers:
+  * Latest released version: https://gpumd.org/
+  * Development version: https://gpumd.org/dev/
+* For developers only:
+  * [The developer guide](developers)
 
-## Python packages related to GPUMD and/or NEP:
+## Tools
 
-| Package               | link                           | comment |
-| --------------------- | --------------------------------- | ---------------------------------- |
-| `calorine`            | https://gitlab.com/materials-modeling/calorine  | `calorine` is a Python package for running and analyzing molecular dynamics (MD) simulations via GPUMD. It also provides functionality for constructing and sampling neuroevolution potential (NEP) models via GPUMD. |
-| `GPUMD-Wizard`        | https://github.com/Jonsnow-willow/GPUMD-Wizard  | `GPUMD-Wizard` is a material structure processing software based on ASE (Atomic Simulation Environment) providing automation capabilities for calculating various properties of metals. Additionally, it aims to run and analyze molecular dynamics (MD) simulations using GPUMD.  |
-| `gpyumd`              |https://github.com/AlexGabourie/gpyumd   | `gpyumd` is a Python3 interface for GPUMD. It helps users generate input and process output files based on the details provided by the GPUMD documentation. It currently supports up to GPUMD-v3.3.1 and only the gpumd executable. |
-| `mdapy`               | https://github.com/mushroomfire/mdapy | The `mdapy` python library provides an array of powerful, flexible, and straightforward tools to analyze atomic trajectories generated from Molecular Dynamics (MD) simulations. |
-| `pynep`               | https://github.com/bigd4/PyNEP   | `PyNEP` is a python interface of the machine learning potential NEP used in GPUMD. |
-| `somd`                | https://github.com/initqp/somd  | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the Neuroevolution Potential (NEP) package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
+Various tools for `GPUMD` and `NEP` can be found in [tools](./tools/readme.md).
+
+## CPU version of NEP
+There is a standalone C++ implementation of the neuroevolution potential (NEP) in the [NEP_CPU repository](https://github.com/brucefan1983/NEP_CPU), which serves as the engine for many Python packages and provides an interface to the [LAMMPS package](https://github.com/lammps/lammps).
 
 ## Citations
 
@@ -63,10 +62,13 @@ This software is distributed under the GNU General Public License (GPL) version 
 | [11]                  | NEP + D3 dispersion correction |
 | [12]                  | MSST integrator for shock wave simulation |
 | [13]                  | linear-scaling quantum transport |
-| [14]                  | NEP4 |
+| [14]                  | NEP4 or UNEP-v1 (General-purpose machine-learned potential for 16 elemental metals and their alloys)|
 | [15]                  | TNEP (tensorial NEP models of dipole and polarizability) |
 | [16]                  | MCMD (hybrid Monte Carlo and molecular dynamics simulations) |
 | [17]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
+| [18]                  | NEMD and NPHug shock methods |
+| [19]                  | SW + ILP (hybrid Stillinger-Weber potential with anisotropic interlayer potential) |
+| [20]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 
 ## References
 
@@ -108,16 +110,27 @@ Phys. Rev. Lett. **131**, 146101 (2023).
 Journal of Physics: Condensed Matter **36**, 245901 (2024).
 
 [14] Keke Song, Rui Zhao, Jiahui Liu, Yanzhou Wang, Eric Lindgren, Yong Wang, Shunda Chen, Ke Xu, Ting Liang, Penghua Ying, Nan Xu, Zhiqiang Zhao, Jiuyang Shi, Junjie Wang, Shuang Lyu, Zezhu Zeng, Shirong Liang, Haikuan Dong, Ligang Sun, Yue Chen, Zhuhua Zhang, Wanlin Guo, Ping Qian, Jian Sun, Paul Erhart, Tapio Ala-Nissila, Yanjing Su, Zheyong Fan,
-[General-purpose machine-learned potential for 16 elemental metals and their alloys](https://doi.org/10.48550/arXiv.2311.04732)
-arXiv:2311.04732 [cond-mat.mtrl-sci]
+[General-purpose machine-learned potential for 16 elemental metals and their alloys](https://doi.org/10.1038/s41467-024-54554-x),
+Nature Communications **15**, 10208 (2024).
 
 [15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
-[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343)
+[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.1021/acs.jctc.3c01343),
 J. Chem. Theory Comput. **20**, 3273 (2024).
 
-[16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694)
+[16] Keke Song, Jiahui Liu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute segregation in polycrystalline aluminum from hybrid Monte Carlo and molecular dynamics simulations with a unified neuroevolution potential](https://arxiv.org/abs/2404.13694),
 arXiv:2404.13694 [cond-mat.mtrl-sci]
 
-[17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Esmée Berger, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Jianbin Xu, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430)
-arXiv:2409.04430 [cond-mat.mtrl-sci]
+[17] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Esmée Berger, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Jianbin Xu, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://doi.org/10.1063/5.0241006),
+J. Chem. Phys. **162**, 064109 (2025).
 
+[18] Shuning Pan, Jiuyang Shi, Zhixin Liang, Cong Liu, Junjie Wang, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun, [Shock compression pathways to pyrite silica from machine learning simulations](https://doi.org/10.1103/PhysRevB.110.224101),
+Phys. Rev. B **110**, 224101 (2024).
+
+[19] Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, [Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides](https://doi.org/10.1021/acsnano.4c12148),
+ACS Nano **19**, 16287 (2025).
+
+[20] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Accurate modeling of LEGO-like vdW heterostructures: Integrating machine learned with anisotropic interlayer potentials](https://arxiv.org/abs/2504.12985),
+arXiv:2504.12985 [physics.comp-ph].
+
+[21] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients](http://arxiv.org/abs/2507.00528),
+arXiv:2507.00528 [cond-mat.dis-nn; cond-mat.mtrl-sci; physics.comp-ph].

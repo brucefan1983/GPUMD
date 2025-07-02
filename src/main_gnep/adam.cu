@@ -182,7 +182,7 @@ Adam::Adam(Parameters& para)
   gpu_v.resize(number_of_variables);
   curand_states.resize(number_of_variables);
   initialize_curand_states<<<(number_of_variables - 1) / 128 + 1, 128>>>(curand_states.data(), number_of_variables, 1234567);
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // initialize the optimizer parameters
   // initialize_parameters(para);
@@ -240,7 +240,7 @@ void Adam::initialize_parameters(Parameters& para)
       para.energy_shift_gpu.data(),
       curand_states.data(),
       gpu_parameters.data());
-    CUDA_CHECK_KERNEL
+    GPU_CHECK_KERNEL
     gpu_parameters.copy_to_host(parameters.data());
     // parameters[0] = -0.566794097424;
     // parameters[1] = 0.177166983485;
@@ -373,7 +373,7 @@ void Adam::update(float lr, float* gradients) {
     gpu_m.data(),
     gpu_v.data()
   );
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
   
   // calculate bias correction
   const float beta1_t = pow(beta1, step + 1);
@@ -391,7 +391,7 @@ void Adam::update(float lr, float* gradients) {
     gpu_v.data(),
     gpu_parameters.data()
   );
-  CUDA_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   gpu_parameters.copy_to_host(parameters.data());
   // printf("Parameters: \n");

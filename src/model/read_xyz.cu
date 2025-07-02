@@ -23,8 +23,10 @@ The class defining the simulation model.
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -136,33 +138,6 @@ const std::map<std::string, double> MASS_TABLE{
   {"No", 259},
   {"Lr", 262}};
 
-static bool need_triclinic()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  bool triclinic = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "compute_elastic") {
-        triclinic = true;
-      }
-      if (tokens[0] == "change_box" && tokens.size() == 7) {
-        triclinic = true;
-      }
-      if (tokens[0] == "ensemble" && tokens.size() >= 18) {
-        triclinic = true;
-      }
-    }
-  }
-
-  input_run.close();
-  return triclinic;
-}
-
 static void read_xyz_line_1(std::ifstream& input, int& N)
 {
   std::vector<std::string> tokens = get_tokens(input);
@@ -244,54 +219,22 @@ static void read_xyz_line_2(
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
-
-    if (
-      !need_triclinic() && box.cpu_h[1] == 0 && box.cpu_h[2] == 0 && box.cpu_h[3] == 0 &&
-      box.cpu_h[5] == 0 && box.cpu_h[6] == 0 && box.cpu_h[7] == 0) {
-      box.triclinic = 0;
-    } else {
-      box.triclinic = 1;
+    printf("Box matrix h = [a, b, c] is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
+      }
+      printf("\n");
     }
 
-    (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
+    box.get_inverse();
 
-    if (box.triclinic == 1) {
-      printf("Box matrix h = [a, b, c] is\n");
-      for (int d1 = 0; d1 < 3; ++d1) {
-        for (int d2 = 0; d2 < 3; ++d2) {
-          printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
-        }
-        printf("\n");
+    printf("Inverse box matrix g = inv(h) is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
       }
-
-      box.get_inverse();
-
-      printf("Inverse box matrix g = inv(h) is\n");
-      for (int d1 = 0; d1 < 3; ++d1) {
-        for (int d2 = 0; d2 < 3; ++d2) {
-          printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
-        }
-        printf("\n");
-      }
-    } else {
-      box.cpu_h[1] = box.cpu_h[4];
-      box.cpu_h[2] = box.cpu_h[8];
-      box.cpu_h[3] = box.cpu_h[0] * 0.5;
-      box.cpu_h[4] = box.cpu_h[1] * 0.5;
-      box.cpu_h[5] = box.cpu_h[2] * 0.5;
-      if (box.cpu_h[0] <= 0) {
-        PRINT_INPUT_ERROR("Box length in x direction <= 0.");
-      }
-      if (box.cpu_h[1] <= 0) {
-        PRINT_INPUT_ERROR("Box length in y direction <= 0.");
-      }
-      if (box.cpu_h[2] <= 0) {
-        PRINT_INPUT_ERROR("Box length in z direction <= 0.");
-      }
-      printf("Box lengths are\n");
-      printf("    Lx = %20.10e A\n", box.cpu_h[0]);
-      printf("    Ly = %20.10e A\n", box.cpu_h[1]);
-      printf("    Lz = %20.10e A\n", box.cpu_h[2]);
+      printf("\n");
     }
   }
 
@@ -606,14 +549,10 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.charge.resize(N);
   atom.charge.copy_from_host(atom.cpu_charge.data());
   atom.position_per_atom.resize(N * 3);
-  atom.unwrapped_position.resize(N * 3);
-  atom.position_temp.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
-  atom.unwrapped_position.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);
-  atom.heat_per_atom.resize(N * 5);
   thermo.resize(12);
 }

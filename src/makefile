@@ -1,7 +1,8 @@
 ###########################################################
 # Note: 
 # 1) You can modify -arch=sm_60 according to 
-#    your GPU architecture.
+#    your GPU architecture. For compute capability < 6.0,
+#    need to add -DUSE_KEPLER to CFLAGS.
 # 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
@@ -16,7 +17,7 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_86
+CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
@@ -85,10 +86,19 @@ HEADERS =                         \
 all: gpumd nep gnep
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The gpumd executable is successfully compiled!
+	@echo =================================================
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The nep executable is successfully compiled!
+	@echo =================================================
 gnep: $(OBJ_GNEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo =================================================
+	@echo The gnep executable is successfully compiled!
+	@echo =================================================
 
 
 ###########################################################

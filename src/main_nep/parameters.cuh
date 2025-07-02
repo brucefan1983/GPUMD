@@ -30,6 +30,8 @@ public:
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
+  int save_potential;     // number of generations between writing a checkpoint nep.txt file. 
+  int save_potential_format;  // format of checkpoint nep.txt file name
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
@@ -46,6 +48,7 @@ public:
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
+  float lambda_q;         // weight for global charge
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
@@ -55,11 +58,17 @@ public:
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
+  int atomic_v;
   bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_radial_factor;
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
+  int output_descriptor;
+  int charge_mode; // add dynamic charge to NEP potential model
+  int fine_tune = 0; // fine_tune option; 0=no, 1=yes
+  std::string fine_tune_nep_txt = "";
+  std::string fine_tune_nep_restart = "";
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -76,15 +85,18 @@ public:
   bool is_lambda_e_set;
   bool is_lambda_f_set;
   bool is_lambda_v_set;
+  bool is_atomic_v_set;
   bool is_lambda_shear_set;
   bool is_batch_set;
   bool is_population_set;
   bool is_generation_set;
+  bool is_save_potential_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
+  bool is_charge_mode_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -110,6 +122,7 @@ private:
   void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
+  void check_foundation_model();
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
@@ -129,6 +142,7 @@ private:
   void parse_lambda_e(const char** param, int num_param);
   void parse_lambda_f(const char** param, int num_param);
   void parse_lambda_v(const char** param, int num_param);
+  void parse_lambda_q(const char** param, int num_param);
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
@@ -136,6 +150,11 @@ private:
   void parse_generation(const char** param, int num_param);
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
+  void parse_atomic_v(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
+  void parse_output_descriptor(const char** param, int num_param);
+  void parse_charge_mode(const char** param, int num_param);
+  void parse_fine_tune(const char** param, int num_param);
+  void parse_save_potential(const char** param, int num_param);
 };

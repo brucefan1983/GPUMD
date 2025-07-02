@@ -15,7 +15,12 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <curand_kernel.h>
+#include "utilities/gpu_macro.cuh"
+#ifdef USE_HIP
+  #include <hiprand/hiprand_kernel.h>
+#else
+  #include <curand_kernel.h>
+#endif
 #include <random>
 #include <vector>
 class Fitness;
@@ -43,7 +48,7 @@ protected:
   std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
 
-  GPU_Vector<curandState> curand_states;
+  GPU_Vector<gpurandState> curand_states;
   GPU_Vector<int> gpu_type_of_variable;
   GPU_Vector<int> gpu_index;
   GPU_Vector<float> gpu_utility;
@@ -56,6 +61,7 @@ protected:
 
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
+  void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
   void compute(Parameters&, Fitness*);

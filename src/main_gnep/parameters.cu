@@ -104,7 +104,7 @@ void Parameters::set_default_parameters()
   lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   force_delta = 0.0f;          // no modification of force loss
-  batch_size = 1;           // mini-batch for adam optimizer
+  batch_size = 2;           // mini-batch for adam optimizer
   use_full_batch = 0;          // default is not to enable effective full-batch
   epoch = 50;               
   use_typewise_cutoff = false;

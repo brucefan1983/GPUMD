@@ -18,6 +18,8 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nve.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
 
 Ensemble_NVE::Ensemble_NVE(int t) { type = t; }
 

@@ -22,9 +22,17 @@ Dump a restart file
 #include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <cstring>
+
+Dump_Restart::Dump_Restart(const char** param, int num_param)
+{
+  parse(param, num_param);
+  property_name = "dump_restart";
+}
 
 void Dump_Restart::parse(const char** param, int num_param)
 {
@@ -47,7 +55,14 @@ void Dump_Restart::parse(const char** param, int num_param)
   print_line_2();
 }
 
-void Dump_Restart::preprocess()
+void Dump_Restart::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
   if (dump_) {
     // nothing
@@ -55,16 +70,18 @@ void Dump_Restart::preprocess()
 }
 
 void Dump_Restart::process(
-  const int step,
-  const Box& box,
-  const std::vector<Group>& group,
-  const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
-  const std::vector<double>& cpu_mass,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -73,33 +90,28 @@ void Dump_Restart::process(
 
   FILE* fid = my_fopen("restart.xyz", "w");
 
-  const int number_of_atoms = cpu_mass.size();
+  const int number_of_atoms = atom.number_of_atoms;
 
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
-  velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
+  atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
 
   fprintf(fid, "%d\n", number_of_atoms);
 
-  fprintf(fid, "triclinic=%c ", box.triclinic ? 'T' : 'F');
   fprintf(
     fid, "pbc=\"%c %c %c\" ", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
-  if (box.triclinic == 0) {
-    fprintf(fid, "Lattice=\"%g 0 0 0 %g 0 0 0 %g\" ", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid,
-      "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
-      box.cpu_h[0],
-      box.cpu_h[3],
-      box.cpu_h[6],
-      box.cpu_h[1],
-      box.cpu_h[4],
-      box.cpu_h[7],
-      box.cpu_h[2],
-      box.cpu_h[5],
-      box.cpu_h[8]);
-  }
+  fprintf(
+    fid,
+    "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
 
   if (group.size() == 0) {
     fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3\n");
@@ -112,14 +124,14 @@ void Dump_Restart::process(
     fprintf(
       fid,
       "%s %g %g %g %g %g %g %g ",
-      cpu_atom_symbol[n].c_str(),
-      cpu_position_per_atom[n],
-      cpu_position_per_atom[n + number_of_atoms],
-      cpu_position_per_atom[n + 2 * number_of_atoms],
-      cpu_mass[n],
-      cpu_velocity_per_atom[n] * natural_to_A_per_fs,
-      cpu_velocity_per_atom[n + number_of_atoms] * natural_to_A_per_fs,
-      cpu_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_A_per_fs);
+      atom.cpu_atom_symbol[n].c_str(),
+      atom.cpu_position_per_atom[n],
+      atom.cpu_position_per_atom[n + number_of_atoms],
+      atom.cpu_position_per_atom[n + 2 * number_of_atoms],
+      atom.cpu_mass[n],
+      atom.cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+      atom.cpu_velocity_per_atom[n + number_of_atoms] * natural_to_A_per_fs,
+      atom.cpu_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_A_per_fs);
 
     for (int m = 0; m < group.size(); ++m) {
       fprintf(fid, "%d ", group[m].cpu_label[n]);
@@ -132,7 +144,13 @@ void Dump_Restart::process(
   fclose(fid);
 }
 
-void Dump_Restart::postprocess()
+void Dump_Restart::postprocess(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
   if (dump_) {
     dump_ = false;

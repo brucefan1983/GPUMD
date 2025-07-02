@@ -14,23 +14,50 @@
 */
 
 #pragma once
-
+#include "property.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <cooperative_groups.h>
 #include <string>
 #include <vector>
 
-class Dump_Shock_NEMD
+class Dump_Shock_NEMD : public Property
 {
 public:
+  Dump_Shock_NEMD(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  void preprocess(Atom& atom, Box& box);
-  void process(Atom& atom, Box& box, const int step);
-  void postprocess();
+  virtual void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
 
 private:
   bool dump_ = false;
