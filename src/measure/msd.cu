@@ -213,6 +213,10 @@ void MSD::preprocess(
 {
   if (!compute_)
     return;
+  
+  if (num_correlation_steps_ > number_of_steps) {
+    PRINT_INPUT_ERROR("MSD correlation should be <= number of MD steps.\n");
+  }
     
   if (grouping_method_ < 0) {
     num_atoms_ = atom.number_of_atoms;
@@ -367,10 +371,15 @@ void MSD::write(const char* filename)
   // normalize by the number of atoms and number of time origins
   for (int group_id=0; group_id < num_groups_; group_id++) {
     int num_atoms = num_atoms_per_group_[group_id];
-    // num_time_origins_ should be different for each nc
-    const double msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
-    int group_index = group_id * num_correlation_steps_;
+    
+    // This is the case for empty groups and if the msd has yet to be computed
+    double msd_scaler = 0.0;
+    if (num_atoms > 0 && num_time_origins_ > 0) {
+      // num_time_origins_ should be different for each nc
+      msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
+    } 
 
+    int group_index = group_id * num_correlation_steps_;
     for (int nc = group_index + 0; nc < group_index + num_correlation_steps_; nc++) {
       msdx_out_[nc] = msdx_[nc] * msd_scaler;
       msdy_out_[nc] = msdy_[nc] * msd_scaler;
@@ -475,7 +484,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
     } else if (strcmp(param[k], "all_groups") == 0) {
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
-      if (!is_valid_int(param[4], &grouping_method_)) {
+     if (!is_valid_int(param[4], &grouping_method_)) {
         PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
       }
       if (grouping_method_ < 0) {
