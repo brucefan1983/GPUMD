@@ -213,6 +213,10 @@ void MSD::preprocess(
 {
   if (!compute_)
     return;
+  
+  if (num_correlation_steps_ > number_of_steps) {
+    PRINT_INPUT_ERROR("MSD correlation should be <= number of MD steps.\n");
+  }
     
   if (grouping_method_ < 0) {
     num_atoms_ = atom.number_of_atoms;
@@ -480,7 +484,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
     } else if (strcmp(param[k], "all_groups") == 0) {
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
-      if (!is_valid_int(param[4], &grouping_method_)) {
+     if (!is_valid_int(param[4], &grouping_method_)) {
         PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
       }
       if (grouping_method_ < 0) {
