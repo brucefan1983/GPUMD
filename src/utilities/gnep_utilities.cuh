@@ -13,6 +13,17 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+1. The Gradient-optimized Neuroevolution Potential (GNEP)
+Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, 
+Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients,
+arXiv:2507.00528.
+2. The neuroevolution potential (NEP)
+Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, Phys. Rev. B. 104, 104309 (2021).
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 const int NUM_OF_ABC = 80; // 3 + 5 + 7 + 9 + 11 + 13 + 15 + 17 for L_max = 8

@@ -1,22 +1,26 @@
 /*
- * adam.cuh
- *
- *  This file contains the definitions of the Adam optimizer.
- *
- *  Created on: Nov 19, 2024
- *      Author: Hongfu Huang
- *      Email: hfhuang@buaa.edu.cn
- */
- /*----------------------------------------------------------------------------
-Use the Adam optimizer to fit potential parameters.
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
-Reference:
-
-Adam: A method for stochastic optimization
-doi: 10.48550/arXiv.1412.6980
+/*----------------------------------------------------------------------------80
+ * This file contains the definitions of the Adam optimizer.
+ * Use the Adam optimizer to fit potential parameters.
+ * Reference:
+ * Adam: A method for stochastic optimization
+ * doi: 10.48550/arXiv.1412.6980
 ------------------------------------------------------------------------------*/
  
-
 #include "adam.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
@@ -164,28 +168,20 @@ Adam::Adam(Parameters& para)
   // initialize the parameters
   number_of_variables = para.number_of_variables;
   weight_decay = para.weight_decay;
-  // beta1 = 0.8f;  
-  // beta2 = 0.99f;
-  // eps = 1e-5f;    
 
   // initialize the CPU vectors
   parameters.resize(number_of_variables);
-  // gradients.resize(number_of_variables);
   m.resize(number_of_variables, 0.0f);
   v.resize(number_of_variables, 0.0f);
 
   // initialize the GPU vectors
   cudaSetDevice(0);
   gpu_parameters.resize(number_of_variables);
-  // gpu_gradients.resize(number_of_variables);
   gpu_m.resize(number_of_variables);
   gpu_v.resize(number_of_variables);
   curand_states.resize(number_of_variables);
   initialize_curand_states<<<(number_of_variables - 1) / 128 + 1, 128>>>(curand_states.data(), number_of_variables, 1234567);
   GPU_CHECK_KERNEL
-
-  // initialize the optimizer parameters
-  // initialize_parameters(para);
 }
 
 static __global__ void gpu_create_paramters(
@@ -205,13 +201,11 @@ static __global__ void gpu_create_paramters(
     int type_idx = (n * num_types) / number_of_variables_ann;
     int param_idx = n % ((dim + 2) * num_neurons1 + 1);
     if (param_idx < dim * num_neurons1) {
-      // float std = 1.0f / sqrt(static_cast<float>(dim + num_neurons1));
       float std = sqrt(2.0f / (dim + num_neurons1));
       g_parameters[n] = curand_normal(&state) * std;
     } else if (param_idx < (dim + 1) * num_neurons1) {
       g_parameters[n] = 0.01f * curand_normal(&state);
     } else if (param_idx < (dim + 2) * num_neurons1) {
-      // float std = 1.0f / sqrt(static_cast<float>(num_neurons1 + 1));
       float std = sqrt(2.0f / (num_neurons1 + 1));
       g_parameters[n] = curand_normal(&state) * std;
     } else {
@@ -242,113 +236,6 @@ void Adam::initialize_parameters(Parameters& para)
       gpu_parameters.data());
     GPU_CHECK_KERNEL
     gpu_parameters.copy_to_host(parameters.data());
-    // parameters[0] = -0.566794097424;
-    // parameters[1] = 0.177166983485;
-    // parameters[2] = -0.590433180332;
-    // parameters[3] = -0.092442415655;
-    // parameters[4] = -0.404380172491;
-    // parameters[5] = -0.007976102643;
-    // parameters[6] = -0.316405743361;
-    // parameters[7] = -0.047861218452;
-    // parameters[8] = -0.406308472157;
-    // parameters[9] = -0.053448960185;
-    // parameters[10] = 0.006087716669;
-    // parameters[11] = -0.294198930264;
-    // parameters[12] = 0.185069829226; 
-    // parameters[13] = -0.152120366693;
-    // parameters[14] = -0.650068521500;
-    // parameters[15] = 0.157648652792;
-    // parameters[16] = -0.192317202687;
-    // parameters[17] = -0.055301215500;
-    // parameters[18] = 0.086412981153;
-    // parameters[19] = 0.362104058266;
-    // parameters[20] = 0.145172387362;
-    // parameters[21] = 0.134321197867;
-    // parameters[22] = -0.593982517719;
-    // parameters[23] = -0.161231666803;
-    // parameters[24] = 0.038778539747;
-    // parameters[25] = 0.233396857977; 
-    // parameters[26] = -0.042355246842; 
-    // parameters[27] = 0.362095177174; 
-    // parameters[28] = 0.294732719660; 
-    // parameters[29] = -0.126476362348; 
-    // parameters[30] = -0.675600588322;  //bias0
-    // parameters[31] = -1.115116715431; 
-    // parameters[32] = 1.487264275551; 
-    // parameters[33] = 0.045338567346; 
-    // parameters[34] = -0.355737477541; 
-    // parameters[35] = 0.517520904541; 
-    // parameters[36] = -12.920810699463; //bias1
-    // parameters[37] = -0.372985869646; 
-    // parameters[38] = 0.022064467892; 
-    // parameters[39] = -0.162381157279; 
-    // parameters[40] = -0.207799911499; 
-    // parameters[41] = 0.039595209062; 
-    // parameters[42] = -0.184155151248; 
-    // parameters[43] = -0.051093399525; 
-    // parameters[44] = 0.245357260108; 
-    // parameters[45] = 0.012506583706; 
-    // parameters[46] = 0.526330411434; 
-    // parameters[47] = 0.302395701408; 
-    // parameters[48] = -0.570180118084; 
-    // parameters[49] = 0.293095946312; 
-    // parameters[50] = -0.477496147156; 
-    // parameters[51] = 0.059975810349; 
-    // parameters[52] = -0.043743103743; 
-    // parameters[53] = -0.352179169655; 
-    // parameters[54] = -0.361316055059; 
-    // parameters[55] = -0.013380755670; 
-    // parameters[56] = 0.052826214582; 
-    // parameters[57] = 0.064544029534; 
-    // parameters[58] = 0.172009438276; 
-    // parameters[59] = -0.006703964435; 
-    // parameters[60] = 0.055428165942; 
-    // parameters[61] = 0.004689971916; 
-    // parameters[62] = 0.437171846628; 
-    // parameters[63] = 0.337618321180; 
-    // parameters[64] = 0.166047856212; 
-    // parameters[65] = -0.241618514061; 
-    // parameters[66] = -0.502974987030; 
-    // parameters[67] = 0.185325250030;  //bias0
-    // parameters[68] = -0.853444159031; 
-    // parameters[69] = 0.180195733905; 
-    // parameters[70] = -0.271427333355; 
-    // parameters[71] = -0.031502839178; 
-    // parameters[72] = -0.174318954349; 
-    // parameters[73] = -52.652294158936; //bias1
-    // parameters[74] = -0.357109396509;  // c[0,0,0,0],0
-    // parameters[75] = -0.382208127700;   // c[0,1,0,0],1
-    // parameters[76] = 0.005223161488; // c[1,0,0,0],2
-    // parameters[77] = -0.279997548693; // c[1,1,0,0],3
-    // parameters[78] = -0.129192845901; // c[0,0,0,1],4
-    // parameters[79] = 0.311555036837; // c[0,1,0,1],5
-    // parameters[80] = 0.444509547752; // c[1,0,0,1],6
-    // parameters[81] = -0.308477275866; // c[1,1,0,1],7
-    // parameters[82] = 0.021276300562; // c[0,0,1,0],8
-    // parameters[83] = 0.334129622248; // c[0,1,1,0],9
-    // parameters[84] = -0.168401458536; // c[1,0,1,0],10
-    // parameters[85] = -0.102445381562; // c[1,1,1,0],11
-    // parameters[86] = -0.280292335715; // c[0,0,1,1],12
-    // parameters[87] = 0.592506792960; // c[0,1,1,1],13
-    // parameters[88] = -0.490981270350; // c[1,0,1,1],14
-    // parameters[89] = 0.423874505255; // c[1,1,1,1],15
-    // parameters[90] = -0.035936288214;
-    // parameters[91] = -0.398841094248;
-    // parameters[92] = -0.370980213146;
-    // parameters[93] = 0.100899012854;
-    // parameters[94] = 0.491831342258;
-    // parameters[95] = -0.276368774732;
-    // parameters[96] = 0.193875768358;
-    // parameters[97] = -0.384473588174;
-    // parameters[98] = -0.231054175005;
-    // parameters[99] = -0.074071099228;
-    // parameters[100] = 0.254499180397;
-    // parameters[101] = 0.274881199087;
-    // parameters[102] = 0.096353120873;
-    // parameters[103] = -0.169466334807;
-    // parameters[104] = -0.383005477527;
-    // parameters[105] = 0.259637643865;
-    // gpu_parameters.copy_from_host(parameters.data());
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
         int count = fscanf(fid_restart, "%f", &parameters[n]);
@@ -394,11 +281,6 @@ void Adam::update(float lr, float* gradients) {
   GPU_CHECK_KERNEL
 
   gpu_parameters.copy_to_host(parameters.data());
-  // printf("Parameters: \n");
-  // for (int n = 0; n < number_of_variables; ++n) {
-  //   printf("%d %f\n", n, parameters[n]);
-  // }
-  // printf("\n");
   step++; 
 }
 

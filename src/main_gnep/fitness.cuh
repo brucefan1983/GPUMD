@@ -54,15 +54,7 @@ protected:
   int maximum_steps = 10000; // maximum number of steps
   float lr; // learning rate
   float start_lr;     // start learning rate
-  float stop_lr; // stop learning rate
-  // int decay_step; // decay 
-  // float decay_rate; // decay rate 
-  // float start_pref_e;   
-  // float start_pref_f;   
-  // float start_pref_v;   
-  // float stop_pref_e;    
-  // float stop_pref_f;    
-  // float stop_pref_v;    
+  float stop_lr; // stop learning rate 
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   Adam* optimizer;
@@ -80,7 +72,6 @@ protected:
     float* prediction,
     float* reference,
     Dataset& dataset);
-  // void update_learning_rate(float& lr, int step, Parameters& para); // Update learning rate
   void update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing
   void update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing Warmup Restarts
   void update_energy_force_virial(

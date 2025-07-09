@@ -19,7 +19,6 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gnep_utilities.cuh"
-// #include "utilities/least_square.cuh"
 #include <algorithm> 
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
@@ -467,13 +466,13 @@ std::vector<float> Dataset::get_mse_force(Parameters& para, const bool use_weigh
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu_f.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> mse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
   for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_f[n] : error_cpu_f[n];
+    float mse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_f[n] : error_cpu_f[n];
     for (int t = 0; t < para.num_types + 1; ++t) {
       if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
+        mse_array[t] += mse_temp;
         count_array[t] += Na_cpu[n];
       }
     }
@@ -481,11 +480,10 @@ std::vector<float> Dataset::get_mse_force(Parameters& para, const bool use_weigh
 
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      // rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 3));
-      rmse_array[t] = rmse_array[t] / (count_array[t] * 3);
+      mse_array[t] = mse_array[t] / (count_array[t] * 3);
     }
   }
-  return rmse_array;
+  return mse_array;
 }
 
 std::vector<float> Dataset::get_mse_energy(
@@ -495,39 +493,38 @@ std::vector<float> Dataset::get_mse_energy(
 {
   CHECK(cudaSetDevice(device_id));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> mse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
   for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_e[n] : error_cpu_e[n];
+    float mse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_e[n] : error_cpu_e[n];
     for (int t = 0; t < para.num_types + 1; ++t) {
       if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
+        mse_array[t] += mse_temp;
         ++count_array[t];
       }
     }
   }
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      // rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
-      rmse_array[t] = rmse_array[t] / count_array[t];
+      mse_array[t] = mse_array[t] / count_array[t];
     }
   }
-  return rmse_array;
+  return mse_array;
 }
 
 std::vector<float> Dataset::get_mse_virial(Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> mse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
 
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_v[n] : error_cpu_v[n];
+      float mse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu_v[n] : error_cpu_v[n];
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
-          rmse_array[t] += rmse_temp;
+          mse_array[t] += mse_temp;
           count_array[t] += 6;
         }
       }
@@ -536,9 +533,8 @@ std::vector<float> Dataset::get_mse_virial(Parameters& para, const bool use_weig
 
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      // rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
-      rmse_array[t] = rmse_array[t] / count_array[t];
+      mse_array[t] = mse_array[t] / count_array[t];
     }
   }
-  return rmse_array;
+  return mse_array;
 }

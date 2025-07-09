@@ -76,8 +76,6 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    // const float* b1[10]; // bias for the output layer
-    // for elements in descriptor
     const float* c;
   };
 

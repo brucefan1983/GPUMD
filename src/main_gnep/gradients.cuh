@@ -1,3 +1,18 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 #include "utilities/gpu_vector.cuh"
 
@@ -17,11 +32,8 @@ static void print_memory_info(const char* stage) {
 struct Gradients {
   void resize(int N, int num_variables, int number_of_variables_ann, int dim) {
     grad_sum.resize(num_variables, 0.0f);
-    // print_memory_info("after grad_sum.resize");
     E_wb_grad.resize(N * number_of_variables_ann, 0.0f);
-    // print_memory_info("after E_wb_grad.resize");
     Fp_wb.resize(N * number_of_variables_ann * dim, 0.0f);
-    // print_memory_info("after Fp_wb.resize");
   }
   void clear() {
     E_wb_grad.fill(0.0f);

@@ -1,12 +1,17 @@
 /*
- * adam.cuh
- *
- *  This file contains the definitions of the Adam optimizer.
- *
- *  Created on: Nov 19, 2024
- *      Author: Hongfu Huang
- *      Email: hfhuang@buaa.edu.cn
- */
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
@@ -33,7 +38,6 @@ protected:
   std::mt19937 rng;
 
   // ADAM optimizer hyperparameters
-  // float lr = 1e-3f;     // learning rate α
   float beta1 = 0.9f;   // first order moment decay rate β₁
   float beta2 = 0.999f; // second order moment decay rate β₂ 
   float eps = 1e-8f;    // small constant ε to avoid division by zero 

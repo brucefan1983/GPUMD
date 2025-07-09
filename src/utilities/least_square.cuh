@@ -1,3 +1,18 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "utilities/gpu_vector.cuh"
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -101,47 +116,23 @@ __global__ void kernelComputePseudoInverseReg1xN(
 void computeEnergyPerType(
   int num_types, const int* type_sum, float energy_ref, float* energy_per_type)
 {
-  // int* A_d = nullptr;
   float* b_d = nullptr;
-  // float *x_d = nullptr;
-
-  // CHECK_CUDA_ERROR(cudaMalloc((void**)&A_d, sizeof(int) * num_types));
   CHECK_CUDA_ERROR(cudaMalloc((void**)&b_d, sizeof(float)));
-  // CHECK_CUDA_ERROR(cudaMalloc((void**)&x_d, sizeof(float) * num_types));
-
-  // CHECK_CUDA_ERROR(cudaMemcpy(A_d, type_sum,
-  //                             sizeof(int)*num_types,
-  //                             cudaMemcpyHostToDevice));
   CHECK_CUDA_ERROR(cudaMemcpy(b_d, &energy_ref, sizeof(float), cudaMemcpyHostToDevice));
 
   dim3 block(num_types);
   dim3 grid(1);
   kernelComputePseudoInverse1xN<<<grid, block>>>(type_sum, b_d, energy_per_type, num_types);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-
-  // CHECK_CUDA_ERROR(cudaMemcpy(energy_per_type, x_d,
-  //                             sizeof(float)*num_types,
-  //                             cudaMemcpyDeviceToHost));
-
-  // CHECK_CUDA_ERROR(cudaFree(A_d));
   CHECK_CUDA_ERROR(cudaFree(b_d));
-  // CHECK_CUDA_ERROR(cudaFree(x_d));
 }
 
 void computeEnergyPerTypeReg(
   int num_types, const int* type_sum, float energy_ref, float lambda, float* energy_per_type)
 {
-  // int* A_d = nullptr;
   float *b_d = nullptr, *lambda_d = nullptr;
-  // float *x_d = nullptr;
-  // CHECK_CUDA_ERROR(cudaMalloc((void**)&A_d,     sizeof(int) * num_types));
   CHECK_CUDA_ERROR(cudaMalloc((void**)&b_d, sizeof(float)));
   CHECK_CUDA_ERROR(cudaMalloc((void**)&lambda_d, sizeof(float)));
-  // CHECK_CUDA_ERROR(cudaMalloc((void**)&x_d,     sizeof(float) * num_types));
-
-  // CHECK_CUDA_ERROR(cudaMemcpy(A_d, type_sum,
-  //                             sizeof(int)*num_types,
-  //                             cudaMemcpyHostToDevice));
   CHECK_CUDA_ERROR(cudaMemcpy(b_d, &energy_ref, sizeof(float), cudaMemcpyHostToDevice));
   CHECK_CUDA_ERROR(cudaMemcpy(lambda_d, &lambda, sizeof(float), cudaMemcpyHostToDevice));
 
@@ -151,14 +142,8 @@ void computeEnergyPerTypeReg(
     type_sum, b_d, lambda_d, energy_per_type, num_types);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
-  // CHECK_CUDA_ERROR(cudaMemcpy(energy_per_type, x_d,
-  //                             sizeof(float)*num_types,
-  //                             cudaMemcpyDeviceToHost));
-
-  // CHECK_CUDA_ERROR(cudaFree(A_d));
   CHECK_CUDA_ERROR(cudaFree(b_d));
   CHECK_CUDA_ERROR(cudaFree(lambda_d));
-  // CHECK_CUDA_ERROR(cudaFree(x_d));
 }
 
 void computeMultiBatchEnergyShift(
@@ -338,20 +323,6 @@ void computeMultiBatchEnergyShift(
     }
   }
 
-  // Check for extreme outliers only
-  // for (int t = 0; t < num_types; t++) {
-  //     // Only intervene for clearly unreasonable values
-  //     if (x[t] > -0.1f || x[t] < -50.0f) {
-  //         float safe_value = avg_epa * 0.95f;
-  //         if (verbose) {
-  //             printf("Warning: Type %d shift value %.6f out of reasonable range, adjusting to
-  //             %.6f\n",
-  //                    t, x[t], safe_value);
-  //         }
-  //         x[t] = safe_value;
-  //     }
-  // }
-
   CHECK_CUDA_ERROR(
     cudaMemcpy(energy_per_type, x.data(), sizeof(float) * num_types, cudaMemcpyHostToDevice));
 
@@ -492,8 +463,7 @@ void computeMultiBatchEnergyShiftUniform(
   CHECK_CUDA_ERROR(cudaMemcpy(lambda_d, &lambda, sizeof(float), cudaMemcpyHostToDevice));
   dim3 block(num_types);
   dim3 grid(1);
-  // kernelComputePseudoInverse1xN<<<grid, block>>>(type_sum_d, energy_d, energy_per_type,
-  // num_types);
+
   kernelComputePseudoInverseReg1xN<<<grid, block>>>(
     type_sum_d, energy_d, lambda_d, energy_per_type, num_types);
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());

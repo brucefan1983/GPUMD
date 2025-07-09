@@ -40,13 +40,6 @@ public:
   float lr;               // current learning rate
   float start_lr;         // start learning rate
   float stop_lr;          // stop learning rate
-  // int decay_step;         // decay step for learning rate
-  // float start_pref_e;     // initial weight for energy RMSE loss
-  // float start_pref_f;     // initial weight for force RMSE loss
-  // float start_pref_v;     // initial weight for virial RMSE loss
-  // float stop_pref_e;      // final weight for energy RMSE loss
-  // float stop_pref_f;      // final weight for force RMSE loss
-  // float stop_pref_v;      // final weight for virial RMSE loss
   float lambda_e;         // weight parameter for energy RMSE loss
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
@@ -75,13 +68,6 @@ public:
   bool is_weight_decay_set;
   bool is_lr_set;
   bool is_stop_lr_set;
-  // bool is_decay_step_set;
-  // bool is_start_pref_e_set;
-  // bool is_start_pref_f_set;
-  // bool is_start_pref_v_set;
-  // bool is_stop_pref_e_set;
-  // bool is_stop_pref_f_set;
-  // bool is_stop_pref_v_set;
   bool is_lambda_e_set;
   bool is_lambda_f_set;
   bool is_lambda_v_set;
@@ -137,13 +123,6 @@ private:
   void parse_weight_decay(const char** param, int num_param);
   void parse_lr(const char** param, int num_param);
   void parse_stop_lr(const char** param, int num_param);
-  // void parse_decay_step(const char** param, int num_param);
-  // void parse_start_pref_e(const char** param, int num_param);
-  // void parse_start_pref_f(const char** param, int num_param);
-  // void parse_start_pref_v(const char** param, int num_param);
-  // void parse_stop_pref_e(const char** param, int num_param);
-  // void parse_stop_pref_f(const char** param, int num_param);
-  // void parse_stop_pref_v(const char** param, int num_param);
   void parse_lambda_e(const char** param, int num_param);
   void parse_lambda_f(const char** param, int num_param);
   void parse_lambda_v(const char** param, int num_param);

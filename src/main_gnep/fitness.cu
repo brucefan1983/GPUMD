@@ -13,10 +13,6 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*----------------------------------------------------------------------------80
-Get the fitness
-------------------------------------------------------------------------------*/
-
 #include "fitness.cuh"
 #include "gnep.cuh"
 #include "parameters.cuh"
@@ -42,13 +38,6 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   lr = para.lr;
   start_lr = para.start_lr;
   stop_lr = para.stop_lr;
-  // decay_step = para.decay_step;
-  // start_pref_e = para.start_pref_e;  
-  // start_pref_f = para.start_pref_f;
-  // start_pref_v = para.start_pref_v;
-  // stop_pref_e = para.stop_pref_e;
-  // stop_pref_f = para.stop_pref_f;
-  // stop_pref_v = para.stop_pref_v;
   if (maximum_epochs > 1000) {
     printf("Warning: Training with epochs > 1000 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training with cosine annealing with warmup restarts.\n");
   }
@@ -204,7 +193,6 @@ void Fitness::compute(Parameters& para)
 
     optimizer->initialize_parameters(para);
     float* parameters = optimizer->get_parameters();
-    // std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(
         para,
@@ -233,7 +221,6 @@ void Fitness::compute(Parameters& para)
       if (batch_id == 0) {
         std::random_device rd;
         std::mt19937 g(rd());
-        // std::mt19937 g(2025);
         std::shuffle(batch_indices.begin(), batch_indices.end(), g);
         time_begin = clock();
         mse_energy = 0.0f;
@@ -312,10 +299,6 @@ void Fitness::compute(Parameters& para)
     for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }
-    // for (int n = 0; n < number_of_variables; ++n) {
-    //   tokens = get_tokens(input);
-    //   parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    // }
     for (int n = 0; n < number_of_variables_ann; ++n) {
       tokens = get_tokens(input);
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
@@ -334,55 +317,18 @@ void Fitness::compute(Parameters& para)
   }
 }
 
-// void Fitness::update_learning_rate(float& lr, int step, Parameters& para) {
-//   if (step >= maximum_steps) {
-//     lr = stop_lr;
-//   } else if (step % decay_step == 0 && step != 0) {
-//     decay_rate = exp(log(stop_lr / start_lr) / (maximum_steps / decay_step));
-//     lr = start_lr * pow(decay_rate, step / decay_step);
-//   }
-//   para.lambda_e = stop_pref_e + (start_pref_e - stop_pref_e) * lr / start_lr;
-//   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * lr / start_lr;
-//   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * lr / start_lr;
-// }
-
 void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para) {
   const int warmup_epochs = 1; 
   const int warmup_steps = warmup_epochs * num_batches;
   float progress, smooth_progress;
   if (step < warmup_steps) {
     progress = float(step) / warmup_steps;
-    // lr = start_lr - (start_lr - stop_lr) * (0.5f * (1.0f + cosf((1.0f - progress) * PI)));
-    // smooth_progress = 0.5f * (1.0f - cosf(progress * PI));
-    // para.lambda_e = start_pref_e + (stop_pref_e - start_pref_e) * smooth_progress;
-    // para.lambda_f = start_pref_f - 0.2f * start_pref_f * smooth_progress;
-    // para.lambda_v = start_pref_v + (stop_pref_v - start_pref_v) * smooth_progress;
     lr = stop_lr + progress * (start_lr - stop_lr);
-    // para.lambda_e = start_pref_e;
-    // para.lambda_f = start_pref_f;
-    // para.lambda_v = start_pref_v;
     return;
   }
   progress = float(step - warmup_steps) / (maximum_steps - warmup_steps);
   smooth_progress = 0.5f * (1.0f + cosf(PI * progress));
   lr = stop_lr + (start_lr - stop_lr) * smooth_progress;
-  // para.lambda_e = stop_pref_e;
-  // para.lambda_f = stop_pref_f + (0.8f * start_pref_f - stop_pref_f) * smooth_progress;
-  // para.lambda_v = stop_pref_v;
-  // if (progress < 0.3f) {
-  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
-  //   para.lambda_f = start_pref_f;
-  //   para.lambda_v = start_pref_v; 
-  // } else if (progress < 0.7f) {
-  //   float mid_progress = (progress - 0.3f) / 0.4f;
-  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
-  //   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
-  //   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
-  // } else {
-  //   para.lambda_e = stop_pref_e;
-  //   para.lambda_f = stop_pref_f;
-  //   para.lambda_v = stop_pref_v;
-  // }
 }
 
 void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para) {
@@ -392,9 +338,6 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
   if (step < warmup_steps) {
     progress = float(step) / warmup_steps;
     lr = stop_lr + progress * (start_lr - stop_lr);
-    // para.lambda_e = start_pref_e;
-    // para.lambda_f = start_pref_f;
-    // para.lambda_v = start_pref_v;
     return;
   }
   const int initial_restart_period = 10 * num_batches;  // Initial restart cycle (10 epochs)
@@ -427,21 +370,6 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
   
   smooth_progress = 0.5f * (1.0f + cosf(PI * cycle_progress));
   lr = stop_lr + (cycle_max_lr - stop_lr) * smooth_progress;
-  
-  // if (cycle_progress < 0.3f) {
-  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e);
-  //   para.lambda_f = start_pref_f;
-  //   para.lambda_v = start_pref_v; 
-  // } else if (cycle_progress < 0.7f) {
-  //   float mid_progress = (cycle_progress - 0.3f) / 0.4f;
-  //   para.lambda_e = stop_pref_e + 0.5f * (start_pref_e - stop_pref_e) * (1.0f - mid_progress);
-  //   para.lambda_f = stop_pref_f + (start_pref_f - stop_pref_f) * (1.0f - mid_progress);
-  //   para.lambda_v = stop_pref_v + (start_pref_v - stop_pref_v) * (1.0f - mid_progress);
-  // } else {
-  //   para.lambda_e = stop_pref_e;
-  //   para.lambda_f = stop_pref_f;
-  //   para.lambda_v = stop_pref_v;
-  // }
 }
 
 void Fitness::output(
@@ -469,7 +397,6 @@ void Fitness::output(
       float ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
         ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
-        // ref_value /= dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
       }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
@@ -524,9 +451,6 @@ void Fitness::write_gnep_txt(FILE* fid_gnep, Parameters& para, float* parameters
   fprintf(fid_gnep, "l_max %d 0 0\n", para.L_max);
 
   fprintf(fid_gnep, "ANN %d %d\n", para.num_neurons1, 0);
-  // for (int m = 0; m < para.number_of_variables; ++m) {
-  //   fprintf(fid_gnep, "%15.7e\n", parameters[m]);
-  // }
   for (int m = 0; m < para.number_of_variables_ann; ++m) {
     fprintf(fid_gnep, "%15.7e\n", parameters[m]);
   }
