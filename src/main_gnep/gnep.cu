@@ -655,19 +655,17 @@ static __global__ void compute_grad_radial_NM(
   float* e_wb_grad = g_E_wb_grad + n1_net_index;
   float grad_w0_sum, grad_w1_sum, grad_b0_sum;
   if (no_neighbor_isolated_atom) {
-    for (int j = 0; j < annmb.num_neurons1; ++j) {
-      for (int d = 0; d < annmb.dim; ++d) {
-        grad_w0_sum += i1 == 0 ? per_Nc_e * e_wb_grad[j * annmb.dim + d] : 0.0f;
-        atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
-      }
-      if (i1 == 0) {
-        grad_w1_sum += e_wb_grad[b0_index + j] * per_Nc_e;
-        grad_b0_sum += e_wb_grad[w0_index + j] * per_Nc_e;
-      }
-      atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], grad_w1_sum);
-      atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], grad_b0_sum);
-    }
     if (i1 == 0) {
+      for (int j = 0; j < annmb.num_neurons1; ++j) {
+        for (int d = 0; d < annmb.dim; ++d) {
+          grad_w0_sum = per_Nc_e * e_wb_grad[j * annmb.dim + d];
+          atomicAdd(&g_grad_sum[t1_net_index + j * annmb.dim + d], grad_w0_sum);
+        }
+        grad_w1_sum = e_wb_grad[b0_index + j] * per_Nc_e;
+        grad_b0_sum = e_wb_grad[w0_index + j] * per_Nc_e;
+        atomicAdd(&g_grad_sum[t1_net_index + b0_index + j], grad_w1_sum);
+        atomicAdd(&g_grad_sum[t1_net_index + w0_index + j], grad_b0_sum);
+      }
       float e_b1_n1 = e_wb_grad[annmb.num_neurons1 * annmb.dim + annmb.num_neurons1 + annmb.num_neurons1] * per_Nc_e;
       atomicAdd(&g_grad_sum[t1_net_index + annmb.num_neurons1 * annmb.dim + annmb.num_neurons1 + annmb.num_neurons1], e_b1_n1);
     }
