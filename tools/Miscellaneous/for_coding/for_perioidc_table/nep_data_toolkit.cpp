@@ -5,9 +5,7 @@ run:
     ./a.out
 --------------------------------------------------------------------------------------------------*/
 
-#ifdef ZHEYONG
-#include "../../../../NEP_CPU/src/nep.h"
-#endif
+#include "nep.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -528,8 +526,6 @@ static double get_volume(const double* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]));
 }
 
-#ifdef ZHEYONG
-
 static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
 {
   std::ifstream input_potential(nep_file);
@@ -621,8 +617,6 @@ static void add_d3(std::vector<Structure>& structures, const std::string& functi
     calculate_one_structure(nep3, atom_symbols, structures[nc], functional, 12, 6);
   }
 }
-
-#endif
 
 static void split_into_accurate_and_inaccurate(
   const std::vector<Structure>& structures, 
@@ -1103,9 +1097,7 @@ int main(int argc, char* argv[])
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "6: set energy_weight to zero\n";
   std::cout << "7: add or change sid\n";
-#ifdef ZHEYONG
   std::cout << "8: add D3\n";
-#endif
   std::cout << "9: get composition\n";
   std::cout << "10: shift energy for multiple species\n";
   std::cout << "11: get structures with given species\n";
@@ -1213,7 +1205,6 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     change_sid(structures_input, sid);
     write(output_filename, structures_input);
-#ifdef ZHEYONG
   } else if (option == 8) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -1230,7 +1221,6 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     add_d3(structures_input, functional);
     write(output_filename, structures_input);
-#endif
   } else if (option == 9) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
