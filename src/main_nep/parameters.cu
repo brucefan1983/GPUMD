@@ -120,6 +120,18 @@ void Parameters::set_default_parameters()
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
+
+
+
+  // ------------new--------------
+  int deviceCount;  
+  CHECK(gpuGetDeviceCount(&deviceCount));  
+  int fully_used_device = population_size % deviceCount;  
+  if (fully_used_device != 0) {  
+    int population_should_increase = deviceCount - fully_used_device;  
+    population_size += population_should_increase;  
+    printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
+  }  
 }
 
 void Parameters::read_nep_in()
