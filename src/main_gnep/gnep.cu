@@ -1818,6 +1818,25 @@ void GNEP::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
+    if (zbl.enabled) {
+      find_force_ZBL<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        paramb,
+        zbl,
+        gnep_data[device_id].NN_angular.data(),
+        gnep_data[device_id].NL_angular.data(),
+        dataset[device_id].type.data(),
+        gnep_data[device_id].x12_angular.data(),
+        gnep_data[device_id].y12_angular.data(),
+        gnep_data[device_id].z12_angular.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data(),
+        dataset[device_id].energy.data());
+      GPU_CHECK_KERNEL
+    } 
+
     gpu_sum_pe_error<<<dataset[device_id].Nc, 256, sizeof(float) * 256>>>(
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
@@ -1958,24 +1977,5 @@ void GNEP::find_force(
         GPU_CHECK_KERNEL
       }
     }
-
-    if (zbl.enabled) {
-      find_force_ZBL<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        zbl,
-        gnep_data[device_id].NN_angular.data(),
-        gnep_data[device_id].NL_angular.data(),
-        dataset[device_id].type.data(),
-        gnep_data[device_id].x12_angular.data(),
-        gnep_data[device_id].y12_angular.data(),
-        gnep_data[device_id].z12_angular.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data());
-      GPU_CHECK_KERNEL
-    } 
   }
 }
