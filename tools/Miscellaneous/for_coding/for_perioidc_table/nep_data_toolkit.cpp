@@ -683,7 +683,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    if (force_is_small) {
+    //if (force_is_small) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -691,7 +691,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    }
+    //}
   }
   input_energy.close();
   input_force.close();
