@@ -25,7 +25,7 @@ It supports three distinct energy alignment modes, configurable via the 'ALIGNME
 
 3.  'DFT_TO_NEP_ALIGNMENT':
     Purpose: To align the original DFT energies (read from 'energy=' field) to the energies
-             calculated by a Neural Exchange-correlation Potential (NEP) model. This is useful
+             calculated by a Neuroevolution Potential (NEP) model. This is useful
              for standardizing DFT data to the scale of a force field or machine learning potential.
     Method: First, NEP energies are calculated for all structures using an external NEP model file.
             Then, for each 'config_type' group, atomic energy baselines are optimized to minimize

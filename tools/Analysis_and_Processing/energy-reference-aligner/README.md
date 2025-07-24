@@ -8,21 +8,21 @@ This script provides a flexible tool for aligning energies within multi-frame XY
 
 ### 1. REF_GROUP_ALIGNMENT
 
-**Purpose**: Aligns the energies of specified shift_groups to the average energy baseline of a designated reference_group. This is useful when you have a high-accuracy dataset (reference_group) and want to shift other datasets (shift_groups) to its scale.
-**Method**: For each shift group, atomic energy baselines (one per element type) are optimized by minimizing the mean squared error (MSE) between shifted group energies and the mean energy of the reference group.
-**Settings Used**: reference_group, shift_groups. nep_model_file is ignored.
+- **Purpose**: Aligns the energies of specified shift_groups to the average energy baseline of a designated reference_group. This is useful when you have a high-accuracy dataset (reference_group) and want to shift other datasets (shift_groups) to its scale.
+- **Method**: For each shift group, atomic energy baselines (one per element type) are optimized by minimizing the mean squared error (MSE) between shifted group energies and the mean energy of the reference group.
+- **Settings Used**: reference_group, shift_groups. nep_model_file is ignored.
 
 ### 2. ZERO_BASELINE_ALIGNMENT
 
-**Purpose**: Shifts all energies in the XYZ file such that the calculated energy of free atoms (based on optimized atomic baselines) would be zero. This is a common practice for standardizing energies to a vacuum reference.
-**Method**: For each detected config_type group, atomic energy baselines are optimized by minimizing the MSE of the shifted energies themselves (effectively aligning to zero).
-**Settings Used**: None of reference_group, shift_groups, or nep_model_file are used for logic.
+- **Purpose**: Shifts all energies in the XYZ file such that the calculated energy of free atoms (based on optimized atomic baselines) would be zero. This is a common practice for standardizing energies to a vacuum reference.
+- **Method**: For each detected config_type group, atomic energy baselines are optimized by minimizing the MSE of the shifted energies themselves (effectively aligning to zero).
+- **Settings Used**: None of reference_group, shift_groups, or nep_model_file are used for logic.
 
 ### 3. DFT_TO_NEP_ALIGNMENT
 
-**Purpose**: Aligns the original DFT energies (read from energy= field) to the energies calculated by a Neural Exchange-correlation Potential (NEP) model. This is useful for standardizing DFT data to the scale of a force field or machine learning potential.
-**Method**: First, NEP energies are calculated for all structures using an external NEP model file. Then, for each config_type group, atomic energy baselines are optimized to minimize the MSE between the shifted DFT energies and the calculated NEP energies.
-**Settings Used**: nep_model_file. reference_group and shift_groups are ignored.
+- **Purpose**: Aligns the original DFT energies (read from energy= field) to the energies calculated by a Neuroevolution Potential (NEP) model. This is useful for standardizing DFT data to the scale of a force field or machine learning potential.
+- **Method**: First, NEP energies are calculated for all structures using an external NEP model file. Then, for each config_type group, atomic energy baselines are optimized to minimize the MSE between the shifted DFT energies and the calculated NEP energies.
+- **Settings Used**: nep_model_file. reference_group and shift_groups are ignored.
 
 ## Key Features
 
