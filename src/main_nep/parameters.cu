@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
+  is_vdw_mode_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -467,6 +468,12 @@ void Parameters::report_inputs()
       printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
     } else if (charge_mode == 3) {
       printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
+    }
+  }
+
+  if (is_vdw_mode_set) {
+    if (vdw_mode == 1) {
+      printf("    (input)   use NEP-vdW.\n");
     }
   }
 
@@ -1313,6 +1320,21 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
   }
   if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
     PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
+  }
+}
+
+void Parameters::parse_vdw_mode(const char** param, int num_param)
+{
+  is_vdw_mode_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("vdw_mode should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &vdw_mode)) {
+    PRINT_INPUT_ERROR("vdw mode should be an integer.\n");
+  }
+  if (vdw_mode != 0 && vdw_mode != 1) {
+    PRINT_INPUT_ERROR("vdw mode should be 0 or 1.");
   }
 }
 

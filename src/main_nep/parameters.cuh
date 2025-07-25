@@ -98,6 +98,7 @@ public:
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
+  bool is_vdw_mode_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -156,6 +157,7 @@ private:
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
+  void parse_vdw_mode(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
 };
