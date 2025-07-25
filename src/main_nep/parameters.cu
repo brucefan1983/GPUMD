@@ -113,6 +113,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
+  vdw_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -693,6 +694,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "charge_mode") == 0) {
     parse_charge_mode(param, num_param);
+  } else if (strcmp(param[0], "vdw_mode") == 0) {
+    parse_vdw_mode(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
