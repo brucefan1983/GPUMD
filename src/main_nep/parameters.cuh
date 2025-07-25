@@ -66,6 +66,7 @@ public:
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
+  int vdw_mode; // NEP-vdW
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";

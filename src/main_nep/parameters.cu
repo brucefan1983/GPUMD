@@ -181,6 +181,21 @@ void Parameters::calculate_parameters()
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
+    if (version != 4) {
+      PRINT_INPUT_ERROR("Charge is only supported for NEP4.");
+    }
+  }
+
+  if (vdw_mode) {
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("vdW is only supported for potential model.");
+    }
+    if (version != 4) {
+      PRINT_INPUT_ERROR("vdW is only supported for NEP4.");
+    }
+    if (charge_mode) {
+      PRINT_INPUT_ERROR("vdW and charge are not supported simultaneously.");
+    }
   }
 
   if (train_mode == 0) {
@@ -212,12 +227,12 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-    if (charge_mode) {
-      number_of_variables_ann += num_neurons1;
-    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
     if (charge_mode) {
+      number_of_variables_ann += num_neurons1 * num_types;
+    }
+    if (vdw_mode) {
       number_of_variables_ann += num_neurons1 * num_types;
     }
   }

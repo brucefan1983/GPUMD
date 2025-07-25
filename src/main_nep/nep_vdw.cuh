@@ -20,7 +20,7 @@
 class Parameters;
 class Dataset;
 
-class NEP_Charge : public Potential
+class NEP_VDW : public Potential
 {
 public:
   struct ParaMB {
@@ -59,7 +59,7 @@ public:
     const float* c;                // for elements in descriptor
   };
 
-  struct NEP_Charge_Data {
+  struct NEP_VDW_Data {
     GPU_Vector<int> NN_radial;  // radial neighbor number
     GPU_Vector<int> NL_radial;  // radial neighbor list
     GPU_Vector<int> NN_angular; // angular neighbor number
@@ -104,7 +104,7 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP_Charge(
+  NEP_VDW(
     Parameters& para,
     int N,
     int Nc,
@@ -124,7 +124,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP_Charge_Data nep_data[16];
+  NEP_VDW_Data nep_data[16];
   ZBL zbl;
   Charge_Para charge_para;
   void update_potential(Parameters& para, float* parameters, ANN& ann);

@@ -22,7 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "nep_charge.cuh"
+#include "nep_vdw.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -32,7 +32,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <cstring>
 
 static __global__ void gpu_find_neighbor_list(
-  const NEP_Charge::ParaMB paramb,
+  const NEP_VDW::ParaMB paramb,
   const int N,
   const int* Na,
   const int* Na_sum,
@@ -124,8 +124,8 @@ static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -179,8 +179,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -240,7 +240,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP_Charge::NEP_Charge(
+NEP_VDW::NEP_VDW(
   Parameters& para,
   int N,
   int Nc,
@@ -334,7 +334,7 @@ NEP_Charge::NEP_Charge(
   }
 }
 
-void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
+void NEP_VDW::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -395,8 +395,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 
 static __global__ void apply_ann(
   const int N,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -458,8 +458,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ANN annmb,
   const int* g_type,
   const float* g_x12,
   const float* g_y12,
@@ -545,8 +545,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ANN annmb,
   const int* g_type,
   const float* g_x12,
   const float* g_y12,
@@ -640,8 +640,8 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ZBL zbl,
+  const NEP_VDW::ParaMB paramb,
+  const NEP_VDW::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -1109,7 +1109,7 @@ static __global__ void zero_total_charge(
   }
 }
 
-void NEP_Charge::find_force(
+void NEP_VDW::find_force(
   Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
