@@ -119,7 +119,6 @@ public:
     bool calculate_q_scaler,
     bool calculate_neighbor,
     int deviceCount);
-  void find_k1k2k3();
 
 private:
   ParaMB paramb;
