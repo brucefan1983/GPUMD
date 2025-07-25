@@ -20,6 +20,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "nep.cuh"
 #include "nep_charge.cuh"
+#include "nep_vdw.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
@@ -130,6 +131,9 @@ Fitness::Fitness(Parameters& para)
     if (para.charge_mode) {
       potential.reset(
         new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    } else if (para.vdw_mode) {
+      potential.reset(
+        new NEP_VDW(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, deviceCount));
     } else {
       potential.reset(
         new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
