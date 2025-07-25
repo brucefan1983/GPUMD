@@ -77,15 +77,6 @@ public:
     GPU_Vector<float> D_real;
   };
 
-  struct Charge_Para {
-    int num_kpoints_max = 50000;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    float two_alpha_over_sqrt_pi = 0.564189583547756f;
-    float A;
-    float B;
-  };
-
   struct ZBL {
     bool enabled = false;
     bool flexibled = false;
@@ -116,6 +107,5 @@ private:
   ANN annmb[16];
   NEP_VDW_Data nep_data[16];
   ZBL zbl;
-  Charge_Para charge_para;
   void update_potential(Parameters& para, float* parameters, ANN& ann);
 };

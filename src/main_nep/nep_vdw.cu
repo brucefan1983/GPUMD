@@ -147,12 +147,12 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = paramb.rc_angular;
       if (paramb.use_typewise_cutoff) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+            paramb.typewise_cutoff_angular_factor,
           rc);
       }
       float rcinv = 1.0f / rc;
@@ -293,13 +293,6 @@ NEP_VDW::NEP_VDW(
       zbl.para[n] = para.zbl_para[n];
     }
   }
-
-  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
-  charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
-  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
-  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
-  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
@@ -479,12 +472,12 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = paramb.rc_angular;
       if (paramb.use_typewise_cutoff) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+            paramb.typewise_cutoff_angular_factor,
           rc);
       }
       float rcinv = 1.0f / rc;
@@ -748,14 +741,14 @@ static __global__ void find_force_vdw_static(
     float s_pe = 0;
     float D_real = 0;
 
-    const float R6 = 4.0f; // To be optimized
+    const float R6 = 1.0f; // To be optimized
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
       float q2 = g_charge[n2];
-      float qq = q1 * q2;
+      float qq = q1*q1*q2*q2;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12_2 = d12 * d12;
@@ -763,7 +756,7 @@ static __global__ void find_force_vdw_static(
       float d12_6 = d12_4 * d12_2;
       float one_over_r6 = 1.0f / (d12_6 + R6);
 
-      D_real -= q2 * one_over_r6;
+      D_real -= (2.0f * q1) * (q2 * q2) * one_over_r6;
       float f2 = 3.0f * qq * d12_4 * one_over_r6 * one_over_r6;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
@@ -846,14 +839,14 @@ void NEP_VDW::find_force(
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(),
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(),
-      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
       nep_data[device_id].descriptors.data());
     GPU_CHECK_KERNEL
 
@@ -950,14 +943,14 @@ void NEP_VDW::find_force(
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(),
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(),
-      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
       nep_data[device_id].Fp.data(),
       nep_data[device_id].charge_derivative.data(),
       nep_data[device_id].D_real.data(),
