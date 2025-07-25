@@ -14,10 +14,11 @@
 */
 
 /*----------------------------------------------------------------------------80
-The neuroevolution potential (NEP)
-Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
+References:
+[1] Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+[2] In preparison.
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
@@ -323,14 +324,7 @@ NEP_VDW::NEP_VDW(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
-    nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].G.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
-    nep_data[device_id].num_kpoints.resize(Nc);
   }
 }
 
@@ -732,12 +726,8 @@ static __global__ void find_force_ZBL(
   }
 }
 
-static __global__ void find_force_charge_real_space_only(
+static __global__ void find_force_vdw_static(
   const int N,
-  const float alpha,
-  const float two_alpha_over_sqrt_pi,
-  const float A,
-  const float B,
   const int* g_NN,
   const int* g_NL,
   const float* __restrict__ g_charge,
@@ -760,8 +750,10 @@ static __global__ void find_force_charge_real_space_only(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     float q1 = g_charge[n1];
-    float s_pe = 0; // no self energy
-    float D_real = 0; // no self energy
+    float s_pe = 0;
+    float D_real = 0;
+
+    const float R6 = 1.0f; // TODO
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
@@ -771,15 +763,15 @@ static __global__ void find_force_charge_real_space_only(
       float qq = q1 * q2;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
+      float d12_2 = d12 * d12;
+      float d12_4 = d12_2 * d12_2;
+      float d12_6 = d12_4 * d12_2;
 
-      float erfc_r = erfc(alpha * d12) * d12inv;
-      D_real += q2 * (erfc_r + A * d12 + B);
-      float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
-      f2 = -0.5f * K_C_SP * qq * (f2 * d12inv * d12inv - A * d12inv);
+      D_real -= q2 / (d12_6 + R6);
+      float f2 = 3.0f * qq * d12_4 / ((d12_6 + R6) * (d12_6 + R6));
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      s_pe += 0.5f * qq * (erfc_r + A * d12 + B);
+      s_pe += -0.5f * qq / (d12_6 + R6);
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);
@@ -793,14 +785,14 @@ static __global__ void find_force_charge_real_space_only(
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
     }
-    g_D_real[n1] = K_C_SP * D_real;
+    g_D_real[n1] = D_real;
     g_virial[n1 + N * 0] += s_virial_xx;
     g_virial[n1 + N * 1] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
     g_virial[n1 + N * 3] += s_virial_xy;
     g_virial[n1 + N * 4] += s_virial_yz;
     g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += K_C_SP * s_pe;
+    g_pe[n1] += s_pe;
   }
 }
 
@@ -943,28 +935,22 @@ void NEP_VDW::find_force(
       nep_data[device_id].charge_derivative.data());
     GPU_CHECK_KERNEL
 
-    // mode 3 has real space only
-    if (paramb.charge_mode == 3) {
-      find_force_charge_real_space_only<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        charge_para.alpha,
-        charge_para.two_alpha_over_sqrt_pi,
-        charge_para.A,
-        charge_para.B,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        dataset[device_id].charge_shifted.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].D_real.data());
-      GPU_CHECK_KERNEL
-    }
+
+    find_force_vdw_static<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      dataset[device_id].charge.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data(),
+      dataset[device_id].energy.data(),
+      nep_data[device_id].D_real.data());
+    GPU_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
