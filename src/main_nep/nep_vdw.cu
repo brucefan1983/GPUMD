@@ -748,7 +748,7 @@ static __global__ void find_force_vdw_static(
     float s_pe = 0;
     float D_real = 0;
 
-    const float R6 = 1.0f; // TODO
+    const float R6 = 4.0f; // To be optimized
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
@@ -761,12 +761,13 @@ static __global__ void find_force_vdw_static(
       float d12_2 = d12 * d12;
       float d12_4 = d12_2 * d12_2;
       float d12_6 = d12_4 * d12_2;
+      float one_over_r6 = 1.0f / (d12_6 + R6);
 
-      D_real -= q2 / (d12_6 + R6);
-      float f2 = 3.0f * qq * d12_4 / ((d12_6 + R6) * (d12_6 + R6));
+      D_real -= q2 * one_over_r6;
+      float f2 = 3.0f * qq * d12_4 * one_over_r6 * one_over_r6;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      s_pe += -0.5f * qq / (d12_6 + R6);
+      s_pe += -0.5f * qq * one_over_r6;
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);
