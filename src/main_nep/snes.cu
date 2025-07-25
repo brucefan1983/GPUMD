@@ -130,7 +130,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann_per_element = (para.dim + (para.charge_mode ? 3 : 2)) * para.num_neurons1;
+  const bool has_extra_para = para.charge_mode || para.vdw_mode;
+  const int num_ann_per_element = (para.dim + (has_extra_para ? 3 : 2)) * para.num_neurons1;
   const int num_ann = NUM89 * num_ann_per_element + 1;
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -230,7 +231,7 @@ void SNES::calculate_utility()
 void SNES::find_type_of_variable(Parameters& para)
 {
   int num_para_ann_per_type = (para.dim + 2) * para.num_neurons1;
-  if (para.charge_mode) {
+  if (para.charge_mode || para.vdw_mode) {
     num_para_ann_per_type += para.num_neurons1;
   }
 

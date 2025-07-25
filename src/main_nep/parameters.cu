@@ -270,7 +270,8 @@ void Parameters::calculate_parameters()
     }
     std::vector<std::string> tokens;
     const int NUM89 = 89;
-    const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
+    const bool has_extra_para = charge_mode || vdw_mode;
+    const int num_ann_per_element = (dim + (has_extra_para ? 3 : 2)) * num_neurons1;
     const int num_ann = NUM89 * num_ann_per_element + 1;
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
