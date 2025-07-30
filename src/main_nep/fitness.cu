@@ -330,18 +330,10 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
         }
       } 
     } else {
-      if (para.version == 3) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep3_zbl_charge%d %d ", para.charge_mode, para.num_types);
-        } else {
-          fprintf(fid_nep, "nep3_charge%d %d ", para.charge_mode, para.num_types);
-        }
-      } else if (para.version == 4) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
-        } else {
-          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
-        }
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
       }
     }
   } else if (para.train_mode == 1) { // dipole model

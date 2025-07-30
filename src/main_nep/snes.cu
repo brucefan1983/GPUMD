@@ -106,6 +106,16 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
       sigma[n] = para.sigma0;
     }
+    // make sure the initial charges are zero
+    if (para.charge_mode) {
+      const int num_full = (para.dim + 3) * para.num_neurons1;
+      const int num_part = (para.dim + 2) * para.num_neurons1;
+      for (int t = 0; t < para.num_types; ++t) {
+        for (int n = num_full * t + num_part; n < num_full * (t + 1); ++n) {
+          mu[n] = 0.0f;
+        }
+      }
+    }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
