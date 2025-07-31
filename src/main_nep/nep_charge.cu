@@ -451,6 +451,22 @@ static __global__ void zero_force(const int N, float* g_fx, float* g_fy, float* 
   }
 }
 
+static __global__ void find_bec_diagonal(const int N, const float* g_q, float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    g_bec[n1 + N * 0] = g_q[n1];
+    g_bec[n1 + N * 1] = 0.0f;
+    g_bec[n1 + N * 2] = 0.0f;
+    g_bec[n1 + N * 3] = 0.0f;
+    g_bec[n1 + N * 4] = g_q[n1];
+    g_bec[n1 + N * 5] = 0.0f;
+    g_bec[n1 + N * 6] = 0.0f;
+    g_bec[n1 + N * 7] = 0.0f;
+    g_bec[n1 + N * 8] = g_q[n1];
+  }
+}
+
 static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
@@ -632,6 +648,186 @@ static __global__ void find_force_angular(
     g_virial[n1 + N * 3] += s_virial_xy;
     g_virial[n1 + N * 4] += s_virial_yz;
     g_virial[n1 + N * 5] += s_virial_zx;
+  }
+}
+
+static __global__ void find_bec_radial(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP_Charge::ParaMB paramb,
+  const NEP_Charge::ANN annmb,
+  const int* g_type,
+  const float* g_x12,
+  const float* g_y12,
+  const float* g_z12,
+  const float* g_charge,
+  const float* g_charge_derivative,
+  float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    int t1 = g_type[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      int t2 = g_type[n2];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      float rc = paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_radial_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      float f12[3] = {0.0f};
+
+      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+        const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp12 * r12[d];
+        }
+      }
+
+      float bec_xx = 0.5f* (r12[0] * f12[0]);
+      float bec_xy = 0.5f* (r12[0] * f12[1]);
+      float bec_xz = 0.5f* (r12[0] * f12[2]);
+      float bec_yx = 0.5f* (r12[1] * f12[0]);
+      float bec_yy = 0.5f* (r12[1] * f12[1]);
+      float bec_yz = 0.5f* (r12[1] * f12[2]);
+      float bec_zx = 0.5f* (r12[2] * f12[0]);
+      float bec_zy = 0.5f* (r12[2] * f12[1]);
+      float bec_zz = 0.5f* (r12[2] * f12[2]);
+
+      atomicAdd(&g_bec[n1], bec_xx);
+      atomicAdd(&g_bec[n1 + N], bec_xy);
+      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
+      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
+      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
+      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
+      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
+      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
+      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+
+      atomicAdd(&g_bec[n2], -bec_xx);
+      atomicAdd(&g_bec[n2 + N], -bec_xy);
+      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
+      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
+      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
+      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
+      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
+      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
+      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+    }
+  }
+}
+
+static __global__ void find_bec_angular(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP_Charge::ParaMB paramb,
+  const NEP_Charge::ANN annmb,
+  const int* g_type,
+  const float* g_x12,
+  const float* g_y12,
+  const float* g_z12,
+  const float* g_charge_derivative,
+  const float* g_sum_fxyz,
+  float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    float Fp[MAX_DIM_ANGULAR] = {0.0f};
+    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      Fp[d] = g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1];
+    }
+    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+      sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    }
+    int neighbor_number = g_NN[n1];
+    int t1 = g_type[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float fc12, fcp12;
+      int t2 = g_type[n2];
+      float rc = paramb.rc_angular;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_angular_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      float f12[3] = {0.0f};
+
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+        float gn12 = 0.0f;
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+      }
+
+      float bec_xx = 0.5f* (r12[0] * f12[0]);
+      float bec_xy = 0.5f* (r12[0] * f12[1]);
+      float bec_xz = 0.5f* (r12[0] * f12[2]);
+      float bec_yx = 0.5f* (r12[1] * f12[0]);
+      float bec_yy = 0.5f* (r12[1] * f12[1]);
+      float bec_yz = 0.5f* (r12[1] * f12[2]);
+      float bec_zx = 0.5f* (r12[2] * f12[0]);
+      float bec_zy = 0.5f* (r12[2] * f12[1]);
+      float bec_zz = 0.5f* (r12[2] * f12[2]);
+
+      atomicAdd(&g_bec[n1], bec_xx);
+      atomicAdd(&g_bec[n1 + N], bec_xy);
+      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
+      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
+      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
+      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
+      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
+      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
+      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+
+      atomicAdd(&g_bec[n2], -bec_xx);
+      atomicAdd(&g_bec[n2 + N], -bec_xy);
+      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
+      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
+      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
+      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
+      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
+      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
+      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+    }
   }
 }
 
@@ -1251,6 +1447,59 @@ void NEP_Charge::find_force(
       dataset[device_id].charge.data(),
       dataset[device_id].charge_shifted.data());
     GPU_CHECK_KERNEL
+
+    if (para.prediction == 1) {
+
+    // get BEC (the diagonal part)
+    find_bec_diagonal<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      dataset[device_id].charge_shifted.data(),
+      dataset[device_id].bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (radial descriptor part)
+    find_bec_radial<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      dataset[device_id].charge_shifted.data(),
+      nep_data[device_id].charge_derivative.data(),
+      dataset[device_id].bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (angular descriptor part)
+    find_bec_angular<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
+      nep_data[device_id].charge_derivative.data(),
+      nep_data[device_id].sum_fxyz.data(),
+      dataset[device_id].bec.data());
+    GPU_CHECK_KERNEL
+
+      FILE* fid_bec = my_fopen("bec.out", "a");
+      std::vector<float> bec_cpu(dataset[device_id].bec.size());
+      dataset[device_id].bec.copy_to_host(bec_cpu.data());
+      for (int n = 0; n < dataset[device_id].N; ++n) {
+        for (int d = 0; d < 9; ++d) {
+          fprintf(fid_bec, "%g ", bec_cpu[n + d * dataset[device_id].N]);
+        }
+        fprintf(fid_bec, "\n");
+      }
+      fclose(fid_bec);
+    }
 
     // modes 1 and 2 have reciprocal space
     if (paramb.charge_mode != 3) {
