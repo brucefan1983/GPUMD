@@ -1448,8 +1448,6 @@ void NEP_Charge::find_force(
       dataset[device_id].charge_shifted.data());
     GPU_CHECK_KERNEL
 
-    if (para.prediction == 1) {
-
     // get BEC (the diagonal part)
     find_bec_diagonal<<<grid_size, block_size>>>(
       dataset[device_id].N,
@@ -1488,18 +1486,6 @@ void NEP_Charge::find_force(
       nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].bec.data());
     GPU_CHECK_KERNEL
-
-      FILE* fid_bec = my_fopen("bec.out", "a");
-      std::vector<float> bec_cpu(dataset[device_id].bec.size());
-      dataset[device_id].bec.copy_to_host(bec_cpu.data());
-      for (int n = 0; n < dataset[device_id].N; ++n) {
-        for (int d = 0; d < 9; ++d) {
-          fprintf(fid_bec, "%g ", bec_cpu[n + d * dataset[device_id].N]);
-        }
-        fprintf(fid_bec, "\n");
-      }
-      fclose(fid_bec);
-    }
 
     // modes 1 and 2 have reciprocal space
     if (paramb.charge_mode != 3) {
