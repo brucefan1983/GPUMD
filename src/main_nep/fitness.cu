@@ -541,6 +541,9 @@ void Fitness::report_error(
           FILE* fid_charge = my_fopen("charge_test.out", "w");
           update_charge(fid_charge, test_set[0]);
           fclose(fid_charge);
+          FILE* fid_bec = my_fopen("bec_test.out", "w");
+          update_bec(fid_bec, test_set[0]);
+          fclose(fid_bec);
         }
       } else if (para.train_mode == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
@@ -598,6 +601,12 @@ void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
   }
 }
 
+void Fitness::update_bec(FILE* fid_bec, Dataset& dataset)
+{
+  dataset.bec.copy_to_host(dataset.bec_cpu.data());
+  output_atomic(9, fid_bec, dataset.bec_cpu.data(), dataset.bec_ref_cpu.data(), dataset);
+}
+
 void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
 {
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
@@ -626,8 +635,10 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_virial = my_fopen("virial_train.out", "w");
     FILE* fid_stress = my_fopen("stress_train.out", "w");
     FILE* fid_charge;
+    FILE* fid_bec;
     if (para.charge_mode) {
       fid_charge = my_fopen("charge_train.out", "w");
+      fid_bec = my_fopen("bec_train.out", "w");
     }
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, true, 1);
@@ -635,6 +646,7 @@ void Fitness::predict(Parameters& para, float* elite)
         fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
       if (para.charge_mode) {
         update_charge(fid_charge, train_set[batch_id][0]);
+        update_bec(fid_bec, train_set[batch_id][0]);
       }
     }
     fclose(fid_energy);
@@ -643,6 +655,7 @@ void Fitness::predict(Parameters& para, float* elite)
     fclose(fid_stress);
     if (para.charge_mode) {
       fclose(fid_charge);
+      fclose(fid_bec);
     }
   } else if (para.train_mode == 1) {
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
