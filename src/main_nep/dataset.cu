@@ -62,6 +62,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].fx.resize(structures[n].num_atom);
     structures[n].fy.resize(structures[n].num_atom);
     structures[n].fz.resize(structures[n].num_atom);
+    structures[n].bec.resize(structures[n].num_atom * 9);
 
     for (int na = 0; na < structures[n].num_atom; ++na) {
       structures[n].type[na] = structures_input[n_input].type[na];
@@ -71,6 +72,9 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
       structures[n].fx[na] = structures_input[n_input].fx[na];
       structures[n].fy[na] = structures_input[n_input].fy[na];
       structures[n].fz[na] = structures_input[n_input].fz[na];
+      for (int d = 0; d < 9; ++d) {
+        structures[n].bec[na * 9 + d] = structures_input[n_input].bec[na * 9 + d];
+      }
     }
 
     if (structures[n].has_atomic_virial != structures[0].has_atomic_virial) {
@@ -162,7 +166,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
     charge.resize(N);
     charge_shifted.resize(N);
     charge_cpu.resize(N);
+    charge_ref_cpu.resize(Nc);
+    charge_ref_gpu.resize(Nc);
     bec.resize(N * 9);
+    bec_cpu.resize(N * 9);
+    bec_ref_cpu.resize(N * 9);
+    bec_ref_gpu.resize(N * 9);
   }
 
   energy.resize(N);
@@ -171,9 +180,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
-
   weight_cpu.resize(Nc);
-  charge_ref_cpu.resize(Nc);
   energy_ref_cpu.resize(Nc);
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
@@ -185,7 +192,9 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
-    charge_ref_cpu[n] = structures[n].charge;
+    if (para.charge_mode) {
+      charge_ref_cpu[n] = structures[n].charge;
+    }
     energy_ref_cpu[n] = structures[n].energy;
     energy_weight_cpu[n] = structures[n].energy_weight;
     for (int k = 0; k < 6; ++k) {
@@ -219,11 +228,16 @@ void Dataset::initialize_gpu_data(Parameters& para)
           avirial_ref_cpu[Na_sum_cpu[n] + na + N * 5] = structures[n].avirialzx[na];
         }
       }
+      if (para.charge_mode) {
+        for (int d = 0; d < 9; ++d) {
+          bec_ref_cpu[Na_sum_cpu[n] + na + N * d] = structures[n].bec[na * 9 + d];
+        }
+      }
     }
   }
 
   type_weight_gpu.resize(NUM_ELEMENTS);
-  charge_ref_gpu.resize(Nc);
+  
   energy_ref_gpu.resize(Nc);
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
@@ -233,7 +247,10 @@ void Dataset::initialize_gpu_data(Parameters& para)
   }
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
-  charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
+  if (para.charge_mode) {
+    charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
+    bec_ref_gpu.copy_from_host(bec_ref_cpu.data());
+  }
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
