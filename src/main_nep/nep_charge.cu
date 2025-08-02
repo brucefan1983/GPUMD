@@ -661,7 +661,6 @@ static __global__ void find_bec_radial(
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
-  const float* g_charge,
   const float* g_charge_derivative,
   float* g_bec)
 {
@@ -1466,7 +1465,6 @@ void NEP_Charge::find_force(
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
-      dataset[device_id].charge_shifted.data(),
       nep_data[device_id].charge_derivative.data(),
       dataset[device_id].bec.data());
     GPU_CHECK_KERNEL
