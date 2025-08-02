@@ -34,6 +34,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].num_atom = structures_input[n_input].num_atom;
     structures[n].weight = structures_input[n_input].weight;
     structures[n].has_virial = structures_input[n_input].has_virial;
+    structures[n].has_bec = structures_input[n_input].has_bec;
     structures[n].has_atomic_virial = structures_input[n_input].has_atomic_virial;
     structures[n].atomic_virial_diag_only = structures_input[n_input].atomic_virial_diag_only;
     structures[n].charge = structures_input[n_input].charge;
@@ -923,6 +924,43 @@ static __global__ void gpu_sum_charge_error(
   }
 }
 
+static __global__ void gpu_sum_bec_error(
+  const int N,
+  int* g_Na,
+  int* g_Na_sum,
+  float* g_bec,
+  float* g_bec_ref,
+  float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + g_Na[bid];
+  extern __shared__ float s_error[];
+  s_error[tid] = 0.0f;
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    float diff_square = 0.0f;
+    for (int d = 0; d < 9; ++d) {
+      const float diff = g_bec[n + N * d] - g_bec_ref[n + N * d];
+      diff_square += diff * diff;
+    }
+    s_error[tid] += diff_square;
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_error[tid] += s_error[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    error_gpu[bid] = s_error[0];
+  }
+}
+
 std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
@@ -948,6 +986,26 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
           count_array[t] += 1;
         }
       }
+  }
+
+  gpu_sum_bec_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    N,
+    Na.data(),
+    Na_sum.data(),
+    bec.data(),
+    bec_ref_gpu.data(),
+    error_gpu.data());
+  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+  for (int n = 0; n < Nc; ++n) {
+    if (structures[n].has_bec) {
+      float rmse_temp = error_cpu[n];
+      for (int t = 0; t < para.num_types + 1; ++t) {
+        if (has_type[t * Nc + n]) {
+          rmse_array[t] += rmse_temp / (Na_cpu[n] * 9);
+          count_array[t] += 1;
+        }
+      }
+    }
   }
 
   for (int t = 0; t <= para.num_types; ++t) {
