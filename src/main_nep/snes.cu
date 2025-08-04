@@ -115,6 +115,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
           mu[n] = 0.0f;
         }
       }
+      mu[num_full * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {

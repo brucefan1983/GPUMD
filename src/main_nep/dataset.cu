@@ -1001,8 +1001,8 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
       float rmse_temp = error_cpu[n];
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
-          rmse_array[t] += rmse_temp / (Na_cpu[n] * 9);
-          count_array[t] += 1;
+          rmse_array[t] += rmse_temp / (Na_cpu[n]);
+          count_array[t] += 9;
         }
       }
     }
