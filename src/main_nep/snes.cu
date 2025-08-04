@@ -141,7 +141,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   // read in the whole foundation file first
   const int NUM89 = 89;
   const int num_ann_per_element = (para.dim + (para.charge_mode ? 3 : 2)) * para.num_neurons1;
-  const int num_ann = NUM89 * num_ann_per_element + 1;
+  const int num_ann = NUM89 * num_ann_per_element + (para.charge_mode ? 2 : 1);
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
@@ -256,7 +256,7 @@ void SNES::find_type_of_variable(Parameters& para)
         }
         offset += num_para_ann_per_type;
       }
-      ++offset; // the bias
+      offset += para.charge_mode ? 2 : 1; // the bias
     }
   } else {
     offset += num_para_ann_per_type + 1;

@@ -345,6 +345,8 @@ void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1 * 2; // potential and charge
   }
+  ann.sqrt_epsilon_inf = pointer;
+  pointer += 1;
   ann.b1 = pointer;
   pointer += 1;
   ann.c = pointer;
@@ -464,6 +466,16 @@ static __global__ void find_bec_diagonal(const int N, const float* g_q, float* g
     g_bec[n1 + N * 6] = 0.0f;
     g_bec[n1 + N * 7] = 0.0f;
     g_bec[n1 + N * 8] = g_q[n1];
+  }
+}
+
+static __global__ void scale_bec(const int N, const float* sqrt_epsilon_inf, float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    for (int d = 0; d < 9; ++d) {
+      g_bec[n1 + N * d] *= sqrt_epsilon_inf[0];
+    }
   }
 }
 
@@ -1482,6 +1494,13 @@ void NEP_Charge::find_force(
       nep_data[device_id].z12_angular.data(),
       nep_data[device_id].charge_derivative.data(),
       nep_data[device_id].sum_fxyz.data(),
+      dataset[device_id].bec.data());
+    GPU_CHECK_KERNEL
+
+    // scale q to q * sqrt(epsilon_inf)
+    scale_bec<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      annmb[device_id].sqrt_epsilon_inf,
       dataset[device_id].bec.data());
     GPU_CHECK_KERNEL
 
