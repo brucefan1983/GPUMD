@@ -963,9 +963,13 @@ static __global__ void gpu_sum_bec_error(
 
 std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
 {
+  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  if (!para.charge_mode) {
+    return rmse_array;
+  }
+
   CHECK(gpuSetDevice(device_id));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
 
   int mem = sizeof(float) * Nc;
