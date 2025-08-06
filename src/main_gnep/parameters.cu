@@ -58,7 +58,7 @@ void Parameters::set_default_parameters()
   is_l_max_set = false;
   is_neuron_set = false;
   is_weight_decay_set = false;
-  is_lr_set = false;
+  is_start_lr_set = false;
   is_stop_lr_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
@@ -97,6 +97,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
   energy_shift = 0;
+  output_descriptor = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -295,7 +296,7 @@ void Parameters::report_inputs()
     printf("    (default) weight_decay = %g.\n", weight_decay);
   }
 
-  if (is_lr_set) {
+  if (is_start_lr_set) {
     printf("    (input)   start learning rate = %g.\n", start_lr);
   } else {
     printf("    (default) start learning rate = %g.\n", start_lr);
@@ -390,8 +391,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_epoch(param, num_param);
   } else if (strcmp(param[0], "weight_decay") == 0) {
     parse_weight_decay(param, num_param);
-  } else if (strcmp(param[0], "learning_rate") == 0) {
-    parse_lr(param, num_param);
+  } else if (strcmp(param[0], "start_lr") == 0) {
+    parse_start_lr(param, num_param);
   } else if (strcmp(param[0], "stop_lr") == 0) {
     parse_stop_lr(param, num_param);
   } else if (strcmp(param[0], "lambda_e") == 0) {
@@ -414,6 +415,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "energy_shift") == 0) {
     parse_energy_shift(param, num_param);
+  } else if (strcmp(param[0], "output_descriptor") == 0) {
+    parse_output_descriptor(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -664,12 +667,12 @@ void Parameters::parse_weight_decay(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_lr(const char** param, int num_param)
+void Parameters::parse_start_lr(const char** param, int num_param)
 {
-  is_lr_set = true;
+  is_start_lr_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("learning_rate should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("start_lr should have 1 parameter.\n");
   }
 
   double lr_tmp = 0.0;
@@ -886,5 +889,20 @@ void Parameters::parse_energy_shift(const char** param, int num_param)
   }
   if (energy_shift != 0 && energy_shift != 1) {
     PRINT_INPUT_ERROR("energy_shift should = 0 or 1.");
+  }
+}
+
+void Parameters::parse_output_descriptor(const char** param, int num_param)
+{
+  output_descriptor = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_descriptor should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_descriptor)) {
+    PRINT_INPUT_ERROR("output_descriptor should be an integer.\n");
+  }
+  if (output_descriptor < 0 || output_descriptor > 2) {
+    PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
 }

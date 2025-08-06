@@ -205,9 +205,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   r.resize(N * 3);
   type.resize(N);
   type_sum.resize(para.num_types);
-  for (int n = 0; n < para.num_types; ++n) {
-    printf("Number of atoms type %d = %d\n", n, type_sum_cpu[n]);
-  }
+
   box.copy_from_host(box_cpu.data());
   box_original.copy_from_host(box_original_cpu.data());
   num_cell.copy_from_host(num_cell_cpu.data());

@@ -56,6 +56,7 @@ public:
   float typewise_cutoff_radial_factor;
   float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
+  int output_descriptor;
 
   // check if a parameter has been set:
   bool is_prediction_set;
@@ -66,7 +67,7 @@ public:
   bool is_l_max_set;
   bool is_neuron_set;
   bool is_weight_decay_set;
-  bool is_lr_set;
+  bool is_start_lr_set;
   bool is_stop_lr_set;
   bool is_lambda_e_set;
   bool is_lambda_f_set;
@@ -121,7 +122,7 @@ private:
   void parse_l_max(const char** param, int num_param);
   void parse_neuron(const char** param, int num_param);
   void parse_weight_decay(const char** param, int num_param);
-  void parse_lr(const char** param, int num_param);
+  void parse_start_lr(const char** param, int num_param);
   void parse_stop_lr(const char** param, int num_param);
   void parse_lambda_e(const char** param, int num_param);
   void parse_lambda_f(const char** param, int num_param);
@@ -133,4 +134,5 @@ private:
   void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_energy_shift(const char** param, int num_param);
+  void parse_output_descriptor(const char** param, int num_param);
 };
