@@ -24,6 +24,7 @@ struct Structure {
   int has_virial;
   int has_atomic_virial;
   int atomic_virial_diag_only;
+  int has_bec;
   int has_temperature;
   float weight;
   float charge = 0.0f;
@@ -47,6 +48,7 @@ struct Structure {
   std::vector<float> avirialxy;
   std::vector<float> avirialyz;
   std::vector<float> avirialzx;
+  std::vector<float> bec;
 };
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);

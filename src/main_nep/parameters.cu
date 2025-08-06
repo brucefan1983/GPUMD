@@ -94,7 +94,7 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
-  lambda_q = 0.01f;            // need to test
+  lambda_q = 0.1f;             // need to test
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
@@ -181,6 +181,9 @@ void Parameters::calculate_parameters()
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
+    if (version != 4) {
+      PRINT_INPUT_ERROR("Charge is only supported for NEP4.");
+    }
   }
 
   if (train_mode == 0) {
@@ -212,13 +215,10 @@ void Parameters::calculate_parameters()
 
   if (version == 3) {
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-    if (charge_mode) {
-      number_of_variables_ann += num_neurons1;
-    }
   } else if (version == 4) {
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
     if (charge_mode) {
-      number_of_variables_ann += num_neurons1 * num_types;
+      number_of_variables_ann += num_neurons1 * num_types + 1;
     }
   }
 
@@ -256,7 +256,7 @@ void Parameters::calculate_parameters()
     std::vector<std::string> tokens;
     const int NUM89 = 89;
     const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
-    const int num_ann = NUM89 * num_ann_per_element + 1;
+    const int num_ann = NUM89 * num_ann_per_element + (charge_mode ? 2 : 1);
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
     const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
