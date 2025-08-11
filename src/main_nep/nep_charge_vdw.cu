@@ -1089,7 +1089,7 @@ static __global__ void find_force_vdw_static(
     float s_pe = 0;
     float D_C6 = 0;
 
-    const float R6 = 1.0f; // To be optimized
+    const float R6 = 64.0f; // To be optimized
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
