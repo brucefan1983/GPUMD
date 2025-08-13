@@ -292,7 +292,7 @@ NEP_ChargeVdW::NEP_ChargeVdW(
     }
   }
 
-  charge_para.alpha = float(PI) / paramb.rc_angular; // a good value
+  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -434,7 +434,7 @@ static __global__ void apply_ann(
 
     g_pe[n1] = F;
     g_charge[n1] = charge;
-    g_C6[n1] = C6;
+    g_C6[n1] = C6 + 2.0f;
 
     printf("%f,",C6);
 
@@ -1089,7 +1089,7 @@ static __global__ void find_force_vdw_static(
     float s_pe = 0;
     float D_C6 = 0;
 
-    const float R6 = 64.0f; // To be optimized
+    const float R6 = 729.0f; // 3^6
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
