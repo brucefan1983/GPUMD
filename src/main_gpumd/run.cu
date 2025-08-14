@@ -276,12 +276,6 @@ void Run::perform_a_run()
 
     mc.compute(step, number_of_steps, atom, box, group);
 
-#ifdef USE_GAS
-    if(is_metacell){
-      p_gasmc->process(box,atom.position_per_atom,atom.virial_per_atom);
-    }
-#endif
-
     measure.process(
       number_of_steps,
       step,
@@ -301,6 +295,16 @@ void Run::perform_a_run()
       printf("    %d steps completed.\n", step + 1);
       fflush(stdout);
     }
+
+#ifdef USE_GAS
+    if(is_pathsampling){
+      bool is_match = p_gasps->process(box,atom.position_per_atom);
+      if(is_match){
+        printf("[GAS-PathSampling] Reached (Meta)stable phase, computation ended.\n");
+        fflush(stdout);
+        break;}
+    }
+#endif
   }
 
   print_line_1();
@@ -350,15 +354,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
     force.potentials.emplace_back(std::move(p_gas_metad));
     force.set_multiple_potentials_mode("sum");
-  } else if (strcmp(param[0], "GASMetaCell") == 0) {
-     p_gasmc = TorchMetaCell::parse_GASMETACELL(param,num_param,atom.number_of_atoms);
-     is_metacell = true;
-#endif
-#ifdef USE_GAS_PS
-} else if (strcmp(param[0], "PathSampling") == 0) {
-  std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
-  force.potentials.emplace_back(std::move(p_gas_metad));
-  force.set_multiple_potentials_mode("sum");
+  } else if (strcmp(param[0], "GASPathSampling") == 0) {
+    p_gasps = TorchPathSampling::parse_GASPS(param,num_param,atom.number_of_atoms);
+    is_pathsampling=true;
 #endif
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);

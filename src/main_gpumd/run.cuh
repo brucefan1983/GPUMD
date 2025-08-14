@@ -38,7 +38,7 @@ class Measure;
 
 #ifdef USE_GAS
 #include "force/gas-metad.cuh"
-#include "measure/gas-metacell.cuh"
+#include "force/gas-ps.cuh"
 #endif
 
 class Run
@@ -81,7 +81,7 @@ private:
   Add_Random_Force add_random_force;
   Add_Efield add_efield;
   #ifdef USE_GAS
-  std::unique_ptr<TorchMetaCell> p_gasmc;
-  bool is_metacell=false;
+  std::unique_ptr<TorchPathSampling> p_gasps;
+  bool is_pathsampling = false;
   #endif
 };
