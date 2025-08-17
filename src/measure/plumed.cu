@@ -185,8 +185,8 @@ void PLUMED::process(
   std::vector<double> tmp(6);
   step += interval;
 
-  atom.force.copy_to_host(cpu_f_vector.data());
-  atom.position.copy_to_host(cpu_q_vector.data());
+  atom.force_per_atom.copy_to_host(cpu_f_vector.data());
+  atom.position_per_atom.copy_to_host(cpu_q_vector.data());
 
   cpu_b_vector[0] = box.cpu_h[0];
   cpu_b_vector[1] = box.cpu_h[3];
@@ -198,7 +198,7 @@ void PLUMED::process(
   cpu_b_vector[7] = box.cpu_h[5];
   cpu_b_vector[8] = box.cpu_h[8];
 
-  gpu_sum<<<6, 1024>>>(n_atom, atom.virial.data(), gpu_v_vector.data());
+  gpu_sum<<<6, 1024>>>(n_atom, atom.virial_per_atom.data(), gpu_v_vector.data());
   GPU_CHECK_KERNEL
   gpu_v_vector.copy_to_host(tmp.data());
   fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
@@ -218,7 +218,7 @@ void PLUMED::process(
   plumed_cmd(plumed_main, "getBias", &bias_energy);
   plumed_cmd(plumed_main, "setStopFlag", &stop_flag);
 
-  force.copy_from_host(cpu_f_vector.data());
+  atom.force_per_atom.copy_from_host(cpu_f_vector.data());
 
   cpu_v_factor[0] = (tmp[0] - cpu_v_vector[0]) / tmp[0];
   cpu_v_factor[1] = (tmp[3] - cpu_v_vector[1]) / tmp[3];
@@ -233,12 +233,12 @@ void PLUMED::process(
   gpu_scale_virial<<<(n_atom - 1) / 128 + 1, 128>>>(
     n_atom,
     gpu_v_factor.data(),
-    atom.virial.data() + n_atom * 0,
-    atom.virial.data() + n_atom * 1,
-    atom.virial.data() + n_atom * 2,
-    atom.virial.data() + n_atom * 3,
-    atom.virial.data() + n_atom * 4,
-    atom.virial.data() + n_atom * 5);
+    atom.virial_per_atom.data() + n_atom * 0,
+    atom.virial_per_atom.data() + n_atom * 1,
+    atom.virial_per_atom.data() + n_atom * 2,
+    atom.virial_per_atom.data() + n_atom * 3,
+    atom.virial_per_atom.data() + n_atom * 4,
+    atom.virial_per_atom.data() + n_atom * 5);
   GPU_CHECK_KERNEL
 }
 

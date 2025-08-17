@@ -46,6 +46,7 @@ struct NEP_Data {
 class NEP : public Potential
 {
 public:
+  NEP_Data nep_data;
   struct ParaMB {
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
@@ -107,6 +108,14 @@ public:
     float h[18];
   };
 
+  struct Small_Box_Data {
+        GPU_Vector<int> NN_radial;
+        GPU_Vector<int> NL_radial;
+        GPU_Vector<int> NN_angular;
+        GPU_Vector<int> NL_angular;
+        GPU_Vector<float> r12;
+    } small_box_data;
+
   NEP(const char* file_potential, const int num_atoms);
   virtual ~NEP(void);
   virtual void compute(
@@ -126,11 +135,14 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
+  const GPU_Vector<int>& get_NN_radial_ptr();
+
+  const GPU_Vector<int>& get_NL_radial_ptr();
+
 private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
-  NEP_Data nep_data;
   ExpandedBox ebox;
   DFTD3 dftd3;
 

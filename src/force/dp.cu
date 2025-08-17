@@ -25,6 +25,7 @@ The class dealing with the Deep Potential(DP).
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <sstream>
+#include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
 #define MAX_NEIGH_NUM_DP 512    // max neighbor number of an atom for DP

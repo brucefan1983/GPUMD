@@ -66,6 +66,8 @@ Keywords
      - weight of force loss term
    * - :ref:`lambda_v <kw_lambda_v>`
      - weight of virial loss term
+   * - :ref:`atomic_v <kw_atomic_v>`
+     - fit atomic or global virial
    * - :ref:`force_delta <kw_force_delta>`
      - bias term that can be used to make smaller forces more accurate
    * - :ref:`batch <kw_batch>`

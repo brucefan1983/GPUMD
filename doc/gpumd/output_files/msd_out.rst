@@ -21,3 +21,7 @@ The data in this file are organized as follows:
 * column 7: SDC (in units of Å\ :sup:`2`/ps) in the :math:`z` direction
 
 Only the group selected via the arguments of the :ref:`compute_msd_keyword <kw_compute_msd>` is included in this output.
+
+In the case of :attr:`all_groups` having been specified, a set of columns ordered like above will be written for each group in the selected grouping method.
+For example, in a system with three groups, a total of 19 columns will be written.
+The first column is the time, columns 2-7 are the :term:`MSD` and :term:`SDC` for the first group, columns 8-13 for the second group, and columns 14-19 for group 3.

@@ -28,6 +28,7 @@ public:
   int num_correlation_steps_ = 100;
   int grouping_method_ = -1;
   int group_id_ = -1;
+  bool msd_over_all_groups_ = false;
 
   virtual void preprocess(
     const int number_of_steps,
@@ -60,14 +61,22 @@ public:
     const double time_step,
     const double temperature);
 
+  virtual void write(const char* filename);
+
   MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom);
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
 
 private:
   int num_atoms_;
+  int num_groups_;
+  std::vector<int> num_atoms_per_group_;
+  std::vector<int> group_per_atom_cpu_;
   int num_time_origins_;
+  int save_output_every_ = -1;
   double dt_in_natural_units_;
   double dt_in_ps_;
   GPU_Vector<double> x_, y_, z_;
   GPU_Vector<double> msdx_, msdy_, msdz_;
+  GPU_Vector<double> msdx_out_, msdy_out_, msdz_out_;  // holds output for writing
+  GPU_Vector<int> group_per_atom_gpu_;
 };

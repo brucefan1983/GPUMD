@@ -31,6 +31,7 @@ https://doi.org/10.1145/2001576.2001692
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <cstring>
 
 static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
@@ -105,6 +106,17 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
       sigma[n] = para.sigma0;
     }
+    // make sure the initial charges are zero
+    if (para.charge_mode) {
+      const int num_full = (para.dim + 3) * para.num_neurons1;
+      const int num_part = (para.dim + 2) * para.num_neurons1;
+      for (int t = 0; t < para.num_types; ++t) {
+        for (int n = num_full * t + num_part; n < num_full * (t + 1); ++n) {
+          mu[n] = 0.0f;
+        }
+      }
+      mu[num_full * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
+    }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
@@ -129,8 +141,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann_per_element = (para.dim + 2) * para.num_neurons1;
-  const int num_ann = NUM89 * num_ann_per_element + 1;
+  const int num_ann_per_element = (para.dim + (para.charge_mode ? 3 : 2)) * para.num_neurons1;
+  const int num_ann = NUM89 * num_ann_per_element + (para.charge_mode ? 2 : 1);
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
@@ -176,7 +188,11 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
           int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
           int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
+#ifdef FINE_TUNE_DESCRIPTOR
+          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+#else
           sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+#endif
           ++count;
         }
       }
@@ -193,7 +209,11 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
           int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
           int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+#ifdef FINE_TUNE_DESCRIPTOR
+          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+#else
           sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+#endif
           ++count;
         }
       }
@@ -237,7 +257,7 @@ void SNES::find_type_of_variable(Parameters& para)
         }
         offset += num_para_ann_per_type;
       }
-      ++offset; // the bias
+      offset += para.charge_mode ? 2 : 1; // the bias
     }
   } else {
     offset += num_para_ann_per_type + 1;
@@ -348,8 +368,16 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
     if (
-      tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl" || tokens[0] == "nep3_zbl_temperature" ||
-      tokens[0] == "nep4_zbl_temperature" || tokens[0] == "nep5_zbl") {
+      tokens[0] == "nep3_zbl" || 
+      tokens[0] == "nep4_zbl" || 
+      tokens[0] == "nep3_zbl_temperature" ||
+      tokens[0] == "nep4_zbl_temperature" || 
+      tokens[0] == "nep3_zbl_charge1" ||
+      tokens[0] == "nep3_zbl_charge2" ||
+      tokens[0] == "nep3_zbl_charge3" ||
+      tokens[0] == "nep4_zbl_charge1" ||
+      tokens[0] == "nep4_zbl_charge2" ||
+      tokens[0] == "nep4_zbl_charge3") {
       num_lines_to_be_skipped = 6;
     }
 

@@ -17,7 +17,7 @@
 #include "ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
-  #include <hiprand_kernel.h>
+  #include <hiprand/hiprand_kernel.h>
 #else
   #include <curand_kernel.h>
 #endif
@@ -27,7 +27,7 @@ class Ensemble_LAN : public Ensemble
 public:
   Ensemble_LAN();
   Ensemble_LAN(int, int, double, double);
-  Ensemble_LAN(int, int, int, int, int, int, int, double, double, double);
+  Ensemble_LAN(int, int, double*, int, int, int, int, int, int, double, double, double);
   virtual ~Ensemble_LAN(void);
 
   virtual void compute1(

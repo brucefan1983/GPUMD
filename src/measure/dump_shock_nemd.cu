@@ -181,12 +181,12 @@ void Dump_Shock_NEMD::preprocess(
     return;
 
   n = atom.number_of_atoms;
-  bins = (int)box.cpu_h[direction] / avg_window + 1;
+  bins = (int)box.cpu_h[direction * 4] / avg_window + 1;
   if (n < bins)
     PRINT_INPUT_ERROR("Too few atoms!");
   for (int i = 0; i < 3; i++)
     if (i != direction)
-      slice_vol *= box.cpu_h[i]; // create vectors to store hist
+      slice_vol *= box.cpu_h[i * 4]; // create vectors to store hist
   slice_vol *= avg_window;
 
   temp_file = my_fopen("temperature_hist.txt", "w");

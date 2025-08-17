@@ -70,7 +70,7 @@ This command ramps the temperature from 300 K to 1000 K, while keeping the press
 
     ensemble npt_mttk temp 300 300 aniso 10 10
 
-This command replaces ``iso`` with ``ansio``.
+This command replaces ``iso`` with ``aniso``.
 The three dimensions of the cell thus change independently, but `xy`, `xz` and `yz` remain unchanged.
 
 .. code-block:: rst

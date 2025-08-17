@@ -55,6 +55,7 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
+    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;                // for elements in descriptor
   };
@@ -90,6 +91,8 @@ public:
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
+    float A;
+    float B;
   };
 
   struct ZBL {

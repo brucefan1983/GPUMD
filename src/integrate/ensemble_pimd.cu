@@ -619,6 +619,7 @@ static void cpu_pressure_orthogonal(
   } else {
     scale_factor[2] = 1.0;
   }
+  box.get_inverse();
 }
 
 static void cpu_pressure_isotropic(
@@ -635,17 +636,11 @@ static void cpu_pressure_isotropic(
   const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
   const double scale_factor_Berendsen =
     1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
-  // The factor 0.666666666666667 is 2/3, where 3 means the number of directions that are coupled
-  const double scale_factor_stochastic =
-    sqrt(0.666666666666667 * p_coupling[0] * K_B * target_temperature / box.get_volume()) *
-    gasdev(rng);
-  scale_factor = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+  scale_factor = scale_factor_Berendsen;
   box.cpu_h[0] *= scale_factor;
-  box.cpu_h[1] *= scale_factor;
-  box.cpu_h[2] *= scale_factor;
-  box.cpu_h[3] = box.cpu_h[0] * 0.5;
-  box.cpu_h[4] = box.cpu_h[1] * 0.5;
-  box.cpu_h[5] = box.cpu_h[2] * 0.5;
+  box.cpu_h[4] *= scale_factor;
+  box.cpu_h[8] *= scale_factor;
+  box.get_inverse();
 }
 
 static void cpu_pressure_triclinic(

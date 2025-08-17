@@ -67,6 +67,7 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
+#include <chrono>
 #include <cstring>
 
 static __global__ void gpu_find_largest_v2(
@@ -213,7 +214,7 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
-  clock_t time_begin = clock();
+  const auto time_begin = std::chrono::high_resolution_clock::now();
 
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
@@ -293,7 +294,7 @@ void Run::perform_a_run()
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom);
 
-    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 
     mc.compute(step, number_of_steps, atom, box, group);
 
@@ -319,11 +320,11 @@ void Run::perform_a_run()
   }
 
   print_line_1();
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
+  const auto time_finish = std::chrono::high_resolution_clock::now();
+  const std::chrono::duration<double> time_used = time_finish - time_begin;
 
-  printf("Time used for this run = %g second.\n", time_used);
-  double run_speed = atom.number_of_atoms * (number_of_steps / time_used);
+  printf("Time used for this run = %g second.\n", time_used.count());
+  double run_speed = atom.number_of_atoms * (number_of_steps * 1.0 / time_used.count());
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
