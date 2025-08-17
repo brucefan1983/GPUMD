@@ -54,7 +54,8 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [Fan2017]                   | for historical citation   |
 | [Fan2015]                 | virial and heat current formulation   |
 | [Fan2017]                   | in-out decomposition and related spectral decomposition  |
-| [Fan2019,Gabourie2021]                 | HNEMD and related spectral decomposition   |
+| [Fan2019]                 | HNEMD and related spectral decomposition   |
+| [Gabourie2021]                 | EMD and HNEMD based modal analyses   |
 | [Brorsson2021]                   | force constant potential (FCP) |
 | [Fan2021]                   | neuroevolution potential (NEP) and specifically NEP1 |
 | [Fan2022JPCM]                   | NEP2 |
