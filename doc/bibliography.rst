@@ -332,3 +332,9 @@ Bibliography
    | *Automated free-energy calculation from atomistic simulations*
    | Phys. Rev. Materials 5, 103801, (2021)
    | DOI: `10.1103/PhysRevMaterials.5.103801 <https://doi.org/10.1103/PhysRevMaterials.5.103801>`_
+
+.. [Bu2025]
+   | Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang
+   | *Accurate modeling of LEGO-like vdW heterostructures: integrating machine learned with anisotropic interlayer potentials*
+   | arXiv, 2504, 12985 (2025)
+   | DOI: `10.48550/arXiv.2504.12985 <https://doi.org/10.48550/arXiv.2504.12985>`_
