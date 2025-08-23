@@ -262,7 +262,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 1;
+  annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
@@ -355,6 +355,8 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1 * 2; // potential and charge
   }
+  ann.sqrt_epsilon_inf = pointer;
+  pointer += 1;
   ann.b1 = pointer;
   pointer += 1;
 
