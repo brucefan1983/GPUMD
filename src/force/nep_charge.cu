@@ -85,57 +85,27 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep3_charge1") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep3_zbl_charge1") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep4_charge1") {
-    paramb.version = 4;
+  if (tokens[0] == "nep4_charge1") {
     zbl.enabled = false;
     charge_para.charge_mode = 1;
   } else if (tokens[0] == "nep4_zbl_charge1") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep3_charge2") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 2;
-  } else if (tokens[0] == "nep3_zbl_charge2") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 2;
   } else if (tokens[0] == "nep4_charge2") {
-    paramb.version = 4;
     zbl.enabled = false;
     charge_para.charge_mode = 2;
   } else if (tokens[0] == "nep4_zbl_charge2") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 2;
-  } else if (tokens[0] == "nep3_charge3") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 3;
-  } else if (tokens[0] == "nep3_zbl_charge3") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 3;
   } else if (tokens[0] == "nep4_charge3") {
-    paramb.version = 4;
     zbl.enabled = false;
     charge_para.charge_mode = 3;
   } else if (tokens[0] == "nep4_zbl_charge3") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 3;
   } else {
     std::cout << tokens[0]
-              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << " is an unsupported NEP model. We only support NEP4 charge models now."
               << std::endl;
     exit(1);
   }
@@ -147,10 +117,10 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP%d-Charge%d potential with %d atom type.\n", paramb.version, 
+    printf("Use the NEP4-Charge%d potential with %d atom type.\n", 
       charge_para.charge_mode, paramb.num_types);
   } else {
-    printf("Use the NEP%d-Charge%d potential with %d atom types.\n", paramb.version, 
+    printf("Use the NEP4-Charge%d potential with %d atom types.\n", 
       charge_para.charge_mode, paramb.num_types);
   }
 
@@ -292,11 +262,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 + 1;
-  } else if (paramb.version == 4) {
-    annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 1;
-  }
+  annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 1;
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
@@ -382,9 +348,6 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 3) * ann.num_neurons1;
-    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
