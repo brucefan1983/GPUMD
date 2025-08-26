@@ -895,22 +895,22 @@ void OrientOrder::parse(const char** param, const int num_param)
   }
 
   if (mode_ == "cutoff") {
-    printf("    with %f angstrom cutoff.\n", rc_);
+    printf("    with %f angstrom cutoff,\n", rc_);
   } else if (mode_ == "nnn") {
-    printf("    with %d nearest neighbor atoms.\n", nnn_);
+    printf("    with %d nearest neighbor atoms,\n", nnn_);
   }
   if (ndegrees_ > 1) {
-    printf("    with %d degrees: ", ndegrees_);
+    printf("    with %d degrees:", ndegrees_);
   } else {
-    printf("    with %d degree: ", ndegrees_);
+    printf("    with %d degree:", ndegrees_);
   }
 
   for (int i = 0; i < ndegrees_; ++i) {
-    printf("%d ", llist[i]);
+    printf(" %d", llist[i]);
   }
-  printf("\n");
+  printf(",\n");
   printf(
-    "    Average is %s, wl is %s and wlhat is %s.\n",
+    "    average is %s, wl is %s and wlhat is %s.\n",
     average_ ? "true" : "false",
     wl_ ? "true" : "false",
     wlhat_ ? "true" : "false");
