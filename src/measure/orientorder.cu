@@ -894,6 +894,7 @@ void OrientOrder::parse(const char** param, const int num_param)
     PRINT_INPUT_ERROR(message.c_str());
   }
 
+  printf("    every %d steps, \n", num_interval_);
   if (mode_ == "cutoff") {
     printf("    with %f angstrom cutoff,\n", rc_);
   } else if (mode_ == "nnn") {
