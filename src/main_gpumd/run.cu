@@ -51,6 +51,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/measure.cuh"
 #include "measure/modal_analysis.cuh"
 #include "measure/msd.cuh"
+#include "measure/orientorder.cuh"
 #include "measure/plumed.cuh"
 #include "measure/property.cuh"
 #include "measure/rdf.cuh"
@@ -508,6 +509,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_adf") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new ADF(param, num_param, box, number_of_types));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_orientorder") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new OrientOrder(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
     std::unique_ptr<Property> property;

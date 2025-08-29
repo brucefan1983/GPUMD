@@ -145,6 +145,10 @@ Output files
      - :ref:`compute_lsqt <kw_compute_lsqt>`
      - Electrical conductivity
      - Append
+   * - :ref:`orientorder.out <orientorder_out>`
+     - :ref:`compute_orientorder <kw_compute_orientorder>`
+     - Steinhardt bond-orientational order parameters
+     - Append
 
 .. toctree::
    :maxdepth: 0
@@ -184,3 +188,4 @@ Output files
    lsqt_velocity_out
    lsqt_sigma_out
    angular_rdf_out
+   orientorder_out

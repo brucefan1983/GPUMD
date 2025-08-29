@@ -333,6 +333,18 @@ Bibliography
    | Phys. Rev. Materials 5, 103801, (2021)
    | DOI: `10.1103/PhysRevMaterials.5.103801 <https://doi.org/10.1103/PhysRevMaterials.5.103801>`_
 
+.. [Steinhardt1983]
+   | Steinhardt, P. J., Nelson, D. R., & Ronchetti, M.
+   | *Bond-orientational order in liquids and glasses* 
+   | Physical Review B, 28(2), 784, (1983)
+   | DOI: `10.1103/PhysRevB.28.784 <https://doi.org/10.1103/PhysRevB.28.784>`_
+
+.. [Mickel2013]
+   | Mickel, W., Kapfer, S. C., Schröder-Turk, G. E., & Mecke, K. (2013).
+   | *Shortcomings of the bond orientational order parameters for the analysis of disordered particulate matter* 
+   | The Journal of chemical physics, 138(4), (2013).
+   | DOI: `10.1063/1.4774084 <https://doi.org/10.1063/1.4774084>`_
+
 .. [Bu2025]
    | Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang
    | *Accurate modeling of LEGO-like vdW heterostructures: integrating machine learned with anisotropic interlayer potentials*
