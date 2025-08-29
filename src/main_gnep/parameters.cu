@@ -16,7 +16,6 @@
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
@@ -33,11 +32,11 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 Parameters::Parameters()
 {
   print_line_1();
-  printf("Started reading nep.in.\n");
+  printf("Started reading gnep.in.\n");
   print_line_2();
 
   set_default_parameters();
-  read_nep_in();
+  read_gmlp_in();
   if (is_zbl_set) {
     read_zbl_in();
   }
@@ -45,41 +44,33 @@ Parameters::Parameters()
   report_inputs();
 
   print_line_1();
-  printf("Finished reading nep.in.\n");
+  printf("Finished reading gnep.in.\n");
   print_line_2();
 }
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
   is_prediction_set = false;
-  is_version_set = false;
   is_type_set = false;
   is_cutoff_set = false;
   is_n_max_set = false;
   is_basis_size_set = false;
   is_l_max_set = false;
   is_neuron_set = false;
-  is_lambda_1_set = false;
-  is_lambda_2_set = false;
-  is_lambda_e_set = false;
-  is_lambda_f_set = false;
-  is_lambda_v_set = false;
-  is_atomic_v_set = false;
+  is_weight_decay_set = false;
+  is_start_lr_set = false;
+  is_stop_lr_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
-  is_population_set = false;
-  is_generation_set = false;
+  is_epoch_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
-  is_charge_mode_set = false;
+  is_energy_shift_set = false;
 
-  train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
-  version = 4;                 // NEP4 is the best
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
@@ -87,31 +78,26 @@ void Parameters::set_default_parameters()
   n_max_radial = 4;            // a relatively small value to achieve high speed
   n_max_angular = 4;           // a relatively small value to achieve high speed
   L_max = 4;                   // the only supported value
-  L_max_4body = 2;             // default is to include 4body
-  L_max_5body = 0;             // default is not to include 5body
   num_neurons1 = 30;           // a relatively small value to achieve high speed
-  lambda_1 = lambda_2 = -1.0f; // automatic regularization
-  lambda_e = lambda_f = 1.0f;  // energy and force are more important
-  lambda_v = 0.1f;             // virial is less important
+  weight_decay = 0.0f;         // no weight decay by default (Adam). In general, 1e-6 ~ 1e-4 for AdamW
+  lr = 1e-3f;                 
+  start_lr = 1e-3f;   
+  stop_lr = 1e-7f;             
+  lambda_e = 1.0f;           // energy important
+  lambda_f = 2.0f;         // force is more important
+  lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
   lambda_shear = 1.0f;         // do not weight shear virial more by default
-  lambda_q = 0.1f;             // need to test
   force_delta = 0.0f;          // no modification of force loss
-  batch_size = 1000;           // large enough in most cases
+  batch_size = 2;           // mini-batch for adam optimizer
   use_full_batch = 0;          // default is not to enable effective full-batch
-  population_size = 50;        // almost optimal
-  maximum_generation = 100000; // a good starting point
-  save_potential = 100000;     // write checkpoint nep.txt files at these intervals
-  save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
-  initial_para = 1.0f;
-  sigma0 = 0.1f;
-  atomic_v = 0;
+  epoch = 50;               
   use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
+  energy_shift = 0;
   output_descriptor = false;
-  charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -120,25 +106,13 @@ void Parameters::set_default_parameters()
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
-
-
-
-  // ------------new--------------
-  int deviceCount;  
-  CHECK(gpuGetDeviceCount(&deviceCount));  
-  int fully_used_device = population_size % deviceCount;  
-  if (fully_used_device != 0) {  
-    int population_should_increase = deviceCount - fully_used_device;  
-    population_size += population_should_increase;  
-    printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
-  }  
 }
 
-void Parameters::read_nep_in()
+void Parameters::read_gmlp_in()
 {
-  std::ifstream input("nep.in");
+  std::ifstream input("gnep.in");
   if (!input.is_open()) {
-    std::cout << "Failed to open nep.in." << std::endl;
+    std::cout << "Failed to open gnep.in." << std::endl;
     exit(1);
   }
 
@@ -177,222 +151,46 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (charge_mode) {
-    if (train_mode != 0) {
-      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
-    }
-    if (version != 4) {
-      PRINT_INPUT_ERROR("Charge is only supported for NEP4.");
-    }
-  }
-
-  if (train_mode == 0) {
-    if (atomic_v == 1) {
-      PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
-    }
-  }
-
-  if (train_mode != 0 && train_mode != 3) {
-    // take virial as dipole or polarizability
-    lambda_e = lambda_f = 0.0f;
-    enable_zbl = false;
-    if (!is_lambda_v_set) {
-      lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
-    }
-  }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
-    dim_angular += n_max_angular + 1;
-  }
-  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
-    dim_angular += n_max_angular + 1;
-  }
   dim = dim_radial + dim_angular;
-  if (train_mode == 3) {
-    dim += 1; // concatenate temeprature with descriptors
+  q_scaler_cpu.resize(dim, 1.0e10f);
+#ifdef USE_FIXED_SCALER
+  for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+    q_scaler_cpu[n] = 0.01f;
   }
+#endif
 
-  if (version == 3) {
-    number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  } else if (version == 4) {
-    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-    if (charge_mode) {
-      number_of_variables_ann += num_neurons1 * num_types + 1;
-    }
-  }
+  number_of_variables_ann = ((dim + 2) * num_neurons1 + 1) * num_types;
 
   number_of_variables_descriptor =
     num_types * num_types *
     (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
-    number_of_variables += number_of_variables_ann;
-  }
-
-  if (version != 3) {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-  } else {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
-    }
-  }
-
-  q_scaler_cpu.resize(dim, 1.0e10f);
-  if (fine_tune) {
-    std::ifstream input(fine_tune_nep_txt);
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open foundation model file.");
-    }
-    std::vector<std::string> tokens;
-    const int NUM89 = 89;
-    const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
-    const int num_ann = NUM89 * num_ann_per_element + (charge_mode ? 2 : 1);
-    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
-    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
-    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
-    for (int n = 0; n < num_tot + 7; ++n) {
-      tokens = get_tokens(input); // not used
-    }
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      tokens = get_tokens(input);
-      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    input.close();
-  }
 
   int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
+  CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(gpuSetDevice(device_id));
+    CHECK(cudaSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
+    s_max[device_id].resize(dim, -1000000.0f);
+    s_min[device_id].resize(dim, +1000000.0f);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
+    energy_shift_gpu.resize(num_types, 0.0f);
   }
-}
-
-void Parameters::check_foundation_model()
-{
-  std::ifstream input(fine_tune_nep_txt);
-  if (!input.is_open()) {
-    PRINT_INPUT_ERROR("Failed to open foundation model file.");
-  }
-  std::vector<std::string> tokens;
-  // first line, not used
-  tokens = get_tokens(input);
-  
-  // second line, zbl
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  float temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  if (temp != zbl_rc_inner) {
-    PRINT_INPUT_ERROR("ZBL inner cutoff mismatches with foundation model.");
-  }
-  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  if (temp != zbl_rc_outer) {
-    PRINT_INPUT_ERROR("ZBL outer cutoff mismatches with foundation model.");
-  }
-
-  // third line, cutoff
-  tokens = get_tokens(input);
-  if (tokens.size() != 5) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  if (temp != rc_radial) {
-    PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
-  }
-  temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  if (temp != rc_angular) {
-    PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
-  }
-
-  // 4th line, n_max
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  if (n_max_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("n_max_radial mismatches with foundation model.");
-  }
-  if (n_max_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("n_max_angular mismatches with foundation model.");
-  }
-
-  // 5th line, basis_size
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  if (basis_size_radial != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("basis_size_radial mismatches with foundation model.");
-  }
-  if (basis_size_angular != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("basis_size_angular mismatches with foundation model.");
-  }
-
-  // 6th line, l_max
-  tokens = get_tokens(input);
-  if (tokens.size() != 4) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  if (L_max != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("L_max mismatches with foundation model.");
-  }
-  if (L_max_4body != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("L_max_4body mismatches with foundation model.");
-  }
-  if (L_max_5body != get_int_from_token(tokens[3], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("L_max_5body mismatches with foundation model.");
-  }
-
-  // 7th line, ANN
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("Reading error for foundation model.");
-  }
-  if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
-  }
-
-  input.close();
 }
 
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
-    PRINT_INPUT_ERROR("type in nep.in has not been set.");
-  }
-
-  if (fine_tune) {
-    check_foundation_model();
+    PRINT_INPUT_ERROR("type in gnep.in has not been set.");
   }
 
   printf("Input or default parameters:\n");
 
   std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
-  }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
-  } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
-  }
+  printf("model_type = %s.\n", train_mode_name.c_str());
 
   std::string calculation_mode_name = "train";
   if (prediction == 1) {
@@ -404,11 +202,6 @@ void Parameters::report_inputs()
     printf("    (default) calculation mode = %s.\n", calculation_mode_name.c_str());
   }
 
-  if (is_version_set) {
-    printf("    (input)   use NEP version %d.\n", version);
-  } else {
-    printf("    (default) use NEP version %d.\n", version);
-  }
   printf("    (input)   number of atom types = %d.\n", num_types);
   if (is_type_weight_set) {
     for (int n = 0; n < num_types; ++n) {
@@ -444,16 +237,6 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_charge_mode_set) {
-    if (charge_mode == 1) {
-      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %g.\n", lambda_q);
-    } else if (charge_mode == 2) {
-      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
-    } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
-    }
-  }
-
   if (is_cutoff_set) {
     printf("    (input)   radial cutoff = %g A.\n", rc_radial);
     printf("    (input)   angular cutoff = %g A.\n", rc_angular);
@@ -463,11 +246,11 @@ void Parameters::report_inputs()
   }
 
   if (is_use_typewise_cutoff_set) {
-    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (input)   use %s cutoff for GNEP.\n", use_typewise_cutoff ? "typewise" : "global");
     printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
     printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
   } else {
-    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    printf("    (default) use %s cutoff for GNEP.\n", use_typewise_cutoff ? "typewise" : "global");
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
@@ -497,12 +280,8 @@ void Parameters::report_inputs()
 
   if (is_l_max_set) {
     printf("    (input)   l_max_3body = %d.\n", L_max);
-    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
-    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
   } else {
     printf("    (default) l_max_3body = %d.\n", L_max);
-    printf("    (default) l_max_4body = %d.\n", L_max_4body);
-    printf("    (default) l_max_5body = %d.\n", L_max_5body);
   }
 
   if (is_neuron_set) {
@@ -511,16 +290,22 @@ void Parameters::report_inputs()
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
 
-  if (is_lambda_1_set) {
-    printf("    (input)   lambda_1 = %g.\n", lambda_1);
+  if (is_weight_decay_set) {
+    printf("    (input)   weight_decay = %g.\n", weight_decay);
   } else {
-    printf("    (default) lambda_1 = %g.\n", lambda_1);
+    printf("    (default) weight_decay = %g.\n", weight_decay);
   }
 
-  if (is_lambda_2_set) {
-    printf("    (input)   lambda_2 = %g.\n", lambda_2);
+  if (is_start_lr_set) {
+    printf("    (input)   start learning rate = %g.\n", start_lr);
   } else {
-    printf("    (default) lambda_2 = %g.\n", lambda_2);
+    printf("    (default) start learning rate = %g.\n", start_lr);
+  }
+
+  if (is_stop_lr_set) {
+    printf("    (input)   stop learing rate = %g.\n", stop_lr);
+  } else {
+    printf("    (default) stop learing rate = %g.\n", stop_lr);
   }
 
   if (is_lambda_e_set) {
@@ -541,12 +326,6 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
-  if (is_atomic_v_set) {
-    printf("    (input)   atomic_v = %d.\n", atomic_v);
-  } else {
-    printf("    (default) atomic_v = %d.\n", atomic_v);
-  }
-
   if (is_lambda_shear_set) {
     printf("    (input)   lambda_shear = %g.\n", lambda_shear);
   } else {
@@ -561,34 +340,14 @@ void Parameters::report_inputs()
 
   if (is_batch_set) {
     printf("    (input)   batch size = %d.\n", batch_size);
-    if (use_full_batch) {
-      printf("        enable effective full-batch.\n");
-    }
   } else {
     printf("    (default) batch size = %d.\n", batch_size);
   }
 
-  if (is_population_set) {
-    printf("    (input)   population size = %d.\n", population_size);
+  if (is_epoch_set) {
+    printf("    (input)   maximum number of epochs = %d.\n", epoch);
   } else {
-    printf("    (default) population size = %d.\n", population_size);
-  }
-
-  if (is_generation_set) {
-    printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
-  } else {
-    printf("    (default) maximum number of generations = %d.\n", maximum_generation);
-  }
-
-  if (is_save_potential_set) {
-    printf("    (input)   save potential every N = %d generations.\n", save_potential);
-  } else {
-    printf("    (default)   save potential every N = %d generations.\n", save_potential);
-  }
-
-  if (fine_tune) {
-    printf("    (input)   will fine-tune based on %s and %s.\n", 
-      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
+    printf("    (default) maximum number of epochs = %d.\n", epoch);
   }
 
   // some calcuated parameters:
@@ -599,7 +358,7 @@ void Parameters::report_inputs()
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
     "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    number_of_variables_ann);
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -612,12 +371,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
-  } else if (strcmp(param[0], "prediction") == 0) {
+  if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
-  } else if (strcmp(param[0], "version") == 0) {
-    parse_version(param, num_param);
   } else if (strcmp(param[0], "type") == 0) {
     parse_type(param, num_param);
   } else if (strcmp(param[0], "cutoff") == 0) {
@@ -632,22 +387,20 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_neuron(param, num_param);
   } else if (strcmp(param[0], "batch") == 0) {
     parse_batch(param, num_param);
-  } else if (strcmp(param[0], "population") == 0) {
-    parse_population(param, num_param);
-  } else if (strcmp(param[0], "generation") == 0) {
-    parse_generation(param, num_param);
-  } else if (strcmp(param[0], "lambda_1") == 0) {
-    parse_lambda_1(param, num_param);
-  } else if (strcmp(param[0], "lambda_2") == 0) {
-    parse_lambda_2(param, num_param);
+  } else if (strcmp(param[0], "epoch") == 0) {
+    parse_epoch(param, num_param);
+  } else if (strcmp(param[0], "weight_decay") == 0) {
+    parse_weight_decay(param, num_param);
+  } else if (strcmp(param[0], "start_lr") == 0) {
+    parse_start_lr(param, num_param);
+  } else if (strcmp(param[0], "stop_lr") == 0) {
+    parse_stop_lr(param, num_param);
   } else if (strcmp(param[0], "lambda_e") == 0) {
     parse_lambda_e(param, num_param);
   } else if (strcmp(param[0], "lambda_f") == 0) {
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
-  } else if (strcmp(param[0], "lambda_q") == 0) {
-    parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -656,41 +409,16 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
-  } else if (strcmp(param[0], "initial_para") == 0) {
-    parse_initial_para(param, num_param);
-  } else if (strcmp(param[0], "sigma0") == 0) {
-    parse_sigma0(param, num_param);
-  } else if (strcmp(param[0], "atomic_v") == 0) {
-    parse_atomic_v(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
+  } else if (strcmp(param[0], "energy_shift") == 0) {
+    parse_energy_shift(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
-  } else if (strcmp(param[0], "charge_mode") == 0) {
-    parse_charge_mode(param, num_param);
-  } else if (strcmp(param[0], "fine_tune") == 0) {
-    parse_fine_tune(param, num_param);
-  } else if (strcmp(param[0], "save_potential") == 0) {
-    parse_save_potential(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
-  }
-}
-
-void Parameters::parse_mode(const char** param, int num_param)
-{
-  is_train_mode_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
-  }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
-    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
 
@@ -706,21 +434,6 @@ void Parameters::parse_prediction(const char** param, int num_param)
   }
   if (prediction != 0 && prediction != 1) {
     PRINT_INPUT_ERROR("prediction should = 0 or 1.");
-  }
-}
-
-void Parameters::parse_version(const char** param, int num_param)
-{
-  is_version_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("version should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &version)) {
-    PRINT_INPUT_ERROR("version should be an integer.\n");
-  }
-  if (version < 3 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 3 or 4.");
   }
 }
 
@@ -754,7 +467,7 @@ void Parameters::parse_type(const char** param, int num_param)
     }
     atomic_numbers.emplace_back(atomic_number);
     if (!is_valid_element) {
-      PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
+      PRINT_INPUT_ERROR("Some element in gnep.in is not in the periodic table.");
     }
   }
 }
@@ -864,13 +577,13 @@ void Parameters::parse_n_max(const char** param, int num_param)
   }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 12) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
+  } else if (n_max_radial > 19) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 19.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 8) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 8.");
+  } else if (n_max_angular > 19) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
   }
 }
 
@@ -889,13 +602,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 16) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
+  } else if (basis_size_radial > 19) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 12) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
+  } else if (basis_size_angular > 19) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
   }
 }
 
@@ -903,8 +616,8 @@ void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param != 2 && num_param != 3 && num_param != 4) {
-    PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("l_max should only have 1 parameter for 3-body descriptors.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
@@ -914,30 +627,6 @@ void Parameters::parse_l_max(const char** param, int num_param)
   }
   if (L_max > 8) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should <= 8.");
-  }
-
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &L_max_4body)) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
-    }
-    if (L_max_4body != 0 && L_max_4body != 2) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
-    }
-    if (L_max < L_max_4body) {
-      PRINT_INPUT_ERROR("l_max_4body should <= l_max_3body.");
-    }
-  }
-
-  if (num_param == 4) {
-    if (!is_valid_int(param[3], &L_max_5body)) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should be an integer.\n");
-    }
-    if (L_max_5body != 0 && L_max_5body != 1) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should = 0 or 1.");
-    }
-    if (L_max_4body == 0 && L_max_5body == 1) {
-      PRINT_INPUT_ERROR("cannot have l_max_4body = 0 with l_max_5body = 1.");
-    }
   }
 }
 
@@ -954,46 +643,66 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 120) {
-    PRINT_INPUT_ERROR("number of neurons should <= 120.");
+  } else if (num_neurons1 > 200) {
+    PRINT_INPUT_ERROR("number of neurons should <= 200.");
   }
 }
 
-void Parameters::parse_lambda_1(const char** param, int num_param)
+void Parameters::parse_weight_decay(const char** param, int num_param)
 {
-  is_lambda_1_set = true;
+  is_weight_decay_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_1 should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("weight_decay should have 1 parameter.\n");
   }
 
-  double lambda_1_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_1_tmp)) {
-    PRINT_INPUT_ERROR("L1 regularization loss weight should be a number.\n");
+  double weight_decay_tmp = 0.0;
+  if (!is_valid_real(param[1], &weight_decay_tmp)) {
+    PRINT_INPUT_ERROR("Adam with decoupled weight decay should be a number.\n");
   }
-  lambda_1 = lambda_1_tmp;
+  weight_decay = weight_decay_tmp;
 
-  if (lambda_1 < 0.0f) {
-    PRINT_INPUT_ERROR("L1 regularization loss weight should >= 0.");
+  if (weight_decay < 0.0f) {
+    PRINT_INPUT_ERROR("weight decay should >= 0.");
   }
 }
 
-void Parameters::parse_lambda_2(const char** param, int num_param)
+void Parameters::parse_start_lr(const char** param, int num_param)
 {
-  is_lambda_2_set = true;
+  is_start_lr_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_2 should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("start_lr should have 1 parameter.\n");
   }
 
-  double lambda_2_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_2_tmp)) {
-    PRINT_INPUT_ERROR("L2 regularization loss weight should be a number.\n");
+  double lr_tmp = 0.0;
+  if (!is_valid_real(param[1], &lr_tmp)) {
+    PRINT_INPUT_ERROR("start learning rate should be a number.\n");
   }
-  lambda_2 = lambda_2_tmp;
+  lr = lr_tmp;
+  start_lr = lr;
 
-  if (lambda_2 < 0.0f) {
-    PRINT_INPUT_ERROR("L2 regularization loss weight should >= 0.");
+  if (lr < 0.0f) {
+    PRINT_INPUT_ERROR("learning rate should > 0.");
+  }
+}
+
+void Parameters::parse_stop_lr(const char** param, int num_param)
+{
+  is_stop_lr_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("stop_lr rate should have 1 parameter.\n");
+  }
+
+  double stop_lr_tmp = 0.0;
+  if (!is_valid_real(param[1], &stop_lr_tmp)) {
+    PRINT_INPUT_ERROR("stop learning rate should be a number.\n");
+  }
+  stop_lr = stop_lr_tmp;
+
+  if (stop_lr < 0.0f) {
+    PRINT_INPUT_ERROR("stop learning rate should > 0.");
   }
 }
 
@@ -1054,40 +763,6 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_q(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("lambda_q should have 1 parameter.\n");
-  }
-
-  double lambda_q_tmp = 0.0;
-  if (!is_valid_real(param[1], &lambda_q_tmp)) {
-    PRINT_INPUT_ERROR("Charge loss weight should be a number.\n");
-  }
-  lambda_q = lambda_q_tmp;
-
-  if (lambda_q < 0.0f) {
-    PRINT_INPUT_ERROR("Charge loss weight should >= 0.");
-  }
-}
-
-void Parameters::parse_atomic_v(const char** param, int num_param)
-{
-  is_atomic_v_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
-  }
-
-  if (!is_valid_int(param[1], &atomic_v)) {
-    PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
-  }
-
-  if (atomic_v != 0 && atomic_v != 1) {
-    PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
-  }
-}
-
 void Parameters::parse_lambda_shear(const char** param, int num_param)
 {
   is_lambda_shear_set = true;
@@ -1102,7 +777,7 @@ void Parameters::parse_lambda_shear(const char** param, int num_param)
   }
   lambda_shear = lambda_shear_tmp;
 
-  if (lambda_shear < 0.0f) {
+  if (lambda_shear < 0.0) {
     PRINT_INPUT_ERROR("Shear virial weight should >= 0.");
   }
 }
@@ -1131,87 +806,20 @@ void Parameters::parse_batch(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_population(const char** param, int num_param)
+void Parameters::parse_epoch(const char** param, int num_param)
 {
-  is_population_set = true;
+  is_epoch_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("The population keyword must be followed by a parameter.\n");
+    PRINT_INPUT_ERROR("epoch should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &population_size)) {
-    PRINT_INPUT_ERROR("population size should be an integer.\n");
+  if (!is_valid_int(param[1], &epoch)) {
+    PRINT_INPUT_ERROR("maximum number of epochs should be an integer.\n");
   }
-  if (population_size < 10) {
-    PRINT_INPUT_ERROR("population size should >= 10.");
-  } else if (population_size > 200) {
-    PRINT_INPUT_ERROR("population size should <= 200.");
-  }
-
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
-  int fully_used_device = population_size % deviceCount;
-  int population_should_increase;
-  if (fully_used_device != 0) {
-    population_should_increase = deviceCount - fully_used_device;
-    population_size += population_should_increase;
-  } else {
-    population_should_increase = 0;
-  }
-  if (population_should_increase != 0) {
-    printf("The input population size is not divisible by the number of GPUs.\n");
-    printf("This causes an inefficient use of resources.\n");
-    printf("The population size has therefore been increased to %d.\n", population_size);
-  }
-}
-
-void Parameters::parse_generation(const char** param, int num_param)
-{
-  is_generation_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("generation should have 1 parameter.\n");
-  }
-  if (!is_valid_int(param[1], &maximum_generation)) {
-    PRINT_INPUT_ERROR("maximum number of generations should be an integer.\n");
-  }
-  if (maximum_generation < 0) {
-    PRINT_INPUT_ERROR("maximum number of generations should >= 0.");
-  } else if (maximum_generation > 10000000) {
-    PRINT_INPUT_ERROR("maximum number of generations should <= 10000000.");
-  }
-}
-
-void Parameters::parse_initial_para(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("initial_para should have 1 parameter.\n");
-  }
-
-  double initial_para_tmp = 0.0;
-  if (!is_valid_real(param[1], &initial_para_tmp)) {
-    PRINT_INPUT_ERROR("initial_para should be a number.\n");
-  }
-  initial_para = initial_para_tmp;
-
-  if (initial_para < 0.1f || initial_para > 1.0f) {
-    PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
-  }
-}
-
-void Parameters::parse_sigma0(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("sigma0 should have 1 parameter.\n");
-  }
-
-  double sigma0_tmp = 0.0;
-  if (!is_valid_real(param[1], &sigma0_tmp)) {
-    PRINT_INPUT_ERROR("sigma0 should be a number.\n");
-  }
-  sigma0 = sigma0_tmp;
-
-  if (sigma0 < 0.01f || sigma0 > 0.1f) {
-    PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
+  if (epoch < 0) {
+    PRINT_INPUT_ERROR("maximum number of epochs should >= 0.");
+  } else if (epoch > 10000) {
+    PRINT_INPUT_ERROR("maximum number of epochs should <= 10000.");
   }
 }
 
@@ -1270,6 +878,20 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   }
 }
 
+void Parameters::parse_energy_shift(const char** param, int num_param)
+{
+  is_energy_shift_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("energy_shift should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &energy_shift)) {
+    PRINT_INPUT_ERROR("energy_shift should be an integer.\n");
+  }
+  if (energy_shift != 0 && energy_shift != 1) {
+    PRINT_INPUT_ERROR("energy_shift should = 0 or 1.");
+  }
+}
+
 void Parameters::parse_output_descriptor(const char** param, int num_param)
 {
   output_descriptor = true;
@@ -1283,52 +905,4 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
   if (output_descriptor < 0 || output_descriptor > 2) {
     PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
   }
-}
-
-void Parameters::parse_charge_mode(const char** param, int num_param)
-{
-  is_charge_mode_set = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("charge_mode should have one parameter.\n");
-  }
-  if (!is_valid_int(param[1], &charge_mode)) {
-    PRINT_INPUT_ERROR("charge mode should be an integer.\n");
-  }
-  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
-    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
-  }
-}
-
-void Parameters::parse_fine_tune(const char** param, int num_param)
-{
-  fine_tune = 1;
-
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
-  }
-
-  fine_tune_nep_txt = param[1];
-  fine_tune_nep_restart = param[2];
-}
-
-void Parameters::parse_save_potential(const char** param, int num_param)
-{
-  is_save_potential_set = true;
-
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("save_potential should have 2 parameters.\n");
-  }
-  if (!is_valid_int(param[1], &save_potential)) {
-    PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
-  }
-  if (save_potential < 0) {
-    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
-  }
-  if (!is_valid_int(param[2], &save_potential_format)) {
-    PRINT_INPUT_ERROR("save_potential format should be an integer.\n");
-  }
-  if (save_potential_format != 0 && save_potential_format != 1) {
-    PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
-  }  
 }

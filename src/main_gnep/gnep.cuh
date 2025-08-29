@@ -17,14 +17,34 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "gradients.cuh"
 class Parameters;
 class Dataset;
 
-class NEP_Charge : public Potential
+struct GNEP_Data {
+  GPU_Vector<int> NN_radial;  // radial neighbor number
+  GPU_Vector<int> NL_radial;  // radial neighbor list
+  GPU_Vector<int> NN_angular; // angular neighbor number
+  GPU_Vector<int> NL_angular; // angular neighbor list
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+  GPU_Vector<float> descriptors; // descriptors
+  GPU_Vector<float> Fp;          // gradient of descriptors
+  GPU_Vector<float> Fp2;         // second gradient of descriptors
+  GPU_Vector<float> sum_fxyz;  // Snlm
+  GPU_Vector<float> sum_s2xyz; // Snlm_xyz
+  GPU_Vector<float> sum_s2xyz123; // Snlm_xyz * xyz
+  GPU_Vector<float> parameters; // parameters to be optimized
+};
+
+class GNEP : public Potential
 {
 public:
   struct ParaMB {
-    int charge_mode = 0;
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_radial_factor = 2.5f;
@@ -40,59 +60,23 @@ public:
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 1, 2, ..., L_max
     int dim_angular;
-    int num_L;
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
-    int version = 4; // 3 for NEP3 and 4 for NEP4
     int atomic_numbers[NUM_ELEMENTS];
+    int N_times_max_NN_radial;
+    int N_times_max_NN_angular;
   };
 
   struct ANN {
     int dim = 0;                    // dimension of the descriptor
     int num_neurons1 = 0;           // number of neurons in the hidden layer
+    int num_ann = 0;                // number of ANN
     int num_para = 0;               // number of parameters
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
-    const float* b1;               // bias for the output layer
-    const float* c;                // for elements in descriptor
-  };
-
-  struct NEP_Charge_Data {
-    GPU_Vector<int> NN_radial;  // radial neighbor number
-    GPU_Vector<int> NL_radial;  // radial neighbor list
-    GPU_Vector<int> NN_angular; // angular neighbor number
-    GPU_Vector<int> NL_angular; // angular neighbor list
-    GPU_Vector<float> x12_radial;
-    GPU_Vector<float> y12_radial;
-    GPU_Vector<float> z12_radial;
-    GPU_Vector<float> x12_angular;
-    GPU_Vector<float> y12_angular;
-    GPU_Vector<float> z12_angular;
-    GPU_Vector<float> descriptors;       // descriptors
-    GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
-    GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
-    GPU_Vector<float> sum_fxyz;
-    GPU_Vector<float> parameters; // parameters to be optimized
-    GPU_Vector<float> kx;
-    GPU_Vector<float> ky;
-    GPU_Vector<float> kz;
-    GPU_Vector<float> G;
-    GPU_Vector<float> S_real;
-    GPU_Vector<float> S_imag;
-    GPU_Vector<float> D_real;
-    GPU_Vector<int> num_kpoints;
-  };
-
-  struct Charge_Para {
-    int num_kpoints_max = 50000;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    float two_alpha_over_sqrt_pi = 0.564189583547756f;
-    float A;
-    float B;
+    const float* c;
   };
 
   struct ZBL {
@@ -105,28 +89,29 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP_Charge(
+  GNEP(
     Parameters& para,
     int N,
-    int Nc,
     int N_times_max_NN_radial,
     int N_times_max_NN_angular,
-    int version,
     int deviceCount);
   void find_force(
     Parameters& para,
     const float* parameters,
+    bool require_grad,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     bool calculate_neighbor,
     int deviceCount);
-  void find_k1k2k3();
+
+  Gradients gradients;
+  virtual Gradients& getGradients() override {return gradients;}
 
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP_Charge_Data nep_data[16];
+  GNEP_Data gnep_data[16];
   ZBL zbl;
-  Charge_Para charge_para;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  void update_potential(Parameters& para, const float* parameters, ANN& ann);
+  void initialize_gradients(Parameters& para, const int N);
 };

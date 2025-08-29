@@ -20,14 +20,14 @@ This file reads:
    & J^{y,in}_{1,1}
    & J^{y,out}_{1,1}
    & J^{z}_{1,1}
-   & \hdots
+   & \cdots
    \\
    J^{x,in}_{1,2}
    & J^{x,out}_{1,2}
    & J^{y,in}_{1,2}
    & J^{y,out}_{1,2}
    & J^{z}_{1,2}
-   & \hdots
+   & \cdots
    \\
    \vdots
    & \vdots
@@ -40,21 +40,21 @@ This file reads:
    & J^{y,in}_{1,n}
    & J^{y,out}_{1,n}
    & J^{z}_{1,n}
-   & \hdots
+   & \cdots
    \\
    J^{x,in}_{2,1}
    & J^{x,out}_{2,1}
    & J^{y,in}_{2,1}
    & J^{y,out}_{2,1}
    & J^{z}_{2,1}
-   & \hdots
+   & \cdots
    \\
    \vdots
    & \vdots
    & \vdots
    & \vdots
    & \vdots
-   & \hdots
+   & \ddots
    \end{array}
 
 * Each output is in units of eV\ :math:`^{3/2}`\ amu\ :math:`^{-1/2}`.

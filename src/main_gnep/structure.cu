@@ -16,7 +16,6 @@
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -28,7 +27,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 static float get_area(const float* a, const float* b)
 {
@@ -87,14 +85,11 @@ static void read_force(
   const int species_offset,
   const int pos_offset,
   const int force_offset,
-  const int avirial_offset,
-  const int bec_offset,
   std::ifstream& input,
   const Parameters& para,
   Structure& structure,
   std::string& xyz_filename,
-  int& line_number,
-  int train_mode)
+  int& line_number)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -103,17 +98,6 @@ static void read_force(
   structure.fx.resize(structure.num_atom);
   structure.fy.resize(structure.num_atom);
   structure.fz.resize(structure.num_atom);
-  structure.bec.resize(structure.num_atom * 9);
-  if (structure.has_atomic_virial) {
-    structure.avirialxx.resize(structure.num_atom);
-    structure.avirialyy.resize(structure.num_atom);
-    structure.avirialzz.resize(structure.num_atom);
-    if (!structure.atomic_virial_diag_only) {
-      structure.avirialxy.resize(structure.num_atom);
-      structure.avirialyz.resize(structure.num_atom);
-      structure.avirialzx.resize(structure.num_atom);
-    }
-  }
 
   for (int na = 0; na < structure.num_atom; ++na) {
     std::vector<std::string> tokens = get_tokens(input);
@@ -129,44 +113,13 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && train_mode == 0) {
+    if (num_columns > 4) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
         get_double_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
       structure.fz[na] =
         get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
-    }
-
-    if (num_columns > 4 && structure.has_atomic_virial) {
-      if (structure.atomic_virial_diag_only) {
-        structure.avirialxx[na] =
-          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyy[na] =
-          get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzz[na] =
-          get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
-      } else {
-        structure.avirialxx[na] =
-          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyy[na] =
-          get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzz[na] =
-          get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialxy[na] =
-          get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyz[na] =
-          get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzx[na] =
-          get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
-      }
-    }
-
-    if (num_columns > 4 && structure.has_bec) {
-      for (int d = 0; d < 9; ++d) {
-        structure.bec[na * 9 + d] =
-          get_double_from_token(tokens[d + bec_offset], xyz_filename.c_str(), line_number);
-      }
     }
 
     bool is_allowed_element = false;
@@ -177,7 +130,7 @@ static void read_force(
       }
     }
     if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in nep.in.\n");
+      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in gnep.in.\n");
     }
   }
 }
@@ -201,15 +154,6 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
-  // get energy_weight (optional)
-  for (const auto& token : tokens) {
-    const std::string energy_weight_string = "energy_weight=";
-    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
-      structure.energy_weight = get_double_from_token(
-        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
-    }
-  }
-
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
@@ -217,38 +161,10 @@ static void read_one_structure(
       has_energy_in_exyz = true;
       structure.energy = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      structure.energy /= structure.num_atom;
     }
   }
-  if (para.train_mode == 0 && !has_energy_in_exyz) {
+  if (!has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
-  }
-
-  // get total charge (optional; default is 0)
-  for (const auto& token : tokens) {
-    const std::string charge_string = "charge=";
-    if (token.substr(0, charge_string.length()) == charge_string) {
-      structure.charge = get_double_from_token(
-        token.substr(charge_string.length(), token.length()), xyz_filename.c_str(), line_number);
-    }
-  }
-
-  structure.has_temperature = false;
-  for (const auto& token : tokens) {
-    const std::string temperature_string = "temperature=";
-    if (token.substr(0, temperature_string.length()) == temperature_string) {
-      structure.has_temperature = true;
-      structure.temperature = get_double_from_token(
-        token.substr(temperature_string.length(), token.length()),
-        xyz_filename.c_str(),
-        line_number);
-    }
-  }
-  if (para.train_mode == 3 && !structure.has_temperature) {
-    PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
-  }
-  if (!structure.has_temperature) {
-    structure.temperature = 0;
   }
 
   structure.weight = 1.0f;
@@ -297,7 +213,6 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        structure.virial[reduced_index[m]] /= structure.num_atom;
       }
     }
   }
@@ -317,7 +232,7 @@ static void read_one_structure(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
-        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+        virials_from_stress[reduced_index[m]] *= -volume;
       }
     }
   }
@@ -348,77 +263,10 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the dipole data
-  if (para.train_mode == 1) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string dipole_string = "dipole=";
-      if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
-        structure.has_virial = true;
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = 0.0f;
-        }
-        for (int m = 0; m < 3; ++m) {
-          structure.virial[m] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (dipole_string.length() + 1) : 0,
-              (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[m] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
-  }
-
-  // use the virial viriable to keep the polarizability data
-  if (para.train_mode == 2) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string pol_string = "pol=";
-      if (tokens[n].substr(0, pol_string.length()) == pol_string) {
-        structure.has_virial = true;
-        const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
-        for (int m = 0; m < 9; ++m) {
-          structure.virial[reduced_index[m]] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (pol_string.length() + 1) : 0,
-              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[reduced_index[m]] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
-  }
-
   int species_offset = 0;
   int pos_offset = 0;
   int force_offset = 0;
-  int avirial_offset = 0;
-  int bec_offset = 0;
   int num_columns = 0;
-  structure.has_atomic_virial = false;
-  structure.atomic_virial_diag_only = false;
-  structure.has_bec = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -432,8 +280,6 @@ static void read_one_structure(
       int species_position = -1;
       int pos_position = -1;
       int force_position = -1;
-      int avirial_position = -1;
-      int bec_position = -1;
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         if (sub_tokens[k * 3] == "species") {
           species_position = k;
@@ -443,20 +289,6 @@ static void read_one_structure(
         }
         if (sub_tokens[k * 3] == "force" || sub_tokens[k * 3] == "forces") {
           force_position = k;
-        }   
-        if (sub_tokens[k * 3] == "adipole" || sub_tokens[k * 3] == "atomic_dipole") {
-          avirial_position = k;
-          structure.has_atomic_virial = true;
-          structure.atomic_virial_diag_only = true;
-        }
-        if (sub_tokens[k * 3] == "apol" || sub_tokens[k * 3] == "atomic_polarizability") {
-          avirial_position = k;
-          structure.has_atomic_virial = true;
-          structure.atomic_virial_diag_only = false;
-        }
-        if (sub_tokens[k * 3] == "bec") {
-          bec_position = k;
-          structure.has_bec = true;
         }
       }
       if (species_position < 0) {
@@ -465,14 +297,8 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && para.train_mode == 0) {
+      if (force_position < 0) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
-      }
-      if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
-        PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
-      }
-      if (avirial_position < 0 && para.train_mode == 2 && para.atomic_v == 1) {
-        PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         if (k < species_position) {
@@ -487,14 +313,6 @@ static void read_one_structure(
           force_offset +=
             get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
         }
-        if (k < avirial_position) {
-          avirial_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        if (k < bec_position) {
-          bec_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
         num_columns += get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
       }
     }
@@ -505,14 +323,11 @@ static void read_one_structure(
     species_offset,
     pos_offset,
     force_offset,
-    avirial_offset,
-    bec_offset,
     input,
     para,
     structure,
     xyz_filename,
-    line_number,
-    para.train_mode);
+    line_number);
 }
 
 static void read_exyz(
@@ -542,20 +357,6 @@ static void read_exyz(
     ++Nc;
   }
   printf("Number of configurations = %d.\n", Nc);
-
-  for (const auto& s : structures) {
-    if (s.energy < -100.0f) {
-      std::cout << "Warning: \n";
-      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
-      std::cout << "    Because we use single precision in NEP training\n";
-      std::cout << "    it means that the reference and calculated energies\n";
-      std::cout << "    might only be accurate up to 1 meV/atom\n";
-      std::cout << "    which can effectively introduce noises.\n";
-      std::cout << "    We suggest you preprocess (using double precision)\n";
-      std::cout << "    your data to make the energies closer to 0." << std::endl;
-      break;
-    }
-  }
 }
 
 static void find_permuted_indices(
@@ -598,8 +399,6 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].weight = structures[nc].weight;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
-    structures_copy[nc].energy_weight = structures[nc].energy_weight;
-    structures_copy[nc].has_temperature = structures[nc].has_temperature;
     structures_copy[nc].temperature = structures[nc].temperature;
     structures_copy[nc].volume = structures[nc].volume;
     for (int k = 0; k < 6; ++k) {
@@ -637,8 +436,6 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].weight = structures_copy[configuration_id[nc]].weight;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
-    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
-    structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
     structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
     structures[nc].volume = structures_copy[configuration_id[nc]].volume;
     for (int k = 0; k < 6; ++k) {

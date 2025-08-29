@@ -15,6 +15,7 @@
 
 #pragma once
 #include "dataset.cuh"
+#include "adam.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -26,27 +27,44 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(Parameters& para);
+  Fitness(Parameters& para, Adam* adam);
   ~Fitness();
-  void compute(const int generation, Parameters& para, const float*, float*);
+  void compute(
+    Parameters& para);
   void report_error(
     Parameters& para,
-    const int generation,
+    float time_used,
+    const int epoch,
     const float loss_total,
-    const float loss_L1,
-    const float loss_L2,
-    float* elite);
-  void predict(Parameters& para, float* elite);
+    const float rmse_energy_train,
+    const float rmse_force_train,
+    const float rmse_virial_train,
+    const float lr,
+    float* step_parameters);
+  void predict(Parameters& para, float* step_parameters);
 
 protected:
   bool has_test_set = false;
+  int N; // max atom number
   int num_batches = 0;
+  int number_of_variables = 10; // number of variables
+  int number_of_variables_ann = 0; // number of variables in ANN
+  int number_of_variables_descriptor = 0; // number of variables in descriptor
+  int maximum_epochs = 50; // maximum number of epochs
+  int maximum_steps = 10000; // maximum number of steps
+  float lr; // learning rate
+  float start_lr;     // start learning rate
+  float stop_lr; // stop learning rate 
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
+  Adam* optimizer;
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
+  std::vector<int> batch_indices;
+  std::vector<std::vector<int>> batch_type_sums;
+  std::vector<float> batch_energies;
   void output(
     bool is_stress,
     int num_components,
@@ -54,17 +72,11 @@ protected:
     float* prediction,
     float* reference,
     Dataset& dataset);
-    void output_atomic(
-      int num_components,
-      FILE* fid,
-      float* prediction,
-      float* reference,
-      Dataset& dataset);
+  void update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing
+  void update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing Warmup Restarts
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
-  void update_charge(FILE* fid_charge, Dataset& dataset);
-  void update_bec(FILE* fid_bec, Dataset& dataset);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
+  void update_dipole(FILE* fid_dipole, Dataset& dataset);
+  void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
+  void write_gnep_txt(FILE* fid_gnep, Parameters& para, float* step_parameters);
 };

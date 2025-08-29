@@ -19,6 +19,7 @@ Available potential models
 * :ref:`Neuroevolution potential (NEP) <nep_formalism>`
 * :ref:`Hybrid NEP+ILP potential <nep_ilp>`
 * :ref:`Hybrid SW+ILP potential <sw_ilp>`
+* :ref:`Hybrid Tersoff+ILP potential <tersoff_ilp>`
 * :ref:`Deep Potential (DP) <use_dp_in_gpumd>`
 
 Syntax

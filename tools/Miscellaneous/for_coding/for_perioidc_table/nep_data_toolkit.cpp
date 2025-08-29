@@ -5,9 +5,7 @@ run:
     ./a.out
 --------------------------------------------------------------------------------------------------*/
 
-#ifdef ZHEYONG
-#include "../../../../NEP_CPU/src/nep.h"
-#endif
+#include "nep.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -528,8 +526,6 @@ static double get_volume(const double* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]));
 }
 
-#ifdef ZHEYONG
-
 static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
 {
   std::ifstream input_potential(nep_file);
@@ -622,8 +618,6 @@ static void add_d3(std::vector<Structure>& structures, const std::string& functi
   }
 }
 
-#endif
-
 static void split_into_accurate_and_inaccurate(
   const std::vector<Structure>& structures, 
   double energy_threshold, 
@@ -689,7 +683,7 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    if (force_is_small) {
+    //if (force_is_small) {
       if (is_accurate) {
         write_one_structure(output_accurate, structures[nc]);
         num1++;
@@ -697,7 +691,7 @@ static void split_into_accurate_and_inaccurate(
         write_one_structure(output_inaccurate, structures[nc]);
         num2++;
       }
-    }
+    //}
   }
   input_energy.close();
   input_force.close();
@@ -706,6 +700,67 @@ static void split_into_accurate_and_inaccurate(
   output_inaccurate.close();
   std::cout << "Number of structures written into accurate.xyz = " << num1 << std::endl;
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
+}
+
+static void calculate_mae_and_rmse_one(
+  const std::string& filename, 
+  const std::string& units,
+  const int num_components)
+{
+  const int num_tokens = num_components * 2;
+  std::ifstream input(filename);
+  int count = 0;
+  std::vector<double> data(num_tokens);
+
+  double mae = 0.0;
+  double rmse = 0.0;
+
+  if (!input.is_open()) {
+    std::cout << "Failed to open " << filename << std::endl;
+    exit(1);
+  } else {
+    while (true) {
+      std::vector<std::string> tokens = get_tokens(input);
+      if (tokens.size() == 0) {
+        break;
+      } else if (tokens.size() != num_tokens) {
+        std::cout << "Number of values per row should be " << num_tokens << std::endl;
+        exit(1);
+      }
+      for (int d = 0; d < num_tokens; ++d) {
+        data[d] = get_double_from_token(tokens[d], __FILE__, __LINE__);
+      }
+      bool is_valid_data = true;
+      for (int d = 0; d < num_components; ++d) {
+        double diff = std::abs(data[d] - data[d + num_components]);
+        if (num_components != 6 || data[d + num_components] > -1.0e3) {
+          mae += diff;
+          rmse += diff * diff; 
+        } else {
+          is_valid_data = false;
+        }
+      }
+      if (is_valid_data) {
+        count += num_components;
+      }
+    }
+    input.close();
+  }
+
+  if (count > 0) {
+    mae = mae / count;
+    rmse = std::sqrt(rmse / count);
+    std::cout << filename << "  MAE = " << mae << units << std::endl;
+    std::cout << filename << " RMSE = " << rmse << units << std::endl;
+  }
+}
+
+static void calculate_mae_and_rmse()
+{
+  calculate_mae_and_rmse_one("energy_train.out", " eV/atom", 1);
+  calculate_mae_and_rmse_one("force_train.out", " eV/A", 3);
+  calculate_mae_and_rmse_one("virial_train.out", " eV/atom", 6);
+  calculate_mae_and_rmse_one("stress_train.out", " GPa", 6);
 }
 
 static void get_valid_structures(
@@ -1103,14 +1158,13 @@ int main(int argc, char* argv[])
   std::cout << "5: descriptor-space subsampling\n";
   std::cout << "6: set energy_weight to zero\n";
   std::cout << "7: add or change sid\n";
-#ifdef ZHEYONG
   std::cout << "8: add D3\n";
-#endif
   std::cout << "9: get composition\n";
   std::cout << "10: shift energy for multiple species\n";
   std::cout << "11: get structures with given species\n";
   std::cout << "12: change box to 1000\n";
   std::cout << "13: get valid structures\n";
+  std::cout << "14: calculate MAEs and RMSEs\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1213,7 +1267,6 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     change_sid(structures_input, sid);
     write(output_filename, structures_input);
-#ifdef ZHEYONG
   } else if (option == 8) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -1230,7 +1283,6 @@ int main(int argc, char* argv[])
               << input_filename + " = " << structures_input.size() << std::endl;
     add_d3(structures_input, functional);
     write(output_filename, structures_input);
-#endif
   } else if (option == 9) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -1304,6 +1356,8 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     get_valid_structures(structures_input, energy_threshold, force_threshold, stress_threshold);
+  } else if (option == 14) {
+    calculate_mae_and_rmse();
   } else {
     std::cout << "This is an invalid option.";
     exit(1);

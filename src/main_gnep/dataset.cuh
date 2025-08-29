@@ -27,71 +27,64 @@ public:
   int max_Na;         // number of atoms in the largest configuration
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
+  float sum_energy_ref;                  // sum of reference energy for Nc
+  int sum_virial_Nc;                     // sum of configurations with virial
+  bool all_type;  // whether include all types for structures
+
 
   GPU_Vector<int> Na;          // number of atoms in each configuration
   GPU_Vector<int> Na_sum;      // prefix sum of Na
   std::vector<int> Na_cpu;     // number of atoms in each configuration
   std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
+  GPU_Vector<int> batch_idx;   // batch index for each configuration
 
   GPU_Vector<int> type;           // atom type (0, 1, 2, 3, ...)
+  GPU_Vector<int> type_sum;      // prefix sum of type
   GPU_Vector<float> r;            // position
   GPU_Vector<float> box;          // (expanded) box and inverse box (18 components)
   GPU_Vector<float> box_original; // (original) box (9 components)
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
 
-  GPU_Vector<float> charge;      // calculated charge in GPU
-  GPU_Vector<float> charge_shifted;      // shifted charge in GPU
-  GPU_Vector<float> bec;         // Born effective charge in GPU
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU
   GPU_Vector<float> force;       // calculated force in GPU
-  GPU_Vector<float> avirial; // calculated atomic virial in GPU
-  std::vector<float> charge_cpu;  // calculated charge in CPU
-  std::vector<float> bec_cpu;     // calculated BEC in CPU
   std::vector<float> energy_cpu; // calculated energy in CPU
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
-  std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
 
-  GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
-  GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
   GPU_Vector<float> energy_ref_gpu;       // reference energy in GPU
   GPU_Vector<float> virial_ref_gpu;       // reference virial in GPU
   GPU_Vector<float> force_ref_gpu;        // reference force in GPU
-  GPU_Vector<float> bec_ref_gpu;          // reference BEC in GPU
-  GPU_Vector<float> avirial_ref_gpu;     // reference atomic virial in GPU
   GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
-  std::vector<float> energy_weight_cpu;   // energy weight in CPU
-  std::vector<float> charge_ref_cpu;      // reference charge in CPU
   std::vector<float> energy_ref_cpu;      // reference energy in CPU
   std::vector<float> virial_ref_cpu;      // reference virial in CPU
   std::vector<float> force_ref_cpu;       // reference force in CPU
-  std::vector<float> bec_ref_cpu;         // reference BEC in CPU
-  std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
   std::vector<float> weight_cpu;          // configuration weight in CPU
+  GPU_Vector<float> weight_gpu;          // configuration weight in GPU
   std::vector<float> temperature_ref_cpu; // reference temeprature in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
-  std::vector<float> error_cpu; // error in energy, virial, or force
-  GPU_Vector<float> error_gpu;  // error in energy, virial, or force
-
+  std::vector<float> error_cpu_e; // error in energy (squared)
+  std::vector<float> error_cpu_v; // error in virial (squared)
+  std::vector<float> error_cpu_f; // error in force (squared)
+  GPU_Vector<float> error_gpu;  // error in energy, virial, or force (squared)
+  GPU_Vector<float> diff_gpu_e; // error in energy (before squared)
+  GPU_Vector<float> diff_gpu_v; // error in virial (before squared)
   std::vector<bool> has_type;
+  std::vector<int> has_virial;
+  GPU_Vector<int> has_virial_gpu;
 
   std::vector<Structure> structures;
 
   void
-  construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_energy(
+  construct(Parameters& para, std::vector<Structure>& structures, bool require_grad, int n1, int n2, int device_id);
+  std::vector<float> get_mse_force(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_mse_energy(
     Parameters& para,
-    float& energy_shift_per_structure,
     const bool use_weight,
-    const bool do_shift,
     int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_charge(Parameters& para, int device_id);
+  std::vector<float> get_mse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);

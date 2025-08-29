@@ -15,15 +15,12 @@
 
 #include "fitness.cuh"
 #include "parameters.cuh"
-#include "snes.cuh"
+#include "adam.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <chrono>
-#include <cstring>
 
 void print_welcome_information(void);
 
@@ -33,35 +30,36 @@ int main(int argc, char* argv[])
   print_gpu_information();
 
   print_line_1();
-  printf("Started running nep.\n");
+  printf("Started running gnep.\n");
   print_line_2();
 
-  const auto time_begin1 = std::chrono::high_resolution_clock::now();
+  clock_t time_begin = clock();
   Parameters para;
-  Fitness fitness(para);
-  const auto time_finish1 = std::chrono::high_resolution_clock::now();
+  Adam adam(para); 
+  Fitness fitness(para, &adam);
+  clock_t time_finish = clock();
 
-  const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;
+  float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
   print_line_1();
-  printf("Time used for initialization = %f s.\n", time_used1.count());
+  printf("Time used for initialization = %f s.\n", time_used);
   print_line_2();
 
-  const auto time_begin2 = std::chrono::high_resolution_clock::now();
-  SNES snes(para, &fitness);
-  const auto time_finish2 = std::chrono::high_resolution_clock::now();
+  time_begin = clock();
+  fitness.compute(para);
+  time_finish = clock();
 
-  const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
+  time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
   print_line_1();
   if (para.prediction == 0) {
-    printf("Time used for training = %f s.\n", time_used2.count());
+    printf("Time used for training = %f s.\n", time_used);
   } else {
-    printf("Time used for predicting = %f s.\n", time_used2.count());
+    printf("Time used for predicting = %f s.\n", time_used);
   }
 
   print_line_2();
 
   print_line_1();
-  printf("Finished running nep.\n");
+  printf("Finished running gnep.\n");
   print_line_2();
 
   return EXIT_SUCCESS;
@@ -71,10 +69,10 @@ void print_welcome_information(void)
 {
   printf("\n");
   printf("***************************************************************\n");
-  printf("*                 Welcome to use GPUMD                        *\n");
-  printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*                     version 4.3                             *\n");
-  printf("*              This is the nep executable                     *\n");
+  printf("*                 Welcome to use GNEP                         *\n");
+  printf("*      (Gradient-optimized Neuroevolution Potentials)         *\n");
+  printf("*             Potential extension for GPUMD                   *\n");
+  printf("*                     version 4.2                             *\n");
   printf("***************************************************************\n");
   printf("\n");
 }
