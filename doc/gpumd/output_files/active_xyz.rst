@@ -5,7 +5,7 @@
 ``active.xyz``
 ================
 
-File containing atomistic positions, velocities and forces for structures written during on-the-fly active learning.
+File containing atomistic positions, velocities, forces and uncertainties for structures written during on-the-fly active learning.
 It is generated when invoking the :ref:`active <kw_active>` keyword.
 Only structures with uncertainty exceeding the threshold :math:`\delta` will be written; thus, if no such structure is encountered during the MD simulation, this file will be missing.
 
