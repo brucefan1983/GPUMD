@@ -153,9 +153,9 @@ void Active::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("has_uncertainty should be an integer.");
   }
   if (has_uncertainty_ == 0) {
-    printf("    without uncertainty data.\n");
+    printf("    without per-atom uncertainty data.\n");
   } else {
-    printf("    with uncertainty data.\n");
+    printf("    with per-atom uncertainty data.\n");
   }
 
   if (!is_valid_real(param[5], &threshold_)) {
