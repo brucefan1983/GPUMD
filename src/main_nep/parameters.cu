@@ -1316,8 +1316,8 @@ void Parameters::parse_save_potential(const char** param, int num_param)
 {
   is_save_potential_set = true;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("save_potential should have 2 parameters.\n");
+  if (num_param != 4) {
+    PRINT_INPUT_ERROR("save_potential should have 3 parameters.\n");
   }
   if (!is_valid_int(param[1], &save_potential)) {
     PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
@@ -1330,5 +1330,11 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   }
   if (save_potential_format != 0 && save_potential_format != 1) {
     PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
+  }  
+  if (!is_valid_int(param[3], &save_potential_restart)) {
+    PRINT_INPUT_ERROR("save_potential save restart should be an integer.\n");
+  }
+  if (save_potential_restart != 0 && save_potential_restart != 1) {
+    PRINT_INPUT_ERROR("save_potential save restart should be 0 or 1.");
   }  
 }

@@ -37,6 +37,7 @@ public:
     const float loss_L2,
     float* elite);
   void predict(Parameters& para, float* elite);
+  void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
 protected:
   bool has_test_set = false;

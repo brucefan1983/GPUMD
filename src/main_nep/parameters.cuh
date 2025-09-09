@@ -31,7 +31,8 @@ public:
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
   int save_potential;     // number of generations between writing a checkpoint nep.txt file. 
-  int save_potential_format;  // format of checkpoint nep.txt file name
+  int save_potential_format;   // format of checkpoint nep.txt file name
+  int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3

@@ -356,7 +356,15 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
       update_mu_and_sigma(para);
       if (0 == (n + 1) % 100) {
-        output_mu_and_sigma(para);
+        const char* filename = "nep.restart";
+        output_mu_and_sigma(para, filename);
+      }
+      // Optionally save the nep.restart file at the same time as save_potential
+      if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
+        std::string restart_file;
+        fitness_function->get_save_potential_label(para, n, restart_file);
+        restart_file += ".restart";
+        output_mu_and_sigma(para, restart_file.c_str());
       }
     }
   } else {
@@ -642,12 +650,12 @@ void SNES::update_mu_and_sigma(Parameters& para)
   GPU_CHECK_KERNEL;
 }
 
-void SNES::output_mu_and_sigma(Parameters& para)
+void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
 {
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
-  FILE* fid_restart = my_fopen("nep.restart", "w");
+  FILE* fid_restart = my_fopen(filename, "w");
   for (int n = 0; n < number_of_variables; ++n) {
     fprintf(fid_restart, "%15.7e %15.7e\n", mu[n], sigma[n]);
   }
