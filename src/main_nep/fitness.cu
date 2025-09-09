@@ -415,6 +415,19 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   }
 }
 
+void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {
+    if (para.save_potential_format == 1) {
+      time_t rawtime;
+      time(&rawtime);
+      struct tm* timeinfo = localtime(&rawtime);
+      char buffer[200];
+      strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
+      label = std::string(buffer) + std::to_string(generation + 1);
+    } else {
+      label = "nep_gen" + std::to_string(generation + 1);
+    }
+}
+
 void Fitness::report_error(
   Parameters& para,
   const int generation,
@@ -462,16 +475,8 @@ void Fitness::report_error(
 
     if (0 == (generation + 1) % para.save_potential) {
       std::string filename;
-      if (para.save_potential_format == 1) {
-        time_t rawtime;
-        time(&rawtime);
-        struct tm* timeinfo = localtime(&rawtime);
-        char buffer[200];
-        strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
-        filename = std::string(buffer) + std::to_string(generation + 1) + ".txt";
-      } else {
-        filename = "nep_gen" + std::to_string(generation + 1) + ".txt";
-      }
+      get_save_potential_label(para, generation, filename);
+      filename += ".txt";
 
       FILE* fid_nep = my_fopen(filename.c_str(), "w");
       write_nep_txt(fid_nep, para, elite);
