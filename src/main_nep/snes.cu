@@ -360,7 +360,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         output_mu_and_sigma(para, filename);
       }
       // Optionally save the nep.restart file at the same time as save_potential
-      if (0 == (n + 1) % para.save_potential) {
+      if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
         std::string restart_file;
         fitness_function->get_save_potential_label(para, n, restart_file);
         restart_file += ".restart";
