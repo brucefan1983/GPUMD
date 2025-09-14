@@ -166,7 +166,7 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void find_k_and_G(const bool is_small_box, const double* box, const float* ebox);
+  void find_k_and_G(const double* box);
 
   bool has_dftd3 = false;
   void initialize_dftd3();
