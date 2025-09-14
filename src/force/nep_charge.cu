@@ -1216,39 +1216,23 @@ static float get_area(const float* a, const float* b)
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const float* ebox)
+void NEP_Charge::find_k_and_G(const double* box)
 {
-  float det;
   float a1[3] = {0.0f};
   float a2[3] = {0.0f};
   float a3[3] = {0.0f};
-  if (is_small_box) {
-    det = ebox[0] * (ebox[4] * ebox[8] - ebox[5] * ebox[7]) +
-          ebox[1] * (ebox[5] * ebox[6] - ebox[3] * ebox[8]) +
-          ebox[2] * (ebox[3] * ebox[7] - ebox[4] * ebox[6]);
-    a1[0] = ebox[0];
-    a1[1] = ebox[3];
-    a1[2] = ebox[6];
-    a2[0] = ebox[1];
-    a2[1] = ebox[4];
-    a2[2] = ebox[7];
-    a3[0] = ebox[2];
-    a3[1] = ebox[5];
-    a3[2] = ebox[8];
-  } else {
-    det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
-          box[1] * (box[5] * box[6] - box[3] * box[8]) +
-          box[2] * (box[3] * box[7] - box[4] * box[6]);
-    a1[0] = box[0];
-    a1[1] = box[3];
-    a1[2] = box[6];
-    a2[0] = box[1];
-    a2[1] = box[4];
-    a2[2] = box[7];
-    a3[0] = box[2];
-    a3[1] = box[5];
-    a3[2] = box[8];
-  }
+  float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+    box[1] * (box[5] * box[6] - box[3] * box[8]) +
+    box[2] * (box[3] * box[7] - box[4] * box[6]);
+  a1[0] = box[0];
+  a1[1] = box[3];
+  a1[2] = box[6];
+  a2[0] = box[1];
+  a2[1] = box[4];
+  a2[2] = box[7];
+  a3[0] = box[2];
+  a3[1] = box[5];
+  a3[2] = box[8];
   float b1[3] = {0.0f};
   float b2[3] = {0.0f};
   float b3[3] = {0.0f};
@@ -1618,7 +1602,7 @@ void NEP_Charge::compute_large_box(
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
-    find_k_and_G(false, box.cpu_h, ebox.h);
+    find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
       N1,
@@ -1891,7 +1875,7 @@ void NEP_Charge::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
-    find_k_and_G(true, box.cpu_h, ebox.h);
+    find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
       N1,
