@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <random>
 
 struct NEP_Charge_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -144,6 +145,7 @@ private:
   ExpandedBox ebox;
   DFTD3 dftd3;
   Charge_Para charge_para;
+  std::mt19937 rng;
 
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE
