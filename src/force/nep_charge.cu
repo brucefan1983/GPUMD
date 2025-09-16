@@ -1598,7 +1598,7 @@ void NEP_Charge::compute_large_box(
   GPU_CHECK_KERNEL
 
   // enforce charge neutrality
-  zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
+  zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
