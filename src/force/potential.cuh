@@ -75,7 +75,7 @@ public:
     return dummy_NL; // Return the const reference to NL_radial
   }
 
-  virtual const GPU_Vector<float>& get_charge_reference()
+  virtual GPU_Vector<float>& get_charge_reference()
   {
     static GPU_Vector<float> dummy_charge;
     return dummy_charge; // Return the const reference to charge

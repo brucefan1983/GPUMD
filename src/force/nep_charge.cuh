@@ -137,7 +137,7 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
-  const GPU_Vector<float>& get_charge_reference();
+  GPU_Vector<float>& get_charge_reference();
 
 private:
   ParaMB paramb;

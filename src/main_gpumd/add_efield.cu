@@ -21,6 +21,7 @@ Add electric field to a group of atoms.
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
@@ -83,7 +84,7 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
     if (is_nep_charge) {
-      const GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
       add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
         group_size,
         group_size_sum,
