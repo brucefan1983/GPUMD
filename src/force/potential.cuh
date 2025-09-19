@@ -78,7 +78,7 @@ public:
   virtual GPU_Vector<float>& get_charge_reference()
   {
     static GPU_Vector<float> dummy_charge;
-    return dummy_charge; // Return the const reference to charge
+    return dummy_charge;
   }
 
 protected:
