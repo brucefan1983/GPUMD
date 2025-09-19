@@ -293,7 +293,7 @@ void Run::perform_a_run()
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_random_force.compute(step, atom);
-    add_efield.compute(step, group, atom);
+    add_efield.compute(step, group, atom, force);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 

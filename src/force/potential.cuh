@@ -75,6 +75,12 @@ public:
     return dummy_NL; // Return the const reference to NL_radial
   }
 
+  virtual GPU_Vector<float>& get_charge_reference()
+  {
+    static GPU_Vector<float> dummy_charge;
+    return dummy_charge;
+  }
+
 protected:
   void find_properties_many_body(
     Box& box,
