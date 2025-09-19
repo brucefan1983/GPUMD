@@ -95,6 +95,11 @@ bool check_is_nep_charge()
     if (tokens[0].substr(0, 11) == "nep4_charge") {
       is_nep_charge = true;
     }
+  } 
+  if (tokens[0].size() >= 16) {
+    if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
+      is_nep_charge = true;
+    }
   }
   input_potential.close();
 
