@@ -1621,7 +1621,7 @@ void NEP_Charge::compute_large_box(
   GPU_CHECK_KERNEL
 
   // enforce charge neutrality
-  zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
+  zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
@@ -2147,3 +2147,5 @@ void NEP_Charge::compute(
 const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radial; }
 
 const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radial; }
+
+GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }

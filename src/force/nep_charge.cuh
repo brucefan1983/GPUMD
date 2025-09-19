@@ -138,6 +138,8 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
+  GPU_Vector<float>& get_charge_reference();
+
 private:
   ParaMB paramb;
   ANN annmb;
