@@ -201,6 +201,14 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
   if (num_calls_ > 10) {
     PRINT_INPUT_ERROR("add_efield cannot be used more than 10 times in one run.");
   }
+
+  is_nep_charge = check_is_nep_charge();
+  if (is_nep_charge) {
+    printf("    using the charge values predicted by the NEP-Charge model.\n");
+  } else {
+    printf("    using the charge values specified in model.xyz.\n");
+  }
+
 }
 
 void Add_Efield::finalize() { num_calls_ = 0; }
