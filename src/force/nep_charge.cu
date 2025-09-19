@@ -27,6 +27,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -74,6 +75,12 @@ void NEP_Charge::initialize_dftd3()
 
 NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 {
+  #ifdef DEBUG
+  rng = std::mt19937(12345678);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
+
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
@@ -1259,6 +1266,8 @@ void NEP_Charge::find_k_and_G(const double* box)
   std::vector<float> cpu_kz;
   std::vector<float> cpu_G;
 
+  std::uniform_real_distribution<double> rand_number(0.0, 1.0);
+  double normalization_factor = 0.0;
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
@@ -1269,12 +1278,16 @@ void NEP_Charge::find_k_and_G(const double* box)
           const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
           const float ksq = kx * kx + ky * ky + kz * kz;
           if (ksq < ksq_max) {
-            cpu_kx.emplace_back(kx);
-            cpu_ky.emplace_back(ky);
-            cpu_kz.emplace_back(kz);
-            float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
-            const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
-            cpu_G.emplace_back(symmetry_factor * G);
+            double exp_factor = exp(-double(ksq) * charge_para.alpha_factor);
+            normalization_factor += exp_factor;
+            if (rand_number(rng) < exp_factor) {
+              cpu_kx.emplace_back(kx);
+              cpu_ky.emplace_back(ky);
+              cpu_kz.emplace_back(kz);
+              float G = abs(two_pi_over_det) / ksq;
+              const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
+              cpu_G.emplace_back(symmetry_factor * G);
+            }
           }
         }
       }
@@ -1282,7 +1295,17 @@ void NEP_Charge::find_k_and_G(const double* box)
   }
 
   int num_kpoints = int(cpu_kx.size());
+  for (int n = 0; n < num_kpoints; ++n) {
+    cpu_G[n] *= normalization_factor / num_kpoints;
+  }
+
+
+
   if (num_kpoints > charge_para.num_kpoints_max) {
+
+      std::cout << "num_kpoints = " << num_kpoints << std::endl;
+  std::cout << "normalization_factor = " << normalization_factor << std::endl;
+  
     charge_para.num_kpoints_max = num_kpoints;
     nep_data.kx.resize(charge_para.num_kpoints_max);
     nep_data.ky.resize(charge_para.num_kpoints_max);
