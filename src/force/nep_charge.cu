@@ -1263,19 +1263,17 @@ void NEP_Charge::find_k_and_G(const double* box)
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
         const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq > 0) {
-          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-          const float ksq = kx * kx + ky * ky + kz * kz;
-          if (ksq < ksq_max) {
-            cpu_kx.emplace_back(kx);
-            cpu_ky.emplace_back(ky);
-            cpu_kz.emplace_back(kz);
-            float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
-            const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
-            cpu_G.emplace_back(symmetry_factor * G);
-          }
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          cpu_kx.emplace_back(kx);
+          cpu_ky.emplace_back(ky);
+          cpu_kz.emplace_back(kz);
+          const float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
+          cpu_G.emplace_back(2.0f * G);
         }
       }
     }
