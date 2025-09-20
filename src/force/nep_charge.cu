@@ -85,57 +85,27 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep3_charge1") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep3_zbl_charge1") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep4_charge1") {
-    paramb.version = 4;
+  if (tokens[0] == "nep4_charge1") {
     zbl.enabled = false;
     charge_para.charge_mode = 1;
   } else if (tokens[0] == "nep4_zbl_charge1") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 1;
-  } else if (tokens[0] == "nep3_charge2") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 2;
-  } else if (tokens[0] == "nep3_zbl_charge2") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 2;
   } else if (tokens[0] == "nep4_charge2") {
-    paramb.version = 4;
     zbl.enabled = false;
     charge_para.charge_mode = 2;
   } else if (tokens[0] == "nep4_zbl_charge2") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 2;
-  } else if (tokens[0] == "nep3_charge3") {
-    paramb.version = 3;
-    zbl.enabled = false;
-    charge_para.charge_mode = 3;
-  } else if (tokens[0] == "nep3_zbl_charge3") {
-    paramb.version = 3;
-    zbl.enabled = true;
-    charge_para.charge_mode = 3;
   } else if (tokens[0] == "nep4_charge3") {
-    paramb.version = 4;
     zbl.enabled = false;
     charge_para.charge_mode = 3;
   } else if (tokens[0] == "nep4_zbl_charge3") {
-    paramb.version = 4;
     zbl.enabled = true;
     charge_para.charge_mode = 3;
   } else {
     std::cout << tokens[0]
-              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << " is an unsupported NEP model. We only support NEP4 charge models now."
               << std::endl;
     exit(1);
   }
@@ -147,10 +117,10 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP%d-Charge%d potential with %d atom type.\n", paramb.version, 
+    printf("Use the NEP4-Charge%d potential with %d atom type.\n", 
       charge_para.charge_mode, paramb.num_types);
   } else {
-    printf("Use the NEP%d-Charge%d potential with %d atom types.\n", paramb.version, 
+    printf("Use the NEP4-Charge%d potential with %d atom types.\n", 
       charge_para.charge_mode, paramb.num_types);
   }
 
@@ -292,11 +262,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 + 1;
-  } else if (paramb.version == 4) {
-    annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 1;
-  }
+  annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
@@ -382,9 +348,6 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 3) * ann.num_neurons1;
-    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
@@ -392,6 +355,8 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1 * 2; // potential and charge
   }
+  ann.sqrt_epsilon_inf = pointer;
+  pointer += 1;
   ann.b1 = pointer;
   pointer += 1;
 
@@ -1251,39 +1216,23 @@ static float get_area(const float* a, const float* b)
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const float* ebox)
+void NEP_Charge::find_k_and_G(const double* box)
 {
-  float det;
   float a1[3] = {0.0f};
   float a2[3] = {0.0f};
   float a3[3] = {0.0f};
-  if (is_small_box) {
-    det = ebox[0] * (ebox[4] * ebox[8] - ebox[5] * ebox[7]) +
-          ebox[1] * (ebox[5] * ebox[6] - ebox[3] * ebox[8]) +
-          ebox[2] * (ebox[3] * ebox[7] - ebox[4] * ebox[6]);
-    a1[0] = ebox[0];
-    a1[1] = ebox[3];
-    a1[2] = ebox[6];
-    a2[0] = ebox[1];
-    a2[1] = ebox[4];
-    a2[2] = ebox[7];
-    a3[0] = ebox[2];
-    a3[1] = ebox[5];
-    a3[2] = ebox[8];
-  } else {
-    det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
-          box[1] * (box[5] * box[6] - box[3] * box[8]) +
-          box[2] * (box[3] * box[7] - box[4] * box[6]);
-    a1[0] = box[0];
-    a1[1] = box[3];
-    a1[2] = box[6];
-    a2[0] = box[1];
-    a2[1] = box[4];
-    a2[2] = box[7];
-    a3[0] = box[2];
-    a3[1] = box[5];
-    a3[2] = box[8];
-  }
+  float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+    box[1] * (box[5] * box[6] - box[3] * box[8]) +
+    box[2] * (box[3] * box[7] - box[4] * box[6]);
+  a1[0] = box[0];
+  a1[1] = box[3];
+  a1[2] = box[6];
+  a2[0] = box[1];
+  a2[1] = box[4];
+  a2[2] = box[7];
+  a3[0] = box[2];
+  a3[1] = box[5];
+  a3[2] = box[8];
   float b1[3] = {0.0f};
   float b2[3] = {0.0f};
   float b3[3] = {0.0f};
@@ -1314,19 +1263,17 @@ void NEP_Charge::find_k_and_G(const bool is_small_box, const double* box, const 
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
         const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq > 0) {
-          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-          const float ksq = kx * kx + ky * ky + kz * kz;
-          if (ksq < ksq_max) {
-            cpu_kx.emplace_back(kx);
-            cpu_ky.emplace_back(ky);
-            cpu_kz.emplace_back(kz);
-            float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
-            const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
-            cpu_G.emplace_back(symmetry_factor * G);
-          }
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          cpu_kx.emplace_back(kx);
+          cpu_ky.emplace_back(ky);
+          cpu_kz.emplace_back(kz);
+          const float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
+          cpu_G.emplace_back(2.0f * G);
         }
       }
     }
@@ -1649,11 +1596,11 @@ void NEP_Charge::compute_large_box(
   GPU_CHECK_KERNEL
 
   // enforce charge neutrality
-  zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
+  zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
-    find_k_and_G(false, box.cpu_h, ebox.h);
+    find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
       N1,
@@ -1926,7 +1873,7 @@ void NEP_Charge::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (charge_para.charge_mode != 3) {
-    find_k_and_G(true, box.cpu_h, ebox.h);
+    find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
       N1,
@@ -2175,3 +2122,5 @@ void NEP_Charge::compute(
 const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radial; }
 
 const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radial; }
+
+GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }

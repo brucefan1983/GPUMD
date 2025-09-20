@@ -108,6 +108,14 @@ public:
     float h[18];
   };
 
+  struct Small_Box_Data {
+        GPU_Vector<int> NN_radial;
+        GPU_Vector<int> NL_radial;
+        GPU_Vector<int> NN_angular;
+        GPU_Vector<int> NL_angular;
+        GPU_Vector<float> r12;
+    } small_box_data;
+
   NEP(const char* file_potential, const int num_atoms);
   virtual ~NEP(void);
   virtual void compute(

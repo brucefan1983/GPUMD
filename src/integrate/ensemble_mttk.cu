@@ -105,11 +105,14 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
       i += 1;
     } else if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &t_period))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+        PRINT_INPUT_ERROR("Wrong inputs for tperiod keyword.");
       i += 2;
     } else if (strcmp(params[i], "pperiod") == 0) {
       if (!is_valid_real(params[i + 1], &p_period[0][0]))
-        PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
+        PRINT_INPUT_ERROR("Wrong inputs for pperiod keyword.");
+      if (p_period[0][0] < 200) {
+        PRINT_INPUT_ERROR("pperiod should >= 200 timestep."); 
+      }
       i += 2;
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {

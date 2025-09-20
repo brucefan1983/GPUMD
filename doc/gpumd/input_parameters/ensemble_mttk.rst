@@ -36,7 +36,7 @@ Using ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz`` allows one to specify each str
 
 The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final pressure, respectively.
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
-It determines how strongly the system is coupled to the barostat.
+It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` timesteps.
 
 The :attr:`nph_mttk` keyword can be used in analoguous fashion to run simulations in the isenthalpic (NPH) ensemble::
 

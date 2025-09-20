@@ -1,4 +1,4 @@
-.. _SW_ILP:
+.. _sw_ilp:
 .. index::
    single: SW ILP
 
@@ -83,7 +83,7 @@ is used to identify different sublayers. One transition metal dichalcogenide lay
 i.e., one :math:`MoS_2` layer has one Mo sublayer and two S sublayers. For atoms in the same layer, 
 the :attr:`group_id` of :attr:`group_method` 0 must be the same and for atoms in the same sublayer, 
 the :attr:`group_id` of :attr:`group_method` 1 must be the same.
-Now this hybrid could be only used to simulate transition metal dichalcogenide homostructures (:math:`\mathrm{MX_2}`), with **M** 
+Now this hybrid potential could be only used to simulate transition metal dichalcogenide homostructures (:math:`\mathrm{MX_2}`), with **M** 
 a transition metal atom (Mo, W, etc.) and **X** a chalcogen atom (S, Se, or Te).
 
 In ``run.in`` file, the :attr:`potential` setting is as::

@@ -88,6 +88,7 @@ static void read_force(
   const int pos_offset,
   const int force_offset,
   const int avirial_offset,
+  const int bec_offset,
   std::ifstream& input,
   const Parameters& para,
   Structure& structure,
@@ -102,6 +103,7 @@ static void read_force(
   structure.fx.resize(structure.num_atom);
   structure.fy.resize(structure.num_atom);
   structure.fz.resize(structure.num_atom);
+  structure.bec.resize(structure.num_atom * 9);
   if (structure.has_atomic_virial) {
     structure.avirialxx.resize(structure.num_atom);
     structure.avirialyy.resize(structure.num_atom);
@@ -127,7 +129,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && train_mode == 0) {
+    if (num_columns > 4 && (train_mode == 0 || train_mode == 3)) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -157,6 +159,13 @@ static void read_force(
           get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
         structure.avirialzx[na] =
           get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
+      }
+    }
+
+    if (num_columns > 4 && structure.has_bec) {
+      for (int d = 0; d < 9; ++d) {
+        structure.bec[na * 9 + d] =
+          get_double_from_token(tokens[d + bec_offset], xyz_filename.c_str(), line_number);
       }
     }
 
@@ -211,7 +220,7 @@ static void read_one_structure(
       structure.energy /= structure.num_atom;
     }
   }
-  if (para.train_mode == 0 && !has_energy_in_exyz) {
+  if ((para.train_mode == 0 || para.train_mode == 3) && !has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
@@ -405,9 +414,11 @@ static void read_one_structure(
   int pos_offset = 0;
   int force_offset = 0;
   int avirial_offset = 0;
+  int bec_offset = 0;
   int num_columns = 0;
   structure.has_atomic_virial = false;
   structure.atomic_virial_diag_only = false;
+  structure.has_bec = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -422,6 +433,7 @@ static void read_one_structure(
       int pos_position = -1;
       int force_position = -1;
       int avirial_position = -1;
+      int bec_position = -1;
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         if (sub_tokens[k * 3] == "species") {
           species_position = k;
@@ -442,6 +454,10 @@ static void read_one_structure(
           structure.has_atomic_virial = true;
           structure.atomic_virial_diag_only = false;
         }
+        if (sub_tokens[k * 3] == "bec") {
+          bec_position = k;
+          structure.has_bec = true;
+        }
       }
       if (species_position < 0) {
         PRINT_INPUT_ERROR("'species' is missing in properties.");
@@ -449,7 +465,7 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && para.train_mode == 0) {
+      if (force_position < 0 && (para.train_mode == 0 || para.train_mode == 3)) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
       if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
@@ -475,6 +491,10 @@ static void read_one_structure(
           avirial_offset +=
             get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
         }
+        if (k < bec_position) {
+          bec_offset +=
+            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
+        }
         num_columns += get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
       }
     }
@@ -486,6 +506,7 @@ static void read_one_structure(
     pos_offset,
     force_offset,
     avirial_offset,
+    bec_offset,
     input,
     para,
     structure,
