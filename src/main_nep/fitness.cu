@@ -20,6 +20,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "nep.cuh"
 #include "nep_charge.cuh"
+#include "nep_vdw.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
@@ -130,6 +131,9 @@ Fitness::Fitness(Parameters& para)
     if (para.charge_mode) {
       potential.reset(
         new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    } else if (para.vdw_mode) {
+      potential.reset(
+        new NEP_VDW(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, deviceCount));
     } else {
       potential.reset(
         new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
@@ -315,7 +319,19 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
-    if (!para.charge_mode) {
+    if (para.charge_mode) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+      }
+    } else if (para.vdw_mode) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl_vdw%d %d ", para.vdw_mode, para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4_vdw%d %d ", para.vdw_mode, para.num_types);
+      }
+    } else {
       if (para.version == 3) {
         if (para.enable_zbl) {
           fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
@@ -328,12 +344,6 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
         } else {
           fprintf(fid_nep, "nep4 %d ", para.num_types);
         }
-      } 
-    } else {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
       }
     }
   } else if (para.train_mode == 1) { // dipole model

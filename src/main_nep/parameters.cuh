@@ -67,6 +67,7 @@ public:
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
+  int vdw_mode; // NEP-vdW
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
@@ -98,6 +99,7 @@ public:
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
+  bool is_vdw_mode_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -156,6 +158,7 @@ private:
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
+  void parse_vdw_mode(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
 };

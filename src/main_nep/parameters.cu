@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
+  is_vdw_mode_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -112,6 +113,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
+  vdw_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -186,6 +188,18 @@ void Parameters::calculate_parameters()
     }
   }
 
+  if (vdw_mode) {
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("vdW is only supported for potential model.");
+    }
+    if (version != 4) {
+      PRINT_INPUT_ERROR("vdW is only supported for NEP4.");
+    }
+    if (charge_mode) {
+      PRINT_INPUT_ERROR("vdW and charge are not supported simultaneously.");
+    }
+  }
+
   if (train_mode == 0) {
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
@@ -219,6 +233,9 @@ void Parameters::calculate_parameters()
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
     if (charge_mode) {
       number_of_variables_ann += num_neurons1 * num_types + 1;
+    }
+    if (vdw_mode) {
+      number_of_variables_ann += num_neurons1 * num_types;
     }
   }
 
@@ -255,8 +272,9 @@ void Parameters::calculate_parameters()
     }
     std::vector<std::string> tokens;
     const int NUM89 = 89;
-    const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
-    const int num_ann = NUM89 * num_ann_per_element + (charge_mode ? 2 : 1);
+    const bool has_extra_para = charge_mode || vdw_mode;
+    const int num_ann_per_element = (dim + (has_extra_para ? 3 : 2)) * num_neurons1;
+    const int num_ann = NUM89 * num_ann_per_element + 1;
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
     const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
@@ -451,6 +469,12 @@ void Parameters::report_inputs()
       printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
     } else if (charge_mode == 3) {
       printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
+    }
+  }
+
+  if (is_vdw_mode_set) {
+    if (vdw_mode == 1) {
+      printf("    (input)   use NEP-vdW.\n");
     }
   }
 
@@ -670,6 +694,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "charge_mode") == 0) {
     parse_charge_mode(param, num_param);
+  } else if (strcmp(param[0], "vdw_mode") == 0) {
+    parse_vdw_mode(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
@@ -1297,6 +1323,21 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
   }
   if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
     PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
+  }
+}
+
+void Parameters::parse_vdw_mode(const char** param, int num_param)
+{
+  is_vdw_mode_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("vdw_mode should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &vdw_mode)) {
+    PRINT_INPUT_ERROR("vdw mode should be an integer.\n");
+  }
+  if (vdw_mode != 0 && vdw_mode != 1) {
+    PRINT_INPUT_ERROR("vdw mode should be 0 or 1.");
   }
 }
 
