@@ -1266,28 +1266,27 @@ void NEP_Charge::find_k_and_G(const double* box)
   std::vector<float> cpu_kz;
   std::vector<float> cpu_G;
 
-  std::uniform_real_distribution<double> rand_number(0.0, 1.0);
-  double normalization_factor = 0.0;
+#ifdef USE_RBE
+  std::uniform_real_distribution<float> rand_number(0.0f, 1.0f);
+  float normalization_factor = 0.0f;
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
         const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq > 0) {
-          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-          const float ksq = kx * kx + ky * ky + kz * kz;
-          if (ksq < ksq_max) {
-            double exp_factor = exp(-double(ksq) * charge_para.alpha_factor);
-            normalization_factor += exp_factor;
-            if (rand_number(rng) < exp_factor) {
-              cpu_kx.emplace_back(kx);
-              cpu_ky.emplace_back(ky);
-              cpu_kz.emplace_back(kz);
-              float G = abs(two_pi_over_det) / ksq;
-              const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
-              cpu_G.emplace_back(symmetry_factor * G);
-            }
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          float exp_factor = exp(-ksq * charge_para.alpha_factor);
+          normalization_factor += exp_factor;
+          if (rand_number(rng) < exp_factor) {
+            cpu_kx.emplace_back(kx);
+            cpu_ky.emplace_back(ky);
+            cpu_kz.emplace_back(kz);
+            float G = abs(two_pi_over_det) / ksq;
+            cpu_G.emplace_back(2.0f * G);
           }
         }
       }
@@ -1299,13 +1298,32 @@ void NEP_Charge::find_k_and_G(const double* box)
     cpu_G[n] *= normalization_factor / num_kpoints;
   }
 
+#else
 
+  for (int n1 = 0; n1 <= n1_max; ++n1) {
+    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
+      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+        const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          cpu_kx.emplace_back(kx);
+          cpu_ky.emplace_back(ky);
+          cpu_kz.emplace_back(kz);
+          const float G = abs(two_pi_over_det) / ksq * exp(-ksq * charge_para.alpha_factor);
+          cpu_G.emplace_back(2.0f * G);
+        }
+      }
+    }
+  }
+
+  int num_kpoints = int(cpu_kx.size());
+#endif
 
   if (num_kpoints > charge_para.num_kpoints_max) {
-
-      std::cout << "num_kpoints = " << num_kpoints << std::endl;
-  std::cout << "normalization_factor = " << normalization_factor << std::endl;
-  
     charge_para.num_kpoints_max = num_kpoints;
     nep_data.kx.resize(charge_para.num_kpoints_max);
     nep_data.ky.resize(charge_para.num_kpoints_max);
