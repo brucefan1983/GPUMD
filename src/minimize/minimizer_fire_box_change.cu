@@ -73,8 +73,9 @@ void update_box(double* box, const double* d_v, int N)
   gpuMemcpy(processed_v, d_processed_v, 9 * sizeof(double), gpuMemcpyDeviceToHost);
   transpose9(processed_v);
 
+  double fac = std::max(N, std::min(250, 6 * N));
   for (int i = 0; i < 9; i++) {
-    processed_v[i] = processed_v[i] / N;
+    processed_v[i] = processed_v[i] / fac;
   }
 
   double result[9];
@@ -137,8 +138,10 @@ void get_force_temp(
   get_force_temp_kernel<<<blocksPerGrid, threadsPerBlock>>>(
     force_per_atom, force_temp, d_deform, N);
 
+  double fac = std::max(N, std::min(250, 6 * N));
+
   for (int m = 0; m < 9; m++) {
-    virial_cpu_deform[m] = virial_cpu_deform[m] / N;
+    virial_cpu_deform[m] = virial_cpu_deform[m] / fac;
   }
 
   gpuMemcpy(force_temp + N, virial_cpu_deform, 3 * sizeof(double), gpuMemcpyHostToDevice);
@@ -199,7 +202,7 @@ void solveLinearEquation(const double* A, const double* B, double* X)
     }
   }
 
-  // 将计算得到的结果存储回 X 中（行主序）
+  // row-major
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       X[i * N + j] = b[i][j];
@@ -414,7 +417,7 @@ void Minimizer_FIRE_Box_Change::compute(
 
   // minimize with changed box
   // create a velocity vector in GPU
-  GPU_Vector<double> v(size + 9, 0);
+  GPU_Vector<double> v(size + 9, 0.0);
   GPU_Vector<double> temp1(size + 9);
   GPU_Vector<double> temp2(size + 9);
   GPU_Vector<double> force_temp(size + 9);
@@ -428,8 +431,10 @@ void Minimizer_FIRE_Box_Change::compute(
   printf("\nEnergy minimization with changed box started.\n");
 
   for (int step = 0; step < number_of_steps_; ++step) {
+
     force.compute(
       box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
+
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -451,6 +456,7 @@ void Minimizer_FIRE_Box_Change::compute(
     // deform = np.linalg.solve(initial_box, current_box)
     solveLinearEquation<3>(initial_box, box.cpu_h, deform);
     transpose9(deform);
+
     double virial_cpu[9];
     virialtot.copy_to_host(virial_cpu);
     transpose9(virial_cpu);
@@ -481,6 +487,7 @@ void Minimizer_FIRE_Box_Change::compute(
         cpu_total_potential_[0],
         force_max,
         (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3. / box.get_volume() * 160.2176621);
+
       if (force_max < force_tolerance_)
         break;
     }
@@ -490,15 +497,17 @@ void Minimizer_FIRE_Box_Change::compute(
     if (P > 0) {
       if (N_neg > N_min) {
         next_dt = dt * f_inc;
-        if (next_dt < dt_max)
-          dt = next_dt;
+        if (next_dt > dt_max)
+          next_dt = dt_max;
+        dt = next_dt;
         alpha *= f_alpha;
       }
       N_neg++;
     } else {
       next_dt = dt * f_dec;
-      if (next_dt > dt_min)
-        dt = next_dt;
+      if (next_dt < dt_min)
+        next_dt = dt_min;
+      dt = next_dt;
       alpha = alpha_start;
       // move position back
       scalar_multiply(-0.5 * dt, v, temp1);
@@ -512,6 +521,7 @@ void Minimizer_FIRE_Box_Change::compute(
     // implicit Euler integration
     double F_modulus = sqrt(dot(force_temp, force_temp));
     double v_modulus = sqrt(dot(v, v));
+
     // dv = F/m*dt
     scalar_multiply(dt / m, force_temp, temp2);
     vector_sum(v, temp2, v);
