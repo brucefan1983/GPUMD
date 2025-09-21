@@ -127,7 +127,7 @@ Fitness::Fitness(Parameters& para)
     potential.reset(
       new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
   } else {
-    if (para.charge_mode >= 1 && para.charge_mode <= 4) {
+    if (para.charge_mode) {
       potential.reset(
         new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
     } else {
