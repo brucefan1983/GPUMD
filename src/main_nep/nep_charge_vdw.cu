@@ -569,9 +569,9 @@ static __global__ void find_force_radial(
     g_virial[n1] += s_virial_xx;
     g_virial[n1 + N] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] = s_virial_xy;
-    g_virial[n1 + N * 4] = s_virial_yz;
-    g_virial[n1 + N * 5] = s_virial_zx;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
 
