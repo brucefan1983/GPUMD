@@ -120,8 +120,8 @@ void Active::parse(const char** param, int num_param)
   check_ = true;
   printf("Active learning.\n");
 
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("active should have 4 parameters.");
+  if (num_param != 6) {
+    PRINT_INPUT_ERROR("active should have 5 parameters.");
   }
   if (!is_valid_int(param[1], &check_interval_)) {
     PRINT_INPUT_ERROR("check interval should be an integer.");
@@ -148,7 +148,17 @@ void Active::parse(const char** param, int num_param)
   } else {
     printf("    with force data.\n");
   }
-  if (!is_valid_real(param[4], &threshold_)) {
+
+  if (!is_valid_int(param[4], &has_uncertainty_)) {
+    PRINT_INPUT_ERROR("has_uncertainty should be an integer.");
+  }
+  if (has_uncertainty_ == 0) {
+    printf("    without per-atom uncertainty data.\n");
+  } else {
+    printf("    with per-atom uncertainty data.\n");
+  }
+
+  if (!is_valid_real(param[5], &threshold_)) {
     PRINT_INPUT_ERROR("threshold should be a real number.\n");
   }
 
@@ -363,6 +373,9 @@ void Active::output_line2(
   if (has_force_) {
     fprintf(fid_, ":forces:R:3");
   }
+  if (has_uncertainty_) {
+    fprintf(fid_, ":uncertainty:R:1");
+  }
 
   // Over
   fprintf(fid_, "\n");
@@ -421,6 +434,9 @@ void Active::write_exyz(
       for (int d = 0; d < 3; ++d) {
         fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
       }
+    }
+    if (has_uncertainty_) {
+      fprintf(fid_, " %.8f", cpu_uncertainty_[n]);
     }
     fprintf(fid_, "\n");
   }

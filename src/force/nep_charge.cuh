@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <random>
 
 struct NEP_Charge_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -65,7 +66,6 @@ public:
     float typewise_cutoff_radial_factor = 0.0f;
     float typewise_cutoff_angular_factor = 0.0f;
     float typewise_cutoff_zbl_factor = 0.0f;
-    int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
@@ -94,6 +94,7 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
+    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
   };
@@ -137,6 +138,8 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
+  GPU_Vector<float>& get_charge_reference();
+
 private:
   ParaMB paramb;
   ANN annmb;
@@ -144,6 +147,7 @@ private:
   ExpandedBox ebox;
   DFTD3 dftd3;
   Charge_Para charge_para;
+  std::mt19937 rng;
 
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE
@@ -166,7 +170,7 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void find_k_and_G(const bool is_small_box, const double* box, const float* ebox);
+  void find_k_and_G(const double* box);
 
   bool has_dftd3 = false;
   void initialize_dftd3();

@@ -1384,11 +1384,6 @@ void NEP::compute_small_box(
 
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
-  GPU_Vector<int> NN_radial(type.size());
-  GPU_Vector<int> NL_radial(size_x12);
-  GPU_Vector<int> NN_angular(type.size());
-  GPU_Vector<int> NL_angular(size_x12);
-  GPU_Vector<float> r12(size_x12 * 6);
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1401,24 +1396,24 @@ void NEP::compute_small_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5);
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
     std::vector<int> cpu_NN_radial(type.size());
     std::vector<int> cpu_NN_angular(type.size());
-    NN_radial.copy_to_host(cpu_NN_radial.data());
-    NN_angular.copy_to_host(cpu_NN_angular.data());
+    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
+    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
     int radial_actual = 0;
     int angular_actual = 0;
     for (int n = 0; n < N; ++n) {
@@ -1444,17 +1439,17 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
     is_polarizability,
 #ifdef USE_TABLE
     nep_data.gn_radial.data(),
@@ -1476,12 +1471,12 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
     type.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
     is_dipole,
 #ifdef USE_TABLE
@@ -1499,12 +1494,12 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_angular.data(),
-    NL_angular.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
     is_dipole,
@@ -1525,12 +1520,12 @@ void NEP::compute_small_box(
       zbl,
       N1,
       N2,
-      NN_angular.data(),
-      NL_angular.data(),
+      small_box_data.NN_angular.data(),
+      small_box_data.NL_angular.data(),
       type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
+      small_box_data.r12.data() + size_x12 * 3,
+      small_box_data.r12.data() + size_x12 * 4,
+      small_box_data.r12.data() + size_x12 * 5,
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -1611,6 +1606,19 @@ void NEP::compute(
 {
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
   if (is_small_box) {
+    // update small_box_data
+    const int current_num_atoms = type.size();
+    if (small_box_data.NN_radial.size() != current_num_atoms) {
+        const int big_neighbor_size = 2000;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
+
+        small_box_data.NN_radial.resize(current_num_atoms);
+        small_box_data.NL_radial.resize(size_x12);
+        small_box_data.NN_angular.resize(current_num_atoms);
+        small_box_data.NL_angular.resize(size_x12);
+        small_box_data.r12.resize(size_x12 * 6);
+    }
+
     compute_small_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {
@@ -1985,11 +1993,6 @@ void NEP::compute_small_box(
 
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
-  GPU_Vector<int> NN_radial(type.size());
-  GPU_Vector<int> NL_radial(size_x12);
-  GPU_Vector<int> NN_angular(type.size());
-  GPU_Vector<int> NL_angular(size_x12);
-  GPU_Vector<float> r12(size_x12 * 6);
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -2002,24 +2005,24 @@ void NEP::compute_small_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5);
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
     std::vector<int> cpu_NN_radial(type.size());
     std::vector<int> cpu_NN_angular(type.size());
-    NN_radial.copy_to_host(cpu_NN_radial.data());
-    NN_angular.copy_to_host(cpu_NN_angular.data());
+    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
+    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
     int radial_actual = 0;
     int angular_actual = 0;
     for (int n = 0; n < N; ++n) {
@@ -2045,17 +2048,17 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
 #ifdef USE_TABLE
     nep_data.gn_radial.data(),
     nep_data.gn_angular.data(),
@@ -2073,12 +2076,12 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
     type.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
     is_dipole,
 #ifdef USE_TABLE
@@ -2096,12 +2099,12 @@ void NEP::compute_small_box(
     N,
     N1,
     N2,
-    NN_angular.data(),
-    NL_angular.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
     is_dipole,
@@ -2122,12 +2125,12 @@ void NEP::compute_small_box(
       zbl,
       N1,
       N2,
-      NN_angular.data(),
-      NL_angular.data(),
+      small_box_data.NN_angular.data(),
+      small_box_data.NL_angular.data(),
       type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
+      small_box_data.r12.data() + size_x12 * 3,
+      small_box_data.r12.data() + size_x12 * 4,
+      small_box_data.r12.data() + size_x12 * 5,
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -2149,6 +2152,19 @@ void NEP::compute(
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
 
   if (is_small_box) {
+    // update small_box_data
+    const int current_num_atoms = type.size();
+    if (small_box_data.NN_radial.size() != current_num_atoms) {
+        const int big_neighbor_size = 2000;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
+
+        small_box_data.NN_radial.resize(current_num_atoms);
+        small_box_data.NL_radial.resize(size_x12);
+        small_box_data.NN_angular.resize(current_num_atoms);
+        small_box_data.NL_angular.resize(size_x12);
+        small_box_data.r12.resize(size_x12 * 6);
+    }
+
     compute_small_box(
       temperature,
       box,

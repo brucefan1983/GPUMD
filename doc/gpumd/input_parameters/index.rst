@@ -57,6 +57,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_hnema
    compute_hnemd
    compute_hnemdec
+   compute_orientorder
    compute_phonon
    compute_sdc
    compute_msd

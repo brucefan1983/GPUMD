@@ -560,9 +560,9 @@ static __global__ void find_force_radial(
     g_virial[n1] += s_virial_xx;
     g_virial[n1 + N] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] = s_virial_xy;
-    g_virial[n1 + N * 4] = s_virial_yz;
-    g_virial[n1 + N * 5] = s_virial_zx;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
 
@@ -1255,19 +1255,17 @@ static __global__ void find_k_and_G(
       for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
         for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
           const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-          if (nsq > 0) {
-            const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-            const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-            const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-            const float ksq = kx * kx + ky * ky + kz * kz;
-            if (ksq < ksq_max) {
-              const int nc_nk = nc * num_kpoints_max + (nk++);
-              g_kx[nc_nk] = kx;
-              g_ky[nc_nk] = ky;
-              g_kz[nc_nk] = kz;
-              const float symmetry_factor = (n1 > 0) ? 2.0f : 1.0f;
-              g_G[nc_nk] = symmetry_factor * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
-            }
+          if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+          const float ksq = kx * kx + ky * ky + kz * kz;
+          if (ksq < ksq_max) {
+            const int nc_nk = nc * num_kpoints_max + (nk++);
+            g_kx[nc_nk] = kx;
+            g_ky[nc_nk] = ky;
+            g_kz[nc_nk] = kz;
+            g_G[nc_nk] = 2.0f * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
           }
         }
       }

@@ -139,7 +139,7 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
-  if (t_switch * t_equil < 0) {
+  if ((t_switch < 0 && t_equil >= 0) || (t_switch >= 0 && t_equil < 0)) {
     PRINT_INPUT_ERROR(
       "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
       "auto-determine)");
