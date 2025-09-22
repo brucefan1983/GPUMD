@@ -992,21 +992,23 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
       }
   }
 
-  gpu_sum_bec_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    N,
-    Na.data(),
-    Na_sum.data(),
-    bec.data(),
-    bec_ref_gpu.data(),
-    error_gpu.data());
-  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_bec) {
-      float rmse_temp = error_cpu[n];
-      for (int t = 0; t < para.num_types + 1; ++t) {
-        if (has_type[t * Nc + n]) {
-          rmse_array[t] += rmse_temp / (Na_cpu[n]);
-          count_array[t] += 9;
+  if (para.has_bec) {
+    gpu_sum_bec_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      N,
+      Na.data(),
+      Na_sum.data(),
+      bec.data(),
+      bec_ref_gpu.data(),
+      error_gpu.data());
+    CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
+    for (int n = 0; n < Nc; ++n) {
+      if (structures[n].has_bec) {
+        float rmse_temp = error_cpu[n];
+        for (int t = 0; t < para.num_types + 1; ++t) {
+          if (has_type[t * Nc + n]) {
+            rmse_array[t] += rmse_temp / (Na_cpu[n]);
+            count_array[t] += 9;
+          }
         }
       }
     }
