@@ -466,8 +466,8 @@ void MC_Ensemble_SGC::compute(
       energy_difference += mu_or_phi[index_new_species] - mu_or_phi[index_old_species];
     } else {
       energy_difference +=
-        kappa * K_B * temperature / atom.number_of_atoms *
-        (atom.number_of_atoms * (mu_or_phi[index_new_species] - mu_or_phi[index_old_species]) +
+        kappa * K_B * temperature / group_size *
+        (group_size * (mu_or_phi[index_new_species] - mu_or_phi[index_old_species]) +
          2 * (num_atoms_species[index_new_species] - num_atoms_species[index_old_species]) + 1.0);
     }
 
