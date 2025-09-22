@@ -108,7 +108,13 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     // make sure the initial charges are zero
     if (para.charge_mode) {
-      const int num_full = (para.dim + 3) * para.num_neurons1;
+      int num_outputs = 1;
+      if (para.charge_mode >= 1 && para.charge_mode <= 3) {
+        num_outputs = 2;
+      } else if (para.charge_mode == 4) {
+        num_outputs = 3;
+      }
+      const int num_full = (para.dim + 1 + num_outputs) * para.num_neurons1;
       const int num_part = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
         for (int n = num_full * t + num_part; n < num_full * (t + 1); ++n) {
@@ -141,7 +147,13 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann_per_element = (para.dim + (para.charge_mode ? 3 : 2)) * para.num_neurons1;
+  int num_outputs = 1;
+  if (para.charge_mode >= 1 && para.charge_mode <= 3) {
+    num_outputs = 2;
+  } else if (para.charge_mode == 4) {
+    num_outputs = 3;
+  }
+  const int num_ann_per_element = (para.dim + 1 + num_outputs) * para.num_neurons1;
   const int num_ann = NUM89 * num_ann_per_element + (para.charge_mode ? 2 : 1);
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -240,10 +252,13 @@ void SNES::calculate_utility()
 
 void SNES::find_type_of_variable(Parameters& para)
 {
-  int num_para_ann_per_type = (para.dim + 2) * para.num_neurons1;
-  if (para.charge_mode) {
-    num_para_ann_per_type += para.num_neurons1;
+  int num_outputs = 1;
+  if (para.charge_mode >= 1 && para.charge_mode <= 3) {
+    num_outputs = 2;
+  } else if (para.charge_mode == 4) {
+     num_outputs = 3;
   }
+  int num_para_ann_per_type = (para.dim + 1 + num_outputs) * para.num_neurons1;
 
   int offset = 0;
 

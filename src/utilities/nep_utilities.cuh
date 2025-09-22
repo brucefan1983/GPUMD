@@ -250,6 +250,41 @@ static __device__ void apply_ann_one_layer_charge(
   energy -= b1[0];
 }
 
+static __device__ void apply_ann_one_layer_charge_vdw(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q,
+  float& energy,
+  float* energy_derivative,
+  float& charge,
+  float* charge_derivative,
+  float& C6,
+  float* C6_derivative)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - b0[n]);
+    float tanh_der = 1.0f - x1 * x1;
+    energy += w1[n] * x1;
+    charge += w1[n + N_neu] * x1;
+    C6 += w1[n + N_neu * 2] * x1;
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = tanh_der * w0[n * N_des + d];
+      energy_derivative[d] += w1[n] * y1;
+      charge_derivative[d] += w1[n + N_neu] * y1;
+      C6_derivative[d] += w1[n + N_neu * 2] * y1;
+    }
+  }
+  energy -= b1[0];
+}
+
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {

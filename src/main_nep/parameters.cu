@@ -219,6 +219,9 @@ void Parameters::calculate_parameters()
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
     if (charge_mode) {
       number_of_variables_ann += num_neurons1 * num_types + 1;
+      if (charge_mode == 4) {
+        number_of_variables_ann += num_neurons1 * num_types;
+      }
     }
   }
 
@@ -255,7 +258,13 @@ void Parameters::calculate_parameters()
     }
     std::vector<std::string> tokens;
     const int NUM89 = 89;
-    const int num_ann_per_element = (dim + (charge_mode ? 3 : 2)) * num_neurons1;
+    int num_outputs = 1;
+    if (charge_mode >= 1 && charge_mode <= 3) {
+      num_outputs = 2;
+    } else if (charge_mode == 4) {
+      num_outputs = 3;
+    }
+    const int num_ann_per_element = (dim + 1 + num_outputs) * num_neurons1;
     const int num_ann = NUM89 * num_ann_per_element + (charge_mode ? 2 : 1);
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
@@ -451,6 +460,8 @@ void Parameters::report_inputs()
       printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
     } else if (charge_mode == 3) {
       printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
+    } else if (charge_mode == 4) {
+      printf("    (input)   use NEP-Charge-VdW; lambda_q = %g.\n", lambda_q);
     }
   }
 
@@ -1295,8 +1306,8 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &charge_mode)) {
     PRINT_INPUT_ERROR("charge mode should be an integer.\n");
   }
-  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3) {
-    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
+  if (charge_mode != 0 && charge_mode != 1 && charge_mode != 2 && charge_mode != 3 && charge_mode != 4) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3 or 4.");
   }
 }
 
