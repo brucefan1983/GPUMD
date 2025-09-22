@@ -35,29 +35,6 @@ static void __global__ add_efield(
   const double Ex,
   const double Ey,
   const double Ez,
-  const double* g_charge,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz)
-{
-  const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid < group_size) {
-    const int atom_id = g_group_contents[group_size_sum + tid];
-    const double charge = g_charge[atom_id];
-    g_fx[atom_id] += charge * Ex;
-    g_fy[atom_id] += charge * Ey;
-    g_fz[atom_id] += charge * Ez;
-  }
-}
-
-// for NEP-charge
-static void __global__ add_efield(
-  const int group_size,
-  const int group_size_sum,
-  const int* g_group_contents,
-  const double Ex,
-  const double Ey,
-  const double Ez,
   const float* g_charge,
   double* g_fx,
   double* g_fy,

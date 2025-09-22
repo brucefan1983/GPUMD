@@ -64,12 +64,14 @@ public:
     bool has_potential_ = false;
     bool has_unwrapped_position_ = false;
     bool has_mass_ = false;
+    bool has_charge_ = false;
     bool has_virial_ = false;
     bool has_group_ = false;
   };
 
 private:
 
+  bool is_nep_charge = false;
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;

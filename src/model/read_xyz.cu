@@ -322,7 +322,7 @@ void read_xyz_in_line_3(
   std::vector<std::string>& cpu_atom_symbol,
   std::vector<int>& cpu_type,
   std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_charge,
+  std::vector<float>& cpu_charge,
   std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
   std::vector<Group>& group)
