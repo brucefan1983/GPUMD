@@ -183,7 +183,7 @@ static void read_force(
 }
 
 static void read_one_structure(
-  const Parameters& para,
+  Parameters& para,
   std::ifstream& input,
   Structure& structure,
   std::string& xyz_filename,
@@ -457,6 +457,7 @@ static void read_one_structure(
         if (sub_tokens[k * 3] == "bec") {
           bec_position = k;
           structure.has_bec = true;
+          para.has_bec = true;
         }
       }
       if (species_position < 0) {
@@ -516,7 +517,7 @@ static void read_one_structure(
 }
 
 static void read_exyz(
-  const Parameters& para,
+  Parameters& para,
   std::ifstream& input,
   std::vector<Structure>& structures,
   std::string& xyz_filename)
