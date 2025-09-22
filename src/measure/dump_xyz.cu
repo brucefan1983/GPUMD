@@ -18,6 +18,7 @@ Dump per-atom data to user-specified file(s) in the extended XYZ format
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"
+#include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
@@ -52,6 +53,8 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
 
 Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom) 
 {
+  is_nep_charge = check_is_nep_charge();
+
   parse(param, num_param, groups);
   if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
     atom.unwrapped_position.resize(atom.number_of_atoms * 3);
@@ -138,6 +141,15 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
     if (strcmp(param[m], "mass") == 0) {
       quantities.has_mass_ = true;
       printf("    has mass.\n");
+    }
+    if (strcmp(param[m], "charge") == 0) {
+      quantities.has_charge_ = true;
+      if (is_nep_charge){
+        printf("    has charge predicted by NEP-charge.\n");
+      } else {
+        printf("    has charge specified in model.xyz.\n");
+      }
+      
     }
     if (strcmp(param[m], "virial") == 0) {
       quantities.has_virial_ = true;
@@ -247,6 +259,9 @@ void Dump_XYZ::output_line2(
   if (quantities.has_mass_) {
     fprintf(fid_, ":mass:R:1");
   }
+  if (quantities.has_charge_) {
+    fprintf(fid_, ":charge:R:1");
+  }
   if (quantities.has_velocity_) {
     fprintf(fid_, ":vel:R:3");
   }
@@ -297,6 +312,14 @@ void Dump_XYZ::process(
   if (quantities.has_mass_) {
     atom.mass.copy_to_host(atom.cpu_mass.data());
   }
+  if (quantities.has_charge_) {
+    if (is_nep_charge) {
+      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+      nep_charge.copy_to_host(atom.cpu_charge.data());
+    } else {
+      atom.charge.copy_to_host(atom.cpu_charge.data());
+    }
+  }
   if (quantities.has_velocity_) {
     atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
   }
@@ -339,6 +362,9 @@ void Dump_XYZ::process(
     }
     if (quantities.has_mass_) {
       fprintf(fid_, " %.8f", atom.cpu_mass[m]);
+    }
+    if (quantities.has_charge_) {
+      fprintf(fid_, " %.8f", atom.cpu_charge[m]);
     }
     if (quantities.has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
