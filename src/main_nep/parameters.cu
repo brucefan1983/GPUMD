@@ -214,12 +214,16 @@ void Parameters::calculate_parameters()
   }
 
   if (version == 3) {
+    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
   } else if (version == 4) {
+    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
     number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
     if (charge_mode) {
+      number_of_variables_ann_1 += num_neurons1;
       number_of_variables_ann += num_neurons1 * num_types + 1;
       if (charge_mode == 4) {
+        number_of_variables_ann_1 += num_neurons1;
         number_of_variables_ann += num_neurons1 * num_types;
       }
     }
@@ -258,14 +262,7 @@ void Parameters::calculate_parameters()
     }
     std::vector<std::string> tokens;
     const int NUM89 = 89;
-    int num_outputs = 1;
-    if (charge_mode >= 1 && charge_mode <= 3) {
-      num_outputs = 2;
-    } else if (charge_mode == 4) {
-      num_outputs = 3;
-    }
-    const int num_ann_per_element = (dim + 1 + num_outputs) * num_neurons1;
-    const int num_ann = NUM89 * num_ann_per_element + (charge_mode ? 2 : 1);
+    const int num_ann = NUM89 * number_of_variables_ann_1 + (charge_mode ? 2 : 1);
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
     const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;

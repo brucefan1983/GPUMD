@@ -108,20 +108,13 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     // make sure the initial charges are zero
     if (para.charge_mode) {
-      int num_outputs = 1;
-      if (para.charge_mode >= 1 && para.charge_mode <= 3) {
-        num_outputs = 2;
-      } else if (para.charge_mode == 4) {
-        num_outputs = 3;
-      }
-      const int num_full = (para.dim + 1 + num_outputs) * para.num_neurons1;
       const int num_part = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = num_full * t + num_part; n < num_full * (t + 1); ++n) {
+        for (int n = para.number_of_variables_ann_1 * t + num_part; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
           mu[n] = 0.0f;
         }
       }
-      mu[num_full * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
+      mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
@@ -147,14 +140,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  int num_outputs = 1;
-  if (para.charge_mode >= 1 && para.charge_mode <= 3) {
-    num_outputs = 2;
-  } else if (para.charge_mode == 4) {
-    num_outputs = 3;
-  }
-  const int num_ann_per_element = (para.dim + 1 + num_outputs) * para.num_neurons1;
-  const int num_ann = NUM89 * num_ann_per_element + (para.charge_mode ? 2 : 1);
+  const int num_ann = NUM89 * para.number_of_variables_ann_1 + (para.charge_mode ? 2 : 1);
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
@@ -182,9 +168,9 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   int count = 0;
   for (int i = 0; i < para.num_types; ++ i) {
     int element_index = element_map[para.atomic_numbers[i] - 1];
-    for (int j = 0; j < num_ann_per_element; ++j) {
-      mu[count] = restart_mu[element_index * num_ann_per_element + j];
-      sigma[count] = restart_sigma[element_index * num_ann_per_element + j];
+    for (int j = 0; j < para.number_of_variables_ann_1; ++j) {
+      mu[count] = restart_mu[element_index * para.number_of_variables_ann_1 + j];
+      sigma[count] = restart_sigma[element_index * para.number_of_variables_ann_1 + j];
       ++count;
     }
   }
@@ -252,14 +238,6 @@ void SNES::calculate_utility()
 
 void SNES::find_type_of_variable(Parameters& para)
 {
-  int num_outputs = 1;
-  if (para.charge_mode >= 1 && para.charge_mode <= 3) {
-    num_outputs = 2;
-  } else if (para.charge_mode == 4) {
-     num_outputs = 3;
-  }
-  int num_para_ann_per_type = (para.dim + 1 + num_outputs) * para.num_neurons1;
-
   int offset = 0;
 
   // NN part
@@ -267,15 +245,15 @@ void SNES::find_type_of_variable(Parameters& para)
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < num_para_ann_per_type; ++n) {
+        for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
           type_of_variable[n + offset] = t;
         }
-        offset += num_para_ann_per_type;
+        offset += para.number_of_variables_ann_1;
       }
       offset += para.charge_mode ? 2 : 1; // the bias
     }
   } else {
-    offset += num_para_ann_per_type + 1;
+    offset += para.number_of_variables_ann_1 + 1;
   }
 
   // descriptor part
