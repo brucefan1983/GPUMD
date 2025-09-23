@@ -451,7 +451,8 @@ static __global__ void gpu_find_L1_L2_NEP4(
   s_cost_L2reg[tid] = 0.0f;
   for (int v = tid; v < number_of_variables; v += blockDim.x) {
     const float para = g_population[bid * number_of_variables + v];
-    if (g_type_of_variable[v] == g_type || g_type == g_num_types) {
+    if ((g_type_of_variable[v] == g_type) && (g_type != g_num_types) || 
+        (g_type_of_variable[v] != g_type) && (g_type == g_num_types))  {
       s_cost_L1reg[tid] += abs(para);
       s_cost_L2reg[tid] += para * para;
     }
