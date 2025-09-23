@@ -106,6 +106,7 @@ public:
   int dim_angular;                    // number of angular descriptor components
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
+  int number_of_variables_ann_1;      // number of parameters in the ANN for one element
   int number_of_variables_descriptor; // number of parameters in the descriptor only
 
   // some arrays
