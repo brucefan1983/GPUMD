@@ -104,18 +104,16 @@ void Force::parse_potential(
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
-    strcmp(potential_name, "nep3_charge1") == 0 || 
-    strcmp(potential_name, "nep3_charge2") == 0 ||
-    strcmp(potential_name, "nep3_charge3") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge1") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge3") == 0 ||
     strcmp(potential_name, "nep4_charge1") == 0 ||
     strcmp(potential_name, "nep4_charge2") == 0 ||
     strcmp(potential_name, "nep4_charge3") == 0 ||
+    strcmp(potential_name, "nep4_charge4") == 0 ||
+    strcmp(potential_name, "nep4_charge5") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
+    strcmp(potential_name, "nep4_zbl_charge3") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge4") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge5") == 0) {
     potential.reset(new NEP_Charge(param[1], number_of_atoms));
     is_nep = true;
     check_types(param[1]);
