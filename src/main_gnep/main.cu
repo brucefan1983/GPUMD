@@ -72,7 +72,7 @@ void print_welcome_information(void)
   printf("*                 Welcome to use GNEP                         *\n");
   printf("*      (Gradient-optimized Neuroevolution Potentials)         *\n");
   printf("*             Potential extension for GPUMD                   *\n");
-  printf("*                     version 4.2                             *\n");
+  printf("*                     version 4.4                             *\n");
   printf("***************************************************************\n");
   printf("\n");
 }
