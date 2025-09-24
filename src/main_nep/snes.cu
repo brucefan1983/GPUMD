@@ -121,6 +121,15 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
+    // flip the charges if needed
+    if (para.charge_mode && para.flip_charge) {
+      const int num_part = (para.dim + 2) * para.num_neurons1;
+      for (int t = 0; t < para.num_types; ++t) {
+        for (int n = para.number_of_variables_ann_1 * t + num_part; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
+          mu[n] = -mu[n];
+        }
+      }
+    }
     fclose(fid_restart);
   }
   gpuSetDevice(0); // normally use GPU-0
