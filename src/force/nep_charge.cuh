@@ -64,6 +64,7 @@ public:
   NEP_Charge_Data nep_data;
 
   struct ParaMB {
+    int charge_mode = 0;
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_radial_factor = 0.0f;
@@ -118,7 +119,6 @@ public:
   };
 
   struct Charge_Para {
-    int charge_mode = 0;
     int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)

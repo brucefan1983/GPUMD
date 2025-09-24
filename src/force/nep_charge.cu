@@ -94,34 +94,34 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   }
   if (tokens[0] == "nep4_charge1") {
     zbl.enabled = false;
-    charge_para.charge_mode = 1;
+    paramb.charge_mode = 1;
   } else if (tokens[0] == "nep4_zbl_charge1") {
     zbl.enabled = true;
-    charge_para.charge_mode = 1;
+    paramb.charge_mode = 1;
   } else if (tokens[0] == "nep4_charge2") {
     zbl.enabled = false;
-    charge_para.charge_mode = 2;
+    paramb.charge_mode = 2;
   } else if (tokens[0] == "nep4_zbl_charge2") {
     zbl.enabled = true;
-    charge_para.charge_mode = 2;
+    paramb.charge_mode = 2;
   } else if (tokens[0] == "nep4_charge3") {
     zbl.enabled = false;
-    charge_para.charge_mode = 3;
+    paramb.charge_mode = 3;
   } else if (tokens[0] == "nep4_zbl_charge3") {
     zbl.enabled = true;
-    charge_para.charge_mode = 3;
+    paramb.charge_mode = 3;
   } else if (tokens[0] == "nep4_charge4") {
     zbl.enabled = false;
-    charge_para.charge_mode = 4;
+    paramb.charge_mode = 4;
   } else if (tokens[0] == "nep4_zbl_charge4") {
     zbl.enabled = true;
-    charge_para.charge_mode = 4;
+    paramb.charge_mode = 4;
   } else if (tokens[0] == "nep4_charge5") {
     zbl.enabled = false;
-    charge_para.charge_mode = 5;
+    paramb.charge_mode = 5;
   } else if (tokens[0] == "nep4_zbl_charge5") {
     zbl.enabled = true;
-    charge_para.charge_mode = 5;
+    paramb.charge_mode = 5;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP4 charge models now."
@@ -137,10 +137,10 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   if (paramb.num_types == 1) {
     printf("Use the NEP4-Charge%d potential with %d atom type.\n", 
-      charge_para.charge_mode, paramb.num_types);
+      paramb.charge_mode, paramb.num_types);
   } else {
     printf("Use the NEP4-Charge%d potential with %d atom types.\n", 
-      charge_para.charge_mode, paramb.num_types);
+      paramb.charge_mode, paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -1654,7 +1654,7 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (charge_para.charge_mode == 1 || charge_para.charge_mode == 2 || charge_para.charge_mode == 4) {
+  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
@@ -1695,7 +1695,7 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 1) {
+  if (paramb.charge_mode == 1) {
     find_force_charge_real_space<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -1717,7 +1717,7 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 3 || charge_para.charge_mode == 5) {
+  if (paramb.charge_mode == 3 || paramb.charge_mode == 5) {
     find_force_charge_real_space_only<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -1927,7 +1927,7 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (charge_para.charge_mode == 1 || charge_para.charge_mode == 2 || charge_para.charge_mode == 4) {
+  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
@@ -1969,7 +1969,7 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 1) {
+  if (paramb.charge_mode == 1) {
     find_force_charge_real_space_small_box<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -1991,7 +1991,7 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 3 || charge_para.charge_mode == 5) {
+  if (paramb.charge_mode == 3 || paramb.charge_mode == 5) {
     find_force_charge_real_space_only_small_box<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -2154,7 +2154,7 @@ void NEP_Charge::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  if (charge_para.charge_mode != 3) {
+  if (paramb.charge_mode != 3 && paramb.charge_mode != 5) {
     if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
       PRINT_INPUT_ERROR("Cannot use non-periodic boundaries with K-space.");
     }
