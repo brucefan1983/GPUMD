@@ -1299,14 +1299,22 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
 {
   is_charge_mode_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("charge_mode should have one parameter.\n");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("charge_mode should have one or two parameters.\n");
   }
   if (!is_valid_int(param[1], &charge_mode)) {
     PRINT_INPUT_ERROR("charge mode should be an integer.\n");
   }
   if (charge_mode < 0 || charge_mode > 5) {
     PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3 or 4 or 5.");
+  }
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &flip_charge)) {
+      PRINT_INPUT_ERROR("flip_charge should be an integer.\n");
+    }
+    if (flip_charge < 0 || flip_charge > 1) {
+      PRINT_INPUT_ERROR("flip_charge should be 0 or 1.");
+    }
   }
 }
 

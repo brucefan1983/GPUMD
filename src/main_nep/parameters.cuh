@@ -68,6 +68,7 @@ public:
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
   bool has_bec = false; // check if there are target BEC values
+  int flip_charge = 0; // 1 for flipping charges upon restarting
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
