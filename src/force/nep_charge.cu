@@ -110,6 +110,18 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   } else if (tokens[0] == "nep4_zbl_charge3") {
     zbl.enabled = true;
     charge_para.charge_mode = 3;
+  } else if (tokens[0] == "nep4_charge4") {
+    zbl.enabled = false;
+    charge_para.charge_mode = 4;
+  } else if (tokens[0] == "nep4_zbl_charge4") {
+    zbl.enabled = true;
+    charge_para.charge_mode = 4;
+  } else if (tokens[0] == "nep4_charge5") {
+    zbl.enabled = false;
+    charge_para.charge_mode = 5;
+  } else if (tokens[0] == "nep4_zbl_charge5") {
+    zbl.enabled = true;
+    charge_para.charge_mode = 5;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP4 charge models now."
@@ -1642,7 +1654,7 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (charge_para.charge_mode != 3) {
+  if (charge_para.charge_mode == 1 || charge_para.charge_mode == 2 || charge_para.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
@@ -1705,7 +1717,7 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 3) {
+  if (charge_para.charge_mode == 3 || charge_para.charge_mode == 5) {
     find_force_charge_real_space_only<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -1915,7 +1927,7 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (charge_para.charge_mode != 3) {
+  if (charge_para.charge_mode == 1 || charge_para.charge_mode == 2 || charge_para.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
       charge_para.num_kpoints_max,
@@ -1979,7 +1991,7 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (charge_para.charge_mode == 3) {
+  if (charge_para.charge_mode == 3 || charge_para.charge_mode == 5) {
     find_force_charge_real_space_only_small_box<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,

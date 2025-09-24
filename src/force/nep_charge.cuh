@@ -51,6 +51,9 @@ struct NEP_Charge_Data {
   GPU_Vector<float> D_real;
   GPU_Vector<float> charge;
   GPU_Vector<float> charge_derivative;
+  GPU_Vector<float> C6;                // C6
+  GPU_Vector<float> D_C6;              // related to dynamic C6
+  GPU_Vector<float> C6_derivative;     // dC6/dq
 };
 
 class NEP_Charge : public Potential
