@@ -137,7 +137,7 @@ ACS Nano **19**, 16287 (2025).
 [Bu2025] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Accurate modeling of LEGO-like vdW heterostructures: Integrating machine learned with anisotropic interlayer potentials](https://arxiv.org/abs/2504.12985),
 arXiv:2504.12985 [physics.comp-ph].
 
-[Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://arxiv.org/abs/2504.21286)
+[Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://arxiv.org/abs/2504.21286), arXiv:2504.21286 [cond-mat.mtrl-sci].
 
 [Huang2025] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients](http://arxiv.org/abs/2507.00528),
 arXiv:2507.00528 [cond-mat.dis-nn; cond-mat.mtrl-sci; physics.comp-ph].
