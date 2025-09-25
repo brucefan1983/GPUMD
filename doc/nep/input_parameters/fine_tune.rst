@@ -40,5 +40,6 @@ For more details, see the following exemplary :attr:`nep.in` file::
   lambda_v   1
   batch      5000
   population 50
+  save_potential 1000 0
   generation 5000
   
