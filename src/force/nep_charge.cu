@@ -319,6 +319,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
+  if (paramb.charge_mode == 4) {
+    charge_para.alpha = float(PI) / paramb.rc_angular;
+  }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
   charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
@@ -333,6 +336,11 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
+  if (paramb.charge_mode >= 4) {
+    nep_data.C6.resize(num_atoms);
+    nep_data.C6_derivative.resize(num_atoms * annmb.dim);
+    nep_data.D_C6.resize(num_atoms);
+  }
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
@@ -365,6 +373,7 @@ NEP_Charge::~NEP_Charge(void)
 
 void NEP_Charge::update_potential(float* parameters, ANN& ann)
 {
+  const int num_outputs = (paramb.charge_mode >= 4) ? 3 : 2;
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     ann.w0[t] = pointer;
@@ -372,7 +381,7 @@ void NEP_Charge::update_potential(float* parameters, ANN& ann)
     ann.b0[t] = pointer;
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
-    pointer += ann.num_neurons1 * 2; // potential and charge
+    pointer += ann.num_neurons1 * num_outputs;
   }
   ann.sqrt_epsilon_inf = pointer;
   pointer += 1;
@@ -565,6 +574,8 @@ static __global__ void find_descriptor(
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative,
+  float* g_C6,
+  float* g_C6_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -602,12 +613,12 @@ static __global__ void find_descriptor(
 #else
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+            ((paramb.charge_mode == 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
           rc);
       }
       float rcinv = 1.0f / rc;
@@ -686,30 +697,62 @@ static __global__ void find_descriptor(
       q[d] = q[d] * paramb.q_scaler[d];
     }
 
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    float charge = 0.0f;
-    float charge_derivative[MAX_DIM] = {0.0f};
+    if (paramb.charge_mode >= 4) {
+      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+      float charge = 0.0f;
+      float charge_derivative[MAX_DIM] = {0.0f};
+      float C6 = 0.0f;
+      float C6_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer_charge(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp,
-      charge,
-      charge_derivative);
+      apply_ann_one_layer_charge_vdw(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative,
+        C6,
+        C6_derivative);
 
-    g_pe[n1] += F;
-    g_charge[n1] = charge;
+      g_pe[n1] += F;
+      g_charge[n1] = charge;
+      g_C6[n1] = C6 + 2.0f;
 
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
-      g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
+        g_C6_derivative[d * N + n1] = C6_derivative[d] * paramb.q_scaler[d];
+      }
+    } else {
+      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+      float charge = 0.0f;
+      float charge_derivative[MAX_DIM] = {0.0f};
+
+      apply_ann_one_layer_charge(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative);
+
+      g_pe[n1] += F;
+      g_charge[n1] = charge;
+
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
+      }
     }
   }
 }
@@ -850,6 +893,8 @@ static __global__ void find_force_radial(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -915,12 +960,12 @@ static __global__ void find_force_radial(
       }
 #else
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
           rc);
       }
       float rcinv = 1.0f / rc;
@@ -936,8 +981,14 @@ static __global__ void find_force_radial(
           gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
           gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
         }
-        float tmp12 = (g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1]) * gnp12 * d12inv;
-        float tmp21 = (g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2]) * gnp21 * d12inv;
+        float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
+        float tmp21 = g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2];
+        if (paramb.charge_mode >= 4) {
+          tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
+          tmp21 += g_C6_derivative[n2 + n * N] * g_D_C6[n2];
+        }
+        tmp12 *= gnp12 * d12inv;
+        tmp21 *= gnp21 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -992,6 +1043,8 @@ static __global__ void find_partial_force_angular(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
   const float* __restrict__ g_sum_fxyz,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_angular,
@@ -1007,8 +1060,12 @@ static __global__ void find_partial_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
-      + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
+        + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      if (paramb.charge_mode >= 4) {
+        tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
+      }
+      Fp[d] = tmp;
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
@@ -1630,8 +1687,8 @@ void NEP_Charge::compute_large_box(
     N1,
     N2,
     box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
+    (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+    (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data(),
     type.data(),
@@ -1646,6 +1703,8 @@ void NEP_Charge::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge.data(),
     nep_data.charge_derivative.data(),
+    nep_data.C6.data(),
+    nep_data.C6_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
@@ -1746,8 +1805,8 @@ void NEP_Charge::compute_large_box(
     N1,
     N2,
     box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
+    (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+    (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
     type.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
@@ -1755,6 +1814,8 @@ void NEP_Charge::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -1780,6 +1841,8 @@ void NEP_Charge::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     nep_data.sum_fxyz.data(),
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
@@ -1900,8 +1963,8 @@ void NEP_Charge::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
+    (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
+    (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
     NN_angular.data(),
     NL_angular.data(),
     type.data(),
@@ -1919,6 +1982,8 @@ void NEP_Charge::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge.data(),
     nep_data.charge_derivative.data(),
+    nep_data.C6.data(),
+    nep_data.C6_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
@@ -2019,8 +2084,8 @@ void NEP_Charge::compute_small_box(
     N,
     N1,
     N2,
-    NN_radial.data(),
-    NL_radial.data(),
+    (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
+    (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
     type.data(),
     r12.data(),
     r12.data() + size_x12,
@@ -2028,6 +2093,8 @@ void NEP_Charge::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -2052,6 +2119,8 @@ void NEP_Charge::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     nep_data.sum_fxyz.data(),
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
