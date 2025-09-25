@@ -17,14 +17,14 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_60
+CUDA_ARCH ?= -arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
 endif
 INC = -I./
-LDFLAGS = 
+LDFLAGS = -L$(MATH_LIB_PATH)
 LIBS = -lcublas -lcusolver
 
 
