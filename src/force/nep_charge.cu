@@ -621,7 +621,7 @@ static __global__ void find_descriptor(
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode == 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
+            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
           rc);
       }
       float rcinv = 1.0f / rc;
