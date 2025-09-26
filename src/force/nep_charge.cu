@@ -282,6 +282,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
+  if (paramb.charge_mode >= 4) {
+    annmb.num_para_ann += annmb.num_neurons1 * paramb.num_types;
+  }
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
