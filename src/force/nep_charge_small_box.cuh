@@ -198,12 +198,12 @@ static __global__ void find_descriptor_small_box(
 #else
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
         rc = min(
           (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
            COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
+            ((paramb.charge_mode == 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
           rc);
       }
       float rcinv = 1.0f / rc;
