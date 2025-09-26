@@ -294,9 +294,6 @@ NEP_Charge::NEP_Charge(
   }
 
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  if (paramb.charge_mode == 4) {
-    charge_para.alpha = float(PI) / paramb.rc_angular;
-  }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
   charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
@@ -1301,7 +1298,7 @@ static __global__ void find_force_vdw_static(
       int index = i1 * N + n1;
       int n2 = g_NL[index];
       float q2 = g_charge[n2];
-      float qq = q1*q1*q2*q2;
+      float qq = q1 * q1 * q2 * q2;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12_2 = d12 * d12;

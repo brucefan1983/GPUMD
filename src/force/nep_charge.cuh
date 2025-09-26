@@ -51,6 +51,9 @@ struct NEP_Charge_Data {
   GPU_Vector<float> D_real;
   GPU_Vector<float> charge;
   GPU_Vector<float> charge_derivative;
+  GPU_Vector<float> C6;                // C6
+  GPU_Vector<float> D_C6;              // related to dynamic C6
+  GPU_Vector<float> C6_derivative;     // dC6/dq
 };
 
 class NEP_Charge : public Potential
@@ -61,6 +64,7 @@ public:
   NEP_Charge_Data nep_data;
 
   struct ParaMB {
+    int charge_mode = 0;
     bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_radial_factor = 0.0f;
@@ -115,7 +119,6 @@ public:
   };
 
   struct Charge_Para {
-    int charge_mode = 0;
     int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
