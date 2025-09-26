@@ -1301,7 +1301,7 @@ static __global__ void find_force_vdw_static(
       int index = i1 * N + n1;
       int n2 = g_NL[index];
       float q2 = g_charge[n2];
-      float qq = q1*q1*q2*q2;
+      float qq = q1 * q1 * q2 * q2;
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12_2 = d12 * d12;
