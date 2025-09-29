@@ -69,6 +69,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_energy_shift_set = false;
+  is_lr_cos_restart_set = false;
 
   prediction = 0;              // not prediction mode
   rc_radial = 8.0f;            // large enough for vdw/coulomb
@@ -98,6 +99,14 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   energy_shift = 0;
   output_descriptor = false;
+
+  // default for lr cosine restart scheduler
+  lr_restart_enable = 0;
+  lr_warmup_epochs = 1;
+  lr_restart_initial_period_epochs = 10; 
+  lr_restart_period_factor = 2.0f;
+  lr_restart_decay_factor = 0.8f;
+  
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
@@ -350,6 +359,15 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of epochs = %d.\n", epoch);
   }
 
+  // report lr cosine restart settings
+  if (lr_restart_enable) {
+    printf("    (input)   lr_cos_restart enabled.\n");
+    printf("              warmup_epochs = %d.\n", lr_warmup_epochs);
+    printf("              initial_period_epochs = %d.\n", lr_restart_initial_period_epochs);
+    printf("              period_factor = %g.\n", lr_restart_period_factor);
+    printf("              decay_factor = %g.\n", lr_restart_decay_factor);
+  }
+
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
@@ -417,6 +435,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_energy_shift(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
+  } else if (strcmp(param[0], "lr_cos_restart") == 0) {
+    parse_lr_cos_restart(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -904,5 +924,61 @@ void Parameters::parse_output_descriptor(const char** param, int num_param)
   }
   if (output_descriptor < 0 || output_descriptor > 2) {
     PRINT_INPUT_ERROR("output_descriptor should >= 0 and <= 2.");
+  }
+}
+
+void Parameters::parse_lr_cos_restart(const char** param, int num_param)
+{
+  // formats supported:
+  // lr_cos_restart enable warmup_epochs initial_period_epochs period_factor decay_factor
+  // minimal: lr_cos_restart 1
+  if (num_param != 2 && num_param != 6) {
+    PRINT_INPUT_ERROR("lr_cos_restart should have 1 or 5 parameters.\n");
+  }
+  int enable_tmp = 0;
+  if (!is_valid_int(param[1], &enable_tmp)) {
+    PRINT_INPUT_ERROR("lr_cos_restart enable should be an integer.\n");
+  }
+  if (enable_tmp != 0 && enable_tmp != 1) {
+    PRINT_INPUT_ERROR("lr_cos_restart enable should = 0 or 1.\n");
+  }
+  lr_restart_enable = enable_tmp;
+  is_lr_cos_restart_set = true;
+  if (num_param == 6) {
+    int warmup_tmp = lr_warmup_epochs;
+    int init_period_tmp = lr_restart_initial_period_epochs;
+    double period_factor_tmp = lr_restart_period_factor;
+    double decay_factor_tmp = lr_restart_decay_factor;
+
+    if (!is_valid_int(param[2], &warmup_tmp)) {
+      PRINT_INPUT_ERROR("lr_cos_restart warmup_epochs should be an integer.\n");
+    }
+    if (!is_valid_int(param[3], &init_period_tmp)) {
+      PRINT_INPUT_ERROR("lr_cos_restart initial_period_epochs should be an integer.\n");
+    }
+    if (!is_valid_real(param[4], &period_factor_tmp)) {
+      PRINT_INPUT_ERROR("lr_cos_restart period_factor should be a number.\n");
+    }
+    if (!is_valid_real(param[5], &decay_factor_tmp)) {
+      PRINT_INPUT_ERROR("lr_cos_restart decay_factor should be a number.\n");
+    }
+
+    if (warmup_tmp < 0) {
+      PRINT_INPUT_ERROR("lr_cos_restart warmup_epochs should >= 0.\n");
+    }
+    if (init_period_tmp < 1) {
+      PRINT_INPUT_ERROR("lr_cos_restart initial_period_epochs should >= 1.\n");
+    }
+    if (period_factor_tmp <= 0.0) {
+      PRINT_INPUT_ERROR("lr_cos_restart period_factor should > 0.\n");
+    }
+    if (decay_factor_tmp <= 0.0) {
+      PRINT_INPUT_ERROR("lr_cos_restart decay_factor should > 0.\n");
+    }
+
+    lr_warmup_epochs = warmup_tmp;
+    lr_restart_initial_period_epochs = init_period_tmp;
+    lr_restart_period_factor = (float)period_factor_tmp;
+    lr_restart_decay_factor = (float)decay_factor_tmp;
   }
 }

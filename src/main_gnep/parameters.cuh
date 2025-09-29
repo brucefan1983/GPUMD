@@ -58,6 +58,14 @@ public:
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
 
+  // learning rate scheduler (cosine annealing with warmup restarts)
+  int lr_restart_enable;                 // 0=off(use cosine), 1=on(use cosine with restarts)
+  int lr_warmup_epochs;                  // warmup epochs before scheduler starts
+  int lr_restart_initial_period_epochs;  // initial restart period in epochs
+  float lr_restart_period_factor;        // factor to scale period length per cycle
+  float lr_restart_decay_factor;         // factor to decay cycle max lr per cycle
+  
+
   // check if a parameter has been set:
   bool is_prediction_set;
   bool is_type_set;
@@ -81,6 +89,7 @@ public:
   bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_energy_shift_set;
+  bool is_lr_cos_restart_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -135,4 +144,5 @@ private:
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_energy_shift(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
+  void parse_lr_cos_restart(const char** param, int num_param);
 };
