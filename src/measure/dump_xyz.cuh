@@ -65,6 +65,7 @@ public:
     bool has_unwrapped_position_ = false;
     bool has_mass_ = false;
     bool has_charge_ = false;
+    bool has_bec_ = false;
     bool has_virial_ = false;
     bool has_group_ = false;
   };
@@ -86,6 +87,7 @@ private:
   std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+  std::vector<float> cpu_bec_;
 
   void output_line2(
     const double time,

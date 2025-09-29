@@ -81,6 +81,12 @@ public:
     return dummy_charge;
   }
 
+  virtual GPU_Vector<float>& get_bec_reference()
+  {
+    static GPU_Vector<float> dummy_bec;
+    return dummy_bec;
+  }
+
 protected:
   void find_properties_many_body(
     Box& box,

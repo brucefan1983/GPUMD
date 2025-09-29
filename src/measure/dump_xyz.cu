@@ -149,7 +149,14 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       } else {
         printf("    has charge specified in model.xyz.\n");
       }
-      
+    }
+    if (strcmp(param[m], "bec") == 0) {
+      quantities.has_bec_ = true;
+      if (is_nep_charge){
+        printf("    has BEC predicted by NEP-charge.\n");
+      } else {
+        PRINT_INPUT_ERROR("Cannot output BEC for a non-NEP-charge model.\n");
+      }
     }
     if (strcmp(param[m], "virial") == 0) {
       quantities.has_virial_ = true;
@@ -188,6 +195,9 @@ void Dump_XYZ::preprocess(
   }
   if (quantities.has_virial_) {
     cpu_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  }
+  if (quantities.has_bec_) {
+    cpu_bec_.resize(atom.number_of_atoms * 9);
   }
 }
 
@@ -262,6 +272,9 @@ void Dump_XYZ::output_line2(
   if (quantities.has_charge_) {
     fprintf(fid_, ":charge:R:1");
   }
+  if (quantities.has_bec_) {
+    fprintf(fid_, ":bec:R:9");
+  }
   if (quantities.has_velocity_) {
     fprintf(fid_, ":vel:R:3");
   }
@@ -320,6 +333,10 @@ void Dump_XYZ::process(
       atom.charge.copy_to_host(atom.cpu_charge.data());
     }
   }
+  if (quantities.has_bec_) {
+    GPU_Vector<float>& gpu_bec = force.potentials[0]->get_bec_reference();
+    gpu_bec.copy_to_host(cpu_bec_.data());
+  }
   if (quantities.has_velocity_) {
     atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
   }
@@ -365,6 +382,11 @@ void Dump_XYZ::process(
     }
     if (quantities.has_charge_) {
       fprintf(fid_, " %.8f", atom.cpu_charge[m]);
+    }
+    if (quantities.has_bec_) {
+      for (int d = 0; d < 9; ++d) {
+        fprintf(fid_, " %.8f", cpu_bec_[m + atom.number_of_atoms * d]);
+      }
     }
     if (quantities.has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
