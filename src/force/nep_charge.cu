@@ -2727,3 +2727,5 @@ const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radi
 const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radial; }
 
 GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }
+
+GPU_Vector<float>& NEP_Charge::get_bec_reference() { return nep_data.bec; }

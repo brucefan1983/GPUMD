@@ -144,6 +144,8 @@ public:
 
   GPU_Vector<float>& get_charge_reference();
 
+  GPU_Vector<float>& get_bec_reference();
+
 private:
   ParaMB paramb;
   ANN annmb;
