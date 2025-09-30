@@ -50,6 +50,39 @@ static void __global__ add_efield(
   }
 }
 
+static void __global__ add_efield_bec(
+  const int num_atoms,
+  const int group_size,
+  const int group_size_sum,
+  const int* g_group_contents,
+  const double Ex,
+  const double Ey,
+  const double Ez,
+  const float* g_bec,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz)
+{
+  const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < group_size) {
+    const int atom_id = g_group_contents[group_size_sum + tid];
+    const double bec[9] = {
+      g_bec[atom_id + 0 * num_atoms],
+      g_bec[atom_id + 1 * num_atoms],
+      g_bec[atom_id + 2 * num_atoms],
+      g_bec[atom_id + 3 * num_atoms],
+      g_bec[atom_id + 4 * num_atoms],
+      g_bec[atom_id + 5 * num_atoms],
+      g_bec[atom_id + 6 * num_atoms],
+      g_bec[atom_id + 7 * num_atoms],
+      g_bec[atom_id + 8 * num_atoms]
+    };
+    g_fx[atom_id] += bec[0] * Ex + bec[1] * Ey + bec[2] * Ez;
+    g_fy[atom_id] += bec[3] * Ex + bec[4] * Ey + bec[5] * Ez;
+    g_fz[atom_id] += bec[6] * Ex + bec[7] * Ey + bec[8] * Ez;
+  }
+}
+
 void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom& atom, Force& force)
 {
   for (int call = 0; call < num_calls_; ++call) {
@@ -61,15 +94,16 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
     if (is_nep_charge) {
-      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
-      add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
+      GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+      add_efield_bec<<<(group_size - 1) / 64 + 1, 64>>>(
+        num_atoms_total,
         group_size,
         group_size_sum,
         groups[grouping_method_[call]].contents.data(),
         Ex,
         Ey,
         Ez,
-        nep_charge.data(),
+        bec.data(),
         atom.force_per_atom.data(),
         atom.force_per_atom.data() + num_atoms_total,
         atom.force_per_atom.data() + num_atoms_total * 2);

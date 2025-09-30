@@ -54,6 +54,7 @@ struct NEP_Charge_Data {
   GPU_Vector<float> C6;                // C6
   GPU_Vector<float> D_C6;              // related to dynamic C6
   GPU_Vector<float> C6_derivative;     // dC6/dq
+  GPU_Vector<float> bec;               // BEC
 };
 
 class NEP_Charge : public Potential
@@ -142,6 +143,8 @@ public:
   const GPU_Vector<int>& get_NL_radial_ptr();
 
   GPU_Vector<float>& get_charge_reference();
+
+  GPU_Vector<float>& get_bec_reference();
 
 private:
   ParaMB paramb;
