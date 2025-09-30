@@ -135,7 +135,52 @@ const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
-const int MAX_LN = MAX_NUM_N * 8; 
+const int MAX_LN = MAX_NUM_N * 8;
+
+// Template specialization to replace switch statement for Z_COEFFICIENT lookup
+template <int L>
+static __device__ __forceinline__ float get_z_coefficient(const int n1, const int n2);
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<1>(const int n1, const int n2) {
+  return Z_COEFFICIENT_1[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<2>(const int n1, const int n2) {
+  return Z_COEFFICIENT_2[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<3>(const int n1, const int n2) {
+  return Z_COEFFICIENT_3[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<4>(const int n1, const int n2) {
+  return Z_COEFFICIENT_4[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<5>(const int n1, const int n2) {
+  return Z_COEFFICIENT_5[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<6>(const int n1, const int n2) {
+  return Z_COEFFICIENT_6[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<7>(const int n1, const int n2) {
+  return Z_COEFFICIENT_7[n1][n2];
+}
+
+template <>
+__device__ __forceinline__ float get_z_coefficient<8>(const int n1, const int n2) {
+  return Z_COEFFICIENT_8[n1][n2];
+}
+
 
 static __device__ __forceinline__ void
 complex_product(const float a, const float b, float& real_part, float& imag_part)
@@ -541,14 +586,15 @@ static __device__ __forceinline__ void calculate_ec_one(
   (*ec) += sum_fxyz[index_0] * base_factor_s_c;
   s[0] = sum_fxyz[index_0] * base_factor;
   f[0] = sum_s2xyz[index_1] * base_factor_s_c;
-  f[1] = sum_s2xyz[index_1 + N * 1] * base_factor_s_c;
+  f[1] = sum_s2xyz[index_1 + N] * base_factor_s_c;
   f[2] = sum_s2xyz[index_1 + N * 2] * base_factor_s_c;
-  f123[0] = sum_s2xyz123[index_123] * base_factor_s_c; 
-  f123[1] = sum_s2xyz123[index_123 + N * 1] * base_factor_s_c;
+  f123[0] = sum_s2xyz123[index_123] * base_factor_s_c;
+  f123[1] = sum_s2xyz123[index_123 + N] * base_factor_s_c;
   f123[2] = sum_s2xyz123[index_123 + N * 2] * base_factor_s_c;
   f123[3] = sum_s2xyz123[index_123 + N * 3] * base_factor_s_c;
   f123[4] = sum_s2xyz123[index_123 + N * 4] * base_factor_s_c;
   f123[5] = sum_s2xyz123[index_123 + N * 5] * base_factor_s_c;
+
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
     int index_s = index_base + k;
@@ -560,10 +606,10 @@ static __device__ __forceinline__ void calculate_ec_one(
     (*ec) += sum_fxyz[index_s0] * s_c_val;
     s[k] = sum_fxyz[index_s0] * c3b_val;
     f[0] += sum_s2xyz[index_s1] * s_c_val;
-    f[1] += sum_s2xyz[index_s1 + N * 1] * s_c_val;
+    f[1] += sum_s2xyz[index_s1 + N] * s_c_val;
     f[2] += sum_s2xyz[index_s1 + N * 2] * s_c_val;
     f123[0] += sum_s2xyz123[index_s123] * s_c_val;
-    f123[1] += sum_s2xyz123[index_s123 + N * 1] * s_c_val;
+    f123[1] += sum_s2xyz123[index_s123 + N] * s_c_val;
     f123[2] += sum_s2xyz123[index_s123 + N * 2] * s_c_val;
     f123[3] += sum_s2xyz123[index_s123 + N * 3] * s_c_val;
     f123[4] += sum_s2xyz123[index_s123 + N * 4] * s_c_val;
@@ -594,6 +640,7 @@ static __device__ __forceinline__ void calculate_fc_one(
   f[0] += sum_s2xyz[index_1] * base_factor_s_c;
   f[1] += sum_s2xyz[index_1 + 1] * base_factor_s_c;
   f[2] += sum_s2xyz[index_1 + 2] * base_factor_s_c;
+
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
     int index_s = L_square_minus_1 + k;
@@ -654,17 +701,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      float coeff;
-      switch(L) {
-        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
-        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
-        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
-        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
-        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
-        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
-        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
-        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
-      }
+      const float coeff = get_z_coefficient<L>(n1, n2);
       z_factor += coeff * z_pow[n2];
       if (n2 > 0) {
         dz_factor += coeff * n2 * z_pow[n2 - 1];
@@ -724,17 +761,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      float coeff;
-      switch(L) {
-        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
-        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
-        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
-        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
-        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
-        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
-        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
-        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
-      }
+      const float coeff = get_z_coefficient<L>(n1, n2);
       z_factor += coeff * z_pow[n2];
       if (n2 > 0) {
         dz_factor += coeff * n2 * z_pow[n2 - 1];
@@ -802,17 +829,7 @@ static __device__ __forceinline__ void calculate_fxyz_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      float coeff;
-      switch(L) {
-        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
-        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
-        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
-        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
-        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
-        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
-        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
-        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
-      }
+      const float coeff = get_z_coefficient<L>(n1, n2);
       z_factor += coeff * z_pow[n2];
       if (n2 > 0) {
         dz_factor += coeff * n2 * z_pow[n2 - 1];
@@ -884,17 +901,7 @@ static __device__ __forceinline__ void calculate_s_i1_one(
     float dz_factor = 0.0f;
     float z_factor_i1 = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      float coeff;
-      switch(L) {
-        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
-        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
-        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
-        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
-        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
-        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
-        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
-        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
-      }
+      const float coeff = get_z_coefficient<L>(n1, n2);
       z_factor += coeff * z_pow[n2];
       if (n2 > 0) {
         dz_factor += coeff * n2 * z_pow[n2 - 1];
@@ -1012,17 +1019,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
     float z_factor = 0.0f;
     float dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      float coeff;
-      switch(L) {
-        case 1: coeff = Z_COEFFICIENT_1[n1][n2]; break;
-        case 2: coeff = Z_COEFFICIENT_2[n1][n2]; break;
-        case 3: coeff = Z_COEFFICIENT_3[n1][n2]; break;
-        case 4: coeff = Z_COEFFICIENT_4[n1][n2]; break;
-        case 5: coeff = Z_COEFFICIENT_5[n1][n2]; break;
-        case 6: coeff = Z_COEFFICIENT_6[n1][n2]; break;
-        case 7: coeff = Z_COEFFICIENT_7[n1][n2]; break;
-        case 8: coeff = Z_COEFFICIENT_8[n1][n2]; break;
-      }
+      const float coeff = get_z_coefficient<L>(n1, n2);
       z_factor += coeff * z_pow[n2];
       if (n2 > 0) {
         dz_factor += coeff * n2 * z_pow[n2 - 1];
@@ -1364,16 +1361,7 @@ calculate_sc_one(
     int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
     float z_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
-      switch(L) {
-        case 1: z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2]; break;
-        case 2: z_factor += Z_COEFFICIENT_2[n1][n2] * z_pow[n2]; break;
-        case 3: z_factor += Z_COEFFICIENT_3[n1][n2] * z_pow[n2]; break;
-        case 4: z_factor += Z_COEFFICIENT_4[n1][n2] * z_pow[n2]; break;
-        case 5: z_factor += Z_COEFFICIENT_5[n1][n2] * z_pow[n2]; break;
-        case 6: z_factor += Z_COEFFICIENT_6[n1][n2] * z_pow[n2]; break;
-        case 7: z_factor += Z_COEFFICIENT_7[n1][n2] * z_pow[n2]; break;
-        case 8: z_factor += Z_COEFFICIENT_8[n1][n2] * z_pow[n2]; break;
-      }
+      z_factor += get_z_coefficient<L>(n1, n2) * z_pow[n2];
     }
     z_factor *= fn;
     if (n1 == 0) {
