@@ -38,9 +38,6 @@ Fitness::Fitness(Parameters& para, Adam* adam)
   lr = para.lr;
   start_lr = para.start_lr;
   stop_lr = para.stop_lr;
-  if (maximum_epochs > 1000) {
-    printf("Warning: Training with epochs > 1000 may lead to slow learning rate adjustments. Consider reducing the number of epochs or continuing training with cosine annealing with warmup restarts.\n");
-  }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
 
@@ -232,10 +229,10 @@ void Fitness::compute(Parameters& para)
       batch_id = batch_indices[batch_id];
       int Nc = train_set[batch_id][0].Nc;
       int virial_Nc = train_set[batch_id][0].sum_virial_Nc;
-      if (maximum_epochs <= 1000) {
-        update_learning_rate_cos(lr, step, num_batches, para);
-      } else {
+      if (para.lr_restart_enable) {
         update_learning_rate_cos_restart(lr, step, num_batches, para);
+      } else {
+        update_learning_rate_cos(lr, step, num_batches, para);
       }
       potential->find_force(
       para,
@@ -332,7 +329,7 @@ void Fitness::update_learning_rate_cos(float& lr, int step, int num_batches, Par
 }
 
 void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para) {
-  const int warmup_epochs = 1;
+  const int warmup_epochs = para.lr_warmup_epochs;
   const int warmup_steps = warmup_epochs * num_batches;
   float progress, smooth_progress;
   if (step < warmup_steps) {
@@ -340,9 +337,9 @@ void Fitness::update_learning_rate_cos_restart(float& lr, int step, int num_batc
     lr = stop_lr + progress * (start_lr - stop_lr);
     return;
   }
-  const int initial_restart_period = 10 * num_batches;  // Initial restart cycle (10 epochs)
-  const float period_factor = 2.0f;                     // Period length decay factor
-  const float decay_factor = 0.8f;                      // Learning rate upper limit decay factor
+  const int initial_restart_period = para.lr_restart_initial_period_epochs * num_batches;
+  const float period_factor = para.lr_restart_period_factor;
+  const float decay_factor = para.lr_restart_decay_factor;
   
   int steps_since_warmup = step - warmup_steps;
   int total_steps = maximum_steps - warmup_steps; 
