@@ -336,6 +336,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
+  nep_data.bec.resize(num_atoms * 9);
   if (paramb.charge_mode >= 4) {
     nep_data.C6.resize(num_atoms);
     nep_data.C6_derivative.resize(num_atoms * annmb.dim);
@@ -783,6 +784,242 @@ static __global__ void zero_total_charge(const int N, float* g_charge)
     int n = tid + batch * 1024;
     if (n < N) {
       g_charge[n] -= s_charge[0] / N;
+    }
+  }
+}
+
+static __global__ void find_bec_diagonal(const int N, const float* g_q, float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    g_bec[n1 + N * 0] = g_q[n1];
+    g_bec[n1 + N * 1] = 0.0f;
+    g_bec[n1 + N * 2] = 0.0f;
+    g_bec[n1 + N * 3] = 0.0f;
+    g_bec[n1 + N * 4] = g_q[n1];
+    g_bec[n1 + N * 5] = 0.0f;
+    g_bec[n1 + N * 6] = 0.0f;
+    g_bec[n1 + N * 7] = 0.0f;
+    g_bec[n1 + N * 8] = g_q[n1];
+  }
+}
+
+static __global__ void find_bec_radial(
+  const NEP_Charge::ParaMB paramb,
+  const NEP_Charge::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const int* g_type,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_charge_derivative,
+  float* g_bec)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    int t1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
+      int t2 = g_type[n2];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      float f12[3] = {0.0f};
+
+      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+        const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp12 * r12[d];
+        }
+      }
+
+      float bec_xx = 0.5f* (r12[0] * f12[0]);
+      float bec_xy = 0.5f* (r12[0] * f12[1]);
+      float bec_xz = 0.5f* (r12[0] * f12[2]);
+      float bec_yx = 0.5f* (r12[1] * f12[0]);
+      float bec_yy = 0.5f* (r12[1] * f12[1]);
+      float bec_yz = 0.5f* (r12[1] * f12[2]);
+      float bec_zx = 0.5f* (r12[2] * f12[0]);
+      float bec_zy = 0.5f* (r12[2] * f12[1]);
+      float bec_zz = 0.5f* (r12[2] * f12[2]);
+
+      atomicAdd(&g_bec[n1], bec_xx);
+      atomicAdd(&g_bec[n1 + N], bec_xy);
+      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
+      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
+      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
+      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
+      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
+      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
+      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+
+      atomicAdd(&g_bec[n2], -bec_xx);
+      atomicAdd(&g_bec[n2 + N], -bec_xy);
+      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
+      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
+      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
+      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
+      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
+      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
+      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+    }
+  }
+}
+
+static __global__ void find_bec_angular(
+  NEP_Charge::ParaMB paramb,
+  NEP_Charge::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const int* g_type,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_charge_derivative,
+  const float* g_sum_fxyz,
+  float* g_bec)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    float Fp[MAX_DIM_ANGULAR] = {0.0f};
+    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      Fp[d] = g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1];
+    }
+    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
+      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+        sum_fxyz[n * NUM_OF_ABC + abc] =
+          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
+      }
+    }
+
+    int t1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+      int n2 = g_NL_angular[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float f12[3] = {0.0f};
+      float fc12, fcp12;
+      int t2 = g_type[n2];
+      float rc = paramb.rc_angular;
+      if (paramb.use_typewise_cutoff) {
+        rc = min(
+          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
+           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
+            paramb.typewise_cutoff_angular_factor,
+          rc);
+      }
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+        float gn12 = 0.0f;
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+        accumulate_f12(
+          paramb.L_max,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
+      }
+
+      float bec_xx = 0.5f* (r12[0] * f12[0]);
+      float bec_xy = 0.5f* (r12[0] * f12[1]);
+      float bec_xz = 0.5f* (r12[0] * f12[2]);
+      float bec_yx = 0.5f* (r12[1] * f12[0]);
+      float bec_yy = 0.5f* (r12[1] * f12[1]);
+      float bec_yz = 0.5f* (r12[1] * f12[2]);
+      float bec_zx = 0.5f* (r12[2] * f12[0]);
+      float bec_zy = 0.5f* (r12[2] * f12[1]);
+      float bec_zz = 0.5f* (r12[2] * f12[2]);
+
+      atomicAdd(&g_bec[n1], bec_xx);
+      atomicAdd(&g_bec[n1 + N], bec_xy);
+      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
+      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
+      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
+      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
+      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
+      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
+      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+
+      atomicAdd(&g_bec[n2], -bec_xx);
+      atomicAdd(&g_bec[n2 + N], -bec_xy);
+      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
+      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
+      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
+      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
+      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
+      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
+      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+    }
+  }
+}
+
+static __global__ void scale_bec(const int N, const float* sqrt_epsilon_inf, float* g_bec)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    for (int d = 0; d < 9; ++d) {
+      g_bec[n1 + N * d] *= sqrt_epsilon_inf[0];
     }
   }
 }
@@ -1805,6 +2042,59 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
+  if (true) { // TODO
+    // get BEC (the diagonal part)
+    find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      nep_data.charge.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (radial descriptor part)
+    find_bec_radial<<<grid_size, BLOCK_SIZE>>>(
+      paramb,
+      annmb,
+      N,
+      N1,
+      N2,
+      box,
+      (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+      (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
+      type.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.charge_derivative.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (angular descriptor part)
+    find_bec_angular<<<grid_size, BLOCK_SIZE>>>(
+      paramb,
+      annmb,
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.NN_angular.data(),
+      nep_data.NL_angular.data(),
+      type.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      nep_data.charge_derivative.data(),
+      nep_data.sum_fxyz.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // scale q to q * sqrt(epsilon_inf)
+    scale_bec<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      annmb.sqrt_epsilon_inf,
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+  }
+
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
@@ -2107,6 +2397,57 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<N, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
+  if (true) { // TODO
+    // get BEC (the diagonal part)
+    find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      nep_data.charge.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (radial descriptor part)
+    find_bec_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+      paramb,
+      annmb,
+      N,
+      N1,
+      N2,
+      (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
+      (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
+      type.data(),
+      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 3 : r12.data(),
+      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 4 : r12.data() + size_x12,
+      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 5 : r12.data() + size_x12 * 2,
+      nep_data.charge_derivative.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // get BEC (angular descriptor part)
+    find_bec_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+      paramb,
+      annmb,
+      N,
+      N1,
+      N2,
+      NN_angular.data(),
+      NL_angular.data(),
+      type.data(),
+      r12.data() + size_x12 * 3,
+      r12.data() + size_x12 * 4,
+      r12.data() + size_x12 * 5,
+      nep_data.charge_derivative.data(),
+      nep_data.sum_fxyz.data(),
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+
+    // scale q to q * sqrt(epsilon_inf)
+    scale_bec<<<grid_size, BLOCK_SIZE>>>(
+      N,
+      annmb.sqrt_epsilon_inf,
+      nep_data.bec.data());
+    GPU_CHECK_KERNEL
+  }
+
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
     find_k_and_G(box.cpu_h);
     find_structure_factor<<<(charge_para.num_kpoints_max - 1) / 64 + 1, 64>>>(
@@ -2386,3 +2727,5 @@ const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radi
 const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radial; }
 
 GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }
+
+GPU_Vector<float>& NEP_Charge::get_bec_reference() { return nep_data.bec; }
