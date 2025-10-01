@@ -77,9 +77,9 @@ static void __global__ add_efield_bec(
       g_bec[atom_id + 7 * num_atoms],
       g_bec[atom_id + 8 * num_atoms]
     };
-    g_fx[atom_id] += bec[0] * Ex + bec[1] * Ey + bec[2] * Ez;
-    g_fy[atom_id] += bec[3] * Ex + bec[4] * Ey + bec[5] * Ez;
-    g_fz[atom_id] += bec[6] * Ex + bec[7] * Ey + bec[8] * Ez;
+    g_fx[atom_id] += bec[0] * Ex + bec[3] * Ey + bec[6] * Ez;
+    g_fy[atom_id] += bec[1] * Ex + bec[4] * Ey + bec[7] * Ez;
+    g_fz[atom_id] += bec[2] * Ex + bec[5] * Ey + bec[8] * Ez;
   }
 }
 
