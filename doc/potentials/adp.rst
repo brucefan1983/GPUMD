@@ -142,23 +142,26 @@ Syntax
 
 To use an ADP potential in GPUMD, specify it in the :file:`run.in` input file with the following syntax::
 
-    potential adp <potential_file> [list of elements]
+    potential adp <potential_file>
 
 where:
 
 - :attr:`<potential_file>`: Path to the ADP potential file (required)
-- :attr:`[list of elements]`: Space-separated list of element symbols for explicit mapping (optional)
 
-The element list, if provided, determines the mapping between atom types in your structure file and elements in the potential file. The number of element types is automatically inferred from the number of elements specified.
+Element types are automatically detected from :file:`model.xyz` based on the element symbols. The potential file header specifies which elements are available, and GPUMD automatically matches atoms in :file:`model.xyz` to the corresponding element parameters in the potential file.
 
 Basic usage
 ^^^^^^^^^^^
 
-For a single-element or auto-detected system::
+For any system (single-element or multi-element)::
 
     potential adp Ta.adp
 
-GPUMD will automatically read the number of elements from the potential file and map them in order.
+GPUMD will automatically:
+
+1. Read the element list from the ADP potential file header
+2. Match atoms in :file:`model.xyz` based on their element symbols
+3. Assign the correct potential parameters to each atom
 
 Single-element system
 ^^^^^^^^^^^^^^^^^^^^^
@@ -167,60 +170,48 @@ For a pure metal system (e.g., pure tantalum)::
 
     potential adp Ta.adp
 
-If not specifying element names, GPUMD will use default mapping (all atoms map to the first element in the ADP file).
-
-You can also explicitly specify the element::
-
-    potential adp Ta.adp Ta
-
-This explicitly maps all atoms in the system to the Ta element from the potential file.
+All atoms labeled as "Ta" in :file:`model.xyz` will automatically use the Ta parameters from the potential file.
 
 Multi-element system
 ^^^^^^^^^^^^^^^^^^^^
 
-For binary alloys, you have several options depending on your system.
+For binary or multi-component alloys, the same simple syntax applies.
 
 **Example 1: Copper-Tantalum (Cu-Ta)**
 
-Simple usage::
+Usage::
 
     potential adp Cu_Ta.adp
 
-Without explicit element mapping, GPUMD uses default mapping (all atoms map to the first element in the potential file).
+GPUMD will:
 
-Explicit element mapping::
-
-    potential adp Cu_Ta.adp Cu Ta
-
-This maps atom type 0 → Cu and atom type 1 → Ta in your structure file.
-
-Reversed element order::
-
-    potential adp Cu_Ta.adp Ta Cu
-
-This maps atom type 0 → Ta and atom type 1 → Cu.
+- Read that the potential file contains Cu and Ta parameters
+- Automatically assign Cu parameters to atoms labeled "Cu" in :file:`model.xyz`
+- Automatically assign Ta parameters to atoms labeled "Ta" in :file:`model.xyz`
 
 **Example 2: Uranium-Molybdenum (U-Mo)**
 
-Simple usage::
+Usage::
 
     potential adp U_Mo.adp
 
-Explicit element mapping::
+GPUMD will:
 
-    potential adp U_Mo.adp U Mo
+- Read that the potential file contains U and Mo parameters  
+- Automatically assign U parameters to atoms labeled "U" in :file:`model.xyz`
+- Automatically assign Mo parameters to atoms labeled "Mo" in :file:`model.xyz`
 
-This maps atom type 0 → U and atom type 1 → Mo in your structure file.
+**Example 3: Pure Mo from a U-Mo potential file**
 
-Reversed element order::
+Usage::
 
-    potential adp U_Mo.adp Mo U
+    potential adp U_Mo.adp
 
-This is useful when your structure file has atom types in a different order than desired.
+If your :file:`model.xyz` only contains Mo atoms (no U atoms), GPUMD will automatically use only the Mo parameters from the potential file. This is useful for testing pure element properties using multi-element potential files.
 
 .. note::
 
-   When using explicit element mapping, the order of elements in the :attr:`[list of elements]` determines how atom types in your structure file correspond to elements in the potential file. The number of elements must match the number of atom types in your system.
+   Element detection is fully automatic based on the element symbols in :file:`model.xyz`. The element symbols must match those defined in the ADP potential file header (line 4). This behavior is consistent with other potentials in GPUMD (e.g., NEP).
 
 References
 ----------

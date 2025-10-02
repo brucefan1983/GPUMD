@@ -190,14 +190,9 @@ void ADP::initialize(const char* file_potential, const int number_of_atoms)
 {
   read_adp_file(file_potential);
   
-  // Build element mapping: from user-specified elements to ADP file elements
-  setup_mapping();
-  
-  // Copy element mapping to GPU if needed
-  if (!element_mapping.empty()) {
-    adp_data.element_mapping_gpu.resize(element_mapping.size());
-    adp_data.element_mapping_gpu.copy_from_host(element_mapping.data());
-  }
+  // Element types are automatically assigned by read_xyz.cu based on model.xyz
+  // and the element list from the ADP potential file header
+  printf("ADP: Using element types from model.xyz (auto-detected from potential file)\n");
   
   setup_spline();
   
@@ -299,7 +294,6 @@ void ADP::ensure_capacity(int number_of_atoms)
   ensure_int_capacity(adp_data.cell_count, number_of_atoms);
   ensure_int_capacity(adp_data.cell_count_sum, number_of_atoms);
   ensure_int_capacity(adp_data.cell_contents, number_of_atoms);
-  ensure_int_capacity(adp_data.mapped_type, number_of_atoms);
 
   const int neighbor_capacity = number_of_atoms * ADP_MAX_NEIGHBORS;
   if (adp_data.NL.size() < neighbor_capacity) {
@@ -316,13 +310,11 @@ void ADP::ensure_capacity(int number_of_atoms)
 
 void ADP::parse_options(const std::vector<std::string>& options)
 {
-  user_elements.clear();
-  
-  // Collect element names (tokens without '=')
-  for (const auto& opt : options) {
-    if (opt.find('=') == std::string::npos) {
-      user_elements.push_back(opt);
-    }
+  // ADP potential currently doesn't support additional options
+  // Element types are automatically determined from model.xyz
+  if (!options.empty()) {
+    printf("Warning: ADP potential ignores command-line options.\n");
+    printf("         Element types are automatically read from model.xyz.\n");
   }
 }
 
@@ -475,48 +467,6 @@ void ADP::read_adp_file(const char* file_potential)
   
 }
 
-void ADP::setup_mapping()
-{
-  // If no user elements specified, use default mapping (all types map to first ADP element)
-  if (user_elements.empty()) {
-    // Default behavior: assume single element system
-    element_mapping.clear();
-    element_mapping.push_back(0);  // All atoms map to first element in ADP file
-    printf("ADP element mapping: using default (all atoms -> %s)\n", 
-           adp_data.elements_list.empty() ? "element_0" : adp_data.elements_list[0].c_str());
-    return;
-  }
-  
-  // Build mapping from user elements to ADP file elements
-  element_mapping.resize(user_elements.size());
-  printf("ADP element mapping: ");
-  
-  for (size_t i = 0; i < user_elements.size(); i++) {
-    element_mapping[i] = -1;  // Invalid initially
-    
-    // Find matching element in ADP file
-    for (int j = 0; j < adp_data.Nelements; j++) {
-      if (user_elements[i] == adp_data.elements_list[j]) {
-        element_mapping[i] = j;
-        break;
-      }
-    }
-    
-    if (element_mapping[i] == -1) {
-      printf("\nError: User element '%s' not found in ADP file.\n", user_elements[i].c_str());
-      printf("Available elements in ADP file: ");
-      for (int j = 0; j < adp_data.Nelements; j++) {
-        printf("%s ", adp_data.elements_list[j].c_str());
-      }
-      printf("\n");
-      PRINT_INPUT_ERROR("Element mapping failed.");
-    }
-    
-    printf("%s->%s ", user_elements[i].c_str(), adp_data.elements_list[element_mapping[i]].c_str());
-  }
-  printf("\n");
-}
-
 void ADP::setup_spline()
 {
   int total_rho_points = adp_data.Nelements * adp_data.nrho;
@@ -641,25 +591,6 @@ void ADP::calculate_spline(
     bf[n_points-1] = 0.0;
     cf[n_points-1] = 0.0;
     df[n_points-1] = 0.0;
-  }
-}
-
-// GPU kernel to map user element types to ADP file element indices
-__global__ void map_element_types(
-  const int N,
-  const int* g_type_user,
-  int* g_type_mapped,
-  const int* g_element_mapping,
-  const int num_user_elements)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N) {
-    int user_type = g_type_user[i];  // Already 0-based from read_xyz.cu
-    if (user_type >= 0 && user_type < num_user_elements) {
-      g_type_mapped[i] = g_element_mapping[user_type];
-    } else {
-      g_type_mapped[i] = 0;  // Default to first element if invalid type
-    }
   }
 }
 
@@ -1112,25 +1043,7 @@ void ADP::compute(
   ensure_capacity(number_of_atoms);
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
   const int* neighbor_shift_ptr = nullptr;
-  
-  // Map user element types to ADP file element indices
-  const int* type_ptr;
-  if (element_mapping.empty()) {
-    // Use original type array directly
-    type_ptr = type.data();
-  } else {
-    // Map types using element mapping
-    const int block_size = 256;
-    const int grid_map = (number_of_atoms - 1) / block_size + 1;
-    map_element_types<<<grid_map, block_size>>>(
-      number_of_atoms,
-      type.data(),
-      adp_data.mapped_type.data(),
-      adp_data.element_mapping_gpu.data(),
-      static_cast<int>(element_mapping.size()));
-    GPU_CHECK_KERNEL
-    type_ptr = adp_data.mapped_type.data();
-  }
+  const int* type_ptr = type.data();
   
   // Build neighbor list with automatic algorithm selection
   {
