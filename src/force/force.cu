@@ -100,7 +100,6 @@ void Force::parse_potential(
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
-  
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -127,18 +126,16 @@ void Force::parse_potential(
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
-    strcmp(potential_name, "nep3_charge1") == 0 || 
-    strcmp(potential_name, "nep3_charge2") == 0 ||
-    strcmp(potential_name, "nep3_charge3") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge1") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep3_zbl_charge3") == 0 ||
     strcmp(potential_name, "nep4_charge1") == 0 ||
     strcmp(potential_name, "nep4_charge2") == 0 ||
     strcmp(potential_name, "nep4_charge3") == 0 ||
+    strcmp(potential_name, "nep4_charge4") == 0 ||
+    strcmp(potential_name, "nep4_charge5") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
+    strcmp(potential_name, "nep4_zbl_charge3") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge4") == 0 ||
+    strcmp(potential_name, "nep4_zbl_charge5") == 0) {
     potential.reset(new NEP_Charge(param[1], number_of_atoms));
     is_nep = true;
     check_types(param[1]);
@@ -512,7 +509,6 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-  
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
@@ -521,7 +517,6 @@ void Force::compute(
       position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
   }
-  GPU_CHECK_KERNEL
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
@@ -809,7 +804,6 @@ void Force::compute(
       position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
   }
-  GPU_CHECK_KERNEL
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
