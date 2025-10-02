@@ -654,7 +654,7 @@ __global__ void map_element_types(
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    int user_type = g_type_user[i] - 1;  // Convert from 1-based to 0-based
+    int user_type = g_type_user[i];  // Already 0-based from read_xyz.cu
     if (user_type >= 0 && user_type < num_user_elements) {
       g_type_mapped[i] = g_element_mapping[user_type];
     } else {
