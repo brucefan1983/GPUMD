@@ -14,32 +14,14 @@
 */
 
 /*----------------------------------------------------------------------------80
-The ADP (Angular Dependent Potential) implementation.
-This is an extension of the EAM potential that includes angular forces through
-dipole and quadruple distortions of the local atomic environment.
+Angular Dependent Potential (ADP)
 
-Reference: Y. Mishin et al., Acta Mater. 53, 4029 (2005)
+This extends the Embedded Atom Method (EAM) by incorporating angular forces
+through dipole and quadrupole distortions of the local atomic environment.
 
-The total energy of atom i is:
-E_i = F_α(∑_{j≠i} ρ_β(r_ij)) + 1/2 ∑_{j≠i} φ_αβ(r_ij) + 1/2 ∑_s (μ_is)^2 + 1/2 ∑_{s,t} (λ_ist)^2 - 1/6 ν_i^2
+Reference: Y. Mishin et al., Acta Materialia 53, 4029-4041 (2005)
 
-Where:
-- F is the embedding energy as a function of electron density ρ  
-- φ is the pair potential interaction
-- μ and λ are dipole and quadruple distortion terms
-- ν is the trace of λ tensor (ν = λ_xx + λ_yy + λ_zz)
-- s,t = 1,2,3 refer to cartesian coordinates (x,y,z)
-
-The dipole and quadruple terms are calculated as:
-μ_is = ∑_{j≠i} u_αβ(r_ij) * r_ij^s
-λ_ist = ∑_{j≠i} w_αβ(r_ij) * r_ij^s * r_ij^t
-
-where u and w are tabulated functions in the ADP potential file.
-
-IMPORTANT IMPLEMENTATION NOTES:
-1. Dipole terms have opposite signs for atom pairs: μ_i += u*r_ij, μ_j -= u*r_ij
-2. Quadruple tensor ordering: [λ_xx, λ_yy, λ_zz, λ_yz, λ_xz, λ_xy] (not [xx,yy,zz,xy,xz,yz])
-3. Energy: E_quad = 0.5*(λ_xx² + λ_yy² + λ_zz²) + 1.0*(λ_yz² + λ_xz² + λ_xy²) - (1/6)*ν²
+Implemented by: Hongjian Chen (Hunan University), hjchen@hnu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "adp.cuh"
