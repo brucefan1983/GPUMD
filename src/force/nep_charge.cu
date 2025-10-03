@@ -316,7 +316,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  ewald.initialize(charge_para.alpha);
+  pppm.initialize(charge_para.alpha);
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
   charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
@@ -1850,7 +1850,7 @@ void NEP_Charge::compute_large_box(
   }
 
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    ewald.find_force(
+    pppm.find_force(
       N,
       N1,
       N2,
@@ -2176,7 +2176,7 @@ void NEP_Charge::compute_small_box(
   }
 
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    ewald.find_force(
+    pppm.find_force(
       N,
       N1,
       N2,
