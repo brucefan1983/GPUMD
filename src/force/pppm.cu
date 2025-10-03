@@ -22,6 +22,7 @@ The k-space part of the PPPM method.
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
 #include <vector>
+#include <iostream>
 
 PPPM::PPPM()
 {
@@ -43,6 +44,28 @@ void PPPM::initialize(const float alpha_input)
   G.resize(num_kpoints_max);
   S_real.resize(num_kpoints_max);
   S_imag.resize(num_kpoints_max);
+}
+
+static int get_best_K(int m)
+{
+  int n = 16;
+  while (n < m) {
+    n *= 2;
+  }
+  return n;
+}
+
+void PPPM::find_K1K2K3(const Box& box)
+{
+  const double mesh_spacing = 1.0; // Is this good enough?
+  double volume = box.get_volume();
+  for (int d = 0; d < 3; ++d) {
+    double box_thickness = volume / box.get_area(d);
+    K[d] = box_thickness / mesh_spacing;
+    K[d] = get_best_K(int(K[d]));
+    std::cout << "K[d]=" << K[d] << std::endl;
+  }
+  K1K2K3 = K[0] * K[1] * K[2];
 }
 
 static void cross_product(const float a[3], const float b[3], float c[3])
@@ -248,7 +271,7 @@ void PPPM::find_force(
   const int N,
   const int N1,
   const int N2,
-  const double* box,
+  const Box& box,
   const GPU_Vector<float>& charge,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<float>& D_real,
@@ -256,7 +279,8 @@ void PPPM::find_force(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
-  find_k_and_G(box);
+  find_K1K2K3(box);
+  find_k_and_G(box.cpu_h);
   find_structure_factor<<<(num_kpoints_max - 1) / 64 + 1, 64>>>(
     num_kpoints_max,
     N1,

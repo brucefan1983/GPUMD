@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include "model/box.cuh"
 
 class PPPM
 {
@@ -26,7 +27,7 @@ public:
     const int N,
     const int N1,
     const int N2,
-    const double* box,
+    const Box& box,
     const GPU_Vector<float>& charge,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<float>& D_real,
@@ -34,6 +35,8 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
 private:
+    int K[3];   // number of mesh points in the box vector directions
+    int K1K2K3; // total number of mesh points
     int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
@@ -43,5 +46,6 @@ private:
     GPU_Vector<float> G;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
+    void find_K1K2K3(const Box& box);
     void find_k_and_G(const double* box);
 };
