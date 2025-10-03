@@ -36,6 +36,11 @@ Ewald::~Ewald()
 
 void Ewald::initialize(const float alpha_input)
 {
+#ifdef DEBUG
+  rng = std::mt19937(12345678);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
   alpha = alpha_input;
   alpha_factor = 0.25f / (alpha * alpha);
   kx.resize(num_kpoints_max);
