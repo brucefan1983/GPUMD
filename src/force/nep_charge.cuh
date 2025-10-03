@@ -18,7 +18,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <random>
+#include "ewald.cuh"
 
 struct NEP_Charge_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -122,7 +122,6 @@ public:
   struct Charge_Para {
     int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
     float A;
     float B;
@@ -153,7 +152,7 @@ private:
   ExpandedBox ebox;
   DFTD3 dftd3;
   Charge_Para charge_para;
-  std::mt19937 rng;
+  Ewald ewald;
 
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE
