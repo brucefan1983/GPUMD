@@ -14,13 +14,12 @@
 */
 
 /*----------------------------------------------------------------------------80
-The k-space part of the PPPM summation
+The k-space part of the PPPM method.
 ------------------------------------------------------------------------------*/
 
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <chrono>
 #include <cmath>
 #include <vector>
 
@@ -36,11 +35,6 @@ PPPM::~PPPM()
 
 void PPPM::initialize(const float alpha_input)
 {
-#ifdef DEBUG
-  rng = std::mt19937(12345678);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
   alpha = alpha_input;
   alpha_factor = 0.25f / (alpha * alpha);
   kx.resize(num_kpoints_max);
@@ -109,40 +103,6 @@ void PPPM::find_k_and_G(const double* box)
   std::vector<float> cpu_kz;
   std::vector<float> cpu_G;
 
-#ifdef USE_RBE
-  std::uniform_real_distribution<float> rand_number(0.0f, 1.0f);
-  float normalization_factor = 0.0f;
-  for (int n1 = 0; n1 <= n1_max; ++n1) {
-    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
-      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-        const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
-        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-        const float ksq = kx * kx + ky * ky + kz * kz;
-        if (ksq < ksq_max) {
-          float exp_factor = exp(-ksq * alpha_factor);
-          normalization_factor += exp_factor;
-          if (rand_number(rng) < exp_factor) {
-            cpu_kx.emplace_back(kx);
-            cpu_ky.emplace_back(ky);
-            cpu_kz.emplace_back(kz);
-            float G = abs(two_pi_over_det) / ksq;
-            cpu_G.emplace_back(2.0f * G);
-          }
-        }
-      }
-    }
-  }
-
-  int num_kpoints = int(cpu_kx.size());
-  for (int n = 0; n < num_kpoints; ++n) {
-    cpu_G[n] *= normalization_factor / num_kpoints;
-  }
-
-#else
-
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
@@ -164,7 +124,6 @@ void PPPM::find_k_and_G(const double* box)
   }
 
   int num_kpoints = int(cpu_kx.size());
-#endif
 
   if (num_kpoints > num_kpoints_max) {
     num_kpoints_max = num_kpoints;

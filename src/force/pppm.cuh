@@ -15,7 +15,6 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <random>
 
 class PPPM
 {
@@ -44,6 +43,5 @@ private:
     GPU_Vector<float> G;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
-    std::mt19937 rng;
     void find_k_and_G(const double* box);
 };
