@@ -83,8 +83,8 @@ void PPPM::find_para(const Box& box)
     para.two_pi_over_K[d] = two_pi / para.K[d];
     std::cout << "K[d]=" << para.K[d] << std::endl;
   }
-  para.K1K2 = para.K[1] * para.K[2];
-  para.K0K1K2 = para.K[0] * para.K1K2;
+  para.K0K1 = para.K[0] * para.K[1];
+  para.K0K1K2 = para.K0K1 * para.K[2];
   std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
 
   float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
@@ -212,9 +212,9 @@ static void __global__ find_k_and_G_opt(
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
     int nk[3];
-    nk[2] = n / para.K1K2;
-    nk[1] = (n - nk[2] * para.K1K2) / para.K[1];
-    nk[0] = n % para.K[1];
+    nk[2] = n / para.K0K1;
+    nk[1] = (n - nk[2] * para.K0K1) / para.K[0];
+    nk[0] = n % para.K[0];
     float denominator[3] = {0.0f};
     for (int d = 0; d < 3; ++d) {
       if (nk[d] >= para.K_half[d]) {
@@ -232,9 +232,9 @@ static void __global__ find_k_and_G_opt(
     g_ky[n] = ky;
     g_kz[n] = kz;
     float ksq = kx * kx + ky * ky + kz * kz;
-    float numerator = sinc(0.5 * para.two_pi_over_K[0] * nk[0]);
-    numerator *= sinc(0.5 * para.two_pi_over_K[1] * nk[1]);
-    numerator *= sinc(0.5 * para.two_pi_over_K[2] * nk[2]);
+    float numerator = sinc(0.5f * para.two_pi_over_K[0] * nk[0]);
+    numerator *= sinc(0.5f * para.two_pi_over_K[1] * nk[1]);
+    numerator *= sinc(0.5f * para.two_pi_over_K[2] * nk[2]);
     numerator *= numerator * numerator;
     numerator *= numerator;
     numerator *= para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);

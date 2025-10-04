@@ -36,7 +36,7 @@ public:
     GPU_Vector<double>& potential_per_atom);
   struct Para {
     int K0K1K2;             // total number of mesh points
-    int K1K2;               // K[1] * K[2]
+    int K0K1;               // K[0] * K[1]
     int K[3];               // number of mesh points in the box vector directions
     int K_half[3];          // K/2
     float alpha_factor;     // 1 / (4 * alpha * alpha)
