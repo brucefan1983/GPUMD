@@ -17,10 +17,10 @@
 The k-space part of the PPPM method.
 ------------------------------------------------------------------------------*/
 
-#include "kiss_fftnd.cuh"
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cufft.h>
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -231,9 +231,9 @@ static __global__ void find_force(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  const kiss_fft_cpx* g_mesh_x_real,
-  const kiss_fft_cpx* g_mesh_y_real,
-  const kiss_fft_cpx* g_mesh_z_real,
+  const cufftComplex* g_mesh_x_real,
+  const cufftComplex* g_mesh_y_real,
+  const cufftComplex* g_mesh_z_real,
   double* g_fx,
   double* g_fy,
   double* g_fz)
@@ -267,9 +267,9 @@ static __global__ void find_force(
           int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
-          E[0] += W * g_mesh_x_real[neighbor012].r;
-          E[1] += W * g_mesh_y_real[neighbor012].r;
-          E[2] += W * g_mesh_z_real[neighbor012].r;
+          E[0] += W * g_mesh_x_real[neighbor012].x;
+          E[1] += W * g_mesh_y_real[neighbor012].x;
+          E[2] += W * g_mesh_z_real[neighbor012].x;
         }
       }
     }
@@ -282,7 +282,7 @@ static __global__ void find_force(
 static void __global__ find_potential_and_virial(
   const int N,
   const PPPM::Para para,
-  const kiss_fft_cpx* g_S,
+  const cufftComplex* g_S,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -298,8 +298,8 @@ static void __global__ find_potential_and_virial(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024;
     if (n < para.K0K1K2) {
-      kiss_fft_cpx S = g_S[n];
-      float GSS = g_G[n] * (S.r * S.r + S.i * S.i);
+      cufftComplex S = g_S[n];
+      float GSS = g_G[n] * (S.x * S.x + S.y * S.y);
       const float kx = g_kx[n];
       const float ky = g_ky[n];
       const float kz = g_kz[n];
@@ -387,4 +387,5 @@ void PPPM::find_force(
 {
   find_para(box);
   exit(1);
+
 }
