@@ -17,6 +17,7 @@
 The k-space part of the PPPM method.
 ------------------------------------------------------------------------------*/
 
+#include "kiss_fftnd.cuh"
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -219,9 +220,9 @@ static void __global__ find_k_and_G_opt(
     // Eq. (6.40) in Allen & Tildesley
     float denominator[3] = {0.0f};
     for (int d = 0; d < 3; ++d) {
-      if (nk[d] >= para.K_half[d]) {
-        nk[d] -= para.K[d];
-      }
+      //if (nk[d] >= para.K_half[d]) {
+        //nk[d] -= para.K[d];
+      //}
       denominator[d] = sin(0.5f * para.two_pi_over_K[d] * nk[d]);
       denominator[d] *= denominator[d];
       denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
@@ -246,7 +247,8 @@ static void __global__ find_k_and_G_opt(
     float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
     G_opt /= denominator[0] * denominator[1] * denominator[2];
 
-    if (nk[0] * nk[1] * nk[2] != 0) {
+    //if (nk[0] * nk[1] * nk[2] != 0) {
+    if (n != 0) {
       g_G[n] = G_opt;
     } else {
       g_G[n] = 0.0;
@@ -304,6 +306,100 @@ static __global__ void find_charge_mesh(
           double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
           atomicAdd(&g_charge_mesh[neighbor012], q * W / para.volume_per_cell);
         }
+      }
+    }
+  }
+}
+
+static void __global__ find_potential_and_virial(
+  const int N,
+  const PPPM::Para para,
+  const kiss_fft_cpx* g_S,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  float* g_virial,
+  float* g_pe)
+{
+  int tid = threadIdx.x;
+  int number_of_batches = (para.K0K1K2 - 1) / 1024 + 1;
+  __shared__ float s_data[1024];
+  float data = 0.0f;
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < para.K0K1K2) {
+      kiss_fft_cpx S = g_S[n];
+      float GSS = g_G[n] * (S.r * S.r + S.i * S.i);
+      const float kx = g_kx[n];
+      const float ky = g_ky[n];
+      const float kz = g_kz[n];
+      const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / (kx * kx + ky * ky + kz * kz);
+      switch (blockIdx.x) {
+        case 0:
+          data += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
+          break;
+        case 1:
+          data += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
+          break;
+        case 2:
+          data += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
+          break;
+        case 3:
+          data -= GSS * (alpha_k_factor * kx * ky); // xy
+          break;
+        case 4:
+          data -= GSS * (alpha_k_factor * ky * kz); // yz
+          break;
+        case 5:
+          data -= GSS * (alpha_k_factor * kz * kx); // zx
+          break;
+        case 6:
+          data += GSS; // potential
+          break;
+      }
+    }
+  }
+  s_data[tid] = data;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  number_of_batches = (N - 1) / 1024 + 1;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < N) {
+      switch (blockIdx.x) {
+        case 0:
+          g_virial[n + 0 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 1:
+          g_virial[n + 1 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 2:
+          g_virial[n + 2 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 3:
+          g_virial[n + 3 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 6 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 4:
+          g_virial[n + 5 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 8 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 5:
+          g_virial[n + 4 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 7 * N] += K_C_SP * s_data[0] / N;
+          break;
+        case 6:
+          g_pe[n] += K_C_SP * s_data[0] / N;
+          break;
       }
     }
   }
