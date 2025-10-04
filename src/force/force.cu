@@ -18,6 +18,7 @@ The driver class calculating force and related quantities.
 #ifdef USE_TENSORFLOW
 #include "dp.cuh"
 #endif
+#include "adp.cuh"
 #include "eam.cuh"
 #include "eam_alloy.cuh"
 #include "fcp.cuh"
@@ -73,11 +74,32 @@ void Force::check_types(const char* file_potential)
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
+  std::unique_ptr<Potential> potential;
+
+  // Special handling for ADP potential: allow extra tokens after filename (as options)
+  if (num_param >= 2 && strcmp(param[1], "adp") == 0) {
+    if (num_param < 3) {
+      PRINT_INPUT_ERROR("For ADP: potential adp <file> [elements ...].\n");
+    }
+    std::vector<std::string> adp_opts;
+    for (int i = 3; i < num_param; ++i) adp_opts.emplace_back(param[i]);
+    potential.reset(adp_opts.empty() ? new ADP(param[2], number_of_atoms)
+                                     : new ADP(param[2], number_of_atoms, adp_opts));
+
+    potential->N1 = 0;
+    potential->N2 = number_of_atoms;
+
+    potentials.push_back(std::move(potential));
+    has_non_nep = true;
+    if (potentials.size() > 1 && has_non_nep) {
+      PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
+    }
+    return;
+  }
+
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
-
-  std::unique_ptr<Potential> potential;
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
