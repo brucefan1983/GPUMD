@@ -55,20 +55,6 @@ static int get_best_K(int m)
   return n;
 }
 
-void PPPM::find_para(const Box& box)
-{
-  const double mesh_spacing = 1.0; // Is this good enough?
-  double volume = box.get_volume();
-  for (int d = 0; d < 3; ++d) {
-    double box_thickness = volume / box.get_area(d);
-    para.K[d] = box_thickness / mesh_spacing;
-    para.K[d] = get_best_K(int(para.K[d]));
-    std::cout << "K[d]=" << para.K[d] << std::endl;
-  }
-  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
-  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
-}
-
 static void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -82,6 +68,38 @@ static float get_area(const float* a, const float* b)
   const float s2 = a[2] * b[0] - a[0] * b[2];
   const float s3 = a[0] * b[1] - a[1] * b[0];
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+void PPPM::find_para(const Box& box)
+{
+  const float two_pi = 6.2831853f;
+  const double mesh_spacing = 1.0; // Is this good enough?
+  double volume = box.get_volume();
+  for (int d = 0; d < 3; ++d) {
+    double box_thickness = volume / box.get_area(d);
+    para.K[d] = box_thickness / mesh_spacing;
+    para.K[d] = get_best_K(int(para.K[d]));
+    para.two_pi_over_K[d] = two_pi / para.K[d];
+    std::cout << "K[d]=" << para.K[d] << std::endl;
+  }
+  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
+  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
+
+  float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
+  float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
+  float a2[3] = {(float)box.cpu_h[2], (float)box.cpu_h[5], (float)box.cpu_h[8]};
+  float det = a0[0] * (a1[1] * a2[2] - a2[1] * a1[2]) +
+              a1[0] * (a2[1] * a0[2] - a0[1] * a2[2]) +
+              a2[0] * (a0[1] * a1[2] - a1[1] * a0[2]);
+  cross_product(a1, a2, para.b[0]);
+  cross_product(a2, a0, para.b[1]);
+  cross_product(a0, a1, para.b[2]);
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    para.b[0][d] *= two_pi_over_det;
+    para.b[1][d] *= two_pi_over_det;
+    para.b[2][d] *= two_pi_over_det;
+  }
 }
 
 void PPPM::find_k_and_G(const double* box)
