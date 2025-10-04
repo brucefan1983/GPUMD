@@ -1,0 +1,467 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*----------------------------------------------------------------------------80
+The k-space part of the PPPM method.
+------------------------------------------------------------------------------*/
+
+#include "pppm.cuh"
+#include "utilities/common.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cmath>
+#include <vector>
+#include <iostream>
+
+PPPM::PPPM()
+{
+  // nothing
+}
+
+PPPM::~PPPM()
+{
+  // nothing
+}
+
+void PPPM::initialize(const float alpha_input)
+{
+  alpha = alpha_input;
+  alpha_factor = 0.25f / (alpha * alpha);
+  kx.resize(num_kpoints_max);
+  ky.resize(num_kpoints_max);
+  kz.resize(num_kpoints_max);
+  G.resize(num_kpoints_max);
+  S_real.resize(num_kpoints_max);
+  S_imag.resize(num_kpoints_max);
+}
+
+static int get_best_K(int m)
+{
+  int n = 16;
+  while (n < m) {
+    n *= 2;
+  }
+  return n;
+}
+
+static void cross_product(const float a[3], const float b[3], float c[3])
+{
+  c[0] =  a[1] * b [2] - a[2] * b [1];
+  c[1] =  a[2] * b [0] - a[0] * b [2];
+  c[2] =  a[0] * b [1] - a[1] * b [0];
+}
+
+static float get_area(const float* a, const float* b)
+{
+  const float s1 = a[1] * b[2] - a[2] * b[1];
+  const float s2 = a[2] * b[0] - a[0] * b[2];
+  const float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+void PPPM::find_para(const Box& box)
+{
+  const float two_pi = 6.2831853f;
+  const double mesh_spacing = 1.0; // Is this good enough?
+  double volume = box.get_volume();
+  for (int d = 0; d < 3; ++d) {
+    double box_thickness = volume / box.get_area(d);
+    para.K[d] = box_thickness / mesh_spacing;
+    para.K[d] = get_best_K(int(para.K[d]));
+    para.K_half[d] = para.K[d] / 2;
+    para.two_pi_over_K[d] = two_pi / para.K[d];
+    std::cout << "K[d]=" << para.K[d] << std::endl;
+  }
+  para.K0K1 = para.K[0] * para.K[1];
+  para.K0K1K2 = para.K0K1 * para.K[2];
+  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
+
+  float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
+  float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
+  float a2[3] = {(float)box.cpu_h[2], (float)box.cpu_h[5], (float)box.cpu_h[8]};
+  float det = a0[0] * (a1[1] * a2[2] - a2[1] * a1[2]) +
+              a1[0] * (a2[1] * a0[2] - a0[1] * a2[2]) +
+              a2[0] * (a0[1] * a1[2] - a1[1] * a0[2]);
+  cross_product(a1, a2, para.b[0]);
+  cross_product(a2, a0, para.b[1]);
+  cross_product(a0, a1, para.b[2]);
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    para.b[0][d] *= two_pi_over_det;
+    para.b[1][d] *= two_pi_over_det;
+    para.b[2][d] *= two_pi_over_det;
+  }
+}
+
+void PPPM::find_k_and_G(const double* box)
+{
+  float a1[3] = {0.0f};
+  float a2[3] = {0.0f};
+  float a3[3] = {0.0f};
+  float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+    box[1] * (box[5] * box[6] - box[3] * box[8]) +
+    box[2] * (box[3] * box[7] - box[4] * box[6]);
+  a1[0] = box[0];
+  a1[1] = box[3];
+  a1[2] = box[6];
+  a2[0] = box[1];
+  a2[1] = box[4];
+  a2[2] = box[7];
+  a3[0] = box[2];
+  a3[1] = box[5];
+  a3[2] = box[8];
+  float b1[3] = {0.0f};
+  float b2[3] = {0.0f};
+  float b3[3] = {0.0f};
+  cross_product(a2, a3, b1);
+  cross_product(a3, a1, b2);
+  cross_product(a1, a2, b3);
+
+  const float two_pi = 6.2831853f;
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    b1[d] *= two_pi_over_det;
+    b2[d] *= two_pi_over_det;
+    b3[d] *= two_pi_over_det;
+  }
+
+  const float volume_k = two_pi * two_pi * two_pi / abs(det);
+  int n1_max = alpha * two_pi * get_area(b2, b3) / volume_k;
+  int n2_max = alpha * two_pi * get_area(b3, b1) / volume_k;
+  int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
+  float ksq_max = two_pi * two_pi * alpha * alpha;
+
+  std::vector<float> cpu_kx;
+  std::vector<float> cpu_ky;
+  std::vector<float> cpu_kz;
+  std::vector<float> cpu_G;
+
+  for (int n1 = 0; n1 <= n1_max; ++n1) {
+    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
+      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+        const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          cpu_kx.emplace_back(kx);
+          cpu_ky.emplace_back(ky);
+          cpu_kz.emplace_back(kz);
+          const float G = abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+          cpu_G.emplace_back(2.0f * G);
+        }
+      }
+    }
+  }
+
+  int num_kpoints = int(cpu_kx.size());
+
+  if (num_kpoints > num_kpoints_max) {
+    num_kpoints_max = num_kpoints;
+    kx.resize(num_kpoints_max);
+    ky.resize(num_kpoints_max);
+    kz.resize(num_kpoints_max);
+    G.resize(num_kpoints_max);
+    S_real.resize(num_kpoints_max);
+    S_imag.resize(num_kpoints_max);
+  }
+
+  kx.copy_from_host(cpu_kx.data(), num_kpoints);
+  ky.copy_from_host(cpu_ky.data(), num_kpoints);
+  kz.copy_from_host(cpu_kz.data(), num_kpoints);
+  G.copy_from_host(cpu_G.data(), num_kpoints);
+}
+
+__constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
+
+__device__ float sinc(float x)
+{
+  float sinc = 0.0f;
+  if (x * x <= 1.0f) {
+    float term = 1.0f;
+    for (int i = 0; i < 6; ++i) {
+      sinc += sinc_coeff[i] * term;
+      term *= x * x;
+    }
+  } else {
+    sinc = sin(x) / x;
+  }
+  return sinc;
+}
+
+static void __global__ find_k_and_G_opt(
+  const PPPM::Para para,
+  float* g_kx,
+  float* g_ky,
+  float* g_kz,
+  float* g_G)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    int nk[3];
+    nk[2] = n / para.K0K1;
+    nk[1] = (n - nk[2] * para.K0K1) / para.K[0];
+    nk[0] = n % para.K[0];
+
+    // Eq. (6.40) in Allen & Tildesley
+    float denominator[3] = {0.0f};
+    for (int d = 0; d < 3; ++d) {
+      if (nk[d] >= para.K_half[d]) {
+        nk[d] -= para.K[d];
+      }
+      denominator[d] = sin(0.5f * para.two_pi_over_K[d] * nk[d]);
+      denominator[d] *= denominator[d];
+      denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
+      denominator[d] *= denominator[d];
+    }
+    float kx = nk[0] * para.b[0][0] + nk[1] * para.b[1][0] + nk[2] * para.b[2][0];
+    float ky = nk[0] * para.b[0][1] + nk[1] * para.b[1][1] + nk[2] * para.b[2][1];
+    float kz = nk[0] * para.b[0][2] + nk[1] * para.b[1][2] + nk[2] * para.b[2][2];
+    g_kx[n] = kx;
+    g_ky[n] = ky;
+    g_kz[n] = kz;
+    float ksq = kx * kx + ky * ky + kz * kz;
+
+    // Eq. (6.39) in Allen & Tildesley
+    float numerator = sinc(0.5f * para.two_pi_over_K[0] * nk[0]);
+    numerator *= sinc(0.5f * para.two_pi_over_K[1] * nk[1]);
+    numerator *= sinc(0.5f * para.two_pi_over_K[2] * nk[2]);
+    numerator *= numerator * numerator;
+    numerator *= numerator;
+
+    // Eq. (41) in Allen & Tildesley
+    float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+    G_opt /= denominator[0] * denominator[1] * denominator[2];
+
+    if (nk[0] * nk[1] * nk[2] != 0) {
+      g_G[n] = G_opt;
+    } else {
+      g_G[n] = 0.0;
+    }
+  }
+}
+
+static __device__ int get_index_within_mesh(const int K, const int n)
+{
+  if (n >= K) {
+    return n - K;
+  } else if (n < 0) {
+    return n + K;
+  }
+}
+
+static __global__ void find_charge_mesh(
+  const int N1,
+  const int N2,
+  const PPPM::Para para,
+  const Box box,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  float* g_charge_mesh)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    float x = g_x[n];
+    float y = g_y[n];
+    float z = g_z[n];
+    float q = g_charge[n];
+    double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    double reduced_pos[3] = {sx * para.K[0], sy * para.K[1], sz * para.K[2]};
+    int ix = int(reduced_pos[0] + 0.5); // can be 0, ..., K[0]
+    int iy = int(reduced_pos[1] + 0.5); // can be 0, ..., K[1]
+    int iz = int(reduced_pos[2] + 0.5); // can be 0, ..., K[2]
+    double dx = reduced_pos[0] - ix; // (-0.5, 0.5)
+    double dy = reduced_pos[1] - iy; // (-0.5, 0.5)
+    double dz = reduced_pos[2] - iz; // (-0.5, 0.5)
+    // Eq. (6.29) in Allen & Tildesley
+    double Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
+    double Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
+    double Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    for (int n0 = -1; n0 <= 1; ++n0) {
+      int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      for (int n1 = -1; n1 <= 1; ++n1) {
+        int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        for (int n2 = -1; n2 <= 1; ++n2) {
+          int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          atomicAdd(&g_charge_mesh[neighbor012], q * W / para.volume_per_cell);
+        }
+      }
+    }
+  }
+}
+
+static __global__ void find_structure_factor(
+  const int num_kpoints_max,
+  const int N1,
+  const int N2,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  float* g_S_real,
+  float* g_S_imag)
+{
+  int nk = blockIdx.x * blockDim.x + threadIdx.x;
+  if (nk < num_kpoints_max) {
+    float S_real = 0.0f;
+    float S_imag = 0.0f;
+    for (int n = N1; n < N2; ++n) {
+      float kr = g_kx[nk] * float(g_x[n]) + g_ky[nk] * float(g_y[n]) + g_kz[nk] * float(g_z[n]);
+      const float charge = g_charge[n];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      S_real += charge * cos_kr;
+      S_imag -= charge * sin_kr;
+    }
+    g_S_real[nk] = S_real;
+    g_S_imag[nk] = S_imag;
+  }
+}
+
+static __global__ void find_force_charge_reciprocal_space(
+  const int N,
+  const int N1,
+  const int N2,
+  const int num_kpoints,
+  const float alpha_factor,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  const float* g_S_real,
+  const float* g_S_imag,
+  float* g_D_real,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    float temp_energy_sum = 0.0f;
+    float temp_virial_sum[6] = {0.0f};
+    float temp_force_sum[3] = {0.0f};
+    float temp_D_real_sum = 0.0f;
+    for (int nk = 0; nk < num_kpoints; ++nk) {
+      const float kx = g_kx[nk];
+      const float ky = g_ky[nk];
+      const float kz = g_kz[nk];
+      const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
+      const float G = g_G[nk];
+      const float S_real = g_S_real[nk];
+      const float S_imag = g_S_imag[nk];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+      const float GSS = G * (S_real * S_real + S_imag * S_imag);
+      temp_energy_sum += GSS;
+      const float alpha_k_factor = 2.0f * alpha_factor + 2.0f / (kx * kx + ky * ky + kz * kz);
+      temp_virial_sum[0] += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
+      temp_virial_sum[1] += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
+      temp_virial_sum[2] += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
+      temp_virial_sum[3] -= GSS * (alpha_k_factor * kx * ky); // xy
+      temp_virial_sum[4] -= GSS * (alpha_k_factor * ky * kz); // yz
+      temp_virial_sum[5] -= GSS * (alpha_k_factor * kz * kx); // zx
+      temp_D_real_sum += G * (S_real * cos_kr - S_imag * sin_kr);
+      temp_force_sum[0] += kx * imag_term;
+      temp_force_sum[1] += ky * imag_term;
+      temp_force_sum[2] += kz * imag_term;
+    }
+    g_pe[n] += K_C_SP * temp_energy_sum / N;
+    g_virial[n + 0 * N] += K_C_SP * temp_virial_sum[0] / N;
+    g_virial[n + 1 * N] += K_C_SP * temp_virial_sum[1] / N;
+    g_virial[n + 2 * N] += K_C_SP * temp_virial_sum[2] / N;
+    g_virial[n + 3 * N] += K_C_SP * temp_virial_sum[3] / N;
+    g_virial[n + 4 * N] += K_C_SP * temp_virial_sum[5] / N;
+    g_virial[n + 5 * N] += K_C_SP * temp_virial_sum[4] / N;
+    g_virial[n + 6 * N] += K_C_SP * temp_virial_sum[3] / N;
+    g_virial[n + 7 * N] += K_C_SP * temp_virial_sum[5] / N;
+    g_virial[n + 8 * N] += K_C_SP * temp_virial_sum[4] / N;
+    g_D_real[n] = 2.0f * K_C_SP * temp_D_real_sum;
+    const float charge_factor = K_C_SP * 2.0f * g_charge[n];
+    g_fx[n] += charge_factor * temp_force_sum[0];
+    g_fy[n] += charge_factor * temp_force_sum[1];
+    g_fz[n] += charge_factor * temp_force_sum[2];
+  }
+}
+
+void PPPM::find_force(
+  const int N,
+  const int N1,
+  const int N2,
+  const Box& box,
+  const GPU_Vector<float>& charge,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<float>& D_real,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& potential_per_atom)
+{
+  find_para(box);
+  find_k_and_G(box.cpu_h);
+  find_structure_factor<<<(num_kpoints_max - 1) / 64 + 1, 64>>>(
+    num_kpoints_max,
+    N1,
+    N2,
+    charge.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    kx.data(),
+    ky.data(),
+    kz.data(),
+    S_real.data(),
+    S_imag.data());
+  GPU_CHECK_KERNEL
+
+  find_force_charge_reciprocal_space<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    N1,
+    N2,
+    num_kpoints_max,
+    alpha_factor,
+    charge.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    kx.data(),
+    ky.data(),
+    kz.data(),
+    G.data(),
+    S_real.data(),
+    S_imag.data(),
+    D_real.data(),
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
+    virial_per_atom.data(),
+    potential_per_atom.data());
+  GPU_CHECK_KERNEL
+}
