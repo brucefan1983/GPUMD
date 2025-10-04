@@ -55,17 +55,18 @@ static int get_best_K(int m)
   return n;
 }
 
-void PPPM::find_K1K2K3(const Box& box)
+void PPPM::find_para(const Box& box)
 {
   const double mesh_spacing = 1.0; // Is this good enough?
   double volume = box.get_volume();
   for (int d = 0; d < 3; ++d) {
     double box_thickness = volume / box.get_area(d);
-    K[d] = box_thickness / mesh_spacing;
-    K[d] = get_best_K(int(K[d]));
-    std::cout << "K[d]=" << K[d] << std::endl;
+    para.K[d] = box_thickness / mesh_spacing;
+    para.K[d] = get_best_K(int(para.K[d]));
+    std::cout << "K[d]=" << para.K[d] << std::endl;
   }
-  K1K2K3 = K[0] * K[1] * K[2];
+  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
+  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
 }
 
 static void cross_product(const float a[3], const float b[3], float c[3])
@@ -279,7 +280,7 @@ void PPPM::find_force(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
-  find_K1K2K3(box);
+  find_para(box);
   find_k_and_G(box.cpu_h);
   find_structure_factor<<<(num_kpoints_max - 1) / 64 + 1, 64>>>(
     num_kpoints_max,

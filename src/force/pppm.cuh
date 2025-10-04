@@ -35,17 +35,21 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
 private:
+  struct Para {
     int K[3];   // number of mesh points in the box vector directions
-    int K1K2K3; // total number of mesh points
-    int num_kpoints_max = 1;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    GPU_Vector<float> kx;
-    GPU_Vector<float> ky;
-    GPU_Vector<float> kz;
-    GPU_Vector<float> G;
-    GPU_Vector<float> S_real;
-    GPU_Vector<float> S_imag;
-    void find_K1K2K3(const Box& box);
-    void find_k_and_G(const double* box);
+    int K0K1K2; // total number of mesh points
+  };
+  Para para;
+
+  int num_kpoints_max = 1;
+  float alpha = 0.5f; // 1 / (2 Angstrom)
+  float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  void find_para(const Box& box);
+  void find_k_and_G(const double* box);
 };
