@@ -215,6 +215,8 @@ static void __global__ find_k_and_G_opt(
     nk[2] = n / para.K0K1;
     nk[1] = (n - nk[2] * para.K0K1) / para.K[0];
     nk[0] = n % para.K[0];
+
+    // Eq. (6.40) in Allen & Tildesley
     float denominator[3] = {0.0f};
     for (int d = 0; d < 3; ++d) {
       if (nk[d] >= para.K_half[d]) {
@@ -232,15 +234,20 @@ static void __global__ find_k_and_G_opt(
     g_ky[n] = ky;
     g_kz[n] = kz;
     float ksq = kx * kx + ky * ky + kz * kz;
+
+    // Eq. (6.39) in Allen & Tildesley
     float numerator = sinc(0.5f * para.two_pi_over_K[0] * nk[0]);
     numerator *= sinc(0.5f * para.two_pi_over_K[1] * nk[1]);
     numerator *= sinc(0.5f * para.two_pi_over_K[2] * nk[2]);
     numerator *= numerator * numerator;
     numerator *= numerator;
-    numerator *= para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+
+    // Eq. (41) in Allen & Tildesley
+    float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+    G_opt /= denominator[0] * denominator[1] * denominator[2];
 
     if (nk[0] * nk[1] * nk[2] != 0) {
-      g_G[n] = numerator / (denominator[0] * denominator[1] * denominator[2]);
+      g_G[n] = G_opt;
     } else {
       g_G[n] = 0.0;
     }
