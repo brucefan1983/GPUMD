@@ -41,6 +41,7 @@ public:
     int K_half[3];          // K/2
     float alpha_factor;     // 1 / (4 * alpha * alpha)
     float two_pi_over_V;    // 2 * pi / volume
+    float volume_per_cell;  // volume / K1K2K3
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K
   };

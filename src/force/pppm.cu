@@ -247,6 +247,61 @@ static void __global__ find_k_and_G_opt(
   }
 }
 
+static __device__ int get_index_within_mesh(const int K, const int n)
+{
+  if (n >= K) {
+    return n - K;
+  } else if (n < 0) {
+    return n + K;
+  }
+}
+
+static __global__ void find_charge_mesh(
+  const int N1,
+  const int N2,
+  const PPPM::Para para,
+  const Box box,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  float* g_charge_mesh)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    float x = g_x[n];
+    float y = g_y[n];
+    float z = g_z[n];
+    float q = g_charge[n];
+    double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    double reduced_pos[3] = {sx * para.K[0], sy * para.K[1], sz * para.K[2]};
+    int ix = int(reduced_pos[0] + 0.5); // can be 0, ..., K[0]
+    int iy = int(reduced_pos[1] + 0.5); // can be 0, ..., K[1]
+    int iz = int(reduced_pos[2] + 0.5); // can be 0, ..., K[2]
+    double dx = reduced_pos[0] - ix; // (-0.5, 0.5)
+    double dy = reduced_pos[1] - iy; // (-0.5, 0.5)
+    double dz = reduced_pos[2] - iz; // (-0.5, 0.5)
+    // Eq. (6.29) in Allen & Tildesley
+    double Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
+    double Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
+    double Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    for (int n0 = -1; n0 <= 1; ++n0) {
+      int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      for (int n1 = -1; n1 <= 1; ++n1) {
+        int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        for (int n2 = -1; n2 <= 1; ++n2) {
+          int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          atomicAdd(&g_charge_mesh[neighbor012], q * W / para.volume_per_cell);
+        }
+      }
+    }
+  }
+}
+
 static __global__ void find_structure_factor(
   const int num_kpoints_max,
   const int N1,
