@@ -79,10 +79,12 @@ void PPPM::find_para(const Box& box)
     double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
     para.K[d] = get_best_K(int(para.K[d]));
+    para.K_half[d] = para.K[d] / 2;
     para.two_pi_over_K[d] = two_pi / para.K[d];
     std::cout << "K[d]=" << para.K[d] << std::endl;
   }
-  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
+  para.K1K2 = para.K[1] * para.K[2];
+  para.K0K1K2 = para.K[0] * para.K1K2;
   std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
 
   float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
@@ -181,6 +183,68 @@ void PPPM::find_k_and_G(const double* box)
   ky.copy_from_host(cpu_ky.data(), num_kpoints);
   kz.copy_from_host(cpu_kz.data(), num_kpoints);
   G.copy_from_host(cpu_G.data(), num_kpoints);
+}
+
+__constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
+
+__device__ float sinc(float x)
+{
+  float sinc = 0.0f;
+  if (x * x <= 1.0f) {
+    float term = 1.0f;
+    for (int i = 0; i < 6; ++i) {
+      sinc += sinc_coeff[i] * term;
+      term *= x * x;
+    }
+  } else {
+    sinc = sin(x) / x;
+  }
+  return sinc;
+}
+
+static void __global__ find_k_and_G_opt(
+  const PPPM::Para para,
+  float* g_kx,
+  float* g_ky,
+  float* g_kz,
+  float* g_G)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    int nk[3];
+    nk[2] = n / para.K1K2;
+    nk[1] = (n - nk[2] * para.K1K2) / para.K[1];
+    nk[0] = n % para.K[1];
+    float denominator[3] = {0.0f};
+    for (int d = 0; d < 3; ++d) {
+      if (nk[d] >= para.K_half[d]) {
+        nk[d] -= para.K[d];
+      }
+      denominator[d] = sin(0.5f * para.two_pi_over_K[d] * nk[d]);
+      denominator[d] *= denominator[d];
+      denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
+      denominator[d] *= denominator[d];
+    }
+    float kx = nk[0] * para.b[0][0] + nk[1] * para.b[1][0] + nk[2] * para.b[2][0];
+    float ky = nk[0] * para.b[0][1] + nk[1] * para.b[1][1] + nk[2] * para.b[2][1];
+    float kz = nk[0] * para.b[0][2] + nk[1] * para.b[1][2] + nk[2] * para.b[2][2];
+    g_kx[n] = kx;
+    g_ky[n] = ky;
+    g_kz[n] = kz;
+    float ksq = kx * kx + ky * ky + kz * kz;
+    float numerator = sinc(0.5 * para.two_pi_over_K[0] * nk[0]);
+    numerator *= sinc(0.5 * para.two_pi_over_K[1] * nk[1]);
+    numerator *= sinc(0.5 * para.two_pi_over_K[2] * nk[2]);
+    numerator *= numerator * numerator;
+    numerator *= numerator;
+    numerator *= para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+
+    if (nk[0] * nk[1] * nk[2] != 0) {
+      g_G[n] = numerator / (denominator[0] * denominator[1] * denominator[2]);
+    } else {
+      g_G[n] = 0.0;
+    }
+  }
 }
 
 static __global__ void find_structure_factor(

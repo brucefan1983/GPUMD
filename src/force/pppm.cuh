@@ -34,15 +34,18 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
-private:
   struct Para {
     int K0K1K2;             // total number of mesh points
+    int K1K2;               // K[1] * K[2]
     int K[3];               // number of mesh points in the box vector directions
+    int K_half[3];          // K/2
+    float alpha_factor;     // 1 / (4 * alpha * alpha)
+    float two_pi_over_V;    // 2 * pi / volume
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
+private:
   Para para;
-
   int num_kpoints_max = 1;
   float alpha = 0.5f; // 1 / (2 Angstrom)
   float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
