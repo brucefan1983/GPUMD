@@ -222,6 +222,63 @@ static __global__ void find_charge_mesh(
   }
 }
 
+static __global__ void find_force(
+  const int N1,
+  const int N2,
+  const PPPM::Para para,
+  const Box box,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_mesh_x_real,
+  const float* g_mesh_y_real,
+  const float* g_mesh_z_real,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    double x = g_x[n];
+    double y = g_y[n];
+    double z = g_z[n];
+    float q = g_charge[n];
+    float sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    float sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    float sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    float reduced_pos[3] = {sx * para.K[0], sy * para.K[1], sz * para.K[2]};
+    int ix = int(reduced_pos[0] + 0.5); // can be 0, ..., K[0]
+    int iy = int(reduced_pos[1] + 0.5); // can be 0, ..., K[1]
+    int iz = int(reduced_pos[2] + 0.5); // can be 0, ..., K[2]
+    float dx = reduced_pos[0] - ix; // (-0.5, 0.5)
+    float dy = reduced_pos[1] - iy; // (-0.5, 0.5)
+    float dz = reduced_pos[2] - iz; // (-0.5, 0.5)
+    // Eq. (6.29) in Allen & Tildesley
+    float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
+    float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
+    float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    float E[3] = {0.0f, 0.0f, 0.0f};
+    for (int n0 = -1; n0 <= 1; ++n0) {
+      int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      for (int n1 = -1; n1 <= 1; ++n1) {
+        int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        for (int n2 = -1; n2 <= 1; ++n2) {
+          int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          E[0] += W * g_mesh_x_real[neighbor012];
+          E[1] += W * g_mesh_y_real[neighbor012];
+          E[2] += W * g_mesh_z_real[neighbor012];
+        }
+      }
+    }
+    g_fx[n] = K_C_SP * q * E[0];
+    g_fy[n] = K_C_SP * q * E[1];
+    g_fz[n] = K_C_SP * q * E[2];
+  } 
+}
+
 static void __global__ find_potential_and_virial(
   const int N,
   const PPPM::Para para,
