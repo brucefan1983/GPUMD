@@ -295,30 +295,34 @@ void __global__ find_potential_and_virial(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = tid + batch * 1024;
     if (n < N) {
+      // virial order
+      // xx xy xz    0 3 4
+      // yx yy yz    6 1 5
+      // zx zy zz    7 8 2
       switch (blockIdx.x) {
         case 0:
-          g_virial[n + 0 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 0 * N] += s_data[0] * para.potential_factor; // xx
           break;
         case 1:
-          g_virial[n + 1 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 1 * N] += s_data[0] * para.potential_factor; // yy
           break;
         case 2:
-          g_virial[n + 2 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 2 * N] += s_data[0] * para.potential_factor; // zz
           break;
         case 3:
-          g_virial[n + 3 * N] += K_C_SP * s_data[0] / N;
-          g_virial[n + 6 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 3 * N] += s_data[0] * para.potential_factor; // xy
+          g_virial[n + 6 * N] += s_data[0] * para.potential_factor; // yx
           break;
         case 4:
-          g_virial[n + 5 * N] += K_C_SP * s_data[0] / N;
-          g_virial[n + 8 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 5 * N] += s_data[0] * para.potential_factor; // yz
+          g_virial[n + 8 * N] += s_data[0] * para.potential_factor; // zy
           break;
         case 5:
-          g_virial[n + 4 * N] += K_C_SP * s_data[0] / N;
-          g_virial[n + 7 * N] += K_C_SP * s_data[0] / N;
+          g_virial[n + 4 * N] += s_data[0] * para.potential_factor; // xz
+          g_virial[n + 7 * N] += s_data[0] * para.potential_factor; // zx
           break;
         case 6:
-          g_pe[n] += K_C_SP * s_data[0] / N;
+          g_pe[n] += s_data[0] * para.potential_factor;
           break;
       }
     }
@@ -360,12 +364,11 @@ void PPPM::initialize(const float alpha_input)
   allocate_memory();
 }
 
-void PPPM::find_para(const Box& box)
+void PPPM::find_para(const int N, const Box& box)
 {
   const float two_pi = 6.2831853f;
   const double mesh_spacing = 1.0; // Is this good enough?
   double volume = box.get_volume();
-  para.two_pi_over_V = two_pi / volume;
   for (int d = 0; d < 3; ++d) {
     double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
@@ -383,6 +386,7 @@ void PPPM::find_para(const Box& box)
     allocate_memory();
   }
   para.volume_per_cell = volume / para.K0K1K2;
+  para.potential_factor = K_C_SP * (0.5f / volume) * para.volume_per_cell * para.volume_per_cell / N;
 
   float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
   float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
@@ -416,7 +420,7 @@ void PPPM::find_force(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
-  find_para(box);
+  find_para(N, box);
 
   find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
     para, 
