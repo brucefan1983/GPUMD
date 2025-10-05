@@ -110,6 +110,15 @@ void __global__ find_k_and_G_opt(
   }
 }
 
+void __global__ set_charge_mesh_to_zero(const PPPM::Para para, cufftComplex* g_charge_mesh)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    g_charge_mesh[n].x = 0.0f;
+    g_charge_mesh[n].y = 0.0f;
+  }
+}
+
 __device__ inline int get_index_within_mesh(const int K, const int n)
 {
   int y = 0;
@@ -416,6 +425,9 @@ void PPPM::find_force(
     ky.data(), 
     kz.data(), 
     G.data());
+  GPU_CHECK_KERNEL
+
+  set_charge_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
   GPU_CHECK_KERNEL
 
   find_charge_mesh<<<(N - 1) / 64 + 1, 64>>>(
