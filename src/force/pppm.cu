@@ -25,29 +25,9 @@ The k-space part of the PPPM method.
 #include <vector>
 #include <iostream>
 
-PPPM::PPPM()
-{
-  // nothing
-}
+namespace{
 
-PPPM::~PPPM()
-{
-  // nothing
-}
-
-void PPPM::initialize(const float alpha_input)
-{
-  alpha = alpha_input;
-  alpha_factor = 0.25f / (alpha * alpha);
-  kx.resize(num_kpoints_max);
-  ky.resize(num_kpoints_max);
-  kz.resize(num_kpoints_max);
-  G.resize(num_kpoints_max);
-  S_real.resize(num_kpoints_max);
-  S_imag.resize(num_kpoints_max);
-}
-
-static int get_best_K(int m)
+int get_best_K(int m)
 {
   int n = 16;
   while (n < m) {
@@ -56,50 +36,16 @@ static int get_best_K(int m)
   return n;
 }
 
-static void cross_product(const float a[3], const float b[3], float c[3])
+void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
   c[1] =  a[2] * b [0] - a[0] * b [2];
   c[2] =  a[0] * b [1] - a[1] * b [0];
 }
 
-void PPPM::find_para(const Box& box)
-{
-  const float two_pi = 6.2831853f;
-  const double mesh_spacing = 1.0; // Is this good enough?
-  double volume = box.get_volume();
-  for (int d = 0; d < 3; ++d) {
-    double box_thickness = volume / box.get_area(d);
-    para.K[d] = box_thickness / mesh_spacing;
-    para.K[d] = get_best_K(int(para.K[d]));
-    para.K_half[d] = para.K[d] / 2;
-    para.two_pi_over_K[d] = two_pi / para.K[d];
-    std::cout << "K[d]=" << para.K[d] << std::endl;
-  }
-  para.K0K1 = para.K[0] * para.K[1];
-  para.K0K1K2 = para.K0K1 * para.K[2];
-  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
-
-  float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
-  float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
-  float a2[3] = {(float)box.cpu_h[2], (float)box.cpu_h[5], (float)box.cpu_h[8]};
-  float det = a0[0] * (a1[1] * a2[2] - a2[1] * a1[2]) +
-              a1[0] * (a2[1] * a0[2] - a0[1] * a2[2]) +
-              a2[0] * (a0[1] * a1[2] - a1[1] * a0[2]);
-  cross_product(a1, a2, para.b[0]);
-  cross_product(a2, a0, para.b[1]);
-  cross_product(a0, a1, para.b[2]);
-  const float two_pi_over_det = two_pi / det;
-  for (int d = 0; d < 3; ++d) {
-    para.b[0][d] *= two_pi_over_det;
-    para.b[1][d] *= two_pi_over_det;
-    para.b[2][d] *= two_pi_over_det;
-  }
-}
-
 __constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
 
-__device__ float sinc(float x)
+__device__ inline float sinc(float x)
 {
   float sinc = 0.0f;
   if (x * x <= 1.0f) {
@@ -167,7 +113,7 @@ static void __global__ find_k_and_G_opt(
   }
 }
 
-static __device__ int get_index_within_mesh(const int K, const int n)
+__device__ inline int get_index_within_mesh(const int K, const int n)
 {
   if (n >= K) {
     return n - K;
@@ -176,7 +122,7 @@ static __device__ int get_index_within_mesh(const int K, const int n)
   }
 }
 
-static __global__ void find_charge_mesh(
+__global__ void find_charge_mesh(
   const int N1,
   const int N2,
   const PPPM::Para para,
@@ -222,7 +168,7 @@ static __global__ void find_charge_mesh(
   }
 }
 
-static __global__ void find_force(
+__global__ void find_force(
   const int N1,
   const int N2,
   const PPPM::Para para,
@@ -279,7 +225,7 @@ static __global__ void find_force(
   } 
 }
 
-static void __global__ find_potential_and_virial(
+void __global__ find_potential_and_virial(
   const int N,
   const PPPM::Para para,
   const cufftComplex* g_S,
@@ -370,6 +316,64 @@ static void __global__ find_potential_and_virial(
           break;
       }
     }
+  }
+}
+
+}
+
+PPPM::PPPM()
+{
+  // nothing
+}
+
+PPPM::~PPPM()
+{
+  // nothing
+}
+
+void PPPM::initialize(const float alpha_input)
+{
+  alpha = alpha_input;
+  alpha_factor = 0.25f / (alpha * alpha);
+  kx.resize(num_kpoints_max);
+  ky.resize(num_kpoints_max);
+  kz.resize(num_kpoints_max);
+  G.resize(num_kpoints_max);
+  S_real.resize(num_kpoints_max);
+  S_imag.resize(num_kpoints_max);
+}
+
+void PPPM::find_para(const Box& box)
+{
+  const float two_pi = 6.2831853f;
+  const double mesh_spacing = 1.0; // Is this good enough?
+  double volume = box.get_volume();
+  for (int d = 0; d < 3; ++d) {
+    double box_thickness = volume / box.get_area(d);
+    para.K[d] = box_thickness / mesh_spacing;
+    para.K[d] = get_best_K(int(para.K[d]));
+    para.K_half[d] = para.K[d] / 2;
+    para.two_pi_over_K[d] = two_pi / para.K[d];
+    std::cout << "K[d]=" << para.K[d] << std::endl;
+  }
+  para.K0K1 = para.K[0] * para.K[1];
+  para.K0K1K2 = para.K0K1 * para.K[2];
+  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
+
+  float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
+  float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
+  float a2[3] = {(float)box.cpu_h[2], (float)box.cpu_h[5], (float)box.cpu_h[8]};
+  float det = a0[0] * (a1[1] * a2[2] - a2[1] * a1[2]) +
+              a1[0] * (a2[1] * a0[2] - a0[1] * a2[2]) +
+              a2[0] * (a0[1] * a1[2] - a1[1] * a0[2]);
+  cross_product(a1, a2, para.b[0]);
+  cross_product(a2, a0, para.b[1]);
+  cross_product(a0, a1, para.b[2]);
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    para.b[0][d] *= two_pi_over_det;
+    para.b[1][d] *= two_pi_over_det;
+    para.b[2][d] *= two_pi_over_det;
   }
 }
 
