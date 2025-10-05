@@ -175,7 +175,7 @@ __global__ void find_charge_mesh(
   }
 }
 
-__global__ void find_force(
+__global__ void find_force_from_field(
   const int N1,
   const int N2,
   const PPPM::Para para,
@@ -184,9 +184,9 @@ __global__ void find_force(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  const cufftComplex* g_mesh_x_real,
-  const cufftComplex* g_mesh_y_real,
-  const cufftComplex* g_mesh_z_real,
+  const cufftComplex* g_mesh_fft_x_ifft,
+  const cufftComplex* g_mesh_fft_y_ifft,
+  const cufftComplex* g_mesh_fft_z_ifft,
   double* g_fx,
   double* g_fy,
   double* g_fz)
@@ -220,9 +220,9 @@ __global__ void find_force(
           int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
-          E[0] += W * g_mesh_x_real[neighbor012].x;
-          E[1] += W * g_mesh_y_real[neighbor012].x;
-          E[2] += W * g_mesh_z_real[neighbor012].x;
+          E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
+          E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
+          E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
         }
       }
     }
@@ -470,6 +470,23 @@ void PPPM::find_force(
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
+
+  find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
+    N1,
+    N2,
+    para,
+    box,
+    charge.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    mesh_fft_x_ifft.data(),
+    mesh_fft_y_ifft.data(),
+    mesh_fft_z_ifft.data(),
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2);
+  GPU_CHECK_KERNEL
 
   cufftDestroy(plan); // optimize later
 
