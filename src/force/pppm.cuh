@@ -57,7 +57,7 @@ private:
   GPU_Vector<cufftComplex> mesh_fft;
   GPU_Vector<cufftComplex> mesh_fft_x;
   GPU_Vector<cufftComplex> mesh_fft_y;
-  GPU_Vector<cufftComplex> mesh_fff_z;
+  GPU_Vector<cufftComplex> mesh_fft_z;
   GPU_Vector<cufftComplex> mesh_fft_x_ifft;
   GPU_Vector<cufftComplex> mesh_fft_y_ifft;
   GPU_Vector<cufftComplex> mesh_fft_z_ifft;

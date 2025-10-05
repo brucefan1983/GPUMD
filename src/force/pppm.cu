@@ -348,7 +348,7 @@ void PPPM::allocate_memory()
   mesh_fft.resize(para.K0K1K2);
   mesh_fft_x.resize(para.K0K1K2);
   mesh_fft_y.resize(para.K0K1K2);
-  mesh_fff_z.resize(para.K0K1K2);
+  mesh_fft_z.resize(para.K0K1K2);
   mesh_fft_x_ifft.resize(para.K0K1K2);
   mesh_fft_y_ifft.resize(para.K0K1K2);
   mesh_fft_z_ifft.resize(para.K0K1K2);
@@ -441,6 +441,37 @@ void PPPM::find_force(
     position_per_atom.data() + N * 2,
     mesh.data());
   GPU_CHECK_KERNEL
+
+  cufftHandle plan; // optimize later
+
+  if (cufftPlan3d(&plan, para.K[0], para.K[1], para.K[2], CUFFT_C2C) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: Plan creation failed" << std::endl;
+    exit(1);
+  }
+
+  if (cufftExecC2C(plan, mesh.data(), mesh_fft.data(), CUFFT_FORWARD) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: ExecC2C Forward failed" << std::endl;
+    exit(1);
+  }
+
+  // TODO: do the multiplication here
+
+  if (cufftExecC2C(plan, mesh_fft_x.data(), mesh_fft_x_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+    exit(1);
+  }
+
+  if (cufftExecC2C(plan, mesh_fft_y.data(), mesh_fft_y_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+    exit(1);
+  }
+
+  if (cufftExecC2C(plan, mesh_fft_z.data(), mesh_fft_z_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+    exit(1);
+  }
+
+  cufftDestroy(plan); // optimize later
 
   //std::vector<float> G_CPU(para.K0K1K2);
  // G.copy_to_host(G_CPU.data());
