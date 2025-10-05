@@ -59,7 +59,7 @@ __device__ inline float sinc(float x)
   return sinc;
 }
 
-void __global__ find_k_and_G_opt(
+void __global__ find_k_and_G(
   const PPPM::Para para,
   float* g_kx,
   float* g_ky,
@@ -398,6 +398,10 @@ void PPPM::find_force(
   GPU_Vector<double>& potential_per_atom)
 {
   find_para(box);
+
+  find_k_and_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, kx.data(), ky.data(), kz.data(), G.data());
+  GPU_CHECK_KERNEL
+
   exit(1);
 
 }
