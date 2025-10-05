@@ -59,7 +59,7 @@ __device__ inline float sinc(float x)
   return sinc;
 }
 
-void __global__ find_k_and_G(
+void __global__ find_k_and_G_opt(
   const PPPM::Para para,
   float* g_kx,
   float* g_ky,
@@ -330,10 +330,8 @@ PPPM::~PPPM()
   // nothing
 }
 
-void PPPM::initialize(const float alpha_input)
+void PPPM::allocate_memory()
 {
-  alpha = alpha_input;
-  alpha_factor = 0.25f / (alpha * alpha);
   kx.resize(para.K0K1K2);
   ky.resize(para.K0K1K2);
   kz.resize(para.K0K1K2);
@@ -346,6 +344,13 @@ void PPPM::initialize(const float alpha_input)
   mesh_fft_x_ifft.resize(para.K0K1K2);
   mesh_fft_y_ifft.resize(para.K0K1K2);
   mesh_fft_z_ifft.resize(para.K0K1K2);
+}
+
+void PPPM::initialize(const float alpha_input)
+{
+  alpha = alpha_input;
+  alpha_factor = 0.25f / (alpha * alpha);
+  allocate_memory();
 }
 
 void PPPM::find_para(const Box& box)
@@ -362,8 +367,13 @@ void PPPM::find_para(const Box& box)
     std::cout << "K[d]=" << para.K[d] << std::endl;
   }
   para.K0K1 = para.K[0] * para.K[1];
-  para.K0K1K2 = para.K0K1 * para.K[2];
-  std::cout << "K0K1K2=" << para.K0K1K2 << std::endl;
+  int K0K1K2 = para.K0K1 * para.K[2];
+  if (K0K1K2 > para.K0K1K2) {
+    std::cout << "old K0K1K2=" << para.K0K1K2 << std::endl;
+    para.K0K1K2 = K0K1K2;
+    std::cout << "new K0K1K2=" << para.K0K1K2 << std::endl;
+    allocate_memory();
+  }
 
   float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
   float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
@@ -399,7 +409,11 @@ void PPPM::find_force(
 {
   find_para(box);
 
-  find_k_and_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, kx.data(), ky.data(), kz.data(), G.data());
+  find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+    para, kx.data(), 
+    ky.data(), 
+    kz.data(), 
+    G.data());
   GPU_CHECK_KERNEL
 
   exit(1);

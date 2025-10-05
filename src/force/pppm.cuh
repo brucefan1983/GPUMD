@@ -63,6 +63,7 @@ private:
   GPU_Vector<cufftComplex> mesh_fft_x_ifft;
   GPU_Vector<cufftComplex> mesh_fft_y_ifft;
   GPU_Vector<cufftComplex> mesh_fft_z_ifft;
+  void allocate_memory();
   void find_para(const Box& box);
   void find_k_and_G(const double* box);
 };
