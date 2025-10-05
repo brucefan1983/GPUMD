@@ -76,9 +76,6 @@ void __global__ find_k_and_G_opt(
     // Eq. (6.40) in Allen & Tildesley
     float denominator[3] = {0.0f};
     for (int d = 0; d < 3; ++d) {
-      //if (nk[d] >= para.K_half[d]) {
-        //nk[d] -= para.K[d];
-      //}
       denominator[d] = sin(0.5f * para.two_pi_over_K[d] * nk[d]);
       denominator[d] *= denominator[d];
       denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
@@ -103,11 +100,10 @@ void __global__ find_k_and_G_opt(
     float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
     G_opt /= denominator[0] * denominator[1] * denominator[2];
 
-    //if (nk[0] * nk[1] * nk[2] != 0) {
     if (n != 0) {
       g_G[n] = G_opt;
     } else {
-      g_G[n] = 0.0;
+      g_G[n] = 0.0f;
     }
   }
 }
