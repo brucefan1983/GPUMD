@@ -175,6 +175,30 @@ __global__ void find_charge_mesh(
   }
 }
 
+void __global__ ik_times_mesh_times_G(
+  const PPPM::Para para,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  const cufftComplex* g_mesh_fft,
+  cufftComplex* g_mesh_fft_x,
+  cufftComplex* g_mesh_fft_y,
+  cufftComplex* g_mesh_fft_z)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    float kx = g_kx[n];
+    float ky = g_ky[n];
+    float kz = g_kz[n];
+    float G = g_G[n];
+    cufftComplex mesh_fft = g_mesh_fft[n];
+    g_mesh_fft_x[n] = {mesh_fft.y * kx * G, -mesh_fft.x * kx * G};
+    g_mesh_fft_y[n] = {mesh_fft.y * ky * G, -mesh_fft.x * ky * G};
+    g_mesh_fft_z[n] = {mesh_fft.y * kz * G, -mesh_fft.x * kz * G};
+  }
+}
+
 __global__ void find_force_from_field(
   const int N1,
   const int N2,
@@ -457,7 +481,17 @@ void PPPM::find_force(
     exit(1);
   }
 
-  // TODO: do the multiplication here
+  ik_times_mesh_times_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+    para,
+    kx.data(),
+    ky.data(),
+    kz.data(),
+    G.data(),
+    mesh_fft.data(),
+    mesh_fft_x.data(),
+    mesh_fft_y.data(),
+    mesh_fft_z.data());
+  GPU_CHECK_KERNEL
 
   if (cufftExecC2C(plan, mesh_fft_x.data(), mesh_fft_x_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
@@ -504,15 +538,4 @@ void PPPM::find_force(
     virial_per_atom.data(),
     potential_per_atom.data());
   GPU_CHECK_KERNEL
-
-  //std::vector<float> G_CPU(para.K0K1K2);
- // G.copy_to_host(G_CPU.data());
-  //for (int k = 0; k < para.K0K1K2; ++k) {
-   // printf("%g\n", G_CPU[k]);
- // }
-
- cudaDeviceSynchronize();
-
-  exit(1);
-
 }
