@@ -76,6 +76,9 @@ void __global__ find_k_and_G_opt(
     // Eq. (6.40) in Allen & Tildesley
     float denominator[3] = {0.0f};
     for (int d = 0; d < 3; ++d) {
+      if (nk[d] >= para.K_half[d]) {
+        nk[d] -= para.K[d];
+      }
       denominator[d] = sin(0.5f * para.two_pi_over_K[d] * nk[d]);
       denominator[d] *= denominator[d];
       denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
@@ -97,13 +100,12 @@ void __global__ find_k_and_G_opt(
     numerator *= numerator;
 
     // Eq. (41) in Allen & Tildesley
-    float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
-    G_opt /= denominator[0] * denominator[1] * denominator[2];
-
-    if (n != 0) {
-      g_G[n] = G_opt;
-    } else {
+    if (ksq == 0.0f) {
       g_G[n] = 0.0f;
+    } else {
+      float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+      G_opt /= denominator[0] * denominator[1] * denominator[2];
+      g_G[n] = G_opt;
     }
   }
 }
@@ -344,8 +346,8 @@ void PPPM::allocate_memory()
 
 void PPPM::initialize(const float alpha_input)
 {
-  alpha = alpha_input;
-  alpha_factor = 0.25f / (alpha * alpha);
+  para.alpha = alpha_input;
+  para.alpha_factor = 0.25f / (para.alpha * para.alpha);
   allocate_memory();
 }
 
@@ -354,6 +356,7 @@ void PPPM::find_para(const Box& box)
   const float two_pi = 6.2831853f;
   const double mesh_spacing = 1.0; // Is this good enough?
   double volume = box.get_volume();
+  para.two_pi_over_V = two_pi / volume;
   for (int d = 0; d < 3; ++d) {
     double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
@@ -406,11 +409,18 @@ void PPPM::find_force(
   find_para(box);
 
   find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
-    para, kx.data(), 
+    para, 
+    kx.data(), 
     ky.data(), 
     kz.data(), 
     G.data());
   GPU_CHECK_KERNEL
+
+  std::vector<float> G_CPU(para.K0K1K2);
+  G.copy_to_host(G_CPU.data());
+  for (int k = 0; k < para.K0K1K2; ++k) {
+    printf("%g\n", G_CPU[k]);
+  }
 
   exit(1);
 

@@ -40,6 +40,7 @@ public:
     int K0K1;               // K[0] * K[1]
     int K[3];               // number of mesh points in the box vector directions
     int K_half[3];          // K/2
+    float alpha;            // The Ewald parameter
     float alpha_factor;     // 1 / (4 * alpha * alpha)
     float two_pi_over_V;    // 2 * pi / volume
     float volume_per_cell;  // volume / K1K2K3
@@ -48,9 +49,6 @@ public:
   };
 private:
   Para para;
-  int num_kpoints_max = 1;
-  float alpha = 0.5f; // 1 / (2 Angstrom)
-  float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   GPU_Vector<float> kx;
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
