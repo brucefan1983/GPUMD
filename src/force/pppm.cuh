@@ -16,6 +16,7 @@
 #pragma once
 #include "utilities/gpu_vector.cuh"
 #include "model/box.cuh"
+#include <cufft.h>
 
 class PPPM
 {
@@ -35,7 +36,7 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
   struct Para {
-    int K0K1K2;             // total number of mesh points
+    int K0K1K2 = 4096;      // total number of mesh points
     int K0K1;               // K[0] * K[1]
     int K[3];               // number of mesh points in the box vector directions
     int K_half[3];          // K/2
@@ -54,8 +55,14 @@ private:
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
   GPU_Vector<float> G;
-  GPU_Vector<float> S_real;
-  GPU_Vector<float> S_imag;
+  GPU_Vector<cufftComplex> mesh;
+  GPU_Vector<cufftComplex> mesh_fft;
+  GPU_Vector<cufftComplex> mesh_fft_x;
+  GPU_Vector<cufftComplex> mesh_fft_y;
+  GPU_Vector<cufftComplex> mesh_fff_z;
+  GPU_Vector<cufftComplex> mesh_fft_x_ifft;
+  GPU_Vector<cufftComplex> mesh_fft_y_ifft;
+  GPU_Vector<cufftComplex> mesh_fft_z_ifft;
   void find_para(const Box& box);
   void find_k_and_G(const double* box);
 };

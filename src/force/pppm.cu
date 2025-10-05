@@ -20,7 +20,6 @@ The k-space part of the PPPM method.
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cufft.h>
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -335,12 +334,18 @@ void PPPM::initialize(const float alpha_input)
 {
   alpha = alpha_input;
   alpha_factor = 0.25f / (alpha * alpha);
-  kx.resize(num_kpoints_max);
-  ky.resize(num_kpoints_max);
-  kz.resize(num_kpoints_max);
-  G.resize(num_kpoints_max);
-  S_real.resize(num_kpoints_max);
-  S_imag.resize(num_kpoints_max);
+  kx.resize(para.K0K1K2);
+  ky.resize(para.K0K1K2);
+  kz.resize(para.K0K1K2);
+  G.resize(para.K0K1K2);
+  mesh.resize(para.K0K1K2);
+  mesh_fft.resize(para.K0K1K2);
+  mesh_fft_x.resize(para.K0K1K2);
+  mesh_fft_y.resize(para.K0K1K2);
+  mesh_fff_z.resize(para.K0K1K2);
+  mesh_fft_x_ifft.resize(para.K0K1K2);
+  mesh_fft_y_ifft.resize(para.K0K1K2);
+  mesh_fft_z_ifft.resize(para.K0K1K2);
 }
 
 void PPPM::find_para(const Box& box)
