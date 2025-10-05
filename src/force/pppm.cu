@@ -60,7 +60,7 @@ __device__ inline float sinc(float x)
   return sinc;
 }
 
-static void __global__ find_k_and_G_opt(
+void __global__ find_k_and_G_opt(
   const PPPM::Para para,
   float* g_kx,
   float* g_ky,
