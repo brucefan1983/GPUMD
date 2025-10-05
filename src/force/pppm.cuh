@@ -42,7 +42,7 @@ public:
     int K_half[3];          // K/2
     float alpha;            // The Ewald parameter
     float alpha_factor;     // 1 / (4 * alpha * alpha)
-    float volume_per_cell;  // volume / K0K1K2
+    float two_pi_over_V;    // 4pi/(2V)
     float potential_factor; // K_C_SP * (1/2V) * volume_per_cell * volume_per_cell / N
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K

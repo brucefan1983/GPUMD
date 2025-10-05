@@ -103,7 +103,7 @@ void __global__ find_k_and_G_opt(
     if (ksq == 0.0f) {
       g_G[n] = 0.0f;
     } else {
-      float G_opt = numerator * 12.566371f / ksq * exp(-ksq * para.alpha_factor);
+      float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
       G_opt /= denominator[0] * denominator[1] * denominator[2];
       g_G[n] = G_opt;
     }
@@ -168,7 +168,7 @@ __global__ void find_charge_mesh(
           int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
-          atomicAdd(&g_charge_mesh[neighbor012].x, q * W / para.volume_per_cell);
+          atomicAdd(&g_charge_mesh[neighbor012].x, q * W);
         }
       }
     }
@@ -196,7 +196,7 @@ __global__ void find_force_from_field(
     double x = g_x[n];
     double y = g_y[n];
     double z = g_z[n];
-    float q = K_C_SP * g_charge[n];
+    float q = K_C_SP * g_charge[n] * 2.0f;
     float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
@@ -369,6 +369,7 @@ void PPPM::find_para(const int N, const Box& box)
   const float two_pi = 6.2831853f;
   const double mesh_spacing = 1.0; // Is this good enough?
   double volume = box.get_volume();
+  para.two_pi_over_V = two_pi / volume;
   for (int d = 0; d < 3; ++d) {
     double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
@@ -385,8 +386,7 @@ void PPPM::find_para(const int N, const Box& box)
     std::cout << "new K0K1K2=" << para.K0K1K2 << std::endl;
     allocate_memory();
   }
-  para.volume_per_cell = volume / para.K0K1K2;
-  para.potential_factor = K_C_SP * (0.5f / volume) * para.volume_per_cell * para.volume_per_cell / N;
+  para.potential_factor = K_C_SP / N;
 
   float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
   float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
