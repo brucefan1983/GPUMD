@@ -79,12 +79,9 @@ void Force::parse_potential(
   // Special handling for ADP potential: allow extra tokens after filename (as options)
   if (num_param >= 2 && strcmp(param[1], "adp") == 0) {
     if (num_param < 3) {
-      PRINT_INPUT_ERROR("For ADP: potential adp <file> [elements ...].\n");
+      PRINT_INPUT_ERROR("For ADP: potential adp <file>.\n");
     }
-    std::vector<std::string> adp_opts;
-    for (int i = 3; i < num_param; ++i) adp_opts.emplace_back(param[i]);
-    potential.reset(adp_opts.empty() ? new ADP(param[2], number_of_atoms)
-                                     : new ADP(param[2], number_of_atoms, adp_opts));
+    potential.reset(new ADP(param[2], number_of_atoms));
 
     potential->N1 = 0;
     potential->N2 = number_of_atoms;

@@ -75,7 +75,6 @@ class ADP : public Potential
 public:
   using Potential::compute;
   ADP(const char* file_potential, const int number_of_atoms);
-  ADP(const char* file_potential, const int number_of_atoms, const std::vector<std::string>& options);
   virtual ~ADP(void);
   virtual void compute(
     Box& box,
@@ -91,7 +90,6 @@ protected:
   ADP_Data adp_data;
   
   // File reading and initialization
-  void parse_options(const std::vector<std::string>& options);
   void read_adp_file(const char* file_potential);
   void setup_spline();
   void calculate_spline(

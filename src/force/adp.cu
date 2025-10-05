@@ -107,6 +107,8 @@ static __global__ void build_neighbor_ON2(
     double needed = rc / box.thickness_x - 0.5;
     if (needed > 0.0) {
       px = static_cast<int>(ceil(needed));
+    } else {
+      px = 1;
     }
   }
   int py = 0;
@@ -114,6 +116,8 @@ static __global__ void build_neighbor_ON2(
     double needed = rc / box.thickness_y - 0.5;
     if (needed > 0.0) {
       py = static_cast<int>(ceil(needed));
+    } else {
+      py = 1;
     }
   }
   int pz = 0;
@@ -121,6 +125,8 @@ static __global__ void build_neighbor_ON2(
     double needed = rc / box.thickness_z - 0.5;
     if (needed > 0.0) {
       pz = static_cast<int>(ceil(needed));
+    } else {
+      pz = 1;
     }
   }
 
@@ -156,15 +162,10 @@ static __global__ void build_neighbor_ON2(
   NN[n1] = count;
 }
 
-ADP::ADP(const char* file_potential, const int number_of_atoms,
-         const std::vector<std::string>& options)
+ADP::ADP(const char* file_potential, const int number_of_atoms)
 {
-  parse_options(options);
   initialize(file_potential, number_of_atoms);
 }
-
-ADP::ADP(const char* file_potential, const int number_of_atoms)
-  : ADP(file_potential, number_of_atoms, std::vector<std::string>{}) {}
 
 ADP::~ADP(void) {}
 
@@ -288,16 +289,6 @@ void ADP::ensure_capacity(int number_of_atoms)
   ensure_double_capacity(adp_data.Fp, number_of_atoms);
   ensure_double_capacity(adp_data.mu, number_of_atoms * 3);
   ensure_double_capacity(adp_data.lambda, number_of_atoms * 6);
-}
-
-void ADP::parse_options(const std::vector<std::string>& options)
-{
-  // ADP potential currently doesn't support additional options
-  // Element types are automatically determined from model.xyz
-  if (!options.empty()) {
-    printf("Warning: ADP potential ignores command-line options.\n");
-    printf("         Element types are automatically read from model.xyz.\n");
-  }
 }
 
 void ADP::read_adp_file(const char* file_potential)
