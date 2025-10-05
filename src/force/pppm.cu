@@ -196,17 +196,16 @@ __global__ void find_force_from_field(
     double x = g_x[n];
     double y = g_y[n];
     double z = g_z[n];
-    float q = g_charge[n];
-    float sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-    float sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-    float sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-    float reduced_pos[3] = {sx * para.K[0], sy * para.K[1], sz * para.K[2]};
-    int ix = int(reduced_pos[0] + 0.5); // can be 0, ..., K[0]
-    int iy = int(reduced_pos[1] + 0.5); // can be 0, ..., K[1]
-    int iz = int(reduced_pos[2] + 0.5); // can be 0, ..., K[2]
-    float dx = reduced_pos[0] - ix; // (-0.5, 0.5)
-    float dy = reduced_pos[1] - iy; // (-0.5, 0.5)
-    float dz = reduced_pos[2] - iz; // (-0.5, 0.5)
+    float q = K_C_SP * g_charge[n];
+    float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
+    float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
+    float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
+    int ix = int(sx + 0.5); // can be 0, ..., K[0]
+    int iy = int(sy + 0.5); // can be 0, ..., K[1]
+    int iz = int(sz + 0.5); // can be 0, ..., K[2]
+    float dx = sx - ix; // (-0.5, 0.5)
+    float dy = sy - iy; // (-0.5, 0.5)
+    float dz = sz - iz; // (-0.5, 0.5)
     // Eq. (6.29) in Allen & Tildesley
     float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
     float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
@@ -219,16 +218,16 @@ __global__ void find_force_from_field(
         for (int n2 = -1; n2 <= 1; ++n2) {
           int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
-          double W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
           E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
           E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
           E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
         }
       }
     }
-    g_fx[n] = K_C_SP * q * E[0];
-    g_fy[n] = K_C_SP * q * E[1];
-    g_fz[n] = K_C_SP * q * E[2];
+    g_fx[n] = q * E[0];
+    g_fy[n] = q * E[1];
+    g_fz[n] = q * E[2];
   } 
 }
 
