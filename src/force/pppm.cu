@@ -356,7 +356,7 @@ void PPPM::find_para(const Box& box)
   for (int d = 0; d < 3; ++d) {
     double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
-    para.K[d] = get_best_K(int(para.K[d]));
+    para.K[d] = get_best_K(para.K[d]);
     para.K_half[d] = para.K[d] / 2;
     para.two_pi_over_K[d] = two_pi / para.K[d];
     std::cout << "K[d]=" << para.K[d] << std::endl;
@@ -380,6 +380,9 @@ void PPPM::find_para(const Box& box)
     para.b[1][d] *= two_pi_over_det;
     para.b[2][d] *= two_pi_over_det;
   }
+  std::cout << "b[0]=" << para.b[0][0] << " " << para.b[0][1] << " " << para.b[0][2] << std::endl;
+  std::cout << "b[1]=" << para.b[1][0] << " " << para.b[1][1] << " " << para.b[1][2] << std::endl;
+  std::cout << "b[2]=" << para.b[2][0] << " " << para.b[2][1] << " " << para.b[2][2] << std::endl;
 }
 
 void PPPM::find_force(
