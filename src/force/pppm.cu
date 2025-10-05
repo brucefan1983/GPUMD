@@ -103,7 +103,7 @@ void __global__ find_k_and_G_opt(
     if (ksq == 0.0f) {
       g_G[n] = 0.0f;
     } else {
-      float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+      float G_opt = numerator * 12.566371f / ksq * exp(-ksq * para.alpha_factor);
       G_opt /= denominator[0] * denominator[1] * denominator[2];
       g_G[n] = G_opt;
     }
