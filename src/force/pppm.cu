@@ -240,8 +240,8 @@ void __global__ find_potential_and_virial(
   const float* g_ky,
   const float* g_kz,
   const float* g_G,
-  float* g_virial,
-  float* g_pe)
+  double* g_virial,
+  double* g_pe)
 {
   int tid = threadIdx.x;
   int number_of_batches = (para.K0K1K2 - 1) / 1024 + 1;
@@ -471,6 +471,8 @@ void PPPM::find_force(
     exit(1);
   }
 
+  cufftDestroy(plan); // optimize later
+
   find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
     N1,
     N2,
@@ -488,7 +490,17 @@ void PPPM::find_force(
     force_per_atom.data() + N * 2);
   GPU_CHECK_KERNEL
 
-  cufftDestroy(plan); // optimize later
+  find_potential_and_virial<<<7, 1024>>>(
+    N,
+    para,
+    mesh_fft.data(),
+    kx.data(),
+    ky.data(),
+    kz.data(),
+    G.data(),
+    virial_per_atom.data(),
+    potential_per_atom.data());
+  GPU_CHECK_KERNEL
 
   //std::vector<float> G_CPU(para.K0K1K2);
  // G.copy_to_host(G_CPU.data());
