@@ -46,17 +46,17 @@ __constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841
 
 __device__ inline float sinc(float x)
 {
-  float sinc = 0.0f;
+  float y = 0.0f;
   if (x * x <= 1.0f) {
     float term = 1.0f;
     for (int i = 0; i < 6; ++i) {
-      sinc += sinc_coeff[i] * term;
+      y += sinc_coeff[i] * term;
       term *= x * x;
     }
   } else {
-    sinc = sin(x) / x;
+    y = sin(x) / x;
   }
-  return sinc;
+  return y;
 }
 
 void __global__ find_k_and_G_opt(
