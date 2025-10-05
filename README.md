@@ -21,6 +21,7 @@ This software is distributed under the GNU General Public License (GPL) version 
 
 ## Compile GPUMD
 * Go to the `src` directory and type `make`.
+* Specific CUDA Architectures and path to CUDA Math libs can be specified, e.g. `make CUDA_ARCH="-arch=sm_80" MATH_LIB_PATH="path/to/cuda/math_libs/lib64"`
 * When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
