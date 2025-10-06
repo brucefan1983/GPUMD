@@ -224,9 +224,9 @@ __global__ void find_force_from_field(
     float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
-    int ix = int(sx + 0.5); // can be 0, ..., K[0]
-    int iy = int(sy + 0.5); // can be 0, ..., K[1]
-    int iz = int(sz + 0.5); // can be 0, ..., K[2]
+    int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    int iz = int(sz + 0.5f); // can be 0, ..., K[2]
     float dx = sx - ix; // (-0.5, 0.5)
     float dy = sy - iy; // (-0.5, 0.5)
     float dz = sz - iz; // (-0.5, 0.5)
