@@ -110,12 +110,12 @@ void __global__ find_k_and_G_opt(
   }
 }
 
-void __global__ set_charge_mesh_to_zero(const PPPM::Para para, cufftComplex* g_charge_mesh)
+void __global__ set_mesh_to_zero(const PPPM::Para para, cufftComplex* g_mesh)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
-    g_charge_mesh[n].x = 0.0f;
-    g_charge_mesh[n].y = 0.0f;
+    g_mesh[n].x = 0.0f;
+    g_mesh[n].y = 0.0f;
   }
 }
 
@@ -130,7 +130,7 @@ __device__ inline int get_index_within_mesh(const int K, const int n)
   return y;
 }
 
-__global__ void find_charge_mesh(
+__global__ void find_mesh(
   const int N1,
   const int N2,
   const PPPM::Para para,
@@ -139,7 +139,7 @@ __global__ void find_charge_mesh(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  cufftComplex* g_charge_mesh)
+  cufftComplex* g_mesh)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n < N2) {
@@ -150,9 +150,9 @@ __global__ void find_charge_mesh(
     float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
-    int ix = int(sx + 0.5); // can be 0, ..., K[0]
-    int iy = int(sy + 0.5); // can be 0, ..., K[1]
-    int iz = int(sz + 0.5); // can be 0, ..., K[2]
+    int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    int iz = int(sz + 0.5f); // can be 0, ..., K[2]
     float dx = sx - ix; // (-0.5, 0.5)
     float dy = sy - iy; // (-0.5, 0.5)
     float dz = sz - iz; // (-0.5, 0.5)
@@ -168,7 +168,7 @@ __global__ void find_charge_mesh(
           int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
-          atomicAdd(&g_charge_mesh[neighbor012].x, q * W);
+          atomicAdd(&g_mesh[neighbor012].x, q * W);
         }
       }
     }
@@ -457,10 +457,10 @@ void PPPM::find_force(
     G.data());
   GPU_CHECK_KERNEL
 
-  set_charge_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
+  set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
   GPU_CHECK_KERNEL
 
-  find_charge_mesh<<<(N - 1) / 64 + 1, 64>>>(
+  find_mesh<<<(N - 1) / 64 + 1, 64>>>(
     N1,
     N2,
     para,
