@@ -121,7 +121,7 @@ void __global__ set_charge_mesh_to_zero(const PPPM::Para para, cufftComplex* g_c
 
 __device__ inline int get_index_within_mesh(const int K, const int n)
 {
-  int y = 0;
+  int y = n;
   if (n >= K) {
     y = n - K;
   } else if (n < 0) {
