@@ -99,7 +99,7 @@ void __global__ find_k_and_G_opt(
     numerator *= numerator * numerator;
     numerator *= numerator;
 
-    // Eq. (41) in Allen & Tildesley
+    // Eq. (6.41) in Allen & Tildesley
     if (ksq == 0.0f) {
       g_G[n] = 0.0f;
     } else {
