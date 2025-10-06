@@ -279,29 +279,32 @@ void __global__ find_potential_and_virial(
       const float kx = g_kx[n];
       const float ky = g_ky[n];
       const float kz = g_kz[n];
-      const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / (kx * kx + ky * ky + kz * kz);
-      switch (blockIdx.x) {
-        case 0:
+      const float ksq = kx * kx + ky * ky + kz * kz;
+      if (ksq != 0.0f) {
+        const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
+        switch (blockIdx.x) {
+          case 0:
           data += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
           break;
-        case 1:
+          case 1:
           data += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
           break;
-        case 2:
+          case 2:
           data += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
           break;
-        case 3:
+          case 3:
           data -= GSS * (alpha_k_factor * kx * ky); // xy
           break;
-        case 4:
+          case 4:
           data -= GSS * (alpha_k_factor * ky * kz); // yz
           break;
-        case 5:
+          case 5:
           data -= GSS * (alpha_k_factor * kz * kx); // zx
           break;
-        case 6:
+          case 6:
           data += GSS; // potential
           break;
+        }
       }
     }
   }
