@@ -368,13 +368,9 @@ void PPPM::allocate_memory()
   kz.resize(para.K0K1K2);
   G.resize(para.K0K1K2);
   mesh.resize(para.K0K1K2);
-  mesh_fft.resize(para.K0K1K2);
-  mesh_fft_x.resize(para.K0K1K2);
-  mesh_fft_y.resize(para.K0K1K2);
-  mesh_fft_z.resize(para.K0K1K2);
-  mesh_fft_x_ifft.resize(para.K0K1K2);
-  mesh_fft_y_ifft.resize(para.K0K1K2);
-  mesh_fft_z_ifft.resize(para.K0K1K2);
+  mesh_x.resize(para.K0K1K2);
+  mesh_y.resize(para.K0K1K2);
+  mesh_z.resize(para.K0K1K2);
 }
 
 void PPPM::initialize(const float alpha_input)
@@ -456,7 +452,7 @@ void PPPM::find_force(
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh.data(), mesh_fft.data(), CUFFT_FORWARD) != CUFFT_SUCCESS) {
+  if (cufftExecC2C(plan, mesh.data(), mesh.data(), CUFFT_FORWARD) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Forward failed" << std::endl;
     exit(1);
   }
@@ -467,23 +463,23 @@ void PPPM::find_force(
     ky.data(),
     kz.data(),
     G.data(),
-    mesh_fft.data(),
-    mesh_fft_x.data(),
-    mesh_fft_y.data(),
-    mesh_fft_z.data());
+    mesh.data(),
+    mesh_x.data(),
+    mesh_y.data(),
+    mesh_z.data());
   GPU_CHECK_KERNEL
 
-  if (cufftExecC2C(plan, mesh_fft_x.data(), mesh_fft_x_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+  if (cufftExecC2C(plan, mesh_x.data(), mesh_x.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh_fft_y.data(), mesh_fft_y_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+  if (cufftExecC2C(plan, mesh_y.data(), mesh_y.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh_fft_z.data(), mesh_fft_z_ifft.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+  if (cufftExecC2C(plan, mesh_z.data(), mesh_z.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
@@ -499,9 +495,9 @@ void PPPM::find_force(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    mesh_fft_x_ifft.data(),
-    mesh_fft_y_ifft.data(),
-    mesh_fft_z_ifft.data(),
+    mesh_x.data(),
+    mesh_y.data(),
+    mesh_z.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2);
@@ -510,7 +506,7 @@ void PPPM::find_force(
   find_potential_and_virial<<<7, 1024>>>(
     N,
     para,
-    mesh_fft.data(),
+    mesh.data(),
     kx.data(),
     ky.data(),
     kz.data(),
