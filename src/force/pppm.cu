@@ -192,6 +192,20 @@ void __global__ ik_times_mesh_times_G(
   }
 }
 
+void __global__ find_mesh_G(
+  const PPPM::Para para,
+  const float* g_G,
+  const cufftComplex* g_mesh,
+  cufftComplex* g_mesh_G)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    const float G = g_G[n];
+    cufftComplex mesh = g_mesh[n];
+    g_mesh_G[n] = {mesh.x * G, mesh.y * G};
+  }
+}
+
 __global__ void find_force_from_field(
   const int N1,
   const int N2,
@@ -201,9 +215,11 @@ __global__ void find_force_from_field(
   const double* g_x,
   const double* g_y,
   const double* g_z,
+  const cufftComplex* g_mesh_G,
   const cufftComplex* g_mesh_fft_x_ifft,
   const cufftComplex* g_mesh_fft_y_ifft,
   const cufftComplex* g_mesh_fft_z_ifft,
+  float* g_D_real,
   double* g_fx,
   double* g_fy,
   double* g_fz)
@@ -227,6 +243,7 @@ __global__ void find_force_from_field(
     const float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
     const float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
     const float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    float D_real = 0.0f;
     float E[3] = {0.0f, 0.0f, 0.0f};
     for (int n0 = -1; n0 <= 1; ++n0) {
       const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
@@ -236,15 +253,17 @@ __global__ void find_force_from_field(
           const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          D_real += W * g_mesh_G[neighbor012].x;
           E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
           E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
           E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
         }
       }
     }
-    g_fx[n] = q * E[0];
-    g_fy[n] = q * E[1];
-    g_fz[n] = q * E[2];
+    g_D_real[n] = 2.0f * K_C_SP * D_real;
+    g_fx[n] += q * E[0];
+    g_fy[n] += q * E[1];
+    g_fz[n] += q * E[2];
   } 
 }
 
@@ -368,6 +387,7 @@ void PPPM::allocate_memory()
   kz.resize(para.K0K1K2);
   G.resize(para.K0K1K2);
   mesh.resize(para.K0K1K2);
+  mesh_G.resize(para.K0K1K2);
   mesh_x.resize(para.K0K1K2);
   mesh_y.resize(para.K0K1K2);
   mesh_z.resize(para.K0K1K2);
@@ -473,6 +493,19 @@ void PPPM::find_force(
     mesh_z.data());
   GPU_CHECK_KERNEL
 
+  find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+    para,
+    G.data(),
+    mesh.data(),
+    mesh_G.data());
+  GPU_CHECK_KERNEL
+
+
+  if (cufftExecC2C(plan, mesh_G.data(), mesh_G.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+    exit(1);
+  }
+
   if (cufftExecC2C(plan, mesh_x.data(), mesh_x.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
@@ -497,9 +530,11 @@ void PPPM::find_force(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
+    mesh_G.data(),
     mesh_x.data(),
     mesh_y.data(),
     mesh_z.data(),
+    D_real.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2);

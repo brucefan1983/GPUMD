@@ -54,6 +54,7 @@ private:
   GPU_Vector<float> kz;
   GPU_Vector<float> G;
   GPU_Vector<cufftComplex> mesh;
+  GPU_Vector<cufftComplex> mesh_G;
   GPU_Vector<cufftComplex> mesh_x;
   GPU_Vector<cufftComplex> mesh_y;
   GPU_Vector<cufftComplex> mesh_z;
