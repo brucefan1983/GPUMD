@@ -474,7 +474,8 @@ void PPPM::find_force(
 
   cufftHandle plan; // optimize later
 
-  if (cufftPlan3d(&plan, para.K[0], para.K[1], para.K[2], CUFFT_C2C) != CUFFT_SUCCESS) {
+  // para.K[2] is the slowest changing dimension; para.K[0] is the fastest changing dimension
+  if (cufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], CUFFT_C2C) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: Plan creation failed" << std::endl;
     exit(1);
   }
