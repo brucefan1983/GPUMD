@@ -358,7 +358,7 @@ PPPM::PPPM()
 
 PPPM::~PPPM()
 {
-  // nothing
+  cufftDestroy(plan);
 }
 
 void PPPM::allocate_memory()
@@ -371,12 +371,21 @@ void PPPM::allocate_memory()
   mesh_x.resize(para.K0K1K2);
   mesh_y.resize(para.K0K1K2);
   mesh_z.resize(para.K0K1K2);
+  // para.K[2] is the slowest changing dimension; para.K[0] is the fastest changing dimension
+  if (cufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], CUFFT_C2C) != CUFFT_SUCCESS) {
+    std::cout << "CUFFT error: Plan creation failed" << std::endl;
+    exit(1);
+  }
 }
 
 void PPPM::initialize(const float alpha_input)
 {
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
+  para.K[0] = 16;
+  para.K[1] = 16;
+  para.K[2] = 16;
+  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
   allocate_memory();
 }
 
@@ -386,17 +395,20 @@ void PPPM::find_para(const int N, const Box& box)
   const double mesh_spacing = 1.0; // Is this good enough?
   const double volume = box.get_volume();
   para.two_pi_over_V = two_pi / volume;
+  int K[3] = {0};
   for (int d = 0; d < 3; ++d) {
     const double box_thickness = volume / box.get_area(d);
-    para.K[d] = box_thickness / mesh_spacing;
-    para.K[d] = get_best_K(para.K[d]);
-    para.K_half[d] = para.K[d] / 2;
-    para.two_pi_over_K[d] = two_pi / para.K[d];
+    K[d] = box_thickness / mesh_spacing;
+    K[d] = get_best_K(K[d]);
+    para.K_half[d] = K[d] / 2;
+    para.two_pi_over_K[d] = two_pi / K[d];
   }
-  para.K0K1 = para.K[0] * para.K[1];
-  const int K0K1K2 = para.K0K1 * para.K[2];
-  if (K0K1K2 > para.K0K1K2) {
-    para.K0K1K2 = K0K1K2;
+  para.K0K1 = K[0] * K[1];
+  para.K0K1K2 = para.K0K1 * K[2];
+  if (K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2]) {
+    para.K[0] = K[0];
+    para.K[1] = K[1];
+    para.K[2] = K[2];
     allocate_memory();
   }
   para.potential_factor = K_C_SP / N;
@@ -444,14 +456,6 @@ void PPPM::find_force(
     mesh.data());
   GPU_CHECK_KERNEL
 
-  cufftHandle plan; // optimize later
-
-  // para.K[2] is the slowest changing dimension; para.K[0] is the fastest changing dimension
-  if (cufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], CUFFT_C2C) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: Plan creation failed" << std::endl;
-    exit(1);
-  }
-
   if (cufftExecC2C(plan, mesh.data(), mesh.data(), CUFFT_FORWARD) != CUFFT_SUCCESS) {
     std::cout << "CUFFT error: ExecC2C Forward failed" << std::endl;
     exit(1);
@@ -483,8 +487,6 @@ void PPPM::find_force(
     std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
-
-  cufftDestroy(plan); // optimize later
 
   find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
     N1,

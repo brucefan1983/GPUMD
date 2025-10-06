@@ -36,14 +36,14 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
   struct Para {
-    int K0K1K2 = 4096;      // total number of mesh points
+    int K0K1K2;             // total number of mesh points
     int K0K1;               // K[0] * K[1]
     int K[3];               // number of mesh points in the box vector directions
     int K_half[3];          // K/2
     float alpha;            // The Ewald parameter
     float alpha_factor;     // 1 / (4 * alpha * alpha)
     float two_pi_over_V;    // 4pi/(2V)
-    float potential_factor; // K_C_SP * (1/2V) * volume_per_cell * volume_per_cell / N
+    float potential_factor; // K_C_SP / N
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
@@ -57,6 +57,7 @@ private:
   GPU_Vector<cufftComplex> mesh_x;
   GPU_Vector<cufftComplex> mesh_y;
   GPU_Vector<cufftComplex> mesh_z;
+  cufftHandle plan;
   void allocate_memory();
   void find_para(const int N, const Box& box);
   void find_k_and_G(const double* box);
