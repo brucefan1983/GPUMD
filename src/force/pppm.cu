@@ -26,7 +26,7 @@ The k-space part of the PPPM method.
 
 namespace{
 
-int get_best_K(int m)
+int get_best_K(const int m)
 {
   int n = 16;
   while (n < m) {
@@ -37,7 +37,7 @@ int get_best_K(int m)
 
 __constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
 
-__device__ inline float sinc(float x)
+__device__ inline float sinc(const float x)
 {
   float y = 0.0f;
   if (x * x <= 1.0f) {
@@ -77,13 +77,13 @@ void __global__ find_k_and_G_opt(
       denominator[d] = 1.0f - denominator[d] + 0.13333333f * denominator[d] * denominator[d];
       denominator[d] *= denominator[d];
     }
-    float kx = nk[0] * para.b[0][0] + nk[1] * para.b[1][0] + nk[2] * para.b[2][0];
-    float ky = nk[0] * para.b[0][1] + nk[1] * para.b[1][1] + nk[2] * para.b[2][1];
-    float kz = nk[0] * para.b[0][2] + nk[1] * para.b[1][2] + nk[2] * para.b[2][2];
+    const float kx = nk[0] * para.b[0][0] + nk[1] * para.b[1][0] + nk[2] * para.b[2][0];
+    const float ky = nk[0] * para.b[0][1] + nk[1] * para.b[1][1] + nk[2] * para.b[2][1];
+    const float kz = nk[0] * para.b[0][2] + nk[1] * para.b[1][2] + nk[2] * para.b[2][2];
     g_kx[n] = kx;
     g_ky[n] = ky;
     g_kz[n] = kz;
-    float ksq = kx * kx + ky * ky + kz * kz;
+    const float ksq = kx * kx + ky * ky + kz * kz;
 
     // Eq. (6.39) in Allen & Tildesley
     float numerator = sinc(0.5f * para.two_pi_over_K[0] * nk[0]);
@@ -105,7 +105,7 @@ void __global__ find_k_and_G_opt(
 
 void __global__ set_mesh_to_zero(const PPPM::Para para, cufftComplex* g_mesh)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
     g_mesh[n].x = 0.0f;
     g_mesh[n].y = 0.0f;
@@ -134,33 +134,33 @@ __global__ void find_mesh(
   const double* g_z,
   cufftComplex* g_mesh)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n < N2) {
-    double x = g_x[n];
-    double y = g_y[n];
-    double z = g_z[n];
-    float q = g_charge[n];
-    float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
-    float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
-    float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
-    int ix = int(sx + 0.5f); // can be 0, ..., K[0]
-    int iy = int(sy + 0.5f); // can be 0, ..., K[1]
-    int iz = int(sz + 0.5f); // can be 0, ..., K[2]
-    float dx = sx - ix; // (-0.5, 0.5)
-    float dy = sy - iy; // (-0.5, 0.5)
-    float dz = sz - iz; // (-0.5, 0.5)
+    const double x = g_x[n];
+    const double y = g_y[n];
+    const double z = g_z[n];
+    const float q = g_charge[n];
+    const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
+    const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
+    const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
+    const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
+    const float dx = sx - ix; // (-0.5, 0.5)
+    const float dy = sy - iy; // (-0.5, 0.5)
+    const float dz = sz - iz; // (-0.5, 0.5)
     // Eq. (6.29) in Allen & Tildesley
-    float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
-    float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
-    float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    const float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
+    const float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
+    const float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
     for (int n0 = -1; n0 <= 1; ++n0) {
-      int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
       for (int n1 = -1; n1 <= 1; ++n1) {
-        int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
         for (int n2 = -1; n2 <= 1; ++n2) {
-          int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
-          int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
-          float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          const float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
           atomicAdd(&g_mesh[neighbor012].x, q * W);
         }
       }
@@ -179,12 +179,12 @@ void __global__ ik_times_mesh_times_G(
   cufftComplex* g_mesh_fft_y,
   cufftComplex* g_mesh_fft_z)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
-    float kx = g_kx[n];
-    float ky = g_ky[n];
-    float kz = g_kz[n];
-    float G = g_G[n];
+    const float kx = g_kx[n];
+    const float ky = g_ky[n];
+    const float kz = g_kz[n];
+    const float G = g_G[n];
     cufftComplex mesh_fft = g_mesh_fft[n];
     g_mesh_fft_x[n] = {mesh_fft.y * kx * G, -mesh_fft.x * kx * G};
     g_mesh_fft_y[n] = {mesh_fft.y * ky * G, -mesh_fft.x * ky * G};
@@ -208,34 +208,34 @@ __global__ void find_force_from_field(
   double* g_fy,
   double* g_fz)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n < N2) {
-    double x = g_x[n];
-    double y = g_y[n];
-    double z = g_z[n];
-    float q = K_C_SP * g_charge[n] * 2.0f;
-    float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
-    float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
-    float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
-    int ix = int(sx + 0.5f); // can be 0, ..., K[0]
-    int iy = int(sy + 0.5f); // can be 0, ..., K[1]
-    int iz = int(sz + 0.5f); // can be 0, ..., K[2]
-    float dx = sx - ix; // (-0.5, 0.5)
-    float dy = sy - iy; // (-0.5, 0.5)
-    float dz = sz - iz; // (-0.5, 0.5)
+    const double x = g_x[n];
+    const double y = g_y[n];
+    const double z = g_z[n];
+    const float q = K_C_SP * g_charge[n] * 2.0f;
+    const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
+    const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
+    const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
+    const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
+    const float dx = sx - ix; // (-0.5, 0.5)
+    const float dy = sy - iy; // (-0.5, 0.5)
+    const float dz = sz - iz; // (-0.5, 0.5)
     // Eq. (6.29) in Allen & Tildesley
-    float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
-    float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
-    float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
+    const float Wx[3] = {0.5f * (0.5f - dx) * (0.5f - dx), 0.75f - dx * dx, 0.5f * (0.5f + dx) * (0.5f + dx)};
+    const float Wy[3] = {0.5f * (0.5f - dy) * (0.5f - dy), 0.75f - dy * dy, 0.5f * (0.5f + dy) * (0.5f + dy)};
+    const float Wz[3] = {0.5f * (0.5f - dz) * (0.5f - dz), 0.75f - dz * dz, 0.5f * (0.5f + dz) * (0.5f + dz)};
     float E[3] = {0.0f, 0.0f, 0.0f};
     for (int n0 = -1; n0 <= 1; ++n0) {
-      int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
       for (int n1 = -1; n1 <= 1; ++n1) {
-        int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
         for (int n2 = -1; n2 <= 1; ++n2) {
-          int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
-          int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
-          float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          const float W = Wx[n0 + 1] * Wy[n1 + 1] * Wz[n2 + 1];
           E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
           E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
           E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
@@ -259,16 +259,16 @@ void __global__ find_potential_and_virial(
   double* g_virial,
   double* g_pe)
 {
-  int tid = threadIdx.x;
+  const int tid = threadIdx.x;
   int number_of_batches = (para.K0K1K2 - 1) / 1024 + 1;
   __shared__ float s_data[1024];
   float data = 0.0f;
 
   for (int batch = 0; batch < number_of_batches; ++batch) {
-    int n = tid + batch * 1024;
+    const int n = tid + batch * 1024;
     if (n < para.K0K1K2) {
       cufftComplex S = g_S[n];
-      float GSS = g_G[n] * (S.x * S.x + S.y * S.y);
+      const float GSS = g_G[n] * (S.x * S.x + S.y * S.y);
       const float kx = g_kx[n];
       const float ky = g_ky[n];
       const float kz = g_kz[n];
@@ -313,7 +313,7 @@ void __global__ find_potential_and_virial(
 
   number_of_batches = (N - 1) / 1024 + 1;
   for (int batch = 0; batch < number_of_batches; ++batch) {
-    int n = tid + batch * 1024;
+    const int n = tid + batch * 1024;
     if (n < N) {
       // virial order
       // xx xy xz    0 3 4
@@ -388,17 +388,17 @@ void PPPM::find_para(const int N, const Box& box)
 {
   const float two_pi = 6.2831853f;
   const double mesh_spacing = 1.0; // Is this good enough?
-  double volume = box.get_volume();
+  const double volume = box.get_volume();
   para.two_pi_over_V = two_pi / volume;
   for (int d = 0; d < 3; ++d) {
-    double box_thickness = volume / box.get_area(d);
+    const double box_thickness = volume / box.get_area(d);
     para.K[d] = box_thickness / mesh_spacing;
     para.K[d] = get_best_K(para.K[d]);
     para.K_half[d] = para.K[d] / 2;
     para.two_pi_over_K[d] = two_pi / para.K[d];
   }
   para.K0K1 = para.K[0] * para.K[1];
-  int K0K1K2 = para.K0K1 * para.K[2];
+  const int K0K1K2 = para.K0K1 * para.K[2];
   if (K0K1K2 > para.K0K1K2) {
     para.K0K1K2 = K0K1K2;
     allocate_memory();
