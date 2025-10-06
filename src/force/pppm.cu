@@ -35,13 +35,6 @@ int get_best_K(int m)
   return n;
 }
 
-void cross_product(const float a[3], const float b[3], float c[3])
-{
-  c[0] =  a[1] * b [2] - a[2] * b [1];
-  c[1] =  a[2] * b [0] - a[0] * b [2];
-  c[2] =  a[0] * b [1] - a[1] * b [0];
-}
-
 __constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
 
 __device__ inline float sinc(float x)
@@ -403,36 +396,19 @@ void PPPM::find_para(const int N, const Box& box)
     para.K[d] = get_best_K(para.K[d]);
     para.K_half[d] = para.K[d] / 2;
     para.two_pi_over_K[d] = two_pi / para.K[d];
-    std::cout << "K[d]=" << para.K[d] << std::endl;
   }
   para.K0K1 = para.K[0] * para.K[1];
   int K0K1K2 = para.K0K1 * para.K[2];
   if (K0K1K2 > para.K0K1K2) {
-    std::cout << "old K0K1K2=" << para.K0K1K2 << std::endl;
     para.K0K1K2 = K0K1K2;
-    std::cout << "new K0K1K2=" << para.K0K1K2 << std::endl;
     allocate_memory();
   }
   para.potential_factor = K_C_SP / N;
-
-  float a0[3] = {(float)box.cpu_h[0], (float)box.cpu_h[3], (float)box.cpu_h[6]};
-  float a1[3] = {(float)box.cpu_h[1], (float)box.cpu_h[4], (float)box.cpu_h[7]};
-  float a2[3] = {(float)box.cpu_h[2], (float)box.cpu_h[5], (float)box.cpu_h[8]};
-  float det = a0[0] * (a1[1] * a2[2] - a2[1] * a1[2]) +
-              a1[0] * (a2[1] * a0[2] - a0[1] * a2[2]) +
-              a2[0] * (a0[1] * a1[2] - a1[1] * a0[2]);
-  cross_product(a1, a2, para.b[0]);
-  cross_product(a2, a0, para.b[1]);
-  cross_product(a0, a1, para.b[2]);
-  const float two_pi_over_det = two_pi / det;
   for (int d = 0; d < 3; ++d) {
-    para.b[0][d] *= two_pi_over_det;
-    para.b[1][d] *= two_pi_over_det;
-    para.b[2][d] *= two_pi_over_det;
+    para.b[0][d] = two_pi * (float)box.cpu_h[9 + d];
+    para.b[1][d] = two_pi * (float)box.cpu_h[12 + d];
+    para.b[2][d] = two_pi * (float)box.cpu_h[15 + d];
   }
-  std::cout << "b[0]=" << para.b[0][0] << " " << para.b[0][1] << " " << para.b[0][2] << std::endl;
-  std::cout << "b[1]=" << para.b[1][0] << " " << para.b[1][1] << " " << para.b[1][2] << std::endl;
-  std::cout << "b[2]=" << para.b[2][0] << " " << para.b[2][1] << " " << para.b[2][2] << std::endl;
 }
 
 void PPPM::find_force(
