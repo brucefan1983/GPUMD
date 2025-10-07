@@ -43,6 +43,39 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
+void NEP_Charge::check_ewald_pppm()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+
+  use_pppm = true;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "kspace") {
+        if (tokens.size() != 2) {
+          std::cout << "kspace must have 1 parameter\n";
+          exit(1);
+        }
+        std::string kspace_method = tokens[1];
+        if (kspace_method == "ewald") {
+          use_pppm = false;
+        } else if (kspace_method == "pppm") {
+          use_pppm = true;
+        } else {
+          std::cout << "kspace method can only be ewald or pppm\n";
+          exit(1);
+        }
+      }
+    }
+  }
+
+  input_run.close();
+}
+
 void NEP_Charge::initialize_dftd3()
 {
   std::ifstream input_run("run.in");
@@ -316,7 +349,12 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  pppm.initialize(charge_para.alpha);
+  check_ewald_pppm();
+  if (use_pppm) {
+    pppm.initialize(charge_para.alpha);
+  } else {
+    ewald.initialize(charge_para.alpha);
+  }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
   charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
@@ -1850,17 +1888,31 @@ void NEP_Charge::compute_large_box(
   }
 
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    pppm.find_force(
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.charge,
-      position_per_atom,
-      nep_data.D_real,
-      force_per_atom,
-      virial_per_atom,
-      potential_per_atom);
+    if (use_pppm) {
+      pppm.find_force(
+        N,
+        N1,
+        N2,
+        box,
+        nep_data.charge,
+        position_per_atom,
+        nep_data.D_real,
+        force_per_atom,
+        virial_per_atom,
+        potential_per_atom);
+    } else {
+      ewald.find_force(
+        N,
+        N1,
+        N2,
+        box.cpu_h,
+        nep_data.charge,
+        position_per_atom,
+        nep_data.D_real,
+        force_per_atom,
+        virial_per_atom,
+        potential_per_atom);
+    }
   }
 
   if (paramb.charge_mode == 1) {
@@ -2176,17 +2228,31 @@ void NEP_Charge::compute_small_box(
   }
 
   if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    pppm.find_force(
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.charge,
-      position_per_atom,
-      nep_data.D_real,
-      force_per_atom,
-      virial_per_atom,
-      potential_per_atom);
+    if (use_pppm) {
+      pppm.find_force(
+        N,
+        N1,
+        N2,
+        box,
+        nep_data.charge,
+        position_per_atom,
+        nep_data.D_real,
+        force_per_atom,
+        virial_per_atom,
+        potential_per_atom);
+    } else {
+      ewald.find_force(
+        N,
+        N1,
+        N2,
+        box.cpu_h,
+        nep_data.charge,
+        position_per_atom,
+        nep_data.D_real,
+        force_per_atom,
+        virial_per_atom,
+        potential_per_atom);
+    }
   }
 
   if (paramb.charge_mode == 1) {
