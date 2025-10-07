@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "ewald.cuh"
 #include "pppm.cuh"
 
 struct NEP_Charge_Data {
@@ -152,6 +153,7 @@ private:
   ExpandedBox ebox;
   DFTD3 dftd3;
   Charge_Para charge_para;
+  Ewald ewald;
   PPPM pppm;
 
   void update_potential(float* parameters, ANN& ann);
@@ -177,6 +179,8 @@ private:
 
   void find_k_and_G(const double* box);
 
+  bool use_pppm = true; // use PPPM by default
+  void check_ewald_pppm();
   bool has_dftd3 = false;
   void initialize_dftd3();
 };
