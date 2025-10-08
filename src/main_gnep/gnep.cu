@@ -747,15 +747,8 @@ static __global__ void compute_grad_radial_NM(
       tmp_xyz[2] * r12[1], // yz
       tmp_xyz[0] * r12[2]  // zx
     };
-    float feat_x[MAX_NUM_N] = {0.0f};
-    float feat_y[MAX_NUM_N] = {0.0f};
-    float feat_z[MAX_NUM_N] = {0.0f};
-    float feat_123_xx[MAX_NUM_N] = {0.0f};
-    float feat_123_yy[MAX_NUM_N] = {0.0f};
-    float feat_123_zz[MAX_NUM_N] = {0.0f};
-    float feat_123_xy[MAX_NUM_N] = {0.0f};
-    float feat_123_yz[MAX_NUM_N] = {0.0f};
-    float feat_123_zx[MAX_NUM_N] = {0.0f};
+    // Cache gnp12 values to avoid recomputation, but compute feat_* on-the-fly to reduce register pressure
+    float gnp12_cache[MAX_NUM_N];
 
     int n_base, c_index, grad_c_index;
     float gnp12, gFp_val, fp_xyz[3], fp_xyz_123[6], qp_c_tmp[3], grad_c_sum;
@@ -780,7 +773,7 @@ static __global__ void compute_grad_radial_NM(
       for (int k = 0; k <= paramb.basis_size_radial; ++k) {
         c_index = (n_base + k) * paramb.num_types_sq + type_base;
         gnp12 += fnp12[k] * annmb.c[c_index];
-        // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij 
+        // E'(n) * Q'_{nk}(i,j) * ∂d_ij/∂α_ij
         qp_c_tmp[0] = fnp12[k] * fp_xyz[0];
         qp_c_tmp[1] = fnp12[k] * fp_xyz[1];
         qp_c_tmp[2] = fnp12[k] * fp_xyz[2];
@@ -793,16 +786,7 @@ static __global__ void compute_grad_radial_NM(
         atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
       }
 
-      feat_x[n] = gnp12 * tmp_xyz[0];
-      feat_y[n] = gnp12 * tmp_xyz[1];
-      feat_z[n] = gnp12 * tmp_xyz[2]; 
-
-      feat_123_xx[n] = feat_x[n] * r12[0];
-      feat_123_yy[n] = feat_y[n] * r12[1];
-      feat_123_zz[n] = feat_z[n] * r12[2];
-      feat_123_xy[n] = feat_y[n] * r12[0];
-      feat_123_yz[n] = feat_z[n] * r12[1];
-      feat_123_zx[n] = feat_x[n] * r12[2];
+      gnp12_cache[n] = gnp12;
     }
 
     // Original loop order: n -> k -> j (neighbor)
@@ -812,10 +796,8 @@ static __global__ void compute_grad_radial_NM(
       index = j * N + n1;
       n2_tmp = g_NL[index];
       t2_tmp = g_type[n2_tmp];
-      r12[0] = g_x12[index];
-      r12[1] = g_y12[index];
-      r12[2] = g_z12[index];
-      d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float r12_tmp[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      d12 = sqrt(r12_tmp[0] * r12_tmp[0] + r12_tmp[1] * r12_tmp[1] + r12_tmp[2] * r12_tmp[2]);
       rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
         int z2_tmp = paramb.atomic_numbers[t2_tmp];
@@ -831,15 +813,19 @@ static __global__ void compute_grad_radial_NM(
         n_base = n * (paramb.basis_size_radial + 1);
         for (int m = 0; m <= paramb.n_max_radial; ++m) {
           E2 = g_Fp2[n1 + (m + n * annmb.dim) * N];
-          feat_xyz_sum[0] += feat_x[m] * E2;
-          feat_xyz_sum[1] += feat_y[m] * E2;
-          feat_xyz_sum[2] += feat_z[m] * E2;
-          feat_123_sum[0] += feat_123_xx[m] * E2;
-          feat_123_sum[1] += feat_123_yy[m] * E2;
-          feat_123_sum[2] += feat_123_zz[m] * E2;
-          feat_123_sum[3] += feat_123_xy[m] * E2;
-          feat_123_sum[4] += feat_123_yz[m] * E2;
-          feat_123_sum[5] += feat_123_zx[m] * E2;
+          // Compute feat_* on-the-fly using cached gnp12
+          float feat_x_m = gnp12_cache[m] * tmp_xyz[0];
+          float feat_y_m = gnp12_cache[m] * tmp_xyz[1];
+          float feat_z_m = gnp12_cache[m] * tmp_xyz[2];
+          feat_xyz_sum[0] += feat_x_m * E2;
+          feat_xyz_sum[1] += feat_y_m * E2;
+          feat_xyz_sum[2] += feat_z_m * E2;
+          feat_123_sum[0] += feat_x_m * r12[0] * E2;
+          feat_123_sum[1] += feat_y_m * r12[1] * E2;
+          feat_123_sum[2] += feat_z_m * r12[2] * E2;
+          feat_123_sum[3] += feat_y_m * r12[0] * E2;
+          feat_123_sum[4] += feat_z_m * r12[1] * E2;
+          feat_123_sum[5] += feat_x_m * r12[2] * E2;
         }
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           q_c_scaler = fn12[k] * g_q_scaler[n];
@@ -860,10 +846,8 @@ static __global__ void compute_grad_radial_NM(
         index = ia * N + n1;
         n2_tmp = g_NL_ang[index];
         t2_tmp = g_type[n2_tmp];
-        r12[0] = g_x12_ang[index];
-        r12[1] = g_y12_ang[index];
-        r12[2] = g_z12_ang[index];
-        d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        float r12_tmp[3] = {g_x12_ang[index], g_y12_ang[index], g_z12_ang[index]};
+        d12 = sqrt(r12_tmp[0] * r12_tmp[0] + r12_tmp[1] * r12_tmp[1] + r12_tmp[2] * r12_tmp[2]);
         rc = paramb.rc_angular;
         if (paramb.use_typewise_cutoff) {
           int z2_tmp = paramb.atomic_numbers[t2_tmp];
@@ -884,17 +868,21 @@ static __global__ void compute_grad_radial_NM(
               ln = l * (paramb.n_max_angular + 1) + na;
               for (int ma = 0; ma <= paramb.n_max_radial; ++ma) {
                 E2 = g_Fp2[n1 + (ma + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
-                feat_xyz_sum[0] += feat_x[ma] * E2;
-                feat_xyz_sum[1] += feat_y[ma] * E2;
-                feat_xyz_sum[2] += feat_z[ma] * E2;
-                feat_123_sum[0] += feat_123_xx[ma] * E2;
-                feat_123_sum[1] += feat_123_yy[ma] * E2;
-                feat_123_sum[2] += feat_123_zz[ma] * E2;
-                feat_123_sum[3] += feat_123_xy[ma] * E2;
-                feat_123_sum[4] += feat_123_yz[ma] * E2;
-                feat_123_sum[5] += feat_123_zx[ma] * E2;
+                // Compute feat_* on-the-fly using cached gnp12
+                float feat_x_ma = gnp12_cache[ma] * tmp_xyz[0];
+                float feat_y_ma = gnp12_cache[ma] * tmp_xyz[1];
+                float feat_z_ma = gnp12_cache[ma] * tmp_xyz[2];
+                feat_xyz_sum[0] += feat_x_ma * E2;
+                feat_xyz_sum[1] += feat_y_ma * E2;
+                feat_xyz_sum[2] += feat_z_ma * E2;
+                feat_123_sum[0] += feat_x_ma * r12[0] * E2;
+                feat_123_sum[1] += feat_y_ma * r12[1] * E2;
+                feat_123_sum[2] += feat_z_ma * r12[2] * E2;
+                feat_123_sum[3] += feat_y_ma * r12[0] * E2;
+                feat_123_sum[4] += feat_z_ma * r12[1] * E2;
+                feat_123_sum[5] += feat_x_ma * r12[2] * E2;
               }
-              accumulate_qc(N, l + 1, na, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[ka], &g_sum_fxyz[n1], &q_c_ang);
+              accumulate_qc(N, l + 1, na, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12_tmp, fn12[ka], &g_sum_fxyz[n1], &q_c_ang);
               q_c_scaler_ang = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
               f_c_n1[0] += feat_xyz_sum[0] * q_c_scaler_ang;
               f_c_n1[1] += feat_xyz_sum[1] * q_c_scaler_ang;
@@ -927,13 +915,17 @@ static __global__ void compute_grad_radial_NM(
         float sum_dfeat_w0_v[6] = {0.0f};
         if (d <= paramb.n_max_radial) {
           scale = g_q_scaler[d];
-          float dfeat_scaler[3] = {feat_x[d] * scale, feat_y[d] * scale, feat_z[d] * scale}; //make sure feat_x = 0 when d > n_max_radial + 1
-          float dfeat_scaler_v[6] = {feat_123_xx[d] * scale, 
-                                    feat_123_yy[d] * scale, 
-                                    feat_123_zz[d] * scale, 
-                                    feat_123_xy[d] * scale, 
-                                    feat_123_yz[d] * scale, 
-                                    feat_123_zx[d] * scale};
+          // Compute dfeat_scaler on-the-fly using cached gnp12
+          float feat_x_d = gnp12_cache[d] * tmp_xyz[0];
+          float feat_y_d = gnp12_cache[d] * tmp_xyz[1];
+          float feat_z_d = gnp12_cache[d] * tmp_xyz[2];
+          float dfeat_scaler[3] = {feat_x_d * scale, feat_y_d * scale, feat_z_d * scale};
+          float dfeat_scaler_v[6] = {feat_x_d * r12[0] * scale,
+                                    feat_y_d * r12[1] * scale,
+                                    feat_z_d * r12[2] * scale,
+                                    feat_y_d * r12[0] * scale,
+                                    feat_z_d * r12[1] * scale,
+                                    feat_x_d * r12[2] * scale};
           w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + d;//(N_neu * N_des + N_neu + j) * N_des + n
           b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + d;//(N_neu * N_des + j) * N_des + n
           g_ep_w1b = g_ep_wb[w1_index_dim];
@@ -961,15 +953,19 @@ static __global__ void compute_grad_radial_NM(
           scale = g_q_scaler[m];
           w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + m;
           g_ep_w0b = g_ep_wb[w0_index_dim];
-          sum_dfeat_w0[0] += feat_x[m] * scale * g_ep_w0b;
-          sum_dfeat_w0[1] += feat_y[m] * scale * g_ep_w0b;
-          sum_dfeat_w0[2] += feat_z[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[0] += feat_123_xx[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[1] += feat_123_yy[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[2] += feat_123_zz[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[3] += feat_123_xy[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[4] += feat_123_yz[m] * scale * g_ep_w0b;
-          sum_dfeat_w0_v[5] += feat_123_zx[m] * scale * g_ep_w0b;
+          // Compute feat_* on-the-fly using cached gnp12
+          float feat_x_m = gnp12_cache[m] * tmp_xyz[0];
+          float feat_y_m = gnp12_cache[m] * tmp_xyz[1];
+          float feat_z_m = gnp12_cache[m] * tmp_xyz[2];
+          sum_dfeat_w0[0] += feat_x_m * scale * g_ep_w0b;
+          sum_dfeat_w0[1] += feat_y_m * scale * g_ep_w0b;
+          sum_dfeat_w0[2] += feat_z_m * scale * g_ep_w0b;
+          sum_dfeat_w0_v[0] += feat_x_m * r12[0] * scale * g_ep_w0b;
+          sum_dfeat_w0_v[1] += feat_y_m * r12[1] * scale * g_ep_w0b;
+          sum_dfeat_w0_v[2] += feat_z_m * r12[2] * scale * g_ep_w0b;
+          sum_dfeat_w0_v[3] += feat_y_m * r12[0] * scale * g_ep_w0b;
+          sum_dfeat_w0_v[4] += feat_z_m * r12[1] * scale * g_ep_w0b;
+          sum_dfeat_w0_v[5] += feat_x_m * r12[2] * scale * g_ep_w0b;
         }
         grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
         grad_w0_sum += i1 == 0 ? per_Nc_e * e_wb_grad[j * annmb.dim + d] : 0.0f;
@@ -1123,12 +1119,6 @@ static __global__ void compute_grad_angular_NM(
   float feat_x[MAX_LN];
   float feat_y[MAX_LN];
   float feat_z[MAX_LN];
-  float feat_123_xx[MAX_LN];
-  float feat_123_yy[MAX_LN];
-  float feat_123_zz[MAX_LN];
-  float feat_123_xy[MAX_LN];
-  float feat_123_yz[MAX_LN];
-  float feat_123_zx[MAX_LN];
   float fc12, fcp12;
   float rc = paramb.rc_angular;
   if (paramb.use_typewise_cutoff) {
@@ -1164,7 +1154,7 @@ static __global__ void compute_grad_angular_NM(
       grad_c_sum -= qp_c_tmp123[0] * diff[0] + qp_c_tmp123[1] * diff[1] + qp_c_tmp123[2] * diff[2] + qp_c_tmp123[3] * diff[3] + qp_c_tmp123[4] * diff[4] + qp_c_tmp123[5] * diff[5];
       atomicAdd(&g_grad_sum[grad_c_index], grad_c_sum);
     }
-    accumulate_dfe(N, NM, paramb.L_max, n, paramb.n_max_angular + 1, d12_i1, r12_i1, gn12[n], gnp12[n], &g_sum_fxyz[n1], &feat_x[n], &feat_y[n], &feat_z[n], &feat_123_xx[n], &feat_123_yy[n], &feat_123_zz[n], &feat_123_xy[n], &feat_123_yz[n], &feat_123_zx[n]);
+    accumulate_dfe(N, NM, paramb.L_max, n, paramb.n_max_angular + 1, d12_i1, r12_i1, gn12[n], gnp12[n], &g_sum_fxyz[n1], &feat_x[n], &feat_y[n], &feat_z[n]);
   } // end of loop over n_max_ang
   float r12[3] = {0.0f};
   float d12 = 0.0f;
@@ -1215,15 +1205,18 @@ static __global__ void compute_grad_angular_NM(
           for (int m = 0; m < paramb.dim_angular; ++m) {
             feat_offset = n1 + ((paramb.n_max_radial + 1 + m) + (paramb.n_max_radial + 1 + ln) * annmb.dim) * N; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
             E2 = g_Fp2[feat_offset];
-            feat_xyz_sum[0] += feat_x[m] * E2;
-            feat_xyz_sum[1] += feat_y[m] * E2;
-            feat_xyz_sum[2] += feat_z[m] * E2;
-            feat_123_sum[0] += feat_123_xx[m] * E2;
-            feat_123_sum[1] += feat_123_yy[m] * E2;
-            feat_123_sum[2] += feat_123_zz[m] * E2;
-            feat_123_sum[3] += feat_123_xy[m] * E2;
-            feat_123_sum[4] += feat_123_yz[m] * E2;
-            feat_123_sum[5] += feat_123_zx[m] * E2;
+            float feat_x_m = feat_x[m];
+            float feat_y_m = feat_y[m];
+            float feat_z_m = feat_z[m];
+            feat_xyz_sum[0] += feat_x_m * E2;
+            feat_xyz_sum[1] += feat_y_m * E2;
+            feat_xyz_sum[2] += feat_z_m * E2;
+            feat_123_sum[0] += feat_x_m * r12_i1[0] * E2;
+            feat_123_sum[1] += feat_y_m * r12_i1[1] * E2;
+            feat_123_sum[2] += feat_z_m * r12_i1[2] * E2;
+            feat_123_sum[3] += feat_y_m * r12_i1[0] * E2;
+            feat_123_sum[4] += feat_z_m * r12_i1[1] * E2;
+            feat_123_sum[5] += feat_x_m * r12_i1[2] * E2;
           }
           accumulate_qc(N, l + 1, n, paramb.n_max_angular + 1, paramb.basis_size_angular+1, d12, r12, fn12[k], &g_sum_fxyz[n1], &q_c_ang);
           q_c_scaler = q_c_ang * g_q_scaler[paramb.n_max_radial + 1 + ln];
@@ -1255,15 +1248,18 @@ static __global__ void compute_grad_angular_NM(
     n_base = nr * (paramb.basis_size_radial + 1);
     for (int mr = 0; mr < paramb.dim_angular; ++mr) {
       E2 = g_Fp2[n1 + ((paramb.n_max_radial + 1 + mr) + nr * annmb.dim) * N]; //g_Fp2[n1 + (d2 + d1 * annmb.dim) * N]
-      feat_xyz_sum[0] += feat_x[mr] * E2;
-      feat_xyz_sum[1] += feat_y[mr] * E2;
-      feat_xyz_sum[2] += feat_z[mr] * E2;
-      feat_123_sum[0] += feat_123_xx[mr] * E2;
-      feat_123_sum[1] += feat_123_yy[mr] * E2;
-      feat_123_sum[2] += feat_123_zz[mr] * E2;
-      feat_123_sum[3] += feat_123_xy[mr] * E2;
-      feat_123_sum[4] += feat_123_yz[mr] * E2;
-      feat_123_sum[5] += feat_123_zx[mr] * E2;
+      float feat_x_mr = feat_x[mr];
+      float feat_y_mr = feat_y[mr];
+      float feat_z_mr = feat_z[mr];
+      feat_xyz_sum[0] += feat_x_mr * E2;
+      feat_xyz_sum[1] += feat_y_mr * E2;
+      feat_xyz_sum[2] += feat_z_mr * E2;
+      feat_123_sum[0] += feat_x_mr * r12_i1[0] * E2;
+      feat_123_sum[1] += feat_y_mr * r12_i1[1] * E2;
+      feat_123_sum[2] += feat_z_mr * r12_i1[2] * E2;
+      feat_123_sum[3] += feat_y_mr * r12_i1[0] * E2;
+      feat_123_sum[4] += feat_z_mr * r12_i1[1] * E2;
+      feat_123_sum[5] += feat_x_mr * r12_i1[2] * E2;
     }
     for (int ir = 0; ir < neighbor_number_rad; ++ir) {
       index = ir * N + n1;
@@ -1305,13 +1301,16 @@ static __global__ void compute_grad_angular_NM(
       if (d < paramb.dim_angular) {
         index_dim = d + paramb.n_max_radial + 1;
         scale = g_q_scaler[index_dim];
-        float dfeat_scaler[3] = {feat_x[d] * scale, feat_y[d] * scale, feat_z[d] * scale};
-        float dfeat_scaler_v[6] = {feat_123_xx[d] * scale, 
-                                  feat_123_yy[d] * scale, 
-                                  feat_123_zz[d] * scale, 
-                                  feat_123_xy[d] * scale, 
-                                  feat_123_yz[d] * scale, 
-                                  feat_123_zx[d] * scale};
+        float feat_x_d = feat_x[d];
+        float feat_y_d = feat_y[d];
+        float feat_z_d = feat_z[d];
+        float dfeat_scaler[3] = {feat_x_d * scale, feat_y_d * scale, feat_z_d * scale};
+        float dfeat_scaler_v[6] = {feat_x_d * r12_i1[0] * scale, 
+                                  feat_y_d * r12_i1[1] * scale, 
+                                  feat_z_d * r12_i1[2] * scale, 
+                                  feat_y_d * r12_i1[0] * scale, 
+                                  feat_z_d * r12_i1[1] * scale, 
+                                  feat_x_d * r12_i1[2] * scale};
         w1_index_dim = n1_net_index_wb + (b0_index + j) * annmb.dim + index_dim;//(N_neu * N_des + N_neu + j) * N_des + n
         b0_index_dim = n1_net_index_wb + (w0_index + j) * annmb.dim + index_dim;//(N_neu * N_des + j) * N_des + n
         g_ep_w1b = g_ep_wb[w1_index_dim];
@@ -1340,15 +1339,19 @@ static __global__ void compute_grad_angular_NM(
         scale = g_q_scaler[index_dim];
         w0_index_dim = n1_net_index_wb + (j * annmb.dim + d) * annmb.dim + index_dim;
         g_ep_w0b = g_ep_wb[w0_index_dim];
-        sum_dfeat_w0[0] += feat_x[m] * scale * g_ep_w0b;
-        sum_dfeat_w0[1] += feat_y[m] * scale * g_ep_w0b;
-        sum_dfeat_w0[2] += feat_z[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[0] += feat_123_xx[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[1] += feat_123_yy[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[2] += feat_123_zz[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[3] += feat_123_xy[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[4] += feat_123_yz[m] * scale * g_ep_w0b;
-        sum_dfeat_w0_v[5] += feat_123_zx[m] * scale * g_ep_w0b;
+        float feat_x_m = feat_x[m];
+        float feat_y_m = feat_y[m];
+        float feat_z_m = feat_z[m];
+        float scale_g_ep = scale * g_ep_w0b;
+        sum_dfeat_w0[0] += feat_x_m * scale_g_ep;
+        sum_dfeat_w0[1] += feat_y_m * scale_g_ep;
+        sum_dfeat_w0[2] += feat_z_m * scale_g_ep;
+        sum_dfeat_w0_v[0] += feat_x_m * r12_i1[0] * scale_g_ep;
+        sum_dfeat_w0_v[1] += feat_y_m * r12_i1[1] * scale_g_ep;
+        sum_dfeat_w0_v[2] += feat_z_m * r12_i1[2] * scale_g_ep;
+        sum_dfeat_w0_v[3] += feat_y_m * r12_i1[0] * scale_g_ep;
+        sum_dfeat_w0_v[4] += feat_z_m * r12_i1[1] * scale_g_ep;
+        sum_dfeat_w0_v[5] += feat_x_m * r12_i1[2] * scale_g_ep;
       }
       grad_w0_sum = sum_dfeat_w0[0] * dx_diff + sum_dfeat_w0[1] * dy_diff + sum_dfeat_w0[2] * dz_diff;
       grad_w0_sum -= sum_dfeat_w0_v[0] * diff[0] + sum_dfeat_w0_v[1] * diff[1] 
