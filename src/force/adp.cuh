@@ -36,8 +36,6 @@ struct ADP_Data {
   // Tabulated functions from ADP file
   int Nelements;
   std::vector<std::string> elements_list;
-  // Optional per-element mass parsed from the ADP file (used for debug)
-  std::vector<double> mass;
   int nrho;
   double drho;
   int nr;
@@ -93,7 +91,7 @@ protected:
   void read_adp_file(const char* file_potential);
   void setup_spline();
   void calculate_spline(
-    const double* y, int n_total, double dx,
+    const double* y, double dx,
     double* a, double* b, double* c, double* d,
     int n_functions, int n_points);
 };

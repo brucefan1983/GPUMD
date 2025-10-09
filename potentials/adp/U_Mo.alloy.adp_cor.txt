@@ -1,4 +1,4 @@
-Potential in ADP format for U-Mo alloy (LAMMPS style) correct version (July 2018)
+adp 2 U Mo
 S. Starikov et al., Journal of Nuclear Materials (2018)
 produced by VASP and Potfit
  2 U Mo 

@@ -26,12 +26,10 @@ The class defining the simulation model.
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <set>
 #include <sstream>
 #include <string>
 
@@ -357,21 +355,6 @@ void read_xyz_in_line_3(
         is_allowed_element = true;
       }
     }
-    // Accept numeric species labels (1-based index) by mapping to potential atom symbols
-    if (!is_allowed_element) {
-      bool all_digits = true;
-      for (char c : cpu_atom_symbol[n]) {
-        if (!(c >= '0' && c <= '9')) { all_digits = false; break; }
-      }
-      if (all_digits) {
-        int idx = std::stoi(cpu_atom_symbol[n]);
-        if (idx >= 1 && idx <= number_of_types) {
-          cpu_atom_symbol[n] = atom_symbols[idx - 1];
-          cpu_type[n] = idx - 1;
-          is_allowed_element = true;
-        }
-      }
-    }
     if (!is_allowed_element) {
       PRINT_INPUT_ERROR("There is atom in model.xyz that is not allowed in the used potential.\n");
     }
@@ -452,23 +435,18 @@ static std::string get_filename_potential()
   std::string filename_potential;
   while (std::getline(input_run, line)) {
     std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 3 && tokens[0] == "potential") {
-      if (tokens[1].find('.') == std::string::npos) {
-        filename_potential = tokens[2];
-      } else {
+    if (tokens.size() >= 2) {
+      if (tokens[0] == "potential") {
         filename_potential = tokens[1];
       }
-      break;
-    } else if (tokens.size() >= 2 && tokens[0] == "potential") {
-      filename_potential = tokens[1];
-      break;
     }
   }
   input_run.close();
-  if (filename_potential.empty()) {
+  if (filename_potential.size() == 0) {
     PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
+  } else {
+    return filename_potential;
   }
-  return filename_potential;
 }
 
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
@@ -480,94 +458,25 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
   }
 
   std::vector<std::string> tokens = get_tokens(input_potential);
-  
-  // Try generic format first: potential_name number_of_types Element1 Element2 ...
-  if (tokens.size() >= 3) {
-    bool is_number = true;
-    for (char c : tokens[1]) {
-      if (!(c >= '0' && c <= '9')) { is_number = false; break; }
-    }
-    if (is_number) {
-      int number_of_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-      if ((int)tokens.size() == 2 + number_of_types) {
-        std::vector<std::string> atom_symbols(number_of_types);
-        for (int n = 0; n < number_of_types; ++n) {
-          atom_symbols[n] = tokens[2 + n];
-        }
-        input_potential.close();
-        return atom_symbols;
-      }
-    }
+  if (tokens.size() < 3) {
+    std::cout << "The first line of the potential file should have at least 3 items." << std::endl;
+    exit(1);
   }
+
+  int number_of_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (tokens.size() != 2 + number_of_types) {
+    std::cout << "The first line of the potential file should have " << number_of_types
+              << " atom symbols." << std::endl;
+    exit(1);
+  }
+
+  std::vector<std::string> atom_symbols(number_of_types);
+  for (int n = 0; n < number_of_types; ++n) {
+    atom_symbols[n] = tokens[2 + n];
+  }
+
   input_potential.close();
-
-  // Fallback to ADP/EAM setfl format: skip 3 comment lines, 4th line lists elements
-  std::ifstream in_setfl(filename_potential);
-  if (!in_setfl.is_open()) {
-    std::cout << "Error: cannot open " + filename_potential << std::endl;
-    exit(1);
-  }
-  
-  std::string line;
-  for (int i = 0; i < 3; ++i) {
-    if (!std::getline(in_setfl, line)) {
-      std::cout << "Failed to read element symbols from potential file: " << filename_potential << std::endl;
-      exit(1);
-    }
-  }
-  
-  if (!std::getline(in_setfl, line)) {
-    std::cout << "Failed to read element symbols from potential file: " << filename_potential << std::endl;
-    exit(1);
-  }
-  
-  std::istringstream iss(line);
-  std::vector<std::string> tokens_setfl;
-  std::string tok;
-  while (iss >> tok) tokens_setfl.push_back(tok);
-
-  if (tokens_setfl.size() < 2) {
-    std::cout << "Failed to read element symbols from potential file: " << filename_potential << std::endl;
-    exit(1);
-  }
-
-  auto is_number = [](const std::string& s){
-    if (s.empty()) return false;
-    char* endptr = nullptr;
-    strtod(s.c_str(), &endptr);
-    return (*endptr == '\0');
-  };
-
-  int number_of_types = get_int_from_token(tokens_setfl[0], __FILE__, __LINE__);
-  
-  // Check if line 4 has format: Nelements Element1 Element2 ...
-  if ((int)tokens_setfl.size() == 1 + number_of_types && !is_number(tokens_setfl[1])) {
-    std::vector<std::string> atom_symbols(number_of_types);
-    for (int n = 0; n < number_of_types; ++n) {
-      atom_symbols[n] = tokens_setfl[1 + n];
-    }
-    in_setfl.close();
-    return atom_symbols;
-  }
-  
-  // Check if line 5 has element symbols (variant format)
-  if (std::getline(in_setfl, line)) {
-    std::istringstream iss2(line);
-    std::vector<std::string> tokens2;
-    while (iss2 >> tok) tokens2.push_back(tok);
-    if ((int)tokens2.size() == number_of_types && !tokens2.empty() && !is_number(tokens2[0])) {
-      std::vector<std::string> atom_symbols(number_of_types);
-      for (int n = 0; n < number_of_types; ++n) {
-        atom_symbols[n] = tokens2[n];
-      }
-      in_setfl.close();
-      return atom_symbols;
-    }
-  }
-
-  in_setfl.close();
-  std::cout << "Failed to read element symbols from potential file: " << filename_potential << std::endl;
-  exit(1);
+  return atom_symbols;
 }
 
 void initialize_position(

@@ -67,7 +67,7 @@ __host__ __device__ __forceinline__ void decode_neighbor_shift(const int code, i
   sz = (((payload >> 10) & 0x1F) - PBC_SHIFT_BIAS);
 }
 
-__host__ __device__ __forceinline__ static int get_pair_index(int type1, int type2, int Nelements);
+__host__ __device__ __forceinline__ static int get_pair_index(int type1, int type2);
 
 // Simple O(N^2) neighbor construction for small boxes (avoids duplicates with coarse cell lists)
 static __global__ void build_neighbor_ON2(
@@ -173,10 +173,6 @@ void ADP::initialize(const char* file_potential, const int number_of_atoms)
 {
   read_adp_file(file_potential);
   
-  // Element types are automatically assigned by read_xyz.cu based on model.xyz
-  // and the element list from the ADP potential file header
-  printf("ADP: Using element types from model.xyz (auto-detected from potential file)\n");
-  
   setup_spline();
   
   adp_data.inv_drho = (adp_data.drho != 0.0) ? 1.0 / adp_data.drho : 0.0;
@@ -187,7 +183,7 @@ void ADP::initialize(const char* file_potential, const int number_of_atoms)
     std::vector<int> pair_index_map(pair_table_size, 0);
     for (int i = 0; i < adp_data.Nelements; ++i) {
       for (int j = 0; j < adp_data.Nelements; ++j) {
-        pair_index_map[i * adp_data.Nelements + j] = get_pair_index(i, j, adp_data.Nelements);
+        pair_index_map[i * adp_data.Nelements + j] = get_pair_index(i, j);
       }
     }
     adp_data.pair_index_map_g.resize(pair_table_size);
@@ -251,8 +247,6 @@ void ADP::initialize(const char* file_potential, const int number_of_atoms)
   adp_data.w_r_b_g.copy_from_host(adp_data.w_r_b.data());
   adp_data.w_r_c_g.copy_from_host(adp_data.w_r_c.data());
   adp_data.w_r_d_g.copy_from_host(adp_data.w_r_d.data());
-  
-  printf("Use %d-element ADP potential, rc = %.6f.\n", adp_data.Nelements, adp_data.rc);
 }
 
 void ADP::ensure_capacity(int number_of_atoms)
@@ -299,71 +293,61 @@ void ADP::read_adp_file(const char* file_potential)
     PRINT_INPUT_ERROR("Cannot open ADP potential file.");
   }
   
+  std::vector<std::string> lines;
   std::string line;
+  while (std::getline(input_file, line)) {
+    lines.push_back(line);
+  }
+  input_file.close();
   
-  // Skip first 3 comment lines
-  for (int i = 0; i < 3; i++) {
-    std::getline(input_file, line);
+  // Parse all data words starting from line 4 (lines 1-3 are comments)
+  std::vector<std::string> data_words;
+  for (size_t i = 3; i < lines.size(); ++i) {
+    std::istringstream iss(lines[i]);
+    std::string word;
+    while (iss >> word) {
+      data_words.push_back(word);
+    }
   }
   
   // Line 4: Nelements Element1 Element2 ... ElementN
-  std::getline(input_file, line);
-  std::istringstream iss4(line);
-  iss4 >> adp_data.Nelements;
-  adp_data.elements_list.resize(adp_data.Nelements);
-  adp_data.mass.resize(adp_data.Nelements, 0.0);
-  for (int i = 0; i < adp_data.Nelements; i++) {
-    iss4 >> adp_data.elements_list[i];
-  }
+  size_t index = 0;
+  adp_data.Nelements = std::stoi(data_words[index++]);
+  adp_data.elements_list.assign(
+    data_words.begin() + index, data_words.begin() + index + adp_data.Nelements);
+  index += adp_data.Nelements;
   
   // Line 5: Nrho, drho, Nr, dr, cutoff
-  std::getline(input_file, line);
-  std::istringstream iss5(line);
-  iss5 >> adp_data.nrho >> adp_data.drho >> adp_data.nr >> adp_data.dr >> adp_data.rc;
+  adp_data.nrho = std::stoi(data_words[index++]);
+  adp_data.drho = std::stod(data_words[index++]);
+  adp_data.nr = std::stoi(data_words[index++]);
+  adp_data.dr = std::stod(data_words[index++]);
+  adp_data.rc = std::stod(data_words[index++]);
   
-  rc = adp_data.rc;
+  printf("Use %d-element ADP potential with element(s): ", adp_data.Nelements);
+  for (int i = 0; i < adp_data.Nelements; ++i) {
+    printf("%s ", adp_data.elements_list[i].c_str());
+  }
+  printf("\n");
   
-  // Initialize storage arrays
   adp_data.F_rho.resize(adp_data.Nelements * adp_data.nrho);
   adp_data.rho_r.resize(adp_data.Nelements * adp_data.nr);
   
   // Read element-specific data
   for (int element = 0; element < adp_data.Nelements; element++) {
-    // Line: atomic number, mass, lattice constant, lattice type
-    std::getline(input_file, line);
-    // Parse and store mass for debug/consistency (others ignored)
-    if (!line.empty()) {
-      std::istringstream iss_mass(line);
-      double z = 0.0, m = 0.0, a0 = 0.0; 
-      std::string lattice;
-      iss_mass >> z >> m >> a0 >> lattice;
-      adp_data.mass[element] = m;
-    }
+    // Skip: atomic number, mass, lattice constant, lattice type
+    index += 4;
     
     // Read embedding function F(rho) for this element
     int base_rho = element * adp_data.nrho;
-    int values_read = 0;
-    while (values_read < adp_data.nrho) {
-      std::getline(input_file, line);
-      std::istringstream iss_f(line);
-      double val;
-      while (iss_f >> val && values_read < adp_data.nrho) {
-        adp_data.F_rho[base_rho + values_read] = val;
-        values_read++;
-      }
+    for (int i = 0; i < adp_data.nrho; i++) {
+      adp_data.F_rho[base_rho + i] = std::stod(data_words[index++]);
     }
     
-    // Read density function rho(r) for this element  
+    // Read density function rho(r) for this element
     int base_r = element * adp_data.nr;
-    values_read = 0;
-    while (values_read < adp_data.nr) {
-      std::getline(input_file, line);
-      std::istringstream iss_rho(line);
-      double val;
-      while (iss_rho >> val && values_read < adp_data.nr) {
-        adp_data.rho_r[base_r + values_read] = val;
-        values_read++;
-      }
+    for (int i = 0; i < adp_data.nr; i++) {
+      adp_data.rho_r[base_r + i] = std::stod(data_words[index++]);
     }
   }
   
@@ -379,15 +363,8 @@ void ADP::read_adp_file(const char* file_potential)
       int base_pair = pair_index * adp_data.nr;
       
       // Read phi(r) - pair potential (multiplied by r)
-      int values_read = 0;
-      while (values_read < adp_data.nr) {
-        std::getline(input_file, line);
-        std::istringstream iss_phi(line);
-        double val;
-        while (iss_phi >> val && values_read < adp_data.nr) {
-          adp_data.phi_r[base_pair + values_read] = val;
-          values_read++;
-        }
+      for (int k = 0; k < adp_data.nr; k++) {
+        adp_data.phi_r[base_pair + k] = std::stod(data_words[index++]);
       }
       
       pair_index++;
@@ -400,15 +377,8 @@ void ADP::read_adp_file(const char* file_potential)
     for (int j = 0; j <= i; j++) {
       int base_pair = pair_index * adp_data.nr;
       
-      int values_read = 0;
-      while (values_read < adp_data.nr) {
-        std::getline(input_file, line);
-        std::istringstream iss_u(line);
-        double val;
-        while (iss_u >> val && values_read < adp_data.nr) {
-          adp_data.u_r[base_pair + values_read] = val;
-          values_read++;
-        }
+      for (int k = 0; k < adp_data.nr; k++) {
+        adp_data.u_r[base_pair + k] = std::stod(data_words[index++]);
       }
       
       pair_index++;
@@ -421,42 +391,30 @@ void ADP::read_adp_file(const char* file_potential)
     for (int j = 0; j <= i; j++) {
       int base_pair = pair_index * adp_data.nr;
       
-      int values_read = 0;
-      while (values_read < adp_data.nr) {
-        std::getline(input_file, line);
-        std::istringstream iss_w(line);
-        double val;
-        while (iss_w >> val && values_read < adp_data.nr) {
-          adp_data.w_r[base_pair + values_read] = val;
-          values_read++;
-        }
+      for (int k = 0; k < adp_data.nr; k++) {
+        adp_data.w_r[base_pair + k] = std::stod(data_words[index++]);
       }
       
       pair_index++;
     }
   }
-  
-  input_file.close();
-  
 }
 
 void ADP::setup_spline()
 {
-  int total_rho_points = adp_data.Nelements * adp_data.nrho;
-  int total_r_points = adp_data.Nelements * adp_data.nr;
-  int total_pair_points = adp_data.Nelements * (adp_data.Nelements + 1) / 2 * adp_data.nr;
-  
-  // Resize spline coefficient arrays
+  const int total_rho_points = adp_data.Nelements * adp_data.nrho;
   adp_data.F_rho_a.resize(total_rho_points);
   adp_data.F_rho_b.resize(total_rho_points);
   adp_data.F_rho_c.resize(total_rho_points);
   adp_data.F_rho_d.resize(total_rho_points);
   
+  const int total_r_points = adp_data.Nelements * adp_data.nr;
   adp_data.rho_r_a.resize(total_r_points);
   adp_data.rho_r_b.resize(total_r_points);
   adp_data.rho_r_c.resize(total_r_points);
   adp_data.rho_r_d.resize(total_r_points);
   
+  const int total_pair_points = adp_data.Nelements * (adp_data.Nelements + 1) / 2 * adp_data.nr;
   adp_data.phi_r_a.resize(total_pair_points);
   adp_data.phi_r_b.resize(total_pair_points);
   adp_data.phi_r_c.resize(total_pair_points);
@@ -472,30 +430,28 @@ void ADP::setup_spline()
   adp_data.w_r_c.resize(total_pair_points);
   adp_data.w_r_d.resize(total_pair_points);
   
-  // Use Hermite spline interpolation
   calculate_spline(
-    adp_data.F_rho.data(), total_rho_points, adp_data.drho,
+    adp_data.F_rho.data(), adp_data.drho,
     adp_data.F_rho_a.data(), adp_data.F_rho_b.data(), adp_data.F_rho_c.data(), adp_data.F_rho_d.data(),
     adp_data.Nelements, adp_data.nrho);
   calculate_spline(
-    adp_data.rho_r.data(), total_r_points, adp_data.dr,
+    adp_data.rho_r.data(), adp_data.dr,
     adp_data.rho_r_a.data(), adp_data.rho_r_b.data(), adp_data.rho_r_c.data(), adp_data.rho_r_d.data(),
     adp_data.Nelements, adp_data.nr);
   calculate_spline(
-    adp_data.phi_r.data(), total_pair_points, adp_data.dr,
+    adp_data.phi_r.data(), adp_data.dr,
     adp_data.phi_r_a.data(), adp_data.phi_r_b.data(), adp_data.phi_r_c.data(), adp_data.phi_r_d.data(),
     adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
   calculate_spline(
-    adp_data.u_r.data(), total_pair_points, adp_data.dr,
+    adp_data.u_r.data(), adp_data.dr,
     adp_data.u_r_a.data(), adp_data.u_r_b.data(), adp_data.u_r_c.data(), adp_data.u_r_d.data(),
     adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
   calculate_spline(
-    adp_data.w_r.data(), total_pair_points, adp_data.dr,
+    adp_data.w_r.data(), adp_data.dr,
     adp_data.w_r_a.data(), adp_data.w_r_b.data(), adp_data.w_r_c.data(), adp_data.w_r_d.data(),
     adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
 }
 
-// GPU utility functions for interpolation
 __device__ __forceinline__ static void interpolate(
   const double* __restrict__ a,
   const double* __restrict__ b,
@@ -524,7 +480,7 @@ __device__ __forceinline__ static double interpolate_value(
 }
 
 void ADP::calculate_spline(
-  const double* y, int /*n_total*/, double dx,
+  const double* y, double dx,
   double* a, double* b, double* c, double* d,
   int n_functions, int n_points)
 {
@@ -537,12 +493,6 @@ void ADP::calculate_spline(
     double* df = d + off;
 
     std::vector<double> s(n_points, 0.0);
-    // Estimate slopes using centered differences:
-    // s[0]   = f[1] - f[0]
-    // s[1]   = 0.5*(f[2] - f[0])
-    // s[i]   = ((f[i-2]-f[i+2]) + 8*(f[i+1]-f[i-1]))/12 for i in [2, n-3]
-    // s[n-2] = 0.5*(f[n-1] - f[n-3])
-    // s[n-1] = f[n-1] - f[n-2]
     if (n_points >= 2) s[0] = yf[1] - yf[0];
     if (n_points >= 3) s[1] = 0.5 * (yf[2] - yf[0]);
     for (int i = 2; i <= n_points - 3; ++i) {
@@ -568,9 +518,8 @@ void ADP::calculate_spline(
 }
 
 // Get pair index for element types (0-based) consistent with reading order (i loop outer, j<=i)
-__host__ __device__ __forceinline__ static int get_pair_index(int type1, int type2, int /*Nelements*/)
+__host__ __device__ __forceinline__ static int get_pair_index(int type1, int type2)
 {
-  // Avoid relying on std::max/min inside device; implement explicitly
   int a = (type1 >= type2) ? type1 : type2; // ensure a >= b
   int b = (type1 >= type2) ? type2 : type1;
   // sequence: (0,0)=0; (1,0)=1,(1,1)=2; (2,0)=3,(2,1)=4,(2,2)=5; index = a*(a+1)/2 + b
@@ -1018,18 +967,15 @@ void ADP::compute(
   const int* neighbor_shift_ptr = nullptr;
   const int* type_ptr = type.data();
   
-  // Build neighbor list with automatic algorithm selection
   {
     int nbins[3];
     bool small_box = box.get_num_bins(0.5 * adp_data.rc, nbins);
     
-    // Use O(N) cell list for normal boxes, O(N^2) brute force for very small boxes
-    // Note: cell list can handle extended periodic images (when rc > 0.5*box_size)
+    // Use O(N) cell list for normal boxes, O(N^2) brute force when rc > 0.5*box_size
     const int max_neighbors = number_of_atoms > 0 ? adp_data.NL.size() / number_of_atoms : ADP_MAX_NEIGHBORS;
     neighbor_shift_ptr = nullptr;
     
     if (!small_box) {
-      // Use O(N) linear complexity cell list algorithm
       find_neighbor(
         N1,
         N2,
@@ -1043,7 +989,6 @@ void ADP::compute(
         adp_data.NN,
         adp_data.NL);
     } else {
-      // Use O(N^2) brute force algorithm for small boxes or when explicitly requested
       const double* gx = position_per_atom.data();
       const double* gy = position_per_atom.data() + number_of_atoms;
       const double* gz = position_per_atom.data() + number_of_atoms * 2;
@@ -1073,7 +1018,7 @@ void ADP::compute(
   
   // Step 1: Calculate density, embedding energy, and angular terms
   find_force_adp_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms,  // This is N parameter
+    number_of_atoms,
     N1,
     N2,
     adp_data.Nelements,

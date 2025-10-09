@@ -134,84 +134,50 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j`:
   * Same ordering as pair potentials
 
 
-Usage
------
+Table format
+-------------
 
-Syntax
-^^^^^^
-
-To use an ADP potential in GPUMD, specify it in the :file:`run.in` input file with the following syntax::
-
-    potential adp <potential_file>
-
-where:
-
-- :attr:`<potential_file>`: Path to the ADP potential file (required)
-
-Element types are automatically detected from :file:`model.xyz` based on the element symbols. The potential file header specifies which elements are available, and GPUMD automatically matches atoms in :file:`model.xyz` to the corresponding element parameters in the potential file.
-
-Basic usage
-^^^^^^^^^^^
-
-For any system (single-element or multi-element)::
-
-    potential adp Ta.adp
-
-GPUMD will automatically:
-
-1. Read the element list from the ADP potential file header
-2. Match atoms in :file:`model.xyz` based on their element symbols
-3. Assign the correct potential parameters to each atom
-
-Single-element system
-^^^^^^^^^^^^^^^^^^^^^
-
-For a pure metal system (e.g., pure tantalum)::
-
-    potential adp Ta.adp
-
-All atoms labeled as "Ta" in :file:`model.xyz` will automatically use the Ta parameters from the potential file.
-
-Multi-element system
-^^^^^^^^^^^^^^^^^^^^
-
-For binary or multi-component alloys, the same simple syntax applies.
-
-**Example 1: Copper-Tantalum (Cu-Ta)**
-
-Usage::
-
-    potential adp Cu_Ta.adp
-
-GPUMD will:
-
-- Read that the potential file contains Cu and Ta parameters
-- Automatically assign Cu parameters to atoms labeled "Cu" in :file:`model.xyz`
-- Automatically assign Ta parameters to atoms labeled "Ta" in :file:`model.xyz`
-
-**Example 2: Uranium-Molybdenum (U-Mo)**
-
-Usage::
-
-    potential adp U_Mo.adp
-
-GPUMD will:
-
-- Read that the potential file contains U and Mo parameters  
-- Automatically assign U parameters to atoms labeled "U" in :file:`model.xyz`
-- Automatically assign Mo parameters to atoms labeled "Mo" in :file:`model.xyz`
-
-**Example 3: Pure Mo from a U-Mo potential file**
-
-Usage::
-
-    potential adp U_Mo.adp
-
-If your :file:`model.xyz` only contains Mo atoms (no U atoms), GPUMD will automatically use only the Mo parameters from the potential file. This is useful for testing pure element properties using multi-element potential files.
+GPUMD supports the standard `ADP format <https://docs.lammps.org/pair_adp.html>`_ as defined in LAMMPS.
 
 .. note::
 
-   Element detection is fully automatic based on the element symbols in :file:`model.xyz`. The element symbols must match those defined in the ADP potential file header (line 4). This behavior is consistent with other potentials in GPUMD (e.g., NEP).
+   The user needs to modify the first line of the potential file as follows:
+
+     adp <num_types> <list of elements>
+
+   The last two parts can be directly copied from the fourth line of the original potential file. For example::
+
+     adp 2 Cu Ta
+
+   Since the first three lines are comments in LAMMPS, this modification does not affect usage in LAMMPS.
+
+Usage
+-----
+
+To use an ADP potential in GPUMD, specify it in the :file:`run.in` input file::
+
+    potential <potential_file>
+
+where :attr:`<potential_file>` is the path to the ADP potential file.
+
+Examples
+^^^^^^^^
+
+**Single-element system (pure Ta)**::
+
+    potential Ta.adp
+
+**Multi-element system (Cu-Ta alloy)**::
+
+    potential CuTa_LJ15_2014.adp.txt
+
+**Multi-element system (U-Mo alloy)**::
+
+    potential U_Mo.adp
+
+.. note::
+
+   Element types are automatically matched between :file:`model.xyz` and the ADP potential file based on element symbols. The order and number of atom types in :file:`model.xyz` can be different from those in the potential file.
 
 References
 ----------
