@@ -566,6 +566,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
+  } else if (strcmp(param[0], "kspace") == 0) {
+    // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
