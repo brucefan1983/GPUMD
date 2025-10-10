@@ -23,9 +23,7 @@ public:
   Compute_dpdt(const char**, int);
 
   int compute = 0;
-  int sample_interval; // sample interval for heat current
-  int Nc;              // number of correlation points
-  int output_interval; // only output Nc/output_interval data
+  int sample_interval;
 
   virtual void preprocess(
     const int number_of_steps,
@@ -61,6 +59,8 @@ public:
   void parse(const char**, int);
 
 private:
-  GPU_Vector<float> dpdt;
-  GPU_Vector<double> heat_all;
+  GPU_Vector<float> gpu_dpdt_per_atom;
+  GPU_Vector<float> gpu_dpdt_total;
+  std::vector<float> cpu_dpdt_total;
+  FILE* fid;
 };

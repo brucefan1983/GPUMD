@@ -19,46 +19,52 @@ Calculate the heat current autocorrelation (HAC) function.
 
 #include "compute_heat.cuh"
 #include "compute_dpdt.cuh"
+#include "force/force.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
 
-#define NUM_OF_HEAT_COMPONENTS 5
-#define FILE_NAME_LENGTH 200
-#define DIM 3
+namespace{
 
-void Compute_dpdt::preprocess(
-  const int number_of_steps,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force& force)
+void __global__ gpu_compute_dpdt(
+  const int num_atoms,
+  const float* g_bec,
+  const double* g_vx,
+  const double* g_vy,
+  const double* g_vz,
+  float* g_dpdt_x,
+  float* g_dpdt_y,
+  float* g_dpdt_z)
 {
-  if (compute) {
-    FILE* fid = fopen("dpdt.out", "a");
-    dpdt.resize(3);
+  const int atom_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (atom_id < num_atoms) {
+    double bec[9] = {0.0f};
+    for (int d = 0; d < 9; ++d) {
+      bec[d] = g_bec[atom_id + d * num_atoms];
+    }
+    const double vx = g_vx[atom_id];
+    const double vy = g_vy[atom_id];
+    const double vz = g_vz[atom_id];
+    g_dpdt_x[atom_id] = bec[0] * vx + bec[1] * vy + bec[2] * vz;
+    g_dpdt_y[atom_id] = bec[3] * vx + bec[4] * vy + bec[5] * vz;
+    g_dpdt_z[atom_id] = bec[6] * vx + bec[7] * vy + bec[8] * vz;
   }
 }
 
-// sum up the per-atom heat current to get the total heat current
-static __global__ void
-gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, double* g_heat_all)
+void __global__ gpu_sum_dpdt(const int N, const float* g_dpdt_per_atom, float* g_dpdt)
 {
-  // <<<NUM_OF_HEAT_COMPONENTS, 1024>>>
   const int tid = threadIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
+  const int number_of_batches = (N - 1) / 1024 + 1;
 
-  __shared__ double s_data[1024];
-  s_data[tid] = 0.0;
+  __shared__ float s_data[1024];
+  s_data[tid] = 0.0f;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    const int n = tid + patch * 1024;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    const int n = tid + batch * 1024;
     if (n < N) {
-      s_data[tid] += g_heat[n + N * blockIdx.x];
+      s_data[tid] += g_dpdt_per_atom[n + N * blockIdx.x];
     }
   }
 
@@ -71,11 +77,29 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
     __syncthreads();
   }
   if (tid == 0) {
-    g_heat_all[nd + Nd * blockIdx.x] = s_data[0];
+    g_dpdt[blockIdx.x] = s_data[0];
   }
 }
 
-// sample heat current data for HAC calculations.
+}
+
+void Compute_dpdt::preprocess(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (compute) {
+    fid = fopen("dpdt.out", "a");
+    gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
+    gpu_dpdt_total.resize(3);
+    cpu_dpdt_total.resize(3);
+  }
+}
+
 void Compute_dpdt::process(
   const int number_of_steps,
   int step,
@@ -96,87 +120,26 @@ void Compute_dpdt::process(
     return;
 
   const int N = atom.number_of_atoms;
-
-  compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
-
-  int nd = (step + 1) / sample_interval - 1;
-  int Nd = number_of_steps / sample_interval;
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, atom.heat_per_atom.data(), heat_all.data());
+  GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+  gpu_compute_dpdt<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    bec.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + N * 2,
+    gpu_dpdt_per_atom.data(),
+    gpu_dpdt_per_atom.data() + N,
+    gpu_dpdt_per_atom.data() + N * 2);
   GPU_CHECK_KERNEL
+
+  gpu_sum_dpdt<<<3, 1024>>>(N, gpu_dpdt_per_atom.data(), gpu_dpdt_total.data());
+  GPU_CHECK_KERNEL
+
+  gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
+  fprintf(fid, "%g %g %g", cpu_dpdt_total[0], cpu_dpdt_total[1], cpu_dpdt_total[2]);
+  fflush(fid);
 }
 
-// Calculate the Heat current Auto-Correlation function (HAC)
-__global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, double* g_hac)
-{
-  //<<<Nc, 128>>>
-
-  __shared__ double s_hac_xi[128];
-  __shared__ double s_hac_xo[128];
-  __shared__ double s_hac_yi[128];
-  __shared__ double s_hac_yo[128];
-  __shared__ double s_hac_z[128];
-
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int number_of_patches = (Nd - 1) / 128 + 1;
-  int number_of_data = Nd - bid;
-
-  s_hac_xi[tid] = 0.0;
-  s_hac_xo[tid] = 0.0;
-  s_hac_yi[tid] = 0.0;
-  s_hac_yo[tid] = 0.0;
-  s_hac_z[tid] = 0.0;
-
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int index = tid + patch * 128;
-    if (index + bid < Nd) {
-      s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0] +
-                       g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
-      s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1] +
-                       g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 0];
-      s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2] +
-                       g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3];
-      s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3] +
-                       g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 2];
-      s_hac_z[tid] += g_heat[index + Nd * 4] * g_heat[index + bid + Nd * 4];
-    }
-  }
-  __syncthreads();
-
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_hac_xi[tid] += s_hac_xi[tid + offset];
-      s_hac_xo[tid] += s_hac_xo[tid + offset];
-      s_hac_yi[tid] += s_hac_yi[tid + offset];
-      s_hac_yo[tid] += s_hac_yo[tid + offset];
-      s_hac_z[tid] += s_hac_z[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    g_hac[bid + Nc * 0] = s_hac_xi[0] / number_of_data;
-    g_hac[bid + Nc * 1] = s_hac_xo[0] / number_of_data;
-    g_hac[bid + Nc * 2] = s_hac_yi[0] / number_of_data;
-    g_hac[bid + Nc * 3] = s_hac_yo[0] / number_of_data;
-    g_hac[bid + Nc * 4] = s_hac_z[0] / number_of_data;
-  }
-}
-
-// Calculate the Running Thermal Conductivity (RTC) from the HAC
-static void find_rtc(const int Nc, const double factor, const double* hac, double* rtc)
-{
-  for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++) {
-    for (int nc = 1; nc < Nc; nc++) {
-      const int index = Nc * k + nc;
-      rtc[index] = rtc[index - 1] + (hac[index - 1] + hac[index]) * factor;
-    }
-  }
-}
-
-// Calculate HAC (heat currant auto-correlation function)
-// and RTC (running thermal conductivity)
 void Compute_dpdt::postprocess(
   Atom& atom,
   Box& box,
@@ -187,61 +150,7 @@ void Compute_dpdt::postprocess(
 {
   if (!compute)
     return;
-  print_line_1();
-  printf("Start to calculate HAC and related quantities.\n");
-
-  const int Nd = number_of_steps / sample_interval;
-  const double dt = time_step * sample_interval;
-  const double dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
-
-  // major data
-  std::vector<double> rtc(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
-  GPU_Vector<double> hac_gpu(Nc * NUM_OF_HEAT_COMPONENTS);
-  std::vector<double> hac_cpu(Nc * NUM_OF_HEAT_COMPONENTS);
-
-  // Here, the block size is fixed to 128, which is a good choice
-  gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), hac_gpu.data());
-  GPU_CHECK_KERNEL
-
-  hac_gpu.copy_to_host(hac_cpu.data());
-
-  double factor = dt * 0.5 / (K_B * temperature * temperature * box.get_volume());
-  factor *= KAPPA_UNIT_CONVERSION;
-
-  find_rtc(Nc, factor, hac_cpu.data(), rtc.data());
-
-  FILE* fid = fopen("hac.out", "a");
-  const int number_of_output_data = Nc / output_interval;
-  for (int nd = 0; nd < number_of_output_data; nd++) {
-    const int nc = nd * output_interval;
-    double hac_ave[NUM_OF_HEAT_COMPONENTS] = {0.0};
-    double rtc_ave[NUM_OF_HEAT_COMPONENTS] = {0.0};
-    for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++) {
-      for (int m = 0; m < output_interval; m++) {
-        const int count = Nc * k + nc + m;
-        hac_ave[k] += hac_cpu[count];
-        rtc_ave[k] += rtc[count];
-      }
-    }
-    for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) {
-      hac_ave[m] /= output_interval;
-      rtc_ave[m] /= output_interval;
-    }
-    fprintf(fid, "%25.15e", (nc + output_interval * 0.5) * dt_in_ps);
-    for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) {
-      fprintf(fid, "%25.15e", hac_ave[m]);
-    }
-    for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) {
-      fprintf(fid, "%25.15e", rtc_ave[m]);
-    }
-    fprintf(fid, "\n");
-  }
-  fflush(fid);
   fclose(fid);
-
-  printf("HAC and related quantities are calculated.\n");
-  print_line_2();
-
   compute = 0;
 }
 
