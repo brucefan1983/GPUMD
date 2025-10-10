@@ -153,6 +153,10 @@ void Compute_dpdt::parse(const char** param, int num_param)
 {
   printf("Compute dp/dt.\n");
 
+  if (!check_is_nep_charge()) {
+    PRINT_INPUT_ERROR("cannot use compute_dpdt for a non-NEP-Charge model.\n");
+  }
+
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
