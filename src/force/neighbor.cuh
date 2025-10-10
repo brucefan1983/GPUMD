@@ -109,11 +109,18 @@ static __device__ void find_cell_id(
   cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
 }
 
-static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
+static __global__ void gpu_sort_neighbor_list(const int N, int* NN, int* NL)
 {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
   int neighbor_number = NN[bid];
+  if (neighbor_number > blockDim.x) {
+    neighbor_number = blockDim.x;
+  }
+  if (tid == 0) {
+    NN[bid] = neighbor_number;
+  }
+  __syncthreads();
   int atom_index;
   extern __shared__ int atom_index_copy[];
 
