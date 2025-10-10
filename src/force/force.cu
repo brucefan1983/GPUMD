@@ -18,6 +18,7 @@ The driver class calculating force and related quantities.
 #ifdef USE_TENSORFLOW
 #include "dp.cuh"
 #endif
+#include "adp.cuh"
 #include "eam.cuh"
 #include "eam_alloy.cuh"
 #include "fcp.cuh"
@@ -100,6 +101,8 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam/alloy") == 0) {
     potential.reset(new EAMAlloy(param[1], number_of_atoms));
+  } else if (strcmp(potential_name, "adp") == 0) {
+    potential.reset(new ADP(param[1], number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
