@@ -135,6 +135,9 @@ void Compute_dpdt::process(
   GPU_CHECK_KERNEL
 
   gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
+  for (int d = 0; d < 3; ++d) {
+    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION;
+  }
   fprintf(fid, "%g %g %g\n", cpu_dpdt_total[0], cpu_dpdt_total[1], cpu_dpdt_total[2]);
   fflush(fid);
 }
