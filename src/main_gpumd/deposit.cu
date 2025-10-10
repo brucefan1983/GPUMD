@@ -31,6 +31,7 @@
 ------------------------------------------------------------------------------*/
 
 #include "deposit.cuh"
+#include "utilities/read_file.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <cstdlib>
