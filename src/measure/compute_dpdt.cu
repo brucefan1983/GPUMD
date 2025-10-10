@@ -166,6 +166,9 @@ void Compute_dpdt::parse(const char** param, int num_param)
   if (!is_valid_int(param[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for compute_dpdt should be an integer number.\n");
   }
+  if (sample_interval <= 0) {
+    PRINT_INPUT_ERROR("sample interval for compute_dpdt should be positive.\n");
+  }
   printf("    sample interval is %d.\n", sample_interval);
 }
 
