@@ -251,30 +251,20 @@ void Compute_dpdt::parse(const char** param, int num_param)
 {
   compute = 1;
 
-  printf("Compute HAC.\n");
+  printf("Compute dp/dt.\n");
 
-  if (num_param != 4) {
-    PRINT_INPUT_ERROR("compute_hac should have 3 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
 
   if (!is_valid_int(param[1], &sample_interval)) {
-    PRINT_INPUT_ERROR("sample interval for HAC should be an integer number.\n");
+    PRINT_INPUT_ERROR("sample interval for compute_dpdt should be an integer number.\n");
   }
   printf("    sample interval is %d.\n", sample_interval);
-
-  if (!is_valid_int(param[2], &Nc)) {
-    PRINT_INPUT_ERROR("Nc for HAC should be an integer number.\n");
-  }
-  printf("    Nc is %d\n", Nc);
-
-  if (!is_valid_int(param[3], &output_interval)) {
-    PRINT_INPUT_ERROR("output_interval for HAC should be an integer number.\n");
-  }
-  printf("    output_interval is %d\n", output_interval);
 }
 
 Compute_dpdt::Compute_dpdt(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_hac";
+  property_name = "compute_dpdt";
 }
