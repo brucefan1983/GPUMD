@@ -29,6 +29,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
 #include "measure/compute.cuh"
+#include "measure/compute_dpdt.cuh"
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
@@ -517,6 +518,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new AngularRDF(param, num_param, box, number_of_types, number_of_steps));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_dpdt") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Compute_dpdt(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hac") == 0) {
     std::unique_ptr<Property> property;
