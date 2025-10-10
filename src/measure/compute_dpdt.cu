@@ -17,7 +17,6 @@
 Calculate the time derivative of the polarization of the system and output to dpdt.out
 --------------------------------------------------------------------------------------------------*/
 
-#include "compute_heat.cuh"
 #include "compute_dpdt.cuh"
 #include "force/force.cuh"
 #include "utilities/common.cuh"
