@@ -39,13 +39,13 @@ void __global__ gpu_compute_dpdt(
 {
   const int atom_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (atom_id < num_atoms) {
-    double bec[9] = {0.0f};
+    float bec[9] = {0.0f};
     for (int d = 0; d < 9; ++d) {
       bec[d] = g_bec[atom_id + d * num_atoms];
     }
-    const double vx = g_vx[atom_id];
-    const double vy = g_vy[atom_id];
-    const double vz = g_vz[atom_id];
+    const float vx = g_vx[atom_id];
+    const float vy = g_vy[atom_id];
+    const float vz = g_vz[atom_id];
     g_dpdt_x[atom_id] = bec[0] * vx + bec[1] * vy + bec[2] * vz;
     g_dpdt_y[atom_id] = bec[3] * vx + bec[4] * vy + bec[5] * vz;
     g_dpdt_z[atom_id] = bec[6] * vx + bec[7] * vy + bec[8] * vz;
