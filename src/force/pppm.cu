@@ -111,7 +111,7 @@ void __global__ find_k_and_G_opt(
   }
 }
 
-void __global__ set_mesh_to_zero(const PPPM::Para para, cufftComplex* g_mesh)
+void __global__ set_mesh_to_zero(const PPPM::Para para, gpufftComplex* g_mesh)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -140,7 +140,7 @@ __global__ void find_mesh(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  cufftComplex* g_mesh)
+  gpufftComplex* g_mesh)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n < N2) {
@@ -187,10 +187,10 @@ void __global__ ik_times_mesh_times_G(
   const float* g_ky,
   const float* g_kz,
   const float* g_G,
-  const cufftComplex* g_mesh_fft,
-  cufftComplex* g_mesh_fft_x,
-  cufftComplex* g_mesh_fft_y,
-  cufftComplex* g_mesh_fft_z)
+  const gpufftComplex* g_mesh_fft,
+  gpufftComplex* g_mesh_fft_x,
+  gpufftComplex* g_mesh_fft_y,
+  gpufftComplex* g_mesh_fft_z)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -198,7 +198,7 @@ void __global__ ik_times_mesh_times_G(
     const float ky = g_ky[n];
     const float kz = g_kz[n];
     const float G = g_G[n];
-    cufftComplex mesh_fft = g_mesh_fft[n];
+    gpufftComplex mesh_fft = g_mesh_fft[n];
     g_mesh_fft_x[n] = {mesh_fft.y * kx * G, -mesh_fft.x * kx * G};
     g_mesh_fft_y[n] = {mesh_fft.y * ky * G, -mesh_fft.x * ky * G};
     g_mesh_fft_z[n] = {mesh_fft.y * kz * G, -mesh_fft.x * kz * G};
@@ -208,13 +208,13 @@ void __global__ ik_times_mesh_times_G(
 void __global__ find_mesh_G(
   const PPPM::Para para,
   const float* g_G,
-  const cufftComplex* g_mesh,
-  cufftComplex* g_mesh_G)
+  const gpufftComplex* g_mesh,
+  gpufftComplex* g_mesh_G)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
     const float G = g_G[n];
-    cufftComplex mesh = g_mesh[n];
+    gpufftComplex mesh = g_mesh[n];
     g_mesh_G[n] = {mesh.x * G, mesh.y * G};
   }
 }
@@ -228,10 +228,10 @@ __global__ void find_force_from_field(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  const cufftComplex* g_mesh_G,
-  const cufftComplex* g_mesh_fft_x_ifft,
-  const cufftComplex* g_mesh_fft_y_ifft,
-  const cufftComplex* g_mesh_fft_z_ifft,
+  const gpufftComplex* g_mesh_G,
+  const gpufftComplex* g_mesh_fft_x_ifft,
+  const gpufftComplex* g_mesh_fft_y_ifft,
+  const gpufftComplex* g_mesh_fft_z_ifft,
   float* g_D_real,
   double* g_fx,
   double* g_fy,
@@ -288,7 +288,7 @@ __global__ void find_force_from_field(
 void __global__ find_potential_and_virial(
   const int N,
   const PPPM::Para para,
-  const cufftComplex* g_S,
+  const gpufftComplex* g_S,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -304,7 +304,7 @@ void __global__ find_potential_and_virial(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     const int n = tid + batch * 1024;
     if (n < para.K0K1K2) {
-      cufftComplex S = g_S[n];
+      gpufftComplex S = g_S[n];
       const float GSS = g_G[n] * (S.x * S.x + S.y * S.y);
       const float kx = g_kx[n];
       const float ky = g_ky[n];
@@ -395,7 +395,7 @@ PPPM::PPPM()
 
 PPPM::~PPPM()
 {
-  cufftDestroy(plan);
+  gpufftDestroy(plan);
 }
 
 void PPPM::allocate_memory()
@@ -410,8 +410,8 @@ void PPPM::allocate_memory()
   mesh_y.resize(para.K0K1K2);
   mesh_z.resize(para.K0K1K2);
   // para.K[2] is the slowest changing dimension; para.K[0] is the fastest changing dimension
-  if (cufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], CUFFT_C2C) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: Plan creation failed" << std::endl;
+  if (gpufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], GPUFFT_C2C) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: Plan creation failed" << std::endl;
     exit(1);
   }
 }
@@ -494,8 +494,8 @@ void PPPM::find_force(
     mesh.data());
   GPU_CHECK_KERNEL
 
-  if (cufftExecC2C(plan, mesh.data(), mesh.data(), CUFFT_FORWARD) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: ExecC2C Forward failed" << std::endl;
+  if (gpufftExecC2C(plan, mesh.data(), mesh.data(), GPUFFT_FORWARD) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: ExecC2C Forward failed" << std::endl;
     exit(1);
   }
 
@@ -519,23 +519,23 @@ void PPPM::find_force(
   GPU_CHECK_KERNEL
 
 
-  if (cufftExecC2C(plan, mesh_G.data(), mesh_G.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+  if (gpufftExecC2C(plan, mesh_G.data(), mesh_G.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh_x.data(), mesh_x.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+  if (gpufftExecC2C(plan, mesh_x.data(), mesh_x.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh_y.data(), mesh_y.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+  if (gpufftExecC2C(plan, mesh_y.data(), mesh_y.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 
-  if (cufftExecC2C(plan, mesh_z.data(), mesh_z.data(), CUFFT_INVERSE) != CUFFT_SUCCESS) {
-    std::cout << "CUFFT error: ExecC2C Inverse failed" << std::endl;
+  if (gpufftExecC2C(plan, mesh_z.data(), mesh_z.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
 

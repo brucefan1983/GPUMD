@@ -93,6 +93,16 @@
 #define gpusolverDnZheevjBatched_bufferSize hipsolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched hipsolverDnZheevjBatched
 
+// FFT
+#define gpufftComplex hipfftComplex
+#define gpufftExecC2C hipfftExecC2C
+#define gpufftPlan3d hipfftPlan3d 
+#define gpufftDestroy hipfftDestroy
+#define GPUFFT_SUCCESS HIPFFT_SUCCESS
+#define GPUFFT_C2C HIPFFT_C2C
+#define GPUFFT_FORWARD HIPFFT_FORWARD
+#define GPUFFT_INVERSE HIPFFT_INVERSE
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -171,5 +181,15 @@
 #define gpusolverDnDsyevj cusolverDnDsyevj
 #define gpusolverDnZheevjBatched_bufferSize cusolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched cusolverDnZheevjBatched
+
+// FFT
+#define gpufftComplex cufftComplex
+#define gpufftExecC2C cufftExecC2C
+#define gpufftPlan3d cufftPlan3d 
+#define gpufftDestroy cufftDestroy
+#define GPUFFT_SUCCESS CUFFT_SUCCESS
+#define GPUFFT_C2C CUFFT_C2C
+#define GPUFFT_FORWARD CUFFT_FORWARD
+#define GPUFFT_INVERSE CUFFT_INVERSE
 
 #endif
