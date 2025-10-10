@@ -13,9 +13,9 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*----------------------------------------------------------------------------80
-Calculate the heat current autocorrelation (HAC) function.
-------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------------------------100
+Calculate the time derivative of the polarization of the system and output to dpdt.out
+--------------------------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
 #include "compute_dpdt.cuh"
