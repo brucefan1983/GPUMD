@@ -22,7 +22,6 @@ class Compute_dpdt : public Property
 public:
   Compute_dpdt(const char**, int);
 
-  int compute = 0;
   int sample_interval;
 
   virtual void preprocess(

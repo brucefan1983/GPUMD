@@ -91,12 +91,10 @@ void Compute_dpdt::preprocess(
   Box& box,
   Force& force)
 {
-  if (compute) {
-    fid = fopen("dpdt.out", "a");
-    gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
-    gpu_dpdt_total.resize(3);
-    cpu_dpdt_total.resize(3);
-  }
+  fid = fopen("dpdt.out", "a");
+  gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
+  gpu_dpdt_total.resize(3);
+  cpu_dpdt_total.resize(3);
 }
 
 void Compute_dpdt::process(
@@ -113,8 +111,6 @@ void Compute_dpdt::process(
   Atom& atom,
   Force& force)
 {
-  if (!compute)
-    return;
   if ((step + 1) % sample_interval != 0)
     return;
 
@@ -150,16 +146,11 @@ void Compute_dpdt::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (!compute)
-    return;
   fclose(fid);
-  compute = 0;
 }
 
 void Compute_dpdt::parse(const char** param, int num_param)
 {
-  compute = 1;
-
   printf("Compute dp/dt.\n");
 
   if (num_param != 2) {
