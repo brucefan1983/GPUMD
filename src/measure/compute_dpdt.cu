@@ -29,7 +29,6 @@ Calculate the heat current autocorrelation (HAC) function.
 #define FILE_NAME_LENGTH 200
 #define DIM 3
 
-// Allocate memory for recording heat current data
 void Compute_dpdt::preprocess(
   const int number_of_steps,
   const double time_step,
@@ -40,9 +39,8 @@ void Compute_dpdt::preprocess(
   Force& force)
 {
   if (compute) {
-    int number_of_frames = number_of_steps / sample_interval;
-    heat_all.resize(NUM_OF_HEAT_COMPONENTS * number_of_frames);
-    atom.heat_per_atom.resize(atom.number_of_atoms * 5);
+    FILE* fid = fopen("dpdt.out", "a");
+    dpdt.resize(3);
   }
 }
 

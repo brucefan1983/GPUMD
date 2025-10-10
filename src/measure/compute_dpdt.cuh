@@ -61,5 +61,6 @@ public:
   void parse(const char**, int);
 
 private:
+  GPU_Vector<float> dpdt;
   GPU_Vector<double> heat_all;
 };
