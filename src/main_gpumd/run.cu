@@ -22,6 +22,7 @@ Run simulation according to the inputs in the run.in file.
 #include "add_random_force.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
+#include "deposit.cuh"
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
@@ -249,6 +250,8 @@ void Run::perform_a_run()
 
   for (int step = 0; step < number_of_steps; ++step) {
 
+    deposit.compute(step, atom, group);
+
     velocity.correct_velocity(
       step,
       group,
@@ -338,6 +341,7 @@ void Run::perform_a_run()
   add_efield.finalize();
   integrate.finalize();
   mc.finalize();
+  deposit.finalize();
   velocity.finalize();
   force.finalize();
   max_distance_per_step = 0.0;
@@ -419,6 +423,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(param, num_param, group);
+  } else if (strcmp(param[0], "deposit") == 0) {
+    deposit.parse(param, num_param, atom, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Dump_Thermo(param, num_param));

@@ -117,6 +117,13 @@ gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* 
 
 void Add_Random_Force::compute(const int step, Atom& atom)
 {
+  if (curand_states_.size() < static_cast<size_t>(atom.number_of_atoms)) {
+    curand_states_.resize(atom.number_of_atoms);
+    int grid_size = (atom.number_of_atoms - 1) / 128 + 1;
+    initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), atom.number_of_atoms, seed_);
+    GPU_CHECK_KERNEL
+  }
+
   for (int call = 0; call < num_calls_; ++call) {
     add_random_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
@@ -167,9 +174,10 @@ void Add_Random_Force::parse(const char** param, int num_param, int number_of_at
     PRINT_INPUT_ERROR("add_random_force cannot be used more than 1 time in one run.");
   }
 
+  seed_ = rand();
   curand_states_.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), number_of_atoms, rand());
+  initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), number_of_atoms, seed_);
   GPU_CHECK_KERNEL
 }
 

@@ -35,4 +35,5 @@ private:
   GPU_Vector<gpurandState> curand_states_;
   int num_calls_ = 0;
   double force_variance_ = 0.0;
+  int seed_ = 0;
 };

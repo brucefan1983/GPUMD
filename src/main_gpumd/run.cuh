@@ -22,6 +22,7 @@ class Measure;
 #include "add_efield.cuh"
 #include "add_force.cuh"
 #include "add_random_force.cuh"
+#include "deposit.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -63,6 +64,7 @@ private:
   Atom atom;
   GPU_Vector<double> thermo; // some thermodynamic quantities
   Velocity velocity;
+  Deposit deposit;
   Box box;
   std::vector<Group> group;
 

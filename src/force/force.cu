@@ -487,6 +487,11 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
+
+  for (auto& potential : potentials) {
+    potential->N1 = 0;
+    potential->N2 = number_of_atoms;
+  }
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,

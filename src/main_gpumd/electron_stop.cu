@@ -159,6 +159,14 @@ void Electron_Stop::compute(double time_step, Atom& atom)
     return;
   }
 
+  const int num_atoms = atom.number_of_atoms;
+  if (stopping_force.size() < static_cast<size_t>(num_atoms) * 3) {
+    stopping_force.resize(num_atoms * 3);
+  }
+  if (stopping_loss.size() < static_cast<size_t>(num_atoms)) {
+    stopping_loss.resize(num_atoms);
+  }
+
   find_stopping_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms,
     num_points,
