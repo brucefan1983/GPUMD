@@ -58,7 +58,6 @@ public:
     const double temperature);
 
 private:
-  bool dump_ = false;
   int dump_interval_ = 1;
   FILE* fid_;
   char filename_[200];
@@ -69,7 +68,6 @@ private:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
   std::vector<double> cpu_force_per_atom_;
-  std::vector<double> cpu_potential_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
 };

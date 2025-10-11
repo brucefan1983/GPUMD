@@ -58,7 +58,6 @@ Dump_EXYZ::Dump_EXYZ(const char** param, int num_param)
 
 void Dump_EXYZ::parse(const char** param, int num_param)
 {
-  dump_ = true;
   printf("Dump train.xyz for NEP-CG.\n");
 
   if (num_param < 2) {
@@ -84,13 +83,11 @@ void Dump_EXYZ::preprocess(
   Box& box,
   Force& force)
 {
-  if (dump_) {
-    fid_ = my_fopen("train.xyz", "a");
+  fid_ = my_fopen("train.xyz", "a");
 
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-  }
+  gpu_total_virial_.resize(6);
+  cpu_total_virial_.resize(6);
+  cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
 }
 
 void Dump_EXYZ::output_line2(
@@ -160,8 +157,6 @@ void Dump_EXYZ::process(
   Atom& atom,
   Force& force)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
@@ -197,8 +192,5 @@ void Dump_EXYZ::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (dump_) {
-    fclose(fid_);
-    dump_ = false;
-  }
+  fclose(fid_);
 }
