@@ -172,13 +172,24 @@ void Dump_EXYZ::process(
   output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
+  for (int b = 0; b < num_beads; b++) {
+    int n1 = b * 3; // O
+    int n2 = n1 + 1; // H
+    int n3 = n1 + 2; // H
+    fprintf(fid_, "O "); // call it O
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
+      double r1 = atom.cpu_position_per_atom[n1 + num_atoms_total * d];
+      double r2 = atom.cpu_position_per_atom[n2 + num_atoms_total * d];
+      double r3 = atom.cpu_position_per_atom[n3 + num_atoms_total * d];
+      double r_com = (r1 * 16.0 + r2 * 1.0 + r3 * 1.0) / 18.0;
+      fprintf(fid_, " %.8f", r_com);
     }
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
+      double f1 = cpu_force_per_atom_[n1 + num_atoms_total * d];
+      double f2 = cpu_force_per_atom_[n2 + num_atoms_total * d];
+      double f3 = cpu_force_per_atom_[n3 + num_atoms_total * d];
+      double f_tot = f1 + f2 + f3;
+      fprintf(fid_, " %.8f", f_tot);
     }
     fprintf(fid_, "\n");
   }
