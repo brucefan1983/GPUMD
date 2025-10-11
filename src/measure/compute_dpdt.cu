@@ -95,6 +95,11 @@ void Compute_dpdt::preprocess(
   gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
   gpu_dpdt_total.resize(3);
   cpu_dpdt_total.resize(3);
+  p_integral[0] = 0.0;
+  p_integral[1] = 0.0;
+  p_integral[2] = 0.0;
+  p_integral_time = 0.0;
+  p_integral_dt = time_step * sample_interval;
 }
 
 void Compute_dpdt::process(
@@ -130,11 +135,20 @@ void Compute_dpdt::process(
   gpu_sum_dpdt<<<3, 1024>>>(N, gpu_dpdt_per_atom.data(), gpu_dpdt_total.data());
   GPU_CHECK_KERNEL
 
+  p_integral_time += p_integral_dt * TIME_UNIT_CONVERSION;
   gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
   for (int d = 0; d < 3; ++d) {
-    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION;
+    p_integral[d] += cpu_dpdt_total[d] * p_integral_dt; //  e A
+    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION; // e A / fs
   }
-  fprintf(fid, "%g %g %g\n", cpu_dpdt_total[0], cpu_dpdt_total[1], cpu_dpdt_total[2]);
+  fprintf(fid, "%g %g %g %g %g %g %g\n", 
+    p_integral_time,
+    cpu_dpdt_total[0], 
+    cpu_dpdt_total[1], 
+    cpu_dpdt_total[2], 
+    p_integral[0], 
+    p_integral[1], 
+    p_integral[2]);
   fflush(fid);
 }
 

@@ -61,5 +61,8 @@ private:
   GPU_Vector<float> gpu_dpdt_per_atom;
   GPU_Vector<float> gpu_dpdt_total;
   std::vector<float> cpu_dpdt_total;
+  double p_integral[3];
+  double p_integral_dt;
+  double p_integral_time;
   FILE* fid;
 };
