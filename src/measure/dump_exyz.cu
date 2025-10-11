@@ -197,18 +197,6 @@ void Dump_EXYZ::output_line2(
     cpu_total_virial_[4],
     cpu_total_virial_[5],
     cpu_total_virial_[2]);
-  fprintf(
-    fid_,
-    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_thermo[2],
-    cpu_thermo[5],
-    cpu_thermo[6],
-    cpu_thermo[5],
-    cpu_thermo[3],
-    cpu_thermo[7],
-    cpu_thermo[6],
-    cpu_thermo[7],
-    cpu_thermo[4]);
 
   // Properties
   fprintf(fid_, " Properties=species:S:1:pos:R:3");
