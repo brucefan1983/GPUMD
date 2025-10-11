@@ -165,7 +165,7 @@ void Dump_EXYZ::process(
   atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
+  fprintf(fid_, "%d\n", num_atoms_total/3); // water
 
   // line 2
   output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
