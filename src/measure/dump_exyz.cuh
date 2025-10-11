@@ -60,10 +60,6 @@ public:
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
-  int has_velocity_ = 0;
-  int has_force_ = 0;
-  int has_potential_ = 0;
-  int separated_ = 0;
   FILE* fid_;
   char filename_[200];
   void output_line2(

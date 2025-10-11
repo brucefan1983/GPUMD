@@ -73,55 +73,6 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 
   printf("    every %d steps.\n", dump_interval_);
-
-  has_velocity_ = 0;
-  has_force_ = 0;
-  has_potential_ = 0;
-  separated_ = 0;
-
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &has_velocity_)) {
-      PRINT_INPUT_ERROR("has_velocity should be an integer.");
-    }
-    if (has_velocity_ == 0) {
-      printf("    without velocity data.\n");
-    } else {
-      printf("    with velocity data.\n");
-    }
-  }
-
-  if (num_param >= 4) {
-    if (!is_valid_int(param[3], &has_force_)) {
-      PRINT_INPUT_ERROR("has_force should be an integer.");
-    }
-    if (has_force_ == 0) {
-      printf("    without force data.\n");
-    } else {
-      printf("    with force data.\n");
-    }
-  }
-
-  if (num_param >= 5) {
-    if (!is_valid_int(param[4], &has_potential_)) {
-      PRINT_INPUT_ERROR("has_potential should be an integer.");
-    }
-    if (has_potential_ == 0) {
-      printf("    without potential data.\n");
-    } else {
-      printf("    with potential data.\n");
-    }
-  }
-
-  if (num_param >= 6) {
-    if (!is_valid_int(param[5], &separated_)) {
-      PRINT_INPUT_ERROR("separated should be an integer.");
-    }
-    if (separated_ == 0) {
-      printf("    dump_exyz into dump.xyz.\n");
-    } else {
-      printf("    dump_exyz into separated dump.*.xyz.\n");
-    }
-  }
 }
 
 void Dump_EXYZ::preprocess(
@@ -134,18 +85,11 @@ void Dump_EXYZ::preprocess(
   Force& force)
 {
   if (dump_) {
-    if (separated_ == 0) {
-      fid_ = my_fopen("train.xyz", "a");
-    }
+    fid_ = my_fopen("train.xyz", "a");
 
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    if (has_potential_) {
-      cpu_potential_per_atom_.resize(atom.number_of_atoms);
-    }
+    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   }
 }
 
@@ -199,20 +143,7 @@ void Dump_EXYZ::output_line2(
     cpu_total_virial_[2]);
 
   // Properties
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
-
-  if (has_velocity_) {
-    fprintf(fid_, ":vel:R:3");
-  }
-  if (has_force_) {
-    fprintf(fid_, ":forces:R:3");
-  }
-  if (has_potential_) {
-    fprintf(fid_, ":energy_atom:R:1");
-  }
-
-  // Over
-  fprintf(fid_, "\n");
+  fprintf(fid_, " Properties=species:S:1:pos:R:3:forces:R:3\n");
 }
 
 void Dump_EXYZ::process(
@@ -236,20 +167,7 @@ void Dump_EXYZ::process(
 
   const int num_atoms_total = atom.position_per_atom.size() / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  if (has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-  }
-  if (has_force_) {
-    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-  if (has_potential_) {
-    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
-  }
-
-  if (separated_) {
-    std::string filename = "dump." + std::to_string(step + 1) + ".xyz";
-    fid_ = my_fopen(filename.data(), "w");
-  }
+  atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
   fprintf(fid_, "%d\n", num_atoms_total);
@@ -263,28 +181,12 @@ void Dump_EXYZ::process(
     for (int d = 0; d < 3; ++d) {
       fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
     }
-    if (has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
-      for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", atom.cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
-      }
-    }
-    if (has_force_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
-      }
-    }
-    if (has_potential_) {
-      fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
+    for (int d = 0; d < 3; ++d) {
+      fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
     }
     fprintf(fid_, "\n");
   }
-  if (separated_ == 0) {
-    fflush(fid_);
-  } else {
-    fclose(fid_);
-  }
+  fflush(fid_);
 }
 
 void Dump_EXYZ::postprocess(
@@ -296,9 +198,7 @@ void Dump_EXYZ::postprocess(
   const double temperature)
 {
   if (dump_) {
-    if (separated_ == 0) {
-      fclose(fid_);
-    }
+    fclose(fid_);
     dump_ = false;
   }
 }
