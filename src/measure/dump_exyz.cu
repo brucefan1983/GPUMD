@@ -59,7 +59,7 @@ Dump_EXYZ::Dump_EXYZ(const char** param, int num_param)
 void Dump_EXYZ::parse(const char** param, int num_param)
 {
   dump_ = true;
-  printf("Dump extended XYZ.\n");
+  printf("Dump train.xyz for NEP-CG.\n");
 
   if (num_param < 2) {
     PRINT_INPUT_ERROR("dump_exyz should have at least 1 parameter.\n");
@@ -135,7 +135,7 @@ void Dump_EXYZ::preprocess(
 {
   if (dump_) {
     if (separated_ == 0) {
-      fid_ = my_fopen("dump.xyz", "a");
+      fid_ = my_fopen("train.xyz", "a");
     }
 
     gpu_total_virial_.resize(6);
