@@ -161,11 +161,12 @@ void Dump_EXYZ::process(
     return;
 
   const int num_atoms_total = atom.position_per_atom.size() / 3;
+  const int num_beads = num_atoms_total / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
-  fprintf(fid_, "%d\n", num_atoms_total/3); // water
+  fprintf(fid_, "%d\n", num_beads); // water
 
   // line 2
   output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
