@@ -58,11 +58,9 @@ private:
   GPU_Vector<float> kz;
   GPU_Vector<float> G;
   GPU_Vector<cufftComplex> mesh;
-  GPU_Vector<cufftComplex> mesh_G;
-  GPU_Vector<cufftComplex> mesh_x;
-  GPU_Vector<cufftComplex> mesh_y;
-  GPU_Vector<cufftComplex> mesh_z;
+  GPU_Vector<cufftComplex> mesh_Gxyz;
   cufftHandle plan;
+  cufftHandle plan_batch;
   void allocate_memory();
   void find_para(const int N, const Box& box);
   void find_k_and_G(const double* box);

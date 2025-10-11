@@ -396,6 +396,7 @@ PPPM::PPPM()
 PPPM::~PPPM()
 {
   gpufftDestroy(plan);
+  gpufftDestroy(plan_batch);
 }
 
 void PPPM::allocate_memory()
@@ -405,12 +406,14 @@ void PPPM::allocate_memory()
   kz.resize(para.K0K1K2);
   G.resize(para.K0K1K2);
   mesh.resize(para.K0K1K2);
-  mesh_G.resize(para.K0K1K2);
-  mesh_x.resize(para.K0K1K2);
-  mesh_y.resize(para.K0K1K2);
-  mesh_z.resize(para.K0K1K2);
+  mesh_Gxyz.resize(para.K0K1K2 * 4); // combine mesh_G, mesh_x, mesh_y, mesh_z
   // para.K[2] is the slowest changing dimension; para.K[0] is the fastest changing dimension
   if (gpufftPlan3d(&plan, para.K[2], para.K[1], para.K[0], GPUFFT_C2C) != GPUFFT_SUCCESS) {
+    std::cout << "GPUFFT error: Plan creation failed" << std::endl;
+    exit(1);
+  }
+  int n[3] = {para.K[0], para.K[1], para.K[2]}; // Is this correct order?
+  if (cufftPlanMany(&plan_batch, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 4) != GPUFFT_SUCCESS) {
     std::cout << "GPUFFT error: Plan creation failed" << std::endl;
     exit(1);
   }
@@ -506,35 +509,19 @@ void PPPM::find_force(
     kz.data(),
     G.data(),
     mesh.data(),
-    mesh_x.data(),
-    mesh_y.data(),
-    mesh_z.data());
+    mesh_Gxyz.data() + para.K0K1K2 * 1,
+    mesh_Gxyz.data() + para.K0K1K2 * 2,
+    mesh_Gxyz.data() + para.K0K1K2 * 3);
   GPU_CHECK_KERNEL
 
   find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
     para,
     G.data(),
     mesh.data(),
-    mesh_G.data());
+    mesh_Gxyz.data());
   GPU_CHECK_KERNEL
 
-
-  if (gpufftExecC2C(plan, mesh_G.data(), mesh_G.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
-    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
-    exit(1);
-  }
-
-  if (gpufftExecC2C(plan, mesh_x.data(), mesh_x.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
-    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
-    exit(1);
-  }
-
-  if (gpufftExecC2C(plan, mesh_y.data(), mesh_y.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
-    std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
-    exit(1);
-  }
-
-  if (gpufftExecC2C(plan, mesh_z.data(), mesh_z.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+  if (gpufftExecC2C(plan_batch, mesh_Gxyz.data(), mesh_Gxyz.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
     std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
     exit(1);
   }
@@ -548,10 +535,10 @@ void PPPM::find_force(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    mesh_G.data(),
-    mesh_x.data(),
-    mesh_y.data(),
-    mesh_z.data(),
+    mesh_Gxyz.data(),
+    mesh_Gxyz.data() + para.K0K1K2 * 1,
+    mesh_Gxyz.data() + para.K0K1K2 * 2,
+    mesh_Gxyz.data() + para.K0K1K2 * 3,
     D_real.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
