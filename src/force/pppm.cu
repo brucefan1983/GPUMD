@@ -555,8 +555,8 @@ void PPPM::allocate_memory()
   }
 
   if (need_peratom_virial) {
-    mesh_virial.resize(para.K0K1K2);
-    int n[3] = {para.K[0], para.K[1], para.K[2]}; // Is this correct order?
+    mesh_virial.resize(para.K0K1K2 * 6);
+    int n[3] = {para.K[2], para.K[1], para.K[0]};
     if (gpufftPlanMany(&plan_virial, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 6) != GPUFFT_SUCCESS) {
       std::cout << "GPUFFT error: plan_virial creation failed" << std::endl;
       exit(1);
