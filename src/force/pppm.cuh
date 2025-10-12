@@ -16,7 +16,11 @@
 #pragma once
 #include "utilities/gpu_vector.cuh"
 #include "model/box.cuh"
-#include <cufft.h>
+#ifdef USE_HIP
+  #include <hipfft/hipfft.h>
+#else
+  #include <cufft.h>
+#endif
 
 class PPPM
 {

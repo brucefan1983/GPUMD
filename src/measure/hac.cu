@@ -108,7 +108,7 @@ void HAC::process(
 }
 
 // Calculate the Heat current Auto-Correlation function (HAC)
-__global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, double* g_hac)
+static __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, double* g_hac)
 {
   //<<<Nc, 128>>>
 
