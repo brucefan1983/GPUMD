@@ -239,23 +239,25 @@ void __global__ find_mesh_virial(
     const float ky = g_ky[n];
     const float kz = g_kz[n];
     const float ksq = kx * kx + ky * ky + kz * kz;
-    const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
-    const float G = g_G[n];
-    const gpufftComplex S = g_S[n];
-    const float GSx = G * S.x;
-    const float GSy = G * S.y;
-    float B = 1.0f - alpha_k_factor * kx * kx;
-    g_mesh_virial_xx[n] = {B * GSx, B * GSy};
-    B = 1.0f - alpha_k_factor * ky * ky;
-    g_mesh_virial_yy[n] = {B * GSx, B * GSy};
-    B = 1.0f - alpha_k_factor * kz * kz;
-    g_mesh_virial_zz[n] = {B * GSx, B * GSy};
-    B = -alpha_k_factor * kx * ky;
-    g_mesh_virial_xy[n] = {B * GSx, B * GSy};
-    B = -alpha_k_factor * ky * kz;
-    g_mesh_virial_yz[n] = {B * GSx, B * GSy};
-    B = -alpha_k_factor * kz * kx;
-    g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+    if (ksq != 0.0f) {
+      const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
+      const float G = g_G[n];
+      const gpufftComplex S = g_S[n];
+      const float GSx = G * S.x;
+      const float GSy = G * S.y;
+      float B = 1.0f - alpha_k_factor * kx * kx;
+      g_mesh_virial_xx[n] = {B * GSx, B * GSy};
+      B = 1.0f - alpha_k_factor * ky * ky;
+      g_mesh_virial_yy[n] = {B * GSx, B * GSy};
+      B = 1.0f - alpha_k_factor * kz * kz;
+      g_mesh_virial_zz[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * kx * ky;
+      g_mesh_virial_xy[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * ky * kz;
+      g_mesh_virial_yz[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * kz * kx;
+      g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+    }
   }
 }
 

@@ -67,7 +67,7 @@ private:
   void find_para(const int N, const Box& box);
   void find_k_and_G(const double* box);
 
-  bool need_peratom_virial = true;
+  bool need_peratom_virial = false;
   GPU_Vector<cufftComplex> mesh_virial;
   gpufftHandle plan_virial;
 };
