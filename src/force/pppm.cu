@@ -327,6 +327,74 @@ __global__ void find_force_from_field(
   } 
 }
 
+__global__ void find_force_virial_potential_from_field(
+  const int N1,
+  const int N2,
+  const PPPM::Para para,
+  const Box box,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const gpufftComplex* g_mesh_G,
+  const gpufftComplex* g_mesh_fft_x_ifft,
+  const gpufftComplex* g_mesh_fft_y_ifft,
+  const gpufftComplex* g_mesh_fft_z_ifft,
+  float* g_D_real,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    const double x = g_x[n];
+    const double y = g_y[n];
+    const double z = g_z[n];
+    const float q = K_C_SP * g_charge[n] * 2.0f;
+    const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
+    const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
+    const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
+    const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
+    const float dx = sx - ix; // (-0.5, 0.5)
+    const float dy = sy - iy; // (-0.5, 0.5)
+    const float dz = sz - iz; // (-0.5, 0.5)
+    // Appendix E in M. Deserno and C. Holm, JCP 109, 7678 (1998)
+    float Wx[5] = {0.0f};
+    float Wy[5] = {0.0f};
+    float Wz[5] = {0.0f};
+    for (int d = 0; d < 5; ++d) {
+      Wx[d] = (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx + W_coeff[d][0];
+      Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
+      Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
+    }
+    float D_real = 0.0f;
+    float E[3] = {0.0f, 0.0f, 0.0f};
+    for (int n0 = -2; n0 <= 2; ++n0) {
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      for (int n1 = -2; n1 <= 2; ++n1) {
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        for (int n2 = -2; n2 <= 2; ++n2) {
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
+          D_real += W * g_mesh_G[neighbor012].x;
+          E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
+          E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
+          E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
+        }
+      }
+    }
+    g_D_real[n] = 2.0f * K_C_SP * D_real;
+    g_fx[n] += q * E[0];
+    g_fy[n] += q * E[1];
+    g_fz[n] += q * E[2];
+  } 
+}
+
 void __global__ find_potential_and_virial(
   const int N,
   const PPPM::Para para,
@@ -615,36 +683,60 @@ void PPPM::find_force(
       std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
       exit(1);
     }
+
+    // get force, virial, and potential in single kernel
+    find_force_virial_potential_from_field<<<(N - 1) / 64 + 1, 64>>>(
+      N1,
+      N2,
+      para,
+      box,
+      charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      mesh_G.data(),
+      mesh_x.data(),
+      mesh_y.data(),
+      mesh_z.data(),
+      D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
+  } else {
+    // get force only
+    find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
+      N1,
+      N2,
+      para,
+      box,
+      charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      mesh_G.data(),
+      mesh_x.data(),
+      mesh_y.data(),
+      mesh_z.data(),
+      D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2);
+    GPU_CHECK_KERNEL
+
+    // then get average potential and virial
+    find_potential_and_virial<<<7, 1024>>>(
+      N,
+      para,
+      mesh.data(),
+      kx.data(),
+      ky.data(),
+      kz.data(),
+      G.data(),
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
   }
-
-  find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
-    N1,
-    N2,
-    para,
-    box,
-    charge.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    mesh_G.data(),
-    mesh_x.data(),
-    mesh_y.data(),
-    mesh_z.data(),
-    D_real.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2);
-  GPU_CHECK_KERNEL
-
-  find_potential_and_virial<<<7, 1024>>>(
-    N,
-    para,
-    mesh.data(),
-    kx.data(),
-    ky.data(),
-    kz.data(),
-    G.data(),
-    virial_per_atom.data(),
-    potential_per_atom.data());
-  GPU_CHECK_KERNEL
 }
