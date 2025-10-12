@@ -551,6 +551,14 @@ void PPPM::find_force(
     exit(1);
   }
 
+  if (need_peratom_virial) {
+    if (gpufftExecC2C(plan_virial, mesh_virial.data(), mesh_virial.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+      std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
+      exit(1);
+    }
+  }
+
+
   find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
     N1,
     N2,
