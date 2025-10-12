@@ -219,6 +219,46 @@ void __global__ find_mesh_G(
   }
 }
 
+void __global__ find_mesh_virial(
+  const PPPM::Para para,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  const gpufftComplex* g_S,
+  gpufftComplex* g_mesh_virial_xx,
+  gpufftComplex* g_mesh_virial_yy,
+  gpufftComplex* g_mesh_virial_zz,
+  gpufftComplex* g_mesh_virial_xy,
+  gpufftComplex* g_mesh_virial_yz,
+  gpufftComplex* g_mesh_virial_zx)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    const float kx = g_kx[n];
+    const float ky = g_ky[n];
+    const float kz = g_kz[n];
+    const float ksq = kx * kx + ky * ky + kz * kz;
+    const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
+    const float G = g_G[n];
+    const gpufftComplex S = g_S[n];
+    const float GSx = G * S.x;
+    const float GSy = G * S.y;
+    float B = (1.0f - alpha_k_factor * kx * kx);
+    g_mesh_virial_xx[n] = {B * GSx, B * GSy};
+    B = (1.0f - alpha_k_factor * ky * ky);
+    g_mesh_virial_yy[n] = {B * GSx, B * GSy};
+    B = (1.0f - alpha_k_factor * kz * kz);
+    g_mesh_virial_zz[n] = {B * GSx, B * GSy};
+    B = -alpha_k_factor * kx * ky;
+    g_mesh_virial_xy[n] = {B * GSx, B * GSy};
+    B = -alpha_k_factor * ky * kz;
+    g_mesh_virial_yz[n] = {B * GSx, B * GSy};
+    B = -alpha_k_factor * kz * kx;
+    g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+  }
+}
+
 __global__ void find_force_from_field(
   const int N1,
   const int N2,
@@ -530,6 +570,22 @@ void PPPM::find_force(
     mesh_G.data());
   GPU_CHECK_KERNEL
 
+  if (need_peratom_virial) {
+    find_mesh_virial<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+      para,
+      kx.data(),
+      ky.data(),
+      kz.data(),
+      G.data(),
+      mesh.data(),
+      mesh_virial.data() + para.K0K1K2 * 0,
+      mesh_virial.data() + para.K0K1K2 * 1,
+      mesh_virial.data() + para.K0K1K2 * 2,
+      mesh_virial.data() + para.K0K1K2 * 3,
+      mesh_virial.data() + para.K0K1K2 * 4,
+      mesh_virial.data() + para.K0K1K2 * 5);
+    GPU_CHECK_KERNEL
+  }
 
   if (gpufftExecC2C(plan, mesh_G.data(), mesh_G.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
     std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
@@ -557,7 +613,6 @@ void PPPM::find_force(
       exit(1);
     }
   }
-
 
   find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
     N1,
