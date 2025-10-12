@@ -181,7 +181,22 @@ void Dump_EXYZ::process(
       double r1 = atom.cpu_position_per_atom[n1 + num_atoms_total * d];
       double r2 = atom.cpu_position_per_atom[n2 + num_atoms_total * d];
       double r3 = atom.cpu_position_per_atom[n3 + num_atoms_total * d];
+      if (r2 - r1 > box.cpu_h[0]/2) {
+        r2 -= box.cpu_h[0];
+      } else if (r2 - r1 < -box.cpu_h[0]/2) {
+        r2 += box.cpu_h[0];
+      }
+      if (r3 - r1 > box.cpu_h[0]/2) {
+        r3 -= box.cpu_h[0];
+      } else if (r3 - r1 < -box.cpu_h[0]/2) {
+        r3 += box.cpu_h[0];
+      }
       double r_com = (r1 * 16.0 + r2 * 1.0 + r3 * 1.0) / 18.0;
+      if (r_com < 0) {
+        r_com += box.cpu_h[0];
+      } else if (r_com > box.cpu_h[0]) {
+        r_com -= box.cpu_h[0];
+      }
       fprintf(fid_, " %.8f", r_com);
     }
     for (int d = 0; d < 3; ++d) {
