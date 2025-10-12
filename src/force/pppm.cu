@@ -20,6 +20,7 @@ The k-space part of the PPPM method.
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -219,6 +220,48 @@ void __global__ find_mesh_G(
   }
 }
 
+void __global__ find_mesh_virial(
+  const PPPM::Para para,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G,
+  const gpufftComplex* g_S,
+  gpufftComplex* g_mesh_virial_xx,
+  gpufftComplex* g_mesh_virial_yy,
+  gpufftComplex* g_mesh_virial_zz,
+  gpufftComplex* g_mesh_virial_xy,
+  gpufftComplex* g_mesh_virial_yz,
+  gpufftComplex* g_mesh_virial_zx)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < para.K0K1K2) {
+    const float kx = g_kx[n];
+    const float ky = g_ky[n];
+    const float kz = g_kz[n];
+    const float ksq = kx * kx + ky * ky + kz * kz;
+    if (ksq != 0.0f) {
+      const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
+      const float G = g_G[n];
+      const gpufftComplex S = g_S[n];
+      const float GSx = G * S.x;
+      const float GSy = G * S.y;
+      float B = 1.0f - alpha_k_factor * kx * kx;
+      g_mesh_virial_xx[n] = {B * GSx, B * GSy};
+      B = 1.0f - alpha_k_factor * ky * ky;
+      g_mesh_virial_yy[n] = {B * GSx, B * GSy};
+      B = 1.0f - alpha_k_factor * kz * kz;
+      g_mesh_virial_zz[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * kx * ky;
+      g_mesh_virial_xy[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * ky * kz;
+      g_mesh_virial_yz[n] = {B * GSx, B * GSy};
+      B = -alpha_k_factor * kz * kx;
+      g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+    }
+  }
+}
+
 __global__ void find_force_from_field(
   const int N1,
   const int N2,
@@ -282,6 +325,102 @@ __global__ void find_force_from_field(
     g_fx[n] += q * E[0];
     g_fy[n] += q * E[1];
     g_fz[n] += q * E[2];
+  } 
+}
+
+__global__ void find_force_virial_potential_from_field(
+  const int N,
+  const int N1,
+  const int N2,
+  const PPPM::Para para,
+  const Box box,
+  const float* g_charge,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const gpufftComplex* g_mesh_G,
+  const gpufftComplex* g_mesh_fft_x_ifft,
+  const gpufftComplex* g_mesh_fft_y_ifft,
+  const gpufftComplex* g_mesh_fft_z_ifft,
+  const gpufftComplex* g_mesh_virial_xx,
+  const gpufftComplex* g_mesh_virial_yy,
+  const gpufftComplex* g_mesh_virial_zz,
+  const gpufftComplex* g_mesh_virial_xy,
+  const gpufftComplex* g_mesh_virial_yz,
+  const gpufftComplex* g_mesh_virial_zx,
+  float* g_D_real,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    const double x = g_x[n];
+    const double y = g_y[n];
+    const double z = g_z[n];
+    const float q = K_C_SP * g_charge[n];
+    const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
+    const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
+    const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
+    const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
+    const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
+    const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
+    const float dx = sx - ix; // (-0.5, 0.5)
+    const float dy = sy - iy; // (-0.5, 0.5)
+    const float dz = sz - iz; // (-0.5, 0.5)
+    // Appendix E in M. Deserno and C. Holm, JCP 109, 7678 (1998)
+    float Wx[5] = {0.0f};
+    float Wy[5] = {0.0f};
+    float Wz[5] = {0.0f};
+    for (int d = 0; d < 5; ++d) {
+      Wx[d] = (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx + W_coeff[d][0];
+      Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
+      Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
+    }
+    float D_real = 0.0f;
+    float E[3] = {0.0f, 0.0f, 0.0f};
+    float V[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    for (int n0 = -2; n0 <= 2; ++n0) {
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      for (int n1 = -2; n1 <= 2; ++n1) {
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        for (int n2 = -2; n2 <= 2; ++n2) {
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
+          const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
+          D_real += W * g_mesh_G[neighbor012].x;
+          E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
+          E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
+          E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
+          V[0] += W * g_mesh_virial_xx[neighbor012].x;
+          V[1] += W * g_mesh_virial_yy[neighbor012].x;
+          V[2] += W * g_mesh_virial_zz[neighbor012].x;
+          V[3] += W * g_mesh_virial_xy[neighbor012].x;
+          V[4] += W * g_mesh_virial_yz[neighbor012].x;
+          V[5] += W * g_mesh_virial_zx[neighbor012].x;
+        }
+      }
+    }
+    g_D_real[n] = 2.0f * K_C_SP * D_real;
+    g_fx[n] += 2.0f * q * E[0];
+    g_fy[n] += 2.0f * q * E[1];
+    g_fz[n] += 2.0f * q * E[2];
+    // virial order
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n + 0 * N] += q * V[0]; // xx
+    g_virial[n + 1 * N] += q * V[1]; // yy
+    g_virial[n + 2 * N] += q * V[2]; // zz
+    g_virial[n + 3 * N] += q * V[3]; // xy
+    g_virial[n + 6 * N] += q * V[3]; // yx
+    g_virial[n + 5 * N] += q * V[4]; // yz
+    g_virial[n + 8 * N] += q * V[4]; // zy
+    g_virial[n + 4 * N] += q * V[5]; // xz
+    g_virial[n + 7 * N] += q * V[5]; // zx
+    g_pe[n] += q * D_real;
   } 
 }
 
@@ -396,6 +535,9 @@ PPPM::PPPM()
 PPPM::~PPPM()
 {
   gpufftDestroy(plan);
+  if (need_peratom_virial) {
+    gpufftDestroy(plan_virial);
+  }
 }
 
 void PPPM::allocate_memory()
@@ -414,10 +556,20 @@ void PPPM::allocate_memory()
     std::cout << "GPUFFT error: Plan creation failed" << std::endl;
     exit(1);
   }
+
+  if (need_peratom_virial) {
+    mesh_virial.resize(para.K0K1K2 * 6);
+    int n[3] = {para.K[2], para.K[1], para.K[0]};
+    if (gpufftPlanMany(&plan_virial, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 6) != GPUFFT_SUCCESS) {
+      std::cout << "GPUFFT error: plan_virial creation failed" << std::endl;
+      exit(1);
+    }
+  }
 }
 
 void PPPM::initialize(const float alpha_input)
 {
+  need_peratom_virial = check_need_peratom_virial();
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
   para.K[0] = 16;
@@ -518,6 +670,22 @@ void PPPM::find_force(
     mesh_G.data());
   GPU_CHECK_KERNEL
 
+  if (need_peratom_virial) {
+    find_mesh_virial<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+      para,
+      kx.data(),
+      ky.data(),
+      kz.data(),
+      G.data(),
+      mesh.data(),
+      mesh_virial.data() + para.K0K1K2 * 0,
+      mesh_virial.data() + para.K0K1K2 * 1,
+      mesh_virial.data() + para.K0K1K2 * 2,
+      mesh_virial.data() + para.K0K1K2 * 3,
+      mesh_virial.data() + para.K0K1K2 * 4,
+      mesh_virial.data() + para.K0K1K2 * 5);
+    GPU_CHECK_KERNEL
+  }
 
   if (gpufftExecC2C(plan, mesh_G.data(), mesh_G.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
     std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
@@ -539,34 +707,72 @@ void PPPM::find_force(
     exit(1);
   }
 
-  find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
-    N1,
-    N2,
-    para,
-    box,
-    charge.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    mesh_G.data(),
-    mesh_x.data(),
-    mesh_y.data(),
-    mesh_z.data(),
-    D_real.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2);
-  GPU_CHECK_KERNEL
+  if (need_peratom_virial) {
+    if (gpufftExecC2C(plan_virial, mesh_virial.data(), mesh_virial.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+      std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
+      exit(1);
+    }
 
-  find_potential_and_virial<<<7, 1024>>>(
-    N,
-    para,
-    mesh.data(),
-    kx.data(),
-    ky.data(),
-    kz.data(),
-    G.data(),
-    virial_per_atom.data(),
-    potential_per_atom.data());
-  GPU_CHECK_KERNEL
+    // get force, virial, and potential in single kernel
+    find_force_virial_potential_from_field<<<(N - 1) / 64 + 1, 64>>>(
+      N,
+      N1,
+      N2,
+      para,
+      box,
+      charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      mesh_G.data(),
+      mesh_x.data(),
+      mesh_y.data(),
+      mesh_z.data(),
+      mesh_virial.data() + para.K0K1K2 * 0,
+      mesh_virial.data() + para.K0K1K2 * 1,
+      mesh_virial.data() + para.K0K1K2 * 2,
+      mesh_virial.data() + para.K0K1K2 * 3,
+      mesh_virial.data() + para.K0K1K2 * 4,
+      mesh_virial.data() + para.K0K1K2 * 5,
+      D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
+  } else {
+    // get force only
+    find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
+      N1,
+      N2,
+      para,
+      box,
+      charge.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      mesh_G.data(),
+      mesh_x.data(),
+      mesh_y.data(),
+      mesh_z.data(),
+      D_real.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2);
+    GPU_CHECK_KERNEL
+
+    // then get average potential and virial
+    find_potential_and_virial<<<7, 1024>>>(
+      N,
+      para,
+      mesh.data(),
+      kx.data(),
+      ky.data(),
+      kz.data(),
+      G.data(),
+      virial_per_atom.data(),
+      potential_per_atom.data());
+    GPU_CHECK_KERNEL
+  }
 }

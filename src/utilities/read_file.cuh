@@ -18,3 +18,4 @@
 int is_valid_int(const char*, int*);
 int is_valid_real(const char*, double*);
 bool check_is_nep_charge();
+bool check_need_peratom_virial();
