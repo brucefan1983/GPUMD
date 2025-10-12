@@ -231,7 +231,8 @@ void __global__ find_mesh_virial(
   gpufftComplex* g_mesh_virial_zz,
   gpufftComplex* g_mesh_virial_xy,
   gpufftComplex* g_mesh_virial_yz,
-  gpufftComplex* g_mesh_virial_zx)
+  gpufftComplex* g_mesh_virial_zx,
+  gpufftComplex* g_mesh_potential)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -244,11 +245,11 @@ void __global__ find_mesh_virial(
     const gpufftComplex S = g_S[n];
     const float GSx = G * S.x;
     const float GSy = G * S.y;
-    float B = (1.0f - alpha_k_factor * kx * kx);
+    float B = 1.0f - alpha_k_factor * kx * kx;
     g_mesh_virial_xx[n] = {B * GSx, B * GSy};
-    B = (1.0f - alpha_k_factor * ky * ky);
+    B = 1.0f - alpha_k_factor * ky * ky;
     g_mesh_virial_yy[n] = {B * GSx, B * GSy};
-    B = (1.0f - alpha_k_factor * kz * kz);
+    B = 1.0f - alpha_k_factor * kz * kz;
     g_mesh_virial_zz[n] = {B * GSx, B * GSy};
     B = -alpha_k_factor * kx * ky;
     g_mesh_virial_xy[n] = {B * GSx, B * GSy};
@@ -256,6 +257,7 @@ void __global__ find_mesh_virial(
     g_mesh_virial_yz[n] = {B * GSx, B * GSy};
     B = -alpha_k_factor * kz * kx;
     g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+    g_mesh_potential[n] = {GSx, GSy};
   }
 }
 
@@ -459,7 +461,7 @@ void PPPM::allocate_memory()
   }
 
   if (need_peratom_virial) {
-    mesh_virial.resize(para.K0K1K2 * 6);
+    mesh_virial.resize(para.K0K1K2 * 7); // 6 virial + 1 potential
     int n[3] = {para.K[0], para.K[1], para.K[2]}; // Is this correct order?
     if (gpufftPlanMany(&plan_virial, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 6) != GPUFFT_SUCCESS) {
       std::cout << "GPUFFT error: plan_virial creation failed" << std::endl;
@@ -583,7 +585,8 @@ void PPPM::find_force(
       mesh_virial.data() + para.K0K1K2 * 2,
       mesh_virial.data() + para.K0K1K2 * 3,
       mesh_virial.data() + para.K0K1K2 * 4,
-      mesh_virial.data() + para.K0K1K2 * 5);
+      mesh_virial.data() + para.K0K1K2 * 5,
+      mesh_virial.data() + para.K0K1K2 * 6);
     GPU_CHECK_KERNEL
   }
 
