@@ -20,3 +20,4 @@ Interatomic potentials
    nep_ilp
    sw_ilp
    tersoff_ilp
+   adp
