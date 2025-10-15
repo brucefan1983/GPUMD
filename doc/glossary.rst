@@ -11,6 +11,9 @@ Glossary
    ADF
         angular distribution function
 
+   ADP
+        angular-dependent potential [Mishin2005]_
+
    ARDF
         angular-dependent radial distribution function
 

@@ -178,6 +178,13 @@ Bibliography
    | The Journal of Chemical Physics, **101**, 4177-4189 (1994)
    | DOI: `10.1063/1.467468 <https://doi.org/10.1063/1.467468>`
 
+
+.. [Mishin2005]
+   | Y. Mishin, M. J. Mehl, and D. A. Papaconstantopoulos
+   | *Phase stability in the Fe–Ni system: Investigation by first-principles calculations and atomistic simulations*
+   | Acta Materialia **53**, 4029 (2005)
+   | DOI: `10.1016/j.actamat.2005.05.001 <https://doi.org/10.1016/j.actamat.2005.05.001>`
+
 .. [Parrinello1981]
    | M. Parrinello and A. Rahman
    | *Polymorphic transitions in single crystals: A new molecular dynamics method*

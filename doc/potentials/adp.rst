@@ -182,10 +182,6 @@ Examples
 References
 ----------
 
-.. [Mishin2005] Y. Mishin, M. J. Mehl, and D. A. Papaconstantopoulos, "Phase stability in the Fe–Ni system: Investigation by first-principles calculations and atomistic simulations," Acta Mater. 53, 4029 (2005).
-
-.. [Apostol2011] F. Apostol and Y. Mishin, "Interatomic potential for the Al-Cu system," Phys. Rev. B 83, 054116 (2011).
-
 .. [Pun2015] G. P. Pun, K. A. Darling, L. J. Kecskes, and Y. Mishin, "Angular-dependent interatomic potential for the Cu–Ta system and its application to structural stability of nano-crystalline alloys," Acta Mater. 100, 377 (2015).
 
 .. [Starikov2018] S. V. Starikov, L. N. Kolotova, A. Y. Kuksin, D. E. Smirnova, and V. I. Tseplyaev, "Atomistic simulation of cubic and tetragonal phases of U-Mo alloy: Structure and thermodynamic properties," J. Nucl. Mater. 499, 451 (2018).
