@@ -14,7 +14,7 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump some data to dump.xyz in the extended XYZ format
+Dump training data for NEP-CG
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_exyz.cuh"
@@ -58,8 +58,7 @@ Dump_EXYZ::Dump_EXYZ(const char** param, int num_param)
 
 void Dump_EXYZ::parse(const char** param, int num_param)
 {
-  dump_ = true;
-  printf("Dump extended XYZ.\n");
+  printf("Dump train.xyz for NEP-CG.\n");
 
   if (num_param < 2) {
     PRINT_INPUT_ERROR("dump_exyz should have at least 1 parameter.\n");
@@ -73,55 +72,6 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 
   printf("    every %d steps.\n", dump_interval_);
-
-  has_velocity_ = 0;
-  has_force_ = 0;
-  has_potential_ = 0;
-  separated_ = 0;
-
-  if (num_param >= 3) {
-    if (!is_valid_int(param[2], &has_velocity_)) {
-      PRINT_INPUT_ERROR("has_velocity should be an integer.");
-    }
-    if (has_velocity_ == 0) {
-      printf("    without velocity data.\n");
-    } else {
-      printf("    with velocity data.\n");
-    }
-  }
-
-  if (num_param >= 4) {
-    if (!is_valid_int(param[3], &has_force_)) {
-      PRINT_INPUT_ERROR("has_force should be an integer.");
-    }
-    if (has_force_ == 0) {
-      printf("    without force data.\n");
-    } else {
-      printf("    with force data.\n");
-    }
-  }
-
-  if (num_param >= 5) {
-    if (!is_valid_int(param[4], &has_potential_)) {
-      PRINT_INPUT_ERROR("has_potential should be an integer.");
-    }
-    if (has_potential_ == 0) {
-      printf("    without potential data.\n");
-    } else {
-      printf("    with potential data.\n");
-    }
-  }
-
-  if (num_param >= 6) {
-    if (!is_valid_int(param[5], &separated_)) {
-      PRINT_INPUT_ERROR("separated should be an integer.");
-    }
-    if (separated_ == 0) {
-      printf("    dump_exyz into dump.xyz.\n");
-    } else {
-      printf("    dump_exyz into separated dump.*.xyz.\n");
-    }
-  }
 }
 
 void Dump_EXYZ::preprocess(
@@ -133,20 +83,11 @@ void Dump_EXYZ::preprocess(
   Box& box,
   Force& force)
 {
-  if (dump_) {
-    if (separated_ == 0) {
-      fid_ = my_fopen("dump.xyz", "a");
-    }
+  fid_ = my_fopen("train.xyz", "a");
 
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    if (has_potential_) {
-      cpu_potential_per_atom_.resize(atom.number_of_atoms);
-    }
-  }
+  gpu_total_virial_.resize(6);
+  cpu_total_virial_.resize(6);
+  cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
 }
 
 void Dump_EXYZ::output_line2(
@@ -197,34 +138,9 @@ void Dump_EXYZ::output_line2(
     cpu_total_virial_[4],
     cpu_total_virial_[5],
     cpu_total_virial_[2]);
-  fprintf(
-    fid_,
-    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_thermo[2],
-    cpu_thermo[5],
-    cpu_thermo[6],
-    cpu_thermo[5],
-    cpu_thermo[3],
-    cpu_thermo[7],
-    cpu_thermo[6],
-    cpu_thermo[7],
-    cpu_thermo[4]);
 
   // Properties
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
-
-  if (has_velocity_) {
-    fprintf(fid_, ":vel:R:3");
-  }
-  if (has_force_) {
-    fprintf(fid_, ":forces:R:3");
-  }
-  if (has_potential_) {
-    fprintf(fid_, ":energy_atom:R:1");
-  }
-
-  // Over
-  fprintf(fid_, "\n");
+  fprintf(fid_, " Properties=species:S:1:pos:R:3:forces:R:3\n");
 }
 
 void Dump_EXYZ::process(
@@ -241,62 +157,58 @@ void Dump_EXYZ::process(
   Atom& atom,
   Force& force)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
   const int num_atoms_total = atom.position_per_atom.size() / 3;
+  const int num_beads = num_atoms_total / 3;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  if (has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-  }
-  if (has_force_) {
-    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-  if (has_potential_) {
-    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
-  }
-
-  if (separated_) {
-    std::string filename = "dump." + std::to_string(step + 1) + ".xyz";
-    fid_ = my_fopen(filename.data(), "w");
-  }
+  atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
+  fprintf(fid_, "%d\n", num_beads); // water
 
   // line 2
   output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
+  for (int b = 0; b < num_beads; b++) {
+    int n1 = b * 3; // O
+    int n2 = n1 + 1; // H
+    int n3 = n1 + 2; // H
+    fprintf(fid_, "O "); // call it O
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
-    }
-    if (has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
-      for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", atom.cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
+      double r1 = atom.cpu_position_per_atom[n1 + num_atoms_total * d];
+      double r2 = atom.cpu_position_per_atom[n2 + num_atoms_total * d];
+      double r3 = atom.cpu_position_per_atom[n3 + num_atoms_total * d];
+      if (r2 - r1 > box.cpu_h[0]/2) {
+        r2 -= box.cpu_h[0];
+      } else if (r2 - r1 < -box.cpu_h[0]/2) {
+        r2 += box.cpu_h[0];
       }
-    }
-    if (has_force_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
+      if (r3 - r1 > box.cpu_h[0]/2) {
+        r3 -= box.cpu_h[0];
+      } else if (r3 - r1 < -box.cpu_h[0]/2) {
+        r3 += box.cpu_h[0];
       }
+      double r_com = (r1 * 16.0 + r2 * 1.0 + r3 * 1.0) / 18.0;
+      if (r_com < 0) {
+        r_com += box.cpu_h[0];
+      } else if (r_com > box.cpu_h[0]) {
+        r_com -= box.cpu_h[0];
+      }
+      fprintf(fid_, " %.8f", r_com);
     }
-    if (has_potential_) {
-      fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
+    for (int d = 0; d < 3; ++d) {
+      double f1 = cpu_force_per_atom_[n1 + num_atoms_total * d];
+      double f2 = cpu_force_per_atom_[n2 + num_atoms_total * d];
+      double f3 = cpu_force_per_atom_[n3 + num_atoms_total * d];
+      double f_tot = f1 + f2 + f3;
+      fprintf(fid_, " %.8f", f_tot);
     }
     fprintf(fid_, "\n");
   }
-  if (separated_ == 0) {
-    fflush(fid_);
-  } else {
-    fclose(fid_);
-  }
+  fflush(fid_);
 }
 
 void Dump_EXYZ::postprocess(
@@ -307,10 +219,5 @@ void Dump_EXYZ::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (dump_) {
-    if (separated_ == 0) {
-      fclose(fid_);
-    }
-    dump_ = false;
-  }
+  fclose(fid_);
 }
