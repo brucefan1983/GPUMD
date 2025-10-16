@@ -1175,6 +1175,55 @@ static __global__ void find_force_ZBL(
   }
 }
 
+void NEP::ensure_capacity(int num_atoms)
+{
+  const size_t num_atoms_sz = static_cast<size_t>(num_atoms);
+  const size_t radial_size = num_atoms_sz * paramb.MN_radial;
+  const size_t angular_size = num_atoms_sz * paramb.MN_angular;
+  const size_t fp_size = num_atoms_sz * annmb.dim;
+  const size_t sum_fxyz_size =
+    num_atoms_sz * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1);
+
+  if (nep_data.f12x.size() < angular_size) {
+    nep_data.f12x.resize(angular_size);
+    nep_data.f12y.resize(angular_size);
+    nep_data.f12z.resize(angular_size);
+  }
+  if (nep_data.NN_angular.size() < num_atoms) {
+    nep_data.NN_angular.resize(num_atoms);
+  }
+  if (nep_data.NL_angular.size() < angular_size) {
+    nep_data.NL_angular.resize(angular_size);
+  }
+
+  if (nep_data.NN_radial.size() < num_atoms) {
+    nep_data.NN_radial.resize(num_atoms);
+  }
+  if (nep_data.NL_radial.size() < radial_size) {
+    nep_data.NL_radial.resize(radial_size);
+  }
+
+  if (fp_size > 0 && nep_data.Fp.size() < fp_size) {
+    nep_data.Fp.resize(fp_size);
+  }
+  if (sum_fxyz_size > 0 && nep_data.sum_fxyz.size() < sum_fxyz_size) {
+    nep_data.sum_fxyz.resize(sum_fxyz_size);
+  }
+
+  if (nep_data.cell_count.size() < num_atoms) {
+    nep_data.cell_count.resize(num_atoms);
+  }
+  if (nep_data.cell_count_sum.size() < num_atoms) {
+    nep_data.cell_count_sum.resize(num_atoms);
+  }
+  if (nep_data.cell_contents.size() < num_atoms) {
+    nep_data.cell_contents.resize(num_atoms);
+  }
+
+  nep_data.cpu_NN_radial.resize(num_atoms);
+  nep_data.cpu_NN_angular.resize(num_atoms);
+}
+
 // large box fo MD applications
 void NEP::compute_large_box(
   Box& box,
@@ -1187,6 +1236,8 @@ void NEP::compute_large_box(
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  ensure_capacity(N);
 
   const double rc_cell_list = 0.5 * rc;
 
@@ -1381,6 +1432,8 @@ void NEP::compute_small_box(
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  ensure_capacity(N);
 
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;

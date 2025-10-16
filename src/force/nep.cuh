@@ -140,6 +140,7 @@ public:
   const GPU_Vector<int>& get_NL_radial_ptr();
 
 private:
+  void ensure_capacity(int num_atoms);
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
