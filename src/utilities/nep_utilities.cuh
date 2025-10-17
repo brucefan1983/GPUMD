@@ -164,7 +164,7 @@ static __device__ void apply_ann_one_layer(
   float* q,
   float& energy,
   float* energy_derivative,
-  double* B_projection)
+  float* B_projection)
 {
   for (int n = 0; n < N_neu; ++n) {
     float w0_times_q = 0.0f;
@@ -173,7 +173,6 @@ static __device__ void apply_ann_one_layer(
     }
     float x1 = tanh(w0_times_q - b0[n]);
     float tanh_der = 1.0f - x1 * x1;
-
     // calculate B_projection:
     // dE/dw0
     for (int d = 0; d < N_des; ++d)
@@ -182,7 +181,6 @@ static __device__ void apply_ann_one_layer(
     B_projection[n * (N_des + 2) + N_des] = -tanh_der * w1[n];
     // dE/dw1
     B_projection[n * (N_des + 2) + N_des + 1] = x1;
-
     energy += w1[n] * x1;
     for (int d = 0; d < N_des; ++d) {
       float y1 = tanh_der * w0[n * N_des + d];
