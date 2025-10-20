@@ -57,17 +57,17 @@ private:
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
   GPU_Vector<float> G;
-  GPU_Vector<cufftComplex> mesh;
-  GPU_Vector<cufftComplex> mesh_G;
-  GPU_Vector<cufftComplex> mesh_x;
-  GPU_Vector<cufftComplex> mesh_y;
-  GPU_Vector<cufftComplex> mesh_z;
+  GPU_Vector<gpufftComplex> mesh;
+  GPU_Vector<gpufftComplex> mesh_G;
+  GPU_Vector<gpufftComplex> mesh_x;
+  GPU_Vector<gpufftComplex> mesh_y;
+  GPU_Vector<gpufftComplex> mesh_z;
   gpufftHandle plan;
   void allocate_memory();
   void find_para(const int N, const Box& box);
   void find_k_and_G(const double* box);
 
   bool need_peratom_virial = false;
-  GPU_Vector<cufftComplex> mesh_virial;
+  GPU_Vector<gpufftComplex> mesh_virial;
   gpufftHandle plan_virial;
 };

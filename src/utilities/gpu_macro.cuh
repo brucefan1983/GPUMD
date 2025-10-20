@@ -16,7 +16,7 @@
 #pragma once
 
 #ifdef USE_HIP // HIP for AMD card
-
+#include <hipfft/hipfft.h>
 #include <hip/hip_runtime.h>
 
 // memory manipulation
@@ -103,7 +103,7 @@
 #define GPUFFT_SUCCESS HIPFFT_SUCCESS
 #define GPUFFT_C2C HIPFFT_C2C
 #define GPUFFT_FORWARD HIPFFT_FORWARD
-#define GPUFFT_INVERSE HIPFFT_INVERSE
+#define GPUFFT_INVERSE HIPFFT_BACKWARD
 
 #else // CUDA for Nvidia card
 
