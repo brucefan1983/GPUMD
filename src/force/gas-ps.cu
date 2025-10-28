@@ -437,17 +437,17 @@ void TorchPathSampling::logCV_runtime(std::string& path){
 
 
 void TorchPathSampling::box_to_tri(Box& box){
-        if (box.triclinic == 0) {
-        cpu_b_vector[0] = box.cpu_h[0];
-        cpu_b_vector[1] = 0.0;
-        cpu_b_vector[2] = 0.0;
-        cpu_b_vector[3] = 0.0;
-        cpu_b_vector[4] = box.cpu_h[1];
-        cpu_b_vector[5] = 0.0;
-        cpu_b_vector[6] = 0.0;
-        cpu_b_vector[7] = 0.0;
-        cpu_b_vector[8] = box.cpu_h[2];
-      } else {
+      //   if (box.triclinic == 0) {
+      //   cpu_b_vector[0] = box.cpu_h[0];
+      //   cpu_b_vector[1] = 0.0;
+      //   cpu_b_vector[2] = 0.0;
+      //   cpu_b_vector[3] = 0.0;
+      //   cpu_b_vector[4] = box.cpu_h[1];
+      //   cpu_b_vector[5] = 0.0;
+      //   cpu_b_vector[6] = 0.0;
+      //   cpu_b_vector[7] = 0.0;
+      //   cpu_b_vector[8] = box.cpu_h[2];
+      // } else {
         cpu_b_vector[0] = box.cpu_h[0];
         cpu_b_vector[1] = box.cpu_h[3];
         cpu_b_vector[2] = box.cpu_h[6];
@@ -457,6 +457,6 @@ void TorchPathSampling::box_to_tri(Box& box){
         cpu_b_vector[6] = box.cpu_h[2];
         cpu_b_vector[7] = box.cpu_h[5];
         cpu_b_vector[8] = box.cpu_h[8];
-      }
+      // }
 }
 #endif

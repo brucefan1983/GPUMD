@@ -216,18 +216,8 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
-<<<<<<< HEAD
   const auto time_begin = std::chrono::high_resolution_clock::now();
 
-=======
-#ifdef USE_PLUMED
-  if (measure.plmd.use_plumed == 1) {
-    measure.plmd.init(time_step, integrate.temperature);
-  }
-#endif
-
-  clock_t time_begin = clock();
->>>>>>> torch/TorchMetaD
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {

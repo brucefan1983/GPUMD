@@ -35,25 +35,25 @@ int main(int argc, char* argv[])
   print_line_1();
   printf("Started running GPUMD.\n");
   print_line_2();
-  #ifdef USE_GAS
+  #ifndef USE_GAS
     cudaDeviceSynchronize();
   #else
-    torch::cuda::synchronize();
+    // torch::cuda::synchronize();
   #endif
   clock_t time_begin = clock();
 
   Run run;
 
-  #ifdef USE_GAS
+  #ifndef USE_GAS
     cudaDeviceSynchronize();
   #else
-    torch::cuda::synchronize();
+    // torch::cuda::synchronize();
   #endif
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
   print_line_1();
-  printf("Time used = %f s.\n", time_used.count());
+  printf("Time used = %f s.\n", time_used);
   print_line_2();
 
   print_line_1();
