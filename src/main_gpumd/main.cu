@@ -32,15 +32,20 @@ int main(int argc, char* argv[])
   print_line_1();
   printf("Started running GPUMD.\n");
   print_line_2();
-
-  // cudaDeviceSynchronize();
-  torch::cuda::synchronize();
+  #ifdef USE_GAS
+    cudaDeviceSynchronize();
+  #else
+    torch::cuda::synchronize();
+  #endif
   clock_t time_begin = clock();
 
   Run run;
 
-  // cudaDeviceSynchronize();
+  #ifdef USE_GAS
+    cudaDeviceSynchronize();
+  #else
     torch::cuda::synchronize();
+  #endif
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
