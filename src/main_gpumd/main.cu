@@ -35,15 +35,22 @@ int main(int argc, char* argv[])
   print_line_1();
   printf("Started running GPUMD.\n");
   print_line_2();
-
-  CHECK(gpuDeviceSynchronize());
-  const auto time_begin = std::chrono::high_resolution_clock::now();
+  #ifdef USE_GAS
+    cudaDeviceSynchronize();
+  #else
+    torch::cuda::synchronize();
+  #endif
+  clock_t time_begin = clock();
 
   Run run;
 
-  CHECK(gpuDeviceSynchronize());
-  const auto time_finish = std::chrono::high_resolution_clock::now();
-  const std::chrono::duration<double> time_used = time_finish - time_begin;
+  #ifdef USE_GAS
+    cudaDeviceSynchronize();
+  #else
+    torch::cuda::synchronize();
+  #endif
+  clock_t time_finish = clock();
+  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
   print_line_1();
   printf("Time used = %f s.\n", time_used.count());

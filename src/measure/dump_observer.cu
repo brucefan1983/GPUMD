@@ -148,7 +148,7 @@ void Dump_Observer::preprocess(
   Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
-  force.set_multiple_potentials_mode(mode_);
+  // force.set_multiple_potentials_mode(mode_);
   if (dump_) {
     const int number_of_files = (mode_.compare("observe") == 0) ? force.potentials.size() : 1;
     for (int i = 0; i < number_of_files; i++) {

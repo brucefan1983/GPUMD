@@ -216,8 +216,18 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
+<<<<<<< HEAD
   const auto time_begin = std::chrono::high_resolution_clock::now();
 
+=======
+#ifdef USE_PLUMED
+  if (measure.plmd.use_plumed == 1) {
+    measure.plmd.init(time_step, integrate.temperature);
+  }
+#endif
+
+  clock_t time_begin = clock();
+>>>>>>> torch/TorchMetaD
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -319,6 +329,16 @@ void Run::perform_a_run()
       printf("    %d steps completed.\n", step + 1);
       fflush(stdout);
     }
+
+#ifdef USE_GAS
+    if(is_pathsampling){
+      bool is_match = p_gasps->process(box,atom.position_per_atom);
+      if(is_match){
+        printf("[GAS-PathSampling] Reached (Meta)stable phase, computation ended.\n");
+        fflush(stdout);
+        break;}
+    }
+#endif
   }
 
   print_line_1();
@@ -356,6 +376,15 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
   if (strcmp(param[0], "potential") == 0) {
     force.parse_potential(param, num_param, box, atom.type.size());
+#ifdef USE_GAS
+  } else if (strcmp(param[0], "GASMD") == 0) {
+    std::unique_ptr<TorchMetad> p_gas_metad = TorchMetad::parse_GASMD(param,num_param,atom.number_of_atoms);
+    force.potentials.emplace_back(std::move(p_gas_metad));
+    force.set_multiple_potentials_mode("sum");
+  } else if (strcmp(param[0], "GASPathSampling") == 0) {
+    p_gasps = TorchPathSampling::parse_GASPS(param,num_param,atom.number_of_atoms);
+    is_pathsampling=true;
+#endif
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);

@@ -36,6 +36,10 @@ The driver class calculating force and related quantities.
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
+#include "ilp_tmd_sw.cuh"
+#ifdef USE_TORCH
+#include "hotpp.cuh"
+#endif
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -106,6 +110,10 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
+#ifdef USE_TORCH
+  } else if (strcmp(potential_name, "hotpp") == 0) {
+    potential.reset(new Hotpp(param[2], number_of_atoms));
+#endif
   } else if (
     strcmp(potential_name, "nep4_charge1") == 0 ||
     strcmp(potential_name, "nep4_charge2") == 0 ||
@@ -527,7 +535,8 @@ void Force::compute(
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
-  } else if (multiple_potentials_mode_.compare("average") == 0) {
+  } else if (multiple_potentials_mode_.compare("average") == 0 ||
+             multiple_potentials_mode_.compare("sum") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
@@ -540,23 +549,21 @@ void Force::compute(
           potential_per_atom,
           force_per_atom,
           virial_per_atom);
-      } else if (1 == potentials[i]->ilp_flag) {
-        // compute the potential with ILP
-        potentials[i]->compute_ilp(
-          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
-    // Compute average and copy properties back into original vectors.
-    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      potential_per_atom.data(),
-      force_per_atom.data(),
-      virial_per_atom.data(),
-      (double)potentials.size());
-    GPU_CHECK_KERNEL
+    if (multiple_potentials_mode_.compare("average") == 0){
+      // Compute average and copy properties back into original vectors.
+      gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms,
+        potential_per_atom.data(),
+        force_per_atom.data(),
+        virial_per_atom.data(),
+        (double)potentials.size());
+      GPU_CHECK_KERNEL
+    }
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
@@ -815,7 +822,8 @@ void Force::compute(
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
-  } else if (multiple_potentials_mode_.compare("average") == 0) {
+  } else if (multiple_potentials_mode_.compare("average") == 0 ||
+             multiple_potentials_mode_.compare("sum") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
@@ -837,15 +845,20 @@ void Force::compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
-    // Compute average and copy properties back into original vectors.
-    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      potential_per_atom.data(),
-      force_per_atom.data(),
-      virial_per_atom.data(),
-      (double)potentials.size());
-    GPU_CHECK_KERNEL
-  } else {
+    
+
+    if (multiple_potentials_mode_.compare("average") == 0){
+      // Compute average and copy properties back into original vectors.
+      gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms,
+        potential_per_atom.data(),
+        force_per_atom.data(),
+        virial_per_atom.data(),
+        (double)potentials.size());
+        GPU_CHECK_KERNEL
+    }
+  }
+   else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
 

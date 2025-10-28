@@ -8,6 +8,8 @@ src/*/*.o
 src/gpumd*
 src/nep*
 src/gnep*
+src/build
+src/CMakeLists.txt
 
 .history
 .vscode
