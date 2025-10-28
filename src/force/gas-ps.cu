@@ -367,7 +367,7 @@ bool TorchPathSampling::process(
     }
     now_step++;
 
-    if(torch_bias.item<int>() == 0){return false;}else{return true;}
+    if(torch_bias.item<int>() == 0){return false;}else{this->logCV_runtime();return true;}
     }
 
 // 将cuda指针用torch视图读取的代码

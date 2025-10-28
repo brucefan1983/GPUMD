@@ -26,6 +26,9 @@ The driver class calculating force and related quantities.
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
 #include "ilp_tmd_sw.cuh"
+#ifdef USE_TORCH
+#include "hotpp.cuh"
+#endif
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -90,6 +93,10 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
+#ifdef USE_TORCH
+  } else if (strcmp(potential_name, "hotpp") == 0) {
+    potential.reset(new Hotpp(param[2], number_of_atoms));
+#endif
   } else if (
     strcmp(potential_name, "nep5") == 0 || 
     strcmp(potential_name, "nep5_zbl") == 0 ||
