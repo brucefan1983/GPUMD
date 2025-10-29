@@ -27,9 +27,9 @@
   } while (0)
 
 __global__ void gpu_calculate_max_gamma(
-  double* gamma_full, double* gamma, int number_of_particles, int B_size_per_atom)
+  float* gamma_full, float* gamma, int number_of_particles, int B_size_per_atom)
 {
-  double a;
+  float a;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
     gamma[i] = 0;
@@ -41,6 +41,37 @@ __global__ void gpu_calculate_max_gamma(
     }
   }
 }
+
+__global__ void B_to_Xt(
+  float* __restrict__ X_t,
+  const float* __restrict__ B,
+  const int* __restrict__ indices,
+  int N, int B_size_per_atom)
+{
+  int j = blockIdx.x * blockDim.x + threadIdx.x;
+  if (j < N) {
+    int i = indices[j];
+    for (int b = 0; b < B_size_per_atom; ++b) {
+      X_t[j * B_size_per_atom + b] = B[i * B_size_per_atom + b];
+    }
+  }
+}
+
+__global__ void Yt_to_gamma_full(
+  float* __restrict__ gamma_full,
+  const float* __restrict__ Y_t,
+  const int* __restrict__ indices,
+  int N, int B_size_per_atom)
+{
+  int j = blockIdx.x * blockDim.x + threadIdx.x;
+  if (j < N) {
+    int i = indices[j];
+    for (int b = 0; b < B_size_per_atom; ++b) {
+      gamma_full[i * B_size_per_atom + b] = Y_t[j * B_size_per_atom + b];
+    }
+  }
+}
+
 
 Extrapolation::Extrapolation(const char** params, int num_params)
 {
@@ -85,7 +116,25 @@ void Extrapolation::preprocess(
   Box& box,
   Force& force)
 {
-  int N = atom.number_of_atoms;
+  this->patom = &atom;
+  this->box = &box;
+  int N = patom->number_of_atoms;
+  int number_of_types = patom->cpu_type_size.size();
+
+  atoms_of_type.resize(number_of_types);
+  for (int i = 0; i < N; ++i) {
+      int t = patom->cpu_type[i];
+      atoms_of_type[t].push_back(i);
+  }
+
+  atoms_of_type_gpu.resize(number_of_types);
+  for (int t = 0; t < number_of_types; ++t) {
+      int k = atoms_of_type[t].size();
+      if (k == 0) continue;
+      atoms_of_type_gpu[t].resize(k, Memory_Type::global);
+      atoms_of_type_gpu[t].copy_from_host(atoms_of_type[t].data(), k);
+  }
+
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("Initializing extrapolation grade calculation...\n");
   B_size_per_atom = force.potentials[0]->B_projection_size;
@@ -98,18 +147,12 @@ void Extrapolation::preprocess(
   gamma.resize(N, Memory_Type::managed);
   force.potentials[0]->B_projection = B.data();
   force.potentials[0]->need_B_projection = true;
-  this->atom = &atom;
-  this->box = &box;
+
   f = my_fopen("extrapolation_dump.xyz", "a");
 
-  blas_A.resize(N, Memory_Type::managed);
-  blas_x.resize(N, Memory_Type::managed);
-  blas_y.resize(N, Memory_Type::managed);
+  // 读取asi矩阵
+  blas_A.resize(number_of_types, Memory_Type::managed);
   load_asi();
-  for (int i = 0; i < N; i++) {
-    blas_x[i] = B.data() + i * B_size_per_atom;
-    blas_y[i] = gamma_full.data() + i * B_size_per_atom;
-  }
 
   gpublasCreate(&handle);
   printf("gamma_low:      %f\n", gamma_low);
@@ -141,9 +184,9 @@ void Extrapolation::load_asi()
     while (f >> token) {
       int type_of_atom = -1;
       std::string element = token;
-      for (int m = 0; m < atom->number_of_atoms; ++m) {
-        if (element == atom->cpu_atom_symbol[m]) {
-          type_of_atom = atom->cpu_type[m];
+      for (int m = 0; m < patom->number_of_atoms; ++m) {
+        if (element == patom->cpu_atom_symbol[m]) {
+          type_of_atom = patom->cpu_type[m];
           break;
         }
       }
@@ -159,18 +202,14 @@ void Extrapolation::load_asi()
         shape1,
         shape2);
       asi_list.emplace_back(
-        std::unique_ptr<GPU_Vector<double>>(new GPU_Vector<double>(B_size, Memory_Type::managed)));
+        std::unique_ptr<GPU_Vector<float>>(new GPU_Vector<float>(B_size, Memory_Type::managed)));
       auto& asi = asi_list.back();
       for (int i = 0; i < B_size; ++i) {
-        f >> (*asi)[i];
+        f >> token;
+        (*asi)[i] = std::stof(token);
       }
       printf("[%f %f ... %f]\n", (*asi)[0], (*asi)[1], (*asi)[B_size - 1]);
-
-      for (int j = 0; j < atom->number_of_atoms; j++) {
-        if (atom->cpu_type[j] == type_of_atom) {
-          blas_A[j] = asi->data();
-        }
-      }
+      blas_A[type_of_atom] = asi->data();
     }
     printf("ASI successfully loaded!\n");
     f.close();
@@ -217,52 +256,45 @@ void Extrapolation::process(
 
 void Extrapolation::calculate_gamma()
 {
-  int N = atom->number_of_atoms;
+  int N = patom->number_of_atoms;
+  int number_of_types = patom->cpu_type_size.size();
+  float alpha = 1.0f, beta = 0.0f;
+  for (int t = 0; t < number_of_types; ++t) {
+    const auto& atom_indices = atoms_of_type[t];
+    int k = atom_indices.size();
+    if (k == 0) continue;
+    // 1. 分配连续 X_t (B_size_per_atom × k) float 矩阵
+    GPU_Vector<float> X_t(B_size_per_atom * k);
+    B_to_Xt<<<(k - 1) / 128 + 1, 128>>>(X_t.data(), B.data(), atoms_of_type_gpu[t].data(), k, B_size_per_atom);
 
-  double alpha = 1.0, beta = 0.0;
-
-#if defined(__CUDACC__) && (CUDA_VERSION < 12000)
-  for (int i = 0; i < N; i++) {
-    gpublasDgemv(
+    // 2. 分配连续 Y_t 输出矩阵
+    GPU_Vector<float> Y_t(B_size_per_atom * k, 0.0f);
+    // 3. GEMM
+    gpuDeviceSynchronize();    // 不加还不行
+    gpublasSgemm(
       handle,
-      GPUBLAS_OP_N,
-      B_size_per_atom,
-      B_size_per_atom,
+      CUBLAS_OP_N, CUBLAS_OP_N,
+      B_size_per_atom, k, B_size_per_atom,  // m, n, k
       &alpha,
-      blas_A[i],
-      B_size_per_atom,
-      blas_x[i],
-      1,
+      blas_A[t], B_size_per_atom,     // A
+      X_t.data(), B_size_per_atom,          // X
       &beta,
-      blas_y[i],
-      1);
-  }
-#else
-  gpublasDgemvBatched(
-    handle,
-    GPUBLAS_OP_N,
-    B_size_per_atom,
-    B_size_per_atom,
-    &alpha,
-    blas_A.data(),
-    B_size_per_atom,
-    blas_x.data(),
-    1,
-    &beta,
-    blas_y.data(),
-    1,
-    N);
-#endif
+      Y_t.data(), B_size_per_atom           // Y
+    );
+    Yt_to_gamma_full<<<(k - 1) / 128 + 1, 128>>>(
+      gamma_full.data(), Y_t.data(), atoms_of_type_gpu[t].data(), k, B_size_per_atom);
 
+  }
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);
+
   gpuDeviceSynchronize();
 }
 
 void Extrapolation::dump()
 {
-  const int num_atoms_total = atom->position_per_atom.size() / 3;
-  atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
+  const int num_atoms_total = patom->position_per_atom.size() / 3;
+  patom->position_per_atom.copy_to_host(patom->cpu_position_per_atom.data());
 
   // line 1
   fprintf(f, "%d\n", num_atoms_total);
@@ -293,9 +325,9 @@ void Extrapolation::dump()
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(f, "%s", atom->cpu_atom_symbol[n].c_str());
+    fprintf(f, "%s", patom->cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(f, " %.8f", atom->cpu_position_per_atom[n + num_atoms_total * d]);
+      fprintf(f, " %.8f", patom->cpu_position_per_atom[n + num_atoms_total * d]);
     }
     fprintf(f, " %8f\n", gamma[n]);
   }
