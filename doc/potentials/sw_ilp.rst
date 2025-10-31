@@ -52,8 +52,8 @@ The site potential of modified :term:`SW` can be written as:
 
 .. math:: 
 
-   U_i^{\mathrm{SW}} =& \sum_i\sum_{j\gt i}\phi_2\left(r_{ij}\right)+
-   \sum_i\sum_{j\neq i}\sum_{k\gt j}\phi_3 \left(r_{ij}, r_{ik}, \theta_{ijk}\right)\\
+   U_i^{\mathrm{SW}} =& \sum_i\sum_{j>i}\phi_2\left(r_{ij}\right)+
+   \sum_i\sum_{j\neq i}\sum_{k>j}\phi_3 \left(r_{ij}, r_{ik}, \theta_{ijk}\right)\\
    \phi_2\left(r_{ij}\right) =& A_{ij}\epsilon_{ij}\left[B_{ij} 
    \left(\frac{\sigma_{ij}}{r_{ij}} \right)^{p_{ij}} - \left(\frac{\sigma_{ij}}{r_{ij}} 
    \right)^{q_{ij}} \right] \exp \left(\frac{\sigma_{ij}}{r_{ij}-a_{ij}\sigma_{ij}} \right)\\
@@ -61,7 +61,7 @@ The site potential of modified :term:`SW` can be written as:
    \epsilon_{ijk} \left[f_C(\delta) \delta \right]^2 
    \exp \left(\frac{\gamma_{ij}\sigma_{ij}}{r_{ij}-a_{ij}\sigma_{ij}} \right)
    \exp \left(\frac{\gamma_{ik}\sigma_{ik}}{r_{ik}-a_{ik}\sigma_{ik}} \right) \\
-   & \delta = \cos \theta_{ijk} - \cos \theta_{0ijk}\\
+   \delta =& \cos \theta_{ijk} - \cos \theta_{0ijk}\\
 
 where :math:`\phi_2` and :math:`\phi_3` are two-body and three-body terms. The 
 cutoff of :term:`SW` potential is :math:`a\cdot\sigma`. For some materials, such as borophene and 

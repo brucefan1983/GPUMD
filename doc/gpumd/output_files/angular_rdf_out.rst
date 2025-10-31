@@ -13,9 +13,9 @@ File Format
 The file has the following columns:
 
 1. ``radius``: The radial distance r (in Å)
-2. ``theta``: The angle θ (in radians, from -π to π)
-3. ``total``: The total ARDF g(r,θ) for all atom pairs
-4. ``type_i_j``: The partial ARDF g(r,θ) for atom pairs of type i and j (if specified)
+2. ``theta``: The angle :math:`\theta` (in radians, from -:math:`\pi` to :math:`\pi`)
+3. ``total``: The total ARDF :math:`g(r,\theta)` for all atom pairs
+4. ``type_i_j``: The partial ARDF :math:`g(r,\theta)` for atom pairs of type i and j (if specified)
 
 For each radius value, there will be multiple rows corresponding to different angle values.
 

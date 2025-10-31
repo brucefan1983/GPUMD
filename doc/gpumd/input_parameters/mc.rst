@@ -53,7 +53,7 @@ The species can be listed in arbitrary order.
 Next one needs to specify the (dimensionless) :attr:`kappa` parameter (:math:`\kappa`).
 
 The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively.
-One can usually achieve a sampling of the full composition range by varying :math:`\phi_i` between −1.2 and +1.2, which thus play a role that is equivalent to the :math:`\mu_i` parameters in the :term:`SGC` ensemble.
+One can usually achieve a sampling of the full composition range by varying :math:`\phi_i` between -1.2 and +1.2, which thus play a role that is equivalent to the :math:`\mu_i` parameters in the :term:`SGC` ensemble.
 Typically a :math:`\kappa` value of 100 is suitable.
 If the concentration fluctuations are too large (e.g., deep with miscibility gaps) one should increase this value.
 
@@ -107,5 +107,5 @@ This means
 * Perform 1000 :term:`MC` trials after every 200 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be kept at 500 K.
 * Only the Al and Ag atoms are involved in the :term:`MC` process.
-  The dimensionless :math:`\phi` parameters for Al and Ag are −2 and 0, respectively.
+  The dimensionless :math:`\phi` parameters for Al and Ag are -2 and 0, respectively.
   The dimensionless :math:`\kappa` parameter is 10000.

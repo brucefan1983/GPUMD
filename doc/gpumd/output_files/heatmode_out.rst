@@ -14,7 +14,7 @@ This file reads:
 
 .. math::
 
-   \begin{array}{ccccc}
+   \begin{array}{cccccc}
    J^{x,in}_{1,1}
    & J^{x,out}_{1,1}
    & J^{y,in}_{1,1}
