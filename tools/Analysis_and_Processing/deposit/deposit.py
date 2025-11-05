@@ -638,7 +638,7 @@ def read_xyz(filename: str) -> list[Structure]:
                 info={'energy': energy, 'virial': virial, 'forces': forces})
     return atoms
 
-def gpumd(dirname = None, atoms = None, run_in = None, nep_path = None):
+def gpumd(dirname = None, atoms = None, run_in = None, nep_path = None, gpumd_path = 'gpumd'):
     if os.path.exists(dirname):
         raise FileExistsError('Directory already exists')
     os.makedirs(dirname)
@@ -650,5 +650,6 @@ def gpumd(dirname = None, atoms = None, run_in = None, nep_path = None):
     os.chdir(dirname)
     write_run(run_in)
     dump_xyz('model.xyz', atoms)
-    os.system('gpumd')
+    os.system(gpumd_path)
+
     os.chdir(original_directory)
