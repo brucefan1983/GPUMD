@@ -27,31 +27,31 @@ Output files
      - Overwrite
    * - :ref:`dump.xyz <dump_xyz>`
      - :ref:`dump_exyz <kw_dump_exyz>`
-     - Atomistic positions, velocities and forces.
+     - Atomistic positions, velocities and forces
      - Append
    * - :ref:`observer.xyz <observer_xyz>`
      - :ref:`dump_observer <kw_dump_observer>`
-     - Atomistic positions, velocities and forces as evaluated with observing potentials.
+     - Atomistic quantities as evaluated with observing potentials
      - Append
    * - :ref:`observer.out <observer_out>`
      - :ref:`dump_observer <kw_dump_observer>`
-     - Thermodynamic quantities evaluated with observing potentials.
+     - Thermodynamic quantities evaluated with observing potentials
      - Append
    * - :ref:`active.xyz <active_xyz>`
      - :ref:`active <kw_active>`
-     - Structures selected through active learning.
+     - Structures selected through active learning
      - Append
    * - :ref:`active.out <active_out>`
      - :ref:`active <kw_active>`
-     - Simulation time and uncertainty during active learning.
+     - Simulation time and uncertainty during active learning
      - Append
    * - :ref:`dipole.out <gpumd_dipole_out>`
      - :ref:`dump_dipole <kw_dump_dipole>`
-     - Predicted dipole.
+     - Predicted dipole
      - Append
    * - :ref:`polarizability.out <gpumd_polarizability_out>`
      - :ref:`dump_polarizability <kw_dump_polarizability>`
-     - Predicted polarizability.
+     - Predicted polarizability
      - Append
    * - :ref:`velocity.out <velocity_out>`
      - :ref:`dump_velocity <kw_dump_velocity>`
