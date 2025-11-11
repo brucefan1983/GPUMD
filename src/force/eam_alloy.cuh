@@ -60,10 +60,6 @@ struct EAMAlloy_Data {
   std::vector<double> phi_r_b;
   std::vector<double> phi_r_c;
   std::vector<double> phi_r_d;
-  std::vector<int> atomic_number;
-  std::vector<double> atomic_mass;
-  std::vector<double> lattice_constant;
-  std::vector<std::string> lattice_type;
 };
 
 class EAMAlloy : public Potential

@@ -18,12 +18,12 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <cstring>
 #define BLOCK_SIZE_FORCE 64
 
 class CubicSpline
@@ -236,7 +236,6 @@ EAMAlloy::EAMAlloy(const char* filename, const int number_of_atoms)
 
 void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_atoms)
 {
-
   std::ifstream file(filename);
   if (!file.is_open()) {
     throw std::runtime_error("Cannot open file: " + std::string(filename));
@@ -274,6 +273,7 @@ void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_ato
   eam_data.nr = std::stoi(data_words[index++]);
   eam_data.dr = std::stod(data_words[index++]);
   eam_data.rc = std::stod(data_words[index++]);
+
   eam_data.F_rho.resize(eam_data.Nelements * eam_data.nrho, 0.0);
   eam_data.rho_r.resize(eam_data.Nelements * eam_data.nr, 0.0);
   eam_data.phi_r.resize(eam_data.Nelements * eam_data.Nelements * eam_data.nr, 0.0);
@@ -289,33 +289,62 @@ void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_ato
   eam_data.phi_r_b.resize(eam_data.Nelements * eam_data.Nelements * eam_data.nr, 0.0);
   eam_data.phi_r_c.resize(eam_data.Nelements * eam_data.Nelements * eam_data.nr, 0.0);
   eam_data.phi_r_d.resize(eam_data.Nelements * eam_data.Nelements * eam_data.nr, 0.0);
-  eam_data.atomic_number.resize(eam_data.Nelements, 0);
-  eam_data.atomic_mass.resize(eam_data.Nelements, 0.0);
-  eam_data.lattice_constant.resize(eam_data.Nelements, 0.0);
-  eam_data.lattice_type.resize(eam_data.Nelements);
 
+  int line_idx = 5;
   for (int i = 0; i < eam_data.Nelements; ++i) {
-    eam_data.atomic_number[i] = std::stoi(data_words[index++]);
-    eam_data.atomic_mass[i] = std::stod(data_words[index++]);
-    eam_data.lattice_constant[i] = std::stod(data_words[index++]);
-    eam_data.lattice_type[i] = data_words[index++];
+    // skip this line
+    line_idx++;
 
-    for (int j = 0; j < eam_data.nrho; ++j) {
-      eam_data.F_rho[i * eam_data.nrho + j] = std::stod(data_words[index++]);
-    }
+    // read nrho + nr
+    int values_needed = eam_data.nrho + eam_data.nr;
+    int values_read = 0;
 
-    for (int j = 0; j < eam_data.nr; ++j) {
-      eam_data.rho_r[i * eam_data.nr + j] = std::stod(data_words[index++]);
+    while (values_read < values_needed && line_idx < lines.size()) {
+      std::istringstream data_iss(lines[line_idx]);
+      std::string value_str;
+
+      while (data_iss >> value_str && values_read < values_needed) {
+        try {
+          if (values_read < eam_data.nrho) {
+            eam_data.F_rho[i * eam_data.nrho + values_read] = std::stod(value_str);
+          } else {
+            eam_data.rho_r[i * eam_data.nr + (values_read - eam_data.nrho)] = std::stod(value_str);
+          }
+          values_read++;
+        } catch (const std::invalid_argument&) {
+          break;
+        }
+      }
+
+      line_idx++;
     }
   }
 
-  for (int i = 0; i < eam_data.Nelements; ++i) {
-    for (int j = 0; j < eam_data.Nelements; ++j) {
+  // read phi_r
+  for (int i = 0; i < eam_data.Nelements && line_idx < lines.size(); ++i) {
+    for (int j = 0; j < eam_data.Nelements && line_idx < lines.size(); ++j) {
       if (i >= j) {
-        for (int k = 0; k < eam_data.nr; ++k) {
-          size_t idx = (i * eam_data.Nelements + j) * eam_data.nr + k;
-          eam_data.phi_r[idx] = std::stod(data_words[index++]);
+        int phi_needed = eam_data.nr;
+        int phi_for_pair = 0;
+
+        while (phi_for_pair < phi_needed && line_idx < lines.size()) {
+          std::istringstream phi_iss(lines[line_idx]);
+          std::string value_str;
+
+          while (phi_iss >> value_str && phi_for_pair < phi_needed) {
+            try {
+              size_t idx = (i * eam_data.Nelements + j) * eam_data.nr + phi_for_pair;
+              eam_data.phi_r[idx] = std::stod(value_str);
+              phi_for_pair++;
+            } catch (const std::invalid_argument&) {
+              break;
+            }
+          }
+
+          line_idx++;
         }
+
+        // fill it
         if (i != j) {
           for (int k = 0; k < eam_data.nr; ++k) {
             size_t idx_ij = (i * eam_data.Nelements + j) * eam_data.nr + k;
@@ -327,6 +356,7 @@ void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_ato
     }
   }
 
+  // r*phi -> phi
   for (int i = 0; i < eam_data.Nelements; ++i) {
     for (int j = 0; j < eam_data.Nelements; ++j) {
       for (int k = 1; k < eam_data.nr; ++k) {
@@ -339,6 +369,7 @@ void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_ato
     }
   }
 
+  // cubic spline
   for (int i = 0; i < eam_data.Nelements; ++i) {
     std::vector<double> y_sub(
       eam_data.F_rho.begin() + i * eam_data.nrho,
@@ -383,7 +414,7 @@ void EAMAlloy::initialize_eamalloy(const char* filename, const int number_of_ato
     }
   }
 
-  // Copy to GPU
+  // GPU memory copy
   eam_data.F_rho_a_g.resize(eam_data.F_rho_a.size());
   eam_data.F_rho_b_g.resize(eam_data.F_rho_b.size());
   eam_data.F_rho_c_g.resize(eam_data.F_rho_c.size());
