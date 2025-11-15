@@ -245,7 +245,7 @@ void Dump_CG::process2(
   atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
-  fprintf(fid2_, "%d\n", num_beads); // water
+  fprintf(fid2_, "%d\n", num_atoms_total); // water
 
   // line 2
   output_line2(fid2_, box, atom.virial_per_atom, thermo);
@@ -255,37 +255,45 @@ void Dump_CG::process2(
     int n1 = b * 3; // O
     int n2 = n1 + 1; // H
     int n3 = n1 + 2; // H
-    fprintf(fid2_, "O "); // call it O
+    double r1[3] = {
+      atom.cpu_position_per_atom[n1 + num_atoms_total * 0],
+      atom.cpu_position_per_atom[n1 + num_atoms_total * 1],
+      atom.cpu_position_per_atom[n1 + num_atoms_total * 2]
+    };
+    double r2[3] = {
+      atom.cpu_position_per_atom[n2 + num_atoms_total * 0],
+      atom.cpu_position_per_atom[n2 + num_atoms_total * 1],
+      atom.cpu_position_per_atom[n2 + num_atoms_total * 2]
+    };
+    double r3[3] = {
+      atom.cpu_position_per_atom[n3 + num_atoms_total * 0],
+      atom.cpu_position_per_atom[n3 + num_atoms_total * 1],
+      atom.cpu_position_per_atom[n3 + num_atoms_total * 2]
+    };
+   
+    double pos_diff[3];
     for (int d = 0; d < 3; ++d) {
-      double r1 = atom.cpu_position_per_atom[n1 + num_atoms_total * d];
-      double r2 = atom.cpu_position_per_atom[n2 + num_atoms_total * d];
-      double r3 = atom.cpu_position_per_atom[n3 + num_atoms_total * d];
-      if (r2 - r1 > box.cpu_h[0]/2) {
-        r2 -= box.cpu_h[0];
-      } else if (r2 - r1 < -box.cpu_h[0]/2) {
-        r2 += box.cpu_h[0];
-      }
-      if (r3 - r1 > box.cpu_h[0]/2) {
-        r3 -= box.cpu_h[0];
-      } else if (r3 - r1 < -box.cpu_h[0]/2) {
-        r3 += box.cpu_h[0];
-      }
-      double r_com = (r1 * 16.0 + r2 * 1.0 + r3 * 1.0) / 18.0;
-      if (r_com < 0) {
-        r_com += box.cpu_h[0];
-      } else if (r_com > box.cpu_h[0]) {
-        r_com -= box.cpu_h[0];
-      }
-      fprintf(fid2_, " %.8f", r_com);
+      pos_diff[d] = r2[d] - r1[d];
+    }
+    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+    for (int d = 0; d < 3; ++d) {
+      r2[d] = r1[d] + pos_diff[d];
     }
     for (int d = 0; d < 3; ++d) {
-      double f1 = cpu_force_per_atom_[n1 + num_atoms_total * d];
-      double f2 = cpu_force_per_atom_[n2 + num_atoms_total * d];
-      double f3 = cpu_force_per_atom_[n3 + num_atoms_total * d];
-      double f_tot = f1 + f2 + f3;
-      fprintf(fid2_, " %.8f", f_tot);
+      pos_diff[d] = r3[d] - r1[d];
     }
-    fprintf(fid2_, "\n");
+    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+    for (int d = 0; d < 3; ++d) {
+      r3[d] = r1[d] + pos_diff[d];
+    }
+    double r_com[3];
+    for (int d = 0; d < 3; ++d) {
+      r_com[d] = (r1[d] * 16.0 + r2[d] * 1.0 + r3[d] * 1.0) / 18.0;
+    }
+
+    fprintf(fid2_, "O %.8f %.8f %.8f 0 0 0\n", r1[0], r1[1], r1[2]);
+    fprintf(fid2_, "H %.8f %.8f %.8f 0 0 0\n", r2[0], r2[1], r2[2]);
+    fprintf(fid2_, "H %.8f %.8f %.8f 0 0 0\n", r3[0], r3[1], r3[2]);
   }
   fflush(fid2_);
 }
