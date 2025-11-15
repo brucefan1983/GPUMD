@@ -91,15 +91,10 @@ void Dump_CG::preprocess(
 }
 
 void Dump_CG::output_line2(
-  const double time,
   const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo)
 {
-  // time
-  fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
-
   // PBC
   fprintf(
     fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
@@ -169,7 +164,7 @@ void Dump_CG::process(
   fprintf(fid_, "%d\n", num_beads); // water
 
   // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
+  output_line2(box, atom.virial_per_atom, thermo);
 
   // other lines
   for (int b = 0; b < num_beads; b++) {

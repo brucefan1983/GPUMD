@@ -62,9 +62,7 @@ private:
   FILE* fid_;
   char filename_[200];
   void output_line2(
-    const double time,
     const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
   std::vector<double> cpu_force_per_atom_;
