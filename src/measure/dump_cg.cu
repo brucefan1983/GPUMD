@@ -161,20 +161,6 @@ void Dump_CG::process(
   Atom& atom,
   Force& force)
 {
-  process2(
-    number_of_steps,
-    step,
-    fixed_group,
-    move_group,
-    global_time,
-    temperature,
-    integrate,
-    box,
-    group,
-    thermo,
-    atom,
-    force);
-
   if ((step + 1) % dump_interval_ != 0)
     return;
 
