@@ -21,10 +21,10 @@
 class Box;
 class Atom;
 
-class Dump_EXYZ : public Property
+class Dump_CG : public Property
 {
 public:
-  Dump_EXYZ(const char** param, int num_param);
+  Dump_CG(const char** param, int num_param);
   void parse(const char** param, int num_param);
   virtual void preprocess(
     const int number_of_steps,

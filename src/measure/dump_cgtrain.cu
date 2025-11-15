@@ -17,7 +17,7 @@
 Dump training data for NEP-CG
 --------------------------------------------------------------------------------------------------*/
 
-#include "dump_exyz.cuh"
+#include "dump_cg.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
@@ -50,18 +50,18 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_EXYZ::Dump_EXYZ(const char** param, int num_param) 
+Dump_CG::Dump_CG(const char** param, int num_param) 
 {
   parse(param, num_param);
-  property_name = "dump_exyz";
+  property_name = "dump_cg";
 }
 
-void Dump_EXYZ::parse(const char** param, int num_param)
+void Dump_CG::parse(const char** param, int num_param)
 {
   printf("Dump train.xyz for NEP-CG.\n");
 
   if (num_param < 2) {
-    PRINT_INPUT_ERROR("dump_exyz should have at least 1 parameter.\n");
+    PRINT_INPUT_ERROR("dump_cg should have at least 1 parameter.\n");
   }
 
   if (!is_valid_int(param[1], &dump_interval_)) {
@@ -74,7 +74,7 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   printf("    every %d steps.\n", dump_interval_);
 }
 
-void Dump_EXYZ::preprocess(
+void Dump_CG::preprocess(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -90,7 +90,7 @@ void Dump_EXYZ::preprocess(
   cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
 }
 
-void Dump_EXYZ::output_line2(
+void Dump_CG::output_line2(
   const double time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
@@ -143,7 +143,7 @@ void Dump_EXYZ::output_line2(
   fprintf(fid_, " Properties=species:S:1:pos:R:3:forces:R:3\n");
 }
 
-void Dump_EXYZ::process(
+void Dump_CG::process(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -211,7 +211,7 @@ void Dump_EXYZ::process(
   fflush(fid_);
 }
 
-void Dump_EXYZ::postprocess(
+void Dump_CG::postprocess(
   Atom& atom,
   Box& box,
   Integrate& integrate,
