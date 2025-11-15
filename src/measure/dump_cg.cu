@@ -25,6 +25,7 @@ Dump training data for NEP-CG
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <chrono>
 #include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
@@ -54,6 +55,12 @@ Dump_CG::Dump_CG(const char** param, int num_param)
 {
   parse(param, num_param);
   property_name = "dump_cg";
+
+#ifdef DEBUG
+  rng = std::mt19937(12345678);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
 }
 
 void Dump_CG::parse(const char** param, int num_param)
@@ -289,6 +296,13 @@ void Dump_CG::process2(
     double r_com[3];
     for (int d = 0; d < 3; ++d) {
       r_com[d] = (r1[d] * 16.0 + r2[d] * 1.0 + r3[d] * 1.0) / 18.0;
+    }
+
+    std::normal_distribution<double> random_shift(0, 0.01);
+    for (int d = 0; d < 3; ++d) {
+      r2[d] += random_shift(rng);
+      r3[d] += random_shift(rng);
+      r1[d] = (18.0 * r_com[d] - r2[d] - r3[d]) / 16.0;
     }
 
     fprintf(fid2_, "O %.8f %.8f %.8f 0 0 0\n", r1[0], r1[1], r1[2]);

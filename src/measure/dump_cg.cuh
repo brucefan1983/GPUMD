@@ -18,6 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
+#include <random>
 class Box;
 class Atom;
 
@@ -58,6 +59,7 @@ public:
     const double temperature);
 
 private:
+  std::mt19937 rng;
   int dump_interval_ = 1;
   FILE* fid_;
   FILE* fid2_;
