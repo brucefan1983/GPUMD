@@ -18,7 +18,6 @@
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
-#include <random>
 class Box;
 class Atom;
 
@@ -59,29 +58,14 @@ public:
     const double temperature);
 
 private:
-  std::mt19937 rng;
   int dump_interval_ = 1;
   FILE* fid_;
-  FILE* fid2_;
   char filename_[200];
   void output_line2(
     FILE* fid,
     const Box& box,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
-  void process2(
-    const int number_of_steps,
-    int step,
-    const int fixed_group,
-    const int move_group,
-    const double global_time,
-    const double temperature,
-    Integrate& integrate,
-    Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo,
-    Atom& atom,
-    Force& force);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;

@@ -25,7 +25,6 @@ Dump training data for NEP-CG
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <chrono>
 #include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
@@ -55,12 +54,6 @@ Dump_CG::Dump_CG(const char** param, int num_param)
 {
   parse(param, num_param);
   property_name = "dump_cg";
-
-#ifdef DEBUG
-  rng = std::mt19937(12345678);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
 }
 
 void Dump_CG::parse(const char** param, int num_param)
@@ -91,7 +84,6 @@ void Dump_CG::preprocess(
   Force& force)
 {
   fid_ = my_fopen("train.xyz", "a");
-  fid2_ = my_fopen("train2.xyz", "a");
 
   gpu_total_virial_.resize(6);
   cpu_total_virial_.resize(6);
@@ -238,89 +230,6 @@ void Dump_CG::process(
   fflush(fid_);
 }
 
-void Dump_CG::process2(
-  const int number_of_steps,
-  int step,
-  const int fixed_group,
-  const int move_group,
-  const double global_time,
-  const double temperature,
-  Integrate& integrate,
-  Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo,
-  Atom& atom,
-  Force& force)
-{
-  if ((step + 1) % dump_interval_ != 0)
-    return;
-
-  const int num_atoms_total = atom.position_per_atom.size() / 3;
-  const int num_beads = num_atoms_total / 3;
-  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-
-  // line 1
-  fprintf(fid2_, "%d\n", num_atoms_total); // water
-
-  // line 2
-  output_line2(fid2_, box, atom.virial_per_atom, thermo);
-
-  // other lines
-  for (int b = 0; b < num_beads; b++) {
-    int n1 = b * 3; // O
-    int n2 = n1 + 1; // H
-    int n3 = n1 + 2; // H
-    double r1[3] = {
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 2]
-    };
-    double r2[3] = {
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 2]
-    };
-    double r3[3] = {
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 2]
-    };
-   
-    double pos_diff[3];
-    for (int d = 0; d < 3; ++d) {
-      pos_diff[d] = r2[d] - r1[d];
-    }
-    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-    for (int d = 0; d < 3; ++d) {
-      r2[d] = r1[d] + pos_diff[d];
-    }
-    for (int d = 0; d < 3; ++d) {
-      pos_diff[d] = r3[d] - r1[d];
-    }
-    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-    for (int d = 0; d < 3; ++d) {
-      r3[d] = r1[d] + pos_diff[d];
-    }
-    double r_com[3];
-    for (int d = 0; d < 3; ++d) {
-      r_com[d] = (r1[d] * 16.0 + r2[d] * 1.0 + r3[d] * 1.0) / 18.0;
-    }
-
-    std::normal_distribution<double> random_shift(0, 0.01);
-    for (int d = 0; d < 3; ++d) {
-      r2[d] += random_shift(rng);
-      r3[d] += random_shift(rng);
-      r1[d] = (18.0 * r_com[d] - r2[d] - r3[d]) / 16.0;
-    }
-
-    fprintf(fid2_, "O %.8f %.8f %.8f 0 0 0\n", r1[0], r1[1], r1[2]);
-    fprintf(fid2_, "H %.8f %.8f %.8f 0 0 0\n", r2[0], r2[1], r2[2]);
-    fprintf(fid2_, "H %.8f %.8f %.8f 0 0 0\n", r3[0], r3[1], r3[2]);
-  }
-  fflush(fid2_);
-}
-
 void Dump_CG::postprocess(
   Atom& atom,
   Box& box,
@@ -330,5 +239,4 @@ void Dump_CG::postprocess(
   const double temperature)
 {
   fclose(fid_);
-  fclose(fid2_);
 }
