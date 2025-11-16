@@ -121,19 +121,19 @@ void Dump_CG::output_line2(
   gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
-  fprintf(fid, " energy=%.8f", cpu_thermo[1]);
+  fprintf(fid, " energy=%.8f", cpu_thermo[1]/3); // TODO
   fprintf(
     fid,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0],
-    cpu_total_virial_[3],
-    cpu_total_virial_[4],
-    cpu_total_virial_[3],
-    cpu_total_virial_[1],
-    cpu_total_virial_[5],
-    cpu_total_virial_[4],
-    cpu_total_virial_[5],
-    cpu_total_virial_[2]);
+    cpu_total_virial_[0]/3,
+    cpu_total_virial_[3]/3,
+    cpu_total_virial_[4]/3,
+    cpu_total_virial_[3]/3,
+    cpu_total_virial_[1]/3,
+    cpu_total_virial_[5]/3,
+    cpu_total_virial_[4]/3,
+    cpu_total_virial_[5]/3,
+    cpu_total_virial_[2]/3);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3:forces:R:3\n");
@@ -157,12 +157,12 @@ void Dump_CG::process(
     return;
 
   const int num_atoms_total = atom.position_per_atom.size() / 3;
-  const int num_beads = num_atoms_total / 3;
+  const int num_beads = num_atoms_total / 3; // TODO
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
 
   // line 1
-  fprintf(fid_, "%d\n", num_beads); // water
+  fprintf(fid_, "%d\n", num_beads);  // TODO
 
   // line 2
   output_line2(fid_, box, atom.virial_per_atom, thermo);
