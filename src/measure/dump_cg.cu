@@ -94,7 +94,8 @@ void Dump_CG::output_line2(
   FILE* fid,
   const Box& box,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& gpu_thermo,
+  double relative_dof)
 {
   // PBC
   fprintf(
@@ -121,19 +122,19 @@ void Dump_CG::output_line2(
   gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
-  fprintf(fid, " energy=%.8f", cpu_thermo[1]/3); // TODO
+  fprintf(fid, " energy=%.8f", cpu_thermo[1] * relative_dof);
   fprintf(
     fid,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0]/3,
-    cpu_total_virial_[3]/3,
-    cpu_total_virial_[4]/3,
-    cpu_total_virial_[3]/3,
-    cpu_total_virial_[1]/3,
-    cpu_total_virial_[5]/3,
-    cpu_total_virial_[4]/3,
-    cpu_total_virial_[5]/3,
-    cpu_total_virial_[2]/3);
+    cpu_total_virial_[0] * relative_dof,
+    cpu_total_virial_[3] * relative_dof,
+    cpu_total_virial_[4] * relative_dof,
+    cpu_total_virial_[3] * relative_dof,
+    cpu_total_virial_[1] * relative_dof,
+    cpu_total_virial_[5] * relative_dof,
+    cpu_total_virial_[4] * relative_dof,
+    cpu_total_virial_[5] * relative_dof,
+    cpu_total_virial_[2] * relative_dof);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3:forces:R:3\n");
@@ -156,58 +157,66 @@ void Dump_CG::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = atom.position_per_atom.size() / 3;
-  const int num_beads = num_atoms_total / 3; // TODO
+  Group& g = group[0];
+  const int num_atoms_total = atom.number_of_atoms;
+  const int num_beads = g.number;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+
+  int max_bead_size = 0;
+  for (int b = 0; b < num_beads; ++b) {
+    if (max_bead_size < g.cpu_size[b]) {
+      max_bead_size = g.cpu_size[b];
+    }
+  }
+  double relative_dof = double(num_beads) / num_atoms_total;
 
   // line 1
   fprintf(fid_, "%d\n", num_beads);  // TODO
 
   // line 2
-  output_line2(fid_, box, atom.virial_per_atom, thermo);
+  output_line2(fid_, box, atom.virial_per_atom, thermo, relative_dof);
+
+  std::vector<double> xyz_bead(max_bead_size * 3);
+  std::vector<double> mass_bead(max_bead_size);
+  std::vector<double> force_bead(max_bead_size * 3);
 
   // other lines
   for (int b = 0; b < num_beads; b++) {
-    int n1 = b * 3; // O
-    int n2 = n1 + 1; // H
-    int n3 = n1 + 2; // H
-    fprintf(fid_, "O "); // call it O
 
-    double r1[3] = {
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n1 + num_atoms_total * 2]
-    };
-    double r2[3] = {
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n2 + num_atoms_total * 2]
-    };
-    double r3[3] = {
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 0],
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 1],
-      atom.cpu_position_per_atom[n3 + num_atoms_total * 2]
-    };
+    fprintf(fid_, "O "); // TODO
+    
+    for (int k = 0; k < g.cpu_size[b]; ++k) {
+      int n = g.cpu_contents[g.cpu_size_sum[b] + k];
+      mass_bead[k] = atom.cpu_mass[n];
+      for (int d = 0; d < 3; ++d) {
+        xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
+        force_bead[k + max_bead_size * d] = cpu_force_per_atom_[n + num_atoms_total * d];
+      }
+    }
+
+
+    for (int k = 1; k < g.cpu_size[b]; ++k) {
+      double pos_diff[3];
+      for (int d = 0; d < 3; ++d) {
+        pos_diff[d] = xyz_bead[k + max_bead_size * d] - xyz_bead[0 + max_bead_size * d];
+      }
+      apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+      for (int d = 0; d < 3; ++d) {
+        xyz_bead[k + max_bead_size * d] = xyz_bead[0 + max_bead_size * d] + pos_diff[d];
+      }
+    }
    
-    double pos_diff[3];
-    for (int d = 0; d < 3; ++d) {
-      pos_diff[d] = r2[d] - r1[d];
+    double r_com[3] = {0.0, 0.0, 0.0};
+    double m_com = 0;
+    for (int k = 0; k < g.cpu_size[b]; ++k) {
+      m_com += mass_bead[k];
+      for (int d = 0; d < 3; ++d) {
+        r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
+      }
     }
-    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
     for (int d = 0; d < 3; ++d) {
-      r2[d] = r1[d] + pos_diff[d];
-    }
-    for (int d = 0; d < 3; ++d) {
-      pos_diff[d] = r3[d] - r1[d];
-    }
-    apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-    for (int d = 0; d < 3; ++d) {
-      r3[d] = r1[d] + pos_diff[d];
-    }
-    double r_com[3];
-    for (int d = 0; d < 3; ++d) {
-      r_com[d] = (r1[d] * 16.0 + r2[d] * 1.0 + r3[d] * 1.0) / 18.0;
+      r_com[d] /= m_com;
     }
 
     for (int d = 0; d < 3; ++d) {
@@ -218,12 +227,16 @@ void Dump_CG::process(
       }
       fprintf(fid_, " %.8f", r_com[d]);
     }
+
+    double f_com[3] = {0.0, 0.0, 0.0};
+    for (int k = 0; k < g.cpu_size[b]; ++k) {
+      for (int d = 0; d < 3; ++d) {
+        f_com[d] += force_bead[k + max_bead_size * d];
+      }
+    }
+
     for (int d = 0; d < 3; ++d) {
-      double f1 = cpu_force_per_atom_[n1 + num_atoms_total * d];
-      double f2 = cpu_force_per_atom_[n2 + num_atoms_total * d];
-      double f3 = cpu_force_per_atom_[n3 + num_atoms_total * d];
-      double f_tot = f1 + f2 + f3;
-      fprintf(fid_, " %.8f", f_tot);
+      fprintf(fid_, " %.8f", f_com[d]);
     }
     fprintf(fid_, "\n");
   }

@@ -65,7 +65,8 @@ private:
     FILE* fid,
     const Box& box,
     GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
+    GPU_Vector<double>& gpu_thermo,
+    double relative_dof);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
