@@ -172,7 +172,7 @@ void Dump_CG::process(
   double relative_dof = double(num_beads) / num_atoms_total;
 
   // line 1
-  fprintf(fid_, "%d\n", num_beads);  // TODO
+  fprintf(fid_, "%d\n", num_beads);
 
   // line 2
   output_line2(fid_, box, atom.virial_per_atom, thermo, relative_dof);
@@ -217,14 +217,6 @@ void Dump_CG::process(
     }
     for (int d = 0; d < 3; ++d) {
       r_com[d] /= m_com;
-    }
-
-    for (int d = 0; d < 3; ++d) {
-      if (r_com[d] < 0) {
-        r_com[d] += box.cpu_h[0];
-      } else if (r_com[d] > box.cpu_h[0]) {
-        r_com[d] -= box.cpu_h[0];
-      }
       fprintf(fid_, " %.8f", r_com[d]);
     }
 
