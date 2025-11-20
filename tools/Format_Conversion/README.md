@@ -9,6 +9,7 @@
 | mtp2xyz     | Ke Xu        | twtdq@qq.com               | Convert `MTP` training data to xyz format.                   |
 | orca2xyz    | Zherui Chen  | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
 | runner2xyz  | Ke Xu        | twtdq@qq.com               | Convert `RUNNER` training data to `xyz` format.              |
+| siesta2xyz  | Zhang Su     | 250061@hsu.edu.cn          | Get `train.xyz` from `SIESTA` outputs.                       |
 | vasp2xyz    | Yanzhou Wang | yanzhowang@gmail.com       | Get `train.xyz` from `VASP` outputs.                         |
 | xtd2exyz    | Zherui Chen  | chenzherui0124@foxmail.com | Get train.xyz from Materials Studio outputs.                 |
 | xyz2gro     | Who?         |                            | Convert `xyz` file to `gro` file.                            |
