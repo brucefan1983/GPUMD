@@ -184,11 +184,16 @@ void Dump_CG::process(
   // other lines
   for (int b = 0; b < num_beads; b++) {
 
-    fprintf(fid_, "O "); // TODO
+    if (g.cpu_size[b] > 1) {
+      fprintf(fid_, "F ");
+    }
     
     for (int k = 0; k < g.cpu_size[b]; ++k) {
       int n = g.cpu_contents[g.cpu_size_sum[b] + k];
       mass_bead[k] = atom.cpu_mass[n];
+      if (g.cpu_size[b] == 1) {
+        fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
+      }
       for (int d = 0; d < 3; ++d) {
         xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
         force_bead[k + max_bead_size * d] = cpu_force_per_atom_[n + num_atoms_total * d];
