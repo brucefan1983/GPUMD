@@ -5,7 +5,12 @@
 :attr:`add_efield`
 ==================
 
-This keyword is used to add force due to electric field on atoms in a selected group at each step during a run. The force equals to the product of the electric field and the charge of the atom as specified in :attr:`model.xyz` via :attr:`charge:R:1`.
+This keyword is used to add force due to electric field on atoms in a selected group at each step during a run. 
+
+For qNEP models, the force equals to the dot product of the electric field and the Born effective charge (:term:`BEC`). 
+This is only meaningful when the qNEP model was trained with target :term:`BEC`.
+
+For other models, the force equals to the product of the electric field and the charge of the atom as specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 
 Syntax
 ------
