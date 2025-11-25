@@ -89,6 +89,10 @@ Output files
      - :ref:`compute_dos <kw_compute_dos>`
      - Phonon density of states (:term:`PDOS`) data
      - Append
+   * - :ref:`dpdt.out <dpdt_out>`
+     - :ref:`compute_dpdt <kw_compute_dpdt>`
+     - time derivative of the polarizability and its time integration
+     - Append
    * - :ref:`sdc.out <sdc_out>`
      - :ref:`compute_sdc <kw_compute_sdc>`
      - Self-diffusion coefficient (:term:`SDC`) data
@@ -158,6 +162,7 @@ Output files
    compute_out
    D_out
    dos_out
+   dpdt_out
    force_out
    hac_out
    heatmode_out
