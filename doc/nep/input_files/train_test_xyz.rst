@@ -48,6 +48,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   * :attr:`species:S:1` chemical symbol in the periodic table (case-sensitive)
   * :attr:`pos:R:3` position vector
   * :attr:`force:R:3` or :attr:`forces:R:3` target force vector
+  * :attr:`bec:R:9` target Born effective charge (:term:`BEC`) tensor (optional)
 
 * If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide :attr:`dipole="dx dy dz"`, which is the dipole vector of the structure. 
 
@@ -65,6 +66,7 @@ Units
 * Forces are expected in units of eV/Å.
 * Virials are expected in units of eV (such that the virial divided by the volume yields the stress).
 * Dipole and polarizability can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
+* :term:`BEC` is in units of elementary charge e.
 
 Tips
 ----
@@ -76,3 +78,5 @@ Tips
   However, because NEP training uses single precision, accuracy will be lost if any reference energy is smaller than -100 eV/atom. The code will give a warning message in this case.
 * The energy and virial data refer to the total energy and virial for the system.
   They are not per-atom but per-cell quantities.
+* The :term:`BEC` is optional. You can also have it only for some structures.
+
