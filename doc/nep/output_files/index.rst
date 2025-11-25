@@ -49,6 +49,14 @@ All the files are plain text files.
      - target and predicted polarizability values for training data set
    * - :ref:`polarizability_test.out <nep_polarizability_out>`
      - target and predicted polarizability values for test data set
+   * - :ref:`charge_train.out <charge_out>`
+     - predicted charge values for training data set
+   * - :ref:`charge_test.out <charge_out>`
+     - predicted charge values for test data set
+   * - :ref:`bec_train.out <bec_out>`
+     - target and predicted :term:`BEC` values for training data set
+   * - :ref:`bec_test.out <bec_out>`
+     - target and predicted :term:`BEC` values for test data set
    * - :ref:`descriptor.out <descriptor_out>`
      - descriptor values for training data set in prediction mode
 
@@ -65,4 +73,6 @@ All the files are plain text files.
    stress_out
    dipole_out
    polarizability_out
+   charge_out
+   bec_out
    descriptor_out
