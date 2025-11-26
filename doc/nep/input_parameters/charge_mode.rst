@@ -18,7 +18,7 @@ Value  Model description
 -----  --------------------------------------------------------------------------------
 0      original NEP without charge
 1      qNEP model with charge, including both real- and reciprocal-space contributions
-2      qNEP model with charge, including reciprocal-space contribution
+2      qNEP model with charge, including reciprocal-space contribution only
 =====  ================================================================================
 
 Here, qNEP means NEP with charge (q). 
