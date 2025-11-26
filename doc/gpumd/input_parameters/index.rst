@@ -51,6 +51,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_adf
    compute_cohesive
    compute_dos
+   compute_dpdt
    compute_elastic
    compute_gkma
    compute_hac

@@ -24,7 +24,7 @@ If :attr:`grouping_method` is negative, :attr:`group_id` will be ignored and dat
 
 If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`group`, and :attr:`unwrapped_position`.
+* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group`, and :attr:`unwrapped_position`.
 
 * The wrapped positions will always be included in the output.
 
@@ -50,3 +50,6 @@ Caveats
   That means, its effect will not be passed from one run to the next.
 * The output file has an appending behavior.
 * Different from many of the other keywords, this keyword is allowed to be invoked multiple times within one run.
+* For qNEP models, the charge values dumped out are predicted by the qNEP models.
+  For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
+* The Born effective charge (:term:`BEC`) is only meaningful for a qNEP model trained with target :term:`BEC`.

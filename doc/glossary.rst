@@ -20,6 +20,9 @@ Glossary
    BDP
         :ref:`Bussi-Donadio-Parrinello thermostat <bdp_thermostat>` [Bussi2007b]_
 
+   BEC
+        Born effective charge
+
    DOS
         density of states
 
