@@ -129,6 +129,7 @@ static __global__ void gpu_find_adf_local(
     const int i_type = type[i];
     for (int m = 0; m < Ntriples; m++) {
       if (i_type == itype[m]) {
+        const bool same_jk_type = (jtype[m] == ktype[m]);
         for (int jj = 0; jj < i_neigh; jj++) {
           const int j = NL[i + jj * N];
           const int j_type = type[j];
@@ -140,7 +141,8 @@ static __global__ void gpu_find_adf_local(
             const double dij_sq = xij * xij + yij * yij + zij * zij;
 
             if (dij_sq >= rc_min_j[m] * rc_min_j[m] && dij_sq < rc_max_j[m] * rc_max_j[m]) {
-              for (int kk = jj + 1; kk < i_neigh; kk++) {
+              const int kk_start = same_jk_type ? (jj + 1) : 0;
+              for (int kk = kk_start; kk < i_neigh; kk++) {
                 const int k = NL[i + kk * N];
                 const int k_type = type[k];
                 if (k_type == ktype[m]) {
@@ -155,9 +157,9 @@ static __global__ void gpu_find_adf_local(
                     const double theta = acos(cos_theta) * 180.0 / My_PI;
                     const int bin = static_cast<int>(floor(theta * delta_theta_inv));
                     if (bin > adf_bins - 1) {
-                      atomicAdd(&adf[m * Ntriples + adf_bins - 1], 1);
+                      atomicAdd(&adf[m * adf_bins + adf_bins - 1], 1);
                     } else {
-                      atomicAdd(&adf[m * Ntriples + bin], 1);
+                      atomicAdd(&adf[m * adf_bins + bin], 1);
                     }
                   }
                 }
