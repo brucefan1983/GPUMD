@@ -611,7 +611,6 @@ static __global__ void gpu_update_mu_and_sigma(
   const int population_size,
   const int number_of_variables,
   const float eta_sigma,
-  const float simga0,
   const int* g_type_of_variable,
   const int* g_index,
   const float* g_utility,
@@ -632,7 +631,7 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = min(simga0, sigma * exp(eta_sigma * gradient_sigma));
+    g_sigma[v] = sigma * exp(eta_sigma * gradient_sigma);
   }
 }
 
@@ -646,7 +645,6 @@ void SNES::update_mu_and_sigma(Parameters& para)
     population_size,
     number_of_variables,
     eta_sigma,
-    para.sigma0,
     gpu_type_of_variable.data(),
     gpu_index.data(),
     gpu_utility.data(),
