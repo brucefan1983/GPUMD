@@ -108,7 +108,6 @@ void Parameters::set_default_parameters()
   charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
-  zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
