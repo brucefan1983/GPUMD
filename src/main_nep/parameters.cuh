@@ -52,7 +52,6 @@ public:
   float lambda_q;         // weight for global charge
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
@@ -123,7 +122,6 @@ public:
 private:
   void set_default_parameters();
   void read_nep_in();
-  void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
   void check_foundation_model();
