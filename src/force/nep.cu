@@ -201,15 +201,11 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 8) {
+  if (tokens.size() == 7) {
     paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
     paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_radial_factor > 0.0f) {
       paramb.use_typewise_cutoff = true;
-    }
-    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
-      paramb.use_typewise_cutoff_zbl = true;
     }
   }
 #ifdef USE_TABLE
@@ -1103,13 +1099,6 @@ static __global__ void find_force_ZBL(
       {
         float rc_inner = zbl.rc_inner;
         float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff_zbl) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
-            rc_outer);
-          rc_inner = rc_outer * 0.5f;
-        }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       float f2 = fp * d12inv * 0.5f;
