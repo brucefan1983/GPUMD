@@ -98,11 +98,8 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
-    int num_types;
-    float para[550];
     int atomic_numbers[NUM_ELEMENTS];
   };
 
