@@ -71,7 +71,6 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
-  is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
 
   train_mode = 0;              // potential
@@ -103,10 +102,8 @@ void Parameters::set_default_parameters()
   sigma0 = 0.1f;
   atomic_v = 0;
   use_typewise_cutoff = false;
-  use_typewise_cutoff_zbl = false;
   typewise_cutoff_radial_factor = -1.0f;
   typewise_cutoff_angular_factor = -1.0f;
-  typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
 
@@ -455,15 +452,6 @@ void Parameters::report_inputs()
     printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
   }
 
-  if (is_use_typewise_cutoff_zbl_set) {
-    printf(
-      "    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
-    printf("              factor = %g.\n", typewise_cutoff_zbl_factor);
-  } else {
-    printf(
-      "    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
-  }
-
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);
@@ -649,8 +637,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_atomic_v(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
     parse_use_typewise_cutoff(param, num_param);
-  } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
-    parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "charge_mode") == 0) {
@@ -1230,28 +1216,6 @@ void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
 
   if (typewise_cutoff_radial_factor < typewise_cutoff_angular_factor) {
     PRINT_INPUT_ERROR("typewise_cutoff_radial_factor must >= typewise_cutoff_angular_factor.\n");
-  }
-}
-
-void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param)
-{
-  if (num_param != 1 && num_param != 2) {
-    PRINT_INPUT_ERROR("use_typewise_cutoff_zbl should have 0 or 1 parameter.\n");
-  }
-  use_typewise_cutoff_zbl = true;
-  is_use_typewise_cutoff_zbl_set = true;
-  typewise_cutoff_zbl_factor = 0.65f;
-
-  if (num_param == 2) {
-    double typewise_cutoff_zbl_factor_temp = 0.0;
-    if (!is_valid_real(param[1], &typewise_cutoff_zbl_factor_temp)) {
-      PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor should be a number.\n");
-    }
-    typewise_cutoff_zbl_factor = typewise_cutoff_zbl_factor_temp;
-  }
-
-  if (typewise_cutoff_zbl_factor < 0.5f) {
-    PRINT_INPUT_ERROR("typewise_cutoff_zbl_factor must >= 0.5.\n");
   }
 }
 

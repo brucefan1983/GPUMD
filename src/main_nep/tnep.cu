@@ -256,10 +256,8 @@ TNEP::TNEP(
   paramb.rc_angular = para.rc_angular;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.use_typewise_cutoff = para.use_typewise_cutoff;
-  paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
   paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
-  paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;

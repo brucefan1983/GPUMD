@@ -254,10 +254,8 @@ NEP::NEP(
   paramb.rc_angular = para.rc_angular;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.use_typewise_cutoff = para.use_typewise_cutoff;
-  paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
   paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
-  paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
@@ -687,13 +685,6 @@ static __global__ void find_force_ZBL(
       {
         float rc_inner = zbl.rc_inner;
         float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff_zbl) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
-            rc_outer);
-          rc_inner = rc_outer * 0.5f;
-        }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
       float f2 = fp * d12inv * 0.5f;

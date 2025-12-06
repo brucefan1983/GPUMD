@@ -60,10 +60,8 @@ public:
   float sigma0;
   int atomic_v;
   bool use_typewise_cutoff;
-  bool use_typewise_cutoff_zbl;
   float typewise_cutoff_radial_factor;
   float typewise_cutoff_angular_factor;
-  float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
   bool has_bec = false; // check if there are target BEC values
@@ -97,7 +95,6 @@ public:
   bool is_force_delta_set;
   bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
-  bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
 
   // other parameters
@@ -154,7 +151,6 @@ private:
   void parse_sigma0(const char** param, int num_param);
   void parse_atomic_v(const char** param, int num_param);
   void parse_use_typewise_cutoff(const char** param, int num_param);
-  void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
