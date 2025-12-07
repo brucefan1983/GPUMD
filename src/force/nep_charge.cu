@@ -349,9 +349,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  if (paramb.charge_mode == 4) {
-    charge_para.alpha = float(PI) / paramb.rc_angular;
-  }
   check_ewald_pppm();
   if (use_pppm) {
     pppm.initialize(charge_para.alpha);

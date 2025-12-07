@@ -294,9 +294,6 @@ NEP_Charge::NEP_Charge(
   }
 
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  if (paramb.charge_mode == 4) {
-    charge_para.alpha = float(PI) / paramb.rc_angular;
-  }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
   charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
