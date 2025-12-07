@@ -284,6 +284,12 @@ void Integrate::compute1(
   }
 
   ensemble->compute1(time_step, group, box, atom, thermo);
+  printf("unwrapped position size %lu\n", atom.unwrapped_position.size());
+  if (atom.unwrapped_position.size() == 0) {
+    atom.unwrapped_position.resize(atom.number_of_atoms * 3);
+    atom.position_temp.resize(atom.number_of_atoms * 3);
+    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+  }
 
   if (atom.unwrapped_position.size() > 0) {
     gpu_update_unwrapped_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(

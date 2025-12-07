@@ -17,7 +17,7 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_60
+CUDA_ARCH=-arch=sm_89
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux

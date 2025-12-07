@@ -152,6 +152,9 @@ __global__ void kernel_add_spring_ghost_atom(
   double dx = x - xg;
   double dy = y - yg;
   double dz = z - zg;
+  if (dx > 2)
+  printf(" Debug: atom_id=%d, pos=(%g,%g,%g), ghost_pos=(%g,%g,%g), d=(%g,%g,%g)\n",
+         atom_id, x, y, z, xg, yg, zg, dx, dy, dz);
 
   const double r2 = dx * dx + dy * dy + dz * dz;
 
@@ -301,10 +304,10 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
   } else if (strcmp(mode_str, "ghost_atom") == 0) {
 
     // add_spring ghost_atom gm gid k R0 vx vy vz
-    if (num_param != 10) {
-      PRINT_INPUT_ERROR("add_spring ghost_atom requires: "
-                        "add_spring ghost_atom gm gid k R0 vx vy vz\n");
-    }
+    // if (num_param != 7) {
+    //   PRINT_INPUT_ERROR("add_spring ghost_atom requires: "
+    //                     "add_spring ghost_atom gm gid k R0 vx vy vz\n");
+    // }
 
     mode_[id] = SPRING_GHOST_ATOM;
 
@@ -432,7 +435,15 @@ void Add_Spring::compute(const int step,
 
   const int n_atoms_total = (int) atom.position_per_atom.size() / 3;
 
-  double* g_pos = atom.position_per_atom.data();
+  // double* g_pos = atom.position_per_atom.data();
+  printf(" Add_Spring::compute at step %d\n", step);
+  printf("unwrapped positions size: %lu\n", atom.unwrapped_position.size());
+
+  double* g_pos = atom.unwrapped_position.data();
+  if (atom.unwrapped_position.size() == 0) {
+    g_pos = atom.position_per_atom.data();
+    printf(" Using wrapped positions for spring calculations.\n");
+  }
   double* g_x   = g_pos;
   double* g_y   = g_pos + n_atoms_total;
   double* g_z   = g_pos + 2 * n_atoms_total;
@@ -444,6 +455,39 @@ void Add_Spring::compute(const int step,
 
   const int block_size = 64;
   const double step_d  = (double) step;
+
+  static int init_ghost_com_origin = 0;
+  if (!init_ghost_com_origin) {
+    // initialize ghost_com_origin_ to Rcm
+    for (int c = 0; c < num_calls_; ++c) {
+      const int gm  = grouping_method1_[c];
+      const int gid = group_id1_[c];
+      const Group& G = groups[gm];
+      const int group_size     = G.cpu_size[gid];
+      const int group_size_sum = G.cpu_size_sum[gid];
+      if (group_size <= 0) continue;
+      const int* g_contents = G.contents.data();
+      const int grid_size   = (group_size - 1) / block_size + 1;
+      // compute COM (geometric center) on device
+      cudaMemset(d_tmp_vec3_,   0, 3 * sizeof(double));
+      cudaMemset(d_tmp_scalar_, 0,     sizeof(double));
+      kernel_sum_group_pos<<<grid_size, block_size>>>(
+        group_size, group_size_sum,
+        g_contents,
+        g_x, g_y, g_z,
+        d_tmp_vec3_, d_tmp_scalar_);
+      GPU_CHECK_KERNEL
+      double sum_pos[3];
+      double count;
+      cudaMemcpy(sum_pos,  d_tmp_vec3_,   3 * sizeof(double), cudaMemcpyDeviceToHost);
+      cudaMemcpy(&count,   d_tmp_scalar_, sizeof(double),     cudaMemcpyDeviceToHost);
+      if (count <= 0.0) continue;
+      ghost_com_origin_[c][0] = sum_pos[0] / count;
+      ghost_com_origin_[c][1] = sum_pos[1] / count;
+      ghost_com_origin_[c][2] = sum_pos[2] / count;
+    }
+    init_ghost_com_origin = 1;
+  }
 
   for (int c = 0; c < num_calls_; ++c) {
     spring_energy_[c] = 0.0;
@@ -491,6 +535,9 @@ void Add_Spring::compute(const int step,
       Rg[1] = ghost_com_origin_[c][1] + ghost_com_velocity_[c][1] * step_d;
       Rg[2] = ghost_com_origin_[c][2] + ghost_com_velocity_[c][2] * step_d;
 
+      printf(" Debug: step=%d, COM=(%g,%g,%g), ghost_COM=(%g,%g,%g)\n",
+             step, Rcm[0], Rcm[1], Rcm[2], Rg[0], Rg[1], Rg[2]);
+
       double dx = Rcm[0] - Rg[0];
       double dy = Rcm[1] - Rg[1];
       double dz = Rcm[2] - Rg[2];
@@ -517,6 +564,8 @@ void Add_Spring::compute(const int step,
         Fz_cm = coef * dz;
         energy = 0.5 * k * dr * dr;
       }
+      printf(" Debug: step=%d, Fcm=(%g,%g,%g), energy=%g\n",
+             step, Fx_cm, Fy_cm, Fz_cm, energy);
 
       spring_energy_[c] = energy;
 
@@ -549,6 +598,8 @@ void Add_Spring::compute(const int step,
 
         ghost_atom_group_size_[c] = group_size;
         cudaMalloc((void**)&d_ghost_atom_pos_[c], 3 * group_size * sizeof(double));
+        printf(" Allocated ghost_atom_pos of size %d for call %d\n",
+               group_size, c);
 
         const int grid_init = (group_size - 1) / block_size + 1;
         kernel_init_ghost_atom_pos<<<grid_init, block_size>>>(
@@ -557,6 +608,8 @@ void Add_Spring::compute(const int step,
           g_x, g_y, g_z,
           d_ghost_atom_pos_[c]);
         GPU_CHECK_KERNEL
+
+        printf(" Initialized ghost_atom positions for call %d\n", c);
       }
 
       cudaMemset(d_tmp_scalar_, 0, sizeof(double));  // use as energy accumulator
