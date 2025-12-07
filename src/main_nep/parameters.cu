@@ -68,7 +68,6 @@ void Parameters::set_default_parameters()
   is_population_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
-  is_zbl_set = false;
   is_force_delta_set = false;
   is_use_typewise_cutoff_set = false;
   is_charge_mode_set = false;
@@ -112,6 +111,7 @@ void Parameters::set_default_parameters()
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
   enable_zbl = false;   // default is not to include ZBL
+  enable_zblm = false;
 
   // ------------new--------------
   int deviceCount;  
@@ -171,6 +171,7 @@ void Parameters::calculate_parameters()
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
+    enable_zblm = false;
     if (!is_lambda_v_set) {
       lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
@@ -411,7 +412,7 @@ void Parameters::report_inputs()
     }
   }
 
-  if (is_zbl_set) {
+  if (enable_zbl) {
     printf(
       "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
       "cutoff %g A.\n",
@@ -419,6 +420,17 @@ void Parameters::report_inputs()
       zbl_rc_inner);
   } else {
     printf("    (default) will not add the ZBL potential.\n");
+  }
+
+  if (enable_zblm) {
+    printf(
+      "    (input)   will add the universal ZBL-Morse potential.");
+  } else {
+    printf("    (default) will not add the ZBL-Morse potential.\n");
+  }
+
+  if (enable_zblm && enable_zbl) {
+    PRINT_INPUT_ERROR("Cannot use ZBL and ZBL-Morse together.");
   }
 
   if (is_charge_mode_set) {
@@ -628,6 +640,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_force_delta(param, num_param);
   } else if (strcmp(param[0], "zbl") == 0) {
     parse_zbl(param, num_param);
+  } else if (strcmp(param[0], "zblm") == 0) {
+    parse_zblm(param, num_param);
   } else if (strcmp(param[0], "initial_para") == 0) {
     parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
@@ -752,7 +766,6 @@ void Parameters::parse_type_weight(const char** param, int num_param)
 
 void Parameters::parse_zbl(const char** param, int num_param)
 {
-  is_zbl_set = true;
   enable_zbl = true;
 
   if (num_param != 2) {
@@ -771,6 +784,11 @@ void Parameters::parse_zbl(const char** param, int num_param)
   } else if (zbl_rc_outer > 2.5f) {
     PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
   }
+}
+
+void Parameters::parse_zblm(const char** param, int num_param)
+{
+  enable_zblm = true;
 }
 
 void Parameters::parse_force_delta(const char** param, int num_param)

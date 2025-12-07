@@ -54,6 +54,7 @@ public:
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  bool enable_zblm;
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
   float initial_para;
@@ -93,7 +94,6 @@ public:
   bool is_save_potential_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
-  bool is_zbl_set;
   bool is_use_typewise_cutoff_set;
   bool is_charge_mode_set;
 
@@ -130,6 +130,7 @@ private:
   void parse_type(const char** param, int num_param);
   void parse_type_weight(const char** param, int num_param);
   void parse_zbl(const char** param, int num_param);
+  void parse_zblm(const char** param, int num_param);
   void parse_cutoff(const char** param, int num_param);
   void parse_n_max(const char** param, int num_param);
   void parse_basis_size(const char** param, int num_param);
