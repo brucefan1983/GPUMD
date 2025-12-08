@@ -41,8 +41,6 @@ public:
   int L_max;              // maximum order of the 3body spherical harmonics
   int L_max_4body;        // maximum order of the 4body spherical harmonics
   int L_max_5body;        // maximum order of the 5body spherical harmonics
-  float rc_radial;        // radial cutoff distance
-  float rc_angular;       // angular cutoff distance
   float lambda_1;         // weight parameter for L1 regularization loss
   float lambda_2;         // weight parameter for L2 regularization loss
   float lambda_e;         // weight parameter for energy RMSE loss
@@ -113,8 +111,11 @@ public:
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
   std::vector<float> zbl_para;        // parameters of zbl potential
-  std::vector<float> rc_radial_array;        // radial cutoff distance
-  std::vector<float> rc_angular_array;       // angular cutoff distance
+  std::vector<float> rc_radial;       // radial cutoff distance
+  std::vector<float> rc_angular;      // angular cutoff distance
+  float rc_radial_max = 0.0f;         // maximal radial cutoff
+  float rc_angular_max = 0.0f;        // maximal angular cutoff
+  bool has_multiple_cutoffs = false;
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
 

@@ -224,8 +224,8 @@ NEP_Charge::NEP_Charge(
 {
   paramb.charge_mode = para.charge_mode;
   paramb.version = version;
-  paramb.rc_radial = para.rc_radial;
-  paramb.rc_angular = para.rc_angular;
+  paramb.rc_radial = para.rc_radial[0];
+  paramb.rc_angular = para.rc_angular[0];
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;

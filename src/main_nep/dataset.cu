@@ -349,10 +349,10 @@ void Dataset::find_neighbor(Parameters& para)
   GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
   atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
 
-  GPU_Vector<float> rc_radial(para.rc_radial_array.size());
-  rc_radial.copy_from_host(para.rc_radial_array.data());
-  GPU_Vector<float> rc_angular(para.rc_angular_array.size());
-  rc_angular.copy_from_host(para.rc_angular_array.data());
+  GPU_Vector<float> rc_radial(para.rc_radial.size());
+  rc_radial.copy_from_host(para.rc_radial.data());
+  GPU_Vector<float> rc_angular(para.rc_angular.size());
+  rc_angular.copy_from_host(para.rc_angular.data());
 
   gpu_find_neighbor_number<<<Nc, 256>>>(
     N,
@@ -396,10 +396,10 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial);
+  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular);
+  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
 }
