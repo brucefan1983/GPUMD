@@ -85,18 +85,8 @@ static __global__ void gpu_find_neighbor_list(
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             int t2 = g_type[n2];
-            float rc_radial = g_rc_radial;
-            float rc_angular = g_rc_angular;
-            if (use_typewise_cutoff) {
-              int z1 = paramb.atomic_numbers[t1];
-              int z2 = paramb.atomic_numbers[t2];
-              rc_radial = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-                rc_radial);
-              rc_angular = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-                rc_angular);
-            }
+            float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+            float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
             if (distance_square < rc_radial * rc_radial) {
               NL_radial[count_radial * N + n1] = n2;
               x12_radial[count_radial * N + n1] = x12;
@@ -146,14 +136,7 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -205,14 +188,7 @@ static __global__ void find_descriptors_angular(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -249,14 +225,7 @@ NEP::NEP(
   int deviceCount)
 {
   paramb.version = version;
-  paramb.rc_radial = para.rc_radial;
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rc_angular = para.rc_angular;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  paramb.use_typewise_cutoff = para.use_typewise_cutoff;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
-  paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
-  paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   paramb.n_max_radial = para.n_max_radial;
@@ -504,14 +473,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -602,14 +564,7 @@ static __global__ void find_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
