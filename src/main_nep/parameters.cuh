@@ -60,10 +60,7 @@ public:
   float initial_para;
   float sigma0;
   int atomic_v;
-  bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
-  float typewise_cutoff_radial_factor;
-  float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
@@ -97,7 +94,6 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
-  bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
 
@@ -117,6 +113,8 @@ public:
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
   std::vector<float> zbl_para;        // parameters of zbl potential
+  std::vector<float> rc_radial_array;        // radial cutoff distance
+  std::vector<float> rc_angular_array;       // angular cutoff distance
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
 
@@ -155,7 +153,6 @@ private:
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
   void parse_atomic_v(const char** param, int num_param);
-  void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
