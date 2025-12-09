@@ -115,6 +115,8 @@ void Parameters::set_default_parameters()
     type_weight_cpu[n] = 1.0f; // uniform weight by default
     rc_radial[n] = 8.0f;
     rc_angular[n] = 4.0f;
+    rc_radial_max = 8.0f;
+    rc_angular_max = 4.0;
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
