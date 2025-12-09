@@ -37,6 +37,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    add_efield
    electron_stop
    fix
+   kspace
    move
    mc
    plumed
