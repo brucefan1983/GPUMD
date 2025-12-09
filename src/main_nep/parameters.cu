@@ -412,24 +412,15 @@ void Parameters::report_inputs()
     printf("    (default) use NEP version %d.\n", version);
   }
   printf("    (input)   number of atom types = %d.\n", num_types);
-  if (is_type_weight_set) {
-    for (int n = 0; n < num_types; ++n) {
-      printf(
-        "        (input)   type %d (%s with Z = %d) has force weight of %g.\n",
-        n,
-        elements[n].c_str(),
-        atomic_numbers[n],
-        type_weight_cpu[n]);
-    }
-  } else {
-    for (int n = 0; n < num_types; ++n) {
-      printf(
-        "        (default) type %d (%s with Z = %d) has force weight of %g.\n",
-        n,
-        elements[n].c_str(),
-        atomic_numbers[n],
-        type_weight_cpu[n]);
-    }
+  for (int n = 0; n < num_types; ++n) {
+    printf(
+      "        type %d (%s with Z = %d) has cutoff (%g, %g) and force weight of %g.\n",
+      n,
+      elements[n].c_str(),
+      atomic_numbers[n],
+      rc_radial[n],
+      rc_angular[n],
+      type_weight_cpu[n]);
   }
 
   if (is_zbl_set) {
@@ -458,30 +449,6 @@ void Parameters::report_inputs()
     } else if (charge_mode == 5) {
       printf("    (input)   use NEP-Charge-VdW and include real-space only; lambda_q = %g.\n", lambda_q);
     }
-  }
-
-  if (is_cutoff_set) {
-    printf("    (input)   radial cutoff = ");
-    for (int n = 0; n < num_types; ++n) {
-      printf("%g ", rc_radial[n]);
-    }
-    printf("\n");
-    printf("    (input)   angular cutoff = ");
-    for (int n = 0; n < num_types; ++n) {
-      printf("%g ", rc_angular[n]);
-    }
-    printf("\n");
-  } else {
-    printf("    (default) radial cutoff = ");
-    for (int n = 0; n < num_types; ++n) {
-      printf("%g ", rc_radial[n]);
-    }
-    printf("\n");
-    printf("    (default) angular cutoff = ");
-    for (int n = 0; n < num_types; ++n) {
-      printf("%g ", rc_angular[n]);
-    }
-    printf("\n");
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
