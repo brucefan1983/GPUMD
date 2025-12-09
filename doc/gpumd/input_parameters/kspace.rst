@@ -15,10 +15,11 @@ This keyword is used as follows::
   kspace <method>
 
 where :attr:`<method>` can be either `ewald` or `pppm`.
+The default is `pppm`, which implies that the particle-particle particle-mesh (PPPM) method is used.
 
 Example
 -------
 
-To use the particle-particle particle-mesh (PPPM) method use::
+To use the Ewald method use::
 
-   kspace pppm
+   kspace ewald
