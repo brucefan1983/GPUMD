@@ -67,10 +67,7 @@ public:
 
   struct ParaMB {
     int charge_mode = 0;
-    bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_radial_factor = 0.0f;
-    float typewise_cutoff_angular_factor = 0.0f;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff

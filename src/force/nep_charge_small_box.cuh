@@ -80,7 +80,6 @@ static __global__ void find_neighbor_list_small_box(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
@@ -104,19 +103,8 @@ static __global__ void find_neighbor_list_small_box(
 
             float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
 
-            int t2 = g_type[n2];
             float rc_radial = paramb.rc_radial;
             float rc_angular = paramb.rc_angular;
-            if (paramb.use_typewise_cutoff) {
-              int z1 = paramb.atomic_numbers[t1];
-              int z2 = paramb.atomic_numbers[t2];
-              rc_radial = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-                rc_radial);
-              rc_angular = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-                rc_angular);
-            }
 
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
@@ -199,13 +187,6 @@ static __global__ void find_descriptor_small_box(
       float fc12;
       int t2 = g_type[n2];
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -246,13 +227,6 @@ static __global__ void find_descriptor_small_box(
         float fc12;
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -649,13 +623,6 @@ static __global__ void find_force_radial_small_box(
 #else
       float fc12, fcp12;
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -808,13 +775,6 @@ static __global__ void find_force_angular_small_box(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -912,13 +872,6 @@ static __global__ void find_bec_radial_small_box(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1012,13 +965,6 @@ static __global__ void find_bec_angular_small_box(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 

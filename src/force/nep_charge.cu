@@ -205,9 +205,8 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // cutoff 4.2 3.7 80 47 1
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != 8) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
-                 "[radial_factor] [angular_factor] [zbl_factor].\n";
+  if (tokens.size() != 5 && tokens.size() != 6) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [zbl_factor].\n";
     exit(1);
   }
   paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
@@ -228,22 +227,12 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
-    if (paramb.typewise_cutoff_radial_factor > 0.0f) {
-      paramb.use_typewise_cutoff = true;
-    }
+  if (tokens.size() == 6) {
+    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
       paramb.use_typewise_cutoff_zbl = true;
     }
   }
-#ifdef USE_TABLE
-  if (paramb.use_typewise_cutoff) {
-    PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
-  }
-#endif
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -486,7 +475,6 @@ static __global__ void find_neighbor_list_large_box(
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
-  int t1 = g_type[n1];
   int count_radial = 0;
   int count_angular = 0;
 
@@ -546,19 +534,8 @@ static __global__ void find_neighbor_list_large_box(
           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
-          int t2 = g_type[n2];
           float rc_radial = paramb.rc_radial;
           float rc_angular = paramb.rc_angular;
-          if (paramb.use_typewise_cutoff) {
-            int z1 = paramb.atomic_numbers[t1];
-            int z2 = paramb.atomic_numbers[t2];
-            rc_radial = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-              rc_radial);
-            rc_angular = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-              rc_angular);
-          }
 
           if (d12_square >= rc_radial * rc_radial) {
             continue;
@@ -641,13 +618,6 @@ static __global__ void find_descriptor(
       float fc12;
       int t2 = g_type[n2];
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -692,13 +662,6 @@ static __global__ void find_descriptor(
         float fc12;
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -864,13 +827,6 @@ static __global__ void find_bec_radial(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -971,13 +927,6 @@ static __global__ void find_bec_angular(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
@@ -1224,13 +1173,6 @@ static __global__ void find_force_radial(
 #else
       float fc12, fcp12;
       float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            ((paramb.charge_mode >= 4) ? paramb.typewise_cutoff_angular_factor : paramb.typewise_cutoff_radial_factor),
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1383,13 +1325,6 @@ static __global__ void find_partial_force_angular(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
