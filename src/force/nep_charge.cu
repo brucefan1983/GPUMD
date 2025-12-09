@@ -186,8 +186,8 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   // zbl 0.7 1.4
   if (zbl.enabled) {
     tokens = get_tokens(input);
-    if (tokens.size() != 3) {
-      std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
+    if (tokens.size() != 3 && tokens.size() != 4) {
+      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
       exit(1);
     }
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
@@ -196,17 +196,23 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
       zbl.flexibled = true;
       printf("    has the flexible ZBL potential\n");
     } else {
-      printf(
-        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-        zbl.rc_inner,
-        zbl.rc_outer);
+      if (tokens.size() == 4) {
+        paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+        paramb.use_typewise_cutoff_zbl = true;
+        printf("    has the universal ZBL with typewise cutoff with a factor of 0.65.\n");
+      } else {
+        printf(
+          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+          zbl.rc_inner,
+          zbl.rc_outer);
+      }
     }
   }
 
   // cutoff 4.2 3.7 80 47 1
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != 6) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular [zbl_factor].\n";
+  if (tokens.size() != 5) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular.\n";
     exit(1);
   }
   paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
@@ -226,13 +232,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
-
-  if (tokens.size() == 6) {
-    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
-      paramb.use_typewise_cutoff_zbl = true;
-    }
-  }
 
   // n_max 10 8
   tokens = get_tokens(input);
