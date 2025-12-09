@@ -450,6 +450,10 @@ void Parameters::report_inputs()
     } else if (charge_mode == 5) {
       printf("    (input)   use NEP-Charge-VdW and include real-space only; lambda_q = %g.\n", lambda_q);
     }
+
+    if (has_multiple_cutoffs) {
+      PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
+    }
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
