@@ -414,13 +414,12 @@ void Parameters::report_inputs()
   printf("    (input)   number of atom types = %d.\n", num_types);
   for (int n = 0; n < num_types; ++n) {
     printf(
-      "        type %d (%s with Z = %d) has cutoff (%g, %g) and force weight of %g.\n",
+      "        type %d (%s with Z = %d) has cutoffs (%g, %g).\n",
       n,
       elements[n].c_str(),
       atomic_numbers[n],
       rc_radial[n],
-      rc_angular[n],
-      type_weight_cpu[n]);
+      rc_angular[n]);
   }
 
   if (is_zbl_set) {
