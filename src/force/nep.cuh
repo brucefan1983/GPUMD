@@ -42,18 +42,14 @@ class NEP : public Potential
 public:
   NEP_Data nep_data;
   struct ParaMB {
-    bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_radial_factor = 0.0f;
-    float typewise_cutoff_angular_factor = 0.0f;
     float typewise_cutoff_zbl_factor = 0.0f;
     int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    float rc_radial_max = 0.0f;
+    float rc_radial[NUM_ELEMENTS];     // radial cutoff
+    float rc_angular[NUM_ELEMENTS];    // angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -66,7 +62,6 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
