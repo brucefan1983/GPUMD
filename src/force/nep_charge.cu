@@ -229,8 +229,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
     paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
     if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
       paramb.use_typewise_cutoff_zbl = true;
