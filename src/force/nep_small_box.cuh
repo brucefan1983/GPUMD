@@ -242,7 +242,7 @@ static __global__ void find_descriptor_small_box(
 
     // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     // get energy and energy gradient
@@ -309,7 +309,7 @@ static __global__ void find_descriptor_small_box(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -413,7 +413,7 @@ static __global__ void find_descriptor_small_box(
     // nomalize descriptor
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     // get energy and energy gradient
@@ -424,7 +424,7 @@ static __global__ void find_descriptor_small_box(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }

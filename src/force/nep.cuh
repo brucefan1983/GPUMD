@@ -66,7 +66,6 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    float* q_scaler;
     int atomic_numbers[NUM_ELEMENTS];
   };
 
@@ -85,6 +84,7 @@ public:
     const float* b0_pol[10];
     const float* w1_pol[10];
     const float* b1_pol;
+    const float* q_scaler;
   };
 
   struct ZBL {
