@@ -45,12 +45,6 @@ struct NEP_Data_ {
   GPU_Vector<char> para_buffer_gpu;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-// #ifdef USE_TABLE
-//   GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
-//   GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
-//   GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
-//   GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
-// #endif
 };
 
 
@@ -216,10 +210,6 @@ private:
 
   // save max nep rcut to make sure pbc
   double max_nep_rc;
-
-// #ifdef USE_TABLE
-//   void construct_table(float* parameters);
-// #endif
 };
 
 static __constant__ float Tap_coeff[8];
