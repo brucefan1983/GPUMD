@@ -79,7 +79,7 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    int atomic_numbers[NUM_ELEMENTS];
+    //int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {

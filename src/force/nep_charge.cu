@@ -179,7 +179,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    paramb.atomic_numbers[n] = atomic_number - 1;
     printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
