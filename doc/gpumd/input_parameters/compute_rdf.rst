@@ -9,6 +9,17 @@ This keyword is used to compute the radial distribution function (:term:`RDF`) f
 It works for both classical :term:`MD` and :term:`PIMD`.
 The results will be written to the :ref:`rdf.out <rdf_out>` file.
 
+Mathematical details
+--------------------
+
+The (:term:`RDF`) is proportional to the relative probability of finding atomic pairs at a distance around :math:`r` in the system, and to a large extent, reflects the local structural information of the system. It is defined as
+
+.. math::
+   
+   g (r) = \frac{V}{N^2}\frac{dN(r, dr)}{4\pi r^2 dr},
+
+where :math:`dN (r, dr)` represents the number of particle pairs with distances between :math:`r` and :math:`r + dr`, :math:`V` is the volume of the system, and :math:`N` is the total number of particles in the system. 
+
 Syntax
 ------
 
