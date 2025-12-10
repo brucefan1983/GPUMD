@@ -216,7 +216,7 @@ static __global__ void find_descriptor_small_box(
 
     // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     if (paramb.charge_mode >= 4) {
@@ -246,9 +246,9 @@ static __global__ void find_descriptor_small_box(
       g_C6[n1] = C6 + 2.0f;
 
       for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
-        g_C6_derivative[d * N + n1] = C6_derivative[d] * paramb.q_scaler[d];
+        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+        g_C6_derivative[d * N + n1] = C6_derivative[d] * annmb.q_scaler[d];
       }
     } else {
       float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -272,8 +272,8 @@ static __global__ void find_descriptor_small_box(
       g_charge[n1] = charge;
 
       for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
+        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
       }
     }
   }

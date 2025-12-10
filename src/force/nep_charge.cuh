@@ -79,8 +79,6 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    float q_scaler[140];
-    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
@@ -94,6 +92,7 @@ public:
     const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
+    const float* q_scaler;
   };
 
   struct ZBL {

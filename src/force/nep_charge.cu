@@ -179,7 +179,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    paramb.atomic_numbers[n] = atomic_number - 1;
     printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
@@ -314,18 +313,15 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   // NN and descriptor parameters
-  std::vector<float> parameters(annmb.num_para);
-  for (int n = 0; n < annmb.num_para; ++n) {
+  std::vector<float> parameters(annmb.num_para + annmb.dim);
+  for (int n = 0; n < annmb.num_para + annmb.dim; ++n) {
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  nep_data.parameters.resize(annmb.num_para);
+  nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
-  for (int d = 0; d < annmb.dim; ++d) {
-    tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
+  annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
 
   // flexible zbl potential parameters
   if (zbl.flexibled) {
@@ -607,7 +603,7 @@ static __global__ void find_descriptor(
 
     // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     if (paramb.charge_mode >= 4) {
@@ -637,9 +633,9 @@ static __global__ void find_descriptor(
       g_C6[n1] = C6 + 2.0f;
 
       for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
-        g_C6_derivative[d * N + n1] = C6_derivative[d] * paramb.q_scaler[d];
+        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+        g_C6_derivative[d * N + n1] = C6_derivative[d] * annmb.q_scaler[d];
       }
     } else {
       float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -663,8 +659,8 @@ static __global__ void find_descriptor(
       g_charge[n1] = charge;
 
       for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * paramb.q_scaler[d];
+        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
       }
     }
   }

@@ -312,14 +312,10 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   // NN and descriptor parameters
-  std::vector<float> parameters(annmb[0].num_para);
-  for (int n = 0; n < annmb[0].num_para; ++n) {
+  std::vector<float> parameters(annmb[0].num_para + annmb[0].dim);
+  for (int n = 0; n < annmb[0].num_para + annmb[0].dim; ++n) {
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
-  for (int d = 0; d < annmb[0].dim; ++d) {
-    tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
   // flexible zbl potential parameters
@@ -347,10 +343,11 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     CHECK(gpuSetDevice(gpu));
 #endif
 
-    nep_data[gpu].parameters.resize(annmb[gpu].num_para);
+    nep_data[gpu].parameters.resize(annmb[gpu].num_para + annmb[gpu].dim);
     nep_data[gpu].parameters.copy_from_host(parameters.data());
 
     update_potential(nep_data[gpu].parameters.data(), annmb[gpu]);
+    annmb[gpu].q_scaler = nep_data[gpu].parameters.data() + annmb[gpu].num_para;
 
     nep_data[gpu].cell_count.resize(num_atoms);
     nep_data[gpu].cell_count_sum.resize(num_atoms);
@@ -899,7 +896,7 @@ static __global__ void find_descriptor(
 
     // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     // get energy and energy gradient
@@ -954,7 +951,7 @@ static __global__ void find_descriptor(
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -1935,7 +1932,7 @@ static __global__ void find_descriptor(
     // nomalize descriptor
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
+      q[d] = q[d] * annmb.q_scaler[d];
     }
 
     // get energy and energy gradient
@@ -1946,7 +1943,7 @@ static __global__ void find_descriptor(
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
