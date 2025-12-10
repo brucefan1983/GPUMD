@@ -73,15 +73,12 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
-  is_use_typewise_cutoff_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
   version = 4;                 // NEP4 is the best
-  rc_radial = 8.0f;            // large enough for vdw/coulomb
-  rc_angular = 4.0f;           // large enough in most cases
   basis_size_radial = 8;       // large enough in most cases
   basis_size_angular = 8;      // large enough in most cases
   n_max_radial = 4;            // a relatively small value to achieve high speed
@@ -105,23 +102,24 @@ void Parameters::set_default_parameters()
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
-  use_typewise_cutoff = false;
   use_typewise_cutoff_zbl = false;
-  typewise_cutoff_radial_factor = -1.0f;
-  typewise_cutoff_angular_factor = -1.0f;
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
+  rc_radial.resize(NUM_ELEMENTS);
+  rc_angular.resize(NUM_ELEMENTS);
   zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
+    rc_radial[n] = 8.0f;
+    rc_angular[n] = 4.0f;
+    rc_radial_max = 8.0f;
+    rc_angular_max = 4.0;
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
-
-
 
   // ------------new--------------
   int deviceCount;  
@@ -315,11 +313,11 @@ void Parameters::check_foundation_model()
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
   temp = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  if (temp != rc_radial) {
+  if (temp != rc_radial[0]) {
     PRINT_INPUT_ERROR("NEP radial cutoff mismatches with foundation model.");
   }
   temp = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  if (temp != rc_angular) {
+  if (temp != rc_angular[0]) {
     PRINT_INPUT_ERROR("NEP angular cutoff mismatches with foundation model.");
   }
 
@@ -416,24 +414,14 @@ void Parameters::report_inputs()
     printf("    (default) use NEP version %d.\n", version);
   }
   printf("    (input)   number of atom types = %d.\n", num_types);
-  if (is_type_weight_set) {
-    for (int n = 0; n < num_types; ++n) {
-      printf(
-        "        (input)   type %d (%s with Z = %d) has force weight of %g.\n",
-        n,
-        elements[n].c_str(),
-        atomic_numbers[n],
-        type_weight_cpu[n]);
-    }
-  } else {
-    for (int n = 0; n < num_types; ++n) {
-      printf(
-        "        (default) type %d (%s with Z = %d) has force weight of %g.\n",
-        n,
-        elements[n].c_str(),
-        atomic_numbers[n],
-        type_weight_cpu[n]);
-    }
+  for (int n = 0; n < num_types; ++n) {
+    printf(
+      "        type %d (%s with Z = %d) has cutoffs (%g, %g).\n",
+      n,
+      elements[n].c_str(),
+      atomic_numbers[n],
+      rc_radial[n],
+      rc_angular[n]);
   }
 
   if (is_zbl_set) {
@@ -462,22 +450,10 @@ void Parameters::report_inputs()
     } else if (charge_mode == 5) {
       printf("    (input)   use NEP-Charge-VdW and include real-space only; lambda_q = %g.\n", lambda_q);
     }
-  }
 
-  if (is_cutoff_set) {
-    printf("    (input)   radial cutoff = %g A.\n", rc_radial);
-    printf("    (input)   angular cutoff = %g A.\n", rc_angular);
-  } else {
-    printf("    (default) radial cutoff = %g A.\n", rc_radial);
-    printf("    (default) angular cutoff = %g A.\n", rc_angular);
-  }
-
-  if (is_use_typewise_cutoff_set) {
-    printf("    (input)   use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
-    printf("              radial factor = %g.\n", typewise_cutoff_radial_factor);
-    printf("              angular factor = %g.\n", typewise_cutoff_angular_factor);
-  } else {
-    printf("    (default) use %s cutoff for NEP.\n", use_typewise_cutoff ? "typewise" : "global");
+    if (has_multiple_cutoffs) {
+      PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
+    }
   }
 
   if (is_use_typewise_cutoff_zbl_set) {
@@ -672,8 +648,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_sigma0(param, num_param);
   } else if (strcmp(param[0], "atomic_v") == 0) {
     parse_atomic_v(param, num_param);
-  } else if (strcmp(param[0], "use_typewise_cutoff") == 0) {
-    parse_use_typewise_cutoff(param, num_param);
   } else if (strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
     parse_use_typewise_cutoff_zbl(param, num_param);
   } else if (strcmp(param[0], "output_descriptor") == 0) {
@@ -832,30 +806,75 @@ void Parameters::parse_cutoff(const char** param, int num_param)
 {
   is_cutoff_set = true;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("cutoff should have 2 parameters.\n");
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("Please set type before setting cutoff.\n");
   }
 
-  double rc_radial_tmp = 0.0;
-  if (!is_valid_real(param[1], &rc_radial_tmp)) {
-    PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
+  if (num_param != 3 && num_param != num_types * 2 + 1) {
+    PRINT_INPUT_ERROR("cutoff should have 2 or num_types * 2 parameters.\n");
   }
-  rc_radial = rc_radial_tmp;
 
-  double rc_angular_tmp = 0.0;
-  if (!is_valid_real(param[2], &rc_angular_tmp)) {
-    PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
-  }
-  rc_angular = rc_angular_tmp;
+  if (num_param == 3) {
+    double rc_radial_tmp = 0.0;
+    if (!is_valid_real(param[1], &rc_radial_tmp)) {
+      PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
+    }
+    for (int n = 0; n < num_types; ++ n) {
+      rc_radial[n] = rc_radial_tmp;
+    }
 
-  if (rc_angular > rc_radial) {
-    PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
+    double rc_angular_tmp = 0.0;
+    if (!is_valid_real(param[2], &rc_angular_tmp)) {
+      PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
+    }
+    for (int n = 0; n < num_types; ++ n) {
+      rc_angular[n] = rc_angular_tmp;
+    }
+
+    if (rc_angular_tmp > rc_radial_tmp) {
+      PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
+    }
+    if (rc_angular_tmp < 2.5f) {
+      PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+    }
+    if (rc_radial_tmp > 100.0f) {
+      PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");
+    }
+  } else {
+    has_multiple_cutoffs = true;
+
+    for (int n = 0; n < num_types; ++n) {
+      double rc_radial_tmp = 0.0;
+      if (!is_valid_real(param[1 + n * 2], &rc_radial_tmp)) {
+        PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
+      }
+      rc_radial[n] = rc_radial_tmp;
+
+      double rc_angular_tmp = 0.0;
+      if (!is_valid_real(param[2 + n * 2], &rc_angular_tmp)) {
+        PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
+      }
+      rc_angular[n] = rc_angular_tmp;
+
+      if (rc_angular_tmp > rc_radial_tmp) {
+        PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
+      }
+      if (rc_angular_tmp < 2.5f) {
+        PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+      }
+      if (rc_radial_tmp > 100.0f) {
+        PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");
+      }
+    }
   }
-  if (rc_angular < 2.5f) {
-    PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
-  }
-  if (rc_radial > 10.0f) {
-    PRINT_INPUT_ERROR("radial cutoff should <= 10 A.");
+
+  for (int n = 0; n < num_types; ++ n) {
+    if (rc_radial[n] > rc_radial_max) {
+      rc_radial_max = rc_radial[n];
+    }
+    if (rc_angular[n] > rc_angular_max) {
+      rc_angular_max = rc_angular[n];
+    }
   }
 }
 
@@ -1222,39 +1241,6 @@ void Parameters::parse_sigma0(const char** param, int num_param)
 
   if (sigma0 < 0.01f || sigma0 > 0.1f) {
     PRINT_INPUT_ERROR("sigma0 should be within [0.01, 0.1].");
-  }
-}
-
-void Parameters::parse_use_typewise_cutoff(const char** param, int num_param)
-{
-  if (num_param != 1 && num_param != 3) {
-    PRINT_INPUT_ERROR("use_typewise_cutoff should have 0 or 2 parameters.\n");
-  }
-  use_typewise_cutoff = true;
-  is_use_typewise_cutoff_set = true;
-  typewise_cutoff_radial_factor = 2.5f;
-  typewise_cutoff_angular_factor = 2.0f;
-
-  if (num_param == 3) {
-    double typewise_cutoff_radial_factor_temp = 0.0;
-    if (!is_valid_real(param[1], &typewise_cutoff_radial_factor_temp)) {
-      PRINT_INPUT_ERROR("typewise_cutoff_radial_factor should be a number.\n");
-    }
-    typewise_cutoff_radial_factor = typewise_cutoff_radial_factor_temp;
-
-    double typewise_cutoff_angular_factor_temp = 0.0;
-    if (!is_valid_real(param[2], &typewise_cutoff_angular_factor_temp)) {
-      PRINT_INPUT_ERROR("typewise_cutoff_angular_factor should be a number.\n");
-    }
-    typewise_cutoff_angular_factor = typewise_cutoff_angular_factor_temp;
-  }
-
-  if (typewise_cutoff_angular_factor < 1.5f) {
-    PRINT_INPUT_ERROR("typewise_cutoff_angular_factor must >= 1.5.\n");
-  }
-
-  if (typewise_cutoff_radial_factor < typewise_cutoff_angular_factor) {
-    PRINT_INPUT_ERROR("typewise_cutoff_radial_factor must >= typewise_cutoff_angular_factor.\n");
   }
 }
 
