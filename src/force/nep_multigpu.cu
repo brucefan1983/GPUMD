@@ -220,11 +220,6 @@ NEP_MULTIGPU::NEP_MULTIGPU(
       paramb.use_typewise_cutoff_zbl = true;
     }
   }
-#ifdef USE_TABLE
-  if (paramb.use_typewise_cutoff) {
-    PRINT_INPUT_ERROR("Cannot use tabulated radial functions with typewise cutoff.");
-  }
-#endif
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -362,44 +357,6 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     nep_data[gpu].cell_contents.resize(num_atoms);
 
     CHECK(gpuStreamCreate(&nep_data[gpu].stream));
-
-#ifdef USE_TABLE
-    nep_data[gpu].gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
-    nep_data[gpu].gnp_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
-    nep_data[gpu].gn_angular.resize(
-      table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    nep_data[gpu].gnp_angular.resize(
-      table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    std::vector<float> gn_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
-    std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
-    std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
-    float* c_pointer = parameters.data() + annmb[gpu].num_para_ann;
-    construct_table_radial_or_angular(
-      paramb.num_types,
-      paramb.num_types_sq,
-      paramb.n_max_radial,
-      paramb.basis_size_radial,
-      paramb.rc_radial,
-      paramb.rcinv_radial,
-      c_pointer,
-      gn_radial.data(),
-      gnp_radial.data());
-    construct_table_radial_or_angular(
-      paramb.num_types,
-      paramb.num_types_sq,
-      paramb.n_max_angular,
-      paramb.basis_size_angular,
-      paramb.rc_angular,
-      paramb.rcinv_angular,
-      c_pointer + paramb.num_c_radial,
-      gn_angular.data(),
-      gnp_angular.data());
-    nep_data[gpu].gn_radial.copy_from_host(gn_radial.data());
-    nep_data[gpu].gnp_radial.copy_from_host(gnp_radial.data());
-    nep_data[gpu].gn_angular.copy_from_host(gn_angular.data());
-    nep_data[gpu].gnp_angular.copy_from_host(gnp_angular.data());
-#endif
   }
 
   CHECK(gpuSetDevice(0));
@@ -854,10 +811,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const bool is_polarizability,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gn_radial,
-  const float* __restrict__ g_gn_angular,
-#endif
   double* g_pe,
   float* g_Fp,
   double* g_virial,
@@ -880,20 +833,6 @@ static __global__ void find_descriptor(
       apply_mic(box, x12double, y12double, z12double);
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + g_type[n2];
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        q[n] +=
-          g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-      }
-#else
       float fc12;
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
@@ -917,7 +856,6 @@ static __global__ void find_descriptor(
         }
         q[n] += gn12;
       }
-#endif
     }
 
     // get angular descriptors
@@ -931,19 +869,6 @@ static __global__ void find_descriptor(
         apply_mic(box, x12double, y12double, z12double);
         float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-#ifdef USE_TABLE
-        int index_left, index_right;
-        float weight_left, weight_right;
-        find_index_and_weight(
-          d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
-        int t12 = t1 * paramb.num_types + g_type[n2];
-        float gn12 =
-          g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_left +
-          g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_right;
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-#else
         float fc12;
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
@@ -965,7 +890,6 @@ static __global__ void find_descriptor(
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-#endif
       }
       find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
@@ -1050,9 +974,6 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   const bool is_dipole,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gnp_radial,
-#endif
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1088,32 +1009,6 @@ static __global__ void find_force_radial(
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + t2;
-      int t21 = t2 * paramb.num_types + t1;
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gnp12 =
-          g_gnp_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gnp_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-        float gnp21 =
-          g_gnp_radial[(index_left * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gnp_radial[(index_right * paramb.num_types_sq + t21) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp12 * r12[d];
-          f21[d] -= tmp21 * r12[d];
-        }
-      }
-#else
       float fc12, fcp12;
       float rc = paramb.rc_radial;
       if (paramb.use_typewise_cutoff) {
@@ -1143,7 +1038,6 @@ static __global__ void find_force_radial(
           f21[d] -= tmp21 * r12[d];
         }
       }
-#endif
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
@@ -1199,10 +1093,6 @@ static __global__ void find_partial_force_angular(
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gn_angular,
-  const float* __restrict__ g_gnp_angular,
-#endif
   float* g_f12x,
   float* g_f12y,
   float* g_f12z)
@@ -1236,24 +1126,6 @@ static __global__ void find_partial_force_angular(
       float r12[3] = {float(x12double), float(y12double), float(z12double)};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + g_type[n2];
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        int index_left_all =
-          (index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
-        int index_right_all =
-          (index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
-        float gn12 =
-          g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
-        float gnp12 = g_gnp_angular[index_left_all] * weight_left +
-                      g_gnp_angular[index_right_all] * weight_right;
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-      }
-#else
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = paramb.rc_angular;
@@ -1281,7 +1153,6 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
-#endif
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
       g_f12z[index] = f12[2];
@@ -1805,10 +1676,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       is_polarizability,
-#ifdef USE_TABLE
-      nep_data[gpu].gn_radial.data(),
-      nep_data[gpu].gn_angular.data(),
-#endif
       nep_data[gpu].potential.data(),
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
@@ -1835,9 +1702,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
       is_dipole,
-#ifdef USE_TABLE
-      nep_data[gpu].gnp_radial.data(),
-#endif
       nep_data[gpu].force.data(),
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
@@ -1863,10 +1727,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
       nep_data[gpu].sum_fxyz.data(),
-#ifdef USE_TABLE
-      nep_data[gpu].gn_angular.data(),
-      nep_data[gpu].gnp_angular.data(),
-#endif
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
@@ -1986,10 +1846,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-#ifdef USE_TABLE
-  const float* __restrict__ g_gn_radial,
-  const float* __restrict__ g_gn_angular,
-#endif
   double* g_pe,
   float* g_Fp,
   double* g_virial,
@@ -2012,20 +1868,6 @@ static __global__ void find_descriptor(
       apply_mic(box, x12double, y12double, z12double);
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-#ifdef USE_TABLE
-      int index_left, index_right;
-      float weight_left, weight_right;
-      find_index_and_weight(
-        d12 * paramb.rcinv_radial, index_left, index_right, weight_left, weight_right);
-      int t12 = t1 * paramb.num_types + g_type[n2];
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        q[n] +=
-          g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_left +
-          g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
-            weight_right;
-      }
-#else
       float fc12;
       int t2 = g_type[n2];
       float rc = paramb.rc_radial;
@@ -2049,7 +1891,6 @@ static __global__ void find_descriptor(
         }
         q[n] += gn12;
       }
-#endif
     }
 
     // get angular descriptors
@@ -2063,19 +1904,6 @@ static __global__ void find_descriptor(
         apply_mic(box, x12double, y12double, z12double);
         float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-#ifdef USE_TABLE
-        int index_left, index_right;
-        float weight_left, weight_right;
-        find_index_and_weight(
-          d12 * paramb.rcinv_angular, index_left, index_right, weight_left, weight_right);
-        int t12 = t1 * paramb.num_types + g_type[n2];
-        float gn12 =
-          g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_left +
-          g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
-            weight_right;
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-#else
         float fc12;
         int t2 = g_type[n2];
         float rc = paramb.rc_angular;
@@ -2097,7 +1925,6 @@ static __global__ void find_descriptor(
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-#endif
       }
       find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
@@ -2359,10 +2186,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
-#ifdef USE_TABLE
-      nep_data[gpu].gn_radial.data(),
-      nep_data[gpu].gn_angular.data(),
-#endif
       nep_data[gpu].potential.data(),
       nep_data[gpu].Fp.data(),
       nep_data[gpu].virial.data(),
@@ -2389,9 +2212,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
       is_dipole,
-#ifdef USE_TABLE
-      nep_data[gpu].gnp_radial.data(),
-#endif
       nep_data[gpu].force.data(),
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
@@ -2417,10 +2237,6 @@ void NEP_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
       nep_data[gpu].sum_fxyz.data(),
-#ifdef USE_TABLE
-      nep_data[gpu].gn_angular.data(),
-      nep_data[gpu].gnp_angular.data(),
-#endif
       nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data());
