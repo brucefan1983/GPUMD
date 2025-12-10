@@ -308,18 +308,15 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   // NN and descriptor parameters
-  std::vector<float> parameters(annmb.num_para);
-  for (int n = 0; n < annmb.num_para; ++n) {
+  std::vector<float> parameters(annmb.num_para + annmb.dim);
+  for (int n = 0; n < annmb.num_para + annmb.dim; ++n) {
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  nep_data.parameters.resize(annmb.num_para);
+  nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
-  for (int d = 0; d < annmb.dim; ++d) {
-    tokens = get_tokens(input);
-    paramb.q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
+  paramb.q_scaler = nep_data.parameters.data() + annmb.num_para;
 
   // flexible zbl potential parameters
   if (zbl.flexibled) {
