@@ -176,7 +176,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
       if (tokens.size() == 4) {
         paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
         paramb.use_typewise_cutoff_zbl = true;
-        printf("    has the universal ZBL with typewise cutoff with a factor of 0.65.\n");
+        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+          paramb.typewise_cutoff_zbl_factor);
       } else {
         printf(
           "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
