@@ -247,10 +247,6 @@ TNEP::TNEP(
   paramb.num_c_radial =
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
-  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
-  }
-
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;

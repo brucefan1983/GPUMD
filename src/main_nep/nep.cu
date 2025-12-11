@@ -253,7 +253,6 @@ NEP::NEP(
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
-    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
   }
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
