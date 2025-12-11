@@ -116,7 +116,7 @@ void Parameters::set_default_parameters()
     rc_radial[n] = 8.0f;
     rc_angular[n] = 4.0f;
     rc_radial_max = 8.0f;
-    rc_angular_max = 4.0;
+    rc_angular_max = 4.0f;
   }
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
@@ -416,7 +416,7 @@ void Parameters::report_inputs()
   printf("    (input)   number of atom types = %d.\n", num_types);
   for (int n = 0; n < num_types; ++n) {
     printf(
-      "        type %d (%s with Z = %d) has cutoffs (%g, %g).\n",
+      "        type %d (%s with Z = %d) has cutoffs (%g A, %g A).\n",
       n,
       elements[n].c_str(),
       atomic_numbers[n],
@@ -428,11 +428,17 @@ void Parameters::report_inputs()
     if (flexible_zbl) {
       printf("    (input)   will add the flexible ZBL potential\n");
     } else {
-      printf(
-        "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
-        "cutoff %g A.\n",
-        zbl_rc_outer,
-        zbl_rc_inner);
+      if (use_typewise_cutoff_zbl) {
+        printf(
+          "    (input)   will add the universal ZBL potential with typewise cutoff factor %g\n",
+          typewise_cutoff_zbl_factor);
+      } else {
+        printf(
+          "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
+          "cutoff %g A.\n",
+          zbl_rc_outer,
+          zbl_rc_inner);
+      }
     }
   } else {
     printf("    (default) will not add the ZBL potential.\n");
@@ -454,15 +460,6 @@ void Parameters::report_inputs()
     if (has_multiple_cutoffs) {
       PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
     }
-  }
-
-  if (is_use_typewise_cutoff_zbl_set) {
-    printf(
-      "    (input)   use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
-    printf("              factor = %g.\n", typewise_cutoff_zbl_factor);
-  } else {
-    printf(
-      "    (default) use %s cutoff for ZBL.\n", use_typewise_cutoff_zbl ? "typewise" : "global");
   }
 
   if (is_n_max_set) {
