@@ -48,6 +48,7 @@ public:
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
     float rc_radial_max = 0.0f;
+    float rc_radial_max_inv = 0.0f; 
     float rc_radial[NUM_ELEMENTS];     // radial cutoff
     float rc_angular[NUM_ELEMENTS];    // angular cutoff
     int MN_radial = 200;

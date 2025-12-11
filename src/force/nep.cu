@@ -215,6 +215,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
       paramb.rc_radial_max = paramb.rc_radial[n];
     }
   }
+  paramb.rc_radial_max_inv = 1.0f / paramb.rc_radial_max;
 
   int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
   int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
@@ -444,7 +445,7 @@ static __global__ void find_neighbor_list_large_box(
     x1,
     y1,
     z1,
-    2.0f / paramb.rc_radial_max,
+    2.0f * paramb.rc_radial_max_inv,
     nx,
     ny,
     nz,
