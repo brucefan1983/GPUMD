@@ -21,4 +21,8 @@ Another syntax is::
   cutoff <radial_cutoff_species_1> <angular_cutoff_species_1> <radial_cutoff_species_2> <angular_cutoff_species_2> ...
   
 which can be used to specify a set of radial and angular cutoffs for each species.
-The cutoff between two species is the arithmetic average of the cutoffs for the two species.
+The cutoff between two species (:math:`a` and :math:`b`) is the arithmetic average of the cutoffs for the two species:
+
+.. math::
+   
+   r_\mathrm{c}^\mathrm{R/A}(a,b) = r_\mathrm{c}^\mathrm{R/A}(b,a) = \frac{r_\mathrm{c}^\mathrm{R/A}(a) + r_\mathrm{c}^\mathrm{R/A}(b)}{2}
