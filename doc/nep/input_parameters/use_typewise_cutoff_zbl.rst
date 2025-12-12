@@ -12,6 +12,6 @@ The syntax is::
 
 with one optional (dimensionless) parameter :attr:`<factor>` that defaults to 0.65.
 
-If this keyword is present, the outer ZBL cutoff between two elements is the minimum between the global outer ZBL cutoff :math:`r_\mathrm{outer}^\mathrm{ZBL}` and :attr:`<factor>` times of the sum of the covalent radii of the two elements, and the inner ZBL cutoff is half of the outer one.
+If this keyword is present, the outer ZBL cutoff between two elements is the minimum between the global outer ZBL cutoff :math:`r_\mathrm{outer}^\mathrm{ZBL}` and :attr:`<factor>` times of the sum of the covalent radii of the two elements, and the inner ZBL cutoff is always set to 0.
 
 By default, this keyword is not in effect.
