@@ -6,7 +6,7 @@
 ==============
 
 This keyword enables one to specify the radial (:math:`r_\mathrm{c}^\mathrm{R}`) and angular (:math:`r_\mathrm{c}^\mathrm{A}`) cutoffs of the :term:`NEP` model.
-The syntax is::
+One syntax is::
 
   cutoff <radial_cutoff> <angular_cutoff>
 
@@ -15,3 +15,14 @@ The cutoffs must satisfy the conditions 2.5 Å :math:`\leq r_\mathrm{c}^\mathrm{
 
 The defaults are :math:`r_\mathrm{c}^\mathrm{R}` = 8 Å and :math:`r_\mathrm{c}^\mathrm{A}` = 4 Å.
 It can be computationally beneficial to use (possibly much) smaller :math:`r_\mathrm{c}^\mathrm{R}` but the default values should be reasonable in most cases.
+
+Another syntax is::
+
+  cutoff <radial_cutoff_species_1> <angular_cutoff_species_1> <radial_cutoff_species_2> <angular_cutoff_species_2> ...
+  
+which can be used to specify a set of radial and angular cutoffs for each species.
+The cutoff between two species (:math:`a` and :math:`b`) is the arithmetic average of the cutoffs for the two species:
+
+.. math::
+   
+   r_\mathrm{c}^\mathrm{R/A}(a,b) = r_\mathrm{c}^\mathrm{R/A}(b,a) = \frac{r_\mathrm{c}^\mathrm{R/A}(a) + r_\mathrm{c}^\mathrm{R/A}(b)}{2}

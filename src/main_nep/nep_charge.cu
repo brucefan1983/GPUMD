@@ -37,8 +37,6 @@ static __global__ void gpu_find_neighbor_list(
   const int* Na,
   const int* Na_sum,
   const int* g_type,
-  const float g_rc_radial,
-  const float g_rc_angular,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -82,8 +80,8 @@ static __global__ void gpu_find_neighbor_list(
             float z12 = z[n2] + delta_z - z1;
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            float rc_radial = g_rc_radial;
-            float rc_angular = g_rc_angular;
+            float rc_radial = paramb.rc_radial;
+            float rc_angular = paramb.rc_angular;
             if (distance_square < rc_radial * rc_radial) {
               NL_radial[count_radial * N + n1] = n2;
               x12_radial[count_radial * N + n1] = x12;
@@ -224,8 +222,8 @@ NEP_Charge::NEP_Charge(
 {
   paramb.charge_mode = para.charge_mode;
   paramb.version = version;
-  paramb.rc_radial = para.rc_radial;
-  paramb.rc_angular = para.rc_angular;
+  paramb.rc_radial = para.rc_radial[0];
+  paramb.rc_angular = para.rc_angular[0];
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
@@ -253,7 +251,6 @@ NEP_Charge::NEP_Charge(
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
-    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
   }
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
@@ -1423,8 +1420,6 @@ void NEP_Charge::find_force(
         dataset[device_id].Na.data(),
         dataset[device_id].Na_sum.data(),
         dataset[device_id].type.data(),
-        para.rc_radial,
-        para.rc_angular,
         dataset[device_id].box.data(),
         dataset[device_id].box_original.data(),
         dataset[device_id].num_cell.data(),

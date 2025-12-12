@@ -159,15 +159,14 @@ NEP_MULTIGPU::NEP_MULTIGPU(
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    paramb.atomic_numbers[n] = atomic_number - 1;
     printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
-  // zbl 0.7 1.4
+  // zbl
   if (zbl.enabled) {
     tokens = get_tokens(input);
-    if (tokens.size() != 3) {
-      std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
+    if (tokens.size() != 3 && tokens.size() != 4) {
+      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
       exit(1);
     }
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
@@ -176,50 +175,63 @@ NEP_MULTIGPU::NEP_MULTIGPU(
       zbl.flexibled = true;
       printf("    has the flexible ZBL potential\n");
     } else {
-      printf(
-        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-        zbl.rc_inner,
-        zbl.rc_outer);
+      if (tokens.size() == 4) {
+        paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+        paramb.use_typewise_cutoff_zbl = true;
+        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+          paramb.typewise_cutoff_zbl_factor);
+      } else {
+        printf(
+          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+          zbl.rc_inner,
+          zbl.rc_outer);
+      }
     }
   }
 
-  // cutoff 4.2 3.7 80 47 1
+  // cutoff
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != 8) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
-                 "[radial_factor] [angular_factor] [zbl_factor].\n";
+  if (tokens.size() != 5 && tokens.size() != paramb.num_types * 2 + 3) {
+    std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
     exit(1);
   }
-  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    radial cutoff = %g A.\n", paramb.rc_radial);
-  printf("    angular cutoff = %g A.\n", paramb.rc_angular);
+  if (tokens.size() == 5) {
+    paramb.rc_radial[0] = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    paramb.rc_angular[0] = get_double_from_token(tokens[2], __FILE__, __LINE__);
+    for (int n = 0; n < paramb.num_types; ++n) {
+      paramb.rc_radial[n] = paramb.rc_radial[0];
+      paramb.rc_angular[n] = paramb.rc_angular[0];
+    }
+    printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
+    printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
+  } else {
+    printf("    cutoff = \n");
+    for (int n = 0; n < paramb.num_types; ++n) {
+      paramb.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
+      paramb.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
+      printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
+    }
+  }
+  for (int n = 0; n < paramb.num_types; ++n) {
+    if (paramb.rc_radial[n] > paramb.rc_radial_max) {
+      paramb.rc_radial_max = paramb.rc_radial[n];
+    }
+  }
+  paramb.rc_radial_max_inv = 1.0f / paramb.rc_radial_max;
 
-  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
   if (MN_radial > 819) {
     std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
               << std::endl;
     exit(1);
   }
-  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
   printf("    MN_radial = %d.\n", MN_radial);
   printf("    MN_angular = %d.\n", MN_angular);
   paramb.MN_radial = int(ceil(MN_radial * 1.25));
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
-
-  if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
-    if (paramb.typewise_cutoff_radial_factor > 0.0f) {
-      paramb.use_typewise_cutoff = true;
-    }
-    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
-      paramb.use_typewise_cutoff_zbl = true;
-    }
-  }
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -283,9 +295,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   printf("    ANN = %d-%d-1.\n", annmb[0].dim, annmb[0].num_neurons1);
 
   // calculated parameters:
-  rc = paramb.rc_radial; // largest cutoff
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+  rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   if (paramb.version == 3) {
@@ -702,7 +712,7 @@ static __global__ void find_neighbor_list_large_box(
     x1,
     y1,
     z1,
-    2.0f * paramb.rcinv_radial,
+    2.0f * paramb.rc_radial_max_inv,
     nx,
     ny,
     nz,
@@ -761,18 +771,8 @@ static __global__ void find_neighbor_list_large_box(
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
           int t2 = g_type[n2];
-          float rc_radial = paramb.rc_radial;
-          float rc_angular = paramb.rc_angular;
-          if (paramb.use_typewise_cutoff) {
-            int z1 = paramb.atomic_numbers[t1];
-            int z2 = paramb.atomic_numbers[t2];
-            rc_radial = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-              rc_radial);
-            rc_angular = min(
-              (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-              rc_angular);
-          }
+          float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+          float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
 
           if (d12_square >= rc_radial * rc_radial) {
             continue;
@@ -832,14 +832,7 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -868,14 +861,7 @@ static __global__ void find_descriptor(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -1007,14 +993,7 @@ static __global__ void find_force_radial(
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1125,14 +1104,7 @@ static __global__ void find_partial_force_angular(
       float f12[3] = {0.0f};
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
@@ -1867,14 +1839,7 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -1903,14 +1868,7 @@ static __global__ void find_descriptor(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];

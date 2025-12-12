@@ -19,7 +19,6 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    zbl
    use_typewise_cutoff_zbl
    cutoff
-   use_typewise_cutoff
    n_max
    basis_size
    l_max
