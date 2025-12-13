@@ -152,9 +152,6 @@ __global__ void kernel_add_spring_ghost_atom(
   double dx = x - xg;
   double dy = y - yg;
   double dz = z - zg;
-  if (dx > 2)
-  printf(" Debug: atom_id=%d, pos=(%g,%g,%g), ghost_pos=(%g,%g,%g), d=(%g,%g,%g)\n",
-         atom_id, x, y, z, xg, yg, zg, dx, dy, dz);
 
   const double r2 = dx * dx + dy * dy + dz * dz;
 
@@ -303,11 +300,6 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
 
   } else if (strcmp(mode_str, "ghost_atom") == 0) {
 
-    // add_spring ghost_atom gm gid k R0 vx vy vz
-    // if (num_param != 7) {
-    //   PRINT_INPUT_ERROR("add_spring ghost_atom requires: "
-    //                     "add_spring ghost_atom gm gid k R0 vx vy vz\n");
-    // }
 
     mode_[id] = SPRING_GHOST_ATOM;
 
@@ -435,9 +427,6 @@ void Add_Spring::compute(const int step,
 
   const int n_atoms_total = (int) atom.position_per_atom.size() / 3;
 
-  // double* g_pos = atom.position_per_atom.data();
-  printf(" Add_Spring::compute at step %d\n", step);
-  printf("unwrapped positions size: %lu\n", atom.unwrapped_position.size());
 
   double* g_pos = atom.unwrapped_position.data();
   if (atom.unwrapped_position.size() == 0) {
@@ -535,8 +524,6 @@ void Add_Spring::compute(const int step,
       Rg[1] = ghost_com_origin_[c][1] + ghost_com_velocity_[c][1] * step_d;
       Rg[2] = ghost_com_origin_[c][2] + ghost_com_velocity_[c][2] * step_d;
 
-      printf(" Debug: step=%d, COM=(%g,%g,%g), ghost_COM=(%g,%g,%g)\n",
-             step, Rcm[0], Rcm[1], Rcm[2], Rg[0], Rg[1], Rg[2]);
 
       double dx = Rcm[0] - Rg[0];
       double dy = Rcm[1] - Rg[1];
@@ -564,8 +551,6 @@ void Add_Spring::compute(const int step,
         Fz_cm = coef * dz;
         energy = 0.5 * k * dr * dr;
       }
-      printf(" Debug: step=%d, Fcm=(%g,%g,%g), energy=%g\n",
-             step, Fx_cm, Fy_cm, Fz_cm, energy);
 
       spring_energy_[c] = energy;
 
