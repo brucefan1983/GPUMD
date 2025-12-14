@@ -115,9 +115,9 @@ void Parameters::set_default_parameters()
     type_weight_cpu[n] = 1.0f; // uniform weight by default
     rc_radial[n] = 8.0f;
     rc_angular[n] = 4.0f;
-    rc_radial_max = 8.0f;
-    rc_angular_max = 4.0f;
   }
+  rc_radial_max = 8.0f;
+  rc_angular_max = 4.0f;
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
 
@@ -865,6 +865,8 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     }
   }
 
+  rc_radial_max = 0.0f;
+  rc_angular_max = 0.0f;
   for (int n = 0; n < num_types; ++ n) {
     if (rc_radial[n] > rc_radial_max) {
       rc_radial_max = rc_radial[n];
