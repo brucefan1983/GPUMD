@@ -147,7 +147,7 @@ void Dump_CG::output_line2(
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
+  // energy and virial (symmetric tensor) in eV
   double cpu_thermo[8];
   gpu_thermo.copy_to_host(cpu_thermo, 8);
   const int N = virial_per_atom.size() / 9;
