@@ -26,6 +26,9 @@ Dump training data for NEP-CG
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <iostream>
+#include <vector>
+#include <string>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -100,6 +103,23 @@ void Dump_CG::preprocess(
   gpu_total_virial_.resize(6);
   cpu_total_virial_.resize(6);
   cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  bead_name_.resize(atom.number_of_atoms);
+
+  std::ifstream input("bead_name.txt");
+  if (!input.is_open()) {
+    std::cout << "Failed to open bead_name.txt." << std::endl;
+    exit(1);
+  } else {
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      std::vector<std::string> tokens = get_tokens(input);
+      if (tokens.size() != 1) {
+        std::cout << "Each line of bead_name.txt should have one value." << std::endl;
+        exit(1);
+      }
+      bead_name_[n] = tokens[0];
+    }
+    input.close();
+  }
 }
 
 void Dump_CG::output_line2(
@@ -196,22 +216,14 @@ void Dump_CG::process(
   // other lines
   for (int b = 0; b < num_beads; b++) {
 
-    if (g.cpu_size[b] > 1) {
-      fprintf(fid_, "F ");
-    }
-    
     for (int k = 0; k < g.cpu_size[b]; ++k) {
       int n = g.cpu_contents[g.cpu_size_sum[b] + k];
       mass_bead[k] = atom.cpu_mass[n];
-      if (g.cpu_size[b] == 1) {
-        fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
-      }
       for (int d = 0; d < 3; ++d) {
         xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
         force_bead[k + max_bead_size * d] = cpu_force_per_atom_[n + num_atoms_total * d];
       }
     }
-
 
     for (int k = 1; k < g.cpu_size[b]; ++k) {
       double pos_diff[3];
@@ -232,6 +244,8 @@ void Dump_CG::process(
         r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
       }
     }
+
+    fprintf(fid_, "%s", bead_name_[g.cpu_contents[g.cpu_size_sum[b] + 0]].c_str());
     for (int d = 0; d < 3; ++d) {
       r_com[d] /= m_com;
       fprintf(fid_, " %.8f", r_com[d]);

@@ -71,4 +71,5 @@ private:
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+  std::vector<std::string> bead_name_;
 };
