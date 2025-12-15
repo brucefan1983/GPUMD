@@ -50,13 +50,13 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_CG::Dump_CG(const char** param, int num_param) 
+Dump_CG::Dump_CG(const char** param, int num_param, std::vector<Group>& group) 
 {
-  parse(param, num_param);
+  parse(param, num_param, group);
   property_name = "dump_cg";
 }
 
-void Dump_CG::parse(const char** param, int num_param)
+void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group)
 {
   printf("Dump train.xyz for NEP-CG.\n");
 
@@ -78,6 +78,9 @@ void Dump_CG::parse(const char** param, int num_param)
   }
   if (grouping_method_ < 0) {
     PRINT_INPUT_ERROR("grouping method should >= 0.");
+  }
+  if (grouping_method_ >= group.size()) {
+    PRINT_INPUT_ERROR("grouping method should < number of grouping methods.");
   }
 
   printf("    using grouping method %d to define beads.\n", grouping_method_);

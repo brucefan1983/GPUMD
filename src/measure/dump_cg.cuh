@@ -24,8 +24,8 @@ class Atom;
 class Dump_CG : public Property
 {
 public:
-  Dump_CG(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_CG(const char** param, int num_param, std::vector<Group>& group);
+  void parse(const char** param, int num_param, std::vector<Group>& group);
   virtual void preprocess(
     const int number_of_steps,
     const double time_step,
