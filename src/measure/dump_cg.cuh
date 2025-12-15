@@ -59,6 +59,7 @@ public:
 
 private:
   int dump_interval_ = 1;
+  int grouping_method_ = 0;
   FILE* fid_;
   char filename_[200];
   void output_line2(

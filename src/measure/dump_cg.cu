@@ -60,18 +60,27 @@ void Dump_CG::parse(const char** param, int num_param)
 {
   printf("Dump train.xyz for NEP-CG.\n");
 
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("dump_cg should have at least 1 parameter.\n");
+  if (num_param < 3) {
+    PRINT_INPUT_ERROR("dump_cg should have at least 2 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("dump interval should > 0.");
+    PRINT_INPUT_ERROR("grouping method should > 0.");
   }
 
   printf("    every %d steps.\n", dump_interval_);
+
+  if (!is_valid_int(param[2], &grouping_method_)) {
+    PRINT_INPUT_ERROR("grouping method should be an integer.");
+  }
+  if (grouping_method_ < 0) {
+    PRINT_INPUT_ERROR("grouping method should >= 0.");
+  }
+
+  printf("    using grouping method %d to define beads.\n", grouping_method_);
 }
 
 void Dump_CG::preprocess(
@@ -157,7 +166,7 @@ void Dump_CG::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  Group& g = group[0];
+  Group& g = group[grouping_method_];
   const int num_atoms_total = atom.number_of_atoms;
   const int num_beads = g.number;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
