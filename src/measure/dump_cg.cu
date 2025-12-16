@@ -71,7 +71,7 @@ void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("grouping method should > 0.");
+    PRINT_INPUT_ERROR("dump interval should > 0.");
   }
 
   printf("    every %d steps.\n", dump_interval_);
