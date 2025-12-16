@@ -1,42 +1,34 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <vector>
+#include <cstdio>
 
 class Atom;
 class Group;
 
-/*
-  Add_Spring: add harmonic spring forces to groups of atoms.
 
-  Supported modes (first parameter after 'add_spring'):
+#ifndef MAX_SPRING_CALLS
+#define MAX_SPRING_CALLS 10
+#endif
 
-    1) ghost_com
-       add_spring ghost_com gm gid k xg yg zg R0 vx vy vz
-
-       - A ghost COM at (xg, yg, zg) pulls the COM of group (gm, gid)
-         with spring constant k and equilibrium length R0.
-       - The ghost COM moves with velocity (vx, vy, vz) per MD step.
-
-    2) ghost_atom
-       add_spring ghost_atom gm gid k R0 vx vy vz
-
-       - Each atom in group (gm, gid) is connected to a corresponding
-         ghost atom by a spring with constant k and equilibrium length R0.
-       - The initial ghost positions are taken as the unwrapped positions
-         of the atoms at step = 0, and then translated with
-         velocity (vx, vy, vz) per step.
-
-    3) couple_com
-       add_spring couple_com gm1 gid1 gm2 gid2 k R0
-
-       - The centers of mass of group (gm1, gid1) and (gm2, gid2)
-         are connected by a spring of constant k and equilibrium length R0.
-*/
-
-enum SpringMode {
-  SPRING_GHOST_COM = 0,
-  SPRING_GHOST_ATOM = 1,
-  SPRING_COUPLE_COM = 2
+enum SpringStiffMode {
+  SPRING_COUPLE   = 0,
+  SPRING_DECOUPLE = 1
 };
 
 class Add_Spring
@@ -47,35 +39,35 @@ public:
   void finalize();
 
 private:
-  static const int MAX_SPRING_CALLS = 10;
   int num_calls_ = 0;
 
-  SpringMode mode_[MAX_SPRING_CALLS];
+  // group info (one group per call)
+  int grouping_method_[MAX_SPRING_CALLS];
+  int group_id_[MAX_SPRING_CALLS];
 
-  // group info
-  int grouping_method1_[MAX_SPRING_CALLS];
-  int group_id1_[MAX_SPRING_CALLS];
-  int grouping_method2_[MAX_SPRING_CALLS];
-  int group_id2_[MAX_SPRING_CALLS];
+  // motion: R_g(step) = R_g(0) + v * step
+  double ghost_velocity_[MAX_SPRING_CALLS][3]; // (vx, vy, vz) in Å/step
+  double ghost_origin_[MAX_SPRING_CALLS][3];   // absolute R_g(0), set at first compute
+  double ghost_offset_[MAX_SPRING_CALLS][3];   // (x0,y0,z0) relative to initial COM
+  int    init_origin_[MAX_SPRING_CALLS];       // 0 -> not set, 1 -> set
 
-  // spring parameters
-  double k_[MAX_SPRING_CALLS];
+  // stiffness mode + parameters
+  SpringStiffMode stiff_mode_[MAX_SPRING_CALLS];
+  double k_couple_[MAX_SPRING_CALLS];
   double R0_[MAX_SPRING_CALLS];
+  double k_decouple_[MAX_SPRING_CALLS][3]; // (kx, ky, kz)
 
-  // ghost_com: origin and velocity
-  double ghost_com_origin_[MAX_SPRING_CALLS][3];   // (xg0, yg0, zg0)
-  double ghost_com_velocity_[MAX_SPRING_CALLS][3]; // (vx, vy, vz)
-
-  // ghost_atom: per-atom anchor (device) and common velocity
-  double* d_ghost_atom_pos_[MAX_SPRING_CALLS];   // device pointer, length = 3 * group_size
-  int     ghost_atom_group_size_[MAX_SPRING_CALLS];
-  double  ghost_atom_velocity_[MAX_SPRING_CALLS][3];
-
-  // scratch device buffers for COM / energy
-  double* d_tmp_vec3_  = nullptr; // length 3
+  // temp buffers (device)
+  double* d_tmp_vec3_   = nullptr; // length 3
   double* d_tmp_scalar_ = nullptr; // length 1
 
-  // spring energy for each call (optional use)
+  // per-call outputs (host side)
   double spring_energy_[MAX_SPRING_CALLS];
-};
+  double spring_force_[MAX_SPRING_CALLS][3];
+  double spring_fric_[MAX_SPRING_CALLS];
 
+  // output control
+  FILE* fp_out_ = nullptr;
+  int   output_stride_ = 100; // write every N steps (set to 0 to disable)
+  int   printed_use_wrapped_position_ = 0;
+};
