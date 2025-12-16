@@ -26,6 +26,9 @@ Dump training data for NEP-CG
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <iostream>
+#include <vector>
+#include <string>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -50,18 +53,18 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_CG::Dump_CG(const char** param, int num_param) 
+Dump_CG::Dump_CG(const char** param, int num_param, std::vector<Group>& group) 
 {
-  parse(param, num_param);
+  parse(param, num_param, group);
   property_name = "dump_cg";
 }
 
-void Dump_CG::parse(const char** param, int num_param)
+void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group)
 {
   printf("Dump train.xyz for NEP-CG.\n");
 
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("dump_cg should have at least 1 parameter.\n");
+  if (num_param < 3) {
+    PRINT_INPUT_ERROR("dump_cg should have at least 2 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &dump_interval_)) {
@@ -72,6 +75,18 @@ void Dump_CG::parse(const char** param, int num_param)
   }
 
   printf("    every %d steps.\n", dump_interval_);
+
+  if (!is_valid_int(param[2], &grouping_method_)) {
+    PRINT_INPUT_ERROR("grouping method should be an integer.");
+  }
+  if (grouping_method_ < 0) {
+    PRINT_INPUT_ERROR("grouping method should >= 0.");
+  }
+  if (grouping_method_ >= group.size()) {
+    PRINT_INPUT_ERROR("grouping method should < number of grouping methods.");
+  }
+
+  printf("    using grouping method %d to define beads.\n", grouping_method_);
 }
 
 void Dump_CG::preprocess(
@@ -88,6 +103,23 @@ void Dump_CG::preprocess(
   gpu_total_virial_.resize(6);
   cpu_total_virial_.resize(6);
   cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  bead_name_.resize(atom.number_of_atoms);
+
+  std::ifstream input("bead_name.txt");
+  if (!input.is_open()) {
+    std::cout << "Failed to open bead_name.txt." << std::endl;
+    exit(1);
+  } else {
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      std::vector<std::string> tokens = get_tokens(input);
+      if (tokens.size() != 1) {
+        std::cout << "Each line of bead_name.txt should have one value." << std::endl;
+        exit(1);
+      }
+      bead_name_[n] = tokens[0];
+    }
+    input.close();
+  }
 }
 
 void Dump_CG::output_line2(
@@ -115,7 +147,7 @@ void Dump_CG::output_line2(
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
+  // energy and virial (symmetric tensor) in eV
   double cpu_thermo[8];
   gpu_thermo.copy_to_host(cpu_thermo, 8);
   const int N = virial_per_atom.size() / 9;
@@ -157,7 +189,7 @@ void Dump_CG::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  Group& g = group[0];
+  Group& g = group[grouping_method_];
   const int num_atoms_total = atom.number_of_atoms;
   const int num_beads = g.number;
   atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
@@ -184,22 +216,14 @@ void Dump_CG::process(
   // other lines
   for (int b = 0; b < num_beads; b++) {
 
-    if (g.cpu_size[b] > 1) {
-      fprintf(fid_, "F ");
-    }
-    
     for (int k = 0; k < g.cpu_size[b]; ++k) {
       int n = g.cpu_contents[g.cpu_size_sum[b] + k];
       mass_bead[k] = atom.cpu_mass[n];
-      if (g.cpu_size[b] == 1) {
-        fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
-      }
       for (int d = 0; d < 3; ++d) {
         xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
         force_bead[k + max_bead_size * d] = cpu_force_per_atom_[n + num_atoms_total * d];
       }
     }
-
 
     for (int k = 1; k < g.cpu_size[b]; ++k) {
       double pos_diff[3];
@@ -220,6 +244,8 @@ void Dump_CG::process(
         r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
       }
     }
+
+    fprintf(fid_, "%s", bead_name_[g.cpu_contents[g.cpu_size_sum[b] + 0]].c_str());
     for (int d = 0; d < 3; ++d) {
       r_com[d] /= m_com;
       fprintf(fid_, " %.8f", r_com[d]);

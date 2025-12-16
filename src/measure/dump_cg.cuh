@@ -24,8 +24,8 @@ class Atom;
 class Dump_CG : public Property
 {
 public:
-  Dump_CG(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_CG(const char** param, int num_param, std::vector<Group>& group);
+  void parse(const char** param, int num_param, std::vector<Group>& group);
   virtual void preprocess(
     const int number_of_steps,
     const double time_step,
@@ -59,6 +59,7 @@ public:
 
 private:
   int dump_interval_ = 1;
+  int grouping_method_ = 0;
   FILE* fid_;
   char filename_[200];
   void output_line2(
@@ -70,4 +71,5 @@ private:
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+  std::vector<std::string> bead_name_;
 };
