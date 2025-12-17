@@ -1250,7 +1250,7 @@ void Parameters::parse_use_typewise_cutoff_zbl(const char** param, int num_param
   }
   use_typewise_cutoff_zbl = true;
   is_use_typewise_cutoff_zbl_set = true;
-  typewise_cutoff_zbl_factor = 0.65f;
+  typewise_cutoff_zbl_factor = 0.7f;
 
   if (num_param == 2) {
     double typewise_cutoff_zbl_factor_temp = 0.0;

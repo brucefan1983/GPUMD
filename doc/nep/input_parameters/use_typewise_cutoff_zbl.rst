@@ -10,8 +10,13 @@ The syntax is::
 
   use_typewise_cutoff_zbl [<factor>]
 
-with one optional (dimensionless) parameter :attr:`<factor>` that defaults to 0.65.
+with one optional (dimensionless) parameter :attr:`<factor>` that defaults to 0.7.
 
 If this keyword is present, the outer ZBL cutoff between two elements is the minimum between the global outer ZBL cutoff :math:`r_\mathrm{outer}^\mathrm{ZBL}` and :attr:`<factor>` times of the sum of the covalent radii of the two elements, and the inner ZBL cutoff is always set to 0.
 
 By default, this keyword is not in effect.
+
+A good usage is to first set up a global ZBL cutoff of 2.5 Å and then enable this feature::
+
+  zbl 2.5
+  use_typewise_cutoff_zbl 0.7
