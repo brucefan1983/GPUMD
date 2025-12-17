@@ -571,7 +571,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "add_spring") == 0) {
-    add_spring.parse(param, num_param, group);
+    add_spring.parse(param, num_param, group, atom);
   } else if (strcmp(param[0], "add_efield") == 0) {
     add_efield.parse(param, num_param, group);
   } else if (strcmp(param[0], "mc") == 0) {

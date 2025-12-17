@@ -34,7 +34,7 @@ enum SpringStiffMode {
 class Add_Spring
 {
 public:
-  void parse(const char** param, int num_param, const std::vector<Group>& groups);
+  void parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
   void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();
 

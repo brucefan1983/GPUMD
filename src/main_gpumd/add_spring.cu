@@ -34,7 +34,7 @@ Add spring forces for a group of atoms.
 #endif
 
 
-__global__ void kernel_sum_group_mass_pos_reduce(
+__global__ void gpu_sum_group_mass_pos_reduce(
   const int group_size,
   const int group_size_sum,
   const int* __restrict__ g_group_contents,
@@ -86,7 +86,7 @@ __global__ void kernel_sum_group_mass_pos_reduce(
   }
 }
 
-__global__ void kernel_add_force_to_group_mass_weighted(
+__global__ void gpu_add_force_to_group_mass_weighted(
   const int group_size,
   const int group_size_sum,
   const int* __restrict__ g_group_contents,
@@ -137,9 +137,16 @@ static inline double friction_from_force_and_velocity(
   return -(Fx * vhatx + Fy * vhaty + Fz * vhatz);
 }
 
-void Add_Spring::parse(const char** param, int num_param, const std::vector<Group>& groups)
+void Add_Spring::parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
 {
   printf("Add spring.\n");
+  if (atom.unwrapped_position.size() < atom.position_per_atom.size()) {
+    atom.unwrapped_position.resize(atom.position_per_atom.size());
+    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+  }
+  if (atom.position_temp.size() < atom.position_per_atom.size()) {
+    atom.position_temp.resize(atom.position_per_atom.size());
+  }
 
   if (num_calls_ >= MAX_SPRING_CALLS) {
     PRINT_INPUT_ERROR("add_spring cannot be used more than 10 times in one run.\n");
@@ -211,8 +218,8 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     // decouple params unused
     k_decouple_[id][0] = k_decouple_[id][1] = k_decouple_[id][2] = 0.0;
 
-    printf("  ghost_com couple: (gm,gid)=(%d,%d), v=(%g,%g,%g)[Å/step], k=%g, R0=%g, "
-           "offset=(%g,%g,%g)\n",
+    printf("  ghost_com couple: group method %d, group id %d, v=(%g,%g,%g)[Å/step], k=%g [eV/Å^2], R0=%g [Å], "
+           "offset=(%g,%g,%g) [Å]\n",
            grouping_method_[id], group_id_[id],
            ghost_velocity_[id][0], ghost_velocity_[id][1], ghost_velocity_[id][2],
            k_couple_[id], R0_[id],
@@ -255,8 +262,8 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     ghost_origin_[id][0] = ghost_origin_[id][1] = ghost_origin_[id][2] = 0.0;
     init_origin_[id] = 0;
 
-    printf("  ghost_com decouple: (gm,gid)=(%d,%d), v=(%g,%g,%g)[Å/step], "
-           "k=(%g,%g,%g), offset=(%g,%g,%g)\n",
+    printf("  ghost_com decouple: group method %d, group id %d, v=(%g,%g,%g)[Å/step], "
+           "k=(%g,%g,%g) [eV/Å^2], offset=(%g,%g,%g) [Å]\n",
            grouping_method_[id], group_id_[id],
            ghost_velocity_[id][0], ghost_velocity_[id][1], ghost_velocity_[id][2],
            k_decouple_[id][0], k_decouple_[id][1], k_decouple_[id][2],
@@ -343,7 +350,7 @@ void Add_Spring::compute(const int step,
     gpuMemset(d_tmp_vec3_,   0, 3 * sizeof(double));
     gpuMemset(d_tmp_scalar_, 0,     sizeof(double));
 
-    kernel_sum_group_mass_pos_reduce<<<grid_size, block_size, shmem_bytes>>>(
+    gpu_sum_group_mass_pos_reduce<<<grid_size, block_size, shmem_bytes>>>(
       group_size, group_size_sum, g_contents,
       g_x, g_y, g_z, g_mass,
       d_tmp_vec3_, d_tmp_scalar_);
@@ -423,7 +430,7 @@ void Add_Spring::compute(const int step,
       ghost_velocity_[c][2]);
 
     const double inv_M = 1.0 / M;
-    kernel_add_force_to_group_mass_weighted<<<grid_size, block_size>>>(
+    gpu_add_force_to_group_mass_weighted<<<grid_size, block_size>>>(
       group_size,
       group_size_sum,
       g_contents,
