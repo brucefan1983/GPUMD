@@ -67,7 +67,7 @@ private:
   double spring_fric_[MAX_SPRING_CALLS];
 
   // output control
-  FILE* fp_out_ = nullptr;
+  FILE* fp_out_[MAX_SPRING_CALLS] = {nullptr}; // output file pointers
   int   output_stride_ = 100; // write every N steps (set to 0 to disable)
   int   printed_use_wrapped_position_ = 0;
 };

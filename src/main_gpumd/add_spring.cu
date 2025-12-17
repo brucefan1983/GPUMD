@@ -15,6 +15,8 @@
 
 /*----------------------------------------------------------------------------80
 Add spring forces for a group of atoms.
+
+Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 ------------------------------------------------------------------------------*/
 
 
@@ -277,6 +279,22 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
   spring_force_[id][0] = spring_force_[id][1] = spring_force_[id][2] = 0.0;
   spring_fric_[id] = spring_nan();
 
+
+  // output file of id
+  if (fp_out_[id] == nullptr && output_stride_ > 0) {
+    // filename: spring_force_id.out
+    std::string filename = "spring_force_";;
+    filename += std::to_string(id);
+    filename += ".out"; 
+    fp_out_[id] = fopen(filename.c_str(), "w");
+    if (fp_out_[id]) {
+      fprintf(fp_out_[id], "# step  call  mode  Fx  Fy  Fz  energy  fric\n");
+      fflush(fp_out_[id]);
+    } else {
+      printf("WARNING: cannot open spring_force.out for writing.\n");
+    }
+  }
+
   ++num_calls_;
 }
 
@@ -284,19 +302,6 @@ void Add_Spring::compute(const int step,
                          const std::vector<Group>& groups,
                          Atom& atom)
 {
-  if (num_calls_ == 0) return;
-
-  // output file (lazy open)
-  if (fp_out_ == nullptr && output_stride_ > 0) {
-    fp_out_ = fopen("spring_force.out", "w");
-    if (fp_out_) {
-      fprintf(fp_out_, "# step  call  mode  Fx  Fy  Fz  energy  fric\n");
-      fflush(fp_out_);
-    } else {
-      printf("WARNING: cannot open spring_force.out for writing.\n");
-    }
-  }
-
   if (!d_tmp_vec3_)   gpuMalloc((void**)&d_tmp_vec3_,   3 * sizeof(double));
   if (!d_tmp_scalar_) gpuMalloc((void**)&d_tmp_scalar_, 1 * sizeof(double));
 
@@ -441,15 +446,14 @@ void Add_Spring::compute(const int step,
     GPU_CHECK_KERNEL
 
     // write output
-    if (fp_out_ && output_stride_ > 0 && (step % output_stride_ == 0)) {
-      fprintf(fp_out_, "%d %d %s %.15e %.15e %.15e %.15e %.15e\n",
+    if (fp_out_[c] && output_stride_ > 0 && (step % output_stride_ == 0)) {
+      fprintf(fp_out_[c], "%d %d %s %.15e %.15e %.15e %.15e %.15e\n",
               step, c, spring_mode_string(stiff_mode_[c]),
               spring_force_[c][0], spring_force_[c][1], spring_force_[c][2],
               spring_energy_[c], spring_fric_[c]);
     }
   }
 
-  if (fp_out_) fflush(fp_out_);
 }
 
 void Add_Spring::finalize()
@@ -457,11 +461,12 @@ void Add_Spring::finalize()
   if (d_tmp_vec3_)   { gpuFree(d_tmp_vec3_);   d_tmp_vec3_   = nullptr; }
   if (d_tmp_scalar_) { gpuFree(d_tmp_scalar_); d_tmp_scalar_ = nullptr; }
 
-  if (fp_out_) {
-    fclose(fp_out_);
-    fp_out_ = nullptr;
+  for (int id = 0; id < MAX_SPRING_CALLS; ++id) {
+    if (fp_out_[id]) {
+      fclose(fp_out_[id]);
+      fp_out_[id] = nullptr;
+    }
   }
-
   num_calls_ = 0;
   printed_use_wrapped_position_ = 0;
 

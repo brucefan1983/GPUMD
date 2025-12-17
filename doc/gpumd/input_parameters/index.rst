@@ -40,6 +40,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    electron_stop
    add_force
    add_efield
+   add_spring
 
 .. toctree::
    :maxdepth: 1
