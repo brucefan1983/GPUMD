@@ -100,62 +100,81 @@ void NEP_Energy::initialize(const char* file_potential)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    paramb.atomic_numbers[n] = atomic_number - 1;
     printf("        type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
-  // zbl 0.7 1.4
+  // zbl
   if (zbl.enabled) {
     tokens = get_tokens(input);
-    if (tokens.size() != 3) {
-      std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
+    if (tokens.size() != 3 && tokens.size() != 4) {
+      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
       exit(1);
     }
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
       zbl.flexibled = true;
-      printf("        has the flexible ZBL potential\n");
+      printf("    has the flexible ZBL potential\n");
     } else {
-      printf(
-        "        has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-        zbl.rc_inner,
-        zbl.rc_outer);
+      if (tokens.size() == 4) {
+        paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+        paramb.use_typewise_cutoff_zbl = true;
+        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+          paramb.typewise_cutoff_zbl_factor);
+      } else {
+        printf(
+          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+          zbl.rc_inner,
+          zbl.rc_outer);
+      }
     }
   }
 
-  // cutoff 4.2 3.7 80 47
+  // cutoff
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != 8) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
-                 "[radial_factor] [angular_factor] [zbl_factor].\n";
+  if (tokens.size() != 5 && tokens.size() != paramb.num_types * 2 + 3) {
+    std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
     exit(1);
   }
-  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  printf("        radial cutoff = %g A.\n", paramb.rc_radial);
-  printf("        angular cutoff = %g A.\n", paramb.rc_angular);
-
-  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  printf("        MN_radial = %d.\n", MN_radial);
-  printf("        MN_angular = %d.\n", MN_angular);
-  paramb.MN_radial = int(ceil(MN_radial * 1.25));
-  paramb.MN_angular = int(ceil(MN_angular * 1.25));
-  printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
-  printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
-
-  if (tokens.size() == 8) {
-    paramb.typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
-    paramb.typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-    paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[7], __FILE__, __LINE__);
-    if (paramb.typewise_cutoff_radial_factor > 0.0f) {
-      paramb.use_typewise_cutoff = true;
+  if (tokens.size() == 5) {
+    paramb.rc_radial[0] = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    paramb.rc_angular[0] = get_double_from_token(tokens[2], __FILE__, __LINE__);
+    for (int n = 0; n < paramb.num_types; ++n) {
+      paramb.rc_radial[n] = paramb.rc_radial[0];
+      paramb.rc_angular[n] = paramb.rc_angular[0];
     }
-    if (paramb.typewise_cutoff_zbl_factor > 0.0f) {
-      paramb.use_typewise_cutoff_zbl = true;
+    printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
+    printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
+  } else {
+    printf("    cutoff = \n");
+    for (int n = 0; n < paramb.num_types; ++n) {
+      paramb.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
+      paramb.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
+      printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
     }
   }
+  for (int n = 0; n < paramb.num_types; ++n) {
+    if (paramb.rc_radial[n] > paramb.rc_radial_max) {
+      paramb.rc_radial_max = paramb.rc_radial[n];
+    }
+    if (paramb.rc_angular[n] > paramb.rc_angular_max) {
+      paramb.rc_angular_max = paramb.rc_angular[n];
+    }
+  }
+
+  int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
+  if (MN_radial > 819) {
+    std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
+              << std::endl;
+    exit(1);
+  }
+  printf("    MN_radial = %d.\n", MN_radial);
+  printf("    MN_angular = %d.\n", MN_angular);
+  paramb.MN_radial = int(ceil(MN_radial * 1.25));
+  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -215,8 +234,6 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   // calculated parameters:
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   if (paramb.version == 3) {
@@ -323,16 +340,8 @@ static __global__ void find_energy_nep(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       int t2 = g_t2_radial[index];
-      double rc = paramb.rc_radial;
-      double rcinv = paramb.rcinv_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-        rcinv = 1.0f / rc;
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+      float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
       float fn12[MAX_NUM_N];
@@ -357,16 +366,8 @@ static __global__ void find_energy_nep(
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
         int t2 = g_t2_angular[index];
-        double rc = paramb.rc_angular;
-        double rcinv = paramb.rcinv_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-          rcinv = 1.0f / rc;
-        }
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+        float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
 
         float fn12[MAX_NUM_N];
@@ -451,7 +452,7 @@ static __global__ void find_energy_zbl(
           rc_outer = min(
             (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
             rc_outer);
-          rc_inner = rc_outer * 0.5f;
+          rc_inner = 0.0f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }

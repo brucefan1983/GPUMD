@@ -41,8 +41,6 @@ public:
   int L_max;              // maximum order of the 3body spherical harmonics
   int L_max_4body;        // maximum order of the 4body spherical harmonics
   int L_max_5body;        // maximum order of the 5body spherical harmonics
-  float rc_radial;        // radial cutoff distance
-  float rc_angular;       // angular cutoff distance
   float lambda_1;         // weight parameter for L1 regularization loss
   float lambda_2;         // weight parameter for L2 regularization loss
   float lambda_e;         // weight parameter for energy RMSE loss
@@ -60,10 +58,7 @@ public:
   float initial_para;
   float sigma0;
   int atomic_v;
-  bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
-  float typewise_cutoff_radial_factor;
-  float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
@@ -97,7 +92,6 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
-  bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
 
@@ -117,6 +111,11 @@ public:
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
   std::vector<float> zbl_para;        // parameters of zbl potential
+  std::vector<float> rc_radial;       // radial cutoff distance
+  std::vector<float> rc_angular;      // angular cutoff distance
+  float rc_radial_max = 0.0f;         // maximal radial cutoff
+  float rc_angular_max = 0.0f;        // maximal angular cutoff
+  bool has_multiple_cutoffs = false;
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
 
@@ -155,7 +154,6 @@ private:
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
   void parse_atomic_v(const char** param, int num_param);
-  void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);

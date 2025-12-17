@@ -42,6 +42,8 @@ Keywords
      - force weights for different atom types
    * - :ref:`model_type <kw_model_type>`
      - select to train potential, dipole, or polarizability
+   * - :ref:`charge_mode <kw_charge_mode>`
+     - select the charge mode for a potential model
    * - :ref:`prediction <kw_prediction>`
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`

@@ -12,7 +12,7 @@ The syntax is as follows::
 
   zbl <cutoff>
 
-Here, :attr:`<cutoff>` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, below which the :term:`NEP` pair potential is being splined to the :term:`ZBL` potential.
+Here, :attr:`<cutoff>` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, beyond which the :term:`ZBL` potential is zero.
 The "inner" cutoff of the :term:`ZBL` potential, below which value the pair interaction is completely given by the :term:`ZBL` potential, is fixed to half of the outer cutoff, :math:`r_\mathrm{c}^\mathrm{ZBL-inner} = r_\mathrm{c}^\mathrm{ZBL-outer} /2`, which we have empirically found to be a reasonable choice.
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.

@@ -326,7 +326,7 @@ void MC_Ensemble_SGC::compute(
   int grouping_method,
   int group_id)
 {
-  if (check_if_small_box(nep_energy.paramb.rc_radial, box)) {
+  if (check_if_small_box(nep_energy.paramb.rc_radial_max, box)) {
     printf("Cannot use small box for MCMD.\n");
     exit(1);
   }
@@ -366,7 +366,7 @@ void MC_Ensemble_SGC::compute(
       atom.number_of_atoms,
       box,
       i,
-      nep_energy.paramb.rc_radial * nep_energy.paramb.rc_radial,
+      nep_energy.paramb.rc_radial_max * nep_energy.paramb.rc_radial_max,
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
@@ -397,8 +397,8 @@ void MC_Ensemble_SGC::compute(
       NN_ij_cpu,
       NL_ij.data(),
       box,
-      nep_energy.paramb.rc_radial * nep_energy.paramb.rc_radial,
-      nep_energy.paramb.rc_angular * nep_energy.paramb.rc_angular,
+      nep_energy.paramb.rc_radial_max * nep_energy.paramb.rc_radial_max,
+      nep_energy.paramb.rc_angular_max * nep_energy.paramb.rc_angular_max,
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,

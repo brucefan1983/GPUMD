@@ -35,12 +35,6 @@ struct NEP_Data {
   GPU_Vector<int> cell_contents;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-#ifdef USE_TABLE
-  GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
-  GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
-  GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
-  GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
-#endif
 };
 
 class NEP : public Potential
@@ -48,18 +42,15 @@ class NEP : public Potential
 public:
   NEP_Data nep_data;
   struct ParaMB {
-    bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_radial_factor = 0.0f;
-    float typewise_cutoff_angular_factor = 0.0f;
     float typewise_cutoff_zbl_factor = 0.0f;
     int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    float rc_radial_max = 0.0f;
+    float rc_radial_max_inv = 0.0f; 
+    float rc_radial[NUM_ELEMENTS];     // radial cutoff
+    float rc_angular[NUM_ELEMENTS];    // angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -72,8 +63,6 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    float q_scaler[140];
-    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
@@ -91,6 +80,7 @@ public:
     const float* b0_pol[10];
     const float* w1_pol[10];
     const float* b1_pol;
+    const float* q_scaler;
   };
 
   struct ZBL {
@@ -147,9 +137,6 @@ private:
   DFTD3 dftd3;
 
   void update_potential(float* parameters, ANN& ann);
-#ifdef USE_TABLE
-  void construct_table(float* parameters);
-#endif
 
   void compute_small_box(
     Box& box,

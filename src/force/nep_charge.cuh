@@ -37,12 +37,6 @@ struct NEP_Charge_Data {
   GPU_Vector<int> cell_contents;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-#ifdef USE_TABLE
-  GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
-  GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
-  GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
-  GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
-#endif
   GPU_Vector<float> kx;
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
@@ -67,10 +61,7 @@ public:
 
   struct ParaMB {
     int charge_mode = 0;
-    bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_radial_factor = 0.0f;
-    float typewise_cutoff_angular_factor = 0.0f;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
@@ -88,8 +79,6 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    float q_scaler[140];
-    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {
@@ -103,6 +92,7 @@ public:
     const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
+    const float* q_scaler;
   };
 
   struct ZBL {
@@ -157,9 +147,6 @@ private:
   PPPM pppm;
 
   void update_potential(float* parameters, ANN& ann);
-#ifdef USE_TABLE
-  void construct_table(float* parameters);
-#endif
 
   void compute_small_box(
     Box& box,

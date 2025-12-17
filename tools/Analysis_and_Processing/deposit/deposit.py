@@ -574,7 +574,7 @@ def _read_group(words_in_line: list[str], parsed_properties: dict[str, slice]) -
     else:
         return None
 
-def read_xyz(filename: str) -> list[Structure]:
+def read_xyz(filename: str) -> Structure:
     """
     Read the atomic positions and other information from a file in XYZ format.
     """

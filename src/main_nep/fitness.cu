@@ -371,30 +371,21 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   if (para.enable_zbl) {
     if (para.flexible_zbl) {
       fprintf(fid_nep, "zbl 0 0\n");
+    } else if (para.use_typewise_cutoff_zbl) {
+      fprintf(fid_nep, "zbl %g %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer, para.typewise_cutoff_zbl_factor);
     } else {
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
   }
-  if (para.use_typewise_cutoff || para.use_typewise_cutoff_zbl) {
-    fprintf(
-      fid_nep,
-      "cutoff %g %g %d %d %g %g %g\n",
-      para.rc_radial,
-      para.rc_angular,
-      max_NN_radial,
-      max_NN_angular,
-      para.typewise_cutoff_radial_factor,
-      para.typewise_cutoff_angular_factor,
-      para.typewise_cutoff_zbl_factor);
-  } else {
-    fprintf(
-      fid_nep,
-      "cutoff %g %g %d %d\n",
-      para.rc_radial,
-      para.rc_angular,
-      max_NN_radial,
-      max_NN_angular);
+
+  fprintf(fid_nep, "cutoff %g %g ", para.rc_radial[0], para.rc_angular[0]);
+  if (para.has_multiple_cutoffs) {
+    for (int n = 1; n < para.num_types; ++n) {
+      fprintf(fid_nep, "%g %g ", para.rc_radial[n], para.rc_angular[n]);
+    }
   }
+  fprintf(fid_nep, "%d %d\n", max_NN_radial, max_NN_angular);
+
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
