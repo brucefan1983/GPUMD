@@ -15,7 +15,8 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the interlayer potential(ILP) and Tersoff.
-TODO:
+
+Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "ilp_tersoff.cuh"
@@ -900,8 +901,6 @@ static __global__ void gpu_find_force(
       rdsq1 = rhosq1 * delta2inv;
 
       // store exponents
-      // exp0 = exp(-lambda_ * (r - z0));
-      // exp1 = exp(-rdsq1);
       exp0 = expf(-lambda_ * (r - z0));
       exp1 = expf(-rdsq1);
 
@@ -924,12 +923,6 @@ static __global__ void gpu_find_force(
         dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
       dprodnorm1[2] = 
         dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
-      // fp1[0] = prodnorm1 * normal[0] * fpair1;
-      // fp1[1] = prodnorm1 * normal[1] * fpair1;
-      // fp1[2] = prodnorm1 * normal[2] * fpair1;
-      // fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
-      // fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
-      // fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
       fp1[0] = prodnorm1_m_fpair1 * normal[0];
       fp1[1] = prodnorm1_m_fpair1 * normal[1];
       fp1[2] = prodnorm1_m_fpair1 * normal[2];
@@ -937,9 +930,6 @@ static __global__ void gpu_find_force(
       fprod1[1] = prodnorm1_m_fpair1 * dprodnorm1[1];
       fprod1[2] = prodnorm1_m_fpair1 * dprodnorm1[2];
 
-      // fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx * rinv;
-      // fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely * rinv;
-      // fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz * rinv;
       fkcx = (delx * fsum - fp1[0]) * Tap - Vilp_m_dTap_m_rinv * delx;
       fkcy = (dely * fsum - fp1[1]) * Tap - Vilp_m_dTap_m_rinv * dely;
       fkcz = (delz * fsum - fp1[2]) * Tap - Vilp_m_dTap_m_rinv * delz;
@@ -954,44 +944,19 @@ static __global__ void gpu_find_force(
 
       float minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
-        // int index_ilp = n1 + number_of_particles * kk;
-        // int n2_ilp = g_ilp_neighbor_list[index_ilp];
-        // if (n2_ilp_vec[kk] == n1) continue;
-        // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
         dprodnorm1[0] = dnormal[0][0][kk] * delx + dnormal[1][0][kk] * dely +
             dnormal[2][0][kk] * delz;
         dprodnorm1[1] = dnormal[0][1][kk] * delx + dnormal[1][1][kk] * dely +
             dnormal[2][1][kk] * delz;
         dprodnorm1[2] = dnormal[0][2][kk] * delx + dnormal[1][2][kk] * dely +
             dnormal[2][2][kk] * delz;
-        // fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
-        // fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
-        // fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
         fk[0] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[0];
         fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
         fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
 
-        // g_f12x_ilp_neigh[index_ilp_vec[kk]] += fk[0];
-        // g_f12y_ilp_neigh[index_ilp_vec[kk]] += fk[1];
-        // g_f12z_ilp_neigh[index_ilp_vec[kk]] += fk[2];
         fk_temp[kk] += fk[0];
         fk_temp[kk + 3] += fk[1];
         fk_temp[kk + 6] += fk[2];
-
-        // delki[0] = g_x[n2_ilp] - x1;
-        // delki[1] = g_y[n2_ilp] - y1;
-        // delki[2] = g_z[n2_ilp] - z1;
-        // apply_mic(box, delki[0], delki[1], delki[2]);
-
-        // s_sxx += delki[0] * fk[0] * 0.5;
-        // s_sxy += delki[0] * fk[1] * 0.5;
-        // s_sxz += delki[0] * fk[2] * 0.5;
-        // s_syx += delki[1] * fk[0] * 0.5;
-        // s_syy += delki[1] * fk[1] * 0.5;
-        // s_syz += delki[1] * fk[2] * 0.5;
-        // s_szx += delki[2] * fk[0] * 0.5;
-        // s_szy += delki[2] * fk[1] * 0.5;
-        // s_szz += delki[2] * fk[2] * 0.5;
 
         s_sxx += delkix_half[kk] * fk[0];
         s_sxy += delkix_half[kk] * fk[1];

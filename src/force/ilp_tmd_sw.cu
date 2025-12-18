@@ -15,7 +15,8 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the interlayer potential(ILP) and SW.
-TODO:
+
+Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "ilp_tmd_sw.cuh"
@@ -912,12 +913,6 @@ static __global__ void gpu_find_force(
         dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
       dprodnorm1[2] = 
         dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
-      // fp1[0] = prodnorm1 * normal[0] * fpair1;
-      // fp1[1] = prodnorm1 * normal[1] * fpair1;
-      // fp1[2] = prodnorm1 * normal[2] * fpair1;
-      // fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
-      // fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
-      // fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
       fp1[0] = prodnorm1_m_fpair1 * normal[0];
       fp1[1] = prodnorm1_m_fpair1 * normal[1];
       fp1[2] = prodnorm1_m_fpair1 * normal[2];
@@ -925,9 +920,6 @@ static __global__ void gpu_find_force(
       fprod1[1] = prodnorm1_m_fpair1 * dprodnorm1[1];
       fprod1[2] = prodnorm1_m_fpair1 * dprodnorm1[2];
 
-      // fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx * rinv;
-      // fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely * rinv;
-      // fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz * rinv;
       fkcx = (delx * fsum - fp1[0]) * Tap - Vilp_m_dTap_m_rinv * delx;
       fkcy = (dely * fsum - fp1[1]) * Tap - Vilp_m_dTap_m_rinv * dely;
       fkcz = (delz * fsum - fp1[2]) * Tap - Vilp_m_dTap_m_rinv * delz;
@@ -942,19 +934,12 @@ static __global__ void gpu_find_force(
 
       float minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
-      // for (int kk = 0; kk < 0; ++kk) {
-        // int index_ilp = n1 + number_of_particles * kk;
-        // int n2_ilp = g_ilp_neighbor_list[index_ilp];
-        // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
         dprodnorm1[0] = dnormal[0][kk][0] * delx + dnormal[1][kk][0] * dely +
             dnormal[2][kk][0] * delz;
         dprodnorm1[1] = dnormal[0][kk][1] * delx + dnormal[1][kk][1] * dely +
             dnormal[2][kk][1] * delz;
         dprodnorm1[2] = dnormal[0][kk][2] * delx + dnormal[1][kk][2] * dely +
             dnormal[2][kk][2] * delz;
-        // fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
-        // fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
-        // fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
         fk[0] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[0];
         fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
         fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
@@ -963,20 +948,6 @@ static __global__ void gpu_find_force(
         g_f12y_ilp_neigh[n1 + number_of_particles * kk] += fk[1];
         g_f12z_ilp_neigh[n1 + number_of_particles * kk] += fk[2];
 
-        // delki[0] = g_x[n2_ilp] - x1;
-        // delki[1] = g_y[n2_ilp] - y1;
-        // delki[2] = g_z[n2_ilp] - z1;
-        // apply_mic(box, delki[0], delki[1], delki[2]);
-
-        // s_sxx += delki[0] * fk[0] * 0.5;
-        // s_sxy += delki[0] * fk[1] * 0.5;
-        // s_sxz += delki[0] * fk[2] * 0.5;
-        // s_syx += delki[1] * fk[0] * 0.5;
-        // s_syy += delki[1] * fk[1] * 0.5;
-        // s_syz += delki[1] * fk[2] * 0.5;
-        // s_szx += delki[2] * fk[0] * 0.5;
-        // s_szy += delki[2] * fk[1] * 0.5;
-        // s_szz += delki[2] * fk[2] * 0.5;
         s_sxx += delkix_half[kk] * fk[0];
         s_sxy += delkix_half[kk] * fk[1];
         s_sxz += delkix_half[kk] * fk[2];
@@ -1309,14 +1280,10 @@ static __global__ void gpu_find_force_sw3_partial(
           delta_cos *= factor;
         }
 
-        // double tmp1 = exp123 * (cos123 - cos0) * lambda;
-        // double tmp2 = tmp * (cos123 - cos0) * d12inv;
         double tmp1 = exp123 * delta_cos * lambda;
         double tmp2 = tmp * delta_cos * d12inv;
 
         // accumulate potential energy
-        // potential_energy += (cos123 - cos0) * tmp1 * 0.5;
-        // double tmp_e = (cos123 - cos0) * tmp1 * 0.5;
         double tmp_e = delta_cos * tmp1 * 0.5;
         potential_energy += tmp_e;
 
