@@ -5,7 +5,7 @@
 :attr:`compute_dpdt`
 ====================
 
-This keyword can be used to calculate the time derivative of the polarizability via the dot product between the Born effective charge (:term:`BEC`) and the velocity. 
+This keyword can be used to calculate the time derivative of the polarization via the dot product between the Born effective charge (:term:`BEC`) and the velocity. 
 The keyword is only meaningful for a simulation with the qNEP model trained with target :term:`BEC` values.
 The results will be written to the file :ref:`dpdt.out <dpdt_out>`.
 
@@ -17,7 +17,7 @@ This keyword has 1 parameter::
 
 Here,
 
-* :attr:`sampling_interval` is the sampling interval for calculating the time derivative of the polarizability.
+* :attr:`sampling_interval` is the sampling interval for calculating the time derivative of the polarization.
 
 Examples
 --------
@@ -29,4 +29,4 @@ Example 1
 
    compute_dpdt 5
 
-This means to calculate the time derivative of the polarizability every 5 time steps.
+This means to calculate the time derivative of the polarization every 5 time steps.
