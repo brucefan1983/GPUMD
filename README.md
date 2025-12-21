@@ -38,6 +38,10 @@ This software is distributed under the GNU General Public License (GPL) version 
   * Development version: https://gpumd.org/dev/
 * For developers only:
   * [The developer guide](developers)
+  
+## Discussion
+* Github discussion: https://github.com/brucefan1983/GPUMD/discussions
+* matsci.org discussion: https://matsci.org/c/gpumd/68
 
 ## Tools
 
@@ -72,6 +76,7 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [Jiang2025]                  | SW + ILP (hybrid Stillinger-Weber potential with anisotropic interlayer potential) |
 | [Bu2025]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 | [Liang2025]                  | NEP89 (Universal neuroevolution potential for inorganic and organic materials across 89 elements) |
+| [Huang2026]                  | GNEP: An alternative training scheme for NEP models |
 
 ## References
 
@@ -139,5 +144,5 @@ arXiv:2504.12985 [physics.comp-ph].
 
 [Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://arxiv.org/abs/2504.21286), arXiv:2504.21286 [cond-mat.mtrl-sci].
 
-[Huang2025] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients](http://arxiv.org/abs/2507.00528),
-arXiv:2507.00528 [cond-mat.dis-nn; cond-mat.mtrl-sci; physics.comp-ph].
+[Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
+Computer Physics Communications **320**, 109994 (2026).
