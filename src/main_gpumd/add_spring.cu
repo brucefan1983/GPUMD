@@ -302,39 +302,39 @@ void Add_Spring::compute(const int step,
                          const std::vector<Group>& groups,
                          Atom& atom)
 {
-  if (!d_tmp_vec3_)   gpuMalloc((void**)&d_tmp_vec3_,   3 * sizeof(double));
-  if (!d_tmp_scalar_) gpuMalloc((void**)&d_tmp_scalar_, 1 * sizeof(double));
-
-  const int n_atoms_total = (int) atom.position_per_atom.size() / 3;
-
-  double* g_pos = atom.unwrapped_position.data();
-  if (atom.unwrapped_position.size() == 0) {
-    g_pos = atom.position_per_atom.data();
-    if (!printed_use_wrapped_position_) {
-      printf("WARNING: Atom::unwrapped_position is empty. add_spring will use wrapped positions.\n");
-      printed_use_wrapped_position_ = 1;
-    }
-  }
-
-  const double* g_x = g_pos;
-  const double* g_y = g_pos + n_atoms_total;
-  const double* g_z = g_pos + 2 * n_atoms_total;
-
-  double* g_force = atom.force_per_atom.data();
-  double* g_fx    = g_force;
-  double* g_fy    = g_force + n_atoms_total;
-  double* g_fz    = g_force + 2 * n_atoms_total;
-
-  double* g_mass = atom.mass.data();
-  if (atom.mass.size() == 0) {
-    PRINT_INPUT_ERROR("Atom::mass is empty, but add_spring requires per-atom masses.\n");
-  }
-
-  const int block_size = 64;
-  const double step_d  = (double) step;
-  const size_t shmem_bytes = 4 * block_size * sizeof(double);
-
   for (int c = 0; c < num_calls_; ++c) {
+    if (!d_tmp_vec3_)   gpuMalloc((void**)&d_tmp_vec3_,   3 * sizeof(double));
+    if (!d_tmp_scalar_) gpuMalloc((void**)&d_tmp_scalar_, 1 * sizeof(double));
+
+    const int n_atoms_total = (int) atom.position_per_atom.size() / 3;
+
+    double* g_pos = atom.unwrapped_position.data();
+    if (atom.unwrapped_position.size() == 0) {
+      g_pos = atom.position_per_atom.data();
+      if (!printed_use_wrapped_position_) {
+        printf("WARNING: Atom::unwrapped_position is empty. add_spring will use wrapped positions.\n");
+        printed_use_wrapped_position_ = 1;
+      }
+    }
+
+    const double* g_x = g_pos;
+    const double* g_y = g_pos + n_atoms_total;
+    const double* g_z = g_pos + 2 * n_atoms_total;
+
+    double* g_force = atom.force_per_atom.data();
+    double* g_fx    = g_force;
+    double* g_fy    = g_force + n_atoms_total;
+    double* g_fz    = g_force + 2 * n_atoms_total;
+
+    double* g_mass = atom.mass.data();
+    if (atom.mass.size() == 0) {
+      PRINT_INPUT_ERROR("Atom::mass is empty, but add_spring requires per-atom masses.\n");
+    }
+
+    const int block_size = 64;
+    const double step_d  = (double) step;
+    const size_t shmem_bytes = 4 * block_size * sizeof(double);
+
 
     spring_energy_[c] = 0.0;
     spring_force_[c][0] = spring_force_[c][1] = spring_force_[c][2] = 0.0;
