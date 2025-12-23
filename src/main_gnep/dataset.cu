@@ -218,13 +218,10 @@ static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
   const int* Na_sum,
-  const bool use_typewise_cutoff,
-  const float typewise_cutoff_radial_factor,
-  const float typewise_cutoff_angular_factor,
   const int* g_type,
   const int* g_atomic_numbers,
-  const float g_rc_radial,
-  const float g_rc_angular,
+  const float* g_rc_radial,
+  const float* g_rc_angular,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -262,14 +259,8 @@ static __global__ void gpu_find_neighbor_number(
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             int t2 = g_type[n2];
-            float rc_radial = g_rc_radial;
-            float rc_angular = g_rc_angular;
-            if (use_typewise_cutoff) {
-              int z1 = g_atomic_numbers[t1];
-              int z2 = g_atomic_numbers[t2];
-              rc_radial = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_radial_factor, rc_radial);
-              rc_angular = min((COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * typewise_cutoff_angular_factor, rc_angular);
-            }
+            float rc_radial = (g_rc_radial[t1] + g_rc_radial[t2]) * 0.5f;
+            float rc_angular = (g_rc_angular[t1] + g_rc_angular[t2]) * 0.5f;
             if (distance_square < rc_radial * rc_radial) {
               count_radial++;
             }
@@ -299,17 +290,19 @@ void Dataset::find_neighbor(Parameters& para)
   GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
   atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
 
+  GPU_Vector<float> rc_radial(para.rc_radial.size());
+  rc_radial.copy_from_host(para.rc_radial.data());
+  GPU_Vector<float> rc_angular(para.rc_angular.size());
+  rc_angular.copy_from_host(para.rc_angular.data());
+
   gpu_find_neighbor_number<<<Nc, 256>>>(
     N,
     Na.data(),
     Na_sum.data(),
-    para.use_typewise_cutoff,
-    para.typewise_cutoff_radial_factor,
-    para.typewise_cutoff_angular_factor,
     type.data(),
     atomic_numbers.data(),
-    para.rc_radial,
-    para.rc_angular,
+    rc_radial.data(),
+    rc_angular.data(),
     box.data(),
     box_original.data(),
     num_cell.data(),
@@ -344,10 +337,10 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial);
+  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular);
+  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
 }

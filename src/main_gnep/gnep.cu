@@ -17,7 +17,7 @@
 1. The Gradient-optimized Neuroevolution Potential (GNEP)
 Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, 
 Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients,
-arXiv:2507.00528.
+Computer Physics Communications. 320, 109994 (2026).
 2. The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
@@ -38,10 +38,7 @@ static __global__ void gpu_find_neighbor_list(
   const int N,
   const int* Na,
   const int* Na_sum,
-  const bool use_typewise_cutoff,
   const int* g_type,
-  const float g_rc_radial,
-  const float g_rc_angular,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -87,18 +84,8 @@ static __global__ void gpu_find_neighbor_list(
             dev_apply_mic(box, x12, y12, z12);
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             int t2 = g_type[n2];
-            float rc_radial = g_rc_radial;
-            float rc_angular = g_rc_angular;
-            if (use_typewise_cutoff) {
-              int z1 = paramb.atomic_numbers[t1];
-              int z2 = paramb.atomic_numbers[t2];
-              rc_radial = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_radial_factor,
-                rc_radial);
-              rc_angular = min(
-                (COVALENT_RADIUS[z1] + COVALENT_RADIUS[z2]) * paramb.typewise_cutoff_angular_factor,
-                rc_angular);
-            }
+            float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+            float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
             if (distance_square < rc_radial * rc_radial) {
               NL_radial[count_radial * N + n1] = n2;
               x12_radial[count_radial * N + n1] = x12;
@@ -149,14 +136,7 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -208,14 +188,7 @@ static __global__ void find_descriptors_angular(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          rc = min(
-            (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-             COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-              paramb.typewise_cutoff_angular_factor,
-            rc);
-        }
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -250,16 +223,13 @@ GNEP::GNEP(
   int N_times_max_NN_angular,
   int deviceCount)
 {
-  paramb.rc_radial = para.rc_radial;
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rc_angular = para.rc_angular;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  paramb.use_typewise_cutoff = para.use_typewise_cutoff;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
-  paramb.typewise_cutoff_radial_factor = para.typewise_cutoff_radial_factor;
-  paramb.typewise_cutoff_angular_factor = para.typewise_cutoff_angular_factor;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
+  for (int t = 0; t < paramb.num_types; ++t) {
+    paramb.rc_radial[t] = para.rc_radial[t];
+    paramb.rc_angular[t] = para.rc_angular[t];
+  }
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
@@ -279,7 +249,6 @@ GNEP::GNEP(
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
-    paramb.atomic_numbers[n] = para.atomic_numbers[n] - 1; // starting from 0
   }
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
@@ -648,12 +617,6 @@ static __global__ void compute_grad_radial_NM(
   int t1 = g_type[n1];
   float weight = g_weight[batch_idx];
   const float per_Nc_e = g_diff_gpu_e[batch_idx] * weight * 2.0f * lambda_e / Nc;
-
-  // Cache frequently accessed type-dependent constants in registers
-  const float typewise_cutoff_radial_factor = paramb.typewise_cutoff_radial_factor;
-  const float typewise_cutoff_angular_factor = paramb.typewise_cutoff_angular_factor;
-  const int z1 = paramb.atomic_numbers[t1];
-  const float covalent_radius_t1 = COVALENT_RADIUS[z1];
   
   int t1_net_index = t1 * ((annmb.dim + 2) * annmb.num_neurons1 + 1);
   int n1_net_index = n1 * annmb.num_ann + t1_net_index;
@@ -728,11 +691,7 @@ static __global__ void compute_grad_radial_NM(
     float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
     float d12inv = 1.0f / d12;
     float fc12, fcp12;
-    float rc = paramb.rc_radial;
-    if (paramb.use_typewise_cutoff) {
-      int z2 = paramb.atomic_numbers[t2];
-      rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2]) * typewise_cutoff_radial_factor, rc);
-    }
+    float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
     float rcinv = 1.0f / rc;
     find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
     float fn12[MAX_NUM_N];
@@ -798,11 +757,7 @@ static __global__ void compute_grad_radial_NM(
       t2_tmp = g_type[n2_tmp];
       float r12_tmp[3] = {g_x12[index], g_y12[index], g_z12[index]};
       d12 = sqrt(r12_tmp[0] * r12_tmp[0] + r12_tmp[1] * r12_tmp[1] + r12_tmp[2] * r12_tmp[2]);
-      rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        int z2_tmp = paramb.atomic_numbers[t2_tmp];
-        rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2_tmp]) * typewise_cutoff_radial_factor, rc);
-      }
+      rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2_tmp]) * 0.5f;
       rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
@@ -848,11 +803,7 @@ static __global__ void compute_grad_radial_NM(
         t2_tmp = g_type[n2_tmp];
         float r12_tmp[3] = {g_x12_ang[index], g_y12_ang[index], g_z12_ang[index]};
         d12 = sqrt(r12_tmp[0] * r12_tmp[0] + r12_tmp[1] * r12_tmp[1] + r12_tmp[2] * r12_tmp[2]);
-        rc = paramb.rc_angular;
-        if (paramb.use_typewise_cutoff) {
-          int z2_tmp = paramb.atomic_numbers[t2_tmp];
-          rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2_tmp]) * typewise_cutoff_angular_factor, rc);
-        }
+        rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2_tmp]) * 0.5f;
         rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
@@ -1075,12 +1026,6 @@ static __global__ void compute_grad_angular_NM(
   dy_n1 *= type_weight;
   dz_n1 *= type_weight;
 
-  // Cache frequently accessed type-dependent constants in registers
-  const float typewise_cutoff_radial_factor = paramb.typewise_cutoff_radial_factor;
-  const float typewise_cutoff_angular_factor = paramb.typewise_cutoff_angular_factor;
-  const int z1 = paramb.atomic_numbers[t1];
-  const float covalent_radius_t1 = COVALENT_RADIUS[z1];
-
   int t1_net_index = t1 * ((annmb.dim + 2) * annmb.num_neurons1 + 1);
   int n1_net_index_wb = n1 * annmb.num_ann * annmb.dim + t1_net_index * annmb.dim;
   
@@ -1120,11 +1065,7 @@ static __global__ void compute_grad_angular_NM(
   float feat_y[MAX_LN];
   float feat_z[MAX_LN];
   float fc12, fcp12;
-  float rc = paramb.rc_angular;
-  if (paramb.use_typewise_cutoff) {
-    int z2 = paramb.atomic_numbers[t2];
-    rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2]) * typewise_cutoff_angular_factor, rc);
-  }
+  float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
   float rcinv = 1.0f / rc;
   find_fc_and_fcp(rc, rcinv, d12_i1, fc12, fcp12);
 
@@ -1186,11 +1127,7 @@ static __global__ void compute_grad_angular_NM(
       r12[1] = g_y12[index];
       r12[2] = g_z12[index];
       d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        int z2_tmp = paramb.atomic_numbers[t2_tmp];
-        rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2_tmp]) * typewise_cutoff_angular_factor, rc);
-      }
+      rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2_tmp]) * 0.5f;
       rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
@@ -1269,11 +1206,7 @@ static __global__ void compute_grad_angular_NM(
       r12[1] = g_y12_rad[index];
       r12[2] = g_z12_rad[index];
       d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        int z2_tmp = paramb.atomic_numbers[t2_tmp];
-        rc = min((covalent_radius_t1 + COVALENT_RADIUS[z2_tmp]) * typewise_cutoff_radial_factor, rc);
-      }
+      rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2_tmp]) * 0.5f;
       rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
@@ -1407,14 +1340,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_radial_factor,
-          rc);
-      }
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1503,14 +1429,7 @@ static __global__ void find_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
-      if (paramb.use_typewise_cutoff) {
-        rc = min(
-          (COVALENT_RADIUS[paramb.atomic_numbers[t1]] +
-           COVALENT_RADIUS[paramb.atomic_numbers[t2]]) *
-            paramb.typewise_cutoff_angular_factor,
-          rc);
-      }
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
@@ -1616,7 +1535,7 @@ static __global__ void find_force_ZBL(
           rc_outer = min(
             (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
             rc_outer);
-          rc_inner = rc_outer * 0.5f;
+          rc_inner = 0.0f;
         }
         find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       }
@@ -1677,10 +1596,7 @@ void GNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].Na.data(),
         dataset[device_id].Na_sum.data(),
-        para.use_typewise_cutoff,
         dataset[device_id].type.data(),
-        para.rc_radial,
-        para.rc_angular,
         dataset[device_id].box.data(),
         dataset[device_id].box_original.data(),
         dataset[device_id].num_cell.data(),
