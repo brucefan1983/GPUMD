@@ -17,7 +17,7 @@
 1. The Gradient-optimized Neuroevolution Potential (GNEP)
 Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, 
 Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients,
-arXiv:2507.00528.
+Computer Physics Communications. 320, 109994 (2026).
 2. The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
@@ -132,10 +132,10 @@ __constant__ float COVALENT_RADIUS[94] = {
   2.02667f,  2.04f,     2.05333f, 2.06667f};
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
-const int MAX_NUM_N = 20;                // n_max+1 = 19+1
-const int MAX_DIM = MAX_NUM_N * 7;
-const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
-const int MAX_LN = MAX_NUM_N * 8;
+const int MAX_NUM_N = 17;                // basis_size_radial+1 = 16+1
+const int MAX_DIM = 103;                 // 13 + 9 * 10
+const int MAX_DIM_ANGULAR = 90;          // 9 * 10
+const int MAX_LN = 72;                   // 9 * 8
 
 // Template specialization to replace switch statement for Z_COEFFICIENT lookup
 template <int L>

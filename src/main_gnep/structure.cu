@@ -50,9 +50,9 @@ static void change_box(const Parameters& para, Structure& structure)
   float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
   float det = get_det(structure.box_original);
   structure.volume = abs(det);
-  structure.num_cell[0] = int(ceil(2.0f * para.rc_radial / (structure.volume / get_area(b, c))));
-  structure.num_cell[1] = int(ceil(2.0f * para.rc_radial / (structure.volume / get_area(c, a))));
-  structure.num_cell[2] = int(ceil(2.0f * para.rc_radial / (structure.volume / get_area(a, b))));
+  structure.num_cell[0] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
+  structure.num_cell[1] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
+  structure.num_cell[2] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
 
   structure.box[0] = structure.box_original[0] * structure.num_cell[0];
   structure.box[3] = structure.box_original[3] * structure.num_cell[0];

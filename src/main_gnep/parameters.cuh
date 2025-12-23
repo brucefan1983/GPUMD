@@ -34,8 +34,6 @@ public:
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the 3body spherical harmonics
-  float rc_radial;        // radial cutoff distance
-  float rc_angular;       // angular cutoff distance
   float weight_decay;     // Adam with decoupled weight decay (AdamW)
   float lr;               // current learning rate
   float start_lr;         // start learning rate
@@ -51,10 +49,7 @@ public:
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int energy_shift;  // 1 for using energy shift for biased initialization of neural networks
   int prediction; // 0=no, 1=yes
-  bool use_typewise_cutoff;
   bool use_typewise_cutoff_zbl;
-  float typewise_cutoff_radial_factor;
-  float typewise_cutoff_angular_factor;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
 
@@ -86,7 +81,6 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
-  bool is_use_typewise_cutoff_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_energy_shift_set;
   bool is_lr_cos_restart_set;
@@ -106,6 +100,11 @@ public:
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
   std::vector<float> zbl_para;        // parameters of zbl potential
+  std::vector<float> rc_radial;       // radial cutoff distance
+  std::vector<float> rc_angular;      // angular cutoff distance
+  float rc_radial_max = 0.0f;         // maximal radial cutoff
+  float rc_angular_max = 0.0f;        // maximal angular cutoff
+  bool has_multiple_cutoffs = false;
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
   GPU_Vector<float> s_max[16];        // used to scale some descriptor components (GPU)
@@ -140,7 +139,6 @@ private:
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
   void parse_epoch(const char** param, int num_param);
-  void parse_use_typewise_cutoff(const char** param, int num_param);
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_energy_shift(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
