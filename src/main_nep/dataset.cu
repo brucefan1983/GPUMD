@@ -143,10 +143,12 @@ void Dataset::find_Na(Parameters& para)
     Na_sum_cpu[nc] = Na_sum_cpu[nc - 1] + Na_cpu[nc - 1];
   }
 
-  printf("Total number of atoms = %d.\n", N);
-  printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0 || para.train_mode == 3) {
-    printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+  if (para.mpi_rank == 0) {
+    printf("Total number of atoms = %d.\n", N);
+    printf("Number of atoms in the largest configuration = %d.\n", max_Na);
+    if (para.train_mode == 0 || para.train_mode == 3) {
+      printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+    }
   }
 
   Na.resize(Nc);
@@ -396,18 +398,20 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
-  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
-  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
-  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
-  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
+  if (para.mpi_rank == 0) {
+    printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
+    printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
+    printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
+    printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
+    printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
+    printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
+  }
 }
 
 void Dataset::construct(
   Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
 {
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);
   error_cpu.resize(Nc);
@@ -474,7 +478,7 @@ static __global__ void gpu_sum_force_error(
 
 std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     use_weight,
@@ -610,7 +614,7 @@ static __global__ void gpu_sum_avirial_error(
 
 std::vector<float> Dataset::get_rmse_avirial(Parameters& para, const bool use_weight, int device_id)
 {
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
   const int block_size = 256;
 
   if (structures[0].atomic_virial_diag_only) {
@@ -741,7 +745,7 @@ std::vector<float> Dataset::get_rmse_energy(
   const bool do_shift,
   int device_id)
 {
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
   energy_shift_per_structure = 0.0f;
 
   const int block_size = 256;
@@ -845,7 +849,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   if (para.atomic_v) {
     return get_rmse_avirial(para, use_weight, device_id);
   }
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
@@ -961,7 +965,7 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
     return rmse_array;
   }
 
-  CHECK(gpuSetDevice(device_id));
+  CHECK(gpuSetDevice(para.cuda_device_id + device_id));
 
   std::vector<int> count_array(para.num_types + 1, 0);
 

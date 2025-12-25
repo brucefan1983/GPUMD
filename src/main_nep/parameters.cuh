@@ -68,6 +68,12 @@ public:
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
 
+  int mpi_rank = 0;
+  int mpi_size = 1;
+  int num_train_structures_local = 0;
+  int num_train_structures_total = 0;
+  int cuda_device_id = 0;
+
   // check if a parameter has been set:
   bool is_train_mode_set;
   bool is_prediction_set;

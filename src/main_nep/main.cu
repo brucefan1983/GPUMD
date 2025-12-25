@@ -19,6 +19,7 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -29,41 +30,58 @@ void print_welcome_information(void);
 
 int main(int argc, char* argv[])
 {
-  print_welcome_information();
-  print_gpu_information();
+  MPI_Init(&argc, &argv);
+  int mpi_rank = 0;
+  int mpi_size = 1;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-  print_line_1();
-  printf("Started running nep.\n");
-  print_line_2();
+  if (mpi_rank == 0) {
+    print_welcome_information();
+    print_gpu_information();
+  }
+
+  if (mpi_rank == 0) {
+    print_line_1();
+    printf("Started running nep.\n");
+    print_line_2();
+  }
 
   const auto time_begin1 = std::chrono::high_resolution_clock::now();
   Parameters para;
+  para.mpi_rank = mpi_rank;
+  para.mpi_size = mpi_size;
   Fitness fitness(para);
   const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;
-  print_line_1();
-  printf("Time used for initialization = %f s.\n", time_used1.count());
-  print_line_2();
+  if (mpi_rank == 0) {
+    print_line_1();
+    printf("Time used for initialization = %f s.\n", time_used1.count());
+    print_line_2();
+  }
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
   SNES snes(para, &fitness);
   const auto time_finish2 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
-  print_line_1();
-  if (para.prediction == 0) {
-    printf("Time used for training = %f s.\n", time_used2.count());
-  } else {
-    printf("Time used for predicting = %f s.\n", time_used2.count());
+  if (mpi_rank == 0) {
+    print_line_1();
+    if (para.prediction == 0) {
+      printf("Time used for training = %f s.\n", time_used2.count());
+    } else {
+      printf("Time used for predicting = %f s.\n", time_used2.count());
+    }
+
+    print_line_2();
+
+    print_line_1();
+    printf("Finished running nep.\n");
+    print_line_2();
   }
 
-  print_line_2();
-
-  print_line_1();
-  printf("Finished running nep.\n");
-  print_line_2();
-
+  MPI_Finalize();
   return EXIT_SUCCESS;
 }
 

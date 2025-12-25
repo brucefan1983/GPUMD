@@ -29,6 +29,7 @@ https://doi.org/10.1145/2001576.2001692
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
+#include <mpi.h>
 #include <cmath>
 #include <iostream>
 #include <cstring>
@@ -63,7 +64,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
 
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_type_of_variable.resize(number_of_variables);
   gpu_index.resize(population_size * (para.num_types + 1));
   gpu_utility.resize(number_of_variables);
@@ -136,7 +137,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 }
@@ -232,7 +233,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   }
 
   input.close();
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 }
@@ -298,47 +299,94 @@ void SNES::find_type_of_variable(Parameters& para)
 
 void SNES::compute(Parameters& para, Fitness* fitness_function)
 {
-
-  print_line_1();
-  if (para.prediction == 0) {
-    printf("Started training.\n");
-  } else {
-    printf("Started predicting.\n");
+  int mpi_rank = 0;
+  int mpi_size = 1;
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) {
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  }
+  if (mpi_rank == 0) {
+    print_line_1();
+    if (para.prediction == 0) {
+      printf("Started training.\n");
+    } else {
+      printf("Started predicting.\n");
+    }
+    print_line_2();
   }
 
-  print_line_2();
-
   if (para.prediction == 0) {
-
     if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-E-Train",
-        "RMSE-F-Train",
-        "RMSE-V-Train",
-        "RMSE-E-Test",
-        "RMSE-F-Test",
-        "RMSE-V-Test");
+      if (mpi_rank == 0) {
+        printf(
+          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-E-Train",
+          "RMSE-F-Train",
+          "RMSE-V-Train",
+          "RMSE-E-Test",
+          "RMSE-F-Test",
+          "RMSE-V-Test");
+      }
     } else {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-P-Train",
-        "RMSE-P-Test");
+      if (mpi_rank == 0) {
+        printf(
+          "%-8s%-11s%-11s%-11s%-13s%-13s\n",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-P-Train",
+          "RMSE-P-Test");
+      }
     }
   }
 
   if (para.prediction == 0) {
     for (int n = 0; n < maximum_generation; ++n) {
-      create_population(para);
+      if (mpi_size == 1) {
+        create_population(para);
+      } else {
+        if (mpi_rank == 0) {
+          create_population(para);
+        }
+        int pop_count = population_size * number_of_variables;
+        MPI_Bcast(
+          population.data(),
+          pop_count,
+          MPI_FLOAT,
+          0,
+          MPI_COMM_WORLD);
+      }
       fitness_function->compute(n, para, population.data(), fitness.data());
+
+      if (mpi_size > 1) {
+        int count = population_size * 7 * (para.num_types + 1);
+        std::vector<float> fitness_global(count);
+        float weight = 1.0f;
+        if (para.num_train_structures_total > 0) {
+          weight = static_cast<float>(para.num_train_structures_local) /
+                   static_cast<float>(para.num_train_structures_total);
+        }
+        for (int i = 0; i < count; ++i) {
+          fitness[i] *= weight;
+        }
+        MPI_Allreduce(
+          fitness.data(),
+          fitness_global.data(),
+          count,
+          MPI_FLOAT,
+          MPI_SUM,
+          MPI_COMM_WORLD);
+        for (int i = 0; i < count; ++i) {
+          fitness[i] = fitness_global[i];
+        }
+      }
 
       if (para.version != 3) {
         regularize_NEP4(para);
@@ -348,30 +396,32 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
       sort_population(para);
 
-      int best_index = index[para.num_types * population_size];
-      float fitness_total = fitness[0 + (7 * para.num_types + 0) * population_size];
-      float fitness_L1 = fitness[best_index + (7 * para.num_types + 1) * population_size];
-      float fitness_L2 = fitness[best_index + (7 * para.num_types + 2) * population_size];
-      fitness_function->report_error(
-        para,
-        n,
-        fitness_total,
-        fitness_L1,
-        fitness_L2,
-        population.data() + number_of_variables * best_index);
+      if (mpi_rank == 0) {
+        int best_index = index[para.num_types * population_size];
+        float fitness_total = fitness[0 + (7 * para.num_types + 0) * population_size];
+        float fitness_L1 = fitness[best_index + (7 * para.num_types + 1) * population_size];
+        float fitness_L2 = fitness[best_index + (7 * para.num_types + 2) * population_size];
+        fitness_function->report_error(
+          para,
+          n,
+          fitness_total,
+          fitness_L1,
+          fitness_L2,
+          population.data() + number_of_variables * best_index);
 
-      update_mu_and_sigma(para);
-      if (0 == (n + 1) % 100) {
-        const char* filename = "nep.restart";
-        output_mu_and_sigma(para, filename);
+        update_mu_and_sigma(para);
+        if (0 == (n + 1) % 100) {
+          const char* filename = "nep.restart";
+          output_mu_and_sigma(para, filename);
+        }
+        if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
+          std::string restart_file;
+          fitness_function->get_save_potential_label(para, n, restart_file);
+          restart_file += ".restart";
+          output_mu_and_sigma(para, restart_file.c_str());
+        }
       }
-      // Optionally save the nep.restart file at the same time as save_potential
-      if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
-        std::string restart_file;
-        fitness_function->get_save_potential_label(para, n, restart_file);
-        restart_file += ".restart";
-        output_mu_and_sigma(para, restart_file.c_str());
-      }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   } else {
     std::ifstream input("nep.txt");
@@ -405,8 +455,11 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
-    fitness_function->predict(para, population.data());
+    if (mpi_rank == 0) {
+      gpuSetDevice(para.cuda_device_id);
+      para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
+      fitness_function->predict(para, population.data());
+    }
   }
 }
 
@@ -432,7 +485,7 @@ static __global__ void gpu_create_population(
 
 void SNES::create_population(Parameters& para)
 {
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   const int N = population_size * number_of_variables;
   gpu_create_population<<<(N - 1) / 128 + 1, 128>>>(
     N,
@@ -487,7 +540,7 @@ static __global__ void gpu_find_L1_L2_NEP4(
 
 void SNES::regularize_NEP4(Parameters& para)
 {
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
 
   for (int t = 0; t <= para.num_types; ++t) {
     float num_variables = float(para.number_of_variables) / para.num_types;
@@ -556,7 +609,7 @@ static __global__ void gpu_find_L1_L2(
 
 void SNES::regularize(Parameters& para)
 {
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_find_L1_L2<<<population_size, 1024>>>(
     number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
   GPU_CHECK_KERNEL
@@ -637,7 +690,7 @@ static __global__ void gpu_update_mu_and_sigma(
 
 void SNES::update_mu_and_sigma(Parameters& para)
 {
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
   gpu_index.copy_from_host(index.data());
   gpu_utility.copy_from_host(utility.data());
@@ -656,7 +709,7 @@ void SNES::update_mu_and_sigma(Parameters& para)
 
 void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
 {
-  gpuSetDevice(0); // normally use GPU-0
+  gpuSetDevice(para.cuda_device_id);
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
   FILE* fid_restart = my_fopen(filename, "w");

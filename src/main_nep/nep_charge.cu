@@ -268,7 +268,7 @@ NEP_Charge::NEP_Charge(
   charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    gpuSetDevice(device_id);
+    gpuSetDevice(para.cuda_device_id + device_id);
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
@@ -1402,14 +1402,14 @@ void NEP_Charge::find_force(
 {
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
-    CHECK(gpuSetDevice(device_id));
+    CHECK(gpuSetDevice(para.cuda_device_id + device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
     update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
-    CHECK(gpuSetDevice(device_id));
+    CHECK(gpuSetDevice(para.cuda_device_id + device_id));
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 

@@ -19,8 +19,10 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <mpi.h>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -30,11 +32,53 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
+static bool parse_env_int(const char* name, int* out)
+{
+  const char* v = std::getenv(name);
+  if (!v || !*v) {
+    return false;
+  }
+  char* end = nullptr;
+  long val = std::strtol(v, &end, 10);
+  if (end == v) {
+    return false;
+  }
+  *out = static_cast<int>(val);
+  return true;
+}
+
+static int detect_local_rank()
+{
+  int v = 0;
+  if (parse_env_int("OMPI_COMM_WORLD_LOCAL_RANK", &v)) {
+    return v;
+  }
+  if (parse_env_int("MPI_LOCALRANKID", &v)) {
+    return v;
+  }
+  if (parse_env_int("MV2_COMM_WORLD_LOCAL_RANK", &v)) {
+    return v;
+  }
+  if (parse_env_int("SLURM_LOCALID", &v)) {
+    return v;
+  }
+  return 0;
+}
+
 Parameters::Parameters()
 {
-  print_line_1();
-  printf("Started reading nep.in.\n");
-  print_line_2();
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  int root_rank = 0;
+  if (mpi_initialized) {
+    MPI_Comm_rank(MPI_COMM_WORLD, &root_rank);
+  }
+
+  if (root_rank == 0) {
+    print_line_1();
+    printf("Started reading nep.in.\n");
+    print_line_2();
+  }
 
   set_default_parameters();
   read_nep_in();
@@ -44,9 +88,11 @@ Parameters::Parameters()
   calculate_parameters();
   report_inputs();
 
-  print_line_1();
-  printf("Finished reading nep.in.\n");
-  print_line_2();
+  if (root_rank == 0) {
+    print_line_1();
+    printf("Finished reading nep.in.\n");
+    print_line_2();
+  }
 }
 
 void Parameters::set_default_parameters()
@@ -121,15 +167,40 @@ void Parameters::set_default_parameters()
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
 
-  // ------------new--------------
-  int deviceCount;  
-  CHECK(gpuGetDeviceCount(&deviceCount));  
-  int fully_used_device = population_size % deviceCount;  
-  if (fully_used_device != 0) {  
-    int population_should_increase = deviceCount - fully_used_device;  
-    population_size += population_should_increase;  
-    printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
-  }  
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) {
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  }
+
+  int deviceCount_all = 0;
+  CHECK(gpuGetDeviceCount(&deviceCount_all));
+  cuda_device_id = 0;
+  if (mpi_initialized && mpi_size > 1 && deviceCount_all > 0) {
+    int local_rank = detect_local_rank();
+    if (local_rank < 0) {
+      local_rank = 0;
+    }
+    cuda_device_id = local_rank % deviceCount_all;
+  }
+
+  int deviceCount_effective = deviceCount_all;
+  if (mpi_initialized && mpi_size > 1) {
+    deviceCount_effective = 1;
+  }
+  if (deviceCount_effective < 1) {
+    deviceCount_effective = 1;
+  }
+
+  int fully_used_device = population_size % deviceCount_effective;
+  if (fully_used_device != 0) {
+    int population_should_increase = deviceCount_effective - fully_used_device;
+    population_size += population_should_increase;
+    if (mpi_rank == 0) {
+      printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);
+    }
+  }
 }
 
 void Parameters::read_nep_in()
@@ -274,10 +345,11 @@ void Parameters::calculate_parameters()
     input.close();
   }
 
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
+  int deviceCount_all = 0;
+  CHECK(gpuGetDeviceCount(&deviceCount_all));
+  int deviceCount = (mpi_size > 1) ? 1 : deviceCount_all;
   for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(gpuSetDevice(device_id));
+    CHECK(gpuSetDevice(cuda_device_id + device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
@@ -380,6 +452,10 @@ void Parameters::report_inputs()
 
   if (fine_tune) {
     check_foundation_model();
+  }
+
+  if (mpi_rank != 0) {
+    return;
   }
 
   printf("Input or default parameters:\n");
@@ -1177,18 +1253,21 @@ void Parameters::parse_population(const char** param, int num_param)
 
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
-  int fully_used_device = population_size % deviceCount;
+  int deviceCount_effective = (mpi_size > 1) ? 1 : deviceCount;
+  int fully_used_device = population_size % deviceCount_effective;
   int population_should_increase;
   if (fully_used_device != 0) {
-    population_should_increase = deviceCount - fully_used_device;
+    population_should_increase = deviceCount_effective - fully_used_device;
     population_size += population_should_increase;
   } else {
     population_should_increase = 0;
   }
   if (population_should_increase != 0) {
-    printf("The input population size is not divisible by the number of GPUs.\n");
-    printf("This causes an inefficient use of resources.\n");
-    printf("The population size has therefore been increased to %d.\n", population_size);
+    if (mpi_rank == 0) {
+      printf("The input population size is not divisible by the number of GPUs.\n");
+      printf("This causes an inefficient use of resources.\n");
+      printf("The population size has therefore been increased to %d.\n", population_size);
+    }
   }
 }
 

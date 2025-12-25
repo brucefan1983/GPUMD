@@ -16,6 +16,7 @@ CFLAGS = -std=c++14 -O3 --offload-arch=gfx90a -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
+MPI_LIBS = -lmpi
 
 
 ###########################################################
@@ -64,12 +65,12 @@ HEADERS =                         \
 ###########################################################
 all: gpumd nep
 gpumd: $(OBJ_GPUMD)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(MPI_LIBS)
 	@echo =================================================
 	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
 nep: $(OBJ_NEP)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(MPI_LIBS)
 	@echo =================================================
 	@echo The nep executable is successfully compiled!
 	@echo =================================================

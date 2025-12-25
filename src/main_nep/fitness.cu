@@ -27,6 +27,7 @@ Get the fitness
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
+#include <mpi.h>
 #include <chrono>
 #include <ctime>
 #include <iostream>
@@ -37,18 +38,51 @@ Get the fitness
 
 Fitness::Fitness(Parameters& para)
 {
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
+  int deviceCount_all = 0;
+  CHECK(gpuGetDeviceCount(&deviceCount_all));
+  int deviceCount = (para.mpi_size > 1) ? 1 : deviceCount_all;
+
+  int mpi_rank = para.mpi_rank;
+  int mpi_size = para.mpi_size;
+
+  std::vector<Structure> structures_train_all;
+  read_structures(true, para, structures_train_all);
+
+  int total_train_structures = static_cast<int>(structures_train_all.size());
+  para.num_train_structures_total = total_train_structures;
+
+  int base = 0;
+  int remainder = 0;
+  if (mpi_size > 0) {
+    base = total_train_structures / mpi_size;
+    remainder = total_train_structures % mpi_size;
+  }
+  int local_count = base + (mpi_rank < remainder ? 1 : 0);
+  int start_index = mpi_rank * base + (mpi_rank < remainder ? mpi_rank : remainder);
+  int end_index = start_index + local_count;
+  para.num_train_structures_local = local_count;
 
   std::vector<Structure> structures_train;
-  read_structures(true, para, structures_train);
-  num_batches = (structures_train.size() - 1) / para.batch_size + 1;
-  printf("Number of devices = %d\n", deviceCount);
-  printf("Number of batches = %d\n", num_batches);
+  structures_train.reserve(local_count);
+  for (int i = start_index; i < end_index; ++i) {
+    structures_train.push_back(structures_train_all[i]);
+  }
+
+  if (structures_train.empty()) {
+    num_batches = 0;
+  } else {
+    num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  }
+  if (para.mpi_rank == 0) {
+    printf("Number of devices = %d\n", deviceCount);
+    printf("Number of batches = %d\n", num_batches);
+  }
   int batch_size_old = para.batch_size;
   para.batch_size = (structures_train.size() - 1) / num_batches + 1;
   if (batch_size_old != para.batch_size) {
-    printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
+    if (para.mpi_rank == 0) {
+      printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
+    }
   }
 
   train_set.resize(num_batches);
@@ -59,18 +93,26 @@ Fitness::Fitness(Parameters& para)
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     const int batch_size_minimal = structures_train.size() / num_batches;
     const bool is_larger_batch =
-      batch_id + batch_size_minimal * num_batches < structures_train.size();
+      batch_id + batch_size_minimal * num_batches < static_cast<int>(structures_train.size());
     const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
-    count += batch_size;
-    printf("\nBatch %d:\n", batch_id);
-    printf("Number of configurations = %d.\n", batch_size);
+    int batch_start = count;
+    int batch_end = count + batch_size;
+    count = batch_end;
+    if (para.mpi_rank == 0) {
+      printf("\nBatch %d:\n", batch_id);
+      printf("Number of configurations = %d.\n", batch_size);
+    }
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      print_line_1();
-      printf("Constructing train_set in device  %d.\n", device_id);
-      CHECK(gpuSetDevice(device_id));
+      if (para.mpi_rank == 0) {
+        print_line_1();
+        printf("Constructing train_set in device  %d.\n", device_id);
+      }
+      CHECK(gpuSetDevice(para.cuda_device_id + device_id));
       train_set[batch_id][device_id].construct(
-        para, structures_train, count - batch_size, count, device_id);
-      print_line_2();
+        para, structures_train, batch_start, batch_end, device_id);
+      if (para.mpi_rank == 0) {
+        print_line_2();
+      }
     }
   }
 
@@ -79,11 +121,15 @@ Fitness::Fitness(Parameters& para)
   if (has_test_set) {
     test_set.resize(deviceCount);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      print_line_1();
-      printf("Constructing test_set in device  %d.\n", device_id);
-      CHECK(gpuSetDevice(device_id));
+      if (para.mpi_rank == 0) {
+        print_line_1();
+        printf("Constructing test_set in device  %d.\n", device_id);
+      }
+      CHECK(gpuSetDevice(para.cuda_device_id + device_id));
       test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
-      print_line_2();
+      if (para.mpi_rank == 0) {
+        print_line_2();
+      }
     }
   }
 
@@ -136,8 +182,10 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  if (para.prediction == 0) {
+  if (para.prediction == 0 && para.mpi_rank == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
+  } else {
+    fid_loss_out = NULL;
   }
 }
 
@@ -151,8 +199,9 @@ Fitness::~Fitness()
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
+  int deviceCount_all = 0;
+  CHECK(gpuGetDeviceCount(&deviceCount_all));
+  int deviceCount = (para.mpi_size > 1) ? 1 : deviceCount_all;
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
@@ -427,6 +476,9 @@ void Fitness::report_error(
   const float loss_L2,
   float* elite)
 {
+  if (para.mpi_rank != 0) {
+    return;
+  }
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
     potential->find_force(para, elite, train_set[batch_id], false, true, 1);
@@ -627,6 +679,9 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
 
 void Fitness::predict(Parameters& para, float* elite)
 {
+  if (para.mpi_rank != 0) {
+    return;
+  }
   if (para.train_mode == 0 || para.train_mode == 3) {
     FILE* fid_force = my_fopen("force_train.out", "w");
     FILE* fid_energy = my_fopen("energy_train.out", "w");

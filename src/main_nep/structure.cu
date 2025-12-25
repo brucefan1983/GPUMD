@@ -332,8 +332,10 @@ static void read_one_structure(
       }
     }
     if (para.prediction == 0) {
-      std::cout
-        << "Structure has both defined virials and stresses. Will use virial information.\n";
+      if (para.mpi_rank == 0) {
+        std::cout
+          << "Structure has both defined virials and stresses. Will use virial information.\n";
+      }
     }
   } else if (!structure.has_virial && has_stress) {
     // save virials from stress to structure virials
@@ -542,19 +544,23 @@ static void read_exyz(
     structures.emplace_back(structure);
     ++Nc;
   }
-  printf("Number of configurations = %d.\n", Nc);
+  if (para.mpi_rank == 0) {
+    printf("Number of configurations = %d.\n", Nc);
+  }
 
-  for (const auto& s : structures) {
-    if (s.energy < -100.0f) {
-      std::cout << "Warning: \n";
-      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
-      std::cout << "    Because we use single precision in NEP training\n";
-      std::cout << "    it means that the reference and calculated energies\n";
-      std::cout << "    might only be accurate up to 1 meV/atom\n";
-      std::cout << "    which can effectively introduce noises.\n";
-      std::cout << "    We suggest you preprocess (using double precision)\n";
-      std::cout << "    your data to make the energies closer to 0." << std::endl;
-      break;
+  if (para.mpi_rank == 0) {
+    for (const auto& s : structures) {
+      if (s.energy < -100.0f) {
+        std::cout << "Warning: \n";
+        std::cout << "    There is energy < -100 eV/atom in the data set.\n";
+        std::cout << "    Because we use single precision in NEP training\n";
+        std::cout << "    it means that the reference and calculated energies\n";
+        std::cout << "    might only be accurate up to 1 meV/atom\n";
+        std::cout << "    which can effectively introduce noises.\n";
+        std::cout << "    We suggest you preprocess (using double precision)\n";
+        std::cout << "    your data to make the energies closer to 0." << std::endl;
+        break;
+      }
     }
   }
 }
@@ -684,10 +690,14 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
       has_test_set = false;
     }
   } else {
-    print_line_1();
+    if (para.mpi_rank == 0) {
+      print_line_1();
+    }
     std::string xyz_filename = is_train ? "train.xyz" : "test.xyz";
-    std::cout << "Started reading " << xyz_filename << std::endl;
-    print_line_2();
+    if (para.mpi_rank == 0) {
+      std::cout << "Started reading " << xyz_filename << std::endl;
+      print_line_2();
+    }
     read_exyz(para, input, structures, xyz_filename);
     input.close();
   }

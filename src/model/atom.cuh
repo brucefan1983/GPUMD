@@ -22,6 +22,7 @@ class Atom
 {
 public:
   int number_of_atoms = 0;
+  int number_of_owned_atoms = 0;
   std::vector<int> cpu_type;
   std::vector<int> cpu_type_size;
   std::vector<double> cpu_mass;
