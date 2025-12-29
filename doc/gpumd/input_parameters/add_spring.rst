@@ -12,8 +12,8 @@ Syntax
 
 This keyword is used in one of the following two ways::
 
-  add_force <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z>  # usage 1
-  add_force <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z>  # usage 2
+  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z>  # usage 1
+  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z>  # usage 2
 
 The function of the coupled spring potential is given by the equation:
 
@@ -34,6 +34,10 @@ where :math:`(x_{\mathrm{ghost}}, y_{\mathrm{ghost}}, z_{\mathrm{ghost}})` is th
 * In the second usage, a spring is decoupled from the ghost atom with spring constants :attr:`k_decouple_x`, :attr:`k_decouple_y`, and :attr:`k_decouple_z` in the x, y, and z directions, respectively.
 * The ghost atom starts at the position of the centroid of the selected group plus the offset vector (:attr:`offset_x`, :attr:`offset_y`, :attr:`offset_z`), and moves with velocity (:attr:`ghost_vx`, :attr:`ghost_vy`, :attr:`ghost_vz`).
 * Force is in units of eV/Å, distance is in units of Å, velocity is in units of Å/step, and spring constant is in units of eV/Å².
+* Spring forces are written to `spring_force_*.out`, where the asterisk is replaced by a zero-based index that increments with each invocation of the command. The meaning of each column in the file is::
+
+  # step  call  mode  Fx  Fy  Fz  energy  spring_force
+
 
 Example 1
 ---------
