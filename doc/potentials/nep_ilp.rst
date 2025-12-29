@@ -189,6 +189,10 @@ atoms in the sublayers of Mo and S should be set as the different
   beta_BN alpha_BN delta_BN epsilon_BN C_BN d_BN sR_BN reff_BN C6_BN S_BN rcut1_BN rcut2_BN
   beta_BMo alpha_BMo delta_BMo epsilon_BMo C_BMo d_BMo sR_BMo reff_BMo C6_BMo S_BMo rcut1_BMo rcut2_BMo
   beta_BS alpha_BS delta_BS epsilon_BS C_BS d_BS sR_BS reff_BS C6_BS S_BS rcut1_BS rcut2_BS
+  beta_NB alpha_NB delta_NB epsilon_NB C_NB d_NB sR_NB reff_NB C6_NB S_NB rcut1_NB rcut2_NB
+  beta_NN alpha_NN delta_NN epsilon_NN C_NN d_NN sR_NN reff_NN C6_NN S_NN rcut1_NN rcut2_NN
+  beta_NMo alpha_NMo delta_NMo epsilon_NMo C_NMo d_NMo sR_NMo reff_NMo C6_NMo S_NMo rcut1_NMo rcut2_NMo
+  beta_NS alpha_NS delta_NS epsilon_NS C_NS d_NS sR_NS reff_NS C6_NS S_NS rcut1_NS rcut2_NS
   ...
   beta_SS alpha_SS delta_SS epsilon_SS C_SS d_SS sR_SS reff_SS C6_SS S_SS rcut1_SS rcut2_SS
 
