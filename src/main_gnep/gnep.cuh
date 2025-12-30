@@ -45,15 +45,10 @@ class GNEP : public Potential
 {
 public:
   struct ParaMB {
-    bool use_typewise_cutoff = false;
     bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_radial_factor = 2.5f;
-    float typewise_cutoff_angular_factor = 2.0f;
     float typewise_cutoff_zbl_factor = 0.65f;
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    float rc_radial[NUM_ELEMENTS];  // radial cutoff
+    float rc_angular[NUM_ELEMENTS]; // angular cutoff
     int basis_size_radial = 0;
     int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -63,7 +58,6 @@ public:
     int num_types = 0;
     int num_types_sq = 0;
     int num_c_radial = 0;
-    int atomic_numbers[NUM_ELEMENTS];
     int N_times_max_NN_radial;
     int N_times_max_NN_angular;
   };
