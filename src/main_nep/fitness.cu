@@ -149,7 +149,13 @@ Fitness::~Fitness()
 }
 
 void Fitness::compute(
-  const int generation, Parameters& para, const float* population, float* fitness)
+  const int generation, 
+  Parameters& para, 
+  const float* population, 
+  float* fitness_energy,
+  float* fitness_force,
+  float* fitness_virial,
+  float* fitness_charge)
 {
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -182,17 +188,17 @@ void Fitness::compute(
         auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
 
         for (int t = 0; t <= para.num_types; ++t) {
-          fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] =
+          fitness_energy[deviceCount * n + m + t * para.population_size] =
             para.lambda_e * rmse_energy_array[t];
-          fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] =
+          fitness_force[deviceCount * n + m + t * para.population_size] =
             para.lambda_f * rmse_force_array[t];
-          fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] =
+          fitness_virial[deviceCount * n + m + t * para.population_size] =
             para.lambda_v * rmse_virial_array[t];
           if (para.charge_mode) {
-            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] =
+            fitness_charge[deviceCount * n + m + t * para.population_size] =
               para.lambda_q * rmse_charge_array[t];
           } else {
-            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = 0.0f;
+            fitness_charge[deviceCount * n + m + t * para.population_size] = 0.0f;
           }
         }
       }
@@ -218,30 +224,30 @@ void Fitness::compute(
             auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
-              float old_value = fitness[deviceCount * n + m + (7 * t + 3) * para.population_size];
+              float old_value = fitness_energy[deviceCount * n + m + t * para.population_size];
               float new_value = para.lambda_e * rmse_energy_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] = new_value;
+              fitness_energy[deviceCount * n + m + t * para.population_size] = new_value;
               // force
-              old_value = fitness[deviceCount * n + m + (7 * t + 4) * para.population_size];
+              old_value = fitness_force[deviceCount * n + m + t * para.population_size];
               new_value = para.lambda_f * rmse_force_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] = new_value;
+              fitness_force[deviceCount * n + m + t * para.population_size] = new_value;
               // virial
-              old_value = fitness[deviceCount * n + m + (7 * t + 5) * para.population_size];
+              old_value = fitness_virial[deviceCount * n + m + t * para.population_size];
               new_value = para.lambda_v * rmse_virial_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] = new_value;
+              fitness_virial[deviceCount * n + m + t * para.population_size] = new_value;
               // charge
               if (para.charge_mode) {
-                old_value = fitness[deviceCount * n + m + (7 * t + 6) * para.population_size];
+                old_value = fitness_charge[deviceCount * n + m + t * para.population_size];
                 new_value = para.lambda_q * rmse_charge_array[t];
                 new_value = old_value * old_value * count_batch + new_value * new_value;
                 new_value = sqrt(new_value / (count_batch + 1));
-                fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = new_value;
+                fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
               }
             }
           }
