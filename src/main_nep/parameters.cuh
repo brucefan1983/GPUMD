@@ -48,6 +48,7 @@ public:
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
   float lambda_q;         // weight for global charge
+  float lambda_z;         // weight for BEC
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
@@ -146,6 +147,7 @@ private:
   void parse_lambda_f(const char** param, int num_param);
   void parse_lambda_v(const char** param, int num_param);
   void parse_lambda_q(const char** param, int num_param);
+  void parse_lambda_z(const char** param, int num_param);
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
