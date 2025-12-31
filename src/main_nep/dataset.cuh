@@ -92,6 +92,7 @@ public:
   std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_charge(Parameters& para, int device_id);
+  std::vector<float> get_rmse_bec(Parameters& para, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
