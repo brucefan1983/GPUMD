@@ -39,7 +39,6 @@ protected:
   float eta_sigma = 0.1f;
 
   std::vector<int> index;
-  //std::vector<float> fitness;
   std::vector<float> fitness_total;
   std::vector<float> fitness_L1;
   std::vector<float> fitness_L2;

@@ -52,7 +52,6 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
-  //fitness.resize(population_size * 7 * (para.num_types + 1));
   fitness_total.resize(population_size * (para.num_types + 1));
   fitness_L1.resize(population_size * (para.num_types + 1));
   fitness_L2.resize(population_size * (para.num_types + 1));
@@ -366,7 +365,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       fitness_function->report_error(
         para,
         n,
-        fitness_total[para.num_types * population_size + 0],
+        fitness_total[para.num_types * population_size + 0], // already sorted, hence 0
         fitness_L1[para.num_types * population_size + best_index],
         fitness_L2[para.num_types * population_size + best_index],
         population.data() + number_of_variables * best_index);
