@@ -985,6 +985,28 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
       }
   }
 
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+    }
+  }
+  return rmse_array;
+}
+
+std::vector<float> Dataset::get_rmse_bec(Parameters& para, int device_id)
+{
+  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  if (!para.has_bec) {
+    return rmse_array;
+  }
+
+  CHECK(gpuSetDevice(device_id));
+
+  std::vector<int> count_array(para.num_types + 1, 0);
+
+  int mem = sizeof(float) * Nc;
+  const int block_size = 256;
+
   if (para.has_bec) {
     gpu_sum_bec_error<<<Nc, block_size, sizeof(float) * block_size>>>(
       N,
@@ -1014,4 +1036,3 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
   }
   return rmse_array;
 }
-

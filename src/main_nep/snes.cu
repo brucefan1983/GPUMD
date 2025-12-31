@@ -352,7 +352,8 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         fitness_energy.data(),
         fitness_force.data(),
         fitness_virial.data(),
-        fitness_charge.data());
+        fitness_charge.data(),
+        fitness_bec.data());
 
       if (para.version != 3) {
         regularize_NEP4(para);

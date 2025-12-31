@@ -155,7 +155,8 @@ void Fitness::compute(
   float* fitness_energy,
   float* fitness_force,
   float* fitness_virial,
-  float* fitness_charge)
+  float* fitness_charge,
+  float* fitness_bec)
 {
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -186,6 +187,7 @@ void Fitness::compute(
         auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
         auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
         auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
+        auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
 
         for (int t = 0; t <= para.num_types; ++t) {
           fitness_energy[deviceCount * n + m + t * para.population_size] =
@@ -194,12 +196,10 @@ void Fitness::compute(
             para.lambda_f * rmse_force_array[t];
           fitness_virial[deviceCount * n + m + t * para.population_size] =
             para.lambda_v * rmse_virial_array[t];
-          if (para.charge_mode) {
-            fitness_charge[deviceCount * n + m + t * para.population_size] =
-              para.lambda_q * rmse_charge_array[t];
-          } else {
-            fitness_charge[deviceCount * n + m + t * para.population_size] = 0.0f;
-          }
+          fitness_charge[deviceCount * n + m + t * para.population_size] =
+            para.lambda_q * rmse_charge_array[t];
+          fitness_bec[deviceCount * n + m + t * para.population_size] =
+            para.lambda_z * rmse_bec_array[t];
         }
       }
     }
@@ -222,6 +222,7 @@ void Fitness::compute(
             auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
             auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
             auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
+            auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
               float old_value = fitness_energy[deviceCount * n + m + t * para.population_size];
@@ -242,13 +243,17 @@ void Fitness::compute(
               new_value = sqrt(new_value / (count_batch + 1));
               fitness_virial[deviceCount * n + m + t * para.population_size] = new_value;
               // charge
-              if (para.charge_mode) {
-                old_value = fitness_charge[deviceCount * n + m + t * para.population_size];
-                new_value = para.lambda_q * rmse_charge_array[t];
-                new_value = old_value * old_value * count_batch + new_value * new_value;
-                new_value = sqrt(new_value / (count_batch + 1));
-                fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
-              }
+              old_value = fitness_charge[deviceCount * n + m + t * para.population_size];
+              new_value = para.lambda_q * rmse_charge_array[t];
+              new_value = old_value * old_value * count_batch + new_value * new_value;
+              new_value = sqrt(new_value / (count_batch + 1));
+              fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
+              // BEC
+              old_value = fitness_bec[deviceCount * n + m + t * para.population_size];
+              new_value = para.lambda_q * rmse_bec_array[t];
+              new_value = old_value * old_value * count_batch + new_value * new_value;
+              new_value = sqrt(new_value / (count_batch + 1));
+              fitness_bec[deviceCount * n + m + t * para.population_size] = new_value;
             }
           }
         }
