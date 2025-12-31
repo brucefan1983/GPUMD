@@ -333,21 +333,21 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "RMSE-V-Test");
       } else {
         printf(
-          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "%-8s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s\n",
           "Step",
-          "Total-Loss",
-          "L1Reg-Loss",
-          "L2Reg-Loss",
-          "RMSE-E-Train",
-          "RMSE-F-Train",
-          "RMSE-V-Train",
-          "RMSE-Q-Train",
-          "RMSE-Z-Train",
-          "RMSE-E-Test",
-          "RMSE-F-Test",
-          "RMSE-V-Test",
-          "RMSE-Q-Test",
-          "RMSE-Z-Test");
+          "Total",
+          "L1Reg",
+          "L2Reg",
+          "E-Train",
+          "F-Train",
+          "V-Train",
+          "Q-Train",
+          "Z-Train",
+          "E-Test",
+          "F-Test",
+          "V-Test",
+          "Q-Test",
+          "Z-Test");
       }
     } else {
       printf(

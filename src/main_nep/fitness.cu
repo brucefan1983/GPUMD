@@ -526,7 +526,7 @@ void Fitness::report_error(
       } else {
         // qNEP models:
         printf(
-          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
@@ -543,7 +543,7 @@ void Fitness::report_error(
           rmse_bec_test);
         fprintf(
           fid_loss_out,
-          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
