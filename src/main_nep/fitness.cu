@@ -250,7 +250,7 @@ void Fitness::compute(
               fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
               // BEC
               old_value = fitness_bec[deviceCount * n + m + t * para.population_size];
-              new_value = para.lambda_q * rmse_bec_array[t];
+              new_value = para.lambda_z * rmse_bec_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
               fitness_bec[deviceCount * n + m + t * para.population_size] = new_value;
