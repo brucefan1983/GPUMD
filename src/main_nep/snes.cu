@@ -59,6 +59,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   fitness_force.resize(population_size * (para.num_types + 1));
   fitness_virial.resize(population_size * (para.num_types + 1));
   fitness_charge.resize(population_size * (para.num_types + 1));
+  fitness_bec.resize(population_size * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
   mu.resize(number_of_variables);
@@ -524,7 +525,7 @@ void SNES::regularize_NEP4(Parameters& para)
       fitness_total[p + t * population_size] =
         cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
         fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size];
+        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
       fitness_L1[p + t * population_size] = cost_L1;
       fitness_L2[p + t * population_size] = cost_L2;
     }
@@ -581,7 +582,7 @@ void SNES::regularize(Parameters& para)
       fitness_total[p + t * population_size] =
         cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
         fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size];
+        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
       fitness_L1[p + t * population_size] = cost_L1;
       fitness_L2[p + t * population_size] = cost_L2;
     }

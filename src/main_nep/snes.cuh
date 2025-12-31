@@ -46,6 +46,7 @@ protected:
   std::vector<float> fitness_force;
   std::vector<float> fitness_virial;
   std::vector<float> fitness_charge;
+  std::vector<float> fitness_bec;
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;
