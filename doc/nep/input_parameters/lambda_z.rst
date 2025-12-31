@@ -10,6 +10,6 @@ The syntax is::
 
   lambda_z <weight>
 
-Here, :attr:`<weight>` represents :math:`\lambda_z`, which must satisfy :math:`\lambda_z \geq 0` and defaults to :math:`\lambda_z = 0.1`.
+Here, :attr:`<weight>` represents :math:`\lambda_z`, which must satisfy :math:`\lambda_z \geq 0` and defaults to :math:`\lambda_z = 0.5`.
 
 This keyword is only relevant for the qNEP models.
