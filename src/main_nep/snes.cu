@@ -318,18 +318,37 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-E-Train",
-        "RMSE-F-Train",
-        "RMSE-V-Train",
-        "RMSE-E-Test",
-        "RMSE-F-Test",
-        "RMSE-V-Test");
+      if (!para.charge_mode) {
+        printf(
+          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-E-Train",
+          "RMSE-F-Train",
+          "RMSE-V-Train",
+          "RMSE-E-Test",
+          "RMSE-F-Test",
+          "RMSE-V-Test");
+      } else {
+        printf(
+          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-E-Train",
+          "RMSE-F-Train",
+          "RMSE-V-Train",
+          "RMSE-Q-Train",
+          "RMSE-Z-Train",
+          "RMSE-E-Test",
+          "RMSE-F-Test",
+          "RMSE-V-Test",
+          "RMSE-Q-Test",
+          "RMSE-Z-Test");
+      }
     } else {
       printf(
         "%-8s%-11s%-11s%-11s%-13s%-13s\n",
