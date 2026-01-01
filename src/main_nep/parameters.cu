@@ -1307,12 +1307,21 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 {
   fine_tune = 1;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
+  if (num_param != 3 && num_param != 4) {
+    PRINT_INPUT_ERROR("fine_tune should have 2 or 3 parameters.\n");
   }
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+
+  if (num_param == 4) {
+    if (!is_valid_int(param[3], &fine_tune_descriptor)) {
+      PRINT_INPUT_ERROR("fine_tune_descriptor should be an integer.\n");
+    }
+    if (fine_tune_descriptor < 0 || fine_tune_descriptor > 1) {
+      PRINT_INPUT_ERROR("fine_tune_descriptor should be 0 or 1.");
+    }
+  }
 }
 
 void Parameters::parse_save_potential(const char** param, int num_param)

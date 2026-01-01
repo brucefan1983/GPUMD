@@ -199,11 +199,11 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
           int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
           int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
-#ifdef FINE_TUNE_DESCRIPTOR
-          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
-#else
-          sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
-#endif
+          if (para.fine_tune_descriptor) {
+            sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+          } else {
+            sigma[count] = 0.0f;
+          }
           ++count;
         }
       }
