@@ -126,9 +126,8 @@ void Dump_CG::preprocess(
 }
 
 void Dump_CG::find_energy_and_virial(
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo,
-  double relative_dof)
+  GPU_Vector<double>& virial_per_atom, 
+  GPU_Vector<double>& gpu_thermo)
 {
   // energy and virial (symmetric tensor) in eV
   double cpu_thermo[8];
@@ -137,16 +136,16 @@ void Dump_CG::find_energy_and_virial(
   gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
-  cpu_energy_bead_ += cpu_thermo[1] * relative_dof;
-  cpu_virial_bead_[0] += cpu_total_virial_[0] * relative_dof;
-  cpu_virial_bead_[1] += cpu_total_virial_[3] * relative_dof;
-  cpu_virial_bead_[2] += cpu_total_virial_[4] * relative_dof;
-  cpu_virial_bead_[3] += cpu_total_virial_[3] * relative_dof;
-  cpu_virial_bead_[4] += cpu_total_virial_[1] * relative_dof;
-  cpu_virial_bead_[5] += cpu_total_virial_[5] * relative_dof;
-  cpu_virial_bead_[6] += cpu_total_virial_[4] * relative_dof;
-  cpu_virial_bead_[7] += cpu_total_virial_[5] * relative_dof;
-  cpu_virial_bead_[8] += cpu_total_virial_[2] * relative_dof;
+  cpu_energy_bead_ += cpu_thermo[1];
+  cpu_virial_bead_[0] += cpu_total_virial_[0];
+  cpu_virial_bead_[1] += cpu_total_virial_[3];
+  cpu_virial_bead_[2] += cpu_total_virial_[4];
+  cpu_virial_bead_[3] += cpu_total_virial_[3];
+  cpu_virial_bead_[4] += cpu_total_virial_[1];
+  cpu_virial_bead_[5] += cpu_total_virial_[5];
+  cpu_virial_bead_[6] += cpu_total_virial_[4];
+  cpu_virial_bead_[7] += cpu_total_virial_[5];
+  cpu_virial_bead_[8] += cpu_total_virial_[2];
 }
 
 void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step)
@@ -216,7 +215,6 @@ void Dump_CG::process(
       max_bead_size = g.cpu_size[b];
     }
   }
-  double relative_dof = double(num_beads) / num_atoms_total;
   double relative_step = double(dump_interval_) / number_of_steps;
 
   // accumulate force
@@ -233,7 +231,7 @@ void Dump_CG::process(
     }
   }
 
-  find_energy_and_virial(atom.virial_per_atom, thermo, relative_dof);
+  find_energy_and_virial(atom.virial_per_atom, thermo);
 
   // output data
   if ((step + 1) == number_of_steps) {
