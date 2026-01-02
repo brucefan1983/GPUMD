@@ -104,6 +104,7 @@ void Dump_CG::preprocess(
   cpu_total_virial_.resize(6);
   cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   bead_name_.resize(atom.number_of_atoms);
+  cpu_force_bead_.resize(group[grouping_method_].number * 3);
 
   std::ifstream input("bead_name.txt");
   if (!input.is_open()) {
@@ -203,67 +204,75 @@ void Dump_CG::process(
   }
   double relative_dof = double(num_beads) / num_atoms_total;
 
-  // line 1
-  fprintf(fid_, "%d\n", num_beads);
-
-  // line 2
-  output_line2(fid_, box, atom.virial_per_atom, thermo, relative_dof);
-
-  std::vector<double> xyz_bead(max_bead_size * 3);
-  std::vector<double> mass_bead(max_bead_size);
-  std::vector<double> force_bead(max_bead_size * 3);
-
-  // other lines
+  // accumulate force
   for (int b = 0; b < num_beads; b++) {
-
-    for (int k = 0; k < g.cpu_size[b]; ++k) {
-      int n = g.cpu_contents[g.cpu_size_sum[b] + k];
-      mass_bead[k] = atom.cpu_mass[n];
-      for (int d = 0; d < 3; ++d) {
-        xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
-        force_bead[k + max_bead_size * d] = cpu_force_per_atom_[n + num_atoms_total * d];
-      }
-    }
-
-    for (int k = 1; k < g.cpu_size[b]; ++k) {
-      double pos_diff[3];
-      for (int d = 0; d < 3; ++d) {
-        pos_diff[d] = xyz_bead[k + max_bead_size * d] - xyz_bead[0 + max_bead_size * d];
-      }
-      apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-      for (int d = 0; d < 3; ++d) {
-        xyz_bead[k + max_bead_size * d] = xyz_bead[0 + max_bead_size * d] + pos_diff[d];
-      }
-    }
-   
-    double r_com[3] = {0.0, 0.0, 0.0};
-    double m_com = 0;
-    for (int k = 0; k < g.cpu_size[b]; ++k) {
-      m_com += mass_bead[k];
-      for (int d = 0; d < 3; ++d) {
-        r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
-      }
-    }
-
-    fprintf(fid_, "%s", bead_name_[g.cpu_contents[g.cpu_size_sum[b] + 0]].c_str());
-    for (int d = 0; d < 3; ++d) {
-      r_com[d] /= m_com;
-      fprintf(fid_, " %.8f", r_com[d]);
-    }
-
     double f_com[3] = {0.0, 0.0, 0.0};
     for (int k = 0; k < g.cpu_size[b]; ++k) {
+      int n = g.cpu_contents[g.cpu_size_sum[b] + k];
       for (int d = 0; d < 3; ++d) {
-        f_com[d] += force_bead[k + max_bead_size * d];
+        f_com[d] += cpu_force_per_atom_[n + num_atoms_total * d];
       }
     }
-
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", f_com[d]);
+      cpu_force_bead_[num_beads * d + b] += f_com[d];
     }
-    fprintf(fid_, "\n");
   }
-  fflush(fid_);
+
+  // output data
+  if ((step + 1) == number_of_steps) {
+    // line 1
+    fprintf(fid_, "%d\n", num_beads);
+
+    // line 2
+    output_line2(fid_, box, atom.virial_per_atom, thermo, relative_dof);
+
+    std::vector<double> xyz_bead(max_bead_size * 3);
+    std::vector<double> mass_bead(max_bead_size);
+
+    // other lines
+    for (int b = 0; b < num_beads; b++) {
+
+      for (int k = 0; k < g.cpu_size[b]; ++k) {
+        int n = g.cpu_contents[g.cpu_size_sum[b] + k];
+        mass_bead[k] = atom.cpu_mass[n];
+        for (int d = 0; d < 3; ++d) {
+          xyz_bead[k + max_bead_size * d] = atom.cpu_position_per_atom[n + num_atoms_total * d];
+        }
+      }
+
+      for (int k = 1; k < g.cpu_size[b]; ++k) {
+        double pos_diff[3];
+        for (int d = 0; d < 3; ++d) {
+          pos_diff[d] = xyz_bead[k + max_bead_size * d] - xyz_bead[0 + max_bead_size * d];
+        }
+        apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+        for (int d = 0; d < 3; ++d) {
+          xyz_bead[k + max_bead_size * d] = xyz_bead[0 + max_bead_size * d] + pos_diff[d];
+        }
+      }
+   
+      double r_com[3] = {0.0, 0.0, 0.0};
+      double m_com = 0;
+      for (int k = 0; k < g.cpu_size[b]; ++k) {
+        m_com += mass_bead[k];
+        for (int d = 0; d < 3; ++d) {
+          r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
+        }
+      }
+
+      fprintf(fid_, "%s", bead_name_[g.cpu_contents[g.cpu_size_sum[b] + 0]].c_str());
+      for (int d = 0; d < 3; ++d) {
+        r_com[d] /= m_com;
+        fprintf(fid_, " %.8f", r_com[d]);
+      }
+
+      for (int d = 0; d < 3; ++d) {
+        fprintf(fid_, " %.8f", cpu_force_bead_[num_beads * d + b] * dump_interval_ / number_of_steps);
+      }
+      fprintf(fid_, "\n");
+    }
+    fflush(fid_);
+  }
 }
 
 void Dump_CG::postprocess(
