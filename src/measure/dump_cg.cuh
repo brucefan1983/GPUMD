@@ -62,15 +62,16 @@ private:
   int grouping_method_ = 0;
   FILE* fid_;
   char filename_[200];
-  void output_line2(
-    FILE* fid,
-    const Box& box,
+  void find_energy_and_virial(
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
     double relative_dof);
+  void output_line2(FILE* fid, const Box& box, double relative_step);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
   std::vector<std::string> bead_name_;
   std::vector<double> cpu_force_bead_;
+  double cpu_energy_bead_;
+  std::vector<double> cpu_virial_bead_;
 };

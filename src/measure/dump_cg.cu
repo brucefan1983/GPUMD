@@ -105,6 +105,8 @@ void Dump_CG::preprocess(
   cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   bead_name_.resize(atom.number_of_atoms);
   cpu_force_bead_.resize(group[grouping_method_].number * 3);
+  cpu_energy_bead_ = 0.0;
+  cpu_virial_bead_.resize(9);
 
   std::ifstream input("bead_name.txt");
   if (!input.is_open()) {
@@ -123,12 +125,31 @@ void Dump_CG::preprocess(
   }
 }
 
-void Dump_CG::output_line2(
-  FILE* fid,
-  const Box& box,
+void Dump_CG::find_energy_and_virial(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo,
   double relative_dof)
+{
+  // energy and virial (symmetric tensor) in eV
+  double cpu_thermo[8];
+  gpu_thermo.copy_to_host(cpu_thermo, 8);
+  const int N = virial_per_atom.size() / 9;
+  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
+  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
+
+  cpu_energy_bead_ += cpu_thermo[1] * relative_dof;
+  cpu_virial_bead_[0] += cpu_total_virial_[0] * relative_dof;
+  cpu_virial_bead_[1] += cpu_total_virial_[3] * relative_dof;
+  cpu_virial_bead_[2] += cpu_total_virial_[4] * relative_dof;
+  cpu_virial_bead_[3] += cpu_total_virial_[3] * relative_dof;
+  cpu_virial_bead_[4] += cpu_total_virial_[1] * relative_dof;
+  cpu_virial_bead_[5] += cpu_total_virial_[5] * relative_dof;
+  cpu_virial_bead_[6] += cpu_total_virial_[4] * relative_dof;
+  cpu_virial_bead_[7] += cpu_total_virial_[5] * relative_dof;
+  cpu_virial_bead_[8] += cpu_total_virial_[2] * relative_dof;
+}
+
+void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step)
 {
   // PBC
   fprintf(
@@ -148,26 +169,19 @@ void Dump_CG::output_line2(
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  // energy and virial (symmetric tensor) in eV
-  double cpu_thermo[8];
-  gpu_thermo.copy_to_host(cpu_thermo, 8);
-  const int N = virial_per_atom.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
-  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
-
-  fprintf(fid, " energy=%.8f", cpu_thermo[1] * relative_dof);
+  fprintf(fid, " energy=%.8f", cpu_energy_bead_ * relative_step);
   fprintf(
     fid,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0] * relative_dof,
-    cpu_total_virial_[3] * relative_dof,
-    cpu_total_virial_[4] * relative_dof,
-    cpu_total_virial_[3] * relative_dof,
-    cpu_total_virial_[1] * relative_dof,
-    cpu_total_virial_[5] * relative_dof,
-    cpu_total_virial_[4] * relative_dof,
-    cpu_total_virial_[5] * relative_dof,
-    cpu_total_virial_[2] * relative_dof);
+    cpu_virial_bead_[0] * relative_step,
+    cpu_virial_bead_[1] * relative_step,
+    cpu_virial_bead_[2] * relative_step,
+    cpu_virial_bead_[3] * relative_step,
+    cpu_virial_bead_[4] * relative_step,
+    cpu_virial_bead_[5] * relative_step,
+    cpu_virial_bead_[6] * relative_step,
+    cpu_virial_bead_[7] * relative_step,
+    cpu_virial_bead_[8] * relative_step);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3:forces:R:3\n");
@@ -203,6 +217,7 @@ void Dump_CG::process(
     }
   }
   double relative_dof = double(num_beads) / num_atoms_total;
+  double relative_step = double(dump_interval_) / number_of_steps;
 
   // accumulate force
   for (int b = 0; b < num_beads; b++) {
@@ -218,13 +233,15 @@ void Dump_CG::process(
     }
   }
 
+  find_energy_and_virial(atom.virial_per_atom, thermo, relative_dof);
+
   // output data
   if ((step + 1) == number_of_steps) {
     // line 1
     fprintf(fid_, "%d\n", num_beads);
 
     // line 2
-    output_line2(fid_, box, atom.virial_per_atom, thermo, relative_dof);
+    output_line2(fid_, box, relative_step);
 
     std::vector<double> xyz_bead(max_bead_size * 3);
     std::vector<double> mass_bead(max_bead_size);
@@ -267,7 +284,7 @@ void Dump_CG::process(
       }
 
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_bead_[num_beads * d + b] * dump_interval_ / number_of_steps);
+        fprintf(fid_, " %.8f", cpu_force_bead_[num_beads * d + b] * relative_step);
       }
       fprintf(fid_, "\n");
     }
