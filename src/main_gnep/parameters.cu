@@ -242,14 +242,6 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_cutoff_set) {
-    printf("    (input)   radial cutoff = %g A.\n", rc_radial);
-    printf("    (input)   angular cutoff = %g A.\n", rc_angular);
-  } else {
-    printf("    (default) radial cutoff = %g A.\n", rc_radial);
-    printf("    (default) angular cutoff = %g A.\n", rc_angular);
-  }
-
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);

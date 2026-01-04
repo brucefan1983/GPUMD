@@ -91,7 +91,8 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
-  lambda_q = 0.1f;             // need to test
+  lambda_q = 0.5f;             // close to optimal
+  lambda_z = 0.5f;             // close to optimal
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   use_full_batch = 0;          // default is not to enable effective full-batch
@@ -446,16 +447,18 @@ void Parameters::report_inputs()
 
   if (is_charge_mode_set) {
     if (charge_mode == 1) {
-      printf("    (input)   use NEP-Charge and include both real-space and k-space; lambda_q = %g.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
-      printf("    (input)   use NEP-Charge and include k-space only; lambda_q = %g.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include k-space only.\n");
     } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge and include real-space only; lambda_q = %g.\n", lambda_q);
+      printf("    (input)   use NEP-Charge and include real-space only.\n");
     } else if (charge_mode == 4) {
-      printf("    (input)   use NEP-Charge-VdW and include k-space only; lambda_q = %g.\n", lambda_q);
+      printf("    (input)   use NEP-Charge-VdW and include k-space only.\n");
     } else if (charge_mode == 5) {
-      printf("    (input)   use NEP-Charge-VdW and include real-space only; lambda_q = %g.\n", lambda_q);
+      printf("    (input)   use NEP-Charge-VdW and include real-space only.\n");
     }
+    printf("        lambda_q = %g.\n", lambda_q);
+    printf("        lambda_z = %g.\n", lambda_z);
 
     if (has_multiple_cutoffs) {
       PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
@@ -631,6 +634,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_v(param, num_param);
   } else if (strcmp(param[0], "lambda_q") == 0) {
     parse_lambda_q(param, num_param);
+  } else if (strcmp(param[0], "lambda_z") == 0) {
+    parse_lambda_z(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -1099,6 +1104,23 @@ void Parameters::parse_lambda_q(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_lambda_z(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_z should have 1 parameter.\n");
+  }
+
+  double lambda_z_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_z_tmp)) {
+    PRINT_INPUT_ERROR("BEC loss weight should be a number.\n");
+  }
+  lambda_z = lambda_z_tmp;
+
+  if (lambda_z < 0.0f) {
+    PRINT_INPUT_ERROR("BEC loss weight should >= 0.");
+  }
+}
+
 void Parameters::parse_atomic_v(const char** param, int num_param)
 {
   is_atomic_v_set = true;
@@ -1307,12 +1329,21 @@ void Parameters::parse_fine_tune(const char** param, int num_param)
 {
   fine_tune = 1;
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("fine_tune should have two parameters.\n");
+  if (num_param != 3 && num_param != 4) {
+    PRINT_INPUT_ERROR("fine_tune should have 2 or 3 parameters.\n");
   }
 
   fine_tune_nep_txt = param[1];
   fine_tune_nep_restart = param[2];
+
+  if (num_param == 4) {
+    if (!is_valid_int(param[3], &fine_tune_descriptor)) {
+      PRINT_INPUT_ERROR("fine_tune_descriptor should be an integer.\n");
+    }
+    if (fine_tune_descriptor < 0 || fine_tune_descriptor > 1) {
+      PRINT_INPUT_ERROR("fine_tune_descriptor should be 0 or 1.");
+    }
+  }
 }
 
 void Parameters::parse_save_potential(const char** param, int num_param)

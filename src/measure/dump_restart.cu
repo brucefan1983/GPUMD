@@ -47,12 +47,6 @@ void Dump_Restart::parse(const char** param, int num_param)
   }
   dump_ = true;
   printf("Dump restart every %d steps.\n", dump_interval_);
-
-  print_line_1();
-  printf("Warning: Starting from GPUMD-v3.4, the velocity data in restart.xyz will be in units of "
-         "Angstrom/fs\n");
-  printf("         Previously they are in units of 1/1.018051e+1 Angstrom/fs.\n");
-  print_line_2();
 }
 
 void Dump_Restart::preprocess(

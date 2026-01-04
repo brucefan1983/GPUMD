@@ -149,7 +149,14 @@ Fitness::~Fitness()
 }
 
 void Fitness::compute(
-  const int generation, Parameters& para, const float* population, float* fitness)
+  const int generation, 
+  Parameters& para, 
+  const float* population, 
+  float* fitness_energy,
+  float* fitness_force,
+  float* fitness_virial,
+  float* fitness_charge,
+  float* fitness_bec)
 {
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -180,20 +187,19 @@ void Fitness::compute(
         auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
         auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
         auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
+        auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
 
         for (int t = 0; t <= para.num_types; ++t) {
-          fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] =
+          fitness_energy[deviceCount * n + m + t * para.population_size] =
             para.lambda_e * rmse_energy_array[t];
-          fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] =
+          fitness_force[deviceCount * n + m + t * para.population_size] =
             para.lambda_f * rmse_force_array[t];
-          fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] =
+          fitness_virial[deviceCount * n + m + t * para.population_size] =
             para.lambda_v * rmse_virial_array[t];
-          if (para.charge_mode) {
-            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] =
-              para.lambda_q * rmse_charge_array[t];
-          } else {
-            fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = 0.0f;
-          }
+          fitness_charge[deviceCount * n + m + t * para.population_size] =
+            para.lambda_q * rmse_charge_array[t];
+          fitness_bec[deviceCount * n + m + t * para.population_size] =
+            para.lambda_z * rmse_bec_array[t];
         }
       }
     }
@@ -216,33 +222,38 @@ void Fitness::compute(
             auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
             auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
             auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
+            auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
-              float old_value = fitness[deviceCount * n + m + (7 * t + 3) * para.population_size];
+              float old_value = fitness_energy[deviceCount * n + m + t * para.population_size];
               float new_value = para.lambda_e * rmse_energy_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 3) * para.population_size] = new_value;
+              fitness_energy[deviceCount * n + m + t * para.population_size] = new_value;
               // force
-              old_value = fitness[deviceCount * n + m + (7 * t + 4) * para.population_size];
+              old_value = fitness_force[deviceCount * n + m + t * para.population_size];
               new_value = para.lambda_f * rmse_force_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 4) * para.population_size] = new_value;
+              fitness_force[deviceCount * n + m + t * para.population_size] = new_value;
               // virial
-              old_value = fitness[deviceCount * n + m + (7 * t + 5) * para.population_size];
+              old_value = fitness_virial[deviceCount * n + m + t * para.population_size];
               new_value = para.lambda_v * rmse_virial_array[t];
               new_value = old_value * old_value * count_batch + new_value * new_value;
               new_value = sqrt(new_value / (count_batch + 1));
-              fitness[deviceCount * n + m + (7 * t + 5) * para.population_size] = new_value;
+              fitness_virial[deviceCount * n + m + t * para.population_size] = new_value;
               // charge
-              if (para.charge_mode) {
-                old_value = fitness[deviceCount * n + m + (7 * t + 6) * para.population_size];
-                new_value = para.lambda_q * rmse_charge_array[t];
-                new_value = old_value * old_value * count_batch + new_value * new_value;
-                new_value = sqrt(new_value / (count_batch + 1));
-                fitness[deviceCount * n + m + (7 * t + 6) * para.population_size] = new_value;
-              }
+              old_value = fitness_charge[deviceCount * n + m + t * para.population_size];
+              new_value = para.lambda_q * rmse_charge_array[t];
+              new_value = old_value * old_value * count_batch + new_value * new_value;
+              new_value = sqrt(new_value / (count_batch + 1));
+              fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
+              // BEC
+              old_value = fitness_bec[deviceCount * n + m + t * para.population_size];
+              new_value = para.lambda_z * rmse_bec_array[t];
+              new_value = old_value * old_value * count_batch + new_value * new_value;
+              new_value = sqrt(new_value / (count_batch + 1));
+              fitness_bec[deviceCount * n + m + t * para.population_size] = new_value;
             }
           }
         }
@@ -435,10 +446,14 @@ void Fitness::report_error(
       train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
     auto rmse_force_train_array = train_set[batch_id][0].get_rmse_force(para, false, 0);
     auto rmse_virial_train_array = train_set[batch_id][0].get_rmse_virial(para, false, 0);
+    auto rmse_charge_train_array = train_set[batch_id][0].get_rmse_charge(para, 0);
+    auto rmse_bec_train_array = train_set[batch_id][0].get_rmse_bec(para, 0);
 
     float rmse_energy_train = rmse_energy_train_array.back();
     float rmse_force_train = rmse_force_train_array.back();
     float rmse_virial_train = rmse_virial_train_array.back();
+    float rmse_charge_train = rmse_charge_train_array.back();
+    float rmse_bec_train = rmse_bec_train_array.back();
 
     // correct the last bias parameter in the NN
     if (para.train_mode == 0 || para.train_mode == 3) {
@@ -448,6 +463,8 @@ void Fitness::report_error(
     float rmse_energy_test = 0.0f;
     float rmse_force_test = 0.0f;
     float rmse_virial_test = 0.0f;
+    float rmse_charge_test = 0.0f;
+    float rmse_bec_test = 0.0f;
     if (has_test_set) {
       potential->find_force(para, elite, test_set, false, true, 1);
       float energy_shift_per_structure_not_used;
@@ -455,9 +472,13 @@ void Fitness::report_error(
         test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
       auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, 0);
       auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, 0);
+      auto rmse_charge_test_array = test_set[0].get_rmse_charge(para, 0);
+      auto rmse_bec_test_array = test_set[0].get_rmse_bec(para, 0);
       rmse_energy_test = rmse_energy_test_array.back();
       rmse_force_test = rmse_force_test_array.back();
       rmse_virial_test = rmse_virial_test_array.back();
+      rmse_charge_test = rmse_charge_test_array.back();
+      rmse_bec_test = rmse_bec_test_array.back();
     }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
@@ -475,32 +496,71 @@ void Fitness::report_error(
     }
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_energy_train,
-        rmse_force_train,
-        rmse_virial_train,
-        rmse_energy_test,
-        rmse_force_test,
-        rmse_virial_test);
+      if (!para.charge_mode) {
+        // NEP models
+        printf(
+          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          generation + 1,
+          loss_total,
+          loss_L1,
+          loss_L2,
+          rmse_energy_train,
+          rmse_force_train,
+          rmse_virial_train,
+          rmse_energy_test,
+          rmse_force_test,
+          rmse_virial_test);
+        fprintf(
+          fid_loss_out,
+          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          generation + 1,
+          loss_total,
+          loss_L1,
+          loss_L2,
+          rmse_energy_train,
+          rmse_force_train,
+          rmse_virial_train,
+          rmse_energy_test,
+          rmse_force_test,
+          rmse_virial_test);
+      } else {
+        // qNEP models:
+        printf(
+          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
+          generation + 1,
+          loss_total,
+          loss_L1,
+          loss_L2,
+          rmse_energy_train,
+          rmse_force_train,
+          rmse_virial_train,
+          rmse_charge_train,
+          rmse_bec_train,
+          rmse_energy_test,
+          rmse_force_test,
+          rmse_virial_test,
+          rmse_charge_test,
+          rmse_bec_test);
+        fprintf(
+          fid_loss_out,
+          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
+          generation + 1,
+          loss_total,
+          loss_L1,
+          loss_L2,
+          rmse_energy_train,
+          rmse_force_train,
+          rmse_virial_train,
+          rmse_charge_train,
+          rmse_bec_train,
+          rmse_energy_test,
+          rmse_force_test,
+          rmse_virial_test,
+          rmse_charge_test,
+          rmse_bec_test);
+      }
     } else {
+      // TNEP models:
       printf(
         "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
         generation + 1,

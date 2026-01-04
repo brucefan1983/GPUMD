@@ -28,7 +28,7 @@ class Fitness
 public:
   Fitness(Parameters& para);
   ~Fitness();
-  void compute(const int generation, Parameters& para, const float*, float*);
+  void compute(const int generation, Parameters& para, const float*, float*, float*, float*, float*, float*);
   void report_error(
     Parameters& para,
     const int generation,

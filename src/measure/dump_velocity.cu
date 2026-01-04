@@ -58,14 +58,6 @@ void Dump_Velocity::parse(const char** param, int num_param, const std::vector<G
       PRINT_INPUT_ERROR("Unrecognized argument in dump_velocity.\n");
     }
   }
-
-  print_line_1();
-  printf("Warning: Starting from GPUMD-v3.4, the velocity data in velocity.out will be in units of "
-         "Angstrom/fs\n");
-  printf("         Previously they are in units of Angstrom/ps.\n");
-  printf("         The reason for this change is to make it consistent with the extendend XYZ "
-         "format.\n");
-  print_line_2();
 }
 
 void Dump_Velocity::preprocess(

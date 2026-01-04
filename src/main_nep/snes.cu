@@ -52,7 +52,14 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
     num /= para.num_types;
   }
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
-  fitness.resize(population_size * 7 * (para.num_types + 1));
+  fitness_total.resize(population_size * (para.num_types + 1));
+  fitness_L1.resize(population_size * (para.num_types + 1));
+  fitness_L2.resize(population_size * (para.num_types + 1));
+  fitness_energy.resize(population_size * (para.num_types + 1));
+  fitness_force.resize(population_size * (para.num_types + 1));
+  fitness_virial.resize(population_size * (para.num_types + 1));
+  fitness_charge.resize(population_size * (para.num_types + 1));
+  fitness_bec.resize(population_size * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
   mu.resize(number_of_variables);
@@ -199,11 +206,11 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
           int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
           int t12 = element_index_1 * NUM89 + element_index_2;
           mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
-#ifdef FINE_TUNE_DESCRIPTOR
-          sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
-#else
-          sigma[count] = 0.0f * restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
-#endif
+          if (para.fine_tune_descriptor) {
+            sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+          } else {
+            sigma[count] = 0.0f;
+          }
           ++count;
         }
       }
@@ -311,18 +318,37 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-E-Train",
-        "RMSE-F-Train",
-        "RMSE-V-Train",
-        "RMSE-E-Test",
-        "RMSE-F-Test",
-        "RMSE-V-Test");
+      if (!para.charge_mode) {
+        printf(
+          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-E-Train",
+          "RMSE-F-Train",
+          "RMSE-V-Train",
+          "RMSE-E-Test",
+          "RMSE-F-Test",
+          "RMSE-V-Test");
+      } else {
+        printf(
+          "%-8s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s\n",
+          "Step",
+          "Total",
+          "L1Reg",
+          "L2Reg",
+          "E-Train",
+          "F-Train",
+          "V-Train",
+          "Q-Train",
+          "Z-Train",
+          "E-Test",
+          "F-Test",
+          "V-Test",
+          "Q-Test",
+          "Z-Test");
+      }
     } else {
       printf(
         "%-8s%-11s%-11s%-11s%-13s%-13s\n",
@@ -338,7 +364,15 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
     for (int n = 0; n < maximum_generation; ++n) {
       create_population(para);
-      fitness_function->compute(n, para, population.data(), fitness.data());
+      fitness_function->compute(
+        n, 
+        para, 
+        population.data(), 
+        fitness_energy.data(),
+        fitness_force.data(),
+        fitness_virial.data(),
+        fitness_charge.data(),
+        fitness_bec.data());
 
       if (para.version != 3) {
         regularize_NEP4(para);
@@ -349,15 +383,12 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       sort_population(para);
 
       int best_index = index[para.num_types * population_size];
-      float fitness_total = fitness[0 + (7 * para.num_types + 0) * population_size];
-      float fitness_L1 = fitness[best_index + (7 * para.num_types + 1) * population_size];
-      float fitness_L2 = fitness[best_index + (7 * para.num_types + 2) * population_size];
       fitness_function->report_error(
         para,
         n,
-        fitness_total,
-        fitness_L1,
-        fitness_L2,
+        fitness_total[para.num_types * population_size + 0], // already sorted, hence 0
+        fitness_L1[para.num_types * population_size + best_index],
+        fitness_L2[para.num_types * population_size + best_index],
         population.data() + number_of_variables * best_index);
 
       update_mu_and_sigma(para);
@@ -511,12 +542,12 @@ void SNES::regularize_NEP4(Parameters& para)
     for (int p = 0; p < population_size; ++p) {
       float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
       float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
-      fitness[p + (7 * t + 0) * population_size] =
-        cost_L1 + cost_L2 + fitness[p + (7 * t + 3) * population_size] +
-        fitness[p + (7 * t + 4) * population_size] + fitness[p + (7 * t + 5) * population_size] +
-        fitness[p + (7 * t + 6) * population_size];
-      fitness[p + (7 * t + 1) * population_size] = cost_L1;
-      fitness[p + (7 * t + 2) * population_size] = cost_L2;
+      fitness_total[p + t * population_size] =
+        cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
+        fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
+        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
+      fitness_L1[p + t * population_size] = cost_L1;
+      fitness_L2[p + t * population_size] = cost_L2;
     }
   }
 }
@@ -568,12 +599,12 @@ void SNES::regularize(Parameters& para)
     float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / number_of_variables);
 
     for (int t = 0; t <= para.num_types; ++t) {
-      fitness[p + (7 * t + 0) * population_size] =
-        cost_L1 + cost_L2 + fitness[p + (7 * t + 3) * population_size] +
-        fitness[p + (7 * t + 4) * population_size] + fitness[p + (7 * t + 5) * population_size] +
-        fitness[p + (7 * t + 6) * population_size];
-      fitness[p + (7 * t + 1) * population_size] = cost_L1;
-      fitness[p + (7 * t + 2) * population_size] = cost_L2;
+      fitness_total[p + t * population_size] =
+        cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
+        fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
+        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
+      fitness_L1[p + t * population_size] = cost_L1;
+      fitness_L2[p + t * population_size] = cost_L2;
     }
   }
 }
@@ -601,7 +632,7 @@ void SNES::sort_population(Parameters& para)
     }
 
     insertion_sort(
-      fitness.data() + t * population_size * 7,
+      fitness_total.data() + t * population_size,
       index.data() + t * population_size,
       population_size);
   }
