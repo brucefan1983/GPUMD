@@ -38,7 +38,7 @@ GNEP setup
 ==========
 
 GNEP stands for a method of training NEP models using analytical Gradients (G stands for Gradients).
-See The `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for details.
+See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for details.
 
 To compile the ``gnep`` executable, one can run ``make gnep`` in the ``src`` directory.
 
