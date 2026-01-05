@@ -148,7 +148,7 @@ void Dump_CG::find_energy_and_virial(
   cpu_virial_bead_[8] += cpu_total_virial_[2];
 }
 
-void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step)
+void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step, double extra_virial)
 {
   // PBC
   fprintf(
@@ -172,15 +172,15 @@ void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step)
   fprintf(
     fid,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_virial_bead_[0] * relative_step,
+    cpu_virial_bead_[0] * relative_step + extra_virial,
     cpu_virial_bead_[1] * relative_step,
     cpu_virial_bead_[2] * relative_step,
     cpu_virial_bead_[3] * relative_step,
-    cpu_virial_bead_[4] * relative_step,
+    cpu_virial_bead_[4] * relative_step + extra_virial,
     cpu_virial_bead_[5] * relative_step,
     cpu_virial_bead_[6] * relative_step,
     cpu_virial_bead_[7] * relative_step,
-    cpu_virial_bead_[8] * relative_step);
+    cpu_virial_bead_[8] * relative_step + extra_virial);
 
   // Properties
   fprintf(fid, " Properties=species:S:1:pos:R:3:forces:R:3\n");
@@ -238,8 +238,10 @@ void Dump_CG::process(
     // line 1
     fprintf(fid_, "%d\n", num_beads);
 
+    double extra_virial = (num_atoms_total - num_beads) * K_B * temperature;
+
     // line 2
-    output_line2(fid_, box, relative_step);
+    output_line2(fid_, box, relative_step, extra_virial);
 
     std::vector<double> xyz_bead(max_bead_size * 3);
     std::vector<double> mass_bead(max_bead_size);

@@ -65,7 +65,7 @@ private:
   void find_energy_and_virial(
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
-  void output_line2(FILE* fid, const Box& box, double relative_step);
+  void output_line2(FILE* fid, const Box& box, double relative_step, double extra_virial);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
