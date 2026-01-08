@@ -62,6 +62,19 @@ private:
   int grouping_method_ = 0;
   FILE* fid_;
   char filename_[200];
+
+  void accumulate_force(const int num_beads, const int num_atoms_total, Group& g);
+  void find_position_bead(
+    const int num_beads, 
+    const int num_atoms_total, 
+    const int max_bead_size,
+    const Group& g,
+    Box& box,
+    const std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& mass_bead,
+    std::vector<double>& xyz_bead);
+
   void find_energy_and_virial(
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
@@ -70,6 +83,7 @@ private:
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
   std::vector<std::string> bead_name_;
+  std::vector<double> cpu_position_bead_;
   std::vector<double> cpu_force_bead_;
   double cpu_energy_bead_;
   std::vector<double> cpu_virial_bead_;
