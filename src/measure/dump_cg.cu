@@ -108,6 +108,7 @@ void Dump_CG::preprocess(
   cpu_force_bead_.resize(group[grouping_method_].number * 3);
   cpu_energy_bead_ = 0.0;
   cpu_virial_bead_.resize(9);
+  rdf_.resize(Ng_);
 
   std::ifstream input("bead_name.txt");
   if (!input.is_open()) {
@@ -187,6 +188,39 @@ void Dump_CG::find_position_bead(
         cpu_position_bead_[num_beads * d + b] = r_com[d] / m_com;
       }
     }
+}
+
+void Dump_CG::find_rdf(const int num_beads, Box& box)
+{
+  const double dr = rc_ / Ng_;
+  const double rho = num_beads / box.get_volume();
+  double g_temp[Ng_] = {0.0};
+
+  for (int b1 = 0; b1 < num_beads; b1++) {
+    double x1 = cpu_position_bead_[num_beads * 0 + b1];
+    double y1 = cpu_position_bead_[num_beads * 1 + b1];
+    double z1 = cpu_position_bead_[num_beads * 2 + b1];
+    for (int b2 = 0; b2 < num_beads; b2++) {
+      if (b1 == b2) {
+        continue;
+      }
+      double x12 = cpu_position_bead_[num_beads * 0 + b2] - x1;
+      double y12 = cpu_position_bead_[num_beads * 1 + b2] - y1;
+      double z12 = cpu_position_bead_[num_beads * 2 + b2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      if (d12 < rc_) {
+        const int index = d12 / dr;
+        g_temp[index] += 1.0;
+      }
+    }
+  }
+
+  for (int n = 0; n < Ng_; ++n) {
+    double R = dr * (n + 1.0);
+    double dV = 4.0 * PI * R * R * dr;
+    rdf_[n] += g_temp[n] / (num_beads * dV * rho);
+  }
 }
 
 void Dump_CG::find_energy_and_virial(
@@ -294,6 +328,8 @@ void Dump_CG::process(
     mass_bead,
     xyz_bead);
 
+  find_rdf(num_beads, box);
+
   double relative_step = double(dump_interval_) / number_of_steps;
 
   accumulate_force(num_beads, num_atoms_total, g);
@@ -322,6 +358,13 @@ void Dump_CG::process(
       fprintf(fid_, "\n");
     }
     fflush(fid_);
+
+    // output rdf
+    FILE* fid_rdf = my_fopen("rdf_cg.out", "a");
+    for (int n = 0; n < Ng_; ++n) {
+      fprintf(fid_rdf, "%.8f %.8f\n", (n+1) * rc_ / Ng_, rdf_[n] * relative_step);
+    }
+    fclose(fid_rdf);
   }
 }
 

@@ -74,6 +74,7 @@ private:
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& mass_bead,
     std::vector<double>& xyz_bead);
+  void find_rdf(const int num_beads, Box& box);
 
   void find_energy_and_virial(
     GPU_Vector<double>& virial_per_atom,
@@ -87,4 +88,7 @@ private:
   std::vector<double> cpu_force_bead_;
   double cpu_energy_bead_;
   std::vector<double> cpu_virial_bead_;
+  std::vector<double> rdf_;
+  int Ng_ = 200;
+  double rc_ = 6.0;
 };
