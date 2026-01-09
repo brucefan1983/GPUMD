@@ -327,8 +327,9 @@ void Dump_CG::process(
     atom.cpu_position_per_atom,
     mass_bead,
     xyz_bead);
-
+#ifdef CG_RDF
   find_rdf(num_beads, box);
+#endif
 
   double relative_step = double(dump_interval_) / number_of_steps;
 
@@ -359,12 +360,13 @@ void Dump_CG::process(
     }
     fflush(fid_);
 
-    // output rdf
+#ifdef CG_RDF
     FILE* fid_rdf = my_fopen("rdf_cg.out", "a");
     for (int n = 0; n < Ng_; ++n) {
       fprintf(fid_rdf, "%.8f %.8f\n", (n+1) * rc_ / Ng_, rdf_[n] * relative_step);
     }
     fclose(fid_rdf);
+#endif
   }
 }
 
