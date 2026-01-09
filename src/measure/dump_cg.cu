@@ -138,7 +138,7 @@ void Dump_CG::accumulate_force(const int num_beads, const int num_atoms_total, G
       }
     }
     for (int d = 0; d < 3; ++d) {
-      cpu_force_bead_[num_beads * d + b] += f_com[d];
+      cpu_force_bead_[num_beads * d + b] = f_com[d];
     }
   }
 }
@@ -234,16 +234,16 @@ void Dump_CG::find_energy_and_virial(
   gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
-  cpu_energy_bead_ += cpu_thermo[1];
-  cpu_virial_bead_[0] += cpu_total_virial_[0];
-  cpu_virial_bead_[1] += cpu_total_virial_[3];
-  cpu_virial_bead_[2] += cpu_total_virial_[4];
-  cpu_virial_bead_[3] += cpu_total_virial_[3];
-  cpu_virial_bead_[4] += cpu_total_virial_[1];
-  cpu_virial_bead_[5] += cpu_total_virial_[5];
-  cpu_virial_bead_[6] += cpu_total_virial_[4];
-  cpu_virial_bead_[7] += cpu_total_virial_[5];
-  cpu_virial_bead_[8] += cpu_total_virial_[2];
+  cpu_energy_bead_ = cpu_thermo[1];
+  cpu_virial_bead_[0] = cpu_total_virial_[0];
+  cpu_virial_bead_[1] = cpu_total_virial_[3];
+  cpu_virial_bead_[2] = cpu_total_virial_[4];
+  cpu_virial_bead_[3] = cpu_total_virial_[3];
+  cpu_virial_bead_[4] = cpu_total_virial_[1];
+  cpu_virial_bead_[5] = cpu_total_virial_[5];
+  cpu_virial_bead_[6] = cpu_total_virial_[4];
+  cpu_virial_bead_[7] = cpu_total_virial_[5];
+  cpu_virial_bead_[8] = cpu_total_virial_[2];
 }
 
 void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step, double extra_virial)
@@ -338,14 +338,14 @@ void Dump_CG::process(
   find_energy_and_virial(atom.virial_per_atom, thermo);
 
   // output data
-  if ((step + 1) == number_of_steps) {
+  //if ((step + 1) == number_of_steps) {
     // line 1
     fprintf(fid_, "%d\n", num_beads);
 
     double extra_virial = (num_atoms_total - num_beads) * K_B * temperature;
 
     // line 2
-    output_line2(fid_, box, relative_step, extra_virial);
+    output_line2(fid_, box, 1, extra_virial);
 
     // other lines
     for (int b = 0; b < num_beads; b++) {
@@ -354,7 +354,7 @@ void Dump_CG::process(
         fprintf(fid_, " %.8f", cpu_position_bead_[num_beads * d + b]);
       }
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_bead_[num_beads * d + b] * relative_step);
+        fprintf(fid_, " %.8f", cpu_force_bead_[num_beads * d + b] * 1);
       }
       fprintf(fid_, "\n");
     }
@@ -367,7 +367,7 @@ void Dump_CG::process(
     }
     fclose(fid_rdf);
 #endif
-  }
+  //}
 }
 
 void Dump_CG::postprocess(
