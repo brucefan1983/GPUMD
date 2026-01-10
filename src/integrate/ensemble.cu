@@ -355,7 +355,57 @@ void Ensemble::velocity_verlet(
   const int number_of_atoms = mass.size();
 
   if (fixed_group == -1) {
-#ifdef CG
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      is_step1,
+      number_of_atoms,
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
+  } else {
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      is_step1,
+      number_of_atoms,
+      fixed_group,
+      move_group,
+      move_velocity[0],
+      move_velocity[1],
+      move_velocity[2],
+      group[0].label.data(),
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
+  }
+  GPU_CHECK_KERNEL
+}
+
+void Ensemble::velocity_verlet_cg(
+  const bool is_step1,
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms = mass.size();
+
+  if (fixed_group == -1) {
     gpu_velocity_verlet_cg<<<(group[0].number - 1) / 128 + 1, 128>>>(
       is_step1,
       group[0].number,
@@ -373,22 +423,6 @@ void Ensemble::velocity_verlet(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
-#else
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      is_step1,
-      number_of_atoms,
-      time_step,
-      mass.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms);
-#endif
   } else {
     gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       is_step1,

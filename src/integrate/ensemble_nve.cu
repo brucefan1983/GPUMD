@@ -35,7 +35,7 @@ void Ensemble_NVE::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  velocity_verlet(
+  velocity_verlet_cg(
     true,
     time_step,
     group,
@@ -52,7 +52,7 @@ void Ensemble_NVE::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  velocity_verlet(
+  velocity_verlet_cg(
     false,
     time_step,
     group,
