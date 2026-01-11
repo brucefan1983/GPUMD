@@ -266,7 +266,7 @@ void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step, doub
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  fprintf(fid, " energy=%.8f", cpu_energy_bead_ * relative_step / 3.0);
+  fprintf(fid, " energy=%.8f", cpu_energy_bead_ * relative_step);
   fprintf(
     fid,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
