@@ -256,7 +256,8 @@ __global__ void transform_forces_kernel(
 
 // Kernel to update positions in unstrained coordinates
 __global__ void
-update_positions_unstrained_kernel(double* pos, const double* dr, const double* deform, int N)
+update_positions_unstrained_kernel(double* pos, const double* dr, 
+  int N)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < N) {
@@ -633,7 +634,8 @@ void Minimizer_FIRE2::compute(
       if (optimize_cell_) {
         // Update unstrained positions
         update_positions_unstrained_kernel<<<blocks, threads>>>(
-          pos_unstrained.data(), dr.data(), nullptr, N);
+          pos_unstrained.data(), dr.data(), 
+          N);
         GPU_CHECK_KERNEL
 
         // Update deformation gradient
@@ -683,7 +685,8 @@ void Minimizer_FIRE2::compute(
       } else {
         // Simple position update
         update_positions_unstrained_kernel<<<blocks, threads>>>(
-          position_per_atom.data(), dr.data(), nullptr, N);
+          position_per_atom.data(), dr.data(), 
+          N);
         GPU_CHECK_KERNEL
       }
 
@@ -847,7 +850,8 @@ void Minimizer_FIRE2::compute(
     if (optimize_cell_) {
       // Update unstrained positions
       update_positions_unstrained_kernel<<<blocks, threads>>>(
-        pos_unstrained.data(), dr.data(), nullptr, N);
+        pos_unstrained.data(), dr.data(), 
+         N);
       GPU_CHECK_KERNEL
 
       // Update deformation gradient
@@ -897,7 +901,8 @@ void Minimizer_FIRE2::compute(
     } else {
       // Simple position update
       update_positions_unstrained_kernel<<<blocks, threads>>>(
-        position_per_atom.data(), dr.data(), nullptr, N);
+        position_per_atom.data(), dr.data(), 
+         N);
       GPU_CHECK_KERNEL
     }
   }
