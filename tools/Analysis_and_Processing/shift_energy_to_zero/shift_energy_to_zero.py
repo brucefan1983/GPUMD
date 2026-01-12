@@ -90,6 +90,11 @@ for i in range(len(all_frames)):
         all_frames[i].new_array('forces',forces)
     except:
         pass
+    try:
+        stress = all_frames[i].get_stress(voigt=False)
+        all_frames[i].info['stress'] = stress
+    except:
+        pass
     all_frames[i].calc = None
     all_frames[i].info['energy'] = shifted_energy[i]
 write("shifted.xyz",all_frames)
