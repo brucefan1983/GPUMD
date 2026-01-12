@@ -21,7 +21,7 @@
 class Minimizer_FIRE2 : public Minimizer
 {
 private:
-  // FIRE2 algorithm parameters (as in Python implementation)
+  // FIRE2 algorithm parameters
   const double finc_ = 1.1;    // Time step increase factor
   const double fdec_ = 0.5;    // Time step decrease factor
   const double astart_ = 0.25; // Initial velocity mixing parameter
@@ -41,6 +41,9 @@ private:
   bool optimize_cell_;      // Whether to optimize cell
   bool hydrostatic_strain_; // Whether to apply hydrostatic strain only
   double cell_factor_;      // Scale factor for cell degrees of freedom (= number of atoms)
+  bool use_abc_;            // Whether to use abc
+  bool const_volume_;       // Whether to keep volume constant
+  double scalar_pressure_;  // Whether use external pressure
 
 public:
   // Constructor with cell optimization options
@@ -49,12 +52,18 @@ public:
     const int number_of_steps,
     const double force_tolerance,
     const bool optimize_cell = false,
-    const bool hydrostatic_strain = false)
+    const bool hydrostatic_strain = false,
+    const bool use_abc = false,
+    const bool const_volume = false,
+    const double scale_pressure = 0.0)
     : Minimizer(number_of_atoms, number_of_steps, force_tolerance),
       dt_(dt_0_),
       optimize_cell_(optimize_cell),
       hydrostatic_strain_(hydrostatic_strain),
-      cell_factor_(static_cast<double>(number_of_atoms))
+      use_abc_(use_abc),
+      const_volume_(const_volume),
+      cell_factor_(static_cast<double>(number_of_atoms)),
+      scalar_pressure_(scale_pressure)
   {
   }
 

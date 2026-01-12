@@ -34,6 +34,16 @@ __global__ void gpu_multiply(const int size, double a, double* b, double* c)
     c[n] = b[n] * a;
 }
 
+__global__ void filter_v(const int size, const double dt, const double maxstep, double* v)
+{
+  int n = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n < size) {
+    if (abs(v[n]) * dt > maxstep) {
+      v[n] = maxstep / dt * v[n] / abs(v[n]);
+    }
+  }
+}
+
 // Transpose a 3x3 matrix stored as 9-element array
 void transpose9(double* matrix)
 {
@@ -432,7 +442,7 @@ void Minimizer_FIRE2::compute(
   const int N = number_of_atoms_;
   const int size = N * 3;
   const int ndof = optimize_cell_ ? (size + 9) : size;
-  int base = 1; //(number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
+  int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
   // Initialize velocities and working arrays
   GPU_Vector<double> v(ndof, 0.0);
@@ -442,40 +452,17 @@ void Minimizer_FIRE2::compute(
   GPU_Vector<double> virial_tot(9);
   GPU_Vector<double> d_temp(1);
   GPU_Vector<double> pos_unstrained(size); // Store unstrained coordinates
-
+  scalar_pressure_ /= 160.2176621;
   double orig_box[9];
   if (optimize_cell_) {
     for (int i = 0; i < 9; i++) {
       orig_box[i] = box.cpu_h[i];
     }
-
-    // Convert current positions to unstrained coordinates
-    double cur_deform_grad[9];
-    solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
-    transpose9(cur_deform_grad);
-
-    double inv_deform_grad[9];
-    double identity[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-    solve_linear_equation_3x3(cur_deform_grad, identity, inv_deform_grad);
-    transpose9(inv_deform_grad);
-
-    double* d_inv_deform;
-    cudaMalloc(&d_inv_deform, 9 * sizeof(double));
-    cudaMemcpy(d_inv_deform, inv_deform_grad, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-    int threads = 256;
-    int blocks = (N + threads - 1) / threads;
-
-    // Copy positions to pos_unstrained and transform
     cudaMemcpy(
       pos_unstrained.data(),
       position_per_atom.data(),
       size * sizeof(double),
       cudaMemcpyDeviceToDevice);
-    to_unstrained_kernel<<<blocks, threads>>>(pos_unstrained.data(), d_inv_deform, N);
-    GPU_CHECK_KERNEL
-
-    cudaFree(d_inv_deform);
   }
 
   // FIRE2 parameters
@@ -484,15 +471,6 @@ void Minimizer_FIRE2::compute(
   int Nsteps = 0;
 
   printf("\nFIRE2 energy minimization started.\n");
-  if (optimize_cell_) {
-    printf("  Cell optimization enabled");
-    if (hydrostatic_strain_) {
-      printf(" (hydrostatic strain only)");
-    }
-    printf(".\n");
-  }
-
-  double scalar_pressure = 0.0;
 
   for (int step = 0; step < number_of_steps_; ++step) {
     // Compute forces and virial
@@ -521,7 +499,7 @@ void Minimizer_FIRE2::compute(
       virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
       virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
       double volume = box.get_volume();
-      double pv = scalar_pressure * volume;
+      double pv = scalar_pressure_ * volume;
       virial_cpu[0] += -pv;
       virial_cpu[4] += -pv;
       virial_cpu[8] += -pv;
@@ -562,6 +540,14 @@ void Minimizer_FIRE2::compute(
         virial_transformed[8] = trace / 3.0;
       }
 
+      // Apply const volume if needed
+      if (const_volume_) {
+        double trace = virial_transformed[0] + virial_transformed[4] + virial_transformed[8];
+        virial_transformed[0] -= trace / 3.0;
+        virial_transformed[4] -= trace / 3.0;
+        virial_transformed[8] -= trace / 3.0;
+      }
+
       // Scale by cell factor
       for (int i = 0; i < 9; i++) {
         virial_transformed[i] /= cell_factor_;
@@ -591,7 +577,7 @@ void Minimizer_FIRE2::compute(
     calculate_total_potential(potential_per_atom);
     double energy = cpu_total_potential_[0];
     if (optimize_cell_) {
-      energy += scalar_pressure * box.get_volume();
+      energy += scalar_pressure_ * box.get_volume();
     }
 
     // Print progress
@@ -607,6 +593,9 @@ void Minimizer_FIRE2::compute(
         "    step %d: E = %.10f eV, fmax = %.10f eV/A", step == 0 ? 0 : (step + 1), energy, fmax);
       if (optimize_cell_) {
         printf(", P = %.6f GPa", pressure);
+      }
+      if (const_volume_) {
+        printf(", volume = %.6f A^3", box.get_volume());
       }
       printf("\n");
 
@@ -723,7 +712,7 @@ void Minimizer_FIRE2::compute(
         virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
         virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
         double volume = box.get_volume();
-        double pv = scalar_pressure * volume;
+        double pv = scalar_pressure_ * volume;
         virial_cpu[0] += -pv;
         virial_cpu[4] += -pv;
         virial_cpu[8] += -pv;
@@ -779,47 +768,76 @@ void Minimizer_FIRE2::compute(
       v.fill(0.0);
       // NO continue here
     }
-
     // v += dt * f
     accelerate_velocity_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), f_extended.data(), dt, ndof);
     GPU_CHECK_KERNEL
 
-    // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
-    gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
-    GPU_CHECK_KERNEL
-    double v_norm_sq;
-    d_temp.copy_to_host(&v_norm_sq);
-    double v_norm = sqrt(v_norm_sq);
+    if (!use_abc_) {
+      // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
+      gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
+      GPU_CHECK_KERNEL
+      double v_norm_sq;
+      d_temp.copy_to_host(&v_norm_sq);
+      double v_norm = sqrt(v_norm_sq);
 
-    gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
-    GPU_CHECK_KERNEL
-    double f_norm_sq;
-    d_temp.copy_to_host(&f_norm_sq);
-    double f_norm = sqrt(f_norm_sq);
+      gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
+      GPU_CHECK_KERNEL
+      double f_norm_sq;
+      d_temp.copy_to_host(&f_norm_sq);
+      double f_norm = sqrt(f_norm_sq);
 
-    if (f_norm > 1e-10) {
-      update_velocity_kernel<<<(ndof + 255) / 256, 256>>>(
-        v.data(), f_extended.data(), alpha, v_norm, f_norm, ndof);
+      if (f_norm > 1e-10) {
+        update_velocity_kernel<<<(ndof + 255) / 256, 256>>>(
+          v.data(), f_extended.data(), alpha, v_norm, f_norm, ndof);
+        GPU_CHECK_KERNEL
+      }
+    } else {
+      alpha = std::max(alpha, 1e-10);
+      double abc_multiplier = 1.0 / (1.0 - std::pow(1.0 - alpha, (Nsteps + 1)));
+      // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
+      gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
+      GPU_CHECK_KERNEL
+      double v_norm_sq;
+      d_temp.copy_to_host(&v_norm_sq);
+      double v_norm = sqrt(v_norm_sq);
+
+      gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
+      GPU_CHECK_KERNEL
+      double f_norm_sq;
+      d_temp.copy_to_host(&f_norm_sq);
+      double f_norm = sqrt(f_norm_sq);
+
+      if (f_norm > 1e-10) {
+        update_velocity_kernel<<<(ndof + 255) / 256, 256>>>(
+          v.data(), f_extended.data(), alpha, v_norm, f_norm, ndof);
+        GPU_CHECK_KERNEL
+      }
+      int threads = 256;
+      int blocks = (ndof + threads - 1) / threads;
+      gpu_multiply<<<blocks, threads>>>(ndof, abc_multiplier, v.data(), v.data());
+      GPU_CHECK_KERNEL
+      filter_v<<<blocks, threads>>>(ndof, dt, maxstep_, v.data());
       GPU_CHECK_KERNEL
     }
 
     // Compute displacement: dr = dt * v
     compute_dr_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), dr.data(), dt, ndof);
     GPU_CHECK_KERNEL
-
-    // Cap displacement if needed
-    gpu_norm_squared_kernel<<<1, 1024>>>(dr.data(), d_temp.data(), ndof);
-    GPU_CHECK_KERNEL
-    double dr_norm_sq;
-    d_temp.copy_to_host(&dr_norm_sq);
-    double dr_norm = sqrt(dr_norm_sq);
-
-    if (dr_norm > maxstep_) {
-      double scale = maxstep_ / dr_norm;
-      int threads = 256;
-      int blocks = (ndof + threads - 1) / threads;
-      gpu_multiply<<<blocks, threads>>>(ndof, scale, dr.data(), dr.data());
+    if (!use_abc_) {
+      // Cap displacement if needed
+      gpu_norm_squared_kernel<<<1, 1024>>>(dr.data(), d_temp.data(), ndof);
       GPU_CHECK_KERNEL
+      double dr_norm_sq;
+      d_temp.copy_to_host(&dr_norm_sq);
+      double dr_norm = sqrt(dr_norm_sq);
+
+      if (dr_norm > maxstep_) {
+        double scale = maxstep_ / dr_norm;
+        int threads = 256;
+        int blocks = (ndof + threads - 1) / threads;
+        gpu_multiply<<<blocks, threads>>>(ndof, scale, dr.data(), dr.data());
+        GPU_CHECK_KERNEL
+      }
     }
 
     // Update positions and box

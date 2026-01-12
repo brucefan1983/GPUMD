@@ -47,6 +47,9 @@ void Minimize::parse_minimize(
   double force_tolerance = 0.0;
   int box_change = 0;
   int hydrostatic_strain = 0;
+  int const_volume = 0;
+  int use_abc = 0;
+  double scalar_pressure = 0.0;
   std::unique_ptr<Minimizer> minimizer;
   const int number_of_atoms = type.size();
 
@@ -109,8 +112,8 @@ void Minimize::parse_minimize(
   } else if (strcmp(param[1], "fire2") == 0) {
     minimizer_type = 3;
 
-    if (!((num_param >= 4) && (num_param <= 6))) {
-      PRINT_INPUT_ERROR("minimize fire should have 2 to 4 parameters.");
+    if (!((num_param >= 4) && (num_param <= 9))) {
+      PRINT_INPUT_ERROR("minimize fire should have 2 to 6 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {
@@ -141,6 +144,31 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
+
+    if (num_param >= 7) {
+      if (!is_valid_int(param[6], &const_volume)) {
+        PRINT_INPUT_ERROR("Const_volume should be an integer.");
+      }
+      if (!(const_volume == 0 || const_volume == 1)) {
+        PRINT_INPUT_ERROR("Const_volume should be 1 or 0.");
+      }
+    }
+
+    if (num_param >= 8) {
+      if (!is_valid_real(param[7], &scalar_pressure)) {
+        PRINT_INPUT_ERROR("Scalar pressure should be a number.");
+      }
+    }
+
+    if (num_param >= 9) {
+      if (!is_valid_int(param[8], &use_abc)) {
+        PRINT_INPUT_ERROR("Use_abc should be an integer.");
+      }
+      if (!(use_abc == 0 || use_abc == 1)) {
+        PRINT_INPUT_ERROR("Use_abc should be 1 or 0.");
+      }
+    }
+
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
@@ -217,11 +245,27 @@ void Minimize::parse_minimize(
         if (hydrostatic_strain == 1) {
           printf("    with hydrostatic pressure.\n");
         }
+        if (const_volume == 1) {
+          printf("    with constant volume.\n");
+        }
+        if (std::abs(scalar_pressure) > 1e-6) {
+          printf("    with scalar pressure %3.f GPa.\n", scalar_pressure);
+        }
+        if (use_abc == 1) {
+          printf("    with abc accelerate version.\n");
+        }
       }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
       minimizer.reset(new Minimizer_FIRE2(
-        number_of_atoms, number_of_steps, force_tolerance, box_change, hydrostatic_strain));
+        number_of_atoms,
+        number_of_steps,
+        force_tolerance,
+        box_change,
+        hydrostatic_strain,
+        use_abc,
+        const_volume,
+        scalar_pressure));
 
       minimizer->compute(
         force,
