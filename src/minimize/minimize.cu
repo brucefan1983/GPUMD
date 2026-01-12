@@ -249,7 +249,7 @@ void Minimize::parse_minimize(
           printf("    with constant volume.\n");
         }
         if (std::abs(scalar_pressure) > 1e-6) {
-          printf("    with scalar pressure %3.f GPa.\n", scalar_pressure);
+          printf("    with scalar pressure %f GPa.\n", scalar_pressure);
         }
         if (use_abc == 1) {
           printf("    with abc accelerate version.\n");

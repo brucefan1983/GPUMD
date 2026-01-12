@@ -29,10 +29,10 @@ private:
   const int Nmin_ = 20;        // Minimum steps before increasing dt
 
   // Time step parameters (converted to internal units)
-  const double dt_0_ = 0.1;   // Initial time step
+  const double dt_0_ = 0.1 / TIME_UNIT_CONVERSION;   // Initial time step
   double dt_;                                        // Current time step
-  const double dtmax_ = 1.0;  // Maximum time step
-  const double dtmin_ = 2e-3; // Minimum time step
+  const double dtmax_ = 1.0 / TIME_UNIT_CONVERSION;  // Maximum time step
+  const double dtmin_ = 2e-3 / TIME_UNIT_CONVERSION; // Minimum time step
 
   // Displacement limit
   const double maxstep_ = 0.2; // Maximum displacement per step (Angstrom)

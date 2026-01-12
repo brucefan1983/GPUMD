@@ -255,9 +255,7 @@ __global__ void transform_forces_kernel(
 }
 
 // Kernel to update positions in unstrained coordinates
-__global__ void
-update_positions_unstrained_kernel(double* pos, const double* dr, 
-  int N)
+__global__ void update_positions_unstrained_kernel(double* pos, const double* dr, int N)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < N) {
@@ -281,25 +279,6 @@ __global__ void transform_positions_kernel(double* pos, const double* d_deform, 
     double d00 = 1.0 + d_deform[0], d01 = d_deform[1], d02 = d_deform[2];
     double d10 = d_deform[3], d11 = 1.0 + d_deform[4], d12 = d_deform[5];
     double d20 = d_deform[6], d21 = d_deform[7], d22 = 1.0 + d_deform[8];
-
-    pos[idx] = x * d00 + y * d01 + z * d02;
-    pos[N + idx] = x * d10 + y * d11 + z * d12;
-    pos[2 * N + idx] = x * d20 + y * d21 + z * d22;
-  }
-}
-
-// Kernel to transform positions to unstrained: pos_unstrained = pos_strained @ inv(deform_grad)
-__global__ void to_unstrained_kernel(double* pos, const double* d_inv_deform, int N)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    double x = pos[idx];
-    double y = pos[N + idx];
-    double z = pos[2 * N + idx];
-
-    double d00 = d_inv_deform[0], d01 = d_inv_deform[1], d02 = d_inv_deform[2];
-    double d10 = d_inv_deform[3], d11 = d_inv_deform[4], d12 = d_inv_deform[5];
-    double d20 = d_inv_deform[6], d21 = d_inv_deform[7], d22 = d_inv_deform[8];
 
     pos[idx] = x * d00 + y * d01 + z * d02;
     pos[N + idx] = x * d10 + y * d11 + z * d12;
@@ -454,6 +433,7 @@ void Minimizer_FIRE2::compute(
   GPU_Vector<double> d_temp(1);
   GPU_Vector<double> pos_unstrained(size); // Store unstrained coordinates
   scalar_pressure_ /= 160.2176621;
+
   double orig_box[9];
   if (optimize_cell_) {
     for (int i = 0; i < 9; i++) {
@@ -472,7 +452,7 @@ void Minimizer_FIRE2::compute(
   int Nsteps = 0;
 
   printf("\nFIRE2 energy minimization started.\n");
-
+  double cur_pe;
   for (int step = 0; step < number_of_steps_; ++step) {
     // Compute forces and virial
     force.compute(
@@ -581,6 +561,18 @@ void Minimizer_FIRE2::compute(
       energy += scalar_pressure_ * box.get_volume();
     }
 
+    if (step == 0) {
+      cur_pe = energy;
+    } else {
+      if ((step + 1) % 10 == 0) {
+        if (energy > cur_pe) {
+          cell_factor_ *= 1.5;
+        } else {
+          cur_pe = energy;
+        }
+      }
+    }
+
     // Print progress
     if (step == 0 || (step + 1) % base == 0 || fmax < force_tolerance_) {
       double pressure = 0.0;
@@ -634,8 +626,7 @@ void Minimizer_FIRE2::compute(
       if (optimize_cell_) {
         // Update unstrained positions
         update_positions_unstrained_kernel<<<blocks, threads>>>(
-          pos_unstrained.data(), dr.data(), 
-          N);
+          pos_unstrained.data(), dr.data(), N);
         GPU_CHECK_KERNEL
 
         // Update deformation gradient
@@ -685,8 +676,7 @@ void Minimizer_FIRE2::compute(
       } else {
         // Simple position update
         update_positions_unstrained_kernel<<<blocks, threads>>>(
-          position_per_atom.data(), dr.data(), 
-          N);
+          position_per_atom.data(), dr.data(), N);
         GPU_CHECK_KERNEL
       }
 
@@ -849,9 +839,7 @@ void Minimizer_FIRE2::compute(
 
     if (optimize_cell_) {
       // Update unstrained positions
-      update_positions_unstrained_kernel<<<blocks, threads>>>(
-        pos_unstrained.data(), dr.data(), 
-         N);
+      update_positions_unstrained_kernel<<<blocks, threads>>>(pos_unstrained.data(), dr.data(), N);
       GPU_CHECK_KERNEL
 
       // Update deformation gradient
@@ -901,11 +889,10 @@ void Minimizer_FIRE2::compute(
     } else {
       // Simple position update
       update_positions_unstrained_kernel<<<blocks, threads>>>(
-        position_per_atom.data(), dr.data(), 
-         N);
+        position_per_atom.data(), dr.data(), N);
       GPU_CHECK_KERNEL
     }
   }
 
-  printf("FIRE2 energy minimization finished.\n");
+  printf("FIRE2 energy minimization finished.\n\n");
 }
