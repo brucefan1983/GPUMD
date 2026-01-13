@@ -565,7 +565,7 @@ void Minimizer_FIRE2::compute(
       cur_pe = energy;
     } else {
       if ((step + 1) % 10 == 0) {
-        if (energy > cur_pe) {
+        if ((energy > cur_pe) & (number_of_atoms_ < 100)) {
           cell_factor_ *= 1.5;
         } else {
           cur_pe = energy;

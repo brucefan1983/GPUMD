@@ -251,10 +251,10 @@ void Minimize::parse_minimize(
         if (std::abs(scalar_pressure) > 1e-6) {
           printf("    with scalar pressure %f GPa.\n", scalar_pressure);
         }
-        if (use_abc == 1) {
-          printf("    with abc accelerate version.\n");
-        }
       }
+      if (use_abc == 1) {
+          printf("    with the ABC-accelerated version.\n");
+        }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
       minimizer.reset(new Minimizer_FIRE2(
