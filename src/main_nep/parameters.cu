@@ -75,6 +75,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
+  is_save_potential_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -91,7 +92,7 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
-  lambda_q = 0.5f;             // close to optimal
+  lambda_q = 0.1f;             // close to optimal
   lambda_z = 0.5f;             // close to optimal
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
@@ -569,7 +570,7 @@ void Parameters::report_inputs()
   if (is_save_potential_set) {
     printf("    (input)   save potential every N = %d generations.\n", save_potential);
   } else {
-    printf("    (default)   save potential every N = %d generations.\n", save_potential);
+    printf("    (default) save potential every N = %d generations.\n", save_potential);
   }
 
   if (fine_tune) {
