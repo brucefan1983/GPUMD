@@ -39,20 +39,29 @@ inline __host__ __device__ void apply_mic(const Box& box, double& x12, double& y
     double Lx = box.cpu_h[0];
     double Ly = box.cpu_h[4];
     double Lz = box.cpu_h[8];
-    if (box.pbc_x == 1 && x12 < -Lx*0.5) {
-      x12 += Lx;
-    } else if (box.pbc_x == 1 && x12 > +Lx*0.5) {
-      x12 -= Lx;
+
+    if (box.pbc_x == 1) {
+      if (x12 < -Lx*0.5) {
+        x12 += Lx;
+      } else if (x12 > +Lx*0.5) {
+        x12 -= Lx;
+      }
     }
-    if (box.pbc_y == 1 && y12 < -Ly*0.5) {
-      y12 += Ly;
-    } else if (box.pbc_y == 1 && y12 > +Ly*0.5) {
-      y12 -= Ly;
+
+    if (box.pbc_y == 1) {
+      if (y12 < -Ly*0.5) {
+        y12 += Ly;
+      } else if (y12 > +Ly*0.5) {
+        y12 -= Ly;
+      }
     }
-    if (box.pbc_z == 1 && z12 < -Lz*0.5) {
-      z12 += Lz;
-    } else if (box.pbc_z == 1 && z12 > +Lz*0.5) {
-      z12 -= Lz;
+
+    if (box.pbc_z == 1) {
+      if (z12 < -Lz*0.5) {
+        z12 += Lz;
+      } else if (z12 > +Lz*0.5) {
+        z12 -= Lz;
+      }
     }
   }
   else {
