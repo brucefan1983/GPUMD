@@ -107,3 +107,8 @@ bool Box::get_num_bins(const double rc, int num_bins[])
   }
   return use_ON2;
 }
+
+void Box::set_is_orthogonal()
+{
+  is_orthogonal = cpu_h[1] == 0 && cpu_h[2] == 0 && cpu_h[3] == 0 && cpu_h[5] == 0 && cpu_h[6] == 0 && cpu_h[7] == 0;
+}

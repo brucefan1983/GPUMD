@@ -477,6 +477,8 @@ void Force::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  box.set_is_orthogonal();
+  
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -764,6 +766,8 @@ void Force::compute(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& mass_per_atom)
 {
+  box.set_is_orthogonal();
+
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
