@@ -447,12 +447,15 @@ void Minimizer_FIRE2::compute(
   }
 
   // FIRE2 parameters
-  double dt = dt_;
+  dt_ /= 1;
+  dtmax_ /= 1;  
+  dtmin_ /= 1; //
+  double dt = dt_ ;
   double alpha = astart_;
   int Nsteps = 0;
-
+  printf("\ncell factor is %f.\n", cell_factor_);
   printf("\nFIRE2 energy minimization started.\n");
-  double cur_pe;
+  // double cur_pe;
   for (int step = 0; step < number_of_steps_; ++step) {
     // Compute forces and virial
     force.compute(
@@ -561,17 +564,19 @@ void Minimizer_FIRE2::compute(
       energy += scalar_pressure_ * box.get_volume();
     }
 
-    if (step == 0) {
-      cur_pe = energy;
-    } else {
-      if ((step + 1) % 10 == 0) {
-        if ((energy > cur_pe) & (number_of_atoms_ < 100)) {
-          cell_factor_ *= 1.5;
-        } else {
-          cur_pe = energy;
-        }
-      }
-    }
+    // if (step == 0) {
+    //   cur_pe = energy;
+    // } else {
+    //   if ((step + 1) % 10 == 0) {
+    //     double delta = energy - cur_pe;
+        
+    //     if ((delta > 0) & (abs(delta) / number_of_atoms_ > 0.05)) {
+    //       cell_factor_ *= 1.5;
+    //     } else {
+    //       cur_pe = energy;
+    //     }
+    //   }
+    // }
 
     // Print progress
     if (step == 0 || (step + 1) % base == 0 || fmax < force_tolerance_) {

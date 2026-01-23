@@ -29,10 +29,10 @@ private:
   const int Nmin_ = 20;        // Minimum steps before increasing dt
 
   // Time step parameters (converted to internal units)
-  const double dt_0_ = 0.1 / TIME_UNIT_CONVERSION;   // Initial time step
+  double dt_0_ = 0.1 ;   // Initial time step
   double dt_;                                        // Current time step
-  const double dtmax_ = 1.0 / TIME_UNIT_CONVERSION;  // Maximum time step
-  const double dtmin_ = 2e-3 / TIME_UNIT_CONVERSION; // Minimum time step
+  double dtmax_ = 1.0 ;  // Maximum time step
+  double dtmin_ = 2e-3 ; // Minimum time step
 
   // Displacement limit
   const double maxstep_ = 0.2; // Maximum displacement per step (Angstrom)
@@ -55,15 +55,16 @@ public:
     const bool hydrostatic_strain = false,
     const bool use_abc = false,
     const bool const_volume = false,
-    const double scale_pressure = 0.0)
+    const double scale_pressure = 0.0,
+  const double cell_factor = 0.0)
     : Minimizer(number_of_atoms, number_of_steps, force_tolerance),
       dt_(dt_0_),
       optimize_cell_(optimize_cell),
       hydrostatic_strain_(hydrostatic_strain),
       use_abc_(use_abc),
       const_volume_(const_volume),
-      cell_factor_(static_cast<double>(number_of_atoms)),
-      scalar_pressure_(scale_pressure)
+      scalar_pressure_(scale_pressure),
+      cell_factor_(cell_factor > 1e-4 ? cell_factor: static_cast<double>(number_of_atoms))
   {
   }
 

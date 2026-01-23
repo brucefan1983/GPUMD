@@ -50,6 +50,7 @@ void Minimize::parse_minimize(
   int const_volume = 0;
   int use_abc = 0;
   double scalar_pressure = 0.0;
+  double cell_factor = 0.0;
   std::unique_ptr<Minimizer> minimizer;
   const int number_of_atoms = type.size();
 
@@ -112,7 +113,7 @@ void Minimize::parse_minimize(
   } else if (strcmp(param[1], "fire2") == 0) {
     minimizer_type = 3;
 
-    if (!((num_param >= 4) && (num_param <= 9))) {
+    if (!((num_param >= 4) && (num_param <= 10))) {
       PRINT_INPUT_ERROR("minimize fire should have 2 to 6 parameters.");
     }
 
@@ -161,7 +162,13 @@ void Minimize::parse_minimize(
     }
 
     if (num_param >= 9) {
-      if (!is_valid_int(param[8], &use_abc)) {
+      if (!is_valid_real(param[8], &cell_factor)) {
+        PRINT_INPUT_ERROR("Cell factor should be a number.");
+      }
+    }
+
+    if (num_param >= 10) {
+      if (!is_valid_int(param[9], &use_abc)) {
         PRINT_INPUT_ERROR("Use_abc should be an integer.");
       }
       if (!(use_abc == 0 || use_abc == 1)) {
@@ -265,7 +272,8 @@ void Minimize::parse_minimize(
         hydrostatic_strain,
         use_abc,
         const_volume,
-        scalar_pressure));
+        scalar_pressure,
+      cell_factor));
 
       minimizer->compute(
         force,
