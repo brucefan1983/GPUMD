@@ -368,6 +368,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     minimize.parse_minimize(
       param,
       num_param,
+      integrate.fixed_group,
       force,
       box,
       atom.position_per_atom,
