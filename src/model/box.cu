@@ -23,7 +23,7 @@ The class defining the simulation box.
 #include <cmath>
 #include <cstring>
 
-static float get_area_one_direction(const double* a, const double* b)
+static double get_area_one_direction(const double* a, const double* b)
 {
   double s1 = a[1] * b[2] - a[2] * b[1];
   double s2 = a[2] * b[0] - a[0] * b[2];

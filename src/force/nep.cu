@@ -762,7 +762,7 @@ static __global__ void find_force_radial(
       s_fz += f12[2] - f21[2];
       if (is_dipole) {
         // The dipole is proportional to minus the sum of the virials times r12
-        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
         s_sxx -= r12_square * f21[0];
         s_syy -= r12_square * f21[1];
         s_szz -= r12_square * f21[2];
