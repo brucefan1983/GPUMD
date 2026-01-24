@@ -39,7 +39,7 @@ private:
 public:
   Minimizer_FIRE_Box_Change(
     const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(-1, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 
@@ -48,7 +48,7 @@ public:
     const int number_of_steps,
     const double force_tolerance,
     const int _hydrostatic_strain)
-    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(-1, number_of_atoms, number_of_steps, force_tolerance)
   {
     hydrostatic_strain = _hydrostatic_strain;
   }
