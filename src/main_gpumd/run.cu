@@ -218,8 +218,6 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
-  const auto time_begin = std::chrono::high_resolution_clock::now();
-
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -248,6 +246,8 @@ void Run::perform_a_run()
   }
 
   double initial_time_step = time_step;
+
+  const auto time_begin = std::chrono::high_resolution_clock::now();
 
   for (int step = 0; step < number_of_steps; ++step) {
 
@@ -368,6 +368,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     minimize.parse_minimize(
       param,
       num_param,
+      integrate.fixed_group,
       force,
       box,
       atom.position_per_atom,

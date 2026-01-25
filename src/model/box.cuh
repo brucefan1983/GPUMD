@@ -29,20 +29,53 @@ public:
   double get_volume(void) const;      // get the volume of the box
   void get_inverse(void);             // get the inverse box matrix
   bool get_num_bins(const double rc, int num_bins[]); // get the number of bins in each direction
+  bool is_orthogonal = false;
+  void set_is_orthogonal();
 };
 
 inline __host__ __device__ void apply_mic(const Box& box, double& x12, double& y12, double& z12)
 {
-  double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
-  double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
-  double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
-  if (box.pbc_x == 1)
-    sx12 -= nearbyint(sx12);
-  if (box.pbc_y == 1)
-    sy12 -= nearbyint(sy12);
-  if (box.pbc_z == 1)
-    sz12 -= nearbyint(sz12);
-  x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
-  y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
-  z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
+  if (box.is_orthogonal) {
+    double Lx = box.cpu_h[0];
+    double Ly = box.cpu_h[4];
+    double Lz = box.cpu_h[8];
+
+    if (box.pbc_x == 1) {
+      if (x12 < -Lx*0.5) {
+        x12 += Lx;
+      } else if (x12 > +Lx*0.5) {
+        x12 -= Lx;
+      }
+    }
+
+    if (box.pbc_y == 1) {
+      if (y12 < -Ly*0.5) {
+        y12 += Ly;
+      } else if (y12 > +Ly*0.5) {
+        y12 -= Ly;
+      }
+    }
+
+    if (box.pbc_z == 1) {
+      if (z12 < -Lz*0.5) {
+        z12 += Lz;
+      } else if (z12 > +Lz*0.5) {
+        z12 -= Lz;
+      }
+    }
+  }
+  else {
+    double sx12 = box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
+    double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
+    double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
+    if (box.pbc_x == 1)
+      sx12 -= nearbyint(sx12);
+    if (box.pbc_y == 1)
+      sy12 -= nearbyint(sy12);
+    if (box.pbc_z == 1)
+      sz12 -= nearbyint(sz12);
+    x12 = box.cpu_h[0] * sx12 + box.cpu_h[1] * sy12 + box.cpu_h[2] * sz12;
+    y12 = box.cpu_h[3] * sx12 + box.cpu_h[4] * sy12 + box.cpu_h[5] * sz12;
+    z12 = box.cpu_h[6] * sx12 + box.cpu_h[7] * sy12 + box.cpu_h[8] * sz12;
+  }
 }

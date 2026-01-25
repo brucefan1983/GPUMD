@@ -31,6 +31,7 @@ The driver class for minimizers.
 void Minimize::parse_minimize(
   const char** param,
   int num_param,
+  int fixed_group,
   Force& force,
   Box& box,
   GPU_Vector<double>& position_per_atom,
@@ -117,7 +118,7 @@ void Minimize::parse_minimize(
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
-      minimizer.reset(new Minimizer_SD(number_of_atoms, number_of_steps, force_tolerance));
+      minimizer.reset(new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,

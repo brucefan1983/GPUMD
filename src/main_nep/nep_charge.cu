@@ -131,7 +131,7 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -296,7 +296,7 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
     nep_data[device_id].num_kpoints.resize(Nc);
-    if (paramb.charge_mode >= 4) {
+    if (paramb.charge_mode >= 3) {
       nep_data[device_id].C6.resize(N);
       nep_data[device_id].C6_derivative.resize(N * annmb[device_id].dim);
       nep_data[device_id].D_C6.resize(N);
@@ -306,7 +306,7 @@ NEP_Charge::NEP_Charge(
 
 void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
-  const int num_outputs = (para.charge_mode >= 4) ? 3 : 2;
+  const int num_outputs = (para.charge_mode >= 3) ? 3 : 2;
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     ann.w0[t] = pointer;
@@ -544,7 +544,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -560,7 +560,7 @@ static __global__ void find_force_radial(
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
-        if (paramb.charge_mode >= 4) {
+        if (paramb.charge_mode >= 3) {
           tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
         }
         tmp12 *= gnp12 * d12inv;
@@ -628,7 +628,7 @@ static __global__ void find_force_angular(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
-      if (paramb.charge_mode >= 4) {
+      if (paramb.charge_mode >= 3) {
         tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       }
       Fp[d] = tmp;
@@ -713,7 +713,7 @@ static __global__ void find_bec_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1131,78 +1131,6 @@ static __global__ void find_force_charge_real_space(
   }
 }
 
-static __global__ void find_force_charge_real_space_only(
-  const int N,
-  const float alpha,
-  const float two_alpha_over_sqrt_pi,
-  const float A,
-  const float B,
-  const int* g_NN,
-  const int* g_NL,
-  const float* __restrict__ g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial,
-  float* g_pe,
-  float* g_D_real)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    float q1 = g_charge[n1];
-    float s_pe = 0; // no self energy
-    float D_real = 0; // no self energy
-
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-
-      float erfc_r = erfc(alpha * d12) * d12inv;
-      D_real += q2 * (erfc_r + A * d12 + B);
-      float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
-      f2 = -0.5f * K_C_SP * qq * (f2 * d12inv * d12inv - A * d12inv);
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-
-      s_pe += 0.5f * qq * (erfc_r + A * d12 + B);
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-    }
-    g_D_real[n1] = K_C_SP * D_real;
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += K_C_SP * s_pe;
-  }
-}
-
 static __global__ void find_force_vdw_static(
   const int N,
   const int* g_NN,
@@ -1441,14 +1369,14 @@ void NEP_Charge::find_force(
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      (paramb.charge_mode >= 4) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
     GPU_CHECK_KERNEL
 
@@ -1513,7 +1441,7 @@ void NEP_Charge::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
-    if (paramb.charge_mode >= 4) {
+    if (paramb.charge_mode >= 3) {
       apply_ann_vdw<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
@@ -1562,14 +1490,14 @@ void NEP_Charge::find_force(
       // get BEC (radial descriptor part)
       find_bec_radial<<<grid_size, block_size>>>(
         dataset[device_id].N,
-        (paramb.charge_mode >= 4) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
-        (paramb.charge_mode >= 4) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
+        (paramb.charge_mode >= 3) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
+        (paramb.charge_mode >= 3) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        (paramb.charge_mode >= 4) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
-        (paramb.charge_mode >= 4) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
-        (paramb.charge_mode >= 4) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
+        (paramb.charge_mode >= 3) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
+        (paramb.charge_mode >= 3) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
+        (paramb.charge_mode >= 3) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
         nep_data[device_id].charge_derivative.data(),
         dataset[device_id].bec.data());
       GPU_CHECK_KERNEL
@@ -1599,61 +1527,59 @@ void NEP_Charge::find_force(
     }
 
     // reciprocal space
-    if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-      find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
-        dataset[device_id].Nc,
-        charge_para.num_kpoints_max,
-        charge_para.alpha,
-        charge_para.alpha_factor,
-        dataset[device_id].box_original.data(),
-        nep_data[device_id].num_kpoints.data(),
-        nep_data[device_id].kx.data(),
-        nep_data[device_id].ky.data(),
-        nep_data[device_id].kz.data(),
-        nep_data[device_id].G.data());
-      GPU_CHECK_KERNEL
+    find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
+      dataset[device_id].Nc,
+      charge_para.num_kpoints_max,
+      charge_para.alpha,
+      charge_para.alpha_factor,
+      dataset[device_id].box_original.data(),
+      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].G.data());
+    GPU_CHECK_KERNEL
 
-      find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
-        charge_para.num_kpoints_max,
-        dataset[device_id].Na.data(),
-        dataset[device_id].Na_sum.data(),
-        dataset[device_id].charge_shifted.data(),
-        dataset[device_id].r.data(),
-        dataset[device_id].r.data() + dataset[device_id].N,
-        dataset[device_id].r.data() + dataset[device_id].N * 2,
-        nep_data[device_id].num_kpoints.data(),
-        nep_data[device_id].kx.data(),
-        nep_data[device_id].ky.data(),
-        nep_data[device_id].kz.data(),
-        nep_data[device_id].S_real.data(),
-        nep_data[device_id].S_imag.data());
-      GPU_CHECK_KERNEL
+    find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
+      charge_para.num_kpoints_max,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      dataset[device_id].charge_shifted.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data());
+    GPU_CHECK_KERNEL
 
-      find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
-        dataset[device_id].N,
-        charge_para.num_kpoints_max,
-        charge_para.alpha_factor,
-        dataset[device_id].Na.data(),
-        dataset[device_id].Na_sum.data(),
-        dataset[device_id].charge_shifted.data(),
-        dataset[device_id].r.data(),
-        dataset[device_id].r.data() + dataset[device_id].N,
-        dataset[device_id].r.data() + dataset[device_id].N * 2,
-        nep_data[device_id].num_kpoints.data(),
-        nep_data[device_id].kx.data(),
-        nep_data[device_id].ky.data(),
-        nep_data[device_id].kz.data(),
-        nep_data[device_id].G.data(),
-        nep_data[device_id].S_real.data(),
-        nep_data[device_id].S_imag.data(),
-        nep_data[device_id].D_real.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data());
-      GPU_CHECK_KERNEL
-    }
+    find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
+      dataset[device_id].N,
+      charge_para.num_kpoints_max,
+      charge_para.alpha_factor,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      dataset[device_id].charge_shifted.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].G.data(),
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data(),
+      nep_data[device_id].D_real.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data(),
+      dataset[device_id].energy.data());
+    GPU_CHECK_KERNEL
 
     // mode 1 has real space
     if (paramb.charge_mode == 1) {
@@ -1676,31 +1602,8 @@ void NEP_Charge::find_force(
       GPU_CHECK_KERNEL
     } 
     
-    // modes 3 and 5 has real space only
-    if (paramb.charge_mode == 3 || paramb.charge_mode == 5) {
-      find_force_charge_real_space_only<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        charge_para.alpha,
-        charge_para.two_alpha_over_sqrt_pi,
-        charge_para.A,
-        charge_para.B,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        dataset[device_id].charge_shifted.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].D_real.data());
-      GPU_CHECK_KERNEL
-    }
-
-    // modes 4 and 5 has vdw
-    if (paramb.charge_mode >= 4) {
+    // mode 3 has vdw
+    if (paramb.charge_mode >= 3) {
       find_force_vdw_static<<<grid_size, block_size>>>(
         dataset[device_id].N,
         nep_data[device_id].NN_radial.data(),
@@ -1720,14 +1623,14 @@ void NEP_Charge::find_force(
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      (paramb.charge_mode >= 4) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].NN_angular.data() : nep_data[device_id].NN_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].NL_angular.data() : nep_data[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].x12_angular.data() : nep_data[device_id].x12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].y12_angular.data() : nep_data[device_id].y12_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data[device_id].z12_angular.data() : nep_data[device_id].z12_radial.data(),
       nep_data[device_id].Fp.data(),
       nep_data[device_id].charge_derivative.data(),
       nep_data[device_id].D_real.data(),

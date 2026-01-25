@@ -26,6 +26,7 @@ public:
   void parse_minimize(
     const char** param,
     int num_param,
+    int fixed_group,
     Force& force,
     Box& box,
     GPU_Vector<double>& position_per_atom,
