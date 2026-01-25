@@ -194,7 +194,7 @@ void Dump_CG::find_rdf(const int num_beads, Box& box)
 {
   const double dr = rc_ / Ng_;
   const double rho = num_beads / box.get_volume();
-  double g_temp[Ng_] = {0.0};
+  double g_temp[200] = {0.0};
 
   for (int b1 = 0; b1 < num_beads; b1++) {
     double x1 = cpu_position_bead_[num_beads * 0 + b1];
