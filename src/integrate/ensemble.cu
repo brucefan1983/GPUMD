@@ -33,6 +33,7 @@ Ensemble::~Ensemble(void)
   // nothing now
 }
 
+#ifdef USE_NEPCG
 static __global__ void gpu_velocity_verlet_cg(
   const bool is_step1,
   const int number_of_groups,
@@ -107,6 +108,7 @@ static __global__ void gpu_velocity_verlet_cg(
     }
   }
 }
+#endif
 
 static __global__ void gpu_velocity_verlet(
   const bool is_step1,
@@ -394,6 +396,7 @@ void Ensemble::velocity_verlet(
   GPU_CHECK_KERNEL
 }
 
+#ifdef USE_NEPCG
 void Ensemble::velocity_verlet_cg(
   const bool is_step1,
   const double time_step,
@@ -405,48 +408,26 @@ void Ensemble::velocity_verlet_cg(
 {
   const int number_of_atoms = mass.size();
 
-  if (fixed_group == -1) {
-    gpu_velocity_verlet_cg<<<(group[0].number - 1) / 128 + 1, 128>>>(
-      is_step1,
-      group[0].number,
-      group[0].size.data(),
-      group[0].size_sum.data(),
-      group[0].contents.data(),
-      time_step,
-      mass.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms);
-  } else {
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      is_step1,
-      number_of_atoms,
-      fixed_group,
-      move_group,
-      move_velocity[0],
-      move_velocity[1],
-      move_velocity[2],
-      group[0].label.data(),
-      time_step,
-      mass.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms);
-  }
+  gpu_velocity_verlet_cg<<<(group[0].number - 1) / 128 + 1, 128>>>(
+    is_step1,
+    group[0].number,
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    time_step,
+    mass.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 }
+#endif
 
 // Find some thermodynamic properties:
 // g_thermo[0-7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz

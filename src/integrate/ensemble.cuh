@@ -107,6 +107,7 @@ protected:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
+#ifdef USE_NEPCG
   void velocity_verlet_cg(
     const bool is_step1,
     const double time_step,
@@ -115,6 +116,7 @@ protected:
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
+#endif
 
   void velocity_verlet_v();
   void velocity_verlet_x();

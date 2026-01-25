@@ -35,6 +35,7 @@ void Ensemble_NVE::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+#ifdef USE_NEPCG
   velocity_verlet_cg(
     true,
     time_step,
@@ -43,6 +44,16 @@ void Ensemble_NVE::compute1(
     atom.force_per_atom,
     atom.position_per_atom,
     atom.velocity_per_atom);
+#else
+  velocity_verlet(
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
+#endif
 }
 
 void Ensemble_NVE::compute2(
@@ -52,6 +63,7 @@ void Ensemble_NVE::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+#ifdef USE_NEPCG
   velocity_verlet_cg(
     false,
     time_step,
@@ -60,6 +72,16 @@ void Ensemble_NVE::compute2(
     atom.force_per_atom,
     atom.position_per_atom,
     atom.velocity_per_atom);
+#else
+  velocity_verlet(
+    false,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
+#endif
 
   find_thermo(
     false,
