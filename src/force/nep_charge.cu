@@ -1570,32 +1570,30 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 3) {
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
+  if (use_pppm) {
+    pppm.find_force(
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
+  } else {
+    ewald.find_force(
+      N,
+      N1,
+      N2,
+      box.cpu_h,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
   }
 
   if (paramb.charge_mode == 1) {
@@ -1877,32 +1875,30 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 3) {
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
+  if (use_pppm) {
+    pppm.find_force(
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
+  } else {
+    ewald.find_force(
+      N,
+      N1,
+      N2,
+      box.cpu_h,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
   }
 
   if (paramb.charge_mode == 1) {
