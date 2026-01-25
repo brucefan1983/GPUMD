@@ -89,6 +89,6 @@ private:
   double cpu_energy_bead_;
   std::vector<double> cpu_virial_bead_;
   std::vector<double> rdf_;
-  int Ng_ = 200;
+  const int Ng_ = 200;
   double rc_ = 6.0;
 };
