@@ -33,6 +33,83 @@ Ensemble::~Ensemble(void)
   // nothing now
 }
 
+#ifdef USE_NEPCG
+static __global__ void gpu_velocity_verlet_cg(
+  const bool is_step1,
+  const int number_of_groups,
+  const int* group_size,
+  const int* group_size_sum,
+  const int* group_contents,
+  const double g_time_step,
+  const double* g_mass,
+  double* g_x,
+  double* g_y,
+  double* g_z,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  const double* g_fx,
+  const double* g_fy,
+  const double* g_fz)
+{
+  const int g = blockIdx.x * blockDim.x + threadIdx.x;
+  if (g < number_of_groups) {
+    const double time_step = g_time_step;
+    const double time_step_half = time_step * 0.5;
+
+    double vcx = 0.0;
+    double vcy = 0.0;
+    double vcz = 0.0;
+    double mc = 0.0;
+    for (int n = 0; n < group_size[g]; ++n) {
+      int i = group_contents[group_size_sum[g] + n];
+      double vx = g_vx[i];
+      double vy = g_vy[i];
+      double vz = g_vz[i];
+      const double mass_inv = 1.0 / g_mass[i];
+      const double ax = g_fx[i] * mass_inv;
+      const double ay = g_fy[i] * mass_inv;
+      const double az = g_fz[i] * mass_inv;
+      vx += ax * time_step_half;
+      vy += ay * time_step_half;
+      vz += az * time_step_half;
+      vcx += vx * g_mass[i];
+      vcy += vy * g_mass[i];
+      vcz += vz * g_mass[i];
+      mc += g_mass[i];
+    }
+    vcx /= mc;
+    vcy /= mc;
+    vcz /= mc;
+
+    for (int n = 0; n < group_size[g]; ++n) {
+      int i = group_contents[group_size_sum[g] + n];
+      double vx = g_vx[i];
+      double vy = g_vy[i];
+      double vz = g_vz[i];
+      const double mass_inv = 1.0 / g_mass[i];
+      const double ax = g_fx[i] * mass_inv;
+      const double ay = g_fy[i] * mass_inv;
+      const double az = g_fz[i] * mass_inv;
+      vx += ax * time_step_half;
+      vy += ay * time_step_half;
+      vz += az * time_step_half;
+      vx -= vcx;
+      vy -= vcy;
+      vz -= vcz;
+      g_vx[i] = vx;
+      g_vy[i] = vy;
+      g_vz[i] = vz;
+      if (is_step1) {
+        g_x[i] += vx * time_step;
+        g_y[i] += vy * time_step;
+        g_z[i] += vz * time_step;
+      }
+    }
+  }
+}
+#endif
+
 static __global__ void gpu_velocity_verlet(
   const bool is_step1,
   const int number_of_particles,
@@ -318,6 +395,39 @@ void Ensemble::velocity_verlet(
   }
   GPU_CHECK_KERNEL
 }
+
+#ifdef USE_NEPCG
+void Ensemble::velocity_verlet_cg(
+  const bool is_step1,
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms = mass.size();
+
+  gpu_velocity_verlet_cg<<<(group[0].number - 1) / 128 + 1, 128>>>(
+    is_step1,
+    group[0].number,
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    time_step,
+    mass.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms);
+  GPU_CHECK_KERNEL
+}
+#endif
 
 // Find some thermodynamic properties:
 // g_thermo[0-7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
