@@ -17,7 +17,7 @@ The "inner" cutoff of the :term:`ZBL` potential, below which value the pair inte
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.
 
-Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 2.5 Å
+Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 3 Å
 
 One can also use flexible ZBL parameters by providing a `zbl.in` file in the working directory, in which case the :attr:`<cutoff>` parameter is still needed but will not be used.
 For a :math:`n`-species system, there should be :math:`n(n+1)/2` lines in the `zbl.in` files.
