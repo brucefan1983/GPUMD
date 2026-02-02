@@ -702,6 +702,35 @@ static void split_into_accurate_and_inaccurate(
   std::cout << "Number of structures written into inaccurate.xyz = " << num2 << std::endl;
 }
 
+static void split_according_to_neighbor_counts(
+  const std::vector<Structure>& structures, 
+  int radial_threshold, 
+  int angular_threshold)
+{
+  std::ifstream input_neighbor("neighbor.txt");
+  std::ofstream output_small("neighbor_counts_small.xyz");
+  std::ofstream output_large("neighbor_counts_large.xyz");
+  int num1 = 0;
+  int num2 = 0;
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    int count_radial;
+    int count_angular;
+    input_neighbor >> count_radial >> count_angular;
+    if (count_radial > radial_threshold || count_angular > angular_threshold) {
+      write_one_structure(output_large, structures[nc]);
+      num1++;
+    } else{
+      write_one_structure(output_small, structures[nc]);
+      num2++;
+    }
+  }
+  input_neighbor.close();
+  output_small.close();
+  output_large.close();
+  std::cout << "Number of structures written into neighbor_counts_large.xyz = " << num1 << std::endl;
+  std::cout << "Number of structures written into neighbor_counts_small.xyz = " << num2 << std::endl;
+}
+
 static void calculate_mae_and_rmse_one(
   const std::string& filename, 
   const std::string& units,
@@ -1165,6 +1194,7 @@ int main(int argc, char* argv[])
   std::cout << "12: change box to 1000\n";
   std::cout << "13: get valid structures\n";
   std::cout << "14: calculate MAEs and RMSEs\n";
+  std::cout << "15: split according to neighbor counts\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1358,6 +1388,21 @@ int main(int argc, char* argv[])
     get_valid_structures(structures_input, energy_threshold, force_threshold, stress_threshold);
   } else if (option == 14) {
     calculate_mae_and_rmse();
+  } else if (option == 15) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the radial neighbor count threshold: ";
+    int radial_threshold;
+    std::cin >> radial_threshold;
+    std::cout << "Please enter the angular neighbor count threshold: ";
+    int angular_threshold;
+    std::cin >> angular_threshold;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    split_according_to_neighbor_counts(structures_input, radial_threshold, angular_threshold);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
