@@ -781,8 +781,8 @@ void Parameters::parse_zbl(const char** param, int num_param)
 
   if (zbl_rc_outer < 1.0f) {
     PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 3.0f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 3.0 A.");
+  } else if (zbl_rc_outer > 4.0f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 4.0 A.");
   }
 }
 
