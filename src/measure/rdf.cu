@@ -629,10 +629,10 @@ RDF::RDF(
   const char** param,
   const int num_param,
   Box& box,
-  const int number_of_types,
+  const std::vector<int>& cpu_type_size,
   const int number_of_steps)
 {
-  parse(param, num_param, box, number_of_types, number_of_steps);
+  parse(param, num_param, box, cpu_type_size, number_of_steps);
   property_name = "compute_rdf";
 }
 
@@ -640,7 +640,7 @@ void RDF::parse(
   const char** param,
   const int num_param,
   Box& box,
-  const int number_of_types,
+  const std::vector<int>& cpu_type_size,
   const int number_of_steps)
 {
   printf("Compute radial distribution function (RDF).\n");
@@ -705,7 +705,7 @@ void RDF::parse(
       if (atom_id1_[k_a] < 0) {
         PRINT_INPUT_ERROR("atom type index1 should be non-negative.\n");
       }
-      if (atom_id1_[k_a] > number_of_types) {
+      if (atom_id1_[k_a] > cpu_type_size.size()) {
         PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
       }
       if (!is_valid_int(param[k + 2], &atom_id2_[k_a])) {
@@ -714,7 +714,7 @@ void RDF::parse(
       if (atom_id2_[k_a] < 0) {
         PRINT_INPUT_ERROR("atom type index2 should be non-negative.\n");
       }
-      if (atom_id2_[k_a] > number_of_types) {
+      if (atom_id2_[k_a] > cpu_type_size.size()) {
         PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
       }
     } else {

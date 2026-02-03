@@ -67,14 +67,14 @@ public:
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
+    const std::vector<int>& cpu_type_size,
     const int number_of_steps);
 
   RDF(
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
+    const std::vector<int>& cpu_type_size,
     const int number_of_steps);
 
 private:
