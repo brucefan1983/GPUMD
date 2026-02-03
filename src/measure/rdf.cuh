@@ -25,7 +25,6 @@ class RDF : public Property
 {
 
 public:
-  bool compute_ = false;
   double r_cut_ = 8.0;
   int rdf_bins_ = 100;
   double r_step_;

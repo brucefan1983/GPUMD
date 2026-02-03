@@ -357,8 +357,6 @@ void RDF::preprocess(
   Box& box,
   Force& force)
 {
-  if (!compute_)
-    return;
   r_step_ = r_cut_ / rdf_bins_;
   std::vector<double> radial_cpu(rdf_bins_);
   for (int i = 0; i < rdf_bins_; i++) {
@@ -406,8 +404,6 @@ void RDF::process(
   Atom& atom,
   Force& force)
 {
-  if (!compute_)
-    return;
   if ((step + 1) % num_interval_ != 0) {
     return;
   }
@@ -516,9 +512,6 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (!compute_)
-    return;
-
   if (integrate.type >= 31) {
 
     CHECK(gpuMemcpy(
@@ -624,7 +617,6 @@ void RDF::postprocess(
     fclose(fid);
   }
 
-  compute_ = false;
   for (int s = 0; s < 6; s++) {
     atom_id1_[s] = -1;
     atom_id2_[s] = -1;
@@ -652,7 +644,6 @@ void RDF::parse(
   const int number_of_steps)
 {
   printf("Compute radial distribution function (RDF).\n");
-  compute_ = true;
 
   if (num_param < 4) {
     PRINT_INPUT_ERROR("compute_rdf should have at least 3 parameters.\n");
