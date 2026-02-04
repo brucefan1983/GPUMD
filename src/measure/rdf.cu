@@ -213,9 +213,6 @@ void RDF::postprocess(
 {
   std::vector<double> rdf_(rdf_para.num_RDFs * rdf_bins_, 0);
   rdf_g_.copy_to_host(rdf_.data());
-  for (int i = 0; i < rdf_.size(); ++i) {
-    rdf_[i] /= num_repeat_;
-  }
 
   FILE* fid = fopen("rdf.out", "a");
 
@@ -229,11 +226,11 @@ void RDF::postprocess(
 
   for (int bin = 0; bin < rdf_bins_; bin++) {
     fprintf(fid, "%.5f", bin * r_step_ + r_step_ / 2);
-    fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0]);
+    fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0] / num_repeat_);
     int count = 1;
     for (int a = 0; a < rdf_para.num_types; a++) {
       for (int b = a; b < rdf_para.num_types; b++) {
-        fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + count++]);
+        fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + count++] / num_repeat_);
       }
     }
     fprintf(fid, "\n");
