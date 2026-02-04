@@ -14,8 +14,9 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Calculate:
-    Radial distribution function (RDF)
+Calculate the Radial Distribution Function (RDF)
+Initial implementation: Yong Wang
+Refactored by: Zheyong Fan
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
