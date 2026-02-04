@@ -91,19 +91,5 @@ private:
   GPU_Vector<int> cell_contents;
   RDF_Para rdf_para;
 
-  void find_rdf(
-    double rc,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& cell_count,
-    GPU_Vector<int>& cell_count_sum,
-    GPU_Vector<int>& cell_contents,
-    int num_bins_0,
-    int num_bins_1,
-    int num_bins_2,
-    const double rc_inv_cell_list,
-    GPU_Vector<double>& rdf_g_,
-    const int rdf_bins_,
-    const double r_step_);
+  void find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position);
 };

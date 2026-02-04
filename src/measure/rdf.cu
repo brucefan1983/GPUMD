@@ -126,44 +126,37 @@ __global__ void gpu_find_rdf_ON1(
 }
 } // namespace
 
-void RDF::find_rdf(
-  double rc,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& cell_count,
-  GPU_Vector<int>& cell_count_sum,
-  GPU_Vector<int>& cell_contents,
-  int num_bins_0,
-  int num_bins_1,
-  int num_bins_2,
-  const double rc_inv_cell_list,
-  GPU_Vector<double>& rdf_g_,
-  const int rdf_bins_,
-  const double r_step_)
+void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position)
 {
-  const int N = position_per_atom.size() / 3;
-  const int block_size = 256;
-  const int grid_size = (N - 1) / block_size + 1;
-  const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + N;
-  const double* z = position_per_atom.data() + N * 2;
+  const int N = type.size();
+  const double rc_cell_list = 0.5 * r_cut_;
+  const double rc_inv_cell_list = 2.0 / r_cut_;
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+  find_cell_list(
+    rc_cell_list,
+    num_bins,
+    box,
+    position,
+    cell_count,
+    cell_count_sum,
+    cell_contents);
 
-  gpu_find_rdf_ON1<<<grid_size, block_size>>>(
+  gpu_find_rdf_ON1<<<(N - 1) / 256 + 1, 256>>>(
     N,
     rdf_para,
-    rc * rc,
+    r_cut_ * r_cut_,
     box,
     cell_count.data(),
     cell_count_sum.data(),
     cell_contents.data(),
-    num_bins_0,
-    num_bins_1,
-    num_bins_2,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
     rc_inv_cell_list,
-    x,
-    y,
-    z,
+    position.data(),
+    position.data() + N,
+    position.data() + N * 2,
     type.data(),
     rdf_g_.data(),
     rdf_bins_,
@@ -207,35 +200,7 @@ void RDF::process(
   num_repeat_++;
 
   rdf_para.volume = box.get_volume();
-
-  const double rc_cell_list = 0.5 * r_cut_;
-  const double rc_inv_cell_list = 2.0 / r_cut_;
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
-    integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
-    cell_count,
-    cell_count_sum,
-    cell_contents);
-
-  find_rdf(
-    r_cut_,
-    box,
-    atom.type,
-    integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
-    cell_count,
-    cell_count_sum,
-    cell_contents,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
-    rc_inv_cell_list,
-    rdf_g_,
-    rdf_bins_,
-    r_step_);
+  find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
 }
 
 void RDF::postprocess(
