@@ -36,7 +36,7 @@ namespace
 {
 __global__ void gpu_find_rdf_ON1(
   const int N,
-  const RDF::RDF_Para rdf_para,
+  const RDF::RDF_Para para,
   const Box box,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
@@ -95,21 +95,21 @@ __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 > rdf_para.rc_square) {
+              if (d2 > para.rc_square) {
                 continue;
               }
-              for (int w = 0; w < rdf_para.num_bins; w++) {
-                double r_low = (w*rdf_para.dr) * (w*rdf_para.dr);
-                double r_up = ((w+1)*rdf_para.dr) * ((w+1)*rdf_para.dr);
-                double r_mid_sqaure = ((w+0.5)*rdf_para.dr) * ((w+0.5)*rdf_para.dr);
-                double dV = r_mid_sqaure * 4 * rdf_PI * rdf_para.dr;
+              for (int w = 0; w < para.num_bins; w++) {
+                double r_low = (w * para.dr) * (w * para.dr);
+                double r_up = ((w + 1) * para.dr) * ((w + 1) * para.dr);
+                double r_mid_sqaure = ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
+                double dV = r_mid_sqaure * 4 * rdf_PI * para.dr;
                 if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * dV));
+                  atomicAdd(&rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
                   int count = 1;
-                  for (int a = 0; a < rdf_para.num_types; ++a) {
-                    for (int b = a; b < rdf_para.num_types; ++b) {
-                      if(type[n1] == rdf_para.type_index[a] && type[n2] == rdf_para.type_index[b]) {
-                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * dV));
+                  for (int a = 0; a < para.num_types; ++a) {
+                    for (int b = a; b < para.num_types; ++b) {
+                      if(type[n1] == para.type_index[a] && type[n2] == para.type_index[b]) {
+                        atomicAdd(&rdf_[w * para.num_RDFs + count], 1 / (para.num_atoms[a] * para.density_type[b] * dV));
                       }
                       ++count;
                     }
@@ -194,6 +194,10 @@ void RDF::process(
   }
 
   rdf_para.volume = box.get_volume();
+  rdf_para.density_global = atom.number_of_atoms / rdf_para.volume;
+  for (int t = 0; t < rdf_para.num_types; ++ t) {
+    rdf_para.density_type[t] = rdf_para.num_atoms[t] / rdf_para.volume;
+  }
   find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
 }
 

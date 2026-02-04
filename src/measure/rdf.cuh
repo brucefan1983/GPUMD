@@ -27,15 +27,17 @@ class RDF : public Property
 public:
 
   struct RDF_Para {
-    int num_types;      // number of atom types in model.xyz
-    int num_RDFs;       // 1 + (num_type * (num_types + 1)) / 2
-    int num_bins;       // number of bins in the RDFs
-    double volume;      // volume could change during NPT simulations
-    double rc;          // cutoff for RDF calculation
-    double rc_square;   // rc * rc
-    double dr;          // rc / num_bins
-    int type_index[89]; // map of atom type from model.xyz to nep.txt
-    int num_atoms[89];  // number of atoms for each atom type
+    int num_types;           // number of atom types in model.xyz
+    int num_RDFs;            // 1 + (num_type * (num_types + 1)) / 2
+    int num_bins;            // number of bins in the RDFs
+    double volume;           // volume could change during NPT simulations
+    double rc;               // cutoff for RDF calculation
+    double rc_square;        // rc * rc
+    double dr;               // rc / num_bins
+    int type_index[89];      // map of atom type from model.xyz to nep.txt
+    int num_atoms[89];       // number of atoms for each atom type
+    double density_global;   // N/volume
+    double density_type[89]; // num_atoms[89]/volume
   };
 
   virtual void preprocess(
