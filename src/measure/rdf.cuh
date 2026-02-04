@@ -30,6 +30,8 @@ public:
     int num_types;
     int num_RDFs;
     double volume;
+    double rc_square;
+    double dr;
     int type_index[89];
     int num_atoms[89];
   };
@@ -82,7 +84,6 @@ public:
 private:
   double r_cut_ = 8.0;
   int rdf_bins_ = 100;
-  double r_step_;
   int num_interval_ = 100;
   int num_repeat_ = 0;
   GPU_Vector<double> rdf_g_;

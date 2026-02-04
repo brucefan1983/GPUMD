@@ -36,7 +36,6 @@ namespace
 __global__ void gpu_find_rdf_ON1(
   const int N,
   const RDF::RDF_Para rdf_para,
-  const double rc_square,
   const Box box,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
@@ -50,8 +49,7 @@ __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ z,
   const int* __restrict__ type,
   double* rdf_,
-  const int rdf_bins_,
-  const double r_step_)
+  const int rdf_bins_)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   double rdf_PI = 3.14159265358979323846;
@@ -97,20 +95,20 @@ __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 > rc_square) {
+              if (d2 > rdf_para.rc_square) {
                 continue;
               }
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (w*r_step_) * (w*r_step_);
-                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
-                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
+                double r_low = (w*rdf_para.dr) * (w*rdf_para.dr);
+                double r_up = ((w+1)*rdf_para.dr) * ((w+1)*rdf_para.dr);
+                double r_mid_sqaure = ((w+0.5)*rdf_para.dr) * ((w+0.5)*rdf_para.dr);
                 if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * r_step_));
+                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * rdf_para.dr));
                   int count = 1;
                   for (int a = 0; a < rdf_para.num_types; ++a) {
                     for (int b = a; b < rdf_para.num_types; ++b) {
                       if(type[n1] == rdf_para.type_index[a] && type[n2] == rdf_para.type_index[b]) {
-                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * r_step_));
+                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * rdf_para.dr));
                       }
                       ++count;
                     }
@@ -145,7 +143,6 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   gpu_find_rdf_ON1<<<(N - 1) / 256 + 1, 256>>>(
     N,
     rdf_para,
-    r_cut_ * r_cut_,
     box,
     cell_count.data(),
     cell_count_sum.data(),
@@ -159,8 +156,7 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
     position.data() + N * 2,
     type.data(),
     rdf_g_.data(),
-    rdf_bins_,
-    r_step_);
+    rdf_bins_);
   GPU_CHECK_KERNEL
 }
 
@@ -173,7 +169,6 @@ void RDF::preprocess(
   Box& box,
   Force& force)
 {
-  r_step_ = r_cut_ / rdf_bins_;
   rdf_g_.resize(rdf_para.num_RDFs * rdf_bins_, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
@@ -225,7 +220,7 @@ void RDF::postprocess(
   fprintf(fid, "\n");
 
   for (int bin = 0; bin < rdf_bins_; bin++) {
-    fprintf(fid, "%.5f", bin * r_step_ + r_step_ / 2);
+    fprintf(fid, "%.5f", bin * rdf_para.dr + rdf_para.dr / 2);
     fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0] / num_repeat_);
     int count = 1;
     for (int a = 0; a < rdf_para.num_types; a++) {
@@ -314,6 +309,8 @@ void RDF::parse(
     }
   }
   rdf_para.num_RDFs = 1 + (rdf_para.num_types * (rdf_para.num_types + 1)) / 2;
+  rdf_para.rc_square = r_cut_ * r_cut_;
+  rdf_para.dr = r_cut_ / rdf_bins_;
 
   printf("    There are %d atom types in model.xyz.\n", rdf_para.num_types);
   for (int a = 0; a < rdf_para.num_types; ++a) {
