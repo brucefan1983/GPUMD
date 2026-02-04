@@ -102,13 +102,14 @@ __global__ void gpu_find_rdf_ON1(
                 double r_low = (w*rdf_para.dr) * (w*rdf_para.dr);
                 double r_up = ((w+1)*rdf_para.dr) * ((w+1)*rdf_para.dr);
                 double r_mid_sqaure = ((w+0.5)*rdf_para.dr) * ((w+0.5)*rdf_para.dr);
+                double dV = r_mid_sqaure * 4 * rdf_PI * rdf_para.dr;
                 if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * rdf_para.dr));
+                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * dV));
                   int count = 1;
                   for (int a = 0; a < rdf_para.num_types; ++a) {
                     for (int b = a; b < rdf_para.num_types; ++b) {
                       if(type[n1] == rdf_para.type_index[a] && type[n2] == rdf_para.type_index[b]) {
-                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * rdf_para.dr));
+                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * dV));
                       }
                       ++count;
                     }
