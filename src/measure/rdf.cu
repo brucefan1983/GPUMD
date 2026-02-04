@@ -48,8 +48,7 @@ __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ y,
   const double* __restrict__ z,
   const int* __restrict__ type,
-  double* rdf_,
-  const int rdf_bins_)
+  double* rdf_)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   double rdf_PI = 3.14159265358979323846;
@@ -98,7 +97,7 @@ __global__ void gpu_find_rdf_ON1(
               if (d2 > rdf_para.rc_square) {
                 continue;
               }
-              for (int w = 0; w < rdf_bins_; w++) {
+              for (int w = 0; w < rdf_para.num_bins; w++) {
                 double r_low = (w*rdf_para.dr) * (w*rdf_para.dr);
                 double r_up = ((w+1)*rdf_para.dr) * ((w+1)*rdf_para.dr);
                 double r_mid_sqaure = ((w+0.5)*rdf_para.dr) * ((w+0.5)*rdf_para.dr);
@@ -127,8 +126,8 @@ __global__ void gpu_find_rdf_ON1(
 void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position)
 {
   const int N = type.size();
-  const double rc_cell_list = 0.5 * r_cut_;
-  const double rc_inv_cell_list = 2.0 / r_cut_;
+  const double rc_cell_list = 0.5 * rdf_para.rc;
+  const double rc_inv_cell_list = 2.0 / rdf_para.rc;
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
   find_cell_list(
@@ -155,8 +154,7 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
     position.data() + N,
     position.data() + N * 2,
     type.data(),
-    rdf_g_.data(),
-    rdf_bins_);
+    rdf_g_.data());
   GPU_CHECK_KERNEL
 }
 
@@ -169,7 +167,7 @@ void RDF::preprocess(
   Box& box,
   Force& force)
 {
-  rdf_g_.resize(rdf_para.num_RDFs * rdf_bins_, 0);
+  rdf_g_.resize(rdf_para.num_RDFs * rdf_para.num_bins, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
   cell_contents.resize(atom.number_of_atoms);
@@ -189,10 +187,9 @@ void RDF::process(
   Atom& atom,
   Force& force)
 {
-  if ((step + 1) % num_interval_ != 0) {
+  if ((step + 1) % sampling_interval_ != 0) {
     return;
   }
-  num_repeat_++;
 
   rdf_para.volume = box.get_volume();
   find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
@@ -206,7 +203,7 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  std::vector<double> rdf_(rdf_para.num_RDFs * rdf_bins_, 0);
+  std::vector<double> rdf_(rdf_para.num_RDFs * rdf_para.num_bins, 0);
   rdf_g_.copy_to_host(rdf_.data());
 
   FILE* fid = fopen("rdf.out", "a");
@@ -219,13 +216,14 @@ void RDF::postprocess(
   }
   fprintf(fid, "\n");
 
-  for (int bin = 0; bin < rdf_bins_; bin++) {
+  const int num_repeats = number_of_steps / sampling_interval_;
+  for (int bin = 0; bin < rdf_para.num_bins; bin++) {
     fprintf(fid, "%.5f", bin * rdf_para.dr + rdf_para.dr / 2);
-    fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0] / num_repeat_);
+    fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0] / num_repeats);
     int count = 1;
     for (int a = 0; a < rdf_para.num_types; a++) {
       for (int b = a; b < rdf_para.num_types; b++) {
-        fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + count++] / num_repeat_);
+        fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + count++] / num_repeats);
       }
     }
     fprintf(fid, "\n");
@@ -233,8 +231,6 @@ void RDF::postprocess(
 
   fflush(fid);
   fclose(fid);
-
-  num_repeat_ = 0;
 }
 
 RDF::RDF(
@@ -261,44 +257,44 @@ void RDF::parse(
     PRINT_INPUT_ERROR("compute_rdf should have 3 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &r_cut_)) {
+  if (!is_valid_real(param[1], &rdf_para.rc)) {
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
-  if (r_cut_ <= 0) {
+  if (rdf_para.rc <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
   }
   double thickness_half[3] = {
     box.get_volume() / box.get_area(0) / 2.5,
     box.get_volume() / box.get_area(1) / 2.5,
     box.get_volume() / box.get_area(2) / 2.5};
-  if (r_cut_ > thickness_half[0] || r_cut_ > thickness_half[1] || r_cut_ > thickness_half[2]) {
+  if (rdf_para.rc > thickness_half[0] || rdf_para.rc > thickness_half[1] || rdf_para.rc > thickness_half[2]) {
     std::string message =
       "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
       "                Please increase the periodic direction(s).\n";
     PRINT_INPUT_ERROR(message.c_str());
   }
-  printf("    radial cutoff %g.\n", r_cut_);
+  printf("    radial cutoff %g.\n", rdf_para.rc);
 
-  if (!is_valid_int(param[2], &rdf_bins_)) {
+  if (!is_valid_int(param[2], &rdf_para.num_bins)) {
     PRINT_INPUT_ERROR("number of bins should be an integer.\n");
   }
-  if (rdf_bins_ <= 20) {
+  if (rdf_para.num_bins <= 20) {
     PRINT_INPUT_ERROR("A larger nbins is recommended.\n");
   }
 
-  if (rdf_bins_ > 500) {
+  if (rdf_para.num_bins > 500) {
     PRINT_INPUT_ERROR("A smaller nbins is recommended.\n");
   }
 
-  printf("    radial cutoff will be divided into %d bins.\n", rdf_bins_);
+  printf("    radial cutoff will be divided into %d bins.\n", rdf_para.num_bins);
 
-  if (!is_valid_int(param[3], &num_interval_)) {
+  if (!is_valid_int(param[3], &sampling_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
-  if (num_interval_ <= 0) {
+  if (sampling_interval_ <= 0) {
     PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
   }
-  printf("    RDF sample interval is %d step.\n", num_interval_);
+  printf("    RDF sample interval is %d step.\n", sampling_interval_);
 
   rdf_para.num_types = 0;
   for (int t = 0; t < cpu_type_size.size(); ++t) {
@@ -309,8 +305,8 @@ void RDF::parse(
     }
   }
   rdf_para.num_RDFs = 1 + (rdf_para.num_types * (rdf_para.num_types + 1)) / 2;
-  rdf_para.rc_square = r_cut_ * r_cut_;
-  rdf_para.dr = r_cut_ / rdf_bins_;
+  rdf_para.rc_square = rdf_para.rc * rdf_para.rc;
+  rdf_para.dr = rdf_para.rc / rdf_para.num_bins;
 
   printf("    There are %d atom types in model.xyz.\n", rdf_para.num_types);
   for (int a = 0; a < rdf_para.num_types; ++a) {

@@ -27,13 +27,15 @@ class RDF : public Property
 public:
 
   struct RDF_Para {
-    int num_types;
-    int num_RDFs;
-    double volume;
-    double rc_square;
-    double dr;
-    int type_index[89];
-    int num_atoms[89];
+    int num_types;      // number of atom types in model.xyz
+    int num_RDFs;       // 1 + (num_type * (num_types + 1)) / 2
+    int num_bins;       // number of bins in the RDFs
+    double volume;      // volume could change during NPT simulations
+    double rc;          // cutoff for RDF calculation
+    double rc_square;   // rc * rc
+    double dr;          // rc / num_bins
+    int type_index[89]; // map of atom type from model.xyz to nep.txt
+    int num_atoms[89];  // number of atoms for each atom type
   };
 
   virtual void preprocess(
@@ -82,10 +84,7 @@ public:
     const int number_of_steps);
 
 private:
-  double r_cut_ = 8.0;
-  int rdf_bins_ = 100;
-  int num_interval_ = 100;
-  int num_repeat_ = 0;
+  int sampling_interval_ = 100;
   GPU_Vector<double> rdf_g_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
