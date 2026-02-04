@@ -375,19 +375,11 @@ void RDF::preprocess(
     atom_id2_typesize[a] = atom.cpu_type_size[atom_id2_[a]];
   }
 
-  if (integrate.type >= 31) {
-    rdf_g_.resize(atom.number_of_beads * num_atoms_ * rdf_bins_, 0);
-    rdf_.resize(atom.number_of_beads * num_atoms_ * rdf_bins_, 0);
-    cell_count.resize(atom.number_of_atoms);
-    cell_count_sum.resize(atom.number_of_atoms);
-    cell_contents.resize(atom.number_of_atoms);
-  } else {
-    rdf_g_.resize(num_atoms_ * rdf_bins_, 0);
-    rdf_.resize(num_atoms_ * rdf_bins_, 0);
-    cell_count.resize(atom.number_of_atoms);
-    cell_count_sum.resize(atom.number_of_atoms);
-    cell_contents.resize(atom.number_of_atoms);
-  }
+  rdf_g_.resize(num_atoms_ * rdf_bins_, 0);
+  rdf_.resize(num_atoms_ * rdf_bins_, 0);
+  cell_count.resize(atom.number_of_atoms);
+  cell_count_sum.resize(atom.number_of_atoms);
+  cell_contents.resize(atom.number_of_atoms);
 }
 
 void RDF::process(
@@ -415,92 +407,45 @@ void RDF::process(
     density2[a + 1] = atom_id2_typesize[a] / box.get_volume();
   }
 
-  if (integrate.type >= 31) {
+  const double rc_cell_list = 0.5 * r_cut_;
+  const double rc_inv_cell_list = 2.0 / r_cut_;
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+  find_cell_list(
+    rc_cell_list,
+    num_bins,
+    box,
+    integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
+    cell_count,
+    cell_count_sum,
+    cell_contents);
 
-    for (int k = 0; k < atom.number_of_beads; k++) {
-      const double rc_cell_list = 0.5 * r_cut_;
-      const double rc_inv_cell_list = 2.0 / r_cut_;
-      int num_bins[3];
-      box.get_num_bins(rc_cell_list, num_bins);
-      find_cell_list(
-        rc_cell_list,
-        num_bins,
-        box,
-        atom.position_beads[k],
-        cell_count,
-        cell_count_sum,
-        cell_contents);
-
-      for (int a = 0; a < rdf_atom_count; a++) {
-        find_rdf(
-          k,
-          rdf_atom_count,
-          a,
-          atom_id1_,
-          atom_id2_,
-          atom_id1_typesize,
-          atom_id2_typesize,
-          density1,
-          density2,
-          r_cut_,
-          box,
-          atom.type,
-          atom.position_beads[k],
-          cell_count,
-          cell_count_sum,
-          cell_contents,
-          num_bins[0],
-          num_bins[1],
-          num_bins[2],
-          rc_inv_cell_list,
-          radial_,
-          rdf_g_,
-          rdf_bins_,
-          r_step_);
-      }
-    }
-  } else {
-    int classical = 0;
-    const double rc_cell_list = 0.5 * r_cut_;
-    const double rc_inv_cell_list = 2.0 / r_cut_;
-    int num_bins[3];
-    box.get_num_bins(rc_cell_list, num_bins);
-    find_cell_list(
-      rc_cell_list,
-      num_bins,
+  for (int a = 0; a < rdf_atom_count; a++) {
+    find_rdf(
+      0,
+      rdf_atom_count,
+      a,
+      atom_id1_,
+      atom_id2_,
+      atom_id1_typesize,
+      atom_id2_typesize,
+      density1,
+      density2,
+      r_cut_,
       box,
-      atom.position_per_atom,
+      atom.type,
+      integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
       cell_count,
       cell_count_sum,
-      cell_contents);
-
-    for (int a = 0; a < rdf_atom_count; a++) {
-      find_rdf(
-        classical,
-        rdf_atom_count,
-        a,
-        atom_id1_,
-        atom_id2_,
-        atom_id1_typesize,
-        atom_id2_typesize,
-        density1,
-        density2,
-        r_cut_,
-        box,
-        atom.type,
-        atom.position_per_atom,
-        cell_count,
-        cell_count_sum,
-        cell_contents,
-        num_bins[0],
-        num_bins[1],
-        num_bins[2],
-        rc_inv_cell_list,
-        radial_,
-        rdf_g_,
-        rdf_bins_,
-        r_step_);
-    }
+      cell_contents,
+      num_bins[0],
+      num_bins[1],
+      num_bins[2],
+      rc_inv_cell_list,
+      radial_,
+      rdf_g_,
+      rdf_bins_,
+      r_step_);
   }
 }
 
@@ -512,110 +457,47 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  if (integrate.type >= 31) {
+  CHECK(gpuMemcpy(
+    rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
+  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
-    CHECK(gpuMemcpy(
-      rdf_.data(),
-      rdf_g_.data(),
-      sizeof(double) * atom.number_of_beads * num_atoms_ * rdf_bins_,
-      gpuMemcpyDeviceToHost));
-    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
-
-    std::vector<double> rdf_average(atom.number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
-    for (int k = 0; k < atom.number_of_beads; k++) {
-      for (int a = 0; a < rdf_atom_count; a++) {
-        for (int m = 0; m < rdf_N_; m++) {
-          for (int x = 0; x < rdf_bins_; x++) {
-            rdf_average[k * rdf_atom_count * rdf_bins_ + a * rdf_bins_ + x] +=
-              rdf_[k * num_atoms_ * rdf_bins_ + a * rdf_N_ * rdf_bins_ + m * rdf_bins_ + x] /
-              num_repeat_;
-          }
-        }
+  std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
+  for (int a = 0; a < rdf_atom_count; a++) {
+    for (int m = 0; m < rdf_N_; m++) {
+      for (int x = 0; x < rdf_bins_; x++) {
+        rdf_average[a * rdf_bins_ + x] +=
+          rdf_[a * rdf_N_ * rdf_bins_ + m * rdf_bins_ + x] / num_repeat_;
       }
     }
-
-    std::vector<double> rdf_centroid(rdf_atom_count * rdf_bins_, 0.0);
-    for (int k = 0; k < atom.number_of_beads; k++) {
-      for (int a = 0; a < rdf_atom_count; a++) {
-        for (int x = 0; x < rdf_bins_; x++) {
-          rdf_centroid[a * rdf_bins_ + x] +=
-            rdf_average[k * rdf_atom_count * rdf_bins_ + a * rdf_bins_ + x] / atom.number_of_beads;
-        }
-      }
-    }
-
-    FILE* fid = fopen("rdf.out", "a");
-    fprintf(fid, "#radius");
-    for (int a = 0; a < rdf_atom_count; a++) {
-      if (a == 0) {
-        fprintf(fid, " total");
-      } else {
-        fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
-      }
-    }
-    fprintf(fid, "\n");
-    for (int nc = 0; nc < rdf_bins_; nc++) {
-      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
-      for (int a = 0; a < rdf_atom_count; a++) {
-        if (a == 0) {
-          fprintf(fid, " %.5f", rdf_centroid[nc]);
-        } else {
-          fprintf(
-            fid,
-            " %.5f",
-            (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_centroid[a * rdf_bins_ + nc]
-                                                   : rdf_centroid[a * rdf_bins_ + nc] / 2);
-        }
-      }
-      fprintf(fid, "\n");
-    }
-    fflush(fid);
-    fclose(fid);
-
-  } else {
-
-    CHECK(gpuMemcpy(
-      rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
-    CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
-
-    std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
-    for (int a = 0; a < rdf_atom_count; a++) {
-      for (int m = 0; m < rdf_N_; m++) {
-        for (int x = 0; x < rdf_bins_; x++) {
-          rdf_average[a * rdf_bins_ + x] +=
-            rdf_[a * rdf_N_ * rdf_bins_ + m * rdf_bins_ + x] / num_repeat_;
-        }
-      }
-    }
-
-    FILE* fid = fopen("rdf.out", "a");
-    fprintf(fid, "#radius");
-    for (int a = 0; a < rdf_atom_count; a++) {
-      if (a == 0) {
-        fprintf(fid, " total");
-      } else {
-        fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
-      }
-    }
-    fprintf(fid, "\n");
-    for (int nc = 0; nc < rdf_bins_; nc++) {
-      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
-      for (int a = 0; a < rdf_atom_count; a++) {
-        if (a == 0) {
-          fprintf(fid, " %.5f", rdf_average[nc]);
-        } else {
-          fprintf(
-            fid,
-            " %.5f",
-            (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_average[a * rdf_bins_ + nc]
-                                                   : rdf_average[a * rdf_bins_ + nc] / 2);
-        }
-      }
-      fprintf(fid, "\n");
-    }
-    fflush(fid);
-    fclose(fid);
   }
+
+  FILE* fid = fopen("rdf.out", "a");
+  fprintf(fid, "#radius");
+  for (int a = 0; a < rdf_atom_count; a++) {
+    if (a == 0) {
+      fprintf(fid, " total");
+    } else {
+      fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
+    }
+  }
+  fprintf(fid, "\n");
+  for (int nc = 0; nc < rdf_bins_; nc++) {
+    fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
+    for (int a = 0; a < rdf_atom_count; a++) {
+      if (a == 0) {
+        fprintf(fid, " %.5f", rdf_average[nc]);
+      } else {
+        fprintf(
+          fid,
+          " %.5f",
+          (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_average[a * rdf_bins_ + nc]
+                                                   : rdf_average[a * rdf_bins_ + nc] / 2);
+      }
+    }
+    fprintf(fid, "\n");
+  }
+  fflush(fid);
+  fclose(fid);
 
   for (int s = 0; s < 6; s++) {
     atom_id1_[s] = -1;
