@@ -90,7 +90,7 @@ static __global__ void gpu_find_rdf_ON1(
 
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
-            if (n2 >= 0 && n2 < N && n1 != n2) {
+            if (n1 != n2) {
 
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
@@ -177,7 +177,7 @@ static __global__ void gpu_find_rdf_ON1(
 
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
-            if (n2 >= 0 && n2 < N && n1 != n2 && type[n2] == atom_id2_) {
+            if (n1 != n2 && type[n2] == atom_id2_) {
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
@@ -190,63 +190,6 @@ static __global__ void gpu_find_rdf_ON1(
                 if (d2 > r_low && d2 <= r_up) {
                   rdf_[n1 * rdf_bins_ + w] +=
                     1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  } else if (n1 < N && type[n1] == atom_id2_) {
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    int cell_id;
-    int cell_id_x;
-    int cell_id_y;
-    int cell_id_z;
-    find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
-
-    // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
-          int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
-          if (cell_id_x + i < 0)
-            neighbor_cell += nx;
-          if (cell_id_x + i >= nx)
-            neighbor_cell -= nx;
-          if (cell_id_y + j < 0)
-            neighbor_cell += ny * nx;
-          if (cell_id_y + j >= ny)
-            neighbor_cell -= ny * nx;
-          if (cell_id_z + k < 0)
-            neighbor_cell += nz * ny * nx;
-          if (cell_id_z + k >= nz)
-            neighbor_cell -= nz * ny * nx;
-
-          const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
-          const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
-
-          for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-            const int n2 = cell_contents[num_atoms_previous_cells + m];
-            if (n2 >= 0 && n2 < N && n1 != n2 && type[n2] == atom_id1_) {
-              double x12 = x[n2] - x1;
-              double y12 = y[n2] - y1;
-              double z12 = z[n2] - z1;
-              apply_mic(box, x12, y12, z12);
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (w*r_step_) * (w*r_step_);
-                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
-                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
-                if (d2 > r_low && d2 <= r_up) {
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (num_atom2_ * density1 * r_mid_sqaure * 4 * rdf_PI * r_step_);
                 }
               }
             }
@@ -467,15 +410,7 @@ void RDF::postprocess(
   for (int nc = 0; nc < rdf_bins_; nc++) {
     fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
     for (int a = 0; a < rdf_atom_count; a++) {
-      if (a == 0) {
-        fprintf(fid, " %.5f", rdf_average[nc]);
-      } else {
-        fprintf(
-          fid,
-          " %.5f",
-          (atom_id1_[a - 1] == atom_id2_[a - 1]) ? rdf_average[a * rdf_bins_ + nc]
-                                                   : rdf_average[a * rdf_bins_ + nc] / 2);
-      }
+      fprintf(fid, " %.5f", rdf_average[a * rdf_bins_ + nc]);
     }
     fprintf(fid, "\n");
   }
