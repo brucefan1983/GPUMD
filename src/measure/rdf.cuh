@@ -89,7 +89,6 @@ private:
   std::vector<double> rdf_;
 
   GPU_Vector<double> rdf_g_;
-  GPU_Vector<double> radial_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
@@ -114,7 +113,6 @@ private:
     int num_bins_1,
     int num_bins_2,
     const double rc_inv_cell_list,
-    GPU_Vector<double>& radial_,
     GPU_Vector<double>& rdf_g_,
     const int rdf_bins_,
     const double r_step_);

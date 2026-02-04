@@ -48,7 +48,6 @@ static __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
-  const double* __restrict__ radial_,
   double* rdf_,
   const int rdf_bins_,
   const double r_step_)
@@ -69,7 +68,6 @@ static __global__ void gpu_find_rdf_ON1(
     const int y_lim = box.pbc_y ? 2 : 0;
     const int x_lim = box.pbc_x ? 2 : 0;
 
-    // get radial descriptors
     for (int k = -z_lim; k <= z_lim; ++k) {
       for (int j = -y_lim; j <= y_lim; ++j) {
         for (int i = -x_lim; i <= x_lim; ++i) {
@@ -101,9 +99,9 @@ static __global__ void gpu_find_rdf_ON1(
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
+                double r_low = (w*r_step_) * (w*r_step_);
+                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
+                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
                   rdf_[n1 * rdf_bins_ + w] +=
                     1 / (N * density * r_mid_sqaure * 4 * rdf_PI * r_step_);
@@ -137,7 +135,6 @@ static __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ y,
   const double* __restrict__ z,
   const int* __restrict__ type,
-  const double* __restrict__ radial_,
   double* rdf_,
   const int rdf_bins_,
   const double r_step_)
@@ -158,7 +155,6 @@ static __global__ void gpu_find_rdf_ON1(
     const int y_lim = box.pbc_y ? 2 : 0;
     const int x_lim = box.pbc_x ? 2 : 0;
 
-    // get radial descriptors
     for (int k = -z_lim; k <= z_lim; ++k) {
       for (int j = -y_lim; j <= y_lim; ++j) {
         for (int i = -x_lim; i <= x_lim; ++i) {
@@ -188,9 +184,9 @@ static __global__ void gpu_find_rdf_ON1(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
+                double r_low = (w*r_step_) * (w*r_step_);
+                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
+                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
                   rdf_[n1 * rdf_bins_ + w] +=
                     1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_);
@@ -245,9 +241,9 @@ static __global__ void gpu_find_rdf_ON1(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (radial_[w] - r_step_ / 2) * (radial_[w] - r_step_ / 2);
-                double r_up = (radial_[w] + r_step_ / 2) * (radial_[w] + r_step_ / 2);
-                double r_mid_sqaure = radial_[w] * radial_[w];
+                double r_low = (w*r_step_) * (w*r_step_);
+                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
+                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
                   rdf_[n1 * rdf_bins_ + w] +=
                     1 / (num_atom2_ * density1 * r_mid_sqaure * 4 * rdf_PI * r_step_);
@@ -282,7 +278,6 @@ void RDF::find_rdf(
   int num_bins_1,
   int num_bins_2,
   const double rc_inv_cell_list,
-  GPU_Vector<double>& radial_,
   GPU_Vector<double>& rdf_g_,
   const int rdf_bins_,
   const double r_step_)
@@ -311,7 +306,6 @@ void RDF::find_rdf(
       x,
       y,
       z,
-      radial_.data(),
       rdf_g_ind,
       rdf_bins_,
       r_step_);
@@ -338,7 +332,6 @@ void RDF::find_rdf(
       y,
       z,
       type.data(),
-      radial_.data(),
       rdf_g_ind,
       rdf_bins_,
       r_step_);
@@ -356,12 +349,6 @@ void RDF::preprocess(
   Force& force)
 {
   r_step_ = r_cut_ / rdf_bins_;
-  std::vector<double> radial_cpu(rdf_bins_);
-  for (int i = 0; i < rdf_bins_; i++) {
-    radial_cpu[i] = i * r_step_ + r_step_ / 2;
-  }
-  radial_.resize(rdf_bins_);
-  radial_.copy_from_host(radial_cpu.data());
   rdf_N_ = atom.number_of_atoms;
   num_atoms_ = atom.number_of_atoms * rdf_atom_count;
   density1.resize(rdf_atom_count);
@@ -439,7 +426,6 @@ void RDF::process(
       num_bins[1],
       num_bins[2],
       rc_inv_cell_list,
-      radial_,
       rdf_g_,
       rdf_bins_,
       r_step_);
