@@ -78,7 +78,6 @@ public:
     const int number_of_steps);
 
 private:
-  int num_atoms_;
   int rdf_atom_count = 1;
   int rdf_N_;
   int num_repeat_ = 0;

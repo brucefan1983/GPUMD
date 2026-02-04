@@ -107,8 +107,7 @@ static __global__ void gpu_find_rdf_ON1(
                 double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
                 double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (N * density * r_mid_sqaure * 4 * rdf_PI * r_step_);
+                  atomicAdd(&rdf_[w], 1 / (N * density * r_mid_sqaure * 4 * rdf_PI * r_step_));
                 }
               }
             }
@@ -196,8 +195,7 @@ static __global__ void gpu_find_rdf_ON1(
                 double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
                 double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
-                  rdf_[n1 * rdf_bins_ + w] +=
-                    1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_);
+                  atomicAdd(&rdf_[w], 1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_));
                 }
               }
             }
@@ -240,7 +238,7 @@ void RDF::find_rdf(
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
 
-  double* rdf_g_ind = rdf_g_.data() + rdf_atom_ * N * rdf_bins_;
+  double* rdf_g_ind = rdf_g_.data() + rdf_atom_ * rdf_bins_;
 
   if (rdf_atom_ == 0) {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -302,8 +300,6 @@ void RDF::preprocess(
   Force& force)
 {
   r_step_ = r_cut_ / rdf_bins_;
-  rdf_N_ = atom.number_of_atoms;
-  num_atoms_ = atom.number_of_atoms * rdf_atom_count;
   density1.resize(rdf_atom_count);
   density2.resize(rdf_atom_count);
   atom_id1_typesize.resize(rdf_atom_count - 1);
@@ -313,8 +309,8 @@ void RDF::preprocess(
     atom_id2_typesize[a] = atom.cpu_type_size[atom_id2_[a]];
   }
 
-  rdf_g_.resize(num_atoms_ * rdf_bins_, 0);
-  rdf_.resize(num_atoms_ * rdf_bins_, 0);
+  rdf_g_.resize(rdf_atom_count * rdf_bins_, 0);
+  rdf_.resize(rdf_atom_count * rdf_bins_, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
   cell_contents.resize(atom.number_of_atoms);
@@ -338,8 +334,8 @@ void RDF::process(
     return;
   }
   num_repeat_++;
-  density1[0] = rdf_N_ / box.get_volume();
-  density2[0] = rdf_N_ / box.get_volume();
+  density1[0] = atom.number_of_atoms / box.get_volume();
+  density2[0] = atom.number_of_atoms / box.get_volume();
   for (int a = 0; a < rdf_atom_count - 1; a++) {
     density1[a + 1] = atom_id1_typesize[a] / box.get_volume();
     density2[a + 1] = atom_id2_typesize[a] / box.get_volume();
@@ -393,19 +389,7 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  CHECK(gpuMemcpy(
-    rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, gpuMemcpyDeviceToHost));
-  CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
-
-  std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
-  for (int a = 0; a < rdf_atom_count; a++) {
-    for (int m = 0; m < rdf_N_; m++) {
-      for (int x = 0; x < rdf_bins_; x++) {
-        rdf_average[a * rdf_bins_ + x] +=
-          rdf_[a * rdf_N_ * rdf_bins_ + m * rdf_bins_ + x] / num_repeat_;
-      }
-    }
-  }
+  rdf_g_.copy_to_host(rdf_.data());
 
   FILE* fid = fopen("rdf.out", "a");
   fprintf(fid, "#radius");
@@ -420,7 +404,7 @@ void RDF::postprocess(
   for (int nc = 0; nc < rdf_bins_; nc++) {
     fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
     for (int a = 0; a < rdf_atom_count; a++) {
-      fprintf(fid, " %.5f", rdf_average[a * rdf_bins_ + nc]);
+      fprintf(fid, " %.5f", rdf_[a * rdf_bins_ + nc] / num_repeat_);
     }
     fprintf(fid, "\n");
   }
