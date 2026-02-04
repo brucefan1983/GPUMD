@@ -95,7 +95,6 @@ private:
   GPU_Vector<int> cell_contents;
 
   void find_rdf(
-    const int bead,
     const int rdf_atom_count,
     const int rdf_atom_,
     int* atom_id1_,

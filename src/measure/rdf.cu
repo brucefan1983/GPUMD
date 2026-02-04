@@ -263,7 +263,6 @@ static __global__ void gpu_find_rdf_ON1(
 } // namespace
 
 void RDF::find_rdf(
-  const int bead,
   const int rdf_atom_count,
   const int rdf_atom_,
   int* atom_id1_,
@@ -295,8 +294,7 @@ void RDF::find_rdf(
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
 
-  double* rdf_g_ind =
-    rdf_g_.data() + bead * rdf_atom_count * N * rdf_bins_ + rdf_atom_ * N * rdf_bins_;
+  double* rdf_g_ind = rdf_g_.data() + rdf_atom_ * N * rdf_bins_;
 
   if (rdf_atom_ == 0) {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
@@ -422,7 +420,6 @@ void RDF::process(
 
   for (int a = 0; a < rdf_atom_count; a++) {
     find_rdf(
-      0,
       rdf_atom_count,
       a,
       atom_id1_,
