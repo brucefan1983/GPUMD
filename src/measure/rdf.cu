@@ -266,7 +266,6 @@ void RDF::parse(
     PRINT_INPUT_ERROR("compute_rdf should have 3 parameters.\n");
   }
 
-  // radial cutoff
   if (!is_valid_real(param[1], &r_cut_)) {
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
@@ -285,7 +284,6 @@ void RDF::parse(
   }
   printf("    radial cutoff %g.\n", r_cut_);
 
-  // number of bins
   if (!is_valid_int(param[2], &rdf_bins_)) {
     PRINT_INPUT_ERROR("number of bins should be an integer.\n");
   }
@@ -299,7 +297,6 @@ void RDF::parse(
 
   printf("    radial cutoff will be divided into %d bins.\n", rdf_bins_);
 
-  // sample interval
   if (!is_valid_int(param[3], &num_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
