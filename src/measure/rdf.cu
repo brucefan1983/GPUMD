@@ -246,7 +246,6 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  const double V = box.get_volume();
   std::vector<double> rdf_(rdf_para.num_RDFs * rdf_bins_, 0);
   rdf_g_.copy_to_host(rdf_.data());
   for (int i = 0; i < rdf_.size(); ++i) {
