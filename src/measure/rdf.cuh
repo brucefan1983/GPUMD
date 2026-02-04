@@ -25,12 +25,14 @@ class RDF : public Property
 {
 
 public:
-  double r_cut_ = 8.0;
-  int rdf_bins_ = 100;
-  double r_step_;
-  int num_interval_ = 100;
-  int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
-  int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
+
+  struct RDF_Para {
+    int num_types;
+    int num_RDFs;
+    double volume;
+    int type_index[89];
+    int num_atoms[89];
+  };
 
   virtual void preprocess(
     const int number_of_steps,
@@ -78,27 +80,18 @@ public:
     const int number_of_steps);
 
 private:
-  int rdf_atom_count = 1;
+  double r_cut_ = 8.0;
+  int rdf_bins_ = 100;
+  double r_step_;
+  int num_interval_ = 100;
   int num_repeat_ = 0;
-  std::vector<int> atom_id1_typesize;
-  std::vector<int> atom_id2_typesize;
-  std::vector<double> density1;
-  std::vector<double> density2;
-
   GPU_Vector<double> rdf_g_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+  RDF_Para rdf_para;
 
   void find_rdf(
-    const int rdf_atom_count,
-    const int rdf_atom_,
-    int* atom_id1_,
-    int* atom_id2_,
-    std::vector<int>& atom_id1_typesize,
-    std::vector<int>& atom_id2_typesize,
-    std::vector<double>& density1,
-    std::vector<double>& density2,
     double rc,
     Box& box,
     const GPU_Vector<int>& type,

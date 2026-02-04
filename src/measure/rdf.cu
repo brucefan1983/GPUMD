@@ -33,11 +33,10 @@ Calculate:
 
 namespace
 {
-
-static __global__ void gpu_find_rdf_ON1(
+__global__ void gpu_find_rdf_ON1(
   const int N,
+  const RDF::RDF_Para rdf_para,
   const double rc_square,
-  const double density,
   const Box box,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
@@ -49,6 +48,7 @@ static __global__ void gpu_find_rdf_ON1(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
+  const int* __restrict__ type,
   double* rdf_,
   const int rdf_bins_,
   const double r_step_)
@@ -92,96 +92,6 @@ static __global__ void gpu_find_rdf_ON1(
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n1 != n2) {
-
-              double x12 = x[n2] - x1;
-              double y12 = y[n2] - y1;
-              double z12 = z[n2] - z1;
-              apply_mic(box, x12, y12, z12);
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 > rc_square) {
-                continue;
-              }
-
-              for (int w = 0; w < rdf_bins_; w++) {
-                double r_low = (w*r_step_) * (w*r_step_);
-                double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
-                double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
-                if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w], 1 / (N * density * r_mid_sqaure * 4 * rdf_PI * r_step_));
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-static __global__ void gpu_find_rdf_ON1(
-  const int N,
-  const double rc_square,
-  const double density1,
-  const double density2,
-  const double num_atom1_,
-  const double num_atom2_,
-  const double atom_id1_,
-  const double atom_id2_,
-  const Box box,
-  const int* __restrict__ cell_counts,
-  const int* __restrict__ cell_count_sum,
-  const int* __restrict__ cell_contents,
-  const int nx,
-  const int ny,
-  const int nz,
-  const double rc_inv,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z,
-  const int* __restrict__ type,
-  double* rdf_,
-  const int rdf_bins_,
-  const double r_step_)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  double rdf_PI = 3.14159265358979323846;
-  if (n1 < N && type[n1] == atom_id1_) {
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    int cell_id;
-    int cell_id_x;
-    int cell_id_y;
-    int cell_id_z;
-    find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
-
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
-          int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
-          if (cell_id_x + i < 0)
-            neighbor_cell += nx;
-          if (cell_id_x + i >= nx)
-            neighbor_cell -= nx;
-          if (cell_id_y + j < 0)
-            neighbor_cell += ny * nx;
-          if (cell_id_y + j >= ny)
-            neighbor_cell -= ny * nx;
-          if (cell_id_z + k < 0)
-            neighbor_cell += nz * ny * nx;
-          if (cell_id_z + k >= nz)
-            neighbor_cell -= nz * ny * nx;
-
-          const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
-          const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
-
-          for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-            const int n2 = cell_contents[num_atoms_previous_cells + m];
-            if (n1 != n2 && type[n2] == atom_id2_) {
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
@@ -195,7 +105,16 @@ static __global__ void gpu_find_rdf_ON1(
                 double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
                 double r_mid_sqaure = ((w+0.5)*r_step_) * ((w+0.5)*r_step_);
                 if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w], 1 / (num_atom1_ * density2 * r_mid_sqaure * 4 * rdf_PI * r_step_));
+                  atomicAdd(&rdf_[w * rdf_para.num_RDFs + 0], 1 / (N * (N/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * r_step_));
+                  int count = 1;
+                  for (int a = 0; a < rdf_para.num_types; ++a) {
+                    for (int b = a; b < rdf_para.num_types; ++b) {
+                      if(type[n1] == rdf_para.type_index[a] && type[n2] == rdf_para.type_index[b]) {
+                        atomicAdd(&rdf_[w * rdf_para.num_RDFs + count], 1 / (rdf_para.num_atoms[a] * (rdf_para.num_atoms[b]/rdf_para.volume) * r_mid_sqaure * 4 * rdf_PI * r_step_));
+                      }
+                      ++count;
+                    }
+                  }
                 }
               }
             }
@@ -208,14 +127,6 @@ static __global__ void gpu_find_rdf_ON1(
 } // namespace
 
 void RDF::find_rdf(
-  const int rdf_atom_count,
-  const int rdf_atom_,
-  int* atom_id1_,
-  int* atom_id2_,
-  std::vector<int>& atom_id1_typesize,
-  std::vector<int>& atom_id2_typesize,
-  std::vector<double>& density1,
-  std::vector<double>& density2,
   double rc,
   Box& box,
   const GPU_Vector<int>& type,
@@ -238,56 +149,26 @@ void RDF::find_rdf(
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
 
-  double* rdf_g_ind = rdf_g_.data() + rdf_atom_ * rdf_bins_;
-
-  if (rdf_atom_ == 0) {
-    gpu_find_rdf_ON1<<<grid_size, block_size>>>(
-      N,
-      rc * rc,
-      density1[rdf_atom_],
-      box,
-      cell_count.data(),
-      cell_count_sum.data(),
-      cell_contents.data(),
-      num_bins_0,
-      num_bins_1,
-      num_bins_2,
-      rc_inv_cell_list,
-      x,
-      y,
-      z,
-      rdf_g_ind,
-      rdf_bins_,
-      r_step_);
-    GPU_CHECK_KERNEL
-
-  } else {
-    gpu_find_rdf_ON1<<<grid_size, block_size>>>(
-      N,
-      rc * rc,
-      density1[rdf_atom_],
-      density2[rdf_atom_],
-      atom_id1_typesize[rdf_atom_ - 1],
-      atom_id2_typesize[rdf_atom_ - 1],
-      atom_id1_[rdf_atom_ - 1],
-      atom_id2_[rdf_atom_ - 1],
-      box,
-      cell_count.data(),
-      cell_count_sum.data(),
-      cell_contents.data(),
-      num_bins_0,
-      num_bins_1,
-      num_bins_2,
-      rc_inv_cell_list,
-      x,
-      y,
-      z,
-      type.data(),
-      rdf_g_ind,
-      rdf_bins_,
-      r_step_);
-    GPU_CHECK_KERNEL
-  }
+  gpu_find_rdf_ON1<<<grid_size, block_size>>>(
+    N,
+    rdf_para,
+    rc * rc,
+    box,
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    num_bins_0,
+    num_bins_1,
+    num_bins_2,
+    rc_inv_cell_list,
+    x,
+    y,
+    z,
+    type.data(),
+    rdf_g_.data(),
+    rdf_bins_,
+    r_step_);
+  GPU_CHECK_KERNEL
 }
 
 void RDF::preprocess(
@@ -300,16 +181,7 @@ void RDF::preprocess(
   Force& force)
 {
   r_step_ = r_cut_ / rdf_bins_;
-  density1.resize(rdf_atom_count);
-  density2.resize(rdf_atom_count);
-  atom_id1_typesize.resize(rdf_atom_count - 1);
-  atom_id2_typesize.resize(rdf_atom_count - 1);
-  for (int a = 0; a < rdf_atom_count - 1; a++) {
-    atom_id1_typesize[a] = atom.cpu_type_size[atom_id1_[a]];
-    atom_id2_typesize[a] = atom.cpu_type_size[atom_id2_[a]];
-  }
-
-  rdf_g_.resize(rdf_atom_count * rdf_bins_, 0);
+  rdf_g_.resize(rdf_para.num_RDFs * rdf_bins_, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
   cell_contents.resize(atom.number_of_atoms);
@@ -333,12 +205,8 @@ void RDF::process(
     return;
   }
   num_repeat_++;
-  density1[0] = atom.number_of_atoms / box.get_volume();
-  density2[0] = atom.number_of_atoms / box.get_volume();
-  for (int a = 0; a < rdf_atom_count - 1; a++) {
-    density1[a + 1] = atom_id1_typesize[a] / box.get_volume();
-    density2[a + 1] = atom_id2_typesize[a] / box.get_volume();
-  }
+
+  rdf_para.volume = box.get_volume();
 
   const double rc_cell_list = 0.5 * r_cut_;
   const double rc_inv_cell_list = 2.0 / r_cut_;
@@ -353,31 +221,21 @@ void RDF::process(
     cell_count_sum,
     cell_contents);
 
-  for (int a = 0; a < rdf_atom_count; a++) {
-    find_rdf(
-      rdf_atom_count,
-      a,
-      atom_id1_,
-      atom_id2_,
-      atom_id1_typesize,
-      atom_id2_typesize,
-      density1,
-      density2,
-      r_cut_,
-      box,
-      atom.type,
-      integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
-      cell_count,
-      cell_count_sum,
-      cell_contents,
-      num_bins[0],
-      num_bins[1],
-      num_bins[2],
-      rc_inv_cell_list,
-      rdf_g_,
-      rdf_bins_,
-      r_step_);
-  }
+  find_rdf(
+    r_cut_,
+    box,
+    atom.type,
+    integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom,
+    cell_count,
+    cell_count_sum,
+    cell_contents,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list,
+    rdf_g_,
+    rdf_bins_,
+    r_step_);
 }
 
 void RDF::postprocess(
@@ -388,34 +246,38 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
-  std::vector<double> rdf_(rdf_atom_count * rdf_bins_, 0);
+  const double V = box.get_volume();
+  std::vector<double> rdf_(rdf_para.num_RDFs * rdf_bins_, 0);
   rdf_g_.copy_to_host(rdf_.data());
+  for (int i = 0; i < rdf_.size(); ++i) {
+    rdf_[i] /= num_repeat_;
+  }
 
   FILE* fid = fopen("rdf.out", "a");
-  fprintf(fid, "#radius");
-  for (int a = 0; a < rdf_atom_count; a++) {
-    if (a == 0) {
-      fprintf(fid, " total");
-    } else {
-      fprintf(fid, " type_%d_%d", atom_id1_[a - 1], atom_id2_[a - 1]);
+
+  fprintf(fid, "#radius total");
+  for (int a = 0; a < rdf_para.num_types; a++) {
+    for (int b = a; b < rdf_para.num_types; b++) {
+      fprintf(fid, " type_%d_%d", rdf_para.type_index[a], rdf_para.type_index[b]);
     }
   }
   fprintf(fid, "\n");
-  for (int nc = 0; nc < rdf_bins_; nc++) {
-    fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
-    for (int a = 0; a < rdf_atom_count; a++) {
-      fprintf(fid, " %.5f", rdf_[a * rdf_bins_ + nc] / num_repeat_);
+
+  for (int bin = 0; bin < rdf_bins_; bin++) {
+    fprintf(fid, "%.5f", bin * r_step_ + r_step_ / 2);
+    fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + 0]);
+    int count = 1;
+    for (int a = 0; a < rdf_para.num_types; a++) {
+      for (int b = a; b < rdf_para.num_types; b++) {
+        fprintf(fid, " %.5f", rdf_[bin * rdf_para.num_RDFs + count++]);
+      }
     }
     fprintf(fid, "\n");
   }
+
   fflush(fid);
   fclose(fid);
 
-  for (int s = 0; s < 6; s++) {
-    atom_id1_[s] = -1;
-    atom_id2_[s] = -1;
-  }
-  rdf_atom_count = 1;
   num_repeat_ = 0;
 }
 
@@ -485,19 +347,19 @@ void RDF::parse(
   }
   printf("    RDF sample interval is %d step.\n", num_interval_);
 
-  int count_atom_pair = 0;
-  for (int t1 = 0; t1 < cpu_type_size.size(); ++t1) {
-    if (cpu_type_size[t1] == 0) {
-      continue;
-    }
-    for (int t2 = t1; t2 < cpu_type_size.size(); ++t2) {
-      if (cpu_type_size[t2] == 0) {
-        continue;
-      }
-      atom_id1_[count_atom_pair] = t1;
-      atom_id2_[count_atom_pair] = t2;
-      ++count_atom_pair;
+  rdf_para.num_types = 0;
+  for (int t = 0; t < cpu_type_size.size(); ++t) {
+    if (cpu_type_size[t] != 0) {
+      rdf_para.type_index[rdf_para.num_types] = t;
+      rdf_para.num_atoms[rdf_para.num_types] = cpu_type_size[t];
+      rdf_para.num_types++;
     }
   }
-  rdf_atom_count = 1 + count_atom_pair; // global RDF + atom-pair RDFs
+  rdf_para.num_RDFs = 1 + (rdf_para.num_types * (rdf_para.num_types + 1)) / 2;
+
+  printf("    There are %d atom types in model.xyz.\n", rdf_para.num_types);
+  for (int a = 0; a < rdf_para.num_types; ++a) {
+    printf("        Type %d has %d atoms.\n", rdf_para.type_index[a], rdf_para.num_atoms[a]);
+  }
+  printf("    Will calculate one total RDF and %d partial RDFs.\n", rdf_para.num_RDFs - 1);
 }
