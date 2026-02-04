@@ -645,11 +645,8 @@ void RDF::parse(
 {
   printf("Compute radial distribution function (RDF).\n");
 
-  if (num_param < 4) {
-    PRINT_INPUT_ERROR("compute_rdf should have at least 3 parameters.\n");
-  }
-  if (num_param > 22) {
-    PRINT_INPUT_ERROR("compute_rdf has too many parameters.\n");
+  if (num_param != 4) {
+    PRINT_INPUT_ERROR("compute_rdf should have 3 parameters.\n");
   }
 
   // radial cutoff
@@ -694,31 +691,19 @@ void RDF::parse(
   }
   printf("    RDF sample interval is %d step.\n", num_interval_);
 
-  // Process optional arguments
-  for (int k = 4; k < num_param; k += 3) {
-    if (strcmp(param[k], "atom") == 0) {
-      int k_a = ((k + 2) / 3) - 2;
-      rdf_atom_count++;
-      if (!is_valid_int(param[k + 1], &atom_id1_[k_a])) {
-        PRINT_INPUT_ERROR("atom type index1 should be an integer.\n");
+  int count_atom_pair = 0;
+  for (int t1 = 0; t1 < cpu_type_size.size(); ++t1) {
+    if (cpu_type_size[t1] == 0) {
+      continue;
+    }
+    for (int t2 = t1; t2 < cpu_type_size.size(); ++t2) {
+      if (cpu_type_size[t2] == 0) {
+        continue;
       }
-      if (atom_id1_[k_a] < 0) {
-        PRINT_INPUT_ERROR("atom type index1 should be non-negative.\n");
-      }
-      if (atom_id1_[k_a] > cpu_type_size.size()) {
-        PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
-      }
-      if (!is_valid_int(param[k + 2], &atom_id2_[k_a])) {
-        PRINT_INPUT_ERROR("atom type index2 should be an integer.\n");
-      }
-      if (atom_id2_[k_a] < 0) {
-        PRINT_INPUT_ERROR("atom type index2 should be non-negative.\n");
-      }
-      if (atom_id2_[k_a] > cpu_type_size.size()) {
-        PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
-      }
-    } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in compute_rdf.\n");
+      atom_id1_[count_atom_pair] = t1;
+      atom_id2_[count_atom_pair] = t2;
+      ++count_atom_pair;
     }
   }
+  rdf_atom_count = 1 + count_atom_pair; // global RDF + atom-pair RDFs
 }
