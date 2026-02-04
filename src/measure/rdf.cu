@@ -36,6 +36,7 @@ namespace
 
 static __global__ void gpu_find_rdf_ON1(
   const int N,
+  const double rc_square,
   const double density,
   const Box box,
   const int* __restrict__ cell_counts,
@@ -97,6 +98,9 @@ static __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              if (d2 > rc_square) {
+                continue;
+              }
 
               for (int w = 0; w < rdf_bins_; w++) {
                 double r_low = (w*r_step_) * (w*r_step_);
@@ -117,6 +121,7 @@ static __global__ void gpu_find_rdf_ON1(
 
 static __global__ void gpu_find_rdf_ON1(
   const int N,
+  const double rc_square,
   const double density1,
   const double density2,
   const double num_atom1_,
@@ -183,6 +188,9 @@ static __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              if (d2 > rc_square) {
+                continue;
+              }
               for (int w = 0; w < rdf_bins_; w++) {
                 double r_low = (w*r_step_) * (w*r_step_);
                 double r_up = ((w+1)*r_step_) * ((w+1)*r_step_);
@@ -237,6 +245,7 @@ void RDF::find_rdf(
   if (rdf_atom_ == 0) {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
       N,
+      rc * rc,
       density1[rdf_atom_],
       box,
       cell_count.data(),
@@ -257,6 +266,7 @@ void RDF::find_rdf(
   } else {
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
       N,
+      rc * rc,
       density1[rdf_atom_],
       density2[rdf_atom_],
       atom_id1_typesize[rdf_atom_ - 1],
