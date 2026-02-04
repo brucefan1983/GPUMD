@@ -79,13 +79,11 @@ public:
 
 private:
   int rdf_atom_count = 1;
-  int rdf_N_;
   int num_repeat_ = 0;
   std::vector<int> atom_id1_typesize;
   std::vector<int> atom_id2_typesize;
   std::vector<double> density1;
   std::vector<double> density2;
-  std::vector<double> rdf_;
 
   GPU_Vector<double> rdf_g_;
   GPU_Vector<int> cell_count;

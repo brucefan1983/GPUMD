@@ -310,7 +310,6 @@ void RDF::preprocess(
   }
 
   rdf_g_.resize(rdf_atom_count * rdf_bins_, 0);
-  rdf_.resize(rdf_atom_count * rdf_bins_, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
   cell_contents.resize(atom.number_of_atoms);
@@ -389,6 +388,7 @@ void RDF::postprocess(
   const double time_step,
   const double temperature)
 {
+  std::vector<double> rdf_(rdf_atom_count * rdf_bins_, 0);
   rdf_g_.copy_to_host(rdf_.data());
 
   FILE* fid = fopen("rdf.out", "a");
