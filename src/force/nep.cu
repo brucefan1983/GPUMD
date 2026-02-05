@@ -429,9 +429,9 @@ static __global__ void find_neighbor_list_large_box(
     return;
   }
 
-  float x1 = g_x[n1];
-  float y1 = g_y[n1];
-  float z1 = g_z[n1];
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
   int t1 = g_type[n1];
   int count_radial = 0;
   int count_angular = 0;
@@ -540,9 +540,9 @@ static __global__ void find_descriptor(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int t1 = g_type[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
     float q[MAX_DIM] = {0.0f};
 
     // get radial descriptors
@@ -717,9 +717,9 @@ static __global__ void find_force_radial(
     float s_szx = 0.0f;
     float s_szy = 0.0f;
     float s_szz = 0.0f;
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int t2 = g_type[n2];
@@ -829,9 +829,9 @@ static __global__ void find_partial_force_angular(
     }
 
     int t1 = g_type[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_angular[n1 + N * i1];
@@ -914,9 +914,9 @@ static __global__ void find_force_ZBL(
     float s_szx = 0.0f;
     float s_szy = 0.0f;
     float s_szz = 0.0f;
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
     int type1 = g_type[n1];
     int zi = zbl.atomic_numbers[type1];
     float pow_zi = pow(float(zi), 0.23f);
