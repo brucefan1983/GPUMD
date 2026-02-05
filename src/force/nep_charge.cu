@@ -467,11 +467,10 @@ static __global__ void find_neighbor_list_large_box(
             continue;
           }
 
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+          float x12 = g_x[n2] - x1;
+          float y12 = g_y[n2] - y1;
+          float z12 = g_z[n2] - z1;
+          apply_mic(box, x12, y12, z12);
           float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
           float rc_radial = paramb.rc_radial;
@@ -530,11 +529,10 @@ static __global__ void find_descriptor(
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
@@ -560,11 +558,10 @@ static __global__ void find_descriptor(
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int n2 = g_NL_angular[n1 + N * i1];
-        double x12double = g_x[n2] - x1;
-        double y12double = g_y[n2] - y1;
-        double z12double = g_z[n2] - z1;
-        apply_mic(box, x12double, y12double, z12double);
-        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float x12 = g_x[n2] - x1;
+        float y12 = g_y[n2] - y1;
+        float z12 = g_z[n2] - z1;
+        apply_mic(box, x12, y12, z12);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
@@ -724,11 +721,11 @@ static __global__ void find_bec_radial(
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int t2 = g_type[n2];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
@@ -823,11 +820,11 @@ static __global__ void find_bec_angular(
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int n2 = g_NL_angular[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
       float fc12, fcp12;
@@ -949,11 +946,11 @@ static __global__ void find_force_radial(
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int t2 = g_type[n2];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
@@ -1068,11 +1065,11 @@ static __global__ void find_partial_force_angular(
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_angular[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
       float fc12, fcp12;
@@ -1155,11 +1152,11 @@ static __global__ void find_force_ZBL(
     float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
@@ -1271,11 +1268,11 @@ static __global__ void find_force_charge_real_space(
       int n2 = g_NL[n1 + N * i1];
       float q2 = g_charge[n2];
       float qq = q1 * q2;
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
 
@@ -1363,11 +1360,11 @@ static __global__ void find_force_vdw_static(
       int n2 = g_NL[n1 + N * i1];
       float q2 = g_charge[n2];
       float qq = q1 * q1 * q2 * q2;
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12_2 = d12 * d12;
       float d12_4 = d12_2 * d12_2;
