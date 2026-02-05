@@ -84,31 +84,31 @@ inline __host__ __device__ void apply_mic(const Box& box, double& x12, double& y
 inline __host__ __device__ void apply_mic(const Box& box, float& x12, float& y12, float& z12)
 {
   if (box.is_orthogonal) {
-    float Lx = box.float_h[0];
-    float Ly = box.float_h[4];
-    float Lz = box.float_h[8];
+    float Lx2 = box.float_h[0]*0.5f;
+    float Ly2 = box.float_h[4]*0.5f;
+    float Lz2 = box.float_h[8]*0.5f;
 
     if (box.pbc_x == 1) {
-      if (x12 < -Lx*0.5f) {
-        x12 += Lx;
-      } else if (x12 > +Lx*0.5f) {
-        x12 -= Lx;
+      if (x12 < -Lx2) {
+        x12 += box.float_h[0];
+      } else if (x12 > +Lx2) {
+        x12 -= box.float_h[0];
       }
     }
 
     if (box.pbc_y == 1) {
-      if (y12 < -Ly*0.5f) {
-        y12 += Ly;
-      } else if (y12 > +Ly*0.5f) {
-        y12 -= Ly;
+      if (y12 < -Ly2) {
+        y12 += box.float_h[4];
+      } else if (y12 > +Ly2) {
+        y12 -= box.float_h[4];
       }
     }
 
     if (box.pbc_z == 1) {
-      if (z12 < -Lz*0.5f) {
-        z12 += Lz;
-      } else if (z12 > +Lz*0.5f) {
-        z12 -= Lz;
+      if (z12 < -Lz2) {
+        z12 += box.float_h[8];
+      } else if (z12 > +Lz2) {
+        z12 -= box.float_h[8];
       }
     }
   }
