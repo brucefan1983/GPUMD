@@ -37,11 +37,11 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 #endif
 
 static __device__ void apply_mic_small_box(
-  const Box& box, const NEP::ExpandedBox& ebox, double& x12, double& y12, double& z12)
+  const Box& box, const NEP::ExpandedBox& ebox, float& x12, float& y12, float& z12)
 {
-  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
+  float sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
+  float sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
+  float sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
   if (box.pbc_x == 1)
     sx12 -= nearbyint(sx12);
   if (box.pbc_y == 1)
@@ -77,9 +77,9 @@ static __global__ void find_neighbor_list_small_box(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
     int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
@@ -91,14 +91,14 @@ static __global__ void find_neighbor_list_small_box(
               continue; // exclude self
             }
 
-            double delta[3];
-            delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
-            delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
-            delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
+            float delta[3];
+            delta[0] = box.float_h[0] * ia + box.float_h[1] * ib + box.float_h[2] * ic;
+            delta[1] = box.float_h[3] * ia + box.float_h[4] * ib + box.float_h[5] * ic;
+            delta[2] = box.float_h[6] * ia + box.float_h[7] * ib + box.float_h[8] * ic;
 
-            double x12 = g_x[n2] + delta[0] - x1;
-            double y12 = g_y[n2] + delta[1] - y1;
-            double z12 = g_z[n2] + delta[2] - z1;
+            float x12 = g_x[n2] + delta[0] - x1;
+            float y12 = g_y[n2] + delta[1] - y1;
+            float z12 = g_z[n2] + delta[2] - z1;
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
@@ -110,16 +110,16 @@ static __global__ void find_neighbor_list_small_box(
 
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
+              g_x12_radial[count_radial * N + n1] = x12;
+              g_y12_radial[count_radial * N + n1] = y12;
+              g_z12_radial[count_radial * N + n1] = z12;
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = float(x12);
-              g_y12_angular[count_angular * N + n1] = float(y12);
-              g_z12_angular[count_angular * N + n1] = float(z12);
+              g_x12_angular[count_angular * N + n1] = x12;
+              g_y12_angular[count_angular * N + n1] = y12;
+              g_z12_angular[count_angular * N + n1] = z12;
               count_angular++;
             }
           }
