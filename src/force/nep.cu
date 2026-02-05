@@ -1460,11 +1460,10 @@ static __global__ void find_descriptor(
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
@@ -1489,11 +1488,10 @@ static __global__ void find_descriptor(
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int n2 = g_NL_angular[n1 + N * i1];
-        double x12double = g_x[n2] - x1;
-        double y12double = g_y[n2] - y1;
-        double z12double = g_z[n2] - z1;
-        apply_mic(box, x12double, y12double, z12double);
-        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float x12 = g_x[n2] - x1;
+        float y12 = g_y[n2] - y1;
+        float z12 = g_z[n2] - z1;
+        apply_mic(box, x12, y12, z12);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
