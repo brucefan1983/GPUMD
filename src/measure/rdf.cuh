@@ -25,13 +25,20 @@ class RDF : public Property
 {
 
 public:
-  bool compute_ = false;
-  double r_cut_ = 8.0;
-  int rdf_bins_ = 100;
-  double r_step_;
-  int num_interval_ = 100;
-  int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
-  int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
+
+  struct RDF_Para {
+    int num_types;           // number of atom types in model.xyz
+    int num_RDFs;            // 1 + (num_type * (num_types + 1)) / 2
+    int num_bins;            // number of bins in the RDFs
+    double volume;           // volume could change during NPT simulations
+    double rc;               // cutoff for RDF calculation
+    double rc_square;        // rc * rc
+    double dr;               // rc / num_bins
+    int type_index[89];      // map of atom type from model.xyz to nep.txt
+    int num_atoms[89];       // number of atoms for each atom type
+    double density_global;   // N/volume
+    double density_type[89]; // num_atoms[89]/volume
+  };
 
   virtual void preprocess(
     const int number_of_steps,
@@ -68,56 +75,23 @@ public:
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
+    const std::vector<int>& cpu_type_size,
     const int number_of_steps);
 
   RDF(
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
+    const std::vector<int>& cpu_type_size,
     const int number_of_steps);
 
 private:
-  int num_atoms_;
-  int rdf_atom_count = 1;
-  int rdf_N_;
-  int num_repeat_ = 0;
-  std::vector<int> atom_id1_typesize;
-  std::vector<int> atom_id2_typesize;
-  std::vector<double> density1;
-  std::vector<double> density2;
-  std::vector<double> rdf_;
-
+  int sampling_interval_ = 100;
   GPU_Vector<double> rdf_g_;
-  GPU_Vector<double> radial_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+  RDF_Para rdf_para;
 
-  void find_rdf(
-    const int bead,
-    const int rdf_atom_count,
-    const int rdf_atom_,
-    int* atom_id1_,
-    int* atom_id2_,
-    std::vector<int>& atom_id1_typesize,
-    std::vector<int>& atom_id2_typesize,
-    std::vector<double>& density1,
-    std::vector<double>& density2,
-    double rc,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& cell_count,
-    GPU_Vector<int>& cell_count_sum,
-    GPU_Vector<int>& cell_contents,
-    int num_bins_0,
-    int num_bins_1,
-    int num_bins_2,
-    const double rc_inv_cell_list,
-    GPU_Vector<double>& radial_,
-    GPU_Vector<double>& rdf_g_,
-    const int rdf_bins_,
-    const double r_step_);
+  void find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position);
 };
