@@ -37,7 +37,7 @@ This keyword is used as follows::
 
 This means that the :term:`RDF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points evenly distributed from 0 to :attr:`cutoff` (in units of Ångstrom) in terms of the distance between atom pairs.
 
-Starting from GPUMD-v4.9, there is no need to specify the atom pairs and the code will calculate the partial :term:`RDF`s for all atom pairs.
+Starting from GPUMD-v4.9, there is no need to specify the atom pairs and the code will calculate the partial :term:`RDF`\s for all atom pairs.
 
 Example
 -------
