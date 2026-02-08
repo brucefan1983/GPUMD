@@ -464,15 +464,15 @@ static __global__ void find_neighbor_list_large_box(
         int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
         if (cell_id_x + xx < 0)
           neighbor_cell += nx;
-        if (cell_id_x + xx >= nx)
+        else if (cell_id_x + xx >= nx)
           neighbor_cell -= nx;
         if (cell_id_y + yy < 0)
           neighbor_cell += ny * nx;
-        if (cell_id_y + yy >= ny)
+        else if (cell_id_y + yy >= ny)
           neighbor_cell -= ny * nx;
         if (cell_id_z + zz < 0)
           neighbor_cell += nz * ny * nx;
-        if (cell_id_z + zz >= nz)
+        else if (cell_id_z + zz >= nz)
           neighbor_cell -= nz * ny * nx;
 
         const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
