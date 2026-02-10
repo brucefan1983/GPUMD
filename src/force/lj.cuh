@@ -22,9 +22,9 @@
 #define MAX_TYPE 10 // == max number of potentials
 
 struct LJ_Para {
-  double s6e4[MAX_TYPE][MAX_TYPE];
-  double s12e4[MAX_TYPE][MAX_TYPE];
-  double cutoff_square[MAX_TYPE][MAX_TYPE];
+  float s6e4[MAX_TYPE][MAX_TYPE];
+  float s12e4[MAX_TYPE][MAX_TYPE];
+  float cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
 struct LJ_Data {

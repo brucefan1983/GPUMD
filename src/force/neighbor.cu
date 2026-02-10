@@ -100,7 +100,7 @@ static __global__ void gpu_find_neighbor_ON1(
   const int ny,
   const int nz,
   const double rc_inv,
-  const double cutoff_square)
+  const float cutoff_square)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   int count = 0;
@@ -125,15 +125,15 @@ static __global__ void gpu_find_neighbor_ON1(
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
-          if (cell_id_x + i >= nx)
+          else if (cell_id_x + i >= nx)
             neighbor_cell -= nx;
           if (cell_id_y + j < 0)
             neighbor_cell += ny * nx;
-          if (cell_id_y + j >= ny)
+          else if (cell_id_y + j >= ny)
             neighbor_cell -= ny * nx;
           if (cell_id_z + k < 0)
             neighbor_cell += nz * ny * nx;
-          if (cell_id_z + k >= nz)
+          else if (cell_id_z + k >= nz)
             neighbor_cell -= nz * ny * nx;
 
           const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
@@ -143,11 +143,11 @@ static __global__ void gpu_find_neighbor_ON1(
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= N1 && n2 < N2 && n1 != n2) {
 
-              double x12 = x[n2] - x1;
-              double y12 = y[n2] - y1;
-              double z12 = z[n2] - z1;
+              float x12 = x[n2] - x1;
+              float y12 = y[n2] - y1;
+              float z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
-              const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square) {
                 NL[count++ * N + n1] = n2;
