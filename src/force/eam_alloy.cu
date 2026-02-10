@@ -137,6 +137,7 @@ public:
 };
 
 __device__ float get_rho_and_F(
+  int i,
   float x,
   float x0,
   float h,
@@ -147,17 +148,13 @@ __device__ float get_rho_and_F(
   const float* d,
   int num_intervals)
 {
-
-  int i = static_cast<int>((x - x0) / h);
-  if (i >= num_intervals)
-    i = num_intervals - 1;
-
   float dx = x - (x0 + i * h);
   int index = type * num_intervals + i;
-  return a[index] + b[index] * dx + c[index] * dx * dx + d[index] * dx * dx * dx;
+  return a[index] + (b[index] + (c[index] + d[index] * dx) * dx) * dx;
 }
 
 __device__ float get_rho_and_F_derivative(
+  int i,
   float x,
   float x0,
   float h,
@@ -167,17 +164,13 @@ __device__ float get_rho_and_F_derivative(
   const float* d,
   int num_intervals)
 {
-
-  int i = static_cast<int>((x - x0) / h);
-  if (i >= num_intervals)
-    i = num_intervals - 1;
-
   float dx = x - (x0 + i * h);
   int index = type * num_intervals + i;
-  return b[index] + 2 * c[index] * dx + 3 * d[index] * dx * dx;
+  return b[index] + (2.0f * c[index] + 3.0f * d[index] * dx) * dx;
 }
 
 __device__ float get_phi(
+  int i,
   float x,
   float x0,
   float h,
@@ -190,17 +183,13 @@ __device__ float get_phi(
   const float* d,
   int num_intervals)
 {
-
-  int i = static_cast<int>((x - x0) / h);
-  if (i >= num_intervals)
-    i = num_intervals - 1;
-
   float dx = x - (x0 + i * h);
   int index = (i_type * Nelements + j_type) * num_intervals + i;
-  return a[index] + b[index] * dx + c[index] * dx * dx + d[index] * dx * dx * dx;
+  return a[index] + (b[index] + (c[index] + d[index] * dx) * dx) * dx;
 }
 
 __device__ float get_phi_derivative(
+  int i,
   float x,
   float x0,
   float h,
@@ -212,14 +201,9 @@ __device__ float get_phi_derivative(
   const float* d,
   int num_intervals)
 {
-
-  int i = static_cast<int>((x - x0) / h);
-  if (i >= num_intervals)
-    i = num_intervals - 1;
-
   float dx = x - (x0 + i * h);
   int index = (i_type * Nelements + j_type) * num_intervals + i;
-  return b[index] + 2 * c[index] * dx + 3 * d[index] * dx * dx;
+  return b[index] + (2.0f * c[index] + 3.0f * d[index] * dx) * dx;
 }
 
 EAMAlloy::EAMAlloy(const char* filename, const int number_of_atoms)
@@ -460,7 +444,9 @@ static __global__ void find_force_eam_step1(
   const int Nelements,
   const float rc,
   const float dr,
+  const float dr_inv,
   const float drho,
+  const float drho_inv,
   const float* F_rho_a,
   const float* F_rho_b,
   const float* F_rho_c,
@@ -497,15 +483,25 @@ static __global__ void find_force_eam_step1(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       if (d12 <= rc) {
         const int j_type = g_type[n2];
+
+        int ii = static_cast<int>((d12 - 0.0f) * dr_inv);
+        if (ii >= nr)
+          ii = nr - 1;
+
         g_pe[n1] +=
-          get_phi(d12, 0.0f, dr, i_type, j_type, Nelements, phi_r_a, phi_r_b, phi_r_c, phi_r_d, nr) *
+          get_phi(ii, d12, 0.0f, dr, i_type, j_type, Nelements, phi_r_a, phi_r_b, phi_r_c, phi_r_d, nr) *
           0.5f;
-        rho += get_rho_and_F(d12, 0.0f, dr, j_type, rho_r_a, rho_r_b, rho_r_c, rho_r_d, nr);
+        rho += get_rho_and_F(ii, d12, 0.0f, dr, j_type, rho_r_a, rho_r_b, rho_r_c, rho_r_d, nr);
       }
     }
-    g_pe[n1] += get_rho_and_F(rho, 0.0f, drho, i_type, F_rho_a, F_rho_b, F_rho_c, F_rho_d, nrho);
+
+    int jj = static_cast<int>((rho - 0.0f) * drho_inv);
+    if (jj >= nrho)
+      jj = nrho - 1;
+
+    g_pe[n1] += get_rho_and_F(jj, rho, 0.0f, drho, i_type, F_rho_a, F_rho_b, F_rho_c, F_rho_d, nrho);
     d_F_rho_i[n1] =
-      get_rho_and_F_derivative(rho, 0.0f, drho, i_type, F_rho_b, F_rho_c, F_rho_d, nrho);
+      get_rho_and_F_derivative(jj, rho, 0.0f, drho, i_type, F_rho_b, F_rho_c, F_rho_d, nrho);
   }
 }
 
@@ -522,6 +518,7 @@ static __global__ void find_force_eam_step2(
   const int Nelements,
   const float rc,
   const float dr,
+  const float dr_inv,
   const float drho,
   const float* F_rho_a,
   const float* F_rho_b,
@@ -564,17 +561,23 @@ static __global__ void find_force_eam_step2(
       if (r <= rc) {
         const int j_type = g_type[n2];
         float Fp2 = d_F_rho_i[n2];
+
+        int ii = static_cast<int>((r - 0.0f) * dr_inv);
+        if (ii >= nr)
+          ii = nr - 1;
+
         float d_phi_r_i =
-          get_phi_derivative(r, 0.0f, dr, i_type, j_type, Nelements, phi_r_b, phi_r_c, phi_r_d, nr);
+          get_phi_derivative(ii, r, 0.0f, dr, i_type, j_type, Nelements, phi_r_b, phi_r_c, phi_r_d, nr);
         float d_F_i =
-          get_rho_and_F_derivative(r, 0.0f, dr, j_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp1;
+          get_rho_and_F_derivative(ii, r, 0.0f, dr, j_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp1;
         float d_F_j =
-          get_rho_and_F_derivative(r, 0.0f, dr, i_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp2;
+          get_rho_and_F_derivative(ii, r, 0.0f, dr, i_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp2;
 
         float fij = d_phi_r_i + d_F_i + d_F_j;
-        float fx = fij * xij / r;
-        float fy = fij * yij / r;
-        float fz = fij * zij / r;
+        float rinv = 1.0 / r;
+        float fx = fij * xij * rinv;
+        float fy = fij * yij * rinv;
+        float fz = fij * zij * rinv;
 
         // save force
         g_fx[n1] += fx;
@@ -644,7 +647,9 @@ void EAMAlloy::compute(
     eam_data.Nelements,
     eam_data.rc,
     eam_data.dr,
+    1.0f / eam_data.dr,
     eam_data.drho,
+    1.0f / eam_data.drho,
     eam_data.F_rho_a_g.data(),
     eam_data.F_rho_b_g.data(),
     eam_data.F_rho_c_g.data(),
@@ -677,6 +682,7 @@ void EAMAlloy::compute(
     eam_data.Nelements,
     eam_data.rc,
     eam_data.dr,
+    1.0f / eam_data.dr,
     eam_data.drho,
     eam_data.F_rho_a_g.data(),
     eam_data.F_rho_b_g.data(),
