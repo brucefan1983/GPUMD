@@ -139,7 +139,6 @@ public:
 __device__ float get_rho_and_F(
   int i,
   float x,
-  float x0,
   float h,
   int type,
   const float* a,
@@ -148,7 +147,7 @@ __device__ float get_rho_and_F(
   const float* d,
   int num_intervals)
 {
-  float dx = x - (x0 + i * h);
+  float dx = x - (i * h);
   int index = type * num_intervals + i;
   return a[index] + (b[index] + (c[index] + d[index] * dx) * dx) * dx;
 }
@@ -156,7 +155,6 @@ __device__ float get_rho_and_F(
 __device__ float get_rho_and_F_derivative(
   int i,
   float x,
-  float x0,
   float h,
   int type,
   const float* b,
@@ -164,7 +162,7 @@ __device__ float get_rho_and_F_derivative(
   const float* d,
   int num_intervals)
 {
-  float dx = x - (x0 + i * h);
+  float dx = x - (i * h);
   int index = type * num_intervals + i;
   return b[index] + (2.0f * c[index] + 3.0f * d[index] * dx) * dx;
 }
@@ -172,7 +170,6 @@ __device__ float get_rho_and_F_derivative(
 __device__ float get_phi(
   int i,
   float x,
-  float x0,
   float h,
   int i_type,
   int j_type,
@@ -183,7 +180,7 @@ __device__ float get_phi(
   const float* d,
   int num_intervals)
 {
-  float dx = x - (x0 + i * h);
+  float dx = x - (i * h);
   int index = (i_type * Nelements + j_type) * num_intervals + i;
   return a[index] + (b[index] + (c[index] + d[index] * dx) * dx) * dx;
 }
@@ -191,7 +188,6 @@ __device__ float get_phi(
 __device__ float get_phi_derivative(
   int i,
   float x,
-  float x0,
   float h,
   int i_type,
   int j_type,
@@ -201,7 +197,7 @@ __device__ float get_phi_derivative(
   const float* d,
   int num_intervals)
 {
-  float dx = x - (x0 + i * h);
+  float dx = x - (i * h);
   int index = (i_type * Nelements + j_type) * num_intervals + i;
   return b[index] + (2.0f * c[index] + 3.0f * d[index] * dx) * dx;
 }
@@ -484,24 +480,24 @@ static __global__ void find_force_eam_step1(
       if (d12 <= rc) {
         const int j_type = g_type[n2];
 
-        int ii = static_cast<int>((d12 - 0.0f) * dr_inv);
+        int ii = static_cast<int>(d12 * dr_inv);
         if (ii >= nr)
           ii = nr - 1;
 
         g_pe[n1] +=
-          get_phi(ii, d12, 0.0f, dr, i_type, j_type, Nelements, phi_r_a, phi_r_b, phi_r_c, phi_r_d, nr) *
+          get_phi(ii, d12, dr, i_type, j_type, Nelements, phi_r_a, phi_r_b, phi_r_c, phi_r_d, nr) *
           0.5f;
-        rho += get_rho_and_F(ii, d12, 0.0f, dr, j_type, rho_r_a, rho_r_b, rho_r_c, rho_r_d, nr);
+        rho += get_rho_and_F(ii, d12, dr, j_type, rho_r_a, rho_r_b, rho_r_c, rho_r_d, nr);
       }
     }
 
-    int jj = static_cast<int>((rho - 0.0f) * drho_inv);
+    int jj = static_cast<int>(rho * drho_inv);
     if (jj >= nrho)
       jj = nrho - 1;
 
-    g_pe[n1] += get_rho_and_F(jj, rho, 0.0f, drho, i_type, F_rho_a, F_rho_b, F_rho_c, F_rho_d, nrho);
+    g_pe[n1] += get_rho_and_F(jj, rho, drho, i_type, F_rho_a, F_rho_b, F_rho_c, F_rho_d, nrho);
     d_F_rho_i[n1] =
-      get_rho_and_F_derivative(jj, rho, 0.0f, drho, i_type, F_rho_b, F_rho_c, F_rho_d, nrho);
+      get_rho_and_F_derivative(jj, rho, drho, i_type, F_rho_b, F_rho_c, F_rho_d, nrho);
   }
 }
 
@@ -562,16 +558,16 @@ static __global__ void find_force_eam_step2(
         const int j_type = g_type[n2];
         float Fp2 = d_F_rho_i[n2];
 
-        int ii = static_cast<int>((r - 0.0f) * dr_inv);
+        int ii = static_cast<int>(r * dr_inv);
         if (ii >= nr)
           ii = nr - 1;
 
         float d_phi_r_i =
-          get_phi_derivative(ii, r, 0.0f, dr, i_type, j_type, Nelements, phi_r_b, phi_r_c, phi_r_d, nr);
+          get_phi_derivative(ii, r, dr, i_type, j_type, Nelements, phi_r_b, phi_r_c, phi_r_d, nr);
         float d_F_i =
-          get_rho_and_F_derivative(ii, r, 0.0f, dr, j_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp1;
+          get_rho_and_F_derivative(ii, r, dr, j_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp1;
         float d_F_j =
-          get_rho_and_F_derivative(ii, r, 0.0f, dr, i_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp2;
+          get_rho_and_F_derivative(ii, r, dr, i_type, rho_r_b, rho_r_c, rho_r_d, nr) * Fp2;
 
         float fij = d_phi_r_i + d_F_i + d_F_j;
         float rinv = 1.0 / r;
