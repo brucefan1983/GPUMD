@@ -26,8 +26,6 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
 
-#define USE_FIXED_NEIGHBOR
-
 LJ::LJ(FILE* fid, int num_types, int num_atoms)
 {
   printf("Use %d-element LJ potential with elements:\n", num_types);
