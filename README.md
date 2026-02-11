@@ -74,10 +74,10 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [Ying2025]                  | PIMD/TRPMD (path-integral molecular dynamics/thermostatted ring-polymer molecular dynamics) |
 | [Pan2024]                  | NEMD and NPHug shock methods |
 | [Jiang2025]                  | SW + ILP (hybrid Stillinger-Weber potential with anisotropic interlayer potential) |
-| [Bu2025]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 | [Liang2025]                  | NEP89 (Universal neuroevolution potential for inorganic and organic materials across 89 elements) |
 | [Huang2026]                  | GNEP: An alternative training scheme for NEP models |
 | [Fan2026]                  | qNEP: NEP with dynamic charge (q) |
+| [Bu2026]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 
 ## References
 
@@ -140,12 +140,11 @@ Phys. Rev. B **110**, 224101 (2024).
 [Jiang2025] Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, [Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides](https://doi.org/10.1021/acsnano.4c12148),
 ACS Nano **19**, 16287 (2025).
 
-[Bu2025] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Accurate modeling of LEGO-like vdW heterostructures: Integrating machine learned with anisotropic interlayer potentials](https://arxiv.org/abs/2504.12985),
-arXiv:2504.12985 [physics.comp-ph].
-
 [Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://arxiv.org/abs/2504.21286), arXiv:2504.21286 [cond-mat.mtrl-sci].
 
 [Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
 Computer Physics Communications **320**, 109994 (2026).
 
 [Fan2026] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://arxiv.org/abs/2601.19034), arXiv:2601.19034 [physics.comp-ph].
+
+[Bu2026] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Modular hybrid machine learning and physics-based potentials for scalable modeling of Van der Waals heterostructures](https://doi.org/10.1016/j.jmps.2026.106540), J. Mech. Phys. Solids **210**, 106540 (2026).
