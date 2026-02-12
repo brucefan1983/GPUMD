@@ -21,8 +21,8 @@ class Measure;
 
 #include "add_efield.cuh"
 #include "add_force.cuh"
-#include "add_spring.cuh"
 #include "add_random_force.cuh"
+#include "add_spring.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -39,12 +39,24 @@ class Measure;
 class Run
 {
 public:
-  Run();
+  Run(bool skip_run = false);
+  // MDI interface helpers
+  int mdi_get_natoms();
+  void mdi_get_positions(std::vector<double>& out_positions);
+  void mdi_set_positions(const double* positions);
+  void mdi_set_forces(const double* forces);
+  void mdi_compute_forces();
+  void mdi_get_forces(std::vector<double>& out_forces);
+  void mdi_initialize_for_mdi();
+  void mdi_step_one();
 
 private:
   void execute_run_in();
   void perform_a_run();
   void parse_one_keyword(std::vector<std::string>& tokens);
+
+  // MDI bookkeeping (so dumping/measure works similarly to perform_a_run)
+  int mdi_step_counter = 0;
 
   // keyword parsing functions
   void parse_neighbor(const char** param, int num_param);
@@ -54,6 +66,9 @@ private:
   void parse_time_step(const char** param, int num_param);
   void parse_run(const char** param, int num_param);
 
+  bool skip_run_commands = false; // when true, skip 'run' commands (MDI mode)
+  bool external_forces_pending =
+    false;             // when true, use forces set by mdi_set_forces for next integrate
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
   int number_of_steps;        // number of steps in a specific run

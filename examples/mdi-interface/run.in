@@ -1,0 +1,9 @@
+potential   ../../potentials/nep/nep89_20250409/nep89_20250409.txt
+velocity    1
+
+ensemble nve
+time_step  0.5
+dump_force 1
+dump_thermo 1
+
+run 3

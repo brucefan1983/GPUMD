@@ -25,6 +25,30 @@ INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
 
+# Optional MDI support: 
+#   - build with `make USE_MDI=1` to enable MDI code (compiles mdi_stub.cu)
+#   - if MDI library is installed, also add `MDI_LIB=1` to link against libmdi
+#   - optionally provide `MDI_LIB_PATH=/path/to/lib` and/or
+#     `MDI_INC_PATH=/path/to/include` to help the compiler/linker find MDI
+ifdef USE_MDI
+CFLAGS += -DUSE_MDI
+# Allow the user to add the MDI include directory
+ifdef MDI_INC_PATH
+INC += -I$(MDI_INC_PATH)
+endif
+endif
+ifdef MDI_LIB
+LIBS += -lmdi
+# Allow the user to add the MDI library directory
+ifdef MDI_LIB_PATH
+LDFLAGS += -L$(MDI_LIB_PATH)
+# When using nvcc as the linker driver, pass rpath to the linker via
+# `-Xlinker -rpath -Xlinker <path>` so nvcc doesn't interpret `-Wl,` during
+# compilation. This embeds the library path into the binary for runtime.
+LDFLAGS += -Xlinker -rpath -Xlinker $(MDI_LIB_PATH)
+endif
+endif
+
 
 ###########################################################
 # source files

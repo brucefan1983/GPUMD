@@ -1,0 +1,244 @@
+[2026-02-12 17:34:57,450] [VASP_MDI_Driver] INFO: Loggin[INFO] ====================================[2026-02-12 17:34:57,451] [VASP_MDI[INFO] VASP MDI Driver for GPUMD
+[INFO] ======================================================================
+[INFO] VASP command: vasp_std
+[INFO] POSCAR template: POSCAR
+[INFO] Port: 8021
+[INFO] Steps: 3
+[INFO] 
+Initializing VASP calculator...
+[INFO] Parsed POSCAR: 2 atoms, types=['Cu']
+[INFO] Initialized VASP calculator: 2 atoms, types=['Cu']
+[INFO] 
+Initializing MDI driver...
+[INFO] Initializing MDI with: -role DRIVER -name vasp_driver -method TCP -port 8021
+[INFO] MDI initialized as DRIVER
+[INFO] Requesting communicator to 'gpumd' engine...
+[INFO] Accepted communicator: 1
+[INFO] 
+Starting MD loop...
+[INFO] Starting MD loop for 3 steps
+[INFO] Requesting natoms from GPUMD
+[INFO] GPUMD reports 2 atoms (VASP has 2)
+[INFO] 
+--- Step 1/3 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Raw MDI_Recv result type: <class 'list'>
+[INFO] Raw MDI_Recv result: [1.0, 5.0, 1.0, 5.0, 1.0, 5.0]
+[INFO] Raw MDI_Recv length: 6
+[INFO] Coordinates after conversion: [1. 5. 1. 5. 1. 5.]
+[INFO] Coordinates sum: 18.0
+[INFO] Coordinates min/max: [1.0, 5.0]
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Cell matrix:
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file. Contents:
+[INFO] ======================================================================
+[INFO] Cu dimer test system
+[INFO] 1.0
+[INFO]     10.0000000000    0.0000000000    0.0000000000
+[INFO]      0.0000000000   10.0000000000    0.0000000000
+[INFO]      0.0000000000    0.0000000000   10.0000000000
+[INFO] Cu
+[INFO] 2
+[INFO] Cartesian
+[INFO]      1.0000000000    5.0000000000    1.0000000000
+[INFO]      5.0000000000    1.0000000000    5.0000000000
+[INFO] ======================================================================
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: 0.052729 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=0.052729 eV, F_norm=0.025230
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Step 1 complete
+[INFO] 
+--- Step 2/3 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Raw MDI_Recv result type: <class 'list'>
+[INFO] Raw MDI_Recv result: [0.9999573483125807, 5.000042668641157, 1.0000571751307583, 4.9999428246041, 0.9999314040801064, 5.000068579231297]
+[INFO] Raw MDI_Recv length: 6
+[INFO] Coordinates after conversion: [0.99995735 5.00004267 1.00005718 4.99994282 0.9999314  5.00006858]
+[INFO] Coordinates sum: 18.0
+[INFO] Coordinates min/max: [0.9999314040801064, 5.000068579231297]
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Cell matrix:
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file. Contents:
+[INFO] ======================================================================
+[INFO] Cu dimer test system
+[INFO] 1.0
+[INFO]     10.0000000000    0.0000000000    0.0000000000
+[INFO]      0.0000000000   10.0000000000    0.0000000000
+[INFO]      0.0000000000    0.0000000000   10.0000000000
+[INFO] Cu
+[INFO] 2
+[INFO] Cartesian
+[INFO]      0.9999573483    5.0000426686    1.0000571751
+[INFO]      4.9999428246    0.9999314041    5.0000685792
+[INFO] ======================================================================
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: 0.052730 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=0.052730 eV, F_norm=0.025248
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Step 2 complete
+[INFO] 
+--- Step 3/3 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Raw MDI_Recv result type: <class 'list'>
+[INFO] Raw MDI_Recv result: [0.9999150984781231, 5.000084968590749, 1.0001147521233986, 4.9998852473552375, 0.9998631768517788, 5.000136756600713]
+[INFO] Raw MDI_Recv length: 6
+[INFO] Coordinates after conversion: [0.9999151  5.00008497 1.00011475 4.99988525 0.99986318 5.00013676]
+[INFO] Coordinates sum: 18.0
+[INFO] Coordinates min/max: [0.9998631768517788, 5.000136756600713]
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Cell matrix:
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file. Contents:
+[INFO] ======================================================================
+[INFO] Cu dimer test system
+[INFO] 1.0
+[INFO]     10.0000000000    0.0000000000    0.0000000000
+[INFO]      0.0000000000   10.0000000000    0.0000000000
+[INFO]      0.0000000000    0.0000000000   10.0000000000
+[INFO] Cu
+[INFO] 2
+[INFO] Cartesian
+[INFO]      0.9999150985    5.0000849686    1.0001147521
+[INFO]      4.9998852474    0.9998631769    5.0001367566
+[INFO] ======================================================================
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: 0.052731 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=0.052731 eV, F_norm=0.025265
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Step 3 complete
+[INFO] Sending EXIT command to GPUMD
+[INFO] MD loop completed successfully
+[INFO] 
+======================================================================
+[INFO] SUCCESS: VASP MDI Driver completed
+[INFO] ======================================================================
+246041, 0.9999314040801064, 5.000068579231297]
+[2026-02-12 17:35:15,156] [VASP_MDI_Driver] INFO: Raw MDI_Recv length: 6
+[2026-02-12 17:35:15,157] [VASP_MDI_Driver] INFO: Coordinates after conversion: [0.99995735 5.00004267 1.00005718 4.99994282 0.9999314  5.00006858]
+[2026-02-12 17:35:15,157] [VASP_MDI_Driver] INFO: Coordinates sum: 18.0
+[2026-02-12 17:35:15,158] [VASP_MDI_Driver] INFO: Coordinates min/max: [0.9999314040801064, 5.000068579231297]
+[2026-02-12 17:35:15,158] [VASP_MDI_Driver] INFO: Received 6 coordinates
+[2026-02-12 17:35:15,158] [VASP_MDI_Driver] INFO: Cell volume (from template): 1000.0000000000 A^3
+[2026-02-12 17:35:15,159] [VASP_MDI_Driver] INFO: Cell matrix:
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[2026-02-12 17:35:15,159] [VASP_MDI_Driver] INFO: Running VASP calculation
+[2026-02-12 17:35:15,159] [VASP_MDI_Driver] DEBUG: write_poscar(): Input cell_params shape=(9,), dtype=float64
+[2026-02-12 17:35:15,159] [VASP_MDI_Driver] DEBUG: write_poscar(): cell_params values=[10.  0.  0.  0. 10.  0.  0.  0. 10.]
+[2026-02-12 17:35:15,160] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell matrix shape=(3, 3)
+[2026-02-12 17:35:15,160] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell matrix =
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[2026-02-12 17:35:15,160] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell determinant=1.0000000000e+03
+[2026-02-12 17:35:15,160] [VASP_MDI_Driver] INFO: Cell volume: 1000.000000 A^3
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] DEBUG: Coordinate sample: atom 0 = [0.99995735 5.00004267 1.00005718]
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO: Wrote POSCAR file. Contents:
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO: ======================================================================
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO: Cu dimer test system
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO: 1.0
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO:     10.0000000000    0.0000000000    0.0000000000
+[2026-02-12 17:35:15,161] [VASP_MDI_Driver] INFO:      0.0000000000   10.0000000000    0.0000000000
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO:      0.0000000000    0.0000000000   10.0000000000
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO: Cu
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO: 2
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO: Cartesian
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO:      0.9999573483    5.0000426686    1.0000571751
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO:      4.9999428246    0.9999314041    5.0000685792
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO: ======================================================================
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] DEBUG: Wrote POSCAR
+[2026-02-12 17:35:15,162] [VASP_MDI_Driver] INFO: Running VASP: vasp_std
+[2026-02-12 17:35:30,186] [VASP_MDI_Driver] INFO: VASP completed successfully
+[2026-02-12 17:35:30,189] [VASP_MDI_Driver] INFO: Extracted energy: 0.052730 eV
+[2026-02-12 17:35:30,189] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-02-12 17:35:30,190] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-02-12 17:35:30,190] [VASP_MDI_Driver] INFO: VASP returned: E=0.052730 eV, F_norm=0.025248
+[2026-02-12 17:35:30,190] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-02-12 17:35:30,190] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-02-12 17:35:30,191] [VASP_MDI_Driver] INFO: Step 2 complete
+[2026-02-12 17:35:30,191] [VASP_MDI_Driver] INFO: 
+--- Step 3/3 ---
+[2026-02-12 17:35:30,191] [VASP_MDI_Driver] INFO: Requesting coordinates from GPUMD
+[2026-02-12 17:35:30,230] [VASP_MDI_Driver] INFO: Raw MDI_Recv result type: <class 'list'>
+[2026-02-12 17:35:30,231] [VASP_MDI_Driver] INFO: Raw MDI_Recv result: [0.9999150984781231, 5.000084968590749, 1.0001147521233986, 4.9998852473552375, 0.9998631768517788, 5.000136756600713]
+[2026-02-12 17:35:30,231] [VASP_MDI_Driver] INFO: Raw MDI_Recv length: 6
+[2026-02-12 17:35:30,231] [VASP_MDI_Driver] INFO: Coordinates after conversion: [0.9999151  5.00008497 1.00011475 4.99988525 0.99986318 5.00013676]
+[2026-02-12 17:35:30,232] [VASP_MDI_Driver] INFO: Coordinates sum: 18.0
+[2026-02-12 17:35:30,232] [VASP_MDI_Driver] INFO: Coordinates min/max: [0.9998631768517788, 5.000136756600713]
+[2026-02-12 17:35:30,232] [VASP_MDI_Driver] INFO: Received 6 coordinates
+[2026-02-12 17:35:30,232] [VASP_MDI_Driver] INFO: Cell volume (from template): 1000.0000000000 A^3
+[2026-02-12 17:35:30,233] [VASP_MDI_Driver] INFO: Cell matrix:
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[2026-02-12 17:35:30,233] [VASP_MDI_Driver] INFO: Running VASP calculation
+[2026-02-12 17:35:30,233] [VASP_MDI_Driver] DEBUG: write_poscar(): Input cell_params shape=(9,), dtype=float64
+[2026-02-12 17:35:30,234] [VASP_MDI_Driver] DEBUG: write_poscar(): cell_params values=[10.  0.  0.  0. 10.  0.  0.  0. 10.]
+[2026-02-12 17:35:30,234] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell matrix shape=(3, 3)
+[2026-02-12 17:35:30,234] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell matrix =
+[[10.  0.  0.]
+ [ 0. 10.  0.]
+ [ 0.  0. 10.]]
+[2026-02-12 17:35:30,234] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell determinant=1.0000000000e+03
+[2026-02-12 17:35:30,234] [VASP_MDI_Driver] INFO: Cell volume: 1000.000000 A^3
+[2026-02-12 17:35:30,235] [VASP_MDI_Driver] DEBUG: Coordinate sample: atom 0 = [0.9999151  5.00008497 1.00011475]
+[2026-02-12 17:35:30,235] [VASP_MDI_Driver] INFO: Wrote POSCAR file. Contents:
+[2026-02-12 17:35:30,235] [VASP_MDI_Driver] INFO: ======================================================================
+[2026-02-12 17:35:30,235] [VASP_MDI_Driver] INFO: Cu dimer test system
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: 1.0
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO:     10.0000000000    0.0000000000    0.0000000000
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO:      0.0000000000   10.0000000000    0.0000000000
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO:      0.0000000000    0.0000000000   10.0000000000
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: Cu
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: 2
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: Cartesian
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO:      0.9999150985    5.0000849686    1.0001147521
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO:      4.9998852474    0.9998631769    5.0001367566
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: ======================================================================
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] DEBUG: Wrote POSCAR
+[2026-02-12 17:35:30,236] [VASP_MDI_Driver] INFO: Running VASP: vasp_std
+[2026-02-12 17:35:50,143] [VASP_MDI_Driver] INFO: VASP completed successfully
+[2026-02-12 17:35:50,146] [VASP_MDI_Driver] INFO: Extracted energy: 0.052731 eV
+[2026-02-12 17:35:50,146] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-02-12 17:35:50,146] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: VASP returned: E=0.052731 eV, F_norm=0.025265
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: Step 3 complete
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: Sending EXIT command to GPUMD
+[2026-02-12 17:35:50,147] [VASP_MDI_Driver] INFO: MD loop completed successfully
+[2026-02-12 17:35:50,148] [VASP_MDI_Driver] INFO: 
+======================================================================
+[2026-02-12 17:35:50,148] [VASP_MDI_Driver] INFO: SUCCESS: VASP MDI Driver completed
+[2026-02-12 17:35:50,148] [VASP_MDI_Driver] INFO: ======================================================================

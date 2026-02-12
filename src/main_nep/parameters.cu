@@ -591,7 +591,7 @@ void Parameters::report_inputs()
 void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[105]; // never use more than 104 parameters
+  const char* param[179];
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
@@ -781,8 +781,8 @@ void Parameters::parse_zbl(const char** param, int num_param)
 
   if (zbl_rc_outer < 1.0f) {
     PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 2.5f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
+  } else if (zbl_rc_outer > 3.0f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 3.0 A.");
   }
 }
 
@@ -833,8 +833,8 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (rc_angular_tmp > rc_radial_tmp) {
       PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
     }
-    if (rc_angular_tmp < 2.5f) {
-      PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+    if (rc_angular_tmp < 3.0f) {
+      PRINT_INPUT_ERROR("angular cutoff should >= 3.0 A.");
     }
     if (rc_radial_tmp > 100.0f) {
       PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");
@@ -858,8 +858,8 @@ void Parameters::parse_cutoff(const char** param, int num_param)
       if (rc_angular_tmp > rc_radial_tmp) {
         PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
       }
-      if (rc_angular_tmp < 2.5f) {
-        PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+      if (rc_angular_tmp < 3.0f) {
+        PRINT_INPUT_ERROR("angular cutoff should >= 3.0 A.");
       }
       if (rc_radial_tmp > 100.0f) {
         PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");

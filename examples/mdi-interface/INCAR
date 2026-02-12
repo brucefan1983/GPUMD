@@ -1,0 +1,26 @@
+Cu dimer test
+START PARAMETERS FOR THIS RUN:
+IBRION = -1          ! No ionic relaxation - MDI controls steps
+LWAVE  = .FALSE.     ! No WAVECAR
+LCHARG = .FALSE.     ! No CHGCAR
+NSW = 1              ! One ionic step maximum
+PREC = Accurate
+ISYM = 0
+
+ELECTRONIC MINIMIZATION:
+ENCUT = 250          ! Lower cutoff for fast testing
+NELM = 50            ! SCF iterations
+EDIFF = 1E-3         ! Relaxed convergence for testing
+
+IONIC RELAXATION:
+ISIF = 2             ! Relax ions, volume fixed
+ISMEAR = 1           ! Methfessel-Paxton
+SIGMA = 0.1          ! Smearing width
+
+PERFORMANCE:
+NCORE = 2
+KPAR = 1
+LREAL = AUTO
+
+PRINTING:
+NWRITE = 0           ! Minimal output

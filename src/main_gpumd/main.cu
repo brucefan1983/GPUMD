@@ -18,16 +18,30 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <chrono>
-#include <cstring>
+
+#ifdef USE_MDI
+extern "C" int mdi_engine_main(struct Run* run, int argc, char* argv[]);
+#endif
 
 void print_welcome_information();
 
 int main(int argc, char* argv[])
 {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--mdi") == 0) {
+#ifdef USE_MDI
+      Run run_for_mdi(true); // skip run commands - MDI will control stepping
+      return mdi_engine_main(&run_for_mdi, argc, argv);
+#else
+      printf("MDI support not enabled at build time. Rebuild with USE_MDI=1.\n");
+      return EXIT_FAILURE;
+#endif
+    }
+  }
   print_welcome_information();
   print_compile_information();
   print_gpu_information();

@@ -28,6 +28,18 @@ This software is distributed under the GNU General Public License (GPL) version 
   * `path/to/gpumd`
   * `path/to/nep`
 
+## MDI interface to external codes
+
+`GPUMD` can act as an MDI ENGINE and be driven by external DRIVER codes via the [MolSSI Driver Interface (MDI)](https://molssi-mdi.github.io/MDI_Library/user_guide/installation.html).  
+This repository includes a minimal example that couples `GPUMD` to `VASP` for QM/MM-style simulations.
+
+For detailed instructions on:
+- installing the MDI library,
+- compiling `GPUMD` with MDI support,
+- setting up and running the VASP–GPUMD QM/MM example,
+
+see the dedicated MDI documentation in `doc/mdi/README.md`.
+
 ## Tutorials
 * We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine.
 * We also provide many tutorials and examples in the [GPUMD-Tutorials repository](https://github.com/brucefan1983/GPUMD-Tutorials).
@@ -77,6 +89,7 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [Bu2025]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
 | [Liang2025]                  | NEP89 (Universal neuroevolution potential for inorganic and organic materials across 89 elements) |
 | [Huang2026]                  | GNEP: An alternative training scheme for NEP models |
+| [Fan2026]                  | qNEP: NEP with dynamic charge (q) |
 
 ## References
 
@@ -146,3 +159,5 @@ arXiv:2504.12985 [physics.comp-ph].
 
 [Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
 Computer Physics Communications **320**, 109994 (2026).
+
+[Fan2026] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://arxiv.org/abs/2601.19034), arXiv:2601.19034 [physics.comp-ph].

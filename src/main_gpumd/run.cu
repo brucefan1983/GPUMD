@@ -19,8 +19,8 @@ Run simulation according to the inputs in the run.in file.
 
 #include "add_efield.cuh"
 #include "add_force.cuh"
-#include "add_spring.cuh"
 #include "add_random_force.cuh"
+#include "add_spring.cuh"
 #include "cohesive.cuh"
 #include "electron_stop.cuh"
 #include "force/force.cuh"
@@ -33,6 +33,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/compute_dpdt.cuh"
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
+#include "measure/dump_cg.cuh"
 #include "measure/dump_dipole.cuh"
 #include "measure/dump_exyz.cuh"
 #include "measure/dump_force.cuh"
@@ -45,7 +46,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dump_thermo.cuh"
 #include "measure/dump_velocity.cuh"
 #include "measure/dump_xyz.cuh"
-#include "measure/dump_cg.cuh"
 #include "measure/extrapolation.cuh"
 #include "measure/hac.cuh"
 #include "measure/hnemd_kappa.cuh"
@@ -142,8 +142,10 @@ static void calculate_time_step(
   }
 }
 
-Run::Run()
+Run::Run(bool skip_run)
 {
+  skip_run_commands = skip_run;
+
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
   fflush(stdout);
@@ -345,6 +347,122 @@ void Run::perform_a_run()
   velocity.finalize();
   force.finalize();
   max_distance_per_step = 0.0;
+}
+
+// MDI helper implementations
+int Run::mdi_get_natoms() { return atom.number_of_atoms; }
+
+void Run::mdi_get_positions(std::vector<double>& out_positions)
+{
+  const int N = atom.number_of_atoms;
+  out_positions.resize(N * 3);
+  atom.position_per_atom.copy_to_host(out_positions.data());
+}
+
+void Run::mdi_set_positions(const double* positions)
+{
+  const int N = atom.number_of_atoms;
+  atom.position_per_atom.copy_from_host(positions, N * 3);
+}
+
+void Run::mdi_compute_forces()
+{
+  if (integrate.type >= 31) { // PIMD
+    for (int k = 0; k < integrate.number_of_beads; ++k) {
+      force.compute(
+        box,
+        atom.position_beads[k],
+        atom.type,
+        group,
+        atom.potential_beads[k],
+        atom.force_beads[k],
+        atom.virial_beads[k],
+        atom.velocity_beads[k],
+        atom.mass);
+    }
+  } else {
+    force.compute(
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.velocity_per_atom,
+      atom.mass);
+  }
+}
+
+void Run::mdi_get_forces(std::vector<double>& out_forces)
+{
+  const int N = atom.number_of_atoms;
+  out_forces.resize(N * 3);
+  atom.force_per_atom.copy_to_host(out_forces.data());
+}
+
+void Run::mdi_set_forces(const double* forces)
+{
+  /* Set external forces from QM code (e.g., VASP) into GPUMD */
+  const int N = atom.number_of_atoms;
+  /* Copy forces from host to device GPU memory */
+  atom.force_per_atom.copy_from_host(forces, (size_t)(N * 3));
+  /* mark that external forces should be used for the next integrate */
+  external_forces_pending = true;
+  printf("[MDI] Forces set from external QM calculation (external_forces_pending=1)\n");
+}
+
+void Run::mdi_initialize_for_mdi()
+{
+  // initialize integrator, mc, and measure for single-step operation
+  int one_steps = 1;
+  integrate.initialize(time_step, atom, box, group, thermo, one_steps);
+  mc.initialize();
+  measure.initialize(one_steps, time_step, integrate, group, atom, box, force);
+  // reset MDI step counter so dump intervals behave predictably
+  mdi_step_counter = 0;
+}
+
+void Run::mdi_step_one()
+{
+  // Perform a single integration step similar to one iteration of perform_a_run(),
+  // so that output (e.g., dump_force -> force.out) continues to work in MDI mode.
+  //
+  // Notes:
+  // - We intentionally do not call the internal potential when external forces are provided.
+  // - measure.process is called every step, enabling dump_* keywords to write outputs.
+  integrate.current_step = mdi_step_counter;
+  global_time += time_step;
+
+  integrate.compute1(time_step, 0.0, group, box, atom, thermo);
+  // compute forces only if no external forces were provided by driver
+  if (!external_forces_pending) {
+    mdi_compute_forces();
+  } else {
+    /* use forces already present in atom.force_per_atom (set by mdi_set_forces) */
+    printf("[MDI] Using external forces for integration\n");
+  }
+  integrate.compute2(time_step, 0.0, group, box, atom, thermo, force);
+
+  // Keep MC / measure behavior consistent with normal runs (important for dump_* outputs)
+  mc.compute(mdi_step_counter, 1, atom, box, group);
+  measure.process(
+    1,
+    mdi_step_counter,
+    integrate.fixed_group,
+    integrate.move_group,
+    global_time,
+    integrate.temperature2,
+    integrate,
+    box,
+    group,
+    thermo,
+    atom,
+    force);
+
+  mdi_step_counter++;
+  /* clear external forces flag after integration */
+  external_forces_pending = false;
 }
 
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
@@ -701,6 +819,12 @@ void Run::parse_run(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   printf("Run %d steps.\n", number_of_steps);
+
+  // Skip execution if in MDI mode (MDI will control stepping)
+  if (skip_run_commands) {
+    printf("  (skipping run execution in MDI mode)\n");
+    return;
+  }
 
   // set target temperature for temperature-dependent NEP
   force.temperature = integrate.temperature1;
