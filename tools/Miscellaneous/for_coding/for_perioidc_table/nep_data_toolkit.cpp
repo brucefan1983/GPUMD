@@ -642,6 +642,9 @@ static void add_d3(std::vector<Structure>& structures, const std::string& functi
   std::vector<std::string> atom_symbols = get_atom_symbols("nep.txt");
   for (int nc = 0; nc < structures.size(); ++nc) {
     calculate_one_structure(nep3, atom_symbols, structures[nc], functional, 12, 6);
+    if ((nc+1) % 10000 == 0) {
+      printf("%d stuctures finished.\n", nc+1);
+    }
   }
 }
 
