@@ -853,7 +853,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
 {
   std::ofstream output_ch("../ch/train.xyz");
   std::ofstream output_unep1("../unep1/train.xyz");
-  std::ofstream output_hydrate("../hydrate/train.xyz");
+  std::ofstream output_omat2("../omat2/train.xyz");
   std::ofstream output_chonps("../chonps/train.xyz");
   std::ofstream output_spice("../spice/train.xyz");
   std::ofstream output_water("../water/train.xyz");
@@ -863,10 +863,10 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_ani1xnr("../ani1xnr/train.xyz");
   std::ofstream output_sse_vasp("../sse_vasp/train.xyz");
   std::ofstream output_sse_abacus("../sse_abacus/train.xyz");
-  std::ofstream output_cspbx("../cspbx/train.xyz");
+  std::ofstream output_omol25("../omol25/train.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
-  int num_hydrate = 0;
+  int num_omat2 = 0;
   int num_chonps = 0;
   int num_spice = 0;
   int num_omat = 0;
@@ -876,7 +876,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_ani1xnr = 0;
   int num_sse_vasp = 0;
   int num_sse_abacus = 0;
-  int num_cspbx = 0;
+  int num_omol25 = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
@@ -884,9 +884,9 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "unep1") {
       write_one_structure(output_unep1, structures[nc]);
         num_unep1++;
-    } else if (structures[nc].sid == "hydrate") {
-      write_one_structure(output_hydrate, structures[nc]);
-        num_hydrate++;
+    } else if (structures[nc].sid == "omat2") {
+      write_one_structure(output_omat2, structures[nc]);
+        num_omat2++;
     } else if (structures[nc].sid == "chonps") {
       write_one_structure(output_chonps, structures[nc]);
         num_chonps++;
@@ -914,14 +914,14 @@ static void split_with_sid(const std::vector<Structure>& structures)
     } else if (structures[nc].sid == "omat") {
       write_one_structure(output_omat, structures[nc]);
         num_omat++;
-    } else if (structures[nc].sid == "cspbx") {
-      write_one_structure(output_cspbx, structures[nc]);
-        num_cspbx++;
+    } else if (structures[nc].sid == "omol25") {
+      write_one_structure(output_omol25, structures[nc]);
+        num_omol25++;
     }
   }
   output_ch.close();
   output_unep1.close();
-  output_hydrate.close();
+  output_omat2.close();
   output_chonps.close();
   output_spice.close();
   output_omat.close();
@@ -931,10 +931,10 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_ani1xnr.close();
   output_sse_abacus.close();
   output_sse_vasp.close();
-  output_cspbx.close();
+  output_omol25.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
-  std::cout << "Number of structures written into hydrate.xyz = " << num_hydrate << std::endl;
+  std::cout << "Number of structures written into omat2.xyz = " << num_omat2 << std::endl;
   std::cout << "Number of structures written into chonps.xyz = " << num_chonps << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
@@ -944,7 +944,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
   std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
   std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
-  std::cout << "Number of structures written into cspbx.xyz = " << num_cspbx << std::endl;
+  std::cout << "Number of structures written into omol25.xyz = " << num_omol25 << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
