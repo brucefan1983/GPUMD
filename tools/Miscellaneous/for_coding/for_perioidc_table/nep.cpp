@@ -40,7 +40,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 namespace
 {
 const int MAX_NEURON = 120; // maximum number of neurons in the hidden layer
-const int MN = 2000;        // maximum number of neighbors for one atom
+const int MN = 4000;        // maximum number of neighbors for one atom
 const int NUM_OF_ABC = 80;  // 3 + 5 + 7 + 9 + 11 + 13 + 15 + 17 for L_max = 8
 const int MAX_NUM_N = 17;   // basis_size_radial+1 = 16+1
 const int MAX_DIM = 103;
@@ -2375,6 +2375,10 @@ void find_neighbor_list_large_box(
         }
       }
     }
+    if (count_radial > MN) {
+      printf("count_radial > %d.\n", MN);
+      exit(1);
+    }
     g_NN_radial[n1] = count_radial;
     g_NN_angular[n1] = count_angular;
   }
@@ -2460,6 +2464,10 @@ void find_neighbor_list_small_box(
           }
         }
       }
+    }
+    if (count_radial > MN) {
+      printf("count_radial > %d.\n", MN);
+      exit(1);
     }
     g_NN_radial[n1] = count_radial;
     g_NN_angular[n1] = count_angular;
