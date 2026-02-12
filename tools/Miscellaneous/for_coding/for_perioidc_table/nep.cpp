@@ -40,7 +40,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 namespace
 {
 const int MAX_NEURON = 120; // maximum number of neurons in the hidden layer
-const int MN = 3600;        // maximum number of neighbors for one atom
+const int MN = 4000;        // maximum number of neighbors for one atom
 const int NUM_OF_ABC = 80;  // 3 + 5 + 7 + 9 + 11 + 13 + 15 + 17 for L_max = 8
 const int MAX_NUM_N = 17;   // basis_size_radial+1 = 16+1
 const int MAX_DIM = 103;
