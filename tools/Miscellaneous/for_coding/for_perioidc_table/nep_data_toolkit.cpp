@@ -813,8 +813,8 @@ static void get_valid_structures(
         break;
       }
     }
-    if (structures[nc].energy_weight > 0.5f && energy_threshold > 0) {
-      if (structures[nc].energy > energy_threshold) {
+    if (structures[nc].energy_weight > 0.5f && energy_threshold >= 0) {
+      if (structures[nc].energy / structures[nc].num_atom > energy_threshold) {
         is_valid = false;
       }
     }
