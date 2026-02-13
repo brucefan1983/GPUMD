@@ -25,6 +25,8 @@ struct NEP_Data {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
+  GPU_Vector<int> NN_global;    // global neighbor list
+  GPU_Vector<int> NL_global;    // global neighbor list
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
@@ -51,6 +53,7 @@ public:
     float rc_radial_max_inv = 0.0f; 
     float rc_radial[NUM_ELEMENTS];     // radial cutoff
     float rc_angular[NUM_ELEMENTS];    // angular cutoff
+    int MN_global = 300;
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial

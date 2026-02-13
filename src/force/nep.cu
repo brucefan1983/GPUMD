@@ -293,6 +293,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 
   // calculated parameters:
   rc = paramb.rc_radial_max; // largest cutoff
+  paramb.MN_global = paramb.MN_radial * (rc + 1.0) * (rc + 1.0) * (rc + 1.0) / (rc * rc * rc);
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   if (paramb.version == 3) {
@@ -341,6 +342,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
+  nep_data.NN_global.resize(num_atoms);
+  nep_data.NL_global.resize(num_atoms * paramb.MN_global);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
@@ -1006,6 +1009,19 @@ void NEP::compute_large_box(
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  find_neighbor(
+    N1, 
+    N2, 
+    rc + 1.0, 
+    box, 
+    type, 
+    position_per_atom,
+    nep_data.cell_count,
+    nep_data.cell_count_sum,
+    nep_data.cell_contents,
+    nep_data.NN_global,
+    nep_data.NL_global);
 
   const double rc_cell_list = 0.5 * rc;
 
