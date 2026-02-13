@@ -411,17 +411,13 @@ static __global__ void find_neighbor_list_large_box(
   const int N,
   const int N1,
   const int N2,
-  const int nx,
-  const int ny,
-  const int nz,
   const Box box,
   const int* g_type,
-  const int* __restrict__ g_cell_count,
-  const int* __restrict__ g_cell_count_sum,
-  const int* __restrict__ g_cell_contents,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
+  const int* __restrict__ g_NN_global,
+  const int* __restrict__ g_NL_global,
   int* g_NN_radial,
   int* g_NL_radial,
   int* g_NN_angular,
@@ -439,76 +435,22 @@ static __global__ void find_neighbor_list_large_box(
   int count_radial = 0;
   int count_angular = 0;
 
-  int cell_id;
-  int cell_id_x;
-  int cell_id_y;
-  int cell_id_z;
-  find_cell_id(
-    box,
-    x1,
-    y1,
-    z1,
-    2.0f * paramb.rc_radial_max_inv,
-    nx,
-    ny,
-    nz,
-    cell_id_x,
-    cell_id_y,
-    cell_id_z,
-    cell_id);
-
-  const int z_lim = box.pbc_z ? 2 : 0;
-  const int y_lim = box.pbc_y ? 2 : 0;
-  const int x_lim = box.pbc_x ? 2 : 0;
-
-  for (int zz = -z_lim; zz <= z_lim; ++zz) {
-    for (int yy = -y_lim; yy <= y_lim; ++yy) {
-      for (int xx = -x_lim; xx <= x_lim; ++xx) {
-        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
-        if (cell_id_x + xx < 0)
-          neighbor_cell += nx;
-        else if (cell_id_x + xx >= nx)
-          neighbor_cell -= nx;
-        if (cell_id_y + yy < 0)
-          neighbor_cell += ny * nx;
-        else if (cell_id_y + yy >= ny)
-          neighbor_cell -= ny * nx;
-        if (cell_id_z + zz < 0)
-          neighbor_cell += nz * ny * nx;
-        else if (cell_id_z + zz >= nz)
-          neighbor_cell -= nz * ny * nx;
-
-        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
-        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
-
-        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
-
-          if (n2 < N1 || n2 >= N2 || n1 == n2) {
-            continue;
-          }
-
-          float x12 = g_x[n2] - x1;
-          float y12 = g_y[n2] - y1;
-          float z12 = g_z[n2] - z1;
-          apply_mic(box, x12, y12, z12);
-          float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-
-          int t2 = g_type[n2];
-          float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-          float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-
-          if (d12_square >= rc_radial * rc_radial) {
-            continue;
-          }
-
-          g_NL_radial[count_radial++ * N + n1] = n2;
-
-          if (d12_square < rc_angular * rc_angular) {
-            g_NL_angular[count_angular++ * N + n1] = n2;
-          }
-        }
-      }
+  for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
+    int n2 = g_NL_global[n1 + N * i1];
+    float x12 = g_x[n2] - x1;
+    float y12 = g_y[n2] - y1;
+    float z12 = g_z[n2] - z1;
+    apply_mic(box, x12, y12, z12);
+    float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+    int t2 = g_type[n2];
+    float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+    float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+    if (d12_square >= rc_radial * rc_radial) {
+      continue;
+    }
+    g_NL_radial[count_radial++ * N + n1] = n2;
+    if (d12_square < rc_angular * rc_angular) {
+      g_NL_angular[count_angular++ * N + n1] = n2;
     }
   }
 
@@ -1010,6 +952,12 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
+//#ifdef USE_FIXED_NEIGHBOR
+  static int num_calls_find_neighbor = 0;
+//#endif
+//#ifdef USE_FIXED_NEIGHBOR
+  if (num_calls_find_neighbor++ == 0) {
+//#endif
   find_neighbor(
     N1, 
     N2, 
@@ -1022,37 +970,24 @@ void NEP::compute_large_box(
     nep_data.cell_contents,
     nep_data.NN_global,
     nep_data.NL_global);
+//#ifdef USE_FIXED_NEIGHBOR
+  }
+//#endif
 
-  const double rc_cell_list = 0.5 * rc;
 
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
-    position_per_atom,
-    nep_data.cell_count,
-    nep_data.cell_count_sum,
-    nep_data.cell_contents);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     N,
     N1,
     N2,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
     box,
     type.data(),
-    nep_data.cell_count.data(),
-    nep_data.cell_count_sum.data(),
-    nep_data.cell_contents.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
+    nep_data.NN_global.data(),
+    nep_data.NL_global.data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1563,36 +1498,31 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const double rc_cell_list = 0.5 * rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
+  find_neighbor(
+    N1, 
+    N2, 
+    rc + 1.0, 
+    box, 
+    type, 
     position_per_atom,
     nep_data.cell_count,
     nep_data.cell_count_sum,
-    nep_data.cell_contents);
+    nep_data.cell_contents,
+    nep_data.NN_global,
+    nep_data.NL_global);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     N,
     N1,
     N2,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
     box,
     type.data(),
-    nep_data.cell_count.data(),
-    nep_data.cell_count_sum.data(),
-    nep_data.cell_contents.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
+    nep_data.NN_global.data(),
+    nep_data.NL_global.data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
