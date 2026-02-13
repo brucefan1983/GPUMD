@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include <stdio.h>
 #include <vector>
@@ -25,13 +26,6 @@ struct LJ_Para {
   float s6e4[MAX_TYPE][MAX_TYPE];
   float s12e4[MAX_TYPE][MAX_TYPE];
   float cutoff_square[MAX_TYPE][MAX_TYPE];
-};
-
-struct LJ_Data {
-  GPU_Vector<int> NN, NL;
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
 };
 
 class LJ : public Potential
@@ -51,5 +45,5 @@ public:
 
 protected:
   LJ_Para lj_para;
-  LJ_Data lj_data;
+  Neighbor neighbor;
 };
