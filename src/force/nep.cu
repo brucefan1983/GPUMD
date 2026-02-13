@@ -341,14 +341,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  
-  neighbor.MN = paramb.MN_radial * (rc + neighbor.skin) * (rc + neighbor.skin) * (rc + neighbor.skin) / (rc * rc * rc);
-  neighbor.NN.resize(num_atoms);
-  neighbor.NL.resize(num_atoms * neighbor.MN);
-  neighbor.cell_count.resize(num_atoms);
-  neighbor.cell_count_sum.resize(num_atoms);
-  neighbor.cell_contents.resize(num_atoms);
-
+  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);

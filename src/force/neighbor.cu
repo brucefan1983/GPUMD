@@ -747,3 +747,14 @@ void Neighbor::find_neighbor_global(
    // GPU_CHECK_KERNEL
   //}
 }
+
+void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
+{
+  const double rc_plus_skin = rc + skin;
+  const int MN = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
+  NN.resize(num_atoms);
+  NL.resize(num_atoms * MN);
+  cell_count.resize(num_atoms);
+  cell_count_sum.resize(num_atoms);
+  cell_contents.resize(num_atoms);
+}
