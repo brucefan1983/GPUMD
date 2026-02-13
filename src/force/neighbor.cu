@@ -743,13 +743,13 @@ int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, co
   const int N = NN.size();
   double d2 = skin * skin * 0.25;
   int* gpu_s2;
-  CHECK(cudaGetSymbolAddress((void**)&gpu_s2, static_s2));
+  CHECK(gpuGetSymbolAddress((void**)&gpu_s2, static_s2));
   int cpu_s2[1] = {0};
-  CHECK(cudaMemcpy(gpu_s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
+  CHECK(gpuMemcpy(gpu_s2, cpu_s2, sizeof(int), gpuMemcpyHostToDevice));
   gpu_check_atom_distance<<<(N - 1) / 128 + 1, 128>>>(
     box, N, d2, x0.data(), y0.data(), z0.data(), x, y, z, gpu_s2);
   GPU_CHECK_KERNEL
-  CHECK(cudaMemcpy(cpu_s2, gpu_s2, sizeof(int), cudaMemcpyDeviceToHost));
+  CHECK(gpuMemcpy(cpu_s2, gpu_s2, sizeof(int), gpuMemcpyDeviceToHost));
   return cpu_s2[0];
 }
 
