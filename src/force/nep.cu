@@ -954,20 +954,11 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-//#ifdef USE_FIXED_NEIGHBOR
-  static int num_calls_find_neighbor = 0;
-//#endif
-//#ifdef USE_FIXED_NEIGHBOR
-  //if (num_calls_find_neighbor++ == 0) {
-//#endif
   neighbor.find_neighbor_global(
     rc,
     box, 
     type, 
     position_per_atom);
-//#ifdef USE_FIXED_NEIGHBOR
-  //}
-//#endif
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
