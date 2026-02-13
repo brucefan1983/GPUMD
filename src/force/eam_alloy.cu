@@ -208,9 +208,7 @@ EAMAlloy::EAMAlloy(const char* filename, const int number_of_atoms)
   initialize_eamalloy(filename, number_of_atoms);
   eam_data.NN.resize(number_of_atoms);
   eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
-  eam_data.cell_count.resize(number_of_atoms);
-  eam_data.cell_count_sum.resize(number_of_atoms);
-  eam_data.cell_contents.resize(number_of_atoms);
+  neighbor.initialize(eam_data.rc, number_of_atoms, 400);
   eam_data.d_F_rho_i_g.resize(number_of_atoms);
 }
 
@@ -432,8 +430,10 @@ static __global__ void find_force_eam_step1(
   const int N1,
   const int N2,
   const Box box,
-  const int* g_NN,
-  const int* g_NL,
+  const int* g_NN_global,
+  const int* g_NL_global,
+  int* g_NN_local,
+  int* g_NL_local,
   const int* g_type,
   const int nr,
   const int nrho,
@@ -464,14 +464,16 @@ static __global__ void find_force_eam_step1(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
   if (n1 < N2) {
-    int NN = g_NN[n1];
+    int NN = g_NN_global[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     const int i_type = g_type[n1];
     float rho = 0.0f;
+    int count_local = 0;
+
     for (int i1 = 0; i1 < NN; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
+      int n2 = g_NL_global[n1 + N * i1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
@@ -489,7 +491,11 @@ static __global__ void find_force_eam_step1(
           0.5f;
         rho += get_rho_and_F(ii, d12, dr, j_type, rho_r_a, rho_r_b, rho_r_c, rho_r_d, nr);
       }
+
+      g_NL_local[count_local++ * N + n1] = n2;
     }
+
+    g_NN_local[n1] = count_local;
 
     int jj = static_cast<int>(rho * drho_inv);
     if (jj >= nrho)
@@ -615,18 +621,11 @@ void EAMAlloy::compute(
 
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  find_neighbor(
-    N1,
-    N2,
+  neighbor.find_neighbor_global(
     eam_data.rc,
-    box,
-    type,
-    position_per_atom,
-    eam_data.cell_count,
-    eam_data.cell_count_sum,
-    eam_data.cell_contents,
-    eam_data.NN,
-    eam_data.NL);
+    box, 
+    type, 
+    position_per_atom);
 
   eam_data.d_F_rho_i_g.fill(0.0f);
   find_force_eam_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -634,6 +633,8 @@ void EAMAlloy::compute(
     N1,
     N2,
     box,
+    neighbor.NN.data(),
+    neighbor.NL.data(),
     eam_data.NN.data(),
     eam_data.NL.data(),
     type.data(),
