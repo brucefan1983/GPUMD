@@ -696,7 +696,7 @@ gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double
   }
 }
 
-__global__ void gpu_find_local_neighbor_list_from_global(
+__global__ void gpu_find_local_neighbor_from_global(
   const int N,
   const Box box,
   const float rc_square,
@@ -807,7 +807,7 @@ void Neighbor::find_local_neighbor_from_global(
   GPU_Vector<int>& NL_local)
 {
   const int N = position_per_atom.size() / 3;
-  gpu_find_local_neighbor_list_from_global<<<(N - 1) / 128 + 1, 128>>>(
+  gpu_find_local_neighbor_from_global<<<(N - 1) / 128 + 1, 128>>>(
     N,
     box,
     rc * rc,
