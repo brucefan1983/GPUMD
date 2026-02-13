@@ -201,6 +201,12 @@ public:
     Box& box, 
     const GPU_Vector<int>& type, 
     const GPU_Vector<double>& position_per_atom);
+  void find_local_neighbor_from_global(
+    const double rc,
+    Box& box, 
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN_local,
+    GPU_Vector<int>& NL_local);
 
 private:
   double skin = 1.0;              // skin distance

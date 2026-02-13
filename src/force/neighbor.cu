@@ -696,6 +696,46 @@ gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double
   }
 }
 
+__global__ void gpu_find_local_neighbor_list_from_global(
+  const int N,
+  const Box box,
+  const float rc_square,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const int* __restrict__ g_NN_global,
+  const int* __restrict__ g_NL_global,
+  int* g_NN_local,
+  int* g_NL_local)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 >= N) {
+    return;
+  }
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+
+  int count_local = 0;
+
+  for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
+    int n2 = g_NL_global[n1 + N * i1];
+    float x12 = g_x[n2] - x1;
+    float y12 = g_y[n2] - y1;
+    float z12 = g_z[n2] - z1;
+    apply_mic(box, x12, y12, z12);
+    float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+
+    if (d12_square >= rc_square) {
+      continue;
+    }
+    g_NL_local[count_local++ * N + n1] = n2;
+  }
+
+  g_NN_local[n1] = count_local;
+}
+
 }
 
 int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, const double* z)
@@ -757,6 +797,28 @@ void Neighbor::find_neighbor_global(
       z0.data());
     GPU_CHECK_KERNEL
   }
+}
+
+void Neighbor::find_local_neighbor_from_global(
+  const double rc,
+  Box& box, 
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& NN_local,
+  GPU_Vector<int>& NL_local)
+{
+  const int N = position_per_atom.size() / 3;
+  gpu_find_local_neighbor_list_from_global<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    box,
+    rc * rc,
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    NN.data(),
+    NL.data(),
+    NN_local.data(),
+    NL_local.data());
+  GPU_CHECK_KERNEL
 }
 
 void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
