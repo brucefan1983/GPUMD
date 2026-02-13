@@ -191,25 +191,22 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
   }
 }
 
-
 class Neighbor
 {
 public:
-  double skin = 1.0;         // fix the skin distance to 1 A
-  GPU_Vector<int> NN, NL;    // global neighbor list
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
-  GPU_Vector<double> x0, y0, z0;
-
+  GPU_Vector<int> NN, NL; // global neighbor list
+  void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
     const double rc,
     Box& box, 
     const GPU_Vector<int>& type, 
     const GPU_Vector<double>& position_per_atom);
 
-  void initialize(const double rc, const int num_atoms, const int num_neighbors);
-
 private:
-  int check_atom_distance(const double* x, const double* y, const double* z);
+  double skin = 1.0;              // skin distance
+  GPU_Vector<int> cell_count;     // for cell list
+  GPU_Vector<int> cell_count_sum; // for cell list
+  GPU_Vector<int> cell_contents;  // for cell list
+  GPU_Vector<double> x0, y0, z0;  // for checking atom distance
+  int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };
