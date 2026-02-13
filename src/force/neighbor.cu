@@ -724,26 +724,16 @@ void Neighbor::find_neighbor_global(
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
 
-  bool need_update = false;
+  bool is_first_time = false;
 
   if (x0.size() == 0) {
-    need_update = true;
-
+    is_first_time = true;
     x0.resize(N);
     y0.resize(N);
     z0.resize(N);
-    gpu_update_xyz0<<<(N - 1) / 128 + 1, 128>>>(
-      N, 
-      x, 
-      y, 
-      z, 
-      x0.data(), 
-      y0.data(), 
-      z0.data());
-    GPU_CHECK_KERNEL
   }
 
-  if (need_update || check_atom_distance(box, x, y, z)) {
+  if (is_first_time || check_atom_distance(box, x, y, z)) {
     find_neighbor(
       0,
       N,
