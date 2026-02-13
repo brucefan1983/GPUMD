@@ -15,6 +15,7 @@
 
 #pragma once
 #include "dftd3.cuh"
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -25,16 +26,11 @@ struct NEP_Data {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN_global;    // global neighbor list
-  GPU_Vector<int> NL_global;    // global neighbor list
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
   GPU_Vector<float> parameters; // parameters to be optimized
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
 };
@@ -138,6 +134,7 @@ private:
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;
+  Neighbor neighbor;
 
   void update_potential(float* parameters, ANN& ann);
 

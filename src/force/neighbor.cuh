@@ -190,3 +190,27 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
     }
   }
 }
+
+
+class Neighbor
+{
+public:
+  int MN;                    // upper bound of # neighbors for one particle
+  double skin = 1.0;         // fix the skin distance to 1 A
+  GPU_Vector<int> NN, NL;    // global neighbor list
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+
+  // used to determine when to update neighbor list
+  GPU_Vector<double> x0, y0, z0;
+
+  void find_neighbor_global(
+    const double rc,
+    Box& box, 
+    const GPU_Vector<int>& type, 
+    const GPU_Vector<double>& position_per_atom);
+
+private:
+  int check_atom_distance(const double* x, const double* y, const double* z);
+};

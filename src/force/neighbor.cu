@@ -640,3 +640,110 @@ void find_neighbor_SW(
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
+
+namespace {
+
+__global__ void gpu_check_atom_distance(
+  int N,
+  double d2,
+  const double* x_old,
+  const double* y_old,
+  const double* z_old,
+  const double* x_new,
+  const double* y_new,
+  const double* z_new,
+  int* g_sum)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int n = bid * blockDim.x + tid;
+  __shared__ int s_sum[128];
+  s_sum[tid] = 0;
+  if (n < N) {
+    double dx = x_new[n] - x_old[n];
+    double dy = y_new[n] - y_old[n];
+    double dz = z_new[n] - z_old[n];
+    if ((dx * dx + dy * dy + dz * dz) > d2) {
+      s_sum[tid] = 1;
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_sum[tid] += s_sum[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    atomicAdd(g_sum, s_sum[0]);
+  }
+}
+
+__device__ int static_s2[1];
+
+__global__ void
+gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double* x0, double* y0, double* z0)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    x0[n] = x[n];
+    y0[n] = y[n];
+    z0[n] = z[n];
+  }
+}
+
+}
+
+int Neighbor::check_atom_distance(const double* x, const double* y, const double* z)
+{
+  const int N = NN.size();
+  double d2 = skin * skin * 0.25;
+  int* gpu_s2;
+  CHECK(cudaGetSymbolAddress((void**)&gpu_s2, static_s2));
+  int cpu_s2[1] = {0};
+  CHECK(cudaMemcpy(gpu_s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
+  gpu_check_atom_distance<<<(N - 1) / 128 + 1, 128>>>(
+    N, d2, x0.data(), y0.data(), z0.data(), x, y, z, gpu_s2);
+  GPU_CHECK_KERNEL
+  CHECK(cudaMemcpy(cpu_s2, gpu_s2, sizeof(int), cudaMemcpyDeviceToHost));
+  return cpu_s2[0];
+}
+
+void Neighbor::find_neighbor_global(
+  const double rc,
+  Box& box, 
+  const GPU_Vector<int>& type, 
+  const GPU_Vector<double>& position_per_atom)
+{
+  const int N = position_per_atom.size() / 3;
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + N;
+  const double* z = position_per_atom.data() + N * 2;
+
+  //if (check_atom_distance(x, y, z)) {
+    find_neighbor(
+      0,
+      N,
+      rc + skin,
+      box, 
+      type, 
+      position_per_atom,
+      cell_count,
+      cell_count_sum,
+      cell_contents,
+      NN,
+      NL);
+
+   // gpu_update_xyz0<<<(N - 1) / 128 + 1, 128>>>(
+     // N, 
+     // x, 
+     // y, 
+      //z, 
+      //x0.data(), 
+     // y0.data(), 
+     // z0.data());
+   // GPU_CHECK_KERNEL
+  //}
+}
