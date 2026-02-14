@@ -41,9 +41,7 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
   eam_data.Fp.resize(number_of_atoms);
   eam_data.NN.resize(number_of_atoms);
   eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
-  eam_data.cell_count.resize(number_of_atoms);
-  eam_data.cell_count_sum.resize(number_of_atoms);
-  eam_data.cell_contents.resize(number_of_atoms);
+  neighbor.initialize(rc, number_of_atoms, 400);
 }
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
@@ -289,8 +287,11 @@ static __global__ void find_force_eam_step1(
   const int N1,
   const int N2,
   const Box box,
-  const int* g_NN,
-  const int* g_NL,
+  const float rc,
+  const int* g_NN_global,
+  const int* g_NL_global,
+  int* g_NN_local,
+  int* g_NL_local,
   const int* g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -301,30 +302,38 @@ static __global__ void find_force_eam_step1(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
   if (n1 < N2) {
-    int NN = g_NN[n1];
+    int NN = g_NN_global[n1];
 
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
+    int count_local = 0;
+
     // Calculate the density
     float rho = 0.0f;
     for (int i1 = 0; i1 < NN; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
+      int n2 = g_NL_global[n1 + N * i1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float rho12 = 0.0f;
-      if (potential_model == 0) {
-        find_f(eam2004zhou, g_type[n2], d12, rho12); // density is contributed by n2
+
+      if (d12 < rc) {
+        float rho12 = 0.0f;
+        if (potential_model == 0) {
+          find_f(eam2004zhou, g_type[n2], d12, rho12); // density is contributed by n2
+        }
+        if (potential_model == 1) {
+          find_f(eam2006dai, d12, rho12);
+        }
+        rho += rho12;
+        g_NL_local[count_local++ * N + n1] = n2;
       }
-      if (potential_model == 1) {
-        find_f(eam2006dai, d12, rho12);
-      }
-      rho += rho12;
     }
+
+    g_NN_local[n1] = count_local;
 
     // Calculate the embedding energy F and its derivative Fp
     float F, Fp;
@@ -477,27 +486,11 @@ void EAM::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-#ifdef USE_FIXED_NEIGHBOR
-  static int num_calls = 0;
-#endif
-#ifdef USE_FIXED_NEIGHBOR
-  if (num_calls++ == 0) {
-#endif
-    find_neighbor(
-      N1,
-      N2,
-      rc,
-      box,
-      type,
-      position_per_atom,
-      eam_data.cell_count,
-      eam_data.cell_count_sum,
-      eam_data.cell_contents,
-      eam_data.NN,
-      eam_data.NL);
-#ifdef USE_FIXED_NEIGHBOR
-  }
-#endif
+  neighbor.find_neighbor_global(
+    rc,
+    box, 
+    type, 
+    position_per_atom);
 
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -507,6 +500,9 @@ void EAM::compute(
       N1,
       N2,
       box,
+      rc,
+      neighbor.NN.data(),
+      neighbor.NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),
@@ -547,6 +543,9 @@ void EAM::compute(
       N1,
       N2,
       box,
+      rc,
+      neighbor.NN.data(),
+      neighbor.NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),

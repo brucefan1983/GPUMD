@@ -640,3 +640,194 @@ void find_neighbor_SW(
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
+
+namespace {
+
+__global__ void gpu_check_atom_distance(
+  const Box box,
+  int N,
+  double d2,
+  const double* x_old,
+  const double* y_old,
+  const double* z_old,
+  const double* x_new,
+  const double* y_new,
+  const double* z_new,
+  int* g_sum)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int n = bid * blockDim.x + tid;
+  __shared__ int s_sum[128];
+  s_sum[tid] = 0;
+  if (n < N) {
+    float dx = x_new[n] - x_old[n];
+    float dy = y_new[n] - y_old[n];
+    float dz = z_new[n] - z_old[n];
+    apply_mic(box, dx, dy, dz);
+    if ((dx * dx + dy * dy + dz * dz) > d2) {
+      s_sum[tid] = 1;
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_sum[tid] += s_sum[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    atomicAdd(g_sum, s_sum[0]);
+  }
+}
+
+__device__ int static_s2[1];
+
+__global__ void
+gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double* x0, double* y0, double* z0)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    x0[n] = x[n];
+    y0[n] = y[n];
+    z0[n] = z[n];
+  }
+}
+
+__global__ void gpu_find_local_neighbor_from_global(
+  const int N,
+  const Box box,
+  const float rc_square,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const int* __restrict__ g_NN_global,
+  const int* __restrict__ g_NL_global,
+  int* g_NN_local,
+  int* g_NL_local)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 >= N) {
+    return;
+  }
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+
+  int count_local = 0;
+
+  for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
+    int n2 = g_NL_global[n1 + N * i1];
+    float x12 = g_x[n2] - x1;
+    float y12 = g_y[n2] - y1;
+    float z12 = g_z[n2] - z1;
+    apply_mic(box, x12, y12, z12);
+    float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+
+    if (d12_square >= rc_square) {
+      continue;
+    }
+    g_NL_local[count_local++ * N + n1] = n2;
+  }
+
+  g_NN_local[n1] = count_local;
+}
+
+}
+
+int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, const double* z)
+{
+  const int N = NN.size();
+  double d2 = skin * skin * 0.25;
+  int* gpu_s2;
+  CHECK(gpuGetSymbolAddress((void**)&gpu_s2, static_s2));
+  int cpu_s2[1] = {0};
+  CHECK(gpuMemcpy(gpu_s2, cpu_s2, sizeof(int), gpuMemcpyHostToDevice));
+  gpu_check_atom_distance<<<(N - 1) / 128 + 1, 128>>>(
+    box, N, d2, x0.data(), y0.data(), z0.data(), x, y, z, gpu_s2);
+  GPU_CHECK_KERNEL
+  CHECK(gpuMemcpy(cpu_s2, gpu_s2, sizeof(int), gpuMemcpyDeviceToHost));
+  return cpu_s2[0];
+}
+
+void Neighbor::find_neighbor_global(
+  const double rc,
+  Box& box, 
+  const GPU_Vector<int>& type, 
+  const GPU_Vector<double>& position_per_atom)
+{
+  const int N = type.size();
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + N;
+  const double* z = position_per_atom.data() + N * 2;
+
+  bool is_first_time = false;
+
+  if (x0.size() == 0) {
+    is_first_time = true;
+    x0.resize(N);
+    y0.resize(N);
+    z0.resize(N);
+  }
+
+  if (is_first_time || check_atom_distance(box, x, y, z)) {
+    find_neighbor(
+      0,
+      N,
+      rc + skin,
+      box, 
+      type, 
+      position_per_atom,
+      cell_count,
+      cell_count_sum,
+      cell_contents,
+      NN,
+      NL);
+
+    gpu_update_xyz0<<<(N - 1) / 128 + 1, 128>>>(
+      N, 
+      x, 
+      y, 
+      z, 
+      x0.data(), 
+      y0.data(), 
+      z0.data());
+    GPU_CHECK_KERNEL
+  }
+}
+
+void Neighbor::find_local_neighbor_from_global(
+  const double rc,
+  Box& box, 
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& NN_local,
+  GPU_Vector<int>& NL_local)
+{
+  const int N = position_per_atom.size() / 3;
+  gpu_find_local_neighbor_from_global<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    box,
+    rc * rc,
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    NN.data(),
+    NL.data(),
+    NN_local.data(),
+    NL_local.data());
+  GPU_CHECK_KERNEL
+}
+
+void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
+{
+  const double rc_plus_skin = rc + skin;
+  const int MN = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
+  NN.resize(num_atoms);
+  NL.resize(num_atoms * MN);
+  cell_count.resize(num_atoms);
+  cell_count_sum.resize(num_atoms);
+  cell_contents.resize(num_atoms);
+}

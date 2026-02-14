@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <cstdio>
@@ -21,9 +22,6 @@
 struct EAMAlloy_Data {
 
   GPU_Vector<int> NN, NL;
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
   GPU_Vector<float> F_rho_a_g;
   GPU_Vector<float> F_rho_b_g;
   GPU_Vector<float> F_rho_c_g;
@@ -79,4 +77,5 @@ public:
 
 protected:
   EAMAlloy_Data eam_data;
+  Neighbor neighbor;
 };

@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -30,9 +31,6 @@ struct Tersoff1989_Data {
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
 };
 
 class Tersoff1989 : public Potential
@@ -54,4 +52,5 @@ protected:
   Tersoff1989_Parameters ters1;
   Tersoff1989_Parameters ters2;
   Tersoff1989_Data tersoff_data;
+  Neighbor neighbor;
 };

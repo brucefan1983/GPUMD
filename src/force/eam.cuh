@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -54,9 +55,6 @@ struct EAM2006Dai {
 struct EAM_Data {
   GPU_Vector<float> Fp; // derivative of the density functional
   GPU_Vector<int> NN, NL;
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
 };
 
 class EAM : public Potential
@@ -80,4 +78,5 @@ protected:
   EAM2004Zhou eam2004zhou;
   EAM2006Dai eam2006dai;
   EAM_Data eam_data;
+  Neighbor neighbor;
 };

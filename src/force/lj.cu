@@ -55,11 +55,7 @@ LJ::LJ(FILE* fid, int num_types, int num_atoms)
     }
   }
 
-  lj_data.NN.resize(num_atoms);
-  lj_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
-  lj_data.cell_count.resize(num_atoms);
-  lj_data.cell_count_sum.resize(num_atoms);
-  lj_data.cell_contents.resize(num_atoms);
+  neighbor.initialize(rc, num_atoms, 700); // TODO
 }
 
 LJ::~LJ(void)
@@ -196,27 +192,11 @@ void LJ::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-#ifdef USE_FIXED_NEIGHBOR
-  static int num_calls = 0;
-#endif
-#ifdef USE_FIXED_NEIGHBOR
-  if (num_calls++ == 0) {
-#endif
-    find_neighbor(
-      N1,
-      N2,
-      rc,
-      box,
-      type,
-      position_per_atom,
-      lj_data.cell_count,
-      lj_data.cell_count_sum,
-      lj_data.cell_contents,
-      lj_data.NN,
-      lj_data.NL); // TODO: generalize
-#ifdef USE_FIXED_NEIGHBOR
-  }
-#endif
+  neighbor.find_neighbor_global(
+    rc,
+    box, 
+    type, 
+    position_per_atom);
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     lj_para,
@@ -224,8 +204,8 @@ void LJ::compute(
     N1,
     N2,
     box,
-    lj_data.NN.data(),
-    lj_data.NL.data(),
+    neighbor.NN.data(),
+    neighbor.NL.data(),
     type.data(),
     position_per_atom.data(),
     position_per_atom.data() + number_of_atoms,
