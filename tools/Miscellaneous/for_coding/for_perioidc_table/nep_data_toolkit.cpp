@@ -496,10 +496,16 @@ static void set_energy_weight_to_zero(std::vector<Structure>& structures)
   }
 }
 
-static void set_energy_weight_to_zero_if_has_U(std::vector<Structure>& structures)
+static void get_valid_structures_without_U(const std::vector<Structure>& structures)
 {
+  std::ofstream output_valid("valid.xyz");
+  std::ofstream output_invalid("invalid.xyz");
+  int num1 = 0;
+  int num2 = 0;
+
   constexpr int num_metals = 8;
   std::string metals[num_metals] = {"Co", "Cr", "Fe", "Mn", "Mo", "Ni", "V", "W"};
+
   for (int nc = 0; nc < structures.size(); ++nc) {
     bool has_given_metal = false;
     bool has_F_or_O = false;
@@ -518,9 +524,17 @@ static void set_energy_weight_to_zero_if_has_U(std::vector<Structure>& structure
     }
 
     if (has_given_metal && has_F_or_O) {
-      structures[nc].energy_weight = 0;
+      write_one_structure(output_invalid, structures[nc]);
+      num1++;
+    } else{
+      write_one_structure(output_valid, structures[nc]);
+      num2++;
     }
   }
+  output_valid.close();
+  output_invalid.close();
+  std::cout << "Number of structures written into valid.xyz = " << num2 << std::endl;
+  std::cout << "Number of structures written into invalid.xyz = " << num1 << std::endl;
 }
 
 static void set_box_to_1000(std::vector<Structure>& structures)
@@ -1225,7 +1239,7 @@ int main(int argc, char* argv[])
   std::cout << "13: get valid structures\n";
   std::cout << "14: calculate MAEs and RMSEs\n";
   std::cout << "15: split according to neighbor counts\n";
-  std::cout << "16: set energy_weight to zero for +U systems\n";
+  std::cout << "16: get valid structures without U\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1438,15 +1452,11 @@ int main(int argc, char* argv[])
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
-    std::cout << "Please enter the output xyz filename: ";
-    std::string output_filename;
-    std::cin >> output_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
-    set_energy_weight_to_zero_if_has_U(structures_input);
-    write(output_filename, structures_input);
+    get_valid_structures_without_U(structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
