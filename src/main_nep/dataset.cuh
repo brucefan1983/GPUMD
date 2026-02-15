@@ -39,6 +39,17 @@ public:
   GPU_Vector<float> box_original; // (original) box (9 components)
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
 
+  GPU_Vector<int> NN_radial;  // radial neighbor number
+  GPU_Vector<int> NL_radial;  // radial neighbor list
+  GPU_Vector<int> NN_angular; // angular neighbor number
+  GPU_Vector<int> NL_angular; // angular neighbor list
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+
   GPU_Vector<float> charge;      // calculated charge in GPU
   GPU_Vector<float> charge_shifted;      // shifted charge in GPU
   GPU_Vector<float> bec;         // Born effective charge in GPU

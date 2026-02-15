@@ -28,6 +28,5 @@ public:
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    bool calculate_neighbor,
     int DeviceCount) = 0;
 };
