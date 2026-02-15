@@ -620,7 +620,6 @@ void NEP::find_force(
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
-  bool calculate_neighbor,
   int device_in_this_iter)
 {
 
@@ -635,9 +634,6 @@ void NEP::find_force(
     CHECK(gpuSetDevice(device_id));
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
-
-    if (calculate_neighbor) {
-    }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,

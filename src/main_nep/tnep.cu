@@ -658,7 +658,6 @@ void TNEP::find_force(
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
-  bool calculate_neighbor,
   int device_in_this_iter)
 {
 
@@ -673,32 +672,6 @@ void TNEP::find_force(
     CHECK(gpuSetDevice(device_id));
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
-
-    if (calculate_neighbor) {
-      gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
-        paramb,
-        dataset[device_id].N,
-        dataset[device_id].Na.data(),
-        dataset[device_id].Na_sum.data(),
-        dataset[device_id].type.data(),
-        dataset[device_id].box.data(),
-        dataset[device_id].box_original.data(),
-        dataset[device_id].num_cell.data(),
-        dataset[device_id].r.data(),
-        dataset[device_id].r.data() + dataset[device_id].N,
-        dataset[device_id].r.data() + dataset[device_id].N * 2,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data());
-      GPU_CHECK_KERNEL
-    }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
