@@ -453,9 +453,11 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial.copy_to_host(NN_radial_cpu.data());
   NN_angular.copy_to_host(NN_angular_cpu.data());
 
+  float ave_NN_radial = 0;
   int min_NN_radial = 10000;
   max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
+    ave_NN_radial += NN_radial_cpu[n];
     if (NN_radial_cpu[n] < min_NN_radial) {
       min_NN_radial = NN_radial_cpu[n];
     }
@@ -463,9 +465,12 @@ void Dataset::find_neighbor(Parameters& para)
       max_NN_radial = NN_radial_cpu[n];
     }
   }
+
+  float ave_NN_angular = 0;
   int min_NN_angular = 10000;
   max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
+    ave_NN_angular += NN_angular_cpu[n];
     if (NN_angular_cpu[n] < min_NN_angular) {
       min_NN_angular = NN_angular_cpu[n];
     }
@@ -473,6 +478,9 @@ void Dataset::find_neighbor(Parameters& para)
       max_NN_angular = NN_angular_cpu[n];
     }
   }
+
+  ave_NN_radial /= N;
+  ave_NN_angular /= N;
 
   NL_radial.resize(N * max_NN_radial);
   NL_angular.resize(N * max_NN_angular);
@@ -509,13 +517,14 @@ void Dataset::find_neighbor(Parameters& para)
     z12_angular.data());
   GPU_CHECK_KERNEL
 
-
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
+  printf("    Average number of neighbors for one atom = %g.\n", ave_NN_radial);
   printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
+  printf("    Average number of neighbors for one atom = %g.\n", ave_NN_angular);
 #ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
   FILE* fid = fopen("neighbor.txt", "a");
   for (int nc = 0; nc < Nc; ++nc) {
