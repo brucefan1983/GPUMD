@@ -396,6 +396,19 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
+  NN_radial.resize(N);
+  NN_angular.resize(N);
+  NL_radial.resize(N * max_NN_radial);
+  NL_angular.resize(N * max_NN_angular);
+  x12_radial.resize(N * max_NN_radial);
+  y12_radial.resize(N * max_NN_radial);
+  z12_radial.resize(N * max_NN_radial);
+  x12_angular.resize(N * max_NN_angular);
+  y12_angular.resize(N * max_NN_angular);
+  z12_angular.resize(N * max_NN_angular);
+  // TODO
+
+
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);

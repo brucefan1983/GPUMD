@@ -268,16 +268,6 @@ NEP::NEP(
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
 
-    nep_data[device_id].NN_radial.resize(N);
-    nep_data[device_id].NN_angular.resize(N);
-    nep_data[device_id].NL_radial.resize(N_times_max_NN_radial);
-    nep_data[device_id].NL_angular.resize(N_times_max_NN_angular);
-    nep_data[device_id].x12_radial.resize(N_times_max_NN_radial);
-    nep_data[device_id].y12_radial.resize(N_times_max_NN_radial);
-    nep_data[device_id].z12_radial.resize(N_times_max_NN_radial);
-    nep_data[device_id].x12_angular.resize(N_times_max_NN_angular);
-    nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
-    nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
@@ -735,42 +725,42 @@ void NEP::find_force(
         dataset[device_id].r.data(),
         dataset[device_id].r.data() + dataset[device_id].N,
         dataset[device_id].r.data() + dataset[device_id].N * 2,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data());
+        dataset[device_id].NN_radial.data(),
+        dataset[device_id].NL_radial.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
+        dataset[device_id].x12_radial.data(),
+        dataset[device_id].y12_radial.data(),
+        dataset[device_id].z12_radial.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data());
       GPU_CHECK_KERNEL
     }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(),
+      dataset[device_id].NN_radial.data(),
+      dataset[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(),
-      nep_data[device_id].z12_radial.data(),
+      dataset[device_id].x12_radial.data(),
+      dataset[device_id].y12_radial.data(),
+      dataset[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
     GPU_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_angular.data(),
-      nep_data[device_id].NL_angular.data(),
+      dataset[device_id].NN_angular.data(),
+      dataset[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_angular.data(),
-      nep_data[device_id].y12_angular.data(),
-      nep_data[device_id].z12_angular.data(),
+      dataset[device_id].x12_angular.data(),
+      dataset[device_id].y12_angular.data(),
+      dataset[device_id].z12_angular.data(),
       nep_data[device_id].descriptors.data(),
       nep_data[device_id].sum_fxyz.data());
     GPU_CHECK_KERNEL
@@ -851,14 +841,14 @@ void NEP::find_force(
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(),
+      dataset[device_id].NN_radial.data(),
+      dataset[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(),
-      nep_data[device_id].z12_radial.data(),
+      dataset[device_id].x12_radial.data(),
+      dataset[device_id].y12_radial.data(),
+      dataset[device_id].z12_radial.data(),
       nep_data[device_id].Fp.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
@@ -868,14 +858,14 @@ void NEP::find_force(
 
     find_force_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      nep_data[device_id].NN_angular.data(),
-      nep_data[device_id].NL_angular.data(),
+      dataset[device_id].NN_angular.data(),
+      dataset[device_id].NL_angular.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      nep_data[device_id].x12_angular.data(),
-      nep_data[device_id].y12_angular.data(),
-      nep_data[device_id].z12_angular.data(),
+      dataset[device_id].x12_angular.data(),
+      dataset[device_id].y12_angular.data(),
+      dataset[device_id].z12_angular.data(),
       nep_data[device_id].Fp.data(),
       nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].force.data(),
@@ -889,12 +879,12 @@ void NEP::find_force(
         dataset[device_id].N,
         paramb,
         zbl,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
         dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data(),
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
