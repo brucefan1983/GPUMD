@@ -603,6 +603,9 @@ static __global__ void gpu_sum_force_error(
     float dy = g_fy[n] - fy_ref;
     float dz = g_fz[n] - fz_ref;
     float diff_square = dx * dx + dy * dy + dz * dz;
+    if (fx_ref == 0.0f && fy_ref == 0.0f && fz_ref == 0.0f) {
+      diff_square = 0.0f;
+    }
     if (use_weight) {
       float type_weight = g_type_weight[g_type[n]];
       diff_square *= type_weight * type_weight;
