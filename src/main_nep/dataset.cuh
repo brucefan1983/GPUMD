@@ -43,6 +43,8 @@ public:
   GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
   GPU_Vector<int> NL_angular; // angular neighbor list
+  GPU_Vector<int> NN_radial_sum; // prefix sum of NN_radial
+  GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
   GPU_Vector<float> x12_radial;
   GPU_Vector<float> y12_radial;
   GPU_Vector<float> z12_radial;
