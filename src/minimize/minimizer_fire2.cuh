@@ -41,9 +41,6 @@ private:
   bool optimize_cell_;      // Whether to optimize cell
   bool hydrostatic_strain_; // Whether to apply hydrostatic strain only
   double cell_factor_;      // Scale factor for cell degrees of freedom (= number of atoms)
-  bool use_abc_;            // Whether to use abc
-  bool const_volume_;       // Whether to keep volume constant
-  double scalar_pressure_;  // Whether use external pressure
 
 public:
   // Constructor with cell optimization options
@@ -52,19 +49,12 @@ public:
     const int number_of_steps,
     const double force_tolerance,
     const bool optimize_cell = false,
-    const bool hydrostatic_strain = false,
-    const bool use_abc = false,
-    const bool const_volume = false,
-    const double scale_pressure = 0.0,
-  const double cell_factor = 0.0)
+    const bool hydrostatic_strain = false)
     : Minimizer(number_of_atoms, number_of_steps, force_tolerance),
       dt_(dt_0_),
       optimize_cell_(optimize_cell),
       hydrostatic_strain_(hydrostatic_strain),
-      use_abc_(use_abc),
-      const_volume_(const_volume),
-      scalar_pressure_(scale_pressure),
-      cell_factor_(cell_factor > 1e-4 ? cell_factor: static_cast<double>(number_of_atoms))
+      cell_factor_(static_cast<double>(number_of_atoms))
   {
   }
 

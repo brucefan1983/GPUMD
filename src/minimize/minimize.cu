@@ -47,10 +47,6 @@ void Minimize::parse_minimize(
   double force_tolerance = 0.0;
   int box_change = 0;
   int hydrostatic_strain = 0;
-  int const_volume = 0;
-  int use_abc = 0;
-  double scalar_pressure = 0.0;
-  double cell_factor = 0.0;
   std::unique_ptr<Minimizer> minimizer;
   const int number_of_atoms = type.size();
 
@@ -110,73 +106,8 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
-  } else if (strcmp(param[1], "fire2") == 0) {
-    minimizer_type = 3;
-
-    if (!((num_param >= 4) && (num_param <= 10))) {
-      PRINT_INPUT_ERROR("minimize fire should have 2 to 6 parameters.");
-    }
-
-    if (!is_valid_real(param[2], &force_tolerance)) {
-      PRINT_INPUT_ERROR("Force tolerance should be a number.");
-    }
-
-    if (!is_valid_int(param[3], &number_of_steps)) {
-      PRINT_INPUT_ERROR("Number of steps should be an integer.");
-    }
-    if (number_of_steps <= 0) {
-      PRINT_INPUT_ERROR("Number of steps should > 0.");
-    }
-
-    if (num_param >= 5) {
-      if (!is_valid_int(param[4], &box_change)) {
-        PRINT_INPUT_ERROR("Box_change should be an integer.");
-      }
-      if (!(box_change == 0 || box_change == 1)) {
-        PRINT_INPUT_ERROR("Box_change should be 1 or 0.");
-      }
-    }
-
-    if (num_param >= 6) {
-      if (!is_valid_int(param[5], &hydrostatic_strain)) {
-        PRINT_INPUT_ERROR("Hydrostatic_strain should be an integer.");
-      }
-      if (!(hydrostatic_strain == 0 || hydrostatic_strain == 1)) {
-        PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
-      }
-    }
-
-    if (num_param >= 7) {
-      if (!is_valid_int(param[6], &const_volume)) {
-        PRINT_INPUT_ERROR("Const_volume should be an integer.");
-      }
-      if (!(const_volume == 0 || const_volume == 1)) {
-        PRINT_INPUT_ERROR("Const_volume should be 1 or 0.");
-      }
-    }
-
-    if (num_param >= 8) {
-      if (!is_valid_real(param[7], &scalar_pressure)) {
-        PRINT_INPUT_ERROR("Scalar pressure should be a number.");
-      }
-    }
-
-    if (num_param >= 9) {
-      if (!is_valid_real(param[8], &cell_factor)) {
-        PRINT_INPUT_ERROR("Cell factor should be a number.");
-      }
-    }
-
-    if (num_param >= 10) {
-      if (!is_valid_int(param[9], &use_abc)) {
-        PRINT_INPUT_ERROR("Use_abc should be an integer.");
-      }
-      if (!(use_abc == 0 || use_abc == 1)) {
-        PRINT_INPUT_ERROR("Use_abc should be 1 or 0.");
-      }
-    }
-
-  } else {
+  } 
+  else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
 
@@ -207,8 +138,8 @@ void Minimize::parse_minimize(
       printf("    with fixed box.\n");
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
-
-      minimizer.reset(new Minimizer_FIRE(number_of_atoms, number_of_steps, force_tolerance));
+      if (number_of_atoms > 1000) {
+        minimizer.reset(new Minimizer_FIRE(number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
@@ -219,6 +150,19 @@ void Minimize::parse_minimize(
         potential_per_atom,
         force_per_atom,
         virial_per_atom);
+      } else {
+        minimizer.reset(new Minimizer_FIRE2(number_of_atoms, number_of_steps, force_tolerance));
+        minimizer->compute(
+          force, 
+          box, 
+          position_per_atom, 
+          type, 
+          group, 
+          potential_per_atom, 
+          force_per_atom, 
+          virial_per_atom);
+      }
+      
 
       break;
     case 2:
@@ -230,8 +174,9 @@ void Minimize::parse_minimize(
       }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
-
-      minimizer.reset(new Minimizer_FIRE_Box_Change(
+      
+      if (number_of_atoms > 1000) {
+        minimizer.reset(new Minimizer_FIRE_Box_Change(
         number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
 
       minimizer->compute(
@@ -243,47 +188,19 @@ void Minimize::parse_minimize(
         potential_per_atom,
         force_per_atom,
         virial_per_atom);
-      break;
-    case 3:
-      printf("\nStart to do an energy minimization.\n");
-      printf("    using the fast inertial relaxation engine (FIRE2) method.\n");
-      if (box_change == 1) {
-        printf("    with variable box.\n");
-        if (hydrostatic_strain == 1) {
-          printf("    with hydrostatic pressure.\n");
-        }
-        if (const_volume == 1) {
-          printf("    with constant volume.\n");
-        }
-        if (std::abs(scalar_pressure) > 1e-6) {
-          printf("    with scalar pressure %f GPa.\n", scalar_pressure);
-        }
+      } else {
+        minimizer.reset(new Minimizer_FIRE2(number_of_atoms, number_of_steps, force_tolerance, true, hydrostatic_strain));
+        minimizer->compute(
+          force, 
+          box, 
+          position_per_atom, 
+          type, 
+          group, 
+          potential_per_atom, 
+          force_per_atom, 
+          virial_per_atom);
       }
-      if (use_abc == 1) {
-          printf("    with the ABC-accelerated version.\n");
-        }
-      printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
-      printf("    for maximally %d steps.\n", number_of_steps);
-      minimizer.reset(new Minimizer_FIRE2(
-        number_of_atoms,
-        number_of_steps,
-        force_tolerance,
-        box_change,
-        hydrostatic_strain,
-        use_abc,
-        const_volume,
-        scalar_pressure,
-      cell_factor));
-
-      minimizer->compute(
-        force,
-        box,
-        position_per_atom,
-        type,
-        group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
+      
       break;
     default:
       PRINT_INPUT_ERROR("Invalid minimizer.");

@@ -422,7 +422,7 @@ void Minimizer_FIRE2::compute(
   const int N = number_of_atoms_;
   const int size = N * 3;
   const int ndof = optimize_cell_ ? (size + 9) : size;
-  int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
+  int base = 1; // (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
   // Initialize velocities and working arrays
   GPU_Vector<double> v(ndof, 0.0);
@@ -432,7 +432,6 @@ void Minimizer_FIRE2::compute(
   GPU_Vector<double> virial_tot(9);
   GPU_Vector<double> d_temp(1);
   GPU_Vector<double> pos_unstrained(size); // Store unstrained coordinates
-  scalar_pressure_ /= 160.2176621;
 
   double orig_box[9];
   if (optimize_cell_) {
@@ -447,15 +446,14 @@ void Minimizer_FIRE2::compute(
   }
 
   // FIRE2 parameters
-  dt_ /= 1;
+  dt_ /= 10;
   dtmax_ /= 1;  
   dtmin_ /= 1; //
   double dt = dt_ ;
   double alpha = astart_;
   int Nsteps = 0;
-  printf("\ncell factor is %f.\n", cell_factor_);
   printf("\nFIRE2 energy minimization started.\n");
-  double cur_pe;
+
   for (int step = 0; step < number_of_steps_; ++step) {
     // Compute forces and virial
     force.compute(
@@ -482,11 +480,6 @@ void Minimizer_FIRE2::compute(
       virial_cpu[1] = virial_cpu[3] = 0.5 * (virial_cpu[1] + virial_cpu[3]);
       virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
       virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
-      double volume = box.get_volume();
-      double pv = scalar_pressure_ * volume;
-      virial_cpu[0] += -pv;
-      virial_cpu[4] += -pv;
-      virial_cpu[8] += -pv;
 
       // Compute current deformation gradient
       double cur_deform_grad[9];
@@ -524,14 +517,6 @@ void Minimizer_FIRE2::compute(
         virial_transformed[8] = trace / 3.0;
       }
 
-      // Apply const volume if needed
-      if (const_volume_) {
-        double trace = virial_transformed[0] + virial_transformed[4] + virial_transformed[8];
-        virial_transformed[0] -= trace / 3.0;
-        virial_transformed[4] -= trace / 3.0;
-        virial_transformed[8] -= trace / 3.0;
-      }
-
       // Scale by cell factor
       for (int i = 0; i < 9; i++) {
         virial_transformed[i] /= cell_factor_;
@@ -560,26 +545,9 @@ void Minimizer_FIRE2::compute(
 
     calculate_total_potential(potential_per_atom);
     double energy = cpu_total_potential_[0];
-    if (optimize_cell_) {
-      energy += scalar_pressure_ * box.get_volume();
-    }
 
-    if (step == 0) {
-      cur_pe = energy;
-    } else {
-
-        double delta = energy - cur_pe;
-        
-        if ((delta > 0.1)) {
-          break;
-        } else {
-          cur_pe = energy;
-        }
-      
-    }
-
-    // Print progress
-    if (step == 0 || (step + 1) % base == 0 || fmax < force_tolerance_) {
+    // Print progress step == 0 || (step + 1) % base == 0 || 
+    if (step % base == 0) {
       double pressure = 0.0;
       if (optimize_cell_) {
         double virial_cpu[9];
@@ -587,13 +555,11 @@ void Minimizer_FIRE2::compute(
         pressure =
           (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3.0 / box.get_volume() * 160.2176621;
       }
+      // printf("current dt is %f\n", dt);
       printf(
         "    step %d: E = %.10f eV, fmax = %.10f eV/A", step == 0 ? 0 : (step + 1), energy, fmax);
       if (optimize_cell_) {
         printf(", P = %.6f GPa", pressure);
-      }
-      if (const_volume_) {
-        printf(", volume = %.6f A^3", box.get_volume());
       }
       printf("\n");
 
@@ -709,11 +675,6 @@ void Minimizer_FIRE2::compute(
         virial_cpu[1] = virial_cpu[3] = 0.5 * (virial_cpu[1] + virial_cpu[3]);
         virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
         virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
-        double volume = box.get_volume();
-        double pv = scalar_pressure_ * volume;
-        virial_cpu[0] += -pv;
-        virial_cpu[4] += -pv;
-        virial_cpu[8] += -pv;
 
         double cur_deform_grad[9];
         solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
@@ -770,26 +731,7 @@ void Minimizer_FIRE2::compute(
     accelerate_velocity_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), f_extended.data(), dt, ndof);
     GPU_CHECK_KERNEL
 
-    if (!use_abc_) {
-      // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
-      gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
-      GPU_CHECK_KERNEL
-      double v_norm_sq;
-      d_temp.copy_to_host(&v_norm_sq);
-      double v_norm = sqrt(v_norm_sq);
 
-      gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
-      GPU_CHECK_KERNEL
-      double f_norm_sq;
-      d_temp.copy_to_host(&f_norm_sq);
-      double f_norm = sqrt(f_norm_sq);
-
-      if (f_norm > 1e-10) {
-        update_velocity_kernel<<<(ndof + 255) / 256, 256>>>(
-          v.data(), f_extended.data(), alpha, v_norm, f_norm, ndof);
-        GPU_CHECK_KERNEL
-      }
-    } else {
       alpha = std::max(alpha, 1e-10);
       double abc_multiplier = 1.0 / (1.0 - std::pow(1.0 - alpha, (Nsteps + 1)));
       // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
@@ -816,31 +758,14 @@ void Minimizer_FIRE2::compute(
       GPU_CHECK_KERNEL
       filter_v<<<blocks, threads>>>(ndof, dt, maxstep_, v.data());
       GPU_CHECK_KERNEL
-    }
+    
 
     // Compute displacement: dr = dt * v
     compute_dr_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), dr.data(), dt, ndof);
     GPU_CHECK_KERNEL
-    if (!use_abc_) {
-      // Cap displacement if needed
-      gpu_norm_squared_kernel<<<1, 1024>>>(dr.data(), d_temp.data(), ndof);
-      GPU_CHECK_KERNEL
-      double dr_norm_sq;
-      d_temp.copy_to_host(&dr_norm_sq);
-      double dr_norm = sqrt(dr_norm_sq);
-
-      if (dr_norm > maxstep_) {
-        double scale = maxstep_ / dr_norm;
-        int threads = 256;
-        int blocks = (ndof + threads - 1) / threads;
-        gpu_multiply<<<blocks, threads>>>(ndof, scale, dr.data(), dr.data());
-        GPU_CHECK_KERNEL
-      }
-    }
 
     // Update positions and box
-    int threads = 256;
-    int blocks = (N + threads - 1) / threads;
+    blocks = (N + threads - 1) / threads;
 
     if (optimize_cell_) {
       // Update unstrained positions
