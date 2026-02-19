@@ -286,7 +286,9 @@ void Fitness::output(
     for (int n = 0; n < num_components; ++n) {
       float ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
-        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        if (ref_value > -1e5) {
+          ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        }
       }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
