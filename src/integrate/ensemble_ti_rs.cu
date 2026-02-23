@@ -127,7 +127,7 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
-  if (t_switch * t_equil < 0) {
+  if ((t_switch < 0 && t_equil > 0) || (t_switch > 0 && t_equil < 0)) {
     PRINT_INPUT_ERROR(
       "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
       "auto-determine)");

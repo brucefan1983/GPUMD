@@ -1,0 +1,4 @@
+type         2 Te Pb
+cutoff       8 4
+charge_mode  2
+generation   10000

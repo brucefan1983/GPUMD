@@ -13,13 +13,13 @@ run:
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <iomanip>
 
 static std::string remove_spaces_step1(const std::string& line)
 {
@@ -287,7 +287,8 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
       }
     }
   }
@@ -306,7 +307,8 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
       }
     }
   }
@@ -321,7 +323,8 @@ static void read_one_structure(std::ifstream& input, Structure& structure)
             tokens[n + m].substr(
               (m == 0) ? (stress_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            __FILE__, __LINE__);
+            __FILE__,
+            __LINE__);
         }
       }
     }
@@ -472,9 +475,7 @@ static void write_one_structure(std::ofstream& output, const Structure& structur
   }
 }
 
-static void write(
-  const std::string& outputfile,
-  const std::vector<Structure>& structures)
+static void write(const std::string& outputfile, const std::vector<Structure>& structures)
 {
   std::ofstream output(outputfile);
   if (!output.is_open()) {
@@ -494,6 +495,47 @@ static void set_energy_weight_to_zero(std::vector<Structure>& structures)
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures[nc].energy_weight = 0;
   }
+}
+
+static void get_valid_structures_without_U(const std::vector<Structure>& structures)
+{
+  std::ofstream output_valid("valid.xyz");
+  std::ofstream output_invalid("invalid.xyz");
+  int num1 = 0;
+  int num2 = 0;
+
+  constexpr int num_metals = 8;
+  std::string metals[num_metals] = {"Co", "Cr", "Fe", "Mn", "Mo", "Ni", "V", "W"};
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    bool has_given_metal = false;
+    bool has_F_or_O = false;
+
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
+      for (int k = 0; k < num_metals; ++k) {
+        if (structures[nc].atom_symbol[n] == metals[k]) {
+          has_given_metal = true;
+          break;
+        }
+      }
+      if (structures[nc].atom_symbol[n] == "F" || structures[nc].atom_symbol[n] == "O") {
+        has_F_or_O = true;
+        break;
+      }
+    }
+
+    if (has_given_metal && has_F_or_O) {
+      write_one_structure(output_invalid, structures[nc]);
+      num1++;
+    } else {
+      write_one_structure(output_valid, structures[nc]);
+      num2++;
+    }
+  }
+  output_valid.close();
+  output_invalid.close();
+  std::cout << "Number of structures written into valid.xyz = " << num2 << std::endl;
+  std::cout << "Number of structures written into invalid.xyz = " << num1 << std::endl;
 }
 
 static void set_box_to_1000(std::vector<Structure>& structures)
@@ -521,9 +563,9 @@ static void change_sid(std::vector<Structure>& structures, const std::string& ne
 
 static double get_volume(const double* box)
 {
-  return std::abs(box[0] * (box[4] * box[8] - box[5] * box[7]) +
-         box[1] * (box[5] * box[6] - box[3] * box[8]) +
-         box[2] * (box[3] * box[7] - box[4] * box[6]));
+  return std::abs(
+    box[0] * (box[4] * box[8] - box[5] * box[7]) + box[1] * (box[5] * box[6] - box[3] * box[8]) +
+    box[2] * (box[3] * box[7] - box[4] * box[6]));
 }
 
 static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
@@ -586,7 +628,8 @@ static void calculate_one_structure(
     }
   }
 
-  nep3.compute_dftd3(functional, D3_cutoff, D3_cutoff_cn, type, box, position, potential, force, virial);
+  nep3.compute_dftd3(
+    functional, D3_cutoff, D3_cutoff_cn, type, box, position, potential, force, virial);
 
   for (int n = 0; n < structure.num_atom; n++) {
     structure.energy += potential[n];
@@ -615,12 +658,15 @@ static void add_d3(std::vector<Structure>& structures, const std::string& functi
   std::vector<std::string> atom_symbols = get_atom_symbols("nep.txt");
   for (int nc = 0; nc < structures.size(); ++nc) {
     calculate_one_structure(nep3, atom_symbols, structures[nc], functional, 12, 6);
+    if ((nc + 1) % 10000 == 0) {
+      printf("%d stuctures finished.\n", nc + 1);
+    }
   }
 }
 
 static void split_into_accurate_and_inaccurate(
-  const std::vector<Structure>& structures, 
-  double energy_threshold, 
+  const std::vector<Structure>& structures,
+  double energy_threshold,
   double force_threshold,
   double virial_threshold)
 {
@@ -658,11 +704,14 @@ static void split_into_accurate_and_inaccurate(
     double force_nep[3];
     double force_ref[3];
     for (int n = 0; n < structures[nc].num_atom; ++n) {
-      input_force >> force_nep[0] >> force_nep[1] >> force_nep[2] >> force_ref[0] >> force_ref[1] >> force_ref[2];
+      input_force >> force_nep[0] >> force_nep[1] >> force_nep[2] >> force_ref[0] >> force_ref[1] >>
+        force_ref[2];
       double fx_diff = force_nep[0] - force_ref[0];
       double fy_diff = force_nep[1] - force_ref[1];
       double fz_diff = force_nep[2] - force_ref[2];
-      if (fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff > force_threshold * force_threshold) {
+      if (
+        fx_diff * fx_diff + fy_diff * fy_diff + fz_diff * fz_diff >
+        force_threshold * force_threshold) {
         is_accurate = false;
       }
     }
@@ -683,14 +732,14 @@ static void split_into_accurate_and_inaccurate(
       }
     }
 
-    //if (force_is_small) {
-      if (is_accurate) {
-        write_one_structure(output_accurate, structures[nc]);
-        num1++;
-      } else{
-        write_one_structure(output_inaccurate, structures[nc]);
-        num2++;
-      }
+    // if (force_is_small) {
+    if (is_accurate) {
+      write_one_structure(output_accurate, structures[nc]);
+      num1++;
+    } else {
+      write_one_structure(output_inaccurate, structures[nc]);
+      num2++;
+    }
     //}
   }
   input_energy.close();
@@ -703,9 +752,7 @@ static void split_into_accurate_and_inaccurate(
 }
 
 static void split_according_to_neighbor_counts(
-  const std::vector<Structure>& structures, 
-  int radial_threshold, 
-  int angular_threshold)
+  const std::vector<Structure>& structures, int radial_threshold, int angular_threshold)
 {
   std::ifstream input_neighbor("neighbor.txt");
   std::ofstream output_small("neighbor_counts_small.xyz");
@@ -719,7 +766,7 @@ static void split_according_to_neighbor_counts(
     if (count_radial > radial_threshold || count_angular > angular_threshold) {
       write_one_structure(output_large, structures[nc]);
       num1++;
-    } else{
+    } else {
       write_one_structure(output_small, structures[nc]);
       num2++;
     }
@@ -727,14 +774,14 @@ static void split_according_to_neighbor_counts(
   input_neighbor.close();
   output_small.close();
   output_large.close();
-  std::cout << "Number of structures written into neighbor_counts_large.xyz = " << num1 << std::endl;
-  std::cout << "Number of structures written into neighbor_counts_small.xyz = " << num2 << std::endl;
+  std::cout << "Number of structures written into neighbor_counts_large.xyz = " << num1
+            << std::endl;
+  std::cout << "Number of structures written into neighbor_counts_small.xyz = " << num2
+            << std::endl;
 }
 
 static void calculate_mae_and_rmse_one(
-  const std::string& filename, 
-  const std::string& units,
-  const int num_components)
+  const std::string& filename, const std::string& units, const int num_components)
 {
   const int num_tokens = num_components * 2;
   std::ifstream input(filename);
@@ -764,7 +811,7 @@ static void calculate_mae_and_rmse_one(
         double diff = std::abs(data[d] - data[d + num_components]);
         if (num_components != 6 || data[d + num_components] > -1.0e3) {
           mae += diff;
-          rmse += diff * diff; 
+          rmse += diff * diff;
         } else {
           is_valid_data = false;
         }
@@ -793,8 +840,8 @@ static void calculate_mae_and_rmse()
 }
 
 static void get_valid_structures(
-  const std::vector<Structure>& structures, 
-  double energy_threshold, 
+  const std::vector<Structure>& structures,
+  double energy_threshold,
   double force_threshold,
   double stress_threshold)
 {
@@ -813,8 +860,8 @@ static void get_valid_structures(
         break;
       }
     }
-    if (structures[nc].energy_weight > 0.5f && energy_threshold > 0) {
-      if (structures[nc].energy > energy_threshold) {
+    if (structures[nc].energy_weight > 0.5f && energy_threshold >= 0) {
+      if (structures[nc].energy / structures[nc].num_atom > energy_threshold) {
         is_valid = false;
       }
     }
@@ -828,7 +875,9 @@ static void get_valid_structures(
     }
     if (structures[nc].has_virial) {
       for (int n = 0; n < 9; ++n) {
-        if (std::abs(structures[nc].virial[n] / get_volume(structures[nc].box) * 160.2)  > stress_threshold) {
+        if (
+          std::abs(structures[nc].virial[n] / get_volume(structures[nc].box) * 160.2) >
+          stress_threshold) {
           is_valid = false;
           break;
         }
@@ -838,7 +887,7 @@ static void get_valid_structures(
     if (is_valid) {
       write_one_structure(output_valid, structures[nc]);
       num1++;
-    } else{
+    } else {
       write_one_structure(output_invalid, structures[nc]);
       num2++;
     }
@@ -853,7 +902,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
 {
   std::ofstream output_ch("../ch/train.xyz");
   std::ofstream output_unep1("../unep1/train.xyz");
-  std::ofstream output_hydrate("../hydrate/train.xyz");
+  std::ofstream output_omat2("../omat2/train.xyz");
   std::ofstream output_chonps("../chonps/train.xyz");
   std::ofstream output_spice("../spice/train.xyz");
   std::ofstream output_water("../water/train.xyz");
@@ -863,10 +912,10 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::ofstream output_ani1xnr("../ani1xnr/train.xyz");
   std::ofstream output_sse_vasp("../sse_vasp/train.xyz");
   std::ofstream output_sse_abacus("../sse_abacus/train.xyz");
-  std::ofstream output_cspbx("../cspbx/train.xyz");
+  std::ofstream output_omol25("../omol25/train.xyz");
   int num_ch = 0;
   int num_unep1 = 0;
-  int num_hydrate = 0;
+  int num_omat2 = 0;
   int num_chonps = 0;
   int num_spice = 0;
   int num_omat = 0;
@@ -876,52 +925,52 @@ static void split_with_sid(const std::vector<Structure>& structures)
   int num_ani1xnr = 0;
   int num_sse_vasp = 0;
   int num_sse_abacus = 0;
-  int num_cspbx = 0;
+  int num_omol25 = 0;
   for (int nc = 0; nc < structures.size(); ++nc) {
     if (structures[nc].sid == "ch") {
       write_one_structure(output_ch, structures[nc]);
-        num_ch++;
+      num_ch++;
     } else if (structures[nc].sid == "unep1") {
       write_one_structure(output_unep1, structures[nc]);
-        num_unep1++;
-    } else if (structures[nc].sid == "hydrate") {
-      write_one_structure(output_hydrate, structures[nc]);
-        num_hydrate++;
+      num_unep1++;
+    } else if (structures[nc].sid == "omat2") {
+      write_one_structure(output_omat2, structures[nc]);
+      num_omat2++;
     } else if (structures[nc].sid == "chonps") {
       write_one_structure(output_chonps, structures[nc]);
-        num_chonps++;
+      num_chonps++;
     } else if (structures[nc].sid == "spice") {
       write_one_structure(output_spice, structures[nc]);
-        num_spice++;
+      num_spice++;
     } else if (structures[nc].sid == "water") {
       write_one_structure(output_water, structures[nc]);
-        num_water++;
+      num_water++;
     } else if (structures[nc].sid == "mp") {
       write_one_structure(output_mp, structures[nc]);
-        num_mp++;
+      num_mp++;
     } else if (structures[nc].sid == "protein") {
       write_one_structure(output_protein, structures[nc]);
-        num_protein++;
+      num_protein++;
     } else if (structures[nc].sid == "ani1xnr") {
       write_one_structure(output_ani1xnr, structures[nc]);
-        num_ani1xnr++;
+      num_ani1xnr++;
     } else if (structures[nc].sid == "sse_abacus") {
       write_one_structure(output_sse_abacus, structures[nc]);
-        num_sse_abacus++;
+      num_sse_abacus++;
     } else if (structures[nc].sid == "sse_vasp") {
       write_one_structure(output_sse_vasp, structures[nc]);
-        num_sse_vasp++;
+      num_sse_vasp++;
     } else if (structures[nc].sid == "omat") {
       write_one_structure(output_omat, structures[nc]);
-        num_omat++;
-    } else if (structures[nc].sid == "cspbx") {
-      write_one_structure(output_cspbx, structures[nc]);
-        num_cspbx++;
+      num_omat++;
+    } else if (structures[nc].sid == "omol25") {
+      write_one_structure(output_omol25, structures[nc]);
+      num_omol25++;
     }
   }
   output_ch.close();
   output_unep1.close();
-  output_hydrate.close();
+  output_omat2.close();
   output_chonps.close();
   output_spice.close();
   output_omat.close();
@@ -931,10 +980,10 @@ static void split_with_sid(const std::vector<Structure>& structures)
   output_ani1xnr.close();
   output_sse_abacus.close();
   output_sse_vasp.close();
-  output_cspbx.close();
+  output_omol25.close();
   std::cout << "Number of structures written into ch.xyz = " << num_ch << std::endl;
   std::cout << "Number of structures written into unep1.xyz = " << num_unep1 << std::endl;
-  std::cout << "Number of structures written into hydrate.xyz = " << num_hydrate << std::endl;
+  std::cout << "Number of structures written into omat2.xyz = " << num_omat2 << std::endl;
   std::cout << "Number of structures written into chonps.xyz = " << num_chonps << std::endl;
   std::cout << "Number of structures written into spice.xyz = " << num_spice << std::endl;
   std::cout << "Number of structures written into water.xyz = " << num_water << std::endl;
@@ -944,7 +993,7 @@ static void split_with_sid(const std::vector<Structure>& structures)
   std::cout << "Number of structures written into ani1xnr.xyz = " << num_ani1xnr << std::endl;
   std::cout << "Number of structures written into sse_abacus.xyz = " << num_sse_abacus << std::endl;
   std::cout << "Number of structures written into sse_vasp.xyz = " << num_sse_vasp << std::endl;
-  std::cout << "Number of structures written into cspbx.xyz = " << num_cspbx << std::endl;
+  std::cout << "Number of structures written into omol25.xyz = " << num_omol25 << std::endl;
 }
 
 static void fps(std::vector<Structure>& structures, double distance_square_min, int dim)
@@ -1009,11 +1058,11 @@ static void fps(std::vector<Structure>& structures, double distance_square_min, 
 
 static void get_composition(std::vector<Structure>& structures)
 {
-  //int num_elements = 4;
-  //std::string elements[] = {"H", "C", "N", "O"};
+  // int num_elements = 4;
+  // std::string elements[] = {"H", "C", "N", "O"};
 
-  //int num_elements = 10;
-  //std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
+  // int num_elements = 10;
+  // std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
 
   int num_elements = 5;
   std::string elements[] = {"H", "C", "N", "O", "S"};
@@ -1039,22 +1088,22 @@ static void get_composition(std::vector<Structure>& structures)
 
 static void shift_energy_multiple_species(std::vector<Structure>& structures)
 {
-  //int num_elements = 4;
-  //std::string elements[] = {"H", "C", "N", "O"};
-  //double delta_energy[] = {-3.2598,   -7.1457,   -7.6629,   -5.6500};
+  // int num_elements = 4;
+  // std::string elements[] = {"H", "C", "N", "O"};
+  // double delta_energy[] = {-3.2598,   -7.1457,   -7.6629,   -5.6500};
 
   /*int num_elements = 10;
   std::string elements[] = {"H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"};
   double delta_energy[] = {
-    0.001254026014518,   
-    0.102890390836071,   
-    0.148235407508952,   
-    0.204097843036162,   
-    0.271400629040059,   
+    0.001254026014518,
+    0.102890390836071,
+    0.148235407508952,
+    0.204097843036162,
+    0.271400629040059,
     0.928501138100502,
-    1.083209903212600,   
-    1.252197567336926,   
-    7.004441200065508,   
+    1.083209903212600,
+    1.252197567336926,
+    7.004441200065508,
     0.810198990224952};
   for (int i = 0; i < num_elements; ++i) {
     delta_energy[i] *= 1.0e4;
@@ -1062,7 +1111,12 @@ static void shift_energy_multiple_species(std::vector<Structure>& structures)
 
   int num_elements = 5;
   std::string elements[] = {"H", "C", "N", "O", "S"};
-  double delta_energy[] = {-1.265276327295640,  -1.880752053284493,  -4.451413902725383,  -2.004796016966084,  -2.060841966465145};
+  double delta_energy[] = {
+    -1.265276327295640,
+    -1.880752053284493,
+    -4.451413902725383,
+    -2.004796016966084,
+    -2.060841966465145};
 
   for (int nc = 0; nc < structures.size(); ++nc) {
     std::vector<int> counts(num_elements, 0);
@@ -1096,8 +1150,8 @@ static void get_structures_with_given_species(
   for (int nc = 0; nc < structures.size(); ++nc) {
 
     int is_valid_structure = true;
-    
-    for (int n = 0; n < structures[nc].num_atom; ++ n) {
+
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
 
       bool match = false;
       for (int k = 0; k < num_species; ++k) {
@@ -1143,15 +1197,15 @@ static void get_structures_with_given_species_no_subsystems(
     }
 
     int is_valid_structure = true;
-    
-    for (int n = 0; n < structures[nc].num_atom; ++ n) {
+
+    for (int n = 0; n < structures[nc].num_atom; ++n) {
 
       bool match = false;
       for (int k = 0; k < num_species; ++k) {
         if (structures[nc].atom_symbol[n] == given_species[k]) {
           match = true;
           has_at_least_one[k] = true;
-          //break;
+          // break;
         }
       }
 
@@ -1195,6 +1249,7 @@ int main(int argc, char* argv[])
   std::cout << "13: get valid structures\n";
   std::cout << "14: calculate MAEs and RMSEs\n";
   std::cout << "15: split according to neighbor counts\n";
+  std::cout << "16: get valid structures without U\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1207,8 +1262,8 @@ int main(int argc, char* argv[])
     std::cin >> input_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
   } else if (option == 2) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -1218,8 +1273,8 @@ int main(int argc, char* argv[])
     std::cin >> output_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     write(output_filename, structures_input);
   } else if (option == 3) {
     std::cout << "Please enter the input xyz filename: ";
@@ -1236,17 +1291,18 @@ int main(int argc, char* argv[])
     std::cin >> virial_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
-    split_into_accurate_and_inaccurate(structures_input, energy_threshold, force_threshold, virial_threshold);
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
+    split_into_accurate_and_inaccurate(
+      structures_input, energy_threshold, force_threshold, virial_threshold);
   } else if (option == 4) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
     std::cin >> input_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     split_with_sid(structures_input);
   } else if (option == 5) {
     std::cout << "Please enter the input xyz filename: ";
@@ -1260,8 +1316,8 @@ int main(int argc, char* argv[])
     std::cin >> dim;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
 
     clock_t time_begin = clock();
     fps(structures_input, distance * distance, dim);
@@ -1277,8 +1333,8 @@ int main(int argc, char* argv[])
     std::cin >> output_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     set_energy_weight_to_zero(structures_input);
     write(output_filename, structures_input);
   } else if (option == 7) {
@@ -1293,8 +1349,8 @@ int main(int argc, char* argv[])
     std::cin >> sid;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     change_sid(structures_input, sid);
     write(output_filename, structures_input);
   } else if (option == 8) {
@@ -1309,8 +1365,8 @@ int main(int argc, char* argv[])
     std::cin >> functional;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     add_d3(structures_input, functional);
     write(output_filename, structures_input);
   } else if (option == 9) {
@@ -1319,8 +1375,8 @@ int main(int argc, char* argv[])
     std::cin >> input_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     get_composition(structures_input);
   } else if (option == 10) {
     std::cout << "Please enter the input xyz filename: ";
@@ -1331,8 +1387,8 @@ int main(int argc, char* argv[])
     std::cin >> output_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     shift_energy_multiple_species(structures_input);
     write(output_filename, structures_input);
   } else if (option == 11) {
@@ -1352,9 +1408,10 @@ int main(int argc, char* argv[])
     }
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
-    get_structures_with_given_species(output_filename, structures_input, num_species, given_species);
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
+    get_structures_with_given_species(
+      output_filename, structures_input, num_species, given_species);
   } else if (option == 12) {
     std::cout << "Please enter the input xyz filename: ";
     std::string input_filename;
@@ -1364,8 +1421,8 @@ int main(int argc, char* argv[])
     std::cin >> output_filename;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     set_box_to_1000(structures_input);
     write(output_filename, structures_input);
   } else if (option == 13) {
@@ -1383,8 +1440,8 @@ int main(int argc, char* argv[])
     std::cin >> stress_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     get_valid_structures(structures_input, energy_threshold, force_threshold, stress_threshold);
   } else if (option == 14) {
     calculate_mae_and_rmse();
@@ -1400,9 +1457,18 @@ int main(int argc, char* argv[])
     std::cin >> angular_threshold;
     std::vector<Structure> structures_input;
     read(input_filename, structures_input);
-    std::cout << "Number of structures read from "
-              << input_filename + " = " << structures_input.size() << std::endl;
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
     split_according_to_neighbor_counts(structures_input, radial_threshold, angular_threshold);
+  } else if (option == 16) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from " << input_filename + " = "
+              << structures_input.size() << std::endl;
+    get_valid_structures_without_U(structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
@@ -1411,5 +1477,3 @@ int main(int argc, char* argv[])
   std::cout << "Done." << std::endl;
   return EXIT_SUCCESS;
 }
-
-

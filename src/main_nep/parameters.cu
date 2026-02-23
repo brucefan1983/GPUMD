@@ -124,14 +124,15 @@ void Parameters::set_default_parameters()
   flexible_zbl = false; // default Universal ZBL
 
   // ------------new--------------
-  int deviceCount;  
-  CHECK(gpuGetDeviceCount(&deviceCount));  
-  int fully_used_device = population_size % deviceCount;  
-  if (fully_used_device != 0) {  
-    int population_should_increase = deviceCount - fully_used_device;  
-    population_size += population_should_increase;  
-    printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
-  }  
+  int deviceCount;
+  CHECK(gpuGetDeviceCount(&deviceCount));
+  int fully_used_device = population_size % deviceCount;
+  if (fully_used_device != 0) {
+    int population_should_increase = deviceCount - fully_used_device;
+    population_size += population_should_increase;
+    printf(
+      "Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);
+  }
 }
 
 void Parameters::read_nep_in()
@@ -294,7 +295,7 @@ void Parameters::check_foundation_model()
   std::vector<std::string> tokens;
   // first line, not used
   tokens = get_tokens(input);
-  
+
   // second line, zbl
   tokens = get_tokens(input);
   if (tokens.size() != 3) {
@@ -570,8 +571,10 @@ void Parameters::report_inputs()
   }
 
   if (fine_tune) {
-    printf("    (input)   will fine-tune based on %s and %s.\n", 
-      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
+    printf(
+      "    (input)   will fine-tune based on %s and %s.\n",
+      fine_tune_nep_txt.c_str(),
+      fine_tune_nep_restart.c_str());
   }
 
   // some calcuated parameters:
@@ -781,8 +784,8 @@ void Parameters::parse_zbl(const char** param, int num_param)
 
   if (zbl_rc_outer < 1.0f) {
     PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 3.0f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 3.0 A.");
+  } else if (zbl_rc_outer > 4.0f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 4.0 A.");
   }
 }
 
@@ -818,7 +821,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[1], &rc_radial_tmp)) {
       PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_radial[n] = rc_radial_tmp;
     }
 
@@ -826,7 +829,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[2], &rc_angular_tmp)) {
       PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_angular[n] = rc_angular_tmp;
     }
 
@@ -869,7 +872,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
 
   rc_radial_max = 0.0f;
   rc_angular_max = 0.0f;
-  for (int n = 0; n < num_types; ++ n) {
+  for (int n = 0; n < num_types; ++n) {
     if (rc_radial[n] > rc_radial_max) {
       rc_radial_max = rc_radial[n];
     }
@@ -1361,11 +1364,11 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   }
   if (save_potential_format != 0 && save_potential_format != 1) {
     PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
-  }  
+  }
   if (!is_valid_int(param[3], &save_potential_restart)) {
     PRINT_INPUT_ERROR("save_potential save restart should be an integer.\n");
   }
   if (save_potential_restart != 0 && save_potential_restart != 1) {
     PRINT_INPUT_ERROR("save_potential save restart should be 0 or 1.");
-  }  
+  }
 }
