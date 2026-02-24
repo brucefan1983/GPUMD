@@ -1938,13 +1938,13 @@ static bool get_expanded_box(const double rc, const Box& box, NEP_Charge::Expand
   ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
 
   bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.5 * rc) {
+  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_y && thickness_y <= 2.5 * rc) {
+  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_z && thickness_z <= 2.5 * rc) {
+  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
 
