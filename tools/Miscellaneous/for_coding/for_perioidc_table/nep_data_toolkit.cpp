@@ -1218,6 +1218,25 @@ static void get_structures_with_given_species_no_subsystems(
   std::cout << outputfile << " is closed." << std::endl;
 }
 
+static void set_virial(std::vector<Structure>& structures)
+{
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    if (!structures[nc].has_stress && !structures[nc].has_virial) {
+      structures[nc].has_virial = true;
+      for (int a = 0; a < 3; ++a) {
+        for (int b = 0; b < 3; ++b) {
+          structures[nc].virial[a*3+b] = 0.0;
+          for (int n = 0; n < structures[nc].num_atom; ++n) {
+            double position[3] = { structures[nc].x[n], structures[nc].y[n], structures[nc].z[n]};
+            double force[3] = { structures[nc].fx[n], structures[nc].fy[n], structures[nc].fz[n]};
+            structures[nc].virial[a*3+b] += position[a] * force[b];
+          }
+        }
+      }
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
   std::cout << "====================================================\n";
@@ -1240,6 +1259,7 @@ int main(int argc, char* argv[])
   std::cout << "14: calculate MAEs and RMSEs\n";
   std::cout << "15: split according to neighbor counts\n";
   std::cout << "16: get valid structures without U\n";
+  std::cout << "17: add virial for molecules\n";
   std::cout << "====================================================\n";
 
   std::cout << "Please choose a number based on your purpose: ";
@@ -1457,6 +1477,19 @@ int main(int argc, char* argv[])
     std::cout << "Number of structures read from "
               << input_filename + " = " << structures_input.size() << std::endl;
     get_valid_structures_without_U(structures_input);
+  } else if (option == 17) {
+    std::cout << "Please enter the input xyz filename: ";
+    std::string input_filename;
+    std::cin >> input_filename;
+    std::cout << "Please enter the output xyz filename: ";
+    std::string output_filename;
+    std::cin >> output_filename;
+    std::vector<Structure> structures_input;
+    read(input_filename, structures_input);
+    std::cout << "Number of structures read from "
+              << input_filename + " = " << structures_input.size() << std::endl;
+    set_virial(structures_input);
+    write(output_filename, structures_input);
   } else {
     std::cout << "This is an invalid option.";
     exit(1);
