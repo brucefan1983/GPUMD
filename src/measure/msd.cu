@@ -214,8 +214,8 @@ void MSD::preprocess(
   if (!compute_)
     return;
   
-  if (num_correlation_steps_ > number_of_steps) {
-    PRINT_INPUT_ERROR("MSD correlation should be <= number of MD steps.\n");
+  if (num_correlation_steps_ > number_of_steps / sample_interval_) {
+    PRINT_INPUT_ERROR("MSD correlation time sampling interval should be <= number of MD steps.\n");
   }
     
   if (grouping_method_ < 0) {
