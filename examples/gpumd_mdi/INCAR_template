@@ -1,0 +1,44 @@
+# Minimal INCAR for GPUMD+VASP Integration Testing
+#
+# This INCAR is optimized for fast, reliable QM calculations during MD.
+# Adjust ENCUT, SIGMA, and IBRION based on your system accuracy requirements.
+
+# General
+SYSTEM = test_system
+PREC = Medium          # Precision level
+ALGO = Fast            # Algorithm (Fast or Normal)
+
+# Electron relaxation
+ENCUT = 400            # Cutoff energy (eV) - reduce for faster tests
+NELM = 100             # Max SCF iterations
+EDIFF = 1E-4           # SCF convergence criterion
+NELMIN = 4             # Min SCF iterations
+
+# Smearing (for metals/semiconductors)
+ISMEAR = 1             # Methfessel-Paxton (0=Gaussian for insulators)
+SIGMA = 0.2            # Smearing width (eV)
+
+# Ionic relaxation (disable for MD driver)
+IBRION = -1            # -1 = MD with external driver (default for MDI)
+POTIM = 0.5            # Time step (ignored with IBRION=-1)
+
+# Output
+ISTART = 1             # Read WAVECAR if available
+ICHARG = 1             # Read charge density
+NSW = 1                # Number of ionic steps (only 1 since driver controls)
+NWRITE = 1             # Write frequency
+LWAVE = .FALSE.        # Don't write WAVECAR
+LCHARG = .FALSE.       # Don't write CHGCAR
+
+# Parallel
+NCORE = 4              # Cores per band (adjust to your system)
+
+# Symmetry
+ISYM = 2               # Use symmetry
+
+# Notes:
+# - IBRION = -1 is critical: lets external MDI driver control ionic steps
+# - Keep ENCUT and SIGMA modest for fast iterations
+# - For production: increase ENCUT to 600+ and SIGMA to 0.1
+# - NELM = 100 should be enough; if not converging, increase to 150-200
+

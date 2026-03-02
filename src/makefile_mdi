@@ -1,0 +1,201 @@
+###########################################################
+# Makefile for GPUMD MDI executable
+# This creates a separate gpumd-mdi executable with MDI support
+# NOTE: Run this makefile from the src/ directory
+#
+# Build with (from src/):
+#   make -f makefile_mdi USE_MDI=1
+#   make -f makefile_mdi USE_MDI=1 MDI_LIB=1 MDI_LIB_PATH=/path/to/MDI_Library/install/lib64 MDI_INC_PATH=/path/to/MDI_Library/install/include
+#
+# Run with:
+#   ./gpumd-mdi --mdi "-role ENGINE -name gpumd -method TCP -port 8021" -in run.in
+###########################################################
+
+###########################################################
+# some flags
+###########################################################
+CC = nvcc
+CUDA_ARCH=-arch=sm_60
+ifdef OS
+CFLAGS = -O3 $(CUDA_ARCH)
+else
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+endif
+
+# MDI support
+ifdef USE_MDI
+  CFLAGS += -DUSE_MDI
+  MDI_SUPPORT = 1
+endif
+
+INC = -I.
+LDFLAGS =
+LIBS = -lcublas -lcusolver -lcufft
+
+# MDI library linking
+ifdef MDI_LIB
+  ifdef MDI_INC_PATH
+    INC += -I$(MDI_INC_PATH)
+  endif
+  ifdef MDI_LIB_PATH
+    LDFLAGS += -L$(MDI_LIB_PATH)
+  endif
+  LIBS += -lmdi
+endif
+
+
+###########################################################
+# source files
+###########################################################
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.cu)   \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard phonon/*.cu)       \
+	$(wildcard integrate/*.cu)   \
+	$(wildcard mc/*.cu)          \
+	$(wildcard force/*.cu)       \
+	$(wildcard measure/*.cu)     \
+	$(wildcard model/*.cu)       \
+	$(wildcard utilities/*.cu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.cu)    \
+	$(wildcard utilities/*.cu)
+SOURCES_GNEP =                    \
+	$(wildcard main_gnep/*.cu)    \
+	$(wildcard utilities/*.cu)
+SOURCES_MDI =                     \
+	$(wildcard main_mdi/*.cu)    \
+	$(wildcard minimize/*.cu)    \
+	$(wildcard phonon/*.cu)      \
+	$(wildcard integrate/*.cu)   \
+	$(wildcard mc/*.cu)          \
+	$(wildcard force/*.cu)       \
+	$(wildcard measure/*.cu)     \
+	$(wildcard model/*.cu)       \
+	$(wildcard utilities/*.cu)
+
+###########################################################
+# object files
+###########################################################
+ifdef OS
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
+OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
+OBJ_MDI = $(SOURCES_MDI:.cu=.obj)
+else
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
+OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
+OBJ_MDI = $(SOURCES_MDI:.cu=.o)
+endif
+
+
+###########################################################
+# headers
+###########################################################
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard phonon/*.cuh)      \
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_gnep/*.cuh)   \
+	$(wildcard main_mdi/*.cuh)
+
+
+###########################################################
+# executables
+###########################################################
+all: gpumd nep gnep gpumd-mdi
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o gpumd $(LIBS)
+	@echo =================================================
+	@echo The gpumd executable is successfully compiled!
+	@echo =================================================
+nep: $(OBJ_NEP)
+	$(CC) $(LDFLAGS) $^ -o nep $(LIBS)
+	@echo =================================================
+	@echo The nep executable is successfully compiled!
+	@echo =================================================
+gnep: $(OBJ_GNEP)
+	$(CC) $(LDFLAGS) $^ -o gnep $(LIBS)
+	@echo =================================================
+	@echo The gnep executable is successfully compiled!
+	@echo =================================================
+gpumd-mdi: $(OBJ_MDI)
+	$(CC) $(LDFLAGS) $^ -o gpumd-mdi $(LIBS)
+	@echo =================================================
+	@echo The gpumd-mdi executable is successfully compiled!
+	@echo =================================================
+
+
+###########################################################
+# rules for building object files
+###########################################################
+ifdef OS
+integrate/%.obj: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.obj: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.obj: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.obj: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.obj: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_mdi/%.obj: main_mdi/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.obj: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.obj: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.obj: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else
+integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gnep/%.o: main_gnep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_mdi/%.o: main_mdi/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.o: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
+
+
+###########################################################
+# clean up
+###########################################################
+clean:
+ifdef OS
+	del /s *.obj *.exp *.lib *.exe
+else
+	rm -f $(CURDIR)/*/*.o $(CURDIR)/main_mdi/*.o gpumd nep gnep gpumd-mdi
+endif

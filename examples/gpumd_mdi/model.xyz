@@ -1,0 +1,4 @@
+2
+energy=-5.234 config_type=minimal pbc="T T T" Lattice="10.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 10.0" Properties=species:S:1:pos:R:3:force:R:3
+Cu 1.0 1.0 1.0 0.0 0.0 0.0
+Cu 5.0 5.0 5.0 0.0 0.0 0.0
