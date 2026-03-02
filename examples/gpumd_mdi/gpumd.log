@@ -1,0 +1,383 @@
+
+---------------------------------------------------------------
+Started initializing positions and related parameters.
+---------------------------------------------------------------
+
+Number of atoms is 2.
+Use periodic boundary conditions along x.
+Use periodic boundary conditions along y.
+Use periodic boundary conditions along z.
+Box matrix h = [a, b, c] is
+    1.0000000000e+01    0.0000000000e+00    0.0000000000e+00
+    0.0000000000e+00    1.0000000000e+01    0.0000000000e+00
+    0.0000000000e+00    0.0000000000e+00    1.0000000000e+01
+Inverse box matrix g = inv(h) is
+    1.0000000000e-01    0.0000000000e+00    0.0000000000e+00
+    0.0000000000e+00    1.0000000000e-01    0.0000000000e+00
+    0.0000000000e+00    0.0000000000e+00    1.0000000000e-01
+Do not specify initial velocities here.
+Have no grouping method.
+There are 89 atom types.
+    0 atoms of type 0.
+    0 atoms of type 1.
+    0 atoms of type 2.
+    0 atoms of type 3.
+    0 atoms of type 4.
+    0 atoms of type 5.
+    0 atoms of type 6.
+    0 atoms of type 7.
+    0 atoms of type 8.
+    0 atoms of type 9.
+    0 atoms of type 10.
+    0 atoms of type 11.
+    0 atoms of type 12.
+    0 atoms of type 13.
+    0 atoms of type 14.
+    0 atoms of type 15.
+    0 atoms of type 16.
+    0 atoms of type 17.
+    0 atoms of type 18.
+    0 atoms of type 19.
+    0 atoms of type 20.
+    0 atoms of type 21.
+    0 atoms of type 22.
+    0 atoms of type 23.
+    0 atoms of type 24.
+    0 atoms of type 25.
+    0 atoms of type 26.
+    0 atoms of type 27.
+    2 atoms of type 28.
+    0 atoms of type 29.
+    0 atoms of type 30.
+    0 atoms of type 31.
+    0 atoms of type 32.
+    0 atoms of type 33.
+    0 atoms of type 34.
+    0 atoms of type 35.
+    0 atoms of type 36.
+    0 atoms of type 37.
+    0 atoms of type 38.
+    0 atoms of type 39.
+    0 atoms of type 40.
+    0 atoms of type 41.
+    0 atoms of type 42.
+    0 atoms of type 43.
+    0 atoms of type 44.
+    0 atoms of type 45.
+    0 atoms of type 46.
+    0 atoms of type 47.
+    0 atoms of type 48.
+    0 atoms of type 49.
+    0 atoms of type 50.
+    0 atoms of type 51.
+    0 atoms of type 52.
+    0 atoms of type 53.
+    0 atoms of type 54.
+    0 atoms of type 55.
+    0 atoms of type 56.
+    0 atoms of type 57.
+    0 atoms of type 58.
+    0 atoms of type 59.
+    0 atoms of type 60.
+    0 atoms of type 61.
+    0 atoms of type 62.
+    0 atoms of type 63.
+    0 atoms of type 64.
+    0 atoms of type 65.
+    0 atoms of type 66.
+    0 atoms of type 67.
+    0 atoms of type 68.
+    0 atoms of type 69.
+    0 atoms of type 70.
+    0 atoms of type 71.
+    0 atoms of type 72.
+    0 atoms of type 73.
+    0 atoms of type 74.
+    0 atoms of type 75.
+    0 atoms of type 76.
+    0 atoms of type 77.
+    0 atoms of type 78.
+    0 atoms of type 79.
+    0 atoms of type 80.
+    0 atoms of type 81.
+    0 atoms of type 82.
+    0 atoms of type 83.
+    0 atoms of type 84.
+    0 atoms of type 85.
+    0 atoms of type 86.
+    0 atoms of type 87.
+    0 atoms of type 88.
+Initialized velocities with default T = 300 K.
+
+---------------------------------------------------------------
+Finished initializing positions and related parameters.
+---------------------------------------------------------------
+
+
+---------------------------------------------------------------
+Started executing the commands in run.in.
+---------------------------------------------------------------
+
+Use the NEP4 potential with 89 atom types.
+    type 0 (H with Z = 1).
+    type 1 (He with Z = 2).
+    type 2 (Li with Z = 3).
+    type 3 (Be with Z = 4).
+    type 4 (B with Z = 5).
+    type 5 (C with Z = 6).
+    type 6 (N with Z = 7).
+    type 7 (O with Z = 8).
+    type 8 (F with Z = 9).
+    type 9 (Ne with Z = 10).
+    type 10 (Na with Z = 11).
+    type 11 (Mg with Z = 12).
+    type 12 (Al with Z = 13).
+    type 13 (Si with Z = 14).
+    type 14 (P with Z = 15).
+    type 15 (S with Z = 16).
+    type 16 (Cl with Z = 17).
+    type 17 (Ar with Z = 18).
+    type 18 (K with Z = 19).
+    type 19 (Ca with Z = 20).
+    type 20 (Sc with Z = 21).
+    type 21 (Ti with Z = 22).
+    type 22 (V with Z = 23).
+    type 23 (Cr with Z = 24).
+    type 24 (Mn with Z = 25).
+    type 25 (Fe with Z = 26).
+    type 26 (Co with Z = 27).
+    type 27 (Ni with Z = 28).
+    type 28 (Cu with Z = 29).
+    type 29 (Zn with Z = 30).
+    type 30 (Ga with Z = 31).
+    type 31 (Ge with Z = 32).
+    type 32 (As with Z = 33).
+    type 33 (Se with Z = 34).
+    type 34 (Br with Z = 35).
+    type 35 (Kr with Z = 36).
+    type 36 (Rb with Z = 37).
+    type 37 (Sr with Z = 38).
+    type 38 (Y with Z = 39).
+    type 39 (Zr with Z = 40).
+    type 40 (Nb with Z = 41).
+    type 41 (Mo with Z = 42).
+    type 42 (Tc with Z = 43).
+    type 43 (Ru with Z = 44).
+    type 44 (Rh with Z = 45).
+    type 45 (Pd with Z = 46).
+    type 46 (Ag with Z = 47).
+    type 47 (Cd with Z = 48).
+    type 48 (In with Z = 49).
+    type 49 (Sn with Z = 50).
+    type 50 (Sb with Z = 51).
+    type 51 (Te with Z = 52).
+    type 52 (I with Z = 53).
+    type 53 (Xe with Z = 54).
+    type 54 (Cs with Z = 55).
+    type 55 (Ba with Z = 56).
+    type 56 (La with Z = 57).
+    type 57 (Ce with Z = 58).
+    type 58 (Pr with Z = 59).
+    type 59 (Nd with Z = 60).
+    type 60 (Pm with Z = 61).
+    type 61 (Sm with Z = 62).
+    type 62 (Eu with Z = 63).
+    type 63 (Gd with Z = 64).
+    type 64 (Tb with Z = 65).
+    type 65 (Dy with Z = 66).
+    type 66 (Ho with Z = 67).
+    type 67 (Er with Z = 68).
+    type 68 (Tm with Z = 69).
+    type 69 (Yb with Z = 70).
+    type 70 (Lu with Z = 71).
+    type 71 (Hf with Z = 72).
+    type 72 (Ta with Z = 73).
+    type 73 (W with Z = 74).
+    type 74 (Re with Z = 75).
+    type 75 (Os with Z = 76).
+    type 76 (Ir with Z = 77).
+    type 77 (Pt with Z = 78).
+    type 78 (Au with Z = 79).
+    type 79 (Hg with Z = 80).
+    type 80 (Tl with Z = 81).
+    type 81 (Pb with Z = 82).
+    type 82 (Bi with Z = 83).
+    type 83 (Ac with Z = 89).
+    type 84 (Th with Z = 90).
+    type 85 (Pa with Z = 91).
+    type 86 (U with Z = 92).
+    type 87 (Np with Z = 93).
+    type 88 (Pu with Z = 94).
+    has the universal ZBL with inner cutoff 1 A and outer cutoff 2 A.
+    radial cutoff = 6 A.
+    angular cutoff = 5 A.
+    MN_radial = 274.
+    enlarged MN_radial = 343.
+    enlarged MN_angular = 198.
+    n_max_radial = 4.
+    n_max_angular = 4.
+    basis_size_radial = 8.
+    basis_size_angular = 8.
+    l_max_3body = 4.
+    l_max_4body = 2.
+    l_max_5body = 1.
+    ANN = 35-80-1.
+    number of neural network parameters = 263441.
+    number of descriptor parameters = 712890.
+    total number of parameters = 976331.
+Initialized velocities with input T = 1 K.
+Use NVE ensemble for this run.
+Time step for this run is 0.5 fs.
+Dump force.
+    every 1 steps.
+Dump thermo every 1 steps.
+Run 5 steps.
+  (skipping run execution in MDI mode)
+
+---------------------------------------------------------------
+Finished executing the commands in run.in.
+---------------------------------------------------------------
+
+MDI mode requested. MDI integration compiled in.
+MDI options: -role ENGINE -name gpumd -method TCP -hostname localhost -port 8021
+MDI initialized.
+GPUMD initialized for MDI.
+Registered MDI commands.
+Accepted MDI communicator from driver.
+System has 2 atoms.
+[MDI] Received command: <NATOMS
+    [MDI] MDI_Send natoms expected=1 returned=0
+  -> Sent natoms=2
+[MDI] Received command: <COORDS
+    [MDI] MDI_Send <COORDS expected=6 returned=0
+  -> Sent positions to driver
+[MDI] Received command: >ENERGY
+  -> Received energy from driver: -0.013274
+[MDI] Received command: >STRESS
+  -> Received stress from driver (eV/A^3)
+[MDI] Received command: >FORCES
+    [MDI] MDI_Recv >FORCES expected=6 returned=0
+  -> Received external forces from driver (first 6 values):
+    forces[0] = 0.013716
+    forces[1] = -0.012633
+    forces[2] = 0.014884
+    forces[3] = -0.013716
+    forces[4] = 0.012633
+    forces[5] = -0.014884
+[MDI] Forces set from external QM calculation (external_forces_pending=1)
+[MDI] Using external forces for integration
+  -> Integrated MD step with external forces
+  -> Positions after integration (first 6 values):
+    pos[0] = 0.999957
+    pos[1] = 5.000043
+    pos[2] = 1.000057
+    pos[3] = 4.999943
+    pos[4] = 0.999931
+    pos[5] = 5.000068
+[MDI] Received command: <COORDS
+    [MDI] MDI_Send <COORDS expected=6 returned=0
+  -> Sent positions to driver
+[MDI] Received command: >ENERGY
+  -> Received energy from driver: -0.013273
+[MDI] Received command: >STRESS
+  -> Received stress from driver (eV/A^3)
+[MDI] Received command: >FORCES
+    [MDI] MDI_Recv >FORCES expected=6 returned=0
+  -> Received external forces from driver (first 6 values):
+    forces[0] = 0.013701
+    forces[1] = -0.012655
+    forces[2] = 0.014899
+    forces[3] = -0.013701
+    forces[4] = 0.012655
+    forces[5] = -0.014899
+[MDI] Forces set from external QM calculation (external_forces_pending=1)
+[MDI] Using external forces for integration
+  -> Integrated MD step with external forces
+  -> Positions after integration (first 6 values):
+    pos[0] = 0.999915
+    pos[1] = 5.000085
+    pos[2] = 1.000115
+    pos[3] = 4.999885
+    pos[4] = 0.999863
+    pos[5] = 5.000136
+[MDI] Received command: <COORDS
+    [MDI] MDI_Send <COORDS expected=6 returned=0
+  -> Sent positions to driver
+[MDI] Received command: >ENERGY
+  -> Received energy from driver: -0.013271
+[MDI] Received command: >STRESS
+  -> Received stress from driver (eV/A^3)
+[MDI] Received command: >FORCES
+    [MDI] MDI_Recv >FORCES expected=6 returned=0
+  -> Received external forces from driver (first 6 values):
+    forces[0] = 0.013686
+    forces[1] = -0.012677
+    forces[2] = 0.014913
+    forces[3] = -0.013686
+    forces[4] = 0.012677
+    forces[5] = -0.014913
+[MDI] Forces set from external QM calculation (external_forces_pending=1)
+[MDI] Using external forces for integration
+  -> Integrated MD step with external forces
+  -> Positions after integration (first 6 values):
+    pos[0] = 0.999874
+    pos[1] = 5.000126
+    pos[2] = 1.000173
+    pos[3] = 4.999827
+    pos[4] = 0.999796
+    pos[5] = 5.000204
+[MDI] Received command: <COORDS
+    [MDI] MDI_Send <COORDS expected=6 returned=0
+  -> Sent positions to driver
+[MDI] Received command: >ENERGY
+  -> Received energy from driver: -0.013270
+[MDI] Received command: >STRESS
+  -> Received stress from driver (eV/A^3)
+[MDI] Received command: >FORCES
+    [MDI] MDI_Recv >FORCES expected=6 returned=0
+  -> Received external forces from driver (first 6 values):
+    forces[0] = 0.013671
+    forces[1] = -0.012699
+    forces[2] = 0.014927
+    forces[3] = -0.013671
+    forces[4] = 0.012699
+    forces[5] = -0.014927
+[MDI] Forces set from external QM calculation (external_forces_pending=1)
+[MDI] Using external forces for integration
+  -> Integrated MD step with external forces
+  -> Positions after integration (first 6 values):
+    pos[0] = 0.999833
+    pos[1] = 5.000168
+    pos[2] = 1.000232
+    pos[3] = 4.999768
+    pos[4] = 0.999729
+    pos[5] = 5.000271
+[MDI] Received command: <COORDS
+    [MDI] MDI_Send <COORDS expected=6 returned=0
+  -> Sent positions to driver
+[MDI] Received command: >ENERGY
+  -> Received energy from driver: -0.013268
+[MDI] Received command: >STRESS
+  -> Received stress from driver (eV/A^3)
+[MDI] Received command: >FORCES
+    [MDI] MDI_Recv >FORCES expected=6 returned=0
+  -> Received external forces from driver (first 6 values):
+    forces[0] = 0.013656
+    forces[1] = -0.012720
+    forces[2] = 0.014941
+    forces[3] = -0.013656
+    forces[4] = 0.012720
+    forces[5] = -0.014941
+[MDI] Forces set from external QM calculation (external_forces_pending=1)
+[MDI] Using external forces for integration
+  -> Integrated MD step with external forces
+  -> Positions after integration (first 6 values):
+    pos[0] = 0.999792
+    pos[1] = 5.000208
+    pos[2] = 1.000292
+    pos[3] = 4.999709
+    pos[4] = 0.999662
+    pos[5] = 5.000337
+[MDI] Received command: EXIT
+  -> EXIT command received.
+MDI command loop exited successfully.
