@@ -1,14 +1,17 @@
 /*
-  MDI integration for GPUMD
-  Build with: make USE_MDI=1 (this sets -DUSE_MDI and links -lmdi)
+   MDI integration for GPUMD
+   Copyright 2026 Jaafar Mehrez
+   Email: jaafarmehrez@sjtu.edu.cn, jaafar@hpqc.org
+   
+   Build with: make USE_MDI=1 (this sets -DUSE_MDI and links -lmdi)
 
-  This file implements a functional MDI engine entry point for GPUMD.
-  It allows GPUMD to act as an MD engine receiving commands from
-  a driver (e.g., VASP via MDI). Supported commands:
-    <NATOMS, >COORDS, <COORDS, <FORCES, >FORCES, <ENERGY, >ENERGY, >STRESS, EXIT
+   This file implements a functional MDI engine entry point for GPUMD.
+   It allows GPUMD to act as an MD engine receiving commands from
+   a driver (e.g., VASP via MDI). Supported commands:
+     <NATOMS, >COORDS, <COORDS, <FORCES, >FORCES, <ENERGY, >ENERGY, >STRESS, EXIT
 
-  Based on MDI developer guide:
-    https://molssi-mdi.github.io/MDI_Library/developer_guide/engine_tutorial.html
+   Based on MDI developer guide:
+     https://molssi-mdi.github.io/MDI_Library/developer_guide/engine_tutorial.html
 */
 
 #include "run.cuh"

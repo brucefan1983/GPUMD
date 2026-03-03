@@ -28,7 +28,7 @@ ifdef USE_MDI
   MDI_SUPPORT = 1
 endif
 
-INC = -I.
+INC = -I. -Imain_gpumd
 LDFLAGS =
 LIBS = -lcublas -lcusolver -lcufft
 
@@ -45,24 +45,8 @@ endif
 
 
 ###########################################################
-# source files
+# source files for gpumd-mdi
 ###########################################################
-SOURCES_GPUMD =                   \
-	$(wildcard main_gpumd/*.cu)   \
-	$(wildcard minimize/*.cu)     \
-	$(wildcard phonon/*.cu)       \
-	$(wildcard integrate/*.cu)   \
-	$(wildcard mc/*.cu)          \
-	$(wildcard force/*.cu)       \
-	$(wildcard measure/*.cu)     \
-	$(wildcard model/*.cu)       \
-	$(wildcard utilities/*.cu)
-SOURCES_NEP =                     \
-	$(wildcard main_nep/*.cu)    \
-	$(wildcard utilities/*.cu)
-SOURCES_GNEP =                    \
-	$(wildcard main_gnep/*.cu)    \
-	$(wildcard utilities/*.cu)
 SOURCES_MDI =                     \
 	$(wildcard main_mdi/*.cu)    \
 	$(wildcard minimize/*.cu)    \
@@ -72,20 +56,22 @@ SOURCES_MDI =                     \
 	$(wildcard force/*.cu)       \
 	$(wildcard measure/*.cu)     \
 	$(wildcard model/*.cu)       \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard main_gpumd/velocity.cu) \
+	$(wildcard main_gpumd/cohesive.cu) \
+	$(wildcard main_gpumd/add_efield.cu) \
+	$(wildcard main_gpumd/add_force.cu) \
+	$(wildcard main_gpumd/add_spring.cu) \
+	$(wildcard main_gpumd/add_random_force.cu) \
+	$(wildcard main_gpumd/electron_stop.cu) \
+	$(wildcard main_gpumd/replicate.cu)
 
 ###########################################################
 # object files
 ###########################################################
 ifdef OS
-OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
-OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
-OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
 OBJ_MDI = $(SOURCES_MDI:.cu=.obj)
 else
-OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
-OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
 OBJ_MDI = $(SOURCES_MDI:.cu=.o)
 endif
 
@@ -95,7 +81,6 @@ endif
 ###########################################################
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
-	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
@@ -103,30 +88,21 @@ HEADERS =                         \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)    \
-	$(wildcard main_gnep/*.cuh)   \
-	$(wildcard main_mdi/*.cuh)
+	$(wildcard main_mdi/*.cuh)    \
+	$(wildcard main_gpumd/velocity.cuh) \
+	$(wildcard main_gpumd/cohesive.cuh) \
+	$(wildcard main_gpumd/add_efield.cuh) \
+	$(wildcard main_gpumd/add_force.cuh) \
+	$(wildcard main_gpumd/add_spring.cuh) \
+	$(wildcard main_gpumd/add_random_force.cuh) \
+	$(wildcard main_gpumd/electron_stop.cuh) \
+	$(wildcard main_gpumd/replicate.cuh)
 
 
 ###########################################################
-# executables
+# executable
 ###########################################################
-all: gpumd nep gnep gpumd-mdi
-gpumd: $(OBJ_GPUMD)
-	$(CC) $(LDFLAGS) $^ -o gpumd $(LIBS)
-	@echo =================================================
-	@echo The gpumd executable is successfully compiled!
-	@echo =================================================
-nep: $(OBJ_NEP)
-	$(CC) $(LDFLAGS) $^ -o nep $(LIBS)
-	@echo =================================================
-	@echo The nep executable is successfully compiled!
-	@echo =================================================
-gnep: $(OBJ_GNEP)
-	$(CC) $(LDFLAGS) $^ -o gnep $(LIBS)
-	@echo =================================================
-	@echo The gnep executable is successfully compiled!
-	@echo =================================================
+all: gpumd-mdi
 gpumd-mdi: $(OBJ_MDI)
 	$(CC) $(LDFLAGS) $^ -o gpumd-mdi $(LIBS)
 	@echo =================================================
@@ -148,19 +124,13 @@ force/%.obj: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 measure/%.obj: measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+main_mdi/%.obj: main_mdi/*.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.obj: main_nep/%.cu $(HEADERS)
+utilities/%.obj: utilities/*.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
+model/%.obj: model/*.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_mdi/%.obj: main_mdi/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.obj: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.obj: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.obj: phonon/%.cu $(HEADERS)
+phonon/%.obj: phonon/*.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else
 integrate/%.o: integrate/%.cu $(HEADERS)
@@ -173,12 +143,6 @@ force/%.o: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 measure/%.o: measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.o: main_nep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gnep/%.o: main_gnep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_mdi/%.o: main_mdi/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
@@ -186,6 +150,10 @@ utilities/%.o: utilities/%.cu $(HEADERS)
 model/%.o: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 phonon/%.o: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
@@ -197,5 +165,5 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f $(CURDIR)/*/*.o $(CURDIR)/main_mdi/*.o gpumd nep gnep gpumd-mdi
+	rm -f $(CURDIR)/*/*.o $(CURDIR)/main_mdi/*.o $(CURDIR)/main_gpumd/*.o gpumd-mdi
 endif

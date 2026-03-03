@@ -2,10 +2,18 @@
    MDI - MolSSI Driver Interface
    https://molssi.org/, Molecular Sciences Software Institute
 
-   This header provides the MDI API for GPUMD. When the real MDI library
-   is available, this file will be included via the -I$(MDI_INC_PATH) flag.
-   When the real library is not available, the linker will need to resolve
-   these symbols, or you can provide stub implementations.
+   This file is a simplified stub header providing MDI API declarations
+   for compilation when the full MDI library is not available.
+   
+   This stub is derived from the original MDI library header:
+   https://github.com/MolSSI-MDI/MDI_Library
+   
+   Original MDI Library Copyright:
+   Copyright 2020 Taylor Barnes and contributors
+   BSD-3-Clause license
+   
+   This stub version contributed by: Jaafar Mehrez (2026)
+   Email: jaafarmehrez@sjtu.edu.cn, jaafar@hpqc.org
 */
 
 #ifndef MDI_LIBRARY
