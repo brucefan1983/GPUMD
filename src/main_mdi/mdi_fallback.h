@@ -1,19 +1,30 @@
 /*
-   MDI - MolSSI Driver Interface
-   https://molssi.org/, Molecular Sciences Software Institute
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 
-   This file is a simplified stub header providing MDI API declarations
-   for compilation when the full MDI library is not available.
-   
-   This stub is derived from the original MDI library header:
-   https://github.com/MolSSI-MDI/MDI_Library
-   
-   Original MDI Library Copyright:
-   Copyright 2020 Taylor Barnes and contributors
-   BSD-3-Clause license
-   
-   This stub version contributed by: Jaafar Mehrez (2026)
-   Email: jaafarmehrez@sjtu.edu.cn, jaafar@hpqc.org
+    -----------------------------------------------------------------------------
+    This file is a simplified stub header providing MDI API declarations
+    for compilation when the full MDI library is not available.
+    
+    Derived from the original MDI library header:
+    https://github.com/MolSSI-MDI/MDI_Library
+    
+    Original MDI Library Copyright (BSD-3-Clause):
+    Copyright 2020 Taylor Barnes and contributors
+    
+    Stub version contributed by: Jaafar Mehrez (Shanghai Jiao Tong University)
+    Email: jaafarmehrez@sjtu.edu.cn, jaafar@hpqc.org
+    -----------------------------------------------------------------------------
 */
 
 #ifndef MDI_LIBRARY
