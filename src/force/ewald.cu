@@ -36,11 +36,6 @@ Ewald::~Ewald()
 
 void Ewald::initialize(const float alpha_input)
 {
-#ifdef DEBUG
-  rng = std::mt19937(12345678);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
   alpha = alpha_input;
   alpha_factor = 0.25f / (alpha * alpha);
   kx.resize(num_kpoints_max);
@@ -109,40 +104,6 @@ void Ewald::find_k_and_G(const double* box)
   std::vector<float> cpu_kz;
   std::vector<float> cpu_G;
 
-#ifdef USE_RBE
-  std::uniform_real_distribution<float> rand_number(0.0f, 1.0f);
-  float normalization_factor = 0.0f;
-  for (int n1 = 0; n1 <= n1_max; ++n1) {
-    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
-      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-        const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
-        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
-        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
-        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
-        const float ksq = kx * kx + ky * ky + kz * kz;
-        if (ksq < ksq_max) {
-          float exp_factor = exp(-ksq * alpha_factor);
-          normalization_factor += exp_factor;
-          if (rand_number(rng) < exp_factor) {
-            cpu_kx.emplace_back(kx);
-            cpu_ky.emplace_back(ky);
-            cpu_kz.emplace_back(kz);
-            float G = abs(two_pi_over_det) / ksq;
-            cpu_G.emplace_back(2.0f * G);
-          }
-        }
-      }
-    }
-  }
-
-  int num_kpoints = int(cpu_kx.size());
-  for (int n = 0; n < num_kpoints; ++n) {
-    cpu_G[n] *= normalization_factor / num_kpoints;
-  }
-
-#else
-
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
@@ -163,8 +124,7 @@ void Ewald::find_k_and_G(const double* box)
     }
   }
 
-  int num_kpoints = int(cpu_kx.size());
-#endif
+  num_kpoints = int(cpu_kx.size());
 
   if (num_kpoints > num_kpoints_max) {
     num_kpoints_max = num_kpoints;
@@ -183,7 +143,7 @@ void Ewald::find_k_and_G(const double* box)
 }
 
 static __global__ void find_structure_factor(
-  const int num_kpoints_max,
+  const int num_kpoints,
   const int N1,
   const int N2,
   const float* g_charge,
@@ -197,7 +157,7 @@ static __global__ void find_structure_factor(
   float* g_S_imag)
 {
   int nk = blockIdx.x * blockDim.x + threadIdx.x;
-  if (nk < num_kpoints_max) {
+  if (nk < num_kpoints) {
     float S_real = 0.0f;
     float S_imag = 0.0f;
     for (int n = N1; n < N2; ++n) {
@@ -300,8 +260,8 @@ void Ewald::find_force(
   GPU_Vector<double>& potential_per_atom)
 {
   find_k_and_G(box);
-  find_structure_factor<<<(num_kpoints_max - 1) / 64 + 1, 64>>>(
-    num_kpoints_max,
+  find_structure_factor<<<(num_kpoints - 1) / 64 + 1, 64>>>(
+    num_kpoints,
     N1,
     N2,
     charge.data(),
@@ -319,7 +279,7 @@ void Ewald::find_force(
     N,
     N1,
     N2,
-    num_kpoints_max,
+    num_kpoints,
     alpha_factor,
     charge.data(),
     position_per_atom.data(),

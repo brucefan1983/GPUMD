@@ -15,7 +15,6 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <random>
 
 class Ewald
 {
@@ -36,6 +35,7 @@ public:
     GPU_Vector<double>& potential_per_atom);
 private:
     int num_kpoints_max = 1;
+    int num_kpoints = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
     GPU_Vector<float> kx;
@@ -44,6 +44,5 @@ private:
     GPU_Vector<float> G;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
-    std::mt19937 rng;
     void find_k_and_G(const double* box);
 };
