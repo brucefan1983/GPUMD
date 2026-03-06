@@ -31,7 +31,8 @@ Compute the cohesive energy curve with different deformations.
 
 static void __global__ deform_position(
   const int N,
-  const D cpu_d,
+  const double* old_inv,
+  const double* new_h,
   const double* old_x,
   const double* old_y,
   const double* old_z,
@@ -41,33 +42,53 @@ static void __global__ deform_position(
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
   if (n < N) {
-    new_x[n] = cpu_d.data[0] * old_x[n] + cpu_d.data[1] * old_y[n] + cpu_d.data[2] * old_z[n];
-    new_y[n] = cpu_d.data[3] * old_x[n] + cpu_d.data[4] * old_y[n] + cpu_d.data[5] * old_z[n];
-    new_z[n] = cpu_d.data[6] * old_x[n] + cpu_d.data[7] * old_y[n] + cpu_d.data[8] * old_z[n];
+    double u = old_inv[0] * old_x[n] + old_inv[1] * old_y[n] + old_inv[2] * old_z[n];
+    double v = old_inv[3] * old_x[n] + old_inv[4] * old_y[n] + old_inv[5] * old_z[n];
+    double w = old_inv[6] * old_x[n] + old_inv[7] * old_y[n] + old_inv[8] * old_z[n];
+
+    new_x[n] = new_h[0] * u + new_h[1] * v + new_h[2] * w;
+    new_y[n] = new_h[3] * u + new_h[4] * v + new_h[5] * w;
+    new_z[n] = new_h[6] * u + new_h[7] * v + new_h[8] * w;
   }
 }
 
 void Cohesive::deform_box(
-  const int N, const D& cpu_d, Box& old_box, Box& new_box, GPU_Vector<double>& position_per_atom)
+  const int N,
+  const D& cpu_d,
+  Box& old_box,
+  Box& new_box,
+  GPU_Vector<double>& position_per_atom,
+  const GPU_Vector<double>& old_box_inv)
 {
   new_box.pbc_x = old_box.pbc_x;
   new_box.pbc_y = old_box.pbc_y;
   new_box.pbc_z = old_box.pbc_z;
 
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      double tmp = 0.0f;
-      for (int k = 0; k < 3; ++k) {
-        tmp += cpu_d.data[r * 3 + k] * old_box.cpu_h[k * 3 + c];
+  if (deformation_type == 0) {
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        new_box.cpu_h[r + c * 3] = cpu_d.data[r * 3 + c] * old_box.cpu_h[r + c * 3];
       }
-      new_box.cpu_h[r * 3 + c] = tmp;
+    }
+  } else {
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        double tmp = 0.0f;
+        for (int k = 0; k < 3; ++k) {
+          tmp += cpu_d.data[r * 3 + k] * old_box.cpu_h[k * 3 + c];
+        }
+        new_box.cpu_h[r * 3 + c] = tmp + old_box.cpu_h[r * 3 + c];
+      }
     }
   }
+
   new_box.get_inverse();
+  new_box_h.copy_from_host(new_box.cpu_h, 9);
 
   deform_position<<<(N - 1) / 128 + 1, 128>>>(
     N,
-    cpu_d,
+    old_box_inv.data(),
+    new_box_h.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
@@ -108,23 +129,24 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   }
   printf("    end_factor = %g.\n", end_factor);
 
-  if (!is_valid_int(param[3], &num_points)) {
-    PRINT_INPUT_ERROR("num_points should be an integer.\n");
+  if (!is_valid_int(param[3], &deform_d)) {
+    PRINT_INPUT_ERROR("deform direction should be an integer.\n");
   }
-  if (num_points < 2) {
-    PRINT_INPUT_ERROR("num_points should >= 2.\n");
+  if (deform_d < 0 || deform_d > 6) {
+    PRINT_INPUT_ERROR("deform direction should >=0 or <= 6.\n");
   }
+  num_points = (round((end_factor - start_factor) * 10) * 100) + 1;
   printf("    num_points = %d.\n", num_points);
 
-  delta_factor = (end_factor - start_factor) / (num_points - 1);
+  delta_factor = 0.001; // (end_factor - start_factor) / (num_points - 1);
   deformation_type = 0; // deformation for cohesive
 }
 
 void Cohesive::parse_elastic(const char** param, int num_param)
 {
   printf("Compute elastic constants.\n");
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("compute_elastic should have 2 parameters.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("compute_elastic should have 1 parameters.\n");
   }
 
   if (!is_valid_real(param[1], &strain)) {
@@ -137,13 +159,8 @@ void Cohesive::parse_elastic(const char** param, int num_param)
   }
   printf("    strain = %g.\n", strain);
 
-  if (strcmp(param[2], "cubic") == 0) {
-    printf("    crystal type = cubic.\n");
-    deformation_type = 1; // deformation for cubic
-    num_points = 5;       // 1 (original) + 4
-  } else {
-    PRINT_INPUT_ERROR("Invalid crystal type.");
-  }
+  deformation_type = 1;
+  num_points = 181;
 }
 
 void Cohesive::allocate_memory(const int num_atoms)
@@ -152,40 +169,51 @@ void Cohesive::allocate_memory(const int num_atoms)
   cpu_potential_total.resize(num_points);
   cpu_potential_per_atom.resize(num_atoms);
   new_position_per_atom.resize(num_atoms * 3);
+  old_box_inv.resize(9);
+  new_box_h.resize(9);
 }
 
 void Cohesive::compute_D()
 {
   for (int n = 0; n < num_points; ++n) {
     for (int k = 0; k < 9; ++k) {
-      cpu_D[n].data[k] = 0.0;
+      cpu_D[n].data[k] = (deformation_type == 0) ? 1.0 : 0.0;
     }
   }
+
   if (deformation_type == 0) {
     for (int n = 0; n < num_points; ++n) {
       const double factor = start_factor + n * delta_factor;
-      cpu_D[n].data[0] = factor;
-      cpu_D[n].data[4] = factor;
-      cpu_D[n].data[8] = factor;
+      if (deform_d < 3) {
+        for (int k = 3 * deform_d; k < 3 * deform_d + 3; ++k) {
+          cpu_D[n].data[k] = factor;
+        }
+      } else if (deform_d > 2 && deform_d < 6) {
+        for (int k = 3 * (deform_d - 3); k < 3 * (deform_d - 2) + 3; ++k) {
+          if (k > 8) {
+            k -= 9;
+          }
+          cpu_D[n].data[k] = factor;
+        }
+      } else {
+        for (int k = 0; k < 9; ++k) {
+          cpu_D[n].data[k] = factor;
+        }
+      }
     }
-  } else if (deformation_type == 1) {
-    cpu_D[0].data[0] = 1.0;
-    cpu_D[0].data[4] = 1.0;
-    cpu_D[0].data[8] = 1.0;
-    cpu_D[1].data[0] = 1.0 + strain;
-    cpu_D[1].data[4] = 1.0 + strain;
-    cpu_D[1].data[8] = 1.0 + strain;
-    cpu_D[2].data[0] = 1.0 - strain;
-    cpu_D[2].data[4] = 1.0 - strain;
-    cpu_D[2].data[8] = 1.0 - strain;
-    cpu_D[3].data[0] = 1.0 + strain;
-    cpu_D[3].data[4] = 1.0 - strain;
-    cpu_D[3].data[8] = 1.0 / (1.0 - strain * strain);
-    cpu_D[4].data[0] = 1.0;
-    cpu_D[4].data[1] = strain;
-    cpu_D[4].data[3] = strain;
-    cpu_D[4].data[4] = 1.0;
-    cpu_D[4].data[8] = 1.0 / (1.0 - strain * strain);
+  } else {
+    int idx = 1;
+    for (int i = 0; i < 9; ++i) {
+      for (int j = i; j < 9; ++j) {
+        for (int s1 : {-1, 1}) {
+          for (int s2 : {-1, 1}) {
+            cpu_D[idx].data[i] = s1 * strain;
+            cpu_D[idx].data[j] = s2 * strain;
+            idx++;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -199,24 +227,109 @@ void Cohesive::output(Box& box)
       fprintf(fid, "%15.7e%15.7e\n", factor, cpu_potential_total[n]);
     }
     printf("Cohesive energies have been computed.\n");
-  } else if (deformation_type == 1) {
+  } else {
     const double volume = box.get_volume();
+    M.resize(180, std::vector<double>(81, 0.0));
+    MTM.resize(81, std::vector<double>(81, 0.0));
+    MTE.resize(81, 0.0);
+    C81.resize(81);
+
     for (int n = 1; n < num_points; ++n) {
-      cpu_potential_total[n] = (cpu_potential_total[n] - cpu_potential_total[0]) /
-                               (volume * strain * strain) * PRESSURE_UNIT_CONVERSION;
+      int idx = 0;
+      for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+          double S_ij = cpu_D[n].data[i * 3 + j];
+          for (int k = 0; k < 3; ++k) {
+            for (int l = 0; l < 3; ++l) {
+              double S_kl = cpu_D[n].data[k * 3 + l];
+              M[n - 1][idx] = 0.5 * S_ij * S_kl;
+              idx++;
+            }
+          }
+        }
+      }
     }
-    double C11 =
-      (cpu_potential_total[1] + cpu_potential_total[2] + 6.0 * cpu_potential_total[3]) / 9.0;
-    double C12 =
-      (cpu_potential_total[1] + cpu_potential_total[2] - 3.0 * cpu_potential_total[3]) / 9.0;
-    double C44 = cpu_potential_total[4] * 0.5;
-    printf("\nThe elastic constants are:\n");
-    printf("C11 = %g Gpa\n", C11);
-    printf("C12 = %g GPa\n", C12);
-    printf("C44 = %g GPa\n", C44);
-    fprintf(fid, "C11 = %g Gpa\n", C11);
-    fprintf(fid, "C12 = %g GPa\n", C12);
-    fprintf(fid, "C44 = %g GPa\n", C44);
+
+    for (int i = 0; i < 81; ++i) {
+      for (int j = 0; j < 81; ++j) {
+        for (int k = 0; k < 180; ++k) {
+          MTM[i][j] += M[k][i] * M[k][j];
+        }
+      }
+      MTM[i][i] += 1e-15;
+    }
+
+    for (int j = 0; j < 81; ++j) {
+      for (int i = 0; i < 180; ++i) {
+        double delta_E = cpu_potential_total[i + 1] - cpu_potential_total[0];
+        MTE[j] += M[i][j] * delta_E;
+      }
+    }
+
+    for (int i = 0; i < 81; ++i) {
+      int max_j = i;
+      double max_val = std::abs(MTM[i][i]);
+      for (int j = i + 1; j < 81; ++j) {
+        if (std::abs(MTM[j][i]) > max_val) {
+          max_val = std::abs(MTM[j][i]);
+          max_j = j;
+        }
+      }
+
+      if (max_j != i) {
+        std::swap(MTM[i], MTM[max_j]);
+        std::swap(MTE[i], MTE[max_j]);
+      }
+
+      if (std::abs(MTM[i][i]) < 1e-20) {
+        printf("Warning: Singular matrix at column %d\n", i);
+        continue;
+      }
+
+      for (int k = i + 1; k < 81; ++k) {
+        double factor = MTM[k][i] / MTM[i][i];
+        for (int l = i; l < 81; ++l) {
+          MTM[k][l] -= factor * MTM[i][l];
+        }
+        MTE[k] -= factor * MTE[i];
+      }
+    }
+
+    for (int i = 80; i >= 0; --i) {
+      double sum = MTE[i];
+      for (int j = i + 1; j < 81; ++j) {
+        sum -= MTM[i][j] * C81[j];
+      }
+      C81[i] = sum / MTM[i][i];
+    }
+
+    int voigt_idx[6][2] = {{0, 0}, {1, 1}, {2, 2}, {1, 2}, {2, 0}, {0, 1}};
+    for (int a = 0; a < 6; ++a) {
+      int i = voigt_idx[a][0], j = voigt_idx[a][1];
+      for (int b = 0; b < 6; ++b) {
+        int k = voigt_idx[b][0], l = voigt_idx[b][1];
+        C[a][b] = C81[27 * i + 9 * j + 3 * k + l] / volume * PRESSURE_UNIT_CONVERSION;
+      }
+    }
+
+    printf("\nElastic Constants Matrix (GPa):\n");
+    printf("        1         2         3         4         5         6\n");
+    for (int i = 0; i < 6; i++) {
+      printf("%d  ", i + 1);
+      for (int j = 0; j < 6; j++) {
+        printf("%8.3f  ", C[i][j]);
+      }
+      printf("\n");
+    }
+
+    fprintf(fid, "# Elastic Constants Matrix (GPa):\n");
+    for (int i = 0; i < 6; i++) {
+      for (int j = 0; j < 6; j++) {
+        fprintf(fid, "%8.3f  ", C[i][j]);
+      }
+      fprintf(fid, "\n");
+    }
+    printf("Elastic Constants have been computed.\n");
   }
 
   fclose(fid);
@@ -236,9 +349,15 @@ void Cohesive::compute(
   allocate_memory(num_atoms);
   compute_D();
 
+  double old_inv[9];
+  for (int i = 0; i < 9; ++i) {
+    old_inv[i] = box.cpu_h[9 + i];
+  }
+  old_box_inv.copy_from_host(old_inv, 9);
+
   for (int n = 0; n < num_points; ++n) {
     Box new_box;
-    deform_box(num_atoms, cpu_D[n], box, new_box, position_per_atom);
+    deform_box(num_atoms, cpu_D[n], box, new_box, position_per_atom, old_box_inv);
 
     Minimizer_SD minimizer(-1, num_atoms, 1000, 1.0e-5);
     minimizer.compute(
