@@ -19,7 +19,7 @@ This keyword is used as follows::
 Here,
 :attr:`e1` is the smaller box-scaling factor,
 :attr:`e2` is the larger box-scaling factor, and
-:attr:`direction` specifies the direction of the scaling, and can be either ``0 ~ 6``, which correspond to the x, y, z, xy, yz, zx, and xyz directions, respectively.
+:attr:`direction` specifies the direction of the scaling, which can take values from 0 to 6, corresponding to the x, y, z, xy, yz, zx, and xyz directions, respectively.
 
 
 Examples
