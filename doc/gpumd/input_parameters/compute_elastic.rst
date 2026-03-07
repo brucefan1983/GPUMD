@@ -22,9 +22,9 @@ Example
 -------
 For example, the command::
 
-  compute_elastic 0.001 
+  compute_elastic 0.01 
 
-means that one wants to compute the elastic constants with a strain of 0.001.
+means that one wants to compute the elastic constants with a strain of 0.01.
 
 Caveats
 -------
