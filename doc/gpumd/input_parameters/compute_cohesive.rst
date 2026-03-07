@@ -14,12 +14,12 @@ Syntax
 
 This keyword is used as follows::
 
-  compute_cohesive <e1> <e2> <num_points>
+  compute_cohesive <e1> <e2> <direction>
 
 Here,
 :attr:`e1` is the smaller box-scaling factor,
 :attr:`e2` is the larger box-scaling factor, and
-:attr:`num_points` is the number of points sampled uniformly from :attr:`e1` to :attr:`e2`.
+:attr:`direction` specifies the direction of the scaling, which can take values from 0 to 6, corresponding to the x, y, z, xy, yz, zx, and xyz directions, respectively.
 
 
 Examples
@@ -27,9 +27,9 @@ Examples
 
 The command::
 
-  compute_cohesive 0.9 1.2 301
+  compute_cohesive 0.9 1.2 0
 
-means that one wants to compute the cohesive energy curve from the box-scaling factor 0.9 to the box-scaling factor 1.2, with 301 points.
+means that one wants to compute the cohesive energy curve in the x-direction from the box-scaling factor 0.9 to the box-scaling factor 1.2, with ``(e2 - e1)*1000 +1`` points.
 The box-scaling points will be 0.9, 0.901, 0.902, ..., 1.2.
 
 
