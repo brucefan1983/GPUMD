@@ -214,21 +214,10 @@ void RDF::postprocess(
 
   FILE* fid = fopen("rdf.out", "a");
 
-  std::vector<std::string> type_symbols(rdf_para.num_types);
-  for (int a = 0; a < rdf_para.num_types; a++) {
-    int type_idx = rdf_para.type_index[a];
-    for (int n = 0; n < atom.number_of_atoms; n++) {
-      if (atom.cpu_type[n] == type_idx) {
-        type_symbols[a] = atom.cpu_atom_symbol[n];
-        break;
-      }
-    }
-  }
-
   fprintf(fid, "#radius total");
   for (int a = 0; a < rdf_para.num_types; a++) {
     for (int b = a; b < rdf_para.num_types; b++) {
-      fprintf(fid, " %s-%s", type_symbols[a].c_str(), type_symbols[b].c_str());
+      fprintf(fid, " type_%d_%d", rdf_para.type_index[a], rdf_para.type_index[b]);
     }
   }
   fprintf(fid, "\n");
