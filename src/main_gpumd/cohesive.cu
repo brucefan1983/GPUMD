@@ -133,7 +133,7 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
     PRINT_INPUT_ERROR("deform direction should be an integer.\n");
   }
   if (deform_d < 0 || deform_d > 6) {
-    PRINT_INPUT_ERROR("deform direction should >=0 or <= 6.\n");
+    PRINT_INPUT_ERROR("deform direction should >=0 and <= 6.\n");
   }
   num_points = (round((end_factor - start_factor) * 10) * 100) + 1;
   printf("    num_points = %d.\n", num_points);
@@ -146,7 +146,7 @@ void Cohesive::parse_elastic(const char** param, int num_param)
 {
   printf("Compute elastic constants.\n");
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("compute_elastic should have 1 parameters.\n");
+    PRINT_INPUT_ERROR("compute_elastic should have 1 parameter.\n");
   }
 
   if (!is_valid_real(param[1], &strain)) {
