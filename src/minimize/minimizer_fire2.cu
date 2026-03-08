@@ -545,6 +545,44 @@ static double compute_extended_forces(
     for (int i = 0; i < 9; i++)
       virial_transformed[i] = 0.0;
     virial_transformed[0] = virial_transformed[4] = virial_transformed[8] = trace / 3.0;
+  } else {
+    // Noise filter for off-diagonal (shear) cell force components.
+    //
+    // For high-symmetry structures (e.g. BCC, FCC with small unit cells),
+    // the true shear stress is zero by symmetry, but floating-point summation
+    // produces tiny non-zero off-diagonal virial values. Once divided by the
+    // small cell_factor (= N = 2 for a 2-atom cell), these noise values become
+    // comparable to or larger than the residual diagonal forces. FIRE2 then
+    // drives velocity in these flat/noisy shear directions indefinitely,
+    // accumulating kinetic energy that eventually causes explosion.
+    //
+    // Strategy: compute the RMS of diagonal cell forces. If an off-diagonal
+    // component is smaller than a relative threshold (off_diag_tol) times the
+    // diagonal RMS, treat it as noise and zero it. This is safe because:
+    //   - Far from convergence the diagonal forces dominate; the filter changes
+    //     nothing meaningful.
+    //   - Near convergence on a symmetric structure, off-diagonal forces are
+    //     pure noise; zeroing them stabilises the final approach.
+    //   - For genuinely asymmetric structures the off-diagonal forces are large
+    //     relative to diagonal; the filter leaves them untouched.
+    //
+    // The threshold 0.01 (1%) is conservative: it only suppresses components
+    // that are negligible compared to the dominant driving force.
+    const double off_diag_tol = 0.01;
+    double diag_rms = std::sqrt(
+      (virial_transformed[0] * virial_transformed[0] +
+       virial_transformed[4] * virial_transformed[4] +
+       virial_transformed[8] * virial_transformed[8]) /
+      3.0);
+    // Off-diagonal indices in row-major 3x3: (0,1)=1, (0,2)=2, (1,0)=3,
+    //                                         (1,2)=5, (2,0)=6, (2,1)=7
+    const int off_diag[6] = {1, 2, 3, 5, 6, 7};
+    for (int k = 0; k < 6; k++) {
+      int idx = off_diag[k];
+      if (std::fabs(virial_transformed[idx]) < off_diag_tol * diag_rms) {
+        virial_transformed[idx] = 0.0;
+      }
+    }
   }
 
   for (int i = 0; i < 9; i++)
@@ -590,6 +628,27 @@ void Minimizer_FIRE2::compute(
   GPU_Vector<double> d_temp(1);
   GPU_Vector<double> pos_unstrained(size);
 
+  // Best-state checkpoint: save the configuration with the lowest fmax seen
+  // so far. When an explosion is detected (fmax >> fmax_best), we restore
+  // from here and restart with a smaller dt, rather than doing a local
+  // half-step retrace from an already-bad position.
+  GPU_Vector<double> pos_best(size);            // best strained positions
+  GPU_Vector<double> pos_unstrained_best(size); // best unstrained positions (cell opt only)
+  double box_best[9] = {};                      // best box matrix
+  double fmax_best = 1e30;                      // fmax at checkpoint
+  double dtmax_at_best_save = 1e30;             // dtmax when checkpoint was saved
+  // Explosion is declared when fmax > explosion_factor * fmax_best.
+  // Factor 20: large enough to ignore normal fluctuations, small enough to
+  // catch a real structural blowup before it propagates too far.
+  const double explosion_factor = 20.0;
+
+  // Consecutive explosion counter: if we keep exploding from the same
+  // checkpoint, that checkpoint may itself be an unstable saddle point.
+  // After 3 explosions, enter "crawl mode": force alpha high and Nmin large
+  // so FIRE2 can only take very small, well-damped steps.
+  int explosion_count = 0;
+  bool crawl_mode = false;
+
   // Pre-allocate device buffer for deform tensor (reused throughout)
   double* d_deform_buf = nullptr;
   if (optimize_cell_) {
@@ -613,6 +672,16 @@ void Minimizer_FIRE2::compute(
   double alpha = astart_;
   int Nsteps = 0;
   double fmax_prev = 1e30; // tracks previous fmax for growth detection
+
+  // For very small systems (N <= 9 atoms with cell opt), the 9 cell DOF equal
+  // or outnumber the atomic DOF. The energy surface is nearly flat in many
+  // cell directions and the integrator becomes extremely sensitive to step size.
+  // Cap dtmax tighter so the system cannot escape its basin even when FIRE2
+  // wants to keep increasing dt.
+  if (optimize_cell_ && N <= 9) {
+    dtmax_ = std::min(dtmax_, 0.05);
+    printf("    [FIRE2] Small system (N=%d) with cell opt: dtmax capped at %.4f\n", N, dtmax_);
+  }
 
   printf("\nEnergy minimization with changed box started.\n");
 
@@ -654,6 +723,24 @@ void Minimizer_FIRE2::compute(
     d_temp.copy_to_host(&fmax_sq);
     double fmax = sqrt(fmax_sq);
 
+    // When optimising the cell, also include the 9 cell-force components in
+    // the fmax criterion. The gpu_max_force_kernel only scans atomic DOF
+    // (triplets f[n], f[n+N], f[n+2N]), so cell forces at f_extended[size..]
+    // are completely invisible to it. This means convergence can be declared
+    // while residual cell forces are still large, OR the checkpoint fmax_best
+    // can be saved at a state where cell forces are actually noisy/large.
+    // Fix: copy the 9 cell-force values to CPU and take their absolute maximum,
+    // then fold it into fmax via hypot-style max(fmax, max_cell_force).
+    if (optimize_cell_) {
+      double cell_forces[9];
+      cudaMemcpy(
+        cell_forces, f_extended.data() + size, 9 * sizeof(double), cudaMemcpyDeviceToHost);
+      double max_cell_f = 0.0;
+      for (int i = 0; i < 9; i++)
+        max_cell_f = std::max(max_cell_f, std::fabs(cell_forces[i]));
+      fmax = std::max(fmax, max_cell_f);
+    }
+
     calculate_total_potential(potential_per_atom);
     double energy = cpu_total_potential_[0];
     if (step == 0 || (step + 1) % base == 0 || fmax < force_tolerance_) {
@@ -670,7 +757,35 @@ void Minimizer_FIRE2::compute(
     }
 
     // ------------------------------------------------------------------
-    // 2. FIRE2: compute P = v·f (total) and P_cell = v_cell·f_cell
+    // 1b. Checkpoint: save best-seen configuration for explosion recovery.
+    //
+    //     We save whenever fmax improves by more than 1% over the stored
+    //     best. We also record dtmax at save time: a checkpoint found under
+    //     a large dtmax may be an unstable saddle that can't be re-approached
+    //     with the same step size. Recording it lets the explosion handler
+    //     decide whether to trust the checkpoint or reduce dt further.
+    //     Finding a new best always resets the explosion counter.
+    // ------------------------------------------------------------------
+    if (fmax < 0.99 * fmax_best) {
+      fmax_best = fmax;
+      dtmax_at_best_save = dtmax_;
+      cudaMemcpy(
+        pos_best.data(), position_per_atom.data(), size * sizeof(double),
+        cudaMemcpyDeviceToDevice);
+      if (optimize_cell_) {
+        cudaMemcpy(
+          pos_unstrained_best.data(), pos_unstrained.data(), size * sizeof(double),
+          cudaMemcpyDeviceToDevice);
+        for (int i = 0; i < 9; i++)
+          box_best[i] = box.cpu_h[i];
+      }
+      // Progress made: reset explosion counter and exit crawl mode if we
+      // have descended far enough that the new best is clearly stable.
+      explosion_count = 0;
+      if (crawl_mode && fmax < 0.5 * fmax_best) {
+        crawl_mode = false;
+      }
+    }
     //
     //    Three reset triggers:
     //    (a) P_total <= 0: velocity not aligned with force
@@ -690,8 +805,23 @@ void Minimizer_FIRE2::compute(
       d_temp.copy_to_host(&P_cell);
     }
 
-    // Detect force growth: reset if fmax increased significantly vs last step
-    const double fmax_grow_factor = 1.2; // allow 20% fluctuation, reset on more
+    // Detect force growth: reset if fmax increased significantly vs last step.
+    //
+    // Near convergence, fmax fluctuates randomly due to numerical noise; a tight
+    // threshold triggers reset-death-loops where dt halves repeatedly and the
+    // minimizer can never escape the plateau. We therefore relax the threshold
+    // progressively as fmax approaches force_tolerance_:
+    //   - Far from convergence (fmax > 100x ftol): strict 1.2x guard
+    //   - Mid-range (fmax <= 100x ftol):            relaxed 2.0x guard
+    //   - Near convergence (fmax <= 10x ftol):       very relaxed 5.0x guard
+    double fmax_grow_factor;
+    if (fmax > 100.0 * force_tolerance_) {
+      fmax_grow_factor = 1.2;
+    } else if (fmax > 10.0 * force_tolerance_) {
+      fmax_grow_factor = 2.0;
+    } else {
+      fmax_grow_factor = 5.0;
+    }
     bool fmax_growing = (step > 0) && (fmax > fmax_grow_factor * fmax_prev);
     fmax_prev = fmax;
 
@@ -701,7 +831,18 @@ void Minimizer_FIRE2::compute(
       // ---- All checks pass: increase dt ----
       Nsteps++;
       if (Nsteps > Nmin_) {
-        dt = std::min(dt * finc_, dtmax_);
+        // Near convergence, cap dtmax more aggressively to avoid overshooting
+        // the shallow minimum. When forces are tiny, a large dt produces large
+        // displacements that skip over the basin floor entirely.
+        double dtmax_eff = dtmax_;
+        if (fmax < 10.0 * force_tolerance_) {
+          dtmax_eff = dtmax_ * 0.2;  // 5x tighter near convergence
+        } else if (fmax < 100.0 * force_tolerance_) {
+          dtmax_eff = dtmax_ * 0.5;  // 2x tighter in mid-range
+        }
+        // In crawl mode, dt grows only at 1/4 the normal rate to stay damped.
+        double finc_eff = crawl_mode ? (1.0 + (finc_ - 1.0) * 0.25) : finc_;
+        dt = std::min(dt * finc_eff, dtmax_eff);
         alpha *= fa_;
       }
     } else {
@@ -710,52 +851,101 @@ void Minimizer_FIRE2::compute(
       dt = std::max(dt * fdec_, dtmin_);
       alpha = astart_;
 
-      // Step back: pos -= 0.5 * dt * v  (half-step retrace)
-      compute_dr_kernel<<<ndof_blocks, 256>>>(v.data(), dr.data(), -0.5 * dt, ndof);
-      GPU_CHECK_KERNEL
+      // Explosion check: if fmax has grown far beyond the best-ever value,
+      // the structure has left its basin entirely. A half-step retrace from
+      // the current (bad) position is futile; restore the best checkpoint
+      // instead. We track consecutive explosions: after 3, enter crawl mode
+      // (slow dt ramp, high damping) so FIRE2 cannot build up enough velocity
+      // to escape the basin again.
+      const bool exploded = (fmax_best < 1e29) && (fmax > explosion_factor * fmax_best);
 
-      if (optimize_cell_) {
-        // Retrace atomic positions (unstrained)
-        update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
-          pos_unstrained.data(), dr.data(), N);
-        GPU_CHECK_KERNEL
+      if (exploded) {
+        explosion_count++;
 
-        // Retrace cell DOF
-        double dr_cell[9];
-        cudaMemcpy(dr_cell, dr.data() + size, 9 * sizeof(double), cudaMemcpyDeviceToHost);
-        for (int i = 0; i < 9; i++)
-          dr_cell[i] /= cell_factor_;
+        // Progressive dtmax reduction each time we explode.
+        // Never let dtmax fall below dtmin_ * 10 (below that FIRE2 can't move).
+        dtmax_ = std::max(dtmax_ * 0.5, dtmin_ * 10.0);
+        // Restart dt from min(dt_0_, dtmax_) so it re-ramps from a safe value.
+        dt = std::min(dt_0_, dtmax_);
 
-        apply_cell_update(
-          box, orig_box, dr_cell, position_per_atom, pos_unstrained, N, d_deform_buf);
+        printf(
+          "    [FIRE2] Explosion #%d at step %d (fmax=%.3e >> best=%.3e). "
+          "dtmax -> %.5f.\n",
+          explosion_count, step, fmax, fmax_best, dtmax_);
+
+        // After 3 explosions from the same checkpoint, enter crawl mode:
+        // force high damping (alpha = astart_) and reset Nsteps so dt can
+        // only grow very slowly. This keeps FIRE2 well-damped near the
+        // unstable region until it finds a better basin.
+        if (explosion_count >= 3 && !crawl_mode) {
+          crawl_mode = true;
+          printf(
+            "    [FIRE2] Entering crawl mode: forcing high damping, small steps.\n");
+        }
+
+        // Restore best positions
+        cudaMemcpy(
+          position_per_atom.data(), pos_best.data(), size * sizeof(double),
+          cudaMemcpyDeviceToDevice);
+        if (optimize_cell_) {
+          cudaMemcpy(
+            pos_unstrained.data(), pos_unstrained_best.data(), size * sizeof(double),
+            cudaMemcpyDeviceToDevice);
+          for (int i = 0; i < 9; i++)
+            box.cpu_h[i] = box_best[i];
+          box.get_inverse();
+        }
+
+        // Reset FIRE2 state
+        alpha = astart_;
+        Nsteps = 0;
+        v.fill(0.0);
+
+        // Recompute forces at the restored configuration
+        pressure = compute_extended_forces(
+          force, box, position_per_atom, type, group,
+          potential_per_atom, force_per_atom, virial_per_atom,
+          virial_tot, f_transformed, f_extended,
+          orig_box, N, size, optimize_cell_, hydrostatic_strain_, cell_factor_);
+
       } else {
-        update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
-          position_per_atom.data(), dr.data(), N);
+        // Normal reset: step back half a step and recompute
+
+        // Step back: pos -= 0.5 * dt * v  (half-step retrace)
+        compute_dr_kernel<<<ndof_blocks, 256>>>(v.data(), dr.data(), -0.5 * dt, ndof);
         GPU_CHECK_KERNEL
-      }
 
-      // Recompute forces after step-back
-      pressure = compute_extended_forces(
-        force,
-        box,
-        position_per_atom,
-        type,
-        group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom,
-        virial_tot,
-        f_transformed,
-        f_extended,
-        orig_box,
-        N,
-        size,
-        optimize_cell_,
-        hydrostatic_strain_,
-        cell_factor_);
+        if (optimize_cell_) {
+          // Retrace atomic positions (unstrained)
+          update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
+            pos_unstrained.data(), dr.data(), N);
+          GPU_CHECK_KERNEL
 
-      // Zero all velocities after bad step
-      v.fill(0.0);
+          // Retrace cell DOF
+          double dr_cell[9];
+          cudaMemcpy(dr_cell, dr.data() + size, 9 * sizeof(double), cudaMemcpyDeviceToHost);
+          for (int i = 0; i < 9; i++)
+            dr_cell[i] /= cell_factor_;
+
+          apply_cell_update(
+            box, orig_box, dr_cell, position_per_atom, pos_unstrained, N, d_deform_buf);
+        } else {
+          update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
+            position_per_atom.data(), dr.data(), N);
+          GPU_CHECK_KERNEL
+        }
+
+        // Recompute forces after step-back
+        pressure = compute_extended_forces(
+          force, box, position_per_atom, type, group,
+          potential_per_atom, force_per_atom, virial_per_atom,
+          virial_tot, f_transformed, f_extended,
+          orig_box, N, size, optimize_cell_, hydrostatic_strain_, cell_factor_);
+
+        // Zero all velocities after bad step
+        v.fill(0.0);
+      } // end exploded / normal retrace
+
     } // end going_right / reset branch
 
     // ------------------------------------------------------------------
@@ -770,16 +960,15 @@ void Minimizer_FIRE2::compute(
     //    v = (1-alpha)*v + alpha*(|v|/|f|)*f
     //
     //    Guard against |f|->0 near convergence:
-    //    Use a minimum force floor (f_floor) to prevent the |v|/|f| ratio
-    //    from diverging when forces are tiny. This is the key fix for the
-    //    numerical instability seen at steps 90-116 in the 2-atom W cell:
-    //    with fmax~1e-5 and |v|~0.1, the naive ratio is ~20000, which makes
-    //    the velocity mixing inject a huge force-aligned component that then
-    //    gets amplified by subsequent steps.
+    //    An adaptive force floor (f_floor) is used to stabilize the |v|/|f|
+    //    ratio. Far from convergence, a moderate floor prevents ratio explosion
+    //    if forces are transiently small. Near convergence (fmax < 10x ftol),
+    //    the floor is removed entirely so velocity mixing remains accurate and
+    //    does not stall on a plateau.
     //
-    //    Nesterov abc_multiplier is capped at abc_mult_max_ (1.5) to prevent
-    //    runaway amplification when alpha is small and Nsteps is large.
-    //    Applied to ATOMIC DOF only (not cell DOF).
+    //    Nesterov abc_multiplier (applied to ATOMIC DOF only) is disabled when
+    //    fmax < 50x ftol to prevent repeated velocity amplification when forces
+    //    are already tiny, which was the primary cause of convergence plateaus.
     // ------------------------------------------------------------------
     alpha = std::max(alpha, 1e-10);
 
@@ -798,11 +987,26 @@ void Minimizer_FIRE2::compute(
 
     // Only mix if forces are meaningful; skip if essentially zero
     // (convergence already checked above, so we're still running)
-    // Safety floor on |f| to prevent |v|/|f| explosion when forces are tiny.
-    // With fmax~1e-5 eV/A and |v|~0.1, the naive ratio ~20000 destabilizes mixing.
-    const double f_floor = 1e-6 * std::sqrt(static_cast<double>(N));
+    //
+    // Adaptive f_floor strategy:
+    //   - When far from convergence (fmax > 100x ftol): use a moderate floor to
+    //     prevent |v|/|f| explosion if forces are transiently small mid-trajectory.
+    //   - When close to convergence (fmax <= 100x ftol): shrink the floor
+    //     proportionally to fmax so velocity mixing keeps working accurately.
+    //     A frozen floor here would clamp f_norm_eff above the true |f| and
+    //     distort the mixing ratio, causing the plateau stall.
+    //   - When essentially at convergence (fmax <= 10x ftol): remove the floor
+    //     entirely and let the natural force magnitude drive mixing.
     if (f_norm > 1e-30) {
-      double f_norm_eff = std::max(f_norm, f_floor);
+      double f_norm_eff;
+      if (fmax > 10.0 * force_tolerance_) {
+        // Far from convergence: moderate floor proportional to sqrt(N)
+        const double f_floor = 1e-6 * std::sqrt(static_cast<double>(N));
+        f_norm_eff = std::max(f_norm, f_floor);
+      } else {
+        // Near convergence: no floor, trust the actual force norm
+        f_norm_eff = f_norm;
+      }
       update_velocity_kernel<<<ndof_blocks, 256>>>(
         v.data(), f_extended.data(), alpha, v_norm, f_norm_eff, ndof);
       GPU_CHECK_KERNEL
@@ -810,13 +1014,22 @@ void Minimizer_FIRE2::compute(
       v.fill(0.0);
     }
 
-    // Nesterov abc_multiplier on ATOMIC DOF only, capped for stability
-    double abc_raw = 1.0 / (1.0 - std::pow(std::max(1.0 - alpha, 0.0), (Nsteps + 1)));
-    double abc_multiplier = std::min(abc_raw, abc_mult_max_);
-    if (abc_multiplier > 1.0 + 1e-9) {
-      gpu_multiply<<<atom_blocks, 256>>>(size, abc_multiplier, v.data(), v.data());
-      GPU_CHECK_KERNEL
+    // Nesterov abc_multiplier on ATOMIC DOF only, capped for stability.
+    //
+    // Nesterov acceleration helps early convergence but is counter-productive
+    // near the minimum: when fmax is already small, amplifying velocity by up
+    // to abc_mult_max_ repeatedly inflates |v| far above |f|, which then feeds
+    // back into a distorted velocity mixing ratio and produces the plateau stall.
+    // We therefore disable Nesterov when fmax is within 50x of force_tolerance_.
+    if (fmax > 50.0 * force_tolerance_) {
+      double abc_raw = 1.0 / (1.0 - std::pow(std::max(1.0 - alpha, 0.0), (Nsteps + 1)));
+      double abc_multiplier = std::min(abc_raw, abc_mult_max_);
+      if (abc_multiplier > 1.0 + 1e-9) {
+        gpu_multiply<<<atom_blocks, 256>>>(size, abc_multiplier, v.data(), v.data());
+        GPU_CHECK_KERNEL
+      }
     }
+    // (Near convergence: skip Nesterov entirely, let FIRE2 mixing handle it)
 
     // ------------------------------------------------------------------
     // 5. Velocity limiters (second key fix)
