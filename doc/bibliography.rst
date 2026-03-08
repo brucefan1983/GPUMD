@@ -352,8 +352,14 @@ Bibliography
    | The Journal of chemical physics, 138(4), (2013).
    | DOI: `10.1063/1.4774084 <https://doi.org/10.1063/1.4774084>`_
 
-.. [Bu2025]
+.. [Jiang2025]
+   | Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang
+   | *Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides*
+   | ACS Nano **19**, 16287 (2025)
+   | DOI: `10.1021/acsnano.4c12148 <https://doi.org/10.1021/acsnano.4c12148>`_
+
+.. [Bu2026]
    | Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang
-   | *Accurate modeling of LEGO-like vdW heterostructures: integrating machine learned with anisotropic interlayer potentials*
-   | arXiv, 2504, 12985 (2025)
-   | DOI: `10.48550/arXiv.2504.12985 <https://doi.org/10.48550/arXiv.2504.12985>`_
+   | *Modular hybrid machine learning and physics-based potentials for scalable modeling of Van der Waals heterostructures*
+   | J. Mech. Phys. Solids **210**, 106540 (2026)
+   | DOI: `10.1016/j.jmps.2026.106540 <https://doi.org/10.1016/j.jmps.2026.106540>`_

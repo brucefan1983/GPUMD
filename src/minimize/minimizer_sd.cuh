@@ -19,8 +19,12 @@
 class Minimizer_SD : public Minimizer
 {
 public:
-  Minimizer_SD(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
+  Minimizer_SD(
+    const int fixed_group, 
+    const int number_of_atoms, 
+    const int number_of_steps, 
+    const double force_tolerance)
+    : Minimizer(fixed_group, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 

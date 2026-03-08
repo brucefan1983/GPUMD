@@ -75,6 +75,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
+  is_save_potential_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -91,7 +92,7 @@ void Parameters::set_default_parameters()
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
   lambda_shear = 1.0f;         // do not weight shear virial more by default
-  lambda_q = 0.5f;             // close to optimal
+  lambda_q = 0.1f;             // close to optimal
   lambda_z = 0.5f;             // close to optimal
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
@@ -221,7 +222,7 @@ void Parameters::calculate_parameters()
     if (charge_mode) {
       number_of_variables_ann_1 += num_neurons1;
       number_of_variables_ann += num_neurons1 * num_types + 1;
-      if (charge_mode >= 4) {
+      if (charge_mode >= 3) {
         number_of_variables_ann_1 += num_neurons1;
         number_of_variables_ann += num_neurons1 * num_types;
       }
@@ -451,11 +452,7 @@ void Parameters::report_inputs()
     } else if (charge_mode == 2) {
       printf("    (input)   use NEP-Charge and include k-space only.\n");
     } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge and include real-space only.\n");
-    } else if (charge_mode == 4) {
       printf("    (input)   use NEP-Charge-VdW and include k-space only.\n");
-    } else if (charge_mode == 5) {
-      printf("    (input)   use NEP-Charge-VdW and include real-space only.\n");
     }
     printf("        lambda_q = %g.\n", lambda_q);
     printf("        lambda_z = %g.\n", lambda_z);
@@ -569,7 +566,7 @@ void Parameters::report_inputs()
   if (is_save_potential_set) {
     printf("    (input)   save potential every N = %d generations.\n", save_potential);
   } else {
-    printf("    (default)   save potential every N = %d generations.\n", save_potential);
+    printf("    (default) save potential every N = %d generations.\n", save_potential);
   }
 
   if (fine_tune) {
@@ -594,7 +591,7 @@ void Parameters::report_inputs()
 void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[105]; // never use more than 104 parameters
+  const char* param[179];
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
@@ -784,8 +781,8 @@ void Parameters::parse_zbl(const char** param, int num_param)
 
   if (zbl_rc_outer < 1.0f) {
     PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 2.5f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
+  } else if (zbl_rc_outer > 4.0f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 4.0 A.");
   }
 }
 
@@ -836,8 +833,8 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (rc_angular_tmp > rc_radial_tmp) {
       PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
     }
-    if (rc_angular_tmp < 2.5f) {
-      PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+    if (rc_angular_tmp < 3.0f) {
+      PRINT_INPUT_ERROR("angular cutoff should >= 3.0 A.");
     }
     if (rc_radial_tmp > 100.0f) {
       PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");
@@ -861,8 +858,8 @@ void Parameters::parse_cutoff(const char** param, int num_param)
       if (rc_angular_tmp > rc_radial_tmp) {
         PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
       }
-      if (rc_angular_tmp < 2.5f) {
-        PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+      if (rc_angular_tmp < 3.0f) {
+        PRINT_INPUT_ERROR("angular cutoff should >= 3.0 A.");
       }
       if (rc_radial_tmp > 100.0f) {
         PRINT_INPUT_ERROR("radial cutoff should <= 100 A.");

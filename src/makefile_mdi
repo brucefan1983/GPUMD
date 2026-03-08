@@ -1,0 +1,169 @@
+###########################################################
+# Makefile for GPUMD MDI executable
+# This creates a separate gpumd-mdi executable with MDI support
+# NOTE: Run this makefile from the src/ directory
+#
+# Build with (from src/):
+#   make -f makefile_mdi USE_MDI=1
+#   make -f makefile_mdi USE_MDI=1 MDI_LIB=1 MDI_LIB_PATH=/path/to/MDI_Library/install/lib64 MDI_INC_PATH=/path/to/MDI_Library/install/include
+#
+# Run with:
+#   ./gpumd-mdi --mdi "-role ENGINE -name gpumd -method TCP -port 8021" -in run.in
+###########################################################
+
+###########################################################
+# some flags
+###########################################################
+CC = nvcc
+CUDA_ARCH=-arch=sm_60
+ifdef OS
+CFLAGS = -O3 $(CUDA_ARCH)
+else
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+endif
+
+# MDI support
+ifdef USE_MDI
+  CFLAGS += -DUSE_MDI
+  MDI_SUPPORT = 1
+endif
+
+INC = -I. -Imain_gpumd
+LDFLAGS =
+LIBS = -lcublas -lcusolver -lcufft
+
+# MDI library linking
+ifdef MDI_LIB
+  ifdef MDI_INC_PATH
+    INC += -I$(MDI_INC_PATH)
+  endif
+  ifdef MDI_LIB_PATH
+    LDFLAGS += -L$(MDI_LIB_PATH)
+  endif
+  LIBS += -lmdi
+endif
+
+
+###########################################################
+# source files for gpumd-mdi
+###########################################################
+SOURCES_MDI =                     \
+	$(wildcard main_mdi/*.cu)    \
+	$(wildcard minimize/*.cu)    \
+	$(wildcard phonon/*.cu)      \
+	$(wildcard integrate/*.cu)   \
+	$(wildcard mc/*.cu)          \
+	$(wildcard force/*.cu)       \
+	$(wildcard measure/*.cu)     \
+	$(wildcard model/*.cu)       \
+	$(wildcard utilities/*.cu)   \
+	$(wildcard main_gpumd/velocity.cu) \
+	$(wildcard main_gpumd/cohesive.cu) \
+	$(wildcard main_gpumd/add_efield.cu) \
+	$(wildcard main_gpumd/add_force.cu) \
+	$(wildcard main_gpumd/add_spring.cu) \
+	$(wildcard main_gpumd/add_random_force.cu) \
+	$(wildcard main_gpumd/electron_stop.cu) \
+	$(wildcard main_gpumd/replicate.cu)
+
+###########################################################
+# object files
+###########################################################
+ifdef OS
+OBJ_MDI = $(SOURCES_MDI:.cu=.obj)
+else
+OBJ_MDI = $(SOURCES_MDI:.cu=.o)
+endif
+
+
+###########################################################
+# headers
+###########################################################
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard phonon/*.cuh)      \
+	$(wildcard main_mdi/*.cuh)    \
+	$(wildcard main_gpumd/velocity.cuh) \
+	$(wildcard main_gpumd/cohesive.cuh) \
+	$(wildcard main_gpumd/add_efield.cuh) \
+	$(wildcard main_gpumd/add_force.cuh) \
+	$(wildcard main_gpumd/add_spring.cuh) \
+	$(wildcard main_gpumd/add_random_force.cuh) \
+	$(wildcard main_gpumd/electron_stop.cuh) \
+	$(wildcard main_gpumd/replicate.cuh)
+
+
+###########################################################
+# executable
+###########################################################
+all: gpumd-mdi
+gpumd-mdi: $(OBJ_MDI)
+	$(CC) $(LDFLAGS) $^ -o gpumd-mdi $(LIBS)
+	@echo =================================================
+	@echo The gpumd-mdi executable is successfully compiled!
+	@echo =================================================
+
+
+###########################################################
+# rules for building object files
+###########################################################
+ifdef OS
+integrate/%.obj: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.obj: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.obj: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.obj: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_mdi/%.obj: main_mdi/*.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.obj: utilities/*.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.obj: model/*.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.obj: phonon/*.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else
+integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_mdi/%.o: main_mdi/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+phonon/%.o: phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
+
+
+###########################################################
+# clean up
+###########################################################
+clean:
+ifdef OS
+	del /s *.obj *.exp *.lib *.exe
+else
+	rm -f $(CURDIR)/*/*.o $(CURDIR)/main_mdi/*.o $(CURDIR)/main_gpumd/*.o gpumd-mdi
+endif

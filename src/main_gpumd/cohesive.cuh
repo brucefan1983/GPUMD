@@ -46,16 +46,28 @@ private:
   void compute_D();
   void output(Box& box);
   void deform_box(
-    const int N, const D& cpu_d, Box& old_box, Box& new_box, GPU_Vector<double>& position_per_atom);
+    const int N,
+    const D& cpu_d,
+    Box& old_box,
+    Box& new_box,
+    GPU_Vector<double>& position_per_atom,
+    const GPU_Vector<double>& old_box_inv);
   std::vector<double> cpu_potential_total;
   std::vector<double> cpu_potential_per_atom;
   std::vector<D> cpu_D;
+  std::vector<std::vector<double>> M;
+  std::vector<std::vector<double>> MTM;
+  std::vector<double> MTE;
+  std::vector<double> C81;
   GPU_Vector<double> new_position_per_atom;
+  GPU_Vector<double> old_box_inv;
+  GPU_Vector<double> new_box_h;
+  double C[6][6];
   double strain;
   double start_factor;
   double end_factor;
   double delta_factor;
   int num_points;
-  int deformation_type; // 0-7 = cohesive, cubic, hexagonal, trigonal, tetragonal, orthorhombic,
-                        // monoclinic, triclinic
+  int deform_d;
+  int deformation_type; // 0 = cohesive, 1 = elastic
 };

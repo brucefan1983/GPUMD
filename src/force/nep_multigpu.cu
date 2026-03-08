@@ -733,15 +733,15 @@ static __global__ void find_neighbor_list_large_box(
         int zzz = zz;
         if (cell_id_x + xx < 0)
           xxx += nx;
-        if (cell_id_x + xx >= nx)
+        else if (cell_id_x + xx >= nx)
           xxx -= nx;
         if (cell_id_y + yy < 0)
           yyy += ny;
-        if (cell_id_y + yy >= ny)
+        else if (cell_id_y + yy >= ny)
           yyy -= ny;
         if (cell_id_z + zz < 0)
           zzz += nz;
-        if (cell_id_z + zz >= nz)
+        else if (cell_id_z + zz >= nz)
           zzz -= nz;
 
         int neighbor_cell = cell_id;

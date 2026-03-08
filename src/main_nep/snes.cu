@@ -132,7 +132,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     if (para.charge_mode && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
       int num2 = 0;
-      if (para.charge_mode >= 4) {
+      if (para.charge_mode >= 3) {
         num2 = para.num_neurons1;
       }
       for (int t = 0; t < para.num_types; ++t) {
@@ -419,9 +419,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens[0] == "nep4_zbl_temperature" || 
       tokens[0] == "nep4_zbl_charge1" ||
       tokens[0] == "nep4_zbl_charge2" ||
-      tokens[0] == "nep4_zbl_charge3" ||
-      tokens[0] == "nep4_zbl_charge4" ||
-      tokens[0] == "nep4_zbl_charge5") {
+      tokens[0] == "nep4_zbl_charge3") {
       num_lines_to_be_skipped = 6;
     }
 

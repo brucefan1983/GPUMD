@@ -1,0 +1,191 @@
+[2026-03-02 14:06:12,229] [VASP_MDI_Driver] INFO: Loggin[INFO] ====================================[2026-03-02 14:06:12,230] [VASP_MDI[INFO] VASP MDI Driver for GPUMD
+[INFO] ======================================================================
+[INFO] VASP command: vasp_std
+[INFO] POSCAR template: POSCAR
+[INFO] Port: 8021
+[INFO] Steps: 5
+[INFO] 
+Initializing VASP calculator...
+[INFO] Parsed POSCAR: 2 atoms, types=['Cu']
+[INFO] Initialized VASP calculator: 2 atoms, types=['Cu']
+[INFO] 
+Initializing MDI driver...
+[INFO] Initializing MDI with: -role DRIVER -name vasp_driver -method TCP -port 8021
+[INFO] MDI initialized as DRIVER
+[INFO] Requesting communicator to 'gpumd' engine...
+[INFO] Accepted communicator: 1
+[INFO] 
+Starting MD loop...
+[INFO] Starting MD loop for 5 steps
+[INFO] Requesting natoms from GPUMD
+[INFO] GPUMD reports 2 atoms (VASP has 2)
+[INFO] 
+--- Step 1/5 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: -0.013274 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=-0.013274 eV, F_norm=0.033741
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Sending stress to GPUMD via >STRESS
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Step 1 complete
+[INFO] 
+--- Step 2/5 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: -0.013273 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=-0.013273 eV, F_norm=0.033759
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Sending stress to GPUMD via >STRESS
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Step 2 complete
+[INFO] 
+--- Step 3/5 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: -0.013271 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=-0.013271 eV, F_norm=0.033776
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Sending stress to GPUMD via >STRESS
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Step 3 complete
+[INFO] 
+--- Step 4/5 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: -0.013270 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=-0.013270 eV, F_norm=0.033793
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Sending stress to GPUMD via >STRESS
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Step 4 complete
+[INFO] 
+--- Step 5/5 ---
+[INFO] Requesting coordinates from GPUMD
+[INFO] Received 6 coordinates
+[INFO] Cell volume (from template): 1000.0000000000 A^3
+[INFO] Running VASP calculation
+[INFO] Cell volume: 1000.000000 A^3
+[INFO] Wrote POSCAR file
+[INFO] Running VASP: vasp_std
+[INFO] VASP completed successfully
+[INFO] Extracted energy: -0.013268 eV
+[INFO] Extracted 2 force vectors
+[INFO] Extracted stress tensor
+[INFO] VASP returned: E=-0.013268 eV, F_norm=0.033808
+[INFO] Sending energy to GPUMD via >ENERGY
+[INFO] Sending stress to GPUMD via >STRESS
+[INFO] Sending forces to GPUMD via >FORCES
+[INFO] Step 5 complete
+[INFO] Sending EXIT command to GPUMD
+[INFO] MD loop completed successfully
+[INFO] 
+======================================================================
+[INFO] SUCCESS: VASP MDI Driver completed
+[INFO] ======================================================================
+I_Driver] INFO: Extracted energy: -0.013273 eV
+[2026-03-02 14:06:23,795] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-03-02 14:06:23,795] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-03-02 14:06:23,796] [VASP_MDI_Driver] INFO: VASP returned: E=-0.013273 eV, F_norm=0.033759
+[2026-03-02 14:06:23,796] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-03-02 14:06:23,796] [VASP_MDI_Driver] INFO: Sending stress to GPUMD via >STRESS
+[2026-03-02 14:06:23,796] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-03-02 14:06:23,797] [VASP_MDI_Driver] INFO: Step 2 complete
+[2026-03-02 14:06:23,797] [VASP_MDI_Driver] INFO: 
+--- Step 3/5 ---
+[2026-03-02 14:06:23,797] [VASP_MDI_Driver] INFO: Requesting coordinates from GPUMD
+[2026-03-02 14:06:23,836] [VASP_MDI_Driver] INFO: Received 6 coordinates
+[2026-03-02 14:06:23,837] [VASP_MDI_Driver] INFO: Cell volume (from template): 1000.0000000000 A^3
+[2026-03-02 14:06:23,837] [VASP_MDI_Driver] INFO: Running VASP calculation
+[2026-03-02 14:06:23,837] [VASP_MDI_Driver] DEBUG: write_poscar(): Input cell_params shape=(9,), dtype=float64
+[2026-03-02 14:06:23,838] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell determinant=1.0000000000e+03
+[2026-03-02 14:06:23,838] [VASP_MDI_Driver] INFO: Cell volume: 1000.000000 A^3
+[2026-03-02 14:06:23,838] [VASP_MDI_Driver] INFO: Wrote POSCAR file
+[2026-03-02 14:06:23,838] [VASP_MDI_Driver] INFO: Running VASP: vasp_std
+[2026-03-02 14:06:29,223] [VASP_MDI_Driver] INFO: VASP completed successfully
+[2026-03-02 14:06:29,226] [VASP_MDI_Driver] INFO: Extracted energy: -0.013271 eV
+[2026-03-02 14:06:29,227] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-03-02 14:06:29,227] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-03-02 14:06:29,227] [VASP_MDI_Driver] INFO: VASP returned: E=-0.013271 eV, F_norm=0.033776
+[2026-03-02 14:06:29,227] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-03-02 14:06:29,228] [VASP_MDI_Driver] INFO: Sending stress to GPUMD via >STRESS
+[2026-03-02 14:06:29,228] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-03-02 14:06:29,228] [VASP_MDI_Driver] INFO: Step 3 complete
+[2026-03-02 14:06:29,228] [VASP_MDI_Driver] INFO: 
+--- Step 4/5 ---
+[2026-03-02 14:06:29,228] [VASP_MDI_Driver] INFO: Requesting coordinates from GPUMD
+[2026-03-02 14:06:29,268] [VASP_MDI_Driver] INFO: Received 6 coordinates
+[2026-03-02 14:06:29,269] [VASP_MDI_Driver] INFO: Cell volume (from template): 1000.0000000000 A^3
+[2026-03-02 14:06:29,269] [VASP_MDI_Driver] INFO: Running VASP calculation
+[2026-03-02 14:06:29,269] [VASP_MDI_Driver] DEBUG: write_poscar(): Input cell_params shape=(9,), dtype=float64
+[2026-03-02 14:06:29,270] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell determinant=1.0000000000e+03
+[2026-03-02 14:06:29,270] [VASP_MDI_Driver] INFO: Cell volume: 1000.000000 A^3
+[2026-03-02 14:06:29,270] [VASP_MDI_Driver] INFO: Wrote POSCAR file
+[2026-03-02 14:06:29,270] [VASP_MDI_Driver] INFO: Running VASP: vasp_std
+[2026-03-02 14:06:34,418] [VASP_MDI_Driver] INFO: VASP completed successfully
+[2026-03-02 14:06:34,421] [VASP_MDI_Driver] INFO: Extracted energy: -0.013270 eV
+[2026-03-02 14:06:34,421] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-03-02 14:06:34,421] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-03-02 14:06:34,421] [VASP_MDI_Driver] INFO: VASP returned: E=-0.013270 eV, F_norm=0.033793
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: Sending stress to GPUMD via >STRESS
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: Step 4 complete
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: 
+--- Step 5/5 ---
+[2026-03-02 14:06:34,422] [VASP_MDI_Driver] INFO: Requesting coordinates from GPUMD
+[2026-03-02 14:06:34,462] [VASP_MDI_Driver] INFO: Received 6 coordinates
+[2026-03-02 14:06:34,463] [VASP_MDI_Driver] INFO: Cell volume (from template): 1000.0000000000 A^3
+[2026-03-02 14:06:34,463] [VASP_MDI_Driver] INFO: Running VASP calculation
+[2026-03-02 14:06:34,463] [VASP_MDI_Driver] DEBUG: write_poscar(): Input cell_params shape=(9,), dtype=float64
+[2026-03-02 14:06:34,464] [VASP_MDI_Driver] DEBUG: write_poscar(): Cell determinant=1.0000000000e+03
+[2026-03-02 14:06:34,464] [VASP_MDI_Driver] INFO: Cell volume: 1000.000000 A^3
+[2026-03-02 14:06:34,464] [VASP_MDI_Driver] INFO: Wrote POSCAR file
+[2026-03-02 14:06:34,464] [VASP_MDI_Driver] INFO: Running VASP: vasp_std
+[2026-03-02 14:06:39,601] [VASP_MDI_Driver] INFO: VASP completed successfully
+[2026-03-02 14:06:39,604] [VASP_MDI_Driver] INFO: Extracted energy: -0.013268 eV
+[2026-03-02 14:06:39,604] [VASP_MDI_Driver] INFO: Extracted 2 force vectors
+[2026-03-02 14:06:39,604] [VASP_MDI_Driver] INFO: Extracted stress tensor
+[2026-03-02 14:06:39,605] [VASP_MDI_Driver] INFO: VASP returned: E=-0.013268 eV, F_norm=0.033808
+[2026-03-02 14:06:39,605] [VASP_MDI_Driver] INFO: Sending energy to GPUMD via >ENERGY
+[2026-03-02 14:06:39,605] [VASP_MDI_Driver] INFO: Sending stress to GPUMD via >STRESS
+[2026-03-02 14:06:39,605] [VASP_MDI_Driver] INFO: Sending forces to GPUMD via >FORCES
+[2026-03-02 14:06:39,605] [VASP_MDI_Driver] INFO: Step 5 complete
+[2026-03-02 14:06:39,606] [VASP_MDI_Driver] INFO: Sending EXIT command to GPUMD
+[2026-03-02 14:06:39,606] [VASP_MDI_Driver] INFO: MD loop completed successfully
+[2026-03-02 14:06:39,606] [VASP_MDI_Driver] INFO: 
+======================================================================
+[2026-03-02 14:06:39,606] [VASP_MDI_Driver] INFO: SUCCESS: VASP MDI Driver completed
+[2026-03-02 14:06:39,606] [VASP_MDI_Driver] INFO: ======================================================================

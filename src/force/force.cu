@@ -108,13 +108,9 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_charge1") == 0 ||
     strcmp(potential_name, "nep4_charge2") == 0 ||
     strcmp(potential_name, "nep4_charge3") == 0 ||
-    strcmp(potential_name, "nep4_charge4") == 0 ||
-    strcmp(potential_name, "nep4_charge5") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge3") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge4") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge5") == 0) {
+    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
     potential.reset(new NEP_Charge(param[1], number_of_atoms));
     is_nep = true;
     check_types(param[1]);
@@ -477,6 +473,8 @@ void Force::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  box.set_is_orthogonal();
+  
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -764,6 +762,8 @@ void Force::compute(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& mass_per_atom)
 {
+  box.set_is_orthogonal();
+
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(

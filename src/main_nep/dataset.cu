@@ -402,6 +402,23 @@ void Dataset::find_neighbor(Parameters& para)
   printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
+#ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
+  FILE* fid = fopen("neighbor.txt", "a");
+  for (int nc = 0; nc < Nc; ++nc) {
+    int max_NN_radial = -1;
+    int max_NN_angular = -1;
+    for (int n = Na_sum_cpu[nc]; n < Na_sum_cpu[nc] + Na_cpu[nc]; ++n) {
+      if (max_NN_radial < NN_radial_cpu[n]) {
+        max_NN_radial = NN_radial_cpu[n];
+      }
+      if (max_NN_angular < NN_angular_cpu[n]) {
+        max_NN_angular = NN_angular_cpu[n];
+      }
+    }
+    fprintf(fid, "%d %d\n", max_NN_radial, max_NN_angular);
+  }
+  fclose(fid);
+#endif
 }
 
 void Dataset::construct(

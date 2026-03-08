@@ -37,11 +37,11 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 #endif
 
 static __device__ void apply_mic_small_box(
-  const Box& box, const NEP_Charge::ExpandedBox& ebox, double& x12, double& y12, double& z12)
+  const Box& box, const NEP_Charge::ExpandedBox& ebox, float& x12, float& y12, float& z12)
 {
-  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
+  float sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
+  float sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
+  float sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
   if (box.pbc_x == 1)
     sx12 -= nearbyint(sx12);
   if (box.pbc_y == 1)
@@ -77,9 +77,9 @@ static __global__ void find_neighbor_list_small_box(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
@@ -90,14 +90,14 @@ static __global__ void find_neighbor_list_small_box(
               continue; // exclude self
             }
 
-            double delta[3];
-            delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
-            delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
-            delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
+            float delta[3];
+            delta[0] = box.float_h[0] * ia + box.float_h[1] * ib + box.float_h[2] * ic;
+            delta[1] = box.float_h[3] * ia + box.float_h[4] * ib + box.float_h[5] * ic;
+            delta[2] = box.float_h[6] * ia + box.float_h[7] * ib + box.float_h[8] * ic;
 
-            double x12 = g_x[n2] + delta[0] - x1;
-            double y12 = g_y[n2] + delta[1] - y1;
-            double z12 = g_z[n2] + delta[2] - z1;
+            float x12 = g_x[n2] + delta[0] - x1;
+            float y12 = g_y[n2] + delta[1] - y1;
+            float z12 = g_z[n2] + delta[2] - z1;
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
@@ -108,16 +108,16 @@ static __global__ void find_neighbor_list_small_box(
 
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
+              g_x12_radial[count_radial * N + n1] = x12;
+              g_y12_radial[count_radial * N + n1] = y12;
+              g_z12_radial[count_radial * N + n1] = z12;
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = float(x12);
-              g_y12_angular[count_angular * N + n1] = float(y12);
-              g_z12_angular[count_angular * N + n1] = float(z12);
+              g_x12_angular[count_angular * N + n1] = x12;
+              g_y12_angular[count_angular * N + n1] = y12;
+              g_z12_angular[count_angular * N + n1] = z12;
               count_angular++;
             }
           }
@@ -168,7 +168,7 @@ static __global__ void find_descriptor_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -219,7 +219,7 @@ static __global__ void find_descriptor_small_box(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-    if (paramb.charge_mode >= 4) {
+    if (paramb.charge_mode >= 3) {
       float F = 0.0f, Fp[MAX_DIM] = {0.0f};
       float charge = 0.0f;
       float charge_derivative[MAX_DIM] = {0.0f};
@@ -276,90 +276,6 @@ static __global__ void find_descriptor_small_box(
         g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
       }
     }
-  }
-}
-
-static __global__ void find_force_charge_real_space_only_small_box(
-  const int N,
-  const NEP_Charge::Charge_Para charge_para,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const float* g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial,
-  double* g_pe,
-  float* g_D_real)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    float q1 = g_charge[n1];
-    float s_pe = 0; // no self energy
-    float D_real = 0; // no self energy
-
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-
-      float erfc_r = erfc(charge_para.alpha * d12) * d12inv;
-      D_real += q2 * (erfc_r + charge_para.A * d12 + charge_para.B);
-      s_pe += 0.5f * qq * (erfc_r + charge_para.A * d12 + charge_para.B);
-      float f2 = erfc_r + charge_para.two_alpha_over_sqrt_pi * exp(-charge_para.alpha * charge_para.alpha * d12 * d12);
-      f2 = -0.5f * K_C_SP * qq * (f2 * d12inv * d12inv - charge_para.A * d12inv);
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_D_real[n1] = K_C_SP * D_real;
-    g_pe[n1] += K_C_SP * s_pe;
   }
 }
 
@@ -567,7 +483,7 @@ static __global__ void find_force_radial_small_box(
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -581,7 +497,7 @@ static __global__ void find_force_radial_small_box(
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
-        if (paramb.charge_mode >= 4) {
+        if (paramb.charge_mode >= 3) {
           tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
         }
         tmp12 *= gnp12 * d12inv;
@@ -662,7 +578,7 @@ static __global__ void find_force_angular_small_box(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
-      if (paramb.charge_mode >= 4) {
+      if (paramb.charge_mode >= 3) {
         tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       }
       Fp[d] = tmp;
@@ -780,7 +696,7 @@ static __global__ void find_bec_radial_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];

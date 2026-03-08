@@ -13,20 +13,18 @@ Syntax
 
 This keyword is used as follows::
 
-  compute_elastic <strain_value> <symmetry_type>
+  compute_elastic <strain_value> 
 
 :attr:`strain_value` is the amount of strain to be applied in the calculations.
 
-:attr:`symmetry_type` is the symmetry type of the material considered.
-Currently, it can only be :attr:`cubic`.
 
 Example
 -------
 For example, the command::
 
-  compute_elastic 0.01 cubic
+  compute_elastic 0.01 
 
-means that one wants to compute the elastic constants for a cubic system with a strain of 0.01.
+means that one wants to compute the elastic constants with a strain of 0.01.
 
 Caveats
 -------

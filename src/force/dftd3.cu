@@ -324,11 +324,11 @@ bool get_expanded_box(const double rc, const Box& box, DFTD3::ExpandedBox& ebox)
 }
 
 static __device__ void apply_mic_small_box(
-  const Box& box, const DFTD3::ExpandedBox& ebox, double& x12, double& y12, double& z12)
+  const Box& box, const DFTD3::ExpandedBox& ebox, float& x12, float& y12, float& z12)
 {
-  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
+  float sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
+  float sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
+  float sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
   if (box.pbc_x == 1)
     sx12 -= nearbyint(sx12);
   if (box.pbc_y == 1)
@@ -362,9 +362,9 @@ static __global__ void find_neighbor_list_small_box(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = 0; n2 < N; ++n2) {
@@ -375,30 +375,30 @@ static __global__ void find_neighbor_list_small_box(
               continue; // exclude self
             }
 
-            double delta[3];
+            float delta[3];
             delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
             delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
             delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
 
-            double x12 = g_x[n2] + delta[0] - x1;
-            double y12 = g_y[n2] + delta[1] - y1;
-            double z12 = g_z[n2] + delta[2] - z1;
+            float x12 = g_x[n2] + delta[0] - x1;
+            float y12 = g_y[n2] + delta[1] - y1;
+            float z12 = g_z[n2] + delta[2] - z1;
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
-            float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
+            float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < rc_radial_sq) {
               g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
+              g_x12_radial[count_radial * N + n1] = x12;
+              g_y12_radial[count_radial * N + n1] = y12;
+              g_z12_radial[count_radial * N + n1] = z12;
               count_radial++;
             }
             if (distance_square < rc_angular_sq) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = float(x12);
-              g_y12_angular[count_angular * N + n1] = float(y12);
-              g_z12_angular[count_angular * N + n1] = float(z12);
+              g_x12_angular[count_angular * N + n1] = x12;
+              g_y12_angular[count_angular * N + n1] = y12;
+              g_z12_angular[count_angular * N + n1] = z12;
               count_angular++;
             }
           }
@@ -484,15 +484,15 @@ __device__ int find_neighbor_cell(
   int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
   if (cell_id_x + xx < 0)
     neighbor_cell += nx;
-  if (cell_id_x + xx >= nx)
+  else if (cell_id_x + xx >= nx)
     neighbor_cell -= nx;
   if (cell_id_y + yy < 0)
     neighbor_cell += ny * nx;
-  if (cell_id_y + yy >= ny)
+  else if (cell_id_y + yy >= ny)
     neighbor_cell -= ny * nx;
   if (cell_id_z + zz < 0)
     neighbor_cell += nz * ny * nx;
-  if (cell_id_z + zz >= nz)
+  else if (cell_id_z + zz >= nz)
     neighbor_cell -= nz * ny * nx;
 
   return neighbor_cell;
@@ -547,11 +547,11 @@ __global__ void find_dftd3_coordination_number_large_box(
           if (n1 == n2) {
             continue;
           }
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float r12[3] = {float(x12double), float(y12double), float(z12double)};
+          float x12 = g_x[n2] - x1;
+          float y12 = g_y[n2] - y1;
+          float z12 = g_z[n2] - z1;
+          apply_mic(box, x12, y12, z12);
+          float r12[3] = {x12, y12, z12};
           float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
           if (d12_2 < rc * rc) {
             int atomic_number_2 = dftd3_para.atomic_number[g_type[n2]];
@@ -637,11 +637,11 @@ __global__ void find_dftd3_force_large_box(
           if (n1 == n2) {
             continue;
           }
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float r12[3] = {float(x12double), float(y12double), float(z12double)};
+          float x12 = g_x[n2] - x1;
+          float y12 = g_y[n2] - y1;
+          float z12 = g_z[n2] - z1;
+          apply_mic(box, x12, y12, z12);
+          float r12[3] = {x12, y12, z12};
           float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
           if (d12_2 < rc * rc) {
             int atomic_number_2 = dftd3_para.atomic_number[g_type[n2]];
@@ -805,11 +805,11 @@ __global__ void find_dftd3_force_extra_large_box(
           if (n1 == n2) {
             continue;
           }
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float r12[3] = {float(x12double), float(y12double), float(z12double)};
+          float x12 = g_x[n2] - x1;
+          float y12 = g_y[n2] - y1;
+          float z12 = g_z[n2] - z1;
+          apply_mic(box, x12, y12, z12);
+          float r12[3] = {x12, y12, z12};
           float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
           if (d12_2 < rc * rc) {
             int atomic_number_2 = dftd3_para.atomic_number[g_type[n2]];

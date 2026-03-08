@@ -190,3 +190,29 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
     }
   }
 }
+
+class Neighbor
+{
+public:
+  GPU_Vector<int> NN, NL; // global neighbor list
+  void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  void find_neighbor_global(
+    const double rc,
+    Box& box, 
+    const GPU_Vector<int>& type, 
+    const GPU_Vector<double>& position_per_atom);
+  void find_local_neighbor_from_global(
+    const double rc,
+    Box& box, 
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN_local,
+    GPU_Vector<int>& NL_local);
+
+private:
+  double skin = 1.0;              // skin distance
+  GPU_Vector<int> cell_count;     // for cell list
+  GPU_Vector<int> cell_count_sum; // for cell list
+  GPU_Vector<int> cell_contents;  // for cell list
+  GPU_Vector<double> x0, y0, z0;  // for checking atom distance
+  int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
+};

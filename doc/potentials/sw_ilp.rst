@@ -5,7 +5,7 @@
 Hybrid SW+ILP potential
 ========================
 
-The hybrid :term:`SW` + :term:`ILP` potential in :program:`GPUMD` combines 
+The hybrid :term:`SW` + :term:`ILP` potential [Jiang2025]_ in :program:`GPUMD` combines 
 the Stillinger-Weber potential (:term:`SW`) [Stillinger1985]_ for intralyer
 interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_ 
 for interlayer interactions to simulate homostructures based on 

@@ -5,7 +5,7 @@
 Hybrid NEP+ILP potential
 ========================
 
-The hybrid :term:`NEP` + :term:`ILP` potential [Bu2025]_ in :program:`GPUMD` combines the neuroevolution potential 
+The hybrid :term:`NEP` + :term:`ILP` potential [Bu2026]_ in :program:`GPUMD` combines the neuroevolution potential 
 (:term:`NEP`), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4), for intralyer
 interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_ 
 for interlayer interactions to simulate van der Waals materials. 

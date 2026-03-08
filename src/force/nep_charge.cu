@@ -137,18 +137,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   } else if (tokens[0] == "nep4_zbl_charge3") {
     zbl.enabled = true;
     paramb.charge_mode = 3;
-  } else if (tokens[0] == "nep4_charge4") {
-    zbl.enabled = false;
-    paramb.charge_mode = 4;
-  } else if (tokens[0] == "nep4_zbl_charge4") {
-    zbl.enabled = true;
-    paramb.charge_mode = 4;
-  } else if (tokens[0] == "nep4_charge5") {
-    zbl.enabled = false;
-    paramb.charge_mode = 5;
-  } else if (tokens[0] == "nep4_zbl_charge5") {
-    zbl.enabled = true;
-    paramb.charge_mode = 5;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP4 charge models now."
@@ -297,7 +285,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
-  if (paramb.charge_mode >= 4) {
+  if (paramb.charge_mode >= 3) {
     annmb.num_para_ann += annmb.num_neurons1 * paramb.num_types;
   }
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
@@ -348,7 +336,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
   nep_data.bec.resize(num_atoms * 9);
-  if (paramb.charge_mode >= 4) {
+  if (paramb.charge_mode >= 3) {
     nep_data.C6.resize(num_atoms);
     nep_data.C6_derivative.resize(num_atoms * annmb.dim);
     nep_data.D_C6.resize(num_atoms);
@@ -364,11 +352,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.Fp.resize(num_atoms * annmb.dim);
   nep_data.sum_fxyz.resize(
     num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
-  nep_data.cell_count.resize(num_atoms);
-  nep_data.cell_count_sum.resize(num_atoms);
-  nep_data.cell_contents.resize(num_atoms);
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
+  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
 
   initialize_dftd3();
 }
@@ -380,7 +366,7 @@ NEP_Charge::~NEP_Charge(void)
 
 void NEP_Charge::update_potential(float* parameters, ANN& ann)
 {
-  const int num_outputs = (paramb.charge_mode >= 4) ? 3 : 2;
+  const int num_outputs = (paramb.charge_mode >= 3) ? 3 : 2;
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     ann.w0[t] = pointer;
@@ -403,17 +389,13 @@ static __global__ void find_neighbor_list_large_box(
   const int N,
   const int N1,
   const int N2,
-  const int nx,
-  const int ny,
-  const int nz,
   const Box box,
   const int* g_type,
-  const int* __restrict__ g_cell_count,
-  const int* __restrict__ g_cell_count_sum,
-  const int* __restrict__ g_cell_contents,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
+  const int* __restrict__ g_NN_global,
+  const int* __restrict__ g_NL_global,
   int* g_NN_radial,
   int* g_NL_radial,
   int* g_NN_angular,
@@ -430,76 +412,21 @@ static __global__ void find_neighbor_list_large_box(
   int count_radial = 0;
   int count_angular = 0;
 
-  int cell_id;
-  int cell_id_x;
-  int cell_id_y;
-  int cell_id_z;
-  find_cell_id(
-    box,
-    x1,
-    y1,
-    z1,
-    2.0f * paramb.rcinv_radial,
-    nx,
-    ny,
-    nz,
-    cell_id_x,
-    cell_id_y,
-    cell_id_z,
-    cell_id);
-
-  const int z_lim = box.pbc_z ? 2 : 0;
-  const int y_lim = box.pbc_y ? 2 : 0;
-  const int x_lim = box.pbc_x ? 2 : 0;
-
-  for (int zz = -z_lim; zz <= z_lim; ++zz) {
-    for (int yy = -y_lim; yy <= y_lim; ++yy) {
-      for (int xx = -x_lim; xx <= x_lim; ++xx) {
-        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
-        if (cell_id_x + xx < 0)
-          neighbor_cell += nx;
-        if (cell_id_x + xx >= nx)
-          neighbor_cell -= nx;
-        if (cell_id_y + yy < 0)
-          neighbor_cell += ny * nx;
-        if (cell_id_y + yy >= ny)
-          neighbor_cell -= ny * nx;
-        if (cell_id_z + zz < 0)
-          neighbor_cell += nz * ny * nx;
-        if (cell_id_z + zz >= nz)
-          neighbor_cell -= nz * ny * nx;
-
-        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
-        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
-
-        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
-          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
-
-          if (n2 < N1 || n2 >= N2 || n1 == n2) {
-            continue;
-          }
-
-          double x12double = g_x[n2] - x1;
-          double y12double = g_y[n2] - y1;
-          double z12double = g_z[n2] - z1;
-          apply_mic(box, x12double, y12double, z12double);
-          float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
-          float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-
-          float rc_radial = paramb.rc_radial;
-          float rc_angular = paramb.rc_angular;
-
-          if (d12_square >= rc_radial * rc_radial) {
-            continue;
-          }
-
-          g_NL_radial[count_radial++ * N + n1] = n2;
-
-          if (d12_square < rc_angular * rc_angular) {
-            g_NL_angular[count_angular++ * N + n1] = n2;
-          }
-        }
-      }
+  for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
+    int n2 = g_NL_global[n1 + N * i1];
+    float x12 = g_x[n2] - x1;
+    float y12 = g_y[n2] - y1;
+    float z12 = g_z[n2] - z1;
+    apply_mic(box, x12, y12, z12);
+    float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+    float rc_radial = paramb.rc_radial;
+    float rc_angular = paramb.rc_angular;
+    if (d12_square >= rc_radial * rc_radial) {
+      continue;
+    }
+    g_NL_radial[count_radial++ * N + n1] = n2;
+    if (d12_square < rc_angular * rc_angular) {
+      g_NL_angular[count_angular++ * N + n1] = n2;
     }
   }
 
@@ -542,15 +469,14 @@ static __global__ void find_descriptor(
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -572,11 +498,10 @@ static __global__ void find_descriptor(
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int n2 = g_NL_angular[n1 + N * i1];
-        double x12double = g_x[n2] - x1;
-        double y12double = g_y[n2] - y1;
-        double z12double = g_z[n2] - z1;
-        apply_mic(box, x12double, y12double, z12double);
-        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float x12 = g_x[n2] - x1;
+        float y12 = g_y[n2] - y1;
+        float z12 = g_z[n2] - z1;
+        apply_mic(box, x12, y12, z12);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
@@ -605,7 +530,7 @@ static __global__ void find_descriptor(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-    if (paramb.charge_mode >= 4) {
+    if (paramb.charge_mode >= 3) {
       float F = 0.0f, Fp[MAX_DIM] = {0.0f};
       float charge = 0.0f;
       float charge_derivative[MAX_DIM] = {0.0f};
@@ -736,15 +661,15 @@ static __global__ void find_bec_radial(
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int t2 = g_type[n2];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -835,11 +760,11 @@ static __global__ void find_bec_angular(
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int n2 = g_NL_angular[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
       float fc12, fcp12;
@@ -917,96 +842,6 @@ static __global__ void scale_bec(const int N, const float* sqrt_epsilon_inf, flo
   }
 }
 
-static __global__ void find_force_charge_real_space_only(
-  const int N,
-  const NEP_Charge::Charge_Para charge_para,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const float* g_charge,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial,
-  double* g_pe,
-  float* g_D_real)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    float q1 = g_charge[n1];
-    float s_pe = 0; // no self energy
-    float D_real = 0; // no self energy
-
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-
-      float erfc_r = erfc(charge_para.alpha * d12) * d12inv;
-      D_real += q2 * (erfc_r + charge_para.A * d12 + charge_para.B);
-      s_pe += 0.5f * qq * (erfc_r + charge_para.A * d12 + charge_para.B);
-      float f2 = erfc_r + charge_para.two_alpha_over_sqrt_pi * exp(-charge_para.alpha * charge_para.alpha * d12 * d12);
-      f2 = -0.5f * K_C_SP * qq * (f2 * d12inv * d12inv - charge_para.A * d12inv);
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_D_real[n1] = K_C_SP * D_real;
-    g_pe[n1] += K_C_SP * s_pe;
-  }
-}
-
 static __global__ void find_force_radial(
   NEP_Charge::ParaMB paramb,
   NEP_Charge::ANN annmb,
@@ -1051,17 +886,17 @@ static __global__ void find_force_radial(
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int t2 = g_type[n2];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 4) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -1077,7 +912,7 @@ static __global__ void find_force_radial(
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
         float tmp21 = g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2];
-        if (paramb.charge_mode >= 4) {
+        if (paramb.charge_mode >= 3) {
           tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
           tmp21 += g_C6_derivative[n2 + n * N] * g_D_C6[n2];
         }
@@ -1151,7 +986,7 @@ static __global__ void find_partial_force_angular(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
-      if (paramb.charge_mode >= 4) {
+      if (paramb.charge_mode >= 3) {
         tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       }
       Fp[d] = tmp;
@@ -1170,11 +1005,11 @@ static __global__ void find_partial_force_angular(
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_angular[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
       float fc12, fcp12;
@@ -1257,11 +1092,11 @@ static __global__ void find_force_ZBL(
     float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
@@ -1373,11 +1208,11 @@ static __global__ void find_force_charge_real_space(
       int n2 = g_NL[n1 + N * i1];
       float q2 = g_charge[n2];
       float qq = q1 * q2;
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
 
@@ -1465,11 +1300,11 @@ static __global__ void find_force_vdw_static(
       int n2 = g_NL[n1 + N * i1];
       float q2 = g_charge[n2];
       float qq = q1 * q1 * q2 * q2;
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12_2 = d12 * d12;
       float d12_4 = d12_2 * d12_2;
@@ -1524,36 +1359,24 @@ void NEP_Charge::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const double rc_cell_list = 0.5 * rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
-
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
-    position_per_atom,
-    nep_data.cell_count,
-    nep_data.cell_count_sum,
-    nep_data.cell_contents);
+  neighbor.find_neighbor_global(
+    rc,
+    box, 
+    type, 
+    position_per_atom);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     N,
     N1,
     N2,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
     box,
     type.data(),
-    nep_data.cell_count.data(),
-    nep_data.cell_count_sum.data(),
-    nep_data.cell_contents.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
+    neighbor.NN.data(),
+    neighbor.NL.data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1582,14 +1405,6 @@ void NEP_Charge::compute_large_box(
     output_file.close();
   }
 
-  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
-    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
-  GPU_CHECK_KERNEL
-
-  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
-    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
-  GPU_CHECK_KERNEL
-
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1597,8 +1412,8 @@ void NEP_Charge::compute_large_box(
     N1,
     N2,
     box,
-    (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
-    (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
+    (paramb.charge_mode >= 3) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+    (paramb.charge_mode >= 3) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data(),
     type.data(),
@@ -1635,8 +1450,8 @@ void NEP_Charge::compute_large_box(
       N1,
       N2,
       box,
-      (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
-      (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+      (paramb.charge_mode >= 3) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
       type.data(),
       position_per_atom.data(),
       position_per_atom.data() + N,
@@ -1672,32 +1487,30 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
+  if (use_pppm) {
+    pppm.find_force(
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
+  } else {
+    ewald.find_force(
+      N,
+      N1,
+      N2,
+      box.cpu_h,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
   }
 
   if (paramb.charge_mode == 1) {
@@ -1722,30 +1535,8 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 3 || paramb.charge_mode == 5) {
-    find_force_charge_real_space_only<<<grid_size, BLOCK_SIZE>>>(
-      N,
-      charge_para,
-      N1,
-      N2,
-      box,
-      nep_data.NN_radial.data(),
-      nep_data.NL_radial.data(),
-      nep_data.charge.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
-  }
-
-  // modes 4 and 5 has vdw
-  if (paramb.charge_mode >= 4) {
+  // mode 3 has vdw
+  if (paramb.charge_mode >= 3) {
     find_force_vdw_static<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
@@ -1774,8 +1565,8 @@ void NEP_Charge::compute_large_box(
     N1,
     N2,
     box,
-    (paramb.charge_mode >= 4) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
-    (paramb.charge_mode >= 4) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
+    (paramb.charge_mode >= 3) ? nep_data.NN_angular.data() : nep_data.NN_radial.data(),
+    (paramb.charge_mode >= 3) ? nep_data.NL_angular.data() : nep_data.NL_radial.data(),
     type.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
@@ -1866,11 +1657,6 @@ void NEP_Charge::compute_small_box(
 
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
-  GPU_Vector<int> NN_radial(type.size());
-  GPU_Vector<int> NL_radial(size_x12);
-  GPU_Vector<int> NN_angular(type.size());
-  GPU_Vector<int> NL_angular(size_x12);
-  GPU_Vector<float> r12(size_x12 * 6);
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1883,24 +1669,24 @@ void NEP_Charge::compute_small_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5);
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
     std::vector<int> cpu_NN_radial(type.size());
     std::vector<int> cpu_NN_angular(type.size());
-    NN_radial.copy_to_host(cpu_NN_radial.data());
-    NN_angular.copy_to_host(cpu_NN_angular.data());
+    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
+    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
     int radial_actual = 0;
     int angular_actual = 0;
     for (int n = 0; n < N; ++n) {
@@ -1925,17 +1711,17 @@ void NEP_Charge::compute_small_box(
     N,
     N1,
     N2,
-    (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
-    (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.NN_angular.data() : small_box_data.NN_radial.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.NL_angular.data() : small_box_data.NL_radial.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 3 : r12.data(),
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 4 : r12.data() + size_x12,
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 5 : r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 3 : small_box_data.r12.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 4 : small_box_data.r12.data() + size_x12,
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 5 : small_box_data.r12.data() + size_x12 * 2,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
     potential_per_atom.data(),
     nep_data.Fp.data(),
     nep_data.charge.data(),
@@ -1965,12 +1751,12 @@ void NEP_Charge::compute_small_box(
       N,
       N1,
       N2,
-      (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
-      (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
+      (paramb.charge_mode >= 3) ? small_box_data.NN_angular.data() : small_box_data.NN_radial.data(),
+      (paramb.charge_mode >= 3) ? small_box_data.NL_angular.data() : small_box_data.NL_radial.data(),
       type.data(),
-      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 3 : r12.data(),
-      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 4 : r12.data() + size_x12,
-      (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 5 : r12.data() + size_x12 * 2,
+      (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 3 : small_box_data.r12.data(),
+      (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 4 : small_box_data.r12.data() + size_x12,
+      (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 5 : small_box_data.r12.data() + size_x12 * 2,
       nep_data.charge_derivative.data(),
       nep_data.bec.data());
     GPU_CHECK_KERNEL
@@ -1982,12 +1768,12 @@ void NEP_Charge::compute_small_box(
       N,
       N1,
       N2,
-      NN_angular.data(),
-      NL_angular.data(),
+      small_box_data.NN_angular.data(),
+      small_box_data.NL_angular.data(),
       type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
+      small_box_data.r12.data() + size_x12 * 3,
+      small_box_data.r12.data() + size_x12 * 4,
+      small_box_data.r12.data() + size_x12 * 5,
       nep_data.charge_derivative.data(),
       nep_data.sum_fxyz.data(),
       nep_data.bec.data());
@@ -2001,32 +1787,30 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 1 || paramb.charge_mode == 2 || paramb.charge_mode == 4) {
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
+  if (use_pppm) {
+    pppm.find_force(
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
+  } else {
+    ewald.find_force(
+      N,
+      N1,
+      N2,
+      box.cpu_h,
+      nep_data.charge,
+      position_per_atom,
+      nep_data.D_real,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
   }
 
   if (paramb.charge_mode == 1) {
@@ -2036,12 +1820,12 @@ void NEP_Charge::compute_small_box(
       N1,
       N2,
       box,
-      NN_radial.data(),
-      NL_radial.data(),
+      small_box_data.NN_radial.data(),
+      small_box_data.NL_radial.data(),
       nep_data.charge.data(),
-      r12.data(),
-      r12.data() + size_x12,
-      r12.data() + size_x12 * 2,
+      small_box_data.r12.data(),
+      small_box_data.r12.data() + size_x12,
+      small_box_data.r12.data() + size_x12 * 2,
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -2051,42 +1835,20 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
-  if (paramb.charge_mode == 3 || paramb.charge_mode == 5) {
-    find_force_charge_real_space_only_small_box<<<grid_size, BLOCK_SIZE>>>(
-      N,
-      charge_para,
-      N1,
-      N2,
-      box,
-      NN_radial.data(),
-      NL_radial.data(),
-      nep_data.charge.data(),
-      r12.data(),
-      r12.data() + size_x12,
-      r12.data() + size_x12 * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
-  }
-
-  // modes 4 and 5 has vdw
-  if (paramb.charge_mode >= 4) {
+  // mode 3 has vdw
+  if (paramb.charge_mode >= 3) {
     find_force_vdw_static_small_box<<<grid_size, BLOCK_SIZE>>>(
       N,
       charge_para,
       N1,
       N2,
       box,
-      NN_radial.data(),
-      NL_radial.data(),
+      small_box_data.NN_radial.data(),
+      small_box_data.NL_radial.data(),
       nep_data.C6.data(),
-      r12.data(),
-      r12.data() + size_x12,
-      r12.data() + size_x12 * 2,
+      small_box_data.r12.data(),
+      small_box_data.r12.data() + size_x12,
+      small_box_data.r12.data() + size_x12 * 2,
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -2102,12 +1864,12 @@ void NEP_Charge::compute_small_box(
     N,
     N1,
     N2,
-    (paramb.charge_mode >= 4) ? NN_angular.data() : NN_radial.data(),
-    (paramb.charge_mode >= 4) ? NL_angular.data() : NL_radial.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.NN_angular.data() : small_box_data.NN_radial.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.NL_angular.data() : small_box_data.NL_radial.data(),
     type.data(),
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 3 : r12.data(),
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 4 : r12.data() + size_x12,
-    (paramb.charge_mode >= 4) ? r12.data() + size_x12 * 5 : r12.data() + size_x12 * 2,
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 3 : small_box_data.r12.data(),
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 4 : small_box_data.r12.data() + size_x12,
+    (paramb.charge_mode >= 3) ? small_box_data.r12.data() + size_x12 * 5 : small_box_data.r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
@@ -2125,12 +1887,12 @@ void NEP_Charge::compute_small_box(
     N,
     N1,
     N2,
-    NN_angular.data(),
-    NL_angular.data(),
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
     type.data(),
-    r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5,
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
@@ -2150,12 +1912,12 @@ void NEP_Charge::compute_small_box(
       zbl,
       N1,
       N2,
-      NN_angular.data(),
-      NL_angular.data(),
+      small_box_data.NN_angular.data(),
+      small_box_data.NL_angular.data(),
       type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
+      small_box_data.r12.data() + size_x12 * 3,
+      small_box_data.r12.data() + size_x12 * 4,
+      small_box_data.r12.data() + size_x12 * 5,
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -2176,13 +1938,13 @@ static bool get_expanded_box(const double rc, const Box& box, NEP_Charge::Expand
   ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
 
   bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.5 * rc) {
+  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_y && thickness_y <= 2.5 * rc) {
+  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_z && thickness_z <= 2.5 * rc) {
+  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
 
@@ -2234,14 +1996,24 @@ void NEP_Charge::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  if (paramb.charge_mode != 3 && paramb.charge_mode != 5) {
-    if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
-      PRINT_INPUT_ERROR("Cannot use non-periodic boundaries with K-space.");
-    }
+  if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
+    PRINT_INPUT_ERROR("Cannot use non-periodic boundaries for qNEP models.");
   }
 
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
   if (is_small_box) {
+    // update small_box_data
+    const int current_num_atoms = type.size();
+    if (small_box_data.NN_radial.size() != current_num_atoms) {
+      const int big_neighbor_size = 2000;
+      const int size_x12 = current_num_atoms * big_neighbor_size;
+
+      small_box_data.NN_radial.resize(current_num_atoms);
+      small_box_data.NL_radial.resize(size_x12);
+      small_box_data.NN_angular.resize(current_num_atoms);
+      small_box_data.NL_angular.resize(size_x12);
+      small_box_data.r12.resize(size_x12 * 6);
+    }
     compute_small_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {

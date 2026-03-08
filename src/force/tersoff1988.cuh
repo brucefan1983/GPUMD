@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -48,4 +49,5 @@ protected:
   int num_types;
   GPU_Vector<double> ters;
   Tersoff1988_Data tersoff_data;
+  Neighbor neighbor;
 };

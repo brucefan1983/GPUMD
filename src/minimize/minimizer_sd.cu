@@ -44,6 +44,26 @@ __global__ void update_positions(
   }
 }
 
+__global__ void update_positions_with_fixed_group(
+  const int size,
+  const int num_atoms,
+  const int fixed_group,
+  const int* group_id,
+  const double position_step,
+  const double* force_per_atom,
+  const double* position_per_atom,
+  double* position_per_atom_temp)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < size) {
+    double position_change = 0.0;
+    if (group_id[n % num_atoms] != fixed_group) {
+      position_change = force_per_atom[n] * position_step;
+    }
+    position_per_atom_temp[n] = position_per_atom[n] + position_change;
+  }
+}
+
 } // namespace
 
 void Minimizer_SD::compute(
@@ -75,12 +95,25 @@ void Minimizer_SD::compute(
     }
 
     const int size = number_of_atoms_ * 3;
-    update_positions<<<(size - 1) / 128 + 1, 128>>>(
-      size,
-      position_step / force_max,
-      force_per_atom.data(),
-      position_per_atom.data(),
-      position_per_atom_temp_.data());
+
+    if (fixed_group_ < 0) {
+      update_positions<<<(size - 1) / 128 + 1, 128>>>(
+        size,
+        position_step / force_max,
+        force_per_atom.data(),
+        position_per_atom.data(),
+        position_per_atom_temp_.data());
+    } else {
+      update_positions_with_fixed_group<<<(size - 1) / 128 + 1, 128>>>(
+        size,
+        number_of_atoms_,
+        fixed_group_,
+        group[0].label.data(),
+        position_step / force_max,
+        force_per_atom.data(),
+        position_per_atom.data(),
+        position_per_atom_temp_.data());
+    }
 
     force.compute(
       box,

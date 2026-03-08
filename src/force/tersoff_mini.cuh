@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -25,9 +26,6 @@ struct Tersoff_mini_Data {
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
 };
 
 struct Tersoff_mini_Para {
@@ -62,4 +60,5 @@ protected:
   int num_types; // number of atom tpyes
   Tersoff_mini_Data tersoff_mini_data;
   Tersoff_mini_Para para;
+  Neighbor neighbor;
 };
