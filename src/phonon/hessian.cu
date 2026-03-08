@@ -30,6 +30,70 @@ Then calculate the dynamical matrices with different k points.
 #include <vector>
 #include <cstring>
 
+namespace
+{
+  // Helper structures for automatic k-point generation
+  struct Vec3 {
+    double x, y, z;
+  };
+
+  struct Mat3 {
+    double data[3][3];
+  };
+
+  double dot(const Vec3& a, const Vec3& b)
+  {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+  }
+
+  Vec3 cross(const Vec3& a, const Vec3& b)
+  {
+    return {a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x};
+  }
+
+  Mat3 transpose(const Mat3& m)
+  {
+    Mat3 t;
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        t.data[j][i] = m.data[i][j];
+    return t;
+  }
+
+  Vec3 matvec(const Mat3& m, const Vec3& v)
+  {
+    return {m.data[0][0] * v.x + m.data[0][1] * v.y + m.data[0][2] * v.z,
+            m.data[1][0] * v.x + m.data[1][1] * v.y + m.data[1][2] * v.z,
+            m.data[2][0] * v.x + m.data[2][1] * v.y + m.data[2][2] * v.z};
+  }
+
+  Vec3 lerp(const Vec3& a, const Vec3& b, double t)
+  {
+    return {a.x + t * (b.x - a.x),
+            a.y + t * (b.y - a.y),
+            a.z + t * (b.z - a.z)};
+  }
+
+  Vec3 operator*(const Vec3& v, double s)
+  {
+    return {v.x * s, v.y * s, v.z * s};
+  }
+
+  Mat3 reciprocal_lattice(const Vec3 lat[3])
+  {
+    double volume = dot(lat[0], cross(lat[1], lat[2]));
+    double factor = 2.0 * M_PI / volume;
+
+    Vec3 c0 = cross(lat[1], lat[2]) * factor;
+    Vec3 c1 = cross(lat[2], lat[0]) * factor;
+    Vec3 c2 = cross(lat[0], lat[1]) * factor;
+    Mat3 rec = {{{c0.x, c0.y, c0.z}, {c1.x, c1.y, c1.z}, {c2.x, c2.y, c2.z}}};
+    return transpose(rec);
+  }
+} // namespace
+
 void Hessian::compute(
   Force& force,
   Box& box,
