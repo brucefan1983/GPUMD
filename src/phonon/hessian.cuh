@@ -26,6 +26,9 @@ class Force;
 
 class Hessian
 {
+private:
+    size_t cx = 1, cy = 1, cz = 1;
+
 public:
   double displacement = 0.005;
   double cutoff = 4.0;
@@ -33,6 +36,7 @@ public:
   void compute(
     Force& force,
     Box& box,
+    std::vector<double>& cpu_mass,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
@@ -55,9 +59,9 @@ protected:
   std::vector<double> DR;
   std::vector<double> DI;
 
-  void read_basis(size_t N);
+  void create_basis(const std::vector<double>& cpu_mass, size_t N);
   void read_kpoints();
-  void initialize(size_t);
+  void initialize(const std::vector<double>& cpu_mass, size_t N);
   void finalize(void);
 
   void find_H(
