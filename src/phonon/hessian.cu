@@ -152,19 +152,93 @@ void Hessian::create_basis(const std::vector<double>& cpu_mass, size_t N)
   }
 }
 
-void Hessian::read_kpoints()
+void Hessian::create_kpoints(const Box& box)
 {
-  FILE* fid = fopen("kpoints.in", "r");
-  size_t count;
-  count = fscanf(fid, "%zu", &num_kpoints);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
+  std::ifstream kin("kpoints.in");
+  if (!kin)
+    PRINT_INPUT_ERROR("Cannot open kpoints.in file.");
+
+  std::vector<std::vector<Vec3>> hsps;
+  std::vector<Vec3> hsp;
+  sym_names.clear();
+  std::string line;
+
+  while (std::getline(kin, line)) {
+    const auto beg = line.find_first_not_of(" \t\r\n");
+    if (beg == std::string::npos) {
+      if (!hsp.empty()) {
+        hsps.push_back(hsp);
+        hsp.clear();
+      }
+      continue;
+    }
+    if (line[beg] == '#')
+      continue;
+    std::istringstream iss(line);
+    double x, y, z;
+    std::string name;
+    if (!(iss >> x >> y >> z >> name))
+      break;
+    hsp.push_back({x, y, z});
+    sym_names.push_back(name);
+  }
+  if (!hsp.empty())
+    hsps.push_back(hsp);
+  
+  num_kpoints = 1 - hsps.size();
+  for (const auto& seg : hsps)
+    num_kpoints += seg.size();
+  num_kpoints = (num_kpoints - 1) * 100 + 1;
+
+  const Vec3 lattice[3] = {
+    {box.cpu_h[0] / cx, box.cpu_h[3] / cx, box.cpu_h[6] / cx},
+    {box.cpu_h[1] / cy, box.cpu_h[4] / cy, box.cpu_h[7] / cy},
+    {box.cpu_h[2] / cz, box.cpu_h[5] / cz, box.cpu_h[8] / cz}};
+  const auto rec_lat = reciprocal_lattice(lattice);
 
   kpoints.resize(num_kpoints * 3);
-  for (size_t m = 0; m < num_kpoints; ++m) {
-    count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0], &kpoints[m * 3 + 1], &kpoints[m * 3 + 2]);
-    PRINT_SCANF_ERROR(count, 3, "Reading error for kpoints.in.");
+  kpath.resize(num_kpoints);
+  kpath_sym.resize(num_kpoints);
+  std::vector<double> sym_idx;
+
+  size_t k_idx = 0;
+  double kpath_len = 0.0;
+  auto k_first = matvec(rec_lat, hsps[0][0]);
+  kpoints[0] = k_first.x;
+  kpoints[1] = k_first.y;
+  kpoints[2] = k_first.z;
+  kpath[k_idx] = kpath_len;
+  sym_idx.push_back(k_idx);
+  ++k_idx;
+
+  for (const auto& hsp : hsps) {
+    for (size_t i = 1; i < hsp.size(); ++i) {
+      const auto& start = matvec(rec_lat, hsp[i - 1]);
+      const auto& end = matvec(rec_lat, hsp[i]);
+
+      for (int j = 1; j <= 100; ++j) {
+        double t = j * 0.01;
+        auto kpt = lerp(start, end, t);
+
+        kpoints[k_idx * 3 + 0] = kpt.x;
+        kpoints[k_idx * 3 + 1] = kpt.y;
+        kpoints[k_idx * 3 + 2] = kpt.z;
+        double dx = kpt.x - kpoints[k_idx * 3 - 3];
+        double dy = kpt.y - kpoints[k_idx * 3 - 2];
+        double dz = kpt.z - kpoints[k_idx * 3 - 1];
+        kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
+        kpath[k_idx] = kpath_len;
+
+        if (j == 100)
+          sym_idx.push_back(k_idx);
+        ++k_idx;
+      }
+    }
   }
-  fclose(fid);
+
+  for (size_t kp = 0; kp < kpath_sym.size(); ++kp) {
+    kpath_sym[kp] = kpath[sym_idx[kp]];
+  }
 }
 
 void Hessian::initialize(const std::vector<double>& cpu_mass, size_t N)
