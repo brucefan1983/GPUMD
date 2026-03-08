@@ -287,8 +287,8 @@ static void __global__ gpu_add_spring_ghost_atom_decouple(
   }
 }
 
-// Couple COM: apply equal-opposite forces to two groups
-static void __global__ gpu_add_spring_couple_com_force(
+// COM to COM: apply equal-opposite forces to two groups
+static void __global__ gpu_add_spring_com_com_force(
   const int* __restrict__ g_group_contents,
   const int group1_size,
   const int group1_size_sum,
@@ -548,12 +548,12 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     ghost_atom_pos_[id].resize(3 * ghost_atom_group_size_[id]);
     init_origin_[id] = 0;
 
-  } else if (strcmp(mode_str, "couple_com") == 0) {
+  } else if (strcmp(mode_str, "com_com") == 0) {
     // Syntax:
-    //   add_spring couple_com gm gid1 gid2 couple   k  R0
-    //   add_spring couple_com gm gid1 gid2 decouple kx ky kz
+    //   add_spring com_com gm gid1 gid2 couple   k  R0
+    //   add_spring com_com gm gid1 gid2 decouple kx ky kz
 
-    mode_[id] = MODE_COUPLE_COM;
+    mode_[id] = MODE_COM_COM;
 
     // Parse grouping method
     if (!is_valid_int(param[2], &grouping_method_[id])) {
@@ -594,7 +594,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
 
     if (strcmp(stiff_str, "couple") == 0) {
       if (num_param != 8) {
-        PRINT_INPUT_ERROR("add_spring couple_com couple requires 8 parameters.\n");
+        PRINT_INPUT_ERROR("add_spring com_com couple requires 8 parameters.\n");
       }
       stiffness_mode_[id] = STIFFNESS_COUPLE;
 
@@ -605,13 +605,13 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
 
-      printf("    couple_com couple: gm=%d, gid1=%d, gid2=%d\n",
+      printf("    com_com couple: gm=%d, gid1=%d, gid2=%d\n",
              grouping_method_[id], group_id_[id], group_id_2_[id]);
       printf("    k=%g eV/Å^2, R0=%g Å\n", k_couple_[id], R0_[id]);
 
     } else if (strcmp(stiff_str, "decouple") == 0) {
       if (num_param != 9) {
-        PRINT_INPUT_ERROR("add_spring couple_com decouple requires 9 parameters.\n");
+        PRINT_INPUT_ERROR("add_spring com_com decouple requires 9 parameters.\n");
       }
       stiffness_mode_[id] = STIFFNESS_DECOUPLE;
 
@@ -623,7 +623,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
 
-      printf("    couple_com decouple: gm=%d, gid1=%d, gid2=%d\n",
+      printf("    com_com decouple: gm=%d, gid1=%d, gid2=%d\n",
              grouping_method_[id], group_id_[id], group_id_2_[id]);
       printf("    k=(%g,%g,%g) eV/Å^2\n", k_decouple_[id][0], k_decouple_[id][1], k_decouple_[id][2]);
 
@@ -631,13 +631,13 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
       PRINT_INPUT_ERROR("stiffness mode should be 'couple' or 'decouple'.\n");
     }
 
-    // No velocity for couple_com
+    // No velocity for com_com
     velocity_[id][0] = 0.0;
     velocity_[id][1] = 0.0;
     velocity_[id][2] = 0.0;
 
   } else {
-    PRINT_INPUT_ERROR("Unknown mode. Use ghost_com, ghost_atom, or couple_com.\n");
+    PRINT_INPUT_ERROR("Unknown mode. Use ghost_com, ghost_atom, or com_com.\n");
   }
 
   // Initialize output file
@@ -857,7 +857,7 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
       // Total energy from all springs
       energy_[c] = h_energy;
 
-    } else if (mode_[c] == MODE_COUPLE_COM) {
+    } else if (mode_[c] == MODE_COM_COM) {
       // Zero out buffers before atomic reduction
       d_tmp_vec3_.fill(0.0);
       d_tmp_scalar_.fill(0.0);
@@ -946,7 +946,7 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
       // Apply equal-opposite forces
       int max_size = std::max(group_size, group2_size);
       int grid_size_max = (max_size - 1) / block_size + 1;
-      gpu_add_spring_couple_com_force<<<grid_size_max, block_size>>>(
+      gpu_add_spring_com_com_force<<<grid_size_max, block_size>>>(
         groups[grouping_method_[c]].contents.data(),
         group_size,
         groups[grouping_method_[c]].cpu_size_sum[group_id_[c]],

@@ -40,7 +40,7 @@ private:
   enum SpringMode {
     MODE_GHOST_COM  = 0,
     MODE_GHOST_ATOM = 1,
-    MODE_COUPLE_COM = 2
+    MODE_COM_COM    = 2
   };
 
   enum StiffnessMode {
