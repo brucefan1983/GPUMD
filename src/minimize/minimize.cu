@@ -107,8 +107,7 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
-  } 
-  else {
+  } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
 
@@ -120,7 +119,8 @@ void Minimize::parse_minimize(
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
-      minimizer.reset(new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
+      minimizer.reset(
+        new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
@@ -139,31 +139,30 @@ void Minimize::parse_minimize(
       printf("    with fixed box.\n");
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
-      if (number_of_atoms > 1000) {
+      if (number_of_atoms > 999) {
         minimizer.reset(new Minimizer_FIRE(number_of_atoms, number_of_steps, force_tolerance));
 
-      minimizer->compute(
-        force,
-        box,
-        position_per_atom,
-        type,
-        group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
+        minimizer->compute(
+          force,
+          box,
+          position_per_atom,
+          type,
+          group,
+          potential_per_atom,
+          force_per_atom,
+          virial_per_atom);
       } else {
         minimizer.reset(new Minimizer_FIRE2(number_of_atoms, number_of_steps, force_tolerance));
         minimizer->compute(
-          force, 
-          box, 
-          position_per_atom, 
-          type, 
-          group, 
-          potential_per_atom, 
-          force_per_atom, 
+          force,
+          box,
+          position_per_atom,
+          type,
+          group,
+          potential_per_atom,
+          force_per_atom,
           virial_per_atom);
       }
-      
 
       break;
     case 2:
@@ -175,33 +174,34 @@ void Minimize::parse_minimize(
       }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
-      
-      if (number_of_atoms > 1000) {
-        minimizer.reset(new Minimizer_FIRE_Box_Change(
-        number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
 
-      minimizer->compute(
-        force,
-        box,
-        position_per_atom,
-        type,
-        group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
-      } else {
-        minimizer.reset(new Minimizer_FIRE2(number_of_atoms, number_of_steps, force_tolerance, true, hydrostatic_strain));
+      if (number_of_atoms > 999) {
+        minimizer.reset(new Minimizer_FIRE_Box_Change(
+          number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+
         minimizer->compute(
-          force, 
-          box, 
-          position_per_atom, 
-          type, 
-          group, 
-          potential_per_atom, 
-          force_per_atom, 
+          force,
+          box,
+          position_per_atom,
+          type,
+          group,
+          potential_per_atom,
+          force_per_atom,
+          virial_per_atom);
+      } else {
+        minimizer.reset(new Minimizer_FIRE2(
+          number_of_atoms, number_of_steps, force_tolerance, true, hydrostatic_strain));
+        minimizer->compute(
+          force,
+          box,
+          position_per_atom,
+          type,
+          group,
+          potential_per_atom,
+          force_per_atom,
           virial_per_atom);
       }
-      
+
       break;
     default:
       PRINT_INPUT_ERROR("Invalid minimizer.");

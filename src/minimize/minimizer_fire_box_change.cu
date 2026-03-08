@@ -488,8 +488,10 @@ void Minimizer_FIRE_Box_Change::compute(
         force_max,
         (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3. / box.get_volume() * 160.2176621);
 
-      if (force_max < force_tolerance_)
+      if (force_max < force_tolerance_) {
+        printf("  Converged! fmax = %.2e < ftol = %.2e\n", force_max, force_tolerance_);
         break;
+      }
     }
 
     P = dot(v, force_temp);
@@ -536,5 +538,5 @@ void Minimizer_FIRE_Box_Change::compute(
     box.get_inverse();
   }
 
-  printf("Energy minimization finished.\n");
+  printf("Energy minimization finished.\n\n");
 }

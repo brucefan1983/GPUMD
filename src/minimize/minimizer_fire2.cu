@@ -27,6 +27,10 @@ Reference: Computational Materials Science 175 (2020) 109584
 namespace
 {
 
+// ---------------------------------------------------------------------------
+// Small GPU kernels
+// ---------------------------------------------------------------------------
+
 __global__ void gpu_multiply(const int size, double a, double* b, double* c)
 {
   int n = blockDim.x * blockIdx.x + threadIdx.x;
@@ -34,84 +38,91 @@ __global__ void gpu_multiply(const int size, double a, double* b, double* c)
     c[n] = b[n] * a;
 }
 
-__global__ void filter_v(const int size, const double dt, const double maxstep, double* v)
+// Filter atomic velocities: limit displacement per step to maxstep (Angstrom).
+// Only operates on the first `atom_size` elements (atomic DOF).
+__global__ void
+filter_v_atoms(const int atom_size, const double dt, const double maxstep, double* v)
 {
   int n = blockDim.x * blockIdx.x + threadIdx.x;
-  if (n < size) {
-    if (abs(v[n]) * dt > maxstep) {
-      v[n] = maxstep / dt * v[n] / abs(v[n]);
+  if (n < atom_size) {
+    double disp = v[n] * dt;
+    if (fabs(disp) > maxstep) {
+      v[n] = copysign(maxstep / dt, v[n]);
     }
   }
 }
 
-// Transpose a 3x3 matrix stored as 9-element array
-void transpose9(double* matrix)
+// Filter cell velocities: limit strain increment per step to max_strain_step (dimensionless).
+// Operates on the 9 cell DOF starting at offset `atom_size`.
+// This is the key stability guard – analogous to LAMMPS vmax in box/relax.
+__global__ void
+filter_v_cell(const int atom_size, const double dt, const double max_strain_step, double* v)
 {
-  for (int i = 0; i < 3; ++i) {
-    for (int j = i + 1; j < 3; ++j) {
-      std::swap(matrix[i * 3 + j], matrix[j * 3 + i]);
+  int n = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n < 9) {
+    int idx = atom_size + n;
+    double disp = v[idx] * dt;
+    if (fabs(disp) > max_strain_step) {
+      v[idx] = copysign(max_strain_step / dt, v[idx]);
     }
   }
 }
 
-// Matrix multiplication: C = A * B (3x3 matrices as 9-element arrays)
-void matrix_multiply(const double* A, const double* B, double* C)
+// ---------------------------------------------------------------------------
+// CPU helper: 3x3 matrix utilities (row-major storage)
+// ---------------------------------------------------------------------------
+
+static void transpose9(double* m)
 {
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i)
+    for (int j = i + 1; j < 3; ++j)
+      std::swap(m[i * 3 + j], m[j * 3 + i]);
+}
+
+static void matrix_multiply(const double* A, const double* B, double* C)
+{
+  for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j) {
       C[i * 3 + j] = 0.0;
-      for (int k = 0; k < 3; ++k) {
+      for (int k = 0; k < 3; ++k)
         C[i * 3 + j] += A[i * 3 + k] * B[k * 3 + j];
-      }
     }
-  }
 }
 
-// Solve linear equation: A * X = B for 3x3 matrices using Gaussian elimination
-void solve_linear_equation_3x3(const double* A, const double* B, double* X)
+// Solve A * X = B for 3x3 matrices using Gaussian elimination with partial pivoting.
+static void solve_linear_equation_3x3(const double* A, const double* B, double* X)
 {
   double a[3][3], b[3][3];
-
-  // Copy input matrices (row-major)
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j) {
       a[i][j] = A[i * 3 + j];
       b[i][j] = B[i * 3 + j];
     }
-  }
 
-  // Gaussian elimination with partial pivoting
   for (int col = 0; col < 3; ++col) {
-    // Find pivot
     int pivot_row = col;
-    for (int i = col + 1; i < 3; ++i) {
-      if (fabs(a[i][col]) > fabs(a[pivot_row][col])) {
+    for (int i = col + 1; i < 3; ++i)
+      if (fabs(a[i][col]) > fabs(a[pivot_row][col]))
         pivot_row = i;
-      }
-    }
 
     if (fabs(a[pivot_row][col]) < 1e-9) {
       printf("Matrix is singular or nearly singular!\n");
       return;
     }
 
-    // Swap rows if needed
-    if (pivot_row != col) {
+    if (pivot_row != col)
       for (int j = 0; j < 3; ++j) {
         std::swap(a[col][j], a[pivot_row][j]);
         std::swap(b[col][j], b[pivot_row][j]);
       }
-    }
 
-    // Scale pivot row
     double diag = a[col][col];
     for (int j = 0; j < 3; ++j) {
       a[col][j] /= diag;
       b[col][j] /= diag;
     }
 
-    // Eliminate column
-    for (int row = 0; row < 3; ++row) {
+    for (int row = 0; row < 3; ++row)
       if (row != col) {
         double factor = a[row][col];
         for (int j = 0; j < 3; ++j) {
@@ -119,18 +130,17 @@ void solve_linear_equation_3x3(const double* A, const double* B, double* X)
           b[row][j] -= factor * b[col][j];
         }
       }
-    }
   }
 
-  // Copy result (row-major)
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
       X[i * 3 + j] = b[i][j];
-    }
-  }
 }
 
-// Sum virial components from per-atom data
+// ---------------------------------------------------------------------------
+// GPU reduction kernels
+// ---------------------------------------------------------------------------
+
 static __global__ void gpu_sum_virial(
   int N,
   double* g_sxx,
@@ -152,64 +162,64 @@ static __global__ void gpu_sum_virial(
 
   switch (bid) {
     case 0:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_sxx[n];
       }
       break;
     case 1:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_sxy[n];
       }
       break;
     case 2:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_sxz[n];
       }
       break;
     case 3:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_syx[n];
       }
       break;
     case 4:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_syy[n];
       }
       break;
     case 5:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_syz[n];
       }
       break;
     case 6:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_szx[n];
       }
       break;
     case 7:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_szy[n];
       }
       break;
     case 8:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int p = 0; p < number_of_patches; ++p) {
+        int n = tid + p * 1024;
         if (n < N)
           s += g_szz[n];
       }
@@ -219,128 +229,54 @@ static __global__ void gpu_sum_virial(
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
+    if (tid < offset)
       s_s[tid] += s_s[tid + offset];
-    }
     __syncthreads();
   }
 
-  if (tid == 0) {
+  if (tid == 0)
     g_s[bid] = s_s[0];
-  }
 }
 
-// Kernel to transform forces: force_transformed = force @ deform_grad
-__global__ void transform_forces_kernel(
-  const double* force_per_atom, double* force_transformed, const double* d_deform_grad, int N)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (idx < N) {
-    // Read force components
-    double fx = force_per_atom[idx];
-    double fy = force_per_atom[idx + N];
-    double fz = force_per_atom[idx + 2 * N];
-
-    // Read deformation gradient (row-major)
-    double d00 = d_deform_grad[0], d01 = d_deform_grad[1], d02 = d_deform_grad[2];
-    double d10 = d_deform_grad[3], d11 = d_deform_grad[4], d12 = d_deform_grad[5];
-    double d20 = d_deform_grad[6], d21 = d_deform_grad[7], d22 = d_deform_grad[8];
-
-    // Transform: f_new = f @ deform_grad
-    force_transformed[idx] = fx * d00 + fy * d01 + fz * d02;
-    force_transformed[idx + N] = fx * d10 + fy * d11 + fz * d12;
-    force_transformed[idx + 2 * N] = fx * d20 + fy * d21 + fz * d22;
-  }
-}
-
-// Kernel to update positions in unstrained coordinates
-__global__ void update_positions_unstrained_kernel(double* pos, const double* dr, int N)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    // dr is already in unstrained coordinates, just add
-    pos[idx] += dr[idx];
-    pos[N + idx] += dr[N + idx];
-    pos[2 * N + idx] += dr[2 * N + idx];
-  }
-}
-
-// Kernel to transform positions: pos_strained = pos_unstrained @ (I + deform)
-__global__ void transform_positions_kernel(double* pos, const double* d_deform, int N)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    double x = pos[idx];
-    double y = pos[N + idx];
-    double z = pos[2 * N + idx];
-
-    // (I + deform) transformation
-    double d00 = 1.0 + d_deform[0], d01 = d_deform[1], d02 = d_deform[2];
-    double d10 = d_deform[3], d11 = 1.0 + d_deform[4], d12 = d_deform[5];
-    double d20 = d_deform[6], d21 = d_deform[7], d22 = 1.0 + d_deform[8];
-
-    pos[idx] = x * d00 + y * d01 + z * d02;
-    pos[N + idx] = x * d10 + y * d11 + z * d12;
-    pos[2 * N + idx] = x * d20 + y * d21 + z * d22;
-  }
-}
-
-// Kernel for velocity update: v_new = (1 - a) * v + a * |v| / |f| * f
-__global__ void
-update_velocity_kernel(double* v, const double* f, double a, double v_norm, double f_norm, int size)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) {
-    v[idx] = (1.0 - a) * v[idx] + a * (v_norm / f_norm) * f[idx];
-  }
-}
-
-// Kernel for velocity update after acceleration: v += dt * f
-__global__ void accelerate_velocity_kernel(double* v, const double* f, double dt, int size)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) {
-    v[idx] += dt * f[idx];
-  }
-}
-
-// Kernel for computing dr = dt * v
-__global__ void compute_dr_kernel(const double* v, double* dr, double dt, int size)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) {
-    dr[idx] = dt * v[idx];
-  }
-}
-
-// GPU reduction kernels
 __global__ void gpu_dot_product_kernel(const double* a, const double* b, double* result, int size)
 {
   int tid = threadIdx.x;
   int number_of_patches = (size - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   double sum = 0.0;
-
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * 1024;
-    if (n < size) {
+  for (int p = 0; p < number_of_patches; ++p) {
+    int n = tid + p * 1024;
+    if (n < size)
       sum += a[n] * b[n];
-    }
   }
   s_data[tid] = sum;
   __syncthreads();
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
+    if (tid < offset)
       s_data[tid] += s_data[tid + offset];
-    }
     __syncthreads();
   }
-
-  if (tid == 0) {
+  if (tid == 0)
     *result = s_data[0];
+}
+
+// Dot product of only the 9 cell DOF (offset = atom_size).
+// Used to check if cell velocity and cell force are aligned independently.
+__global__ void
+gpu_dot_product_cell_kernel(const double* v, const double* f, double* result, int atom_size)
+{
+  int tid = threadIdx.x;
+  __shared__ double s_data[1024];
+  double sum = (tid < 9) ? v[atom_size + tid] * f[atom_size + tid] : 0.0;
+  s_data[tid] = sum;
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset)
+      s_data[tid] += s_data[tid + offset];
+    __syncthreads();
   }
+  if (tid == 0)
+    *result = s_data[0];
 }
 
 __global__ void gpu_norm_squared_kernel(const double* a, double* result, int size)
@@ -349,26 +285,20 @@ __global__ void gpu_norm_squared_kernel(const double* a, double* result, int siz
   int number_of_patches = (size - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   double sum = 0.0;
-
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * 1024;
-    if (n < size) {
+  for (int p = 0; p < number_of_patches; ++p) {
+    int n = tid + p * 1024;
+    if (n < size)
       sum += a[n] * a[n];
-    }
   }
   s_data[tid] = sum;
   __syncthreads();
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
+    if (tid < offset)
       s_data[tid] += s_data[tid + offset];
-    }
     __syncthreads();
   }
-
-  if (tid == 0) {
+  if (tid == 0)
     *result = s_data[0];
-  }
 }
 
 __global__ void gpu_max_force_kernel(const double* f, double* result, int N)
@@ -377,37 +307,264 @@ __global__ void gpu_max_force_kernel(const double* f, double* result, int N)
   int number_of_patches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   double max_val = 0.0;
-
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * 1024;
+  for (int p = 0; p < number_of_patches; ++p) {
+    int n = tid + p * 1024;
     if (n < N) {
-      double fx = f[n];
-      double fy = f[n + N];
-      double fz = f[n + 2 * N];
-      double f_mag_sq = fx * fx + fy * fy + fz * fz;
-      if (f_mag_sq > max_val) {
-        max_val = f_mag_sq;
-      }
+      double fx = f[n], fy = f[n + N], fz = f[n + 2 * N];
+      double f2 = fx * fx + fy * fy + fz * fz;
+      if (f2 > max_val)
+        max_val = f2;
     }
   }
   s_data[tid] = max_val;
   __syncthreads();
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      if (s_data[tid + offset] > s_data[tid]) {
-        s_data[tid] = s_data[tid + offset];
-      }
-    }
+    if (tid < offset && s_data[tid + offset] > s_data[tid])
+      s_data[tid] = s_data[tid + offset];
     __syncthreads();
   }
-
-  if (tid == 0) {
+  if (tid == 0)
     *result = s_data[0];
+}
+
+// ---------------------------------------------------------------------------
+// Position / velocity kernels
+// ---------------------------------------------------------------------------
+
+__global__ void update_positions_unstrained_kernel(double* pos, const double* dr, int N)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < N) {
+    pos[idx] += dr[idx];
+    pos[N + idx] += dr[N + idx];
+    pos[2 * N + idx] += dr[2 * N + idx];
   }
 }
 
+// pos_strained = pos_unstrained @ (I + deform)
+__global__ void transform_positions_kernel(double* pos, const double* d_deform, int N)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < N) {
+    double x = pos[idx], y = pos[N + idx], z = pos[2 * N + idx];
+    double d00 = 1.0 + d_deform[0], d01 = d_deform[1], d02 = d_deform[2];
+    double d10 = d_deform[3], d11 = 1.0 + d_deform[4], d12 = d_deform[5];
+    double d20 = d_deform[6], d21 = d_deform[7], d22 = 1.0 + d_deform[8];
+    pos[idx] = x * d00 + y * d01 + z * d02;
+    pos[N + idx] = x * d10 + y * d11 + z * d12;
+    pos[2 * N + idx] = x * d20 + y * d21 + z * d22;
+  }
+}
+
+// f_transformed = force @ deform_grad
+__global__ void transform_forces_kernel(
+  const double* force_per_atom, double* force_transformed, const double* d_deform_grad, int N)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < N) {
+    double fx = force_per_atom[idx];
+    double fy = force_per_atom[idx + N];
+    double fz = force_per_atom[idx + 2 * N];
+    double d00 = d_deform_grad[0], d01 = d_deform_grad[1], d02 = d_deform_grad[2];
+    double d10 = d_deform_grad[3], d11 = d_deform_grad[4], d12 = d_deform_grad[5];
+    double d20 = d_deform_grad[6], d21 = d_deform_grad[7], d22 = d_deform_grad[8];
+    force_transformed[idx] = fx * d00 + fy * d01 + fz * d02;
+    force_transformed[idx + N] = fx * d10 + fy * d11 + fz * d12;
+    force_transformed[idx + 2 * N] = fx * d20 + fy * d21 + fz * d22;
+  }
+}
+
+// v_new = (1 - a) * v + a * |v|/|f| * f
+__global__ void
+update_velocity_kernel(double* v, const double* f, double a, double v_norm, double f_norm, int size)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < size)
+    v[idx] = (1.0 - a) * v[idx] + a * (v_norm / f_norm) * f[idx];
+}
+
+// v += dt * f
+__global__ void accelerate_velocity_kernel(double* v, const double* f, double dt, int size)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < size)
+    v[idx] += dt * f[idx];
+}
+
+// dr = dt * v
+__global__ void compute_dr_kernel(const double* v, double* dr, double dt, int size)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < size)
+    dr[idx] = dt * v[idx];
+}
+
+// ---------------------------------------------------------------------------
+// CPU helper: update box and positions from dr_cell and dr_atoms
+// ---------------------------------------------------------------------------
+//
+// Given the current box, the cell displacement dr_cell (9 components, raw from
+// the velocity vector, already divided by cell_factor outside), and the
+// unstrained positions, this function:
+//   1. Computes the new box
+//   2. Updates the strained (actual) positions
+//   3. Uploads the deform tensor to the GPU pointer d_deform (caller allocates)
+//
+static void apply_cell_update(
+  Box& box,
+  const double* orig_box,
+  const double* dr_cell, // 9-element deform_grad increment (CPU)
+  GPU_Vector<double>& position_per_atom,
+  const GPU_Vector<double>& pos_unstrained,
+  int N,
+  double* d_deform_gpu) // pre-allocated device buffer (9 doubles)
+{
+  // Current deformation gradient: box = orig_box @ F^T  =>  F = solve(orig_box, box)^T
+  double cur_deform_grad[9];
+  solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
+  transpose9(cur_deform_grad);
+
+  // Accumulate increment
+  for (int i = 0; i < 9; i++)
+    cur_deform_grad[i] += dr_cell[i];
+
+  // deform = F - I  (row-major, with transposition to match box convention)
+  double deform[9];
+  for (int i = 0; i < 3; i++)
+    for (int j = 0; j < 3; j++)
+      deform[i * 3 + j] = cur_deform_grad[j * 3 + i] - (i == j ? 1.0 : 0.0);
+
+  // New box: box = orig_box + orig_box @ deform
+  double result[9];
+  matrix_multiply(orig_box, deform, result);
+  for (int i = 0; i < 9; i++)
+    box.cpu_h[i] = orig_box[i] + result[i];
+  box.get_inverse();
+
+  // Upload deform to GPU and transform positions
+  cudaMemcpy(d_deform_gpu, deform, 9 * sizeof(double), cudaMemcpyHostToDevice);
+
+  int threads = 256;
+  int blocks = (N + threads - 1) / threads;
+  cudaMemcpy(
+    position_per_atom.data(),
+    pos_unstrained.data(),
+    N * 3 * sizeof(double),
+    cudaMemcpyDeviceToDevice);
+  transform_positions_kernel<<<blocks, threads>>>(position_per_atom.data(), d_deform_gpu, N);
+  GPU_CHECK_KERNEL
+}
+
+// ---------------------------------------------------------------------------
+// CPU helper: compute extended force vector (atomic forces + virial-based cell
+// forces) and store into f_extended.
+// Also returns the current pressure for printing.
+// ---------------------------------------------------------------------------
+static double compute_extended_forces(
+  Force& force,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  std::vector<Group>& group,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& virial_tot,
+  GPU_Vector<double>& f_transformed,
+  GPU_Vector<double>& f_extended,
+  const double* orig_box,
+  int N,
+  int size,
+  bool optimize_cell,
+  bool hydrostatic_strain,
+  double cell_factor)
+{
+  // Compute forces
+  force.compute(
+    box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
+
+  if (!optimize_cell) {
+    cudaMemcpy(
+      f_extended.data(), force_per_atom.data(), size * sizeof(double), cudaMemcpyDeviceToDevice);
+    return 0.0;
+  }
+
+  // Sum virial tensor
+  gpu_sum_virial<<<9, 1024>>>(
+    N,
+    virial_per_atom.data() + 0 * N,
+    virial_per_atom.data() + 3 * N,
+    virial_per_atom.data() + 4 * N,
+    virial_per_atom.data() + 6 * N,
+    virial_per_atom.data() + 1 * N,
+    virial_per_atom.data() + 5 * N,
+    virial_per_atom.data() + 7 * N,
+    virial_per_atom.data() + 8 * N,
+    virial_per_atom.data() + 2 * N,
+    virial_tot.data());
+  GPU_CHECK_KERNEL
+
+  double virial_cpu[9];
+  virial_tot.copy_to_host(virial_cpu);
+  // Symmetrise off-diagonal pairs
+  virial_cpu[1] = virial_cpu[3] = 0.5 * (virial_cpu[1] + virial_cpu[3]);
+  virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
+  virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
+
+  double pressure =
+    (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3.0 / box.get_volume() * 160.2176621;
+
+  // Compute current deformation gradient
+  double cur_deform_grad[9];
+  solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
+  transpose9(cur_deform_grad);
+
+  // Transform atomic forces: f_transformed = f @ F
+  double* d_deform_grad;
+  cudaMalloc(&d_deform_grad, 9 * sizeof(double));
+  cudaMemcpy(d_deform_grad, cur_deform_grad, 9 * sizeof(double), cudaMemcpyHostToDevice);
+
+  int threads = 256;
+  int blocks = (N + threads - 1) / threads;
+  transform_forces_kernel<<<blocks, threads>>>(
+    force_per_atom.data(), f_transformed.data(), d_deform_grad, N);
+  GPU_CHECK_KERNEL
+
+  // Transform virial: virial_transformed = solve(F, virial^T)^T / cell_factor
+  double virial_t[9];
+  memcpy(virial_t, virial_cpu, 9 * sizeof(double));
+  transpose9(virial_t);
+  double temp[9];
+  solve_linear_equation_3x3(cur_deform_grad, virial_t, temp);
+  double virial_transformed[9];
+  memcpy(virial_transformed, temp, 9 * sizeof(double));
+  transpose9(virial_transformed);
+
+  if (hydrostatic_strain) {
+    double trace = virial_transformed[0] + virial_transformed[4] + virial_transformed[8];
+    for (int i = 0; i < 9; i++)
+      virial_transformed[i] = 0.0;
+    virial_transformed[0] = virial_transformed[4] = virial_transformed[8] = trace / 3.0;
+  }
+
+  for (int i = 0; i < 9; i++)
+    virial_transformed[i] /= cell_factor;
+
+  // Assemble extended force vector
+  cudaMemcpy(
+    f_extended.data(), f_transformed.data(), size * sizeof(double), cudaMemcpyDeviceToDevice);
+  cudaMemcpy(
+    f_extended.data() + size, virial_transformed, 9 * sizeof(double), cudaMemcpyHostToDevice);
+
+  cudaFree(d_deform_grad);
+  return pressure;
+}
+
 } // namespace
+
+// ---------------------------------------------------------------------------
+// Main FIRE2 compute function
+// ---------------------------------------------------------------------------
 
 void Minimizer_FIRE2::compute(
   Force& force,
@@ -422,22 +579,27 @@ void Minimizer_FIRE2::compute(
   const int N = number_of_atoms_;
   const int size = N * 3;
   const int ndof = optimize_cell_ ? (size + 9) : size;
-  int base = 1; // (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
+  const int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
-  // Initialize velocities and working arrays
+  // Working arrays
   GPU_Vector<double> v(ndof, 0.0);
   GPU_Vector<double> dr(ndof);
   GPU_Vector<double> f_extended(ndof);
   GPU_Vector<double> f_transformed(size);
   GPU_Vector<double> virial_tot(9);
   GPU_Vector<double> d_temp(1);
-  GPU_Vector<double> pos_unstrained(size); // Store unstrained coordinates
+  GPU_Vector<double> pos_unstrained(size);
 
-  double orig_box[9];
+  // Pre-allocate device buffer for deform tensor (reused throughout)
+  double* d_deform_buf = nullptr;
   if (optimize_cell_) {
-    for (int i = 0; i < 9; i++) {
+    cudaMalloc(&d_deform_buf, 9 * sizeof(double));
+  }
+
+  double orig_box[9] = {};
+  if (optimize_cell_) {
+    for (int i = 0; i < 9; i++)
       orig_box[i] = box.cpu_h[i];
-    }
     cudaMemcpy(
       pos_unstrained.data(),
       position_per_atom.data(),
@@ -445,97 +607,46 @@ void Minimizer_FIRE2::compute(
       cudaMemcpyDeviceToDevice);
   }
 
-  // FIRE2 parameters
-  dt_ /= 10;
-  dtmax_ /= 1;  
-  dtmin_ /= 1; //
-  double dt = dt_ ;
+  // FIRE2 running state
+
+  double dt = dt_0_;
   double alpha = astart_;
   int Nsteps = 0;
-  printf("\nFIRE2 energy minimization started.\n");
+  double fmax_prev = 1e30; // tracks previous fmax for growth detection
+
+  printf("\nEnergy minimization with changed box started.\n");
+
+  const int atom_blocks = (size + 255) / 256;
+  const int ndof_blocks = (ndof + 255) / 256;
+
+  // Energy window for plateau-convergence detection (see criterion (b) below)
+  const int win_size = 10;
+  std::vector<double> energy_window(win_size, 0.0);
 
   for (int step = 0; step < number_of_steps_; ++step) {
-    // Compute forces and virial
-    force.compute(
-      box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
-    if (optimize_cell_) {
-      // Sum virial tensor
-      gpu_sum_virial<<<9, 1024>>>(
-        N,
-        virial_per_atom.data() + 0 * N,
-        virial_per_atom.data() + 3 * N,
-        virial_per_atom.data() + 4 * N,
-        virial_per_atom.data() + 6 * N,
-        virial_per_atom.data() + 1 * N,
-        virial_per_atom.data() + 5 * N,
-        virial_per_atom.data() + 7 * N,
-        virial_per_atom.data() + 8 * N,
-        virial_per_atom.data() + 2 * N,
-        virial_tot.data());
-      GPU_CHECK_KERNEL
+    // ------------------------------------------------------------------
+    // 1. Compute forces (and virial-based cell forces when optimize_cell_)
+    // ------------------------------------------------------------------
+    double pressure = compute_extended_forces(
+      force,
+      box,
+      position_per_atom,
+      type,
+      group,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      virial_tot,
+      f_transformed,
+      f_extended,
+      orig_box,
+      N,
+      size,
+      optimize_cell_,
+      hydrostatic_strain_,
+      cell_factor_);
 
-      double virial_cpu[9];
-      virial_tot.copy_to_host(virial_cpu);
-      virial_cpu[1] = virial_cpu[3] = 0.5 * (virial_cpu[1] + virial_cpu[3]);
-      virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
-      virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
-
-      // Compute current deformation gradient
-      double cur_deform_grad[9];
-      solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
-      transpose9(cur_deform_grad);
-
-      // Transform atomic forces
-      double* d_deform_grad;
-      cudaMalloc(&d_deform_grad, 9 * sizeof(double));
-      cudaMemcpy(d_deform_grad, cur_deform_grad, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-      int threads = 256;
-      int blocks = (N + threads - 1) / threads;
-      transform_forces_kernel<<<blocks, threads>>>(
-        force_per_atom.data(), f_transformed.data(), d_deform_grad, N);
-      GPU_CHECK_KERNEL
-
-      // Transform virial
-      double virial_t[9];
-      memcpy(virial_t, virial_cpu, 9 * sizeof(double));
-      transpose9(virial_t);
-      double temp[9];
-      solve_linear_equation_3x3(cur_deform_grad, virial_t, temp);
-      double virial_transformed[9];
-      memcpy(virial_transformed, temp, 9 * sizeof(double));
-      transpose9(virial_transformed);
-
-      // Apply hydrostatic strain if needed
-      if (hydrostatic_strain_) {
-        double trace = virial_transformed[0] + virial_transformed[4] + virial_transformed[8];
-        for (int i = 0; i < 9; i++)
-          virial_transformed[i] = 0.0;
-        virial_transformed[0] = trace / 3.0;
-        virial_transformed[4] = trace / 3.0;
-        virial_transformed[8] = trace / 3.0;
-      }
-
-      // Scale by cell factor
-      for (int i = 0; i < 9; i++) {
-        virial_transformed[i] /= cell_factor_;
-      }
-
-      // Copy to extended force array
-      cudaMemcpy(
-        f_extended.data(), f_transformed.data(), size * sizeof(double), cudaMemcpyDeviceToDevice);
-      cudaMemcpy(
-        f_extended.data() + size, virial_transformed, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-      cudaFree(d_deform_grad);
-    } else {
-      // Just copy atomic forces
-      cudaMemcpy(
-        f_extended.data(), force_per_atom.data(), size * sizeof(double), cudaMemcpyDeviceToDevice);
-    }
-
-    // Calculate maximum force
     gpu_max_force_kernel<<<1, 1024>>>(
       f_extended.data(), d_temp.data(), optimize_cell_ ? (N + 3) : N);
     GPU_CHECK_KERNEL
@@ -545,284 +656,210 @@ void Minimizer_FIRE2::compute(
 
     calculate_total_potential(potential_per_atom);
     double energy = cpu_total_potential_[0];
-
-    // Print progress step == 0 || (step + 1) % base == 0 || 
-    if (step % base == 0) {
-      double pressure = 0.0;
-      if (optimize_cell_) {
-        double virial_cpu[9];
-        virial_tot.copy_to_host(virial_cpu);
-        pressure =
-          (virial_cpu[0] + virial_cpu[4] + virial_cpu[8]) / 3.0 / box.get_volume() * 160.2176621;
-      }
-      // printf("current dt is %f\n", dt);
+    if (step == 0 || (step + 1) % base == 0 || fmax < force_tolerance_) {
       printf(
         "    step %d: E = %.10f eV, fmax = %.10f eV/A", step == 0 ? 0 : (step + 1), energy, fmax);
-      if (optimize_cell_) {
+      if (optimize_cell_)
         printf(", P = %.6f GPa", pressure);
-      }
       printf("\n");
-
-      if (fmax < force_tolerance_) {
-        printf("  Converged! fmax < %.2e\n", force_tolerance_);
-        break;
-      }
     }
 
-    // FIRE2 algorithm
-    // Compute P = v · f
+    if (fmax < force_tolerance_) {
+      printf("  Converged! fmax = %.2e < ftol = %.2e\n", fmax, force_tolerance_);
+      break;
+    }
+
+    // ------------------------------------------------------------------
+    // 2. FIRE2: compute P = v·f (total) and P_cell = v_cell·f_cell
+    //
+    //    Three reset triggers:
+    //    (a) P_total <= 0: velocity not aligned with force
+    //    (b) P_cell <= 0: cell velocity diverging from cell force
+    //    (c) fmax_current > fmax_grow_factor * fmax_prev: forces growing
+    //        (indicates integrator instability even if P > 0 momentarily)
+    // ------------------------------------------------------------------
     gpu_dot_product_kernel<<<1, 1024>>>(v.data(), f_extended.data(), d_temp.data(), ndof);
     GPU_CHECK_KERNEL
     double P;
     d_temp.copy_to_host(&P);
 
-    if (P > 0.0) {
+    double P_cell = 1.0;
+    if (optimize_cell_) {
+      gpu_dot_product_cell_kernel<<<1, 1024>>>(v.data(), f_extended.data(), d_temp.data(), size);
+      GPU_CHECK_KERNEL
+      d_temp.copy_to_host(&P_cell);
+    }
+
+    // Detect force growth: reset if fmax increased significantly vs last step
+    const double fmax_grow_factor = 1.2; // allow 20% fluctuation, reset on more
+    bool fmax_growing = (step > 0) && (fmax > fmax_grow_factor * fmax_prev);
+    fmax_prev = fmax;
+
+    const bool going_right = (P > 0.0) && (P_cell > 0.0) && !fmax_growing;
+
+    if (going_right) {
+      // ---- All checks pass: increase dt ----
       Nsteps++;
       if (Nsteps > Nmin_) {
         dt = std::min(dt * finc_, dtmax_);
         alpha *= fa_;
       }
     } else {
+      // ---- Something going wrong: reset ----
       Nsteps = 0;
       dt = std::max(dt * fdec_, dtmin_);
       alpha = astart_;
 
-      // Step back: pos -= 0.5 * dt * v
-      compute_dr_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), dr.data(), -0.5 * dt, ndof);
+      // Step back: pos -= 0.5 * dt * v  (half-step retrace)
+      compute_dr_kernel<<<ndof_blocks, 256>>>(v.data(), dr.data(), -0.5 * dt, ndof);
       GPU_CHECK_KERNEL
 
-      int threads = 256;
-      int blocks = (N + threads - 1) / threads;
-
       if (optimize_cell_) {
-        // Update unstrained positions
-        update_positions_unstrained_kernel<<<blocks, threads>>>(
+        // Retrace atomic positions (unstrained)
+        update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
           pos_unstrained.data(), dr.data(), N);
         GPU_CHECK_KERNEL
 
-        // Update deformation gradient
+        // Retrace cell DOF
         double dr_cell[9];
         cudaMemcpy(dr_cell, dr.data() + size, 9 * sizeof(double), cudaMemcpyDeviceToHost);
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 9; i++)
           dr_cell[i] /= cell_factor_;
-        }
 
-        double cur_deform_grad[9];
-        solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
-        transpose9(cur_deform_grad);
-
-        for (int i = 0; i < 9; i++) {
-          cur_deform_grad[i] += dr_cell[i];
-        }
-
-        // Update box: new_box = orig_box @ (I + deform)
-        double deform[9];
-        for (int i = 0; i < 3; i++) {
-          for (int j = 0; j < 3; j++) {
-            deform[i * 3 + j] = cur_deform_grad[j * 3 + i] - (i == j ? 1.0 : 0.0);
-          }
-        }
-
-        double result[9];
-        matrix_multiply(orig_box, deform, result);
-        for (int i = 0; i < 9; i++) {
-          box.cpu_h[i] = orig_box[i] + result[i];
-        }
-        box.get_inverse();
-
-        // Update actual positions: pos = pos_unstrained @ (I + deform)
-        double* d_deform;
-        cudaMalloc(&d_deform, 9 * sizeof(double));
-        cudaMemcpy(d_deform, deform, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-        cudaMemcpy(
-          position_per_atom.data(),
-          pos_unstrained.data(),
-          size * sizeof(double),
-          cudaMemcpyDeviceToDevice);
-        transform_positions_kernel<<<blocks, threads>>>(position_per_atom.data(), d_deform, N);
-        GPU_CHECK_KERNEL
-
-        cudaFree(d_deform);
+        apply_cell_update(
+          box, orig_box, dr_cell, position_per_atom, pos_unstrained, N, d_deform_buf);
       } else {
-        // Simple position update
-        update_positions_unstrained_kernel<<<blocks, threads>>>(
+        update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
           position_per_atom.data(), dr.data(), N);
         GPU_CHECK_KERNEL
       }
 
-      // Recompute forces after step back
-      force.compute(
-        box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
+      // Recompute forces after step-back
+      pressure = compute_extended_forces(
+        force,
+        box,
+        position_per_atom,
+        type,
+        group,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        virial_tot,
+        f_transformed,
+        f_extended,
+        orig_box,
+        N,
+        size,
+        optimize_cell_,
+        hydrostatic_strain_,
+        cell_factor_);
 
-      if (optimize_cell_) {
-        gpu_sum_virial<<<9, 1024>>>(
-          N,
-          virial_per_atom.data() + 0 * N,
-          virial_per_atom.data() + 3 * N,
-          virial_per_atom.data() + 4 * N,
-          virial_per_atom.data() + 6 * N,
-          virial_per_atom.data() + 1 * N,
-          virial_per_atom.data() + 5 * N,
-          virial_per_atom.data() + 7 * N,
-          virial_per_atom.data() + 8 * N,
-          virial_per_atom.data() + 2 * N,
-          virial_tot.data());
-        GPU_CHECK_KERNEL
-
-        double virial_cpu[9];
-        virial_tot.copy_to_host(virial_cpu);
-        virial_cpu[1] = virial_cpu[3] = 0.5 * (virial_cpu[1] + virial_cpu[3]);
-        virial_cpu[2] = virial_cpu[6] = 0.5 * (virial_cpu[2] + virial_cpu[6]);
-        virial_cpu[5] = virial_cpu[7] = 0.5 * (virial_cpu[5] + virial_cpu[7]);
-
-        double cur_deform_grad[9];
-        solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
-        transpose9(cur_deform_grad);
-
-        double* d_deform_grad;
-        cudaMalloc(&d_deform_grad, 9 * sizeof(double));
-        cudaMemcpy(d_deform_grad, cur_deform_grad, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-        transform_forces_kernel<<<blocks, threads>>>(
-          force_per_atom.data(), f_transformed.data(), d_deform_grad, N);
-        GPU_CHECK_KERNEL
-
-        double virial_t[9];
-        memcpy(virial_t, virial_cpu, 9 * sizeof(double));
-        transpose9(virial_t);
-        double temp[9];
-        solve_linear_equation_3x3(cur_deform_grad, virial_t, temp);
-        double virial_transformed[9];
-        memcpy(virial_transformed, temp, 9 * sizeof(double));
-        transpose9(virial_transformed);
-
-        if (hydrostatic_strain_) {
-          double trace = virial_transformed[0] + virial_transformed[4] + virial_transformed[8];
-          for (int i = 0; i < 9; i++)
-            virial_transformed[i] = 0.0;
-          virial_transformed[0] = trace / 3.0;
-          virial_transformed[4] = trace / 3.0;
-          virial_transformed[8] = trace / 3.0;
-        }
-
-        for (int i = 0; i < 9; i++) {
-          virial_transformed[i] /= cell_factor_;
-        }
-
-        cudaMemcpy(
-          f_extended.data(), f_transformed.data(), size * sizeof(double), cudaMemcpyDeviceToDevice);
-        cudaMemcpy(
-          f_extended.data() + size, virial_transformed, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-        cudaFree(d_deform_grad);
-      } else {
-        cudaMemcpy(
-          f_extended.data(),
-          force_per_atom.data(),
-          size * sizeof(double),
-          cudaMemcpyDeviceToDevice);
-      }
-
+      // Zero all velocities after bad step
       v.fill(0.0);
-      // NO continue here
+    } // end going_right / reset branch
+
+    // ------------------------------------------------------------------
+    // 3. Velocity update: v += dt * f
+    // ------------------------------------------------------------------
+    accelerate_velocity_kernel<<<ndof_blocks, 256>>>(v.data(), f_extended.data(), dt, ndof);
+    GPU_CHECK_KERNEL
+
+    // ------------------------------------------------------------------
+    // 4. FIRE2 velocity mixing + Nesterov correction
+    //
+    //    v = (1-alpha)*v + alpha*(|v|/|f|)*f
+    //
+    //    Guard against |f|->0 near convergence:
+    //    Use a minimum force floor (f_floor) to prevent the |v|/|f| ratio
+    //    from diverging when forces are tiny. This is the key fix for the
+    //    numerical instability seen at steps 90-116 in the 2-atom W cell:
+    //    with fmax~1e-5 and |v|~0.1, the naive ratio is ~20000, which makes
+    //    the velocity mixing inject a huge force-aligned component that then
+    //    gets amplified by subsequent steps.
+    //
+    //    Nesterov abc_multiplier is capped at abc_mult_max_ (1.5) to prevent
+    //    runaway amplification when alpha is small and Nsteps is large.
+    //    Applied to ATOMIC DOF only (not cell DOF).
+    // ------------------------------------------------------------------
+    alpha = std::max(alpha, 1e-10);
+
+    // Compute norms with a safety floor
+    gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
+    GPU_CHECK_KERNEL
+    double v_norm_sq;
+    d_temp.copy_to_host(&v_norm_sq);
+    double v_norm = sqrt(v_norm_sq);
+
+    gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
+    GPU_CHECK_KERNEL
+    double f_norm_sq;
+    d_temp.copy_to_host(&f_norm_sq);
+    double f_norm = sqrt(f_norm_sq);
+
+    // Only mix if forces are meaningful; skip if essentially zero
+    // (convergence already checked above, so we're still running)
+    // Safety floor on |f| to prevent |v|/|f| explosion when forces are tiny.
+    // With fmax~1e-5 eV/A and |v|~0.1, the naive ratio ~20000 destabilizes mixing.
+    const double f_floor = 1e-6 * std::sqrt(static_cast<double>(N));
+    if (f_norm > 1e-30) {
+      double f_norm_eff = std::max(f_norm, f_floor);
+      update_velocity_kernel<<<ndof_blocks, 256>>>(
+        v.data(), f_extended.data(), alpha, v_norm, f_norm_eff, ndof);
+      GPU_CHECK_KERNEL
+    } else {
+      v.fill(0.0);
     }
-    // v += dt * f
-    accelerate_velocity_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), f_extended.data(), dt, ndof);
+
+    // Nesterov abc_multiplier on ATOMIC DOF only, capped for stability
+    double abc_raw = 1.0 / (1.0 - std::pow(std::max(1.0 - alpha, 0.0), (Nsteps + 1)));
+    double abc_multiplier = std::min(abc_raw, abc_mult_max_);
+    if (abc_multiplier > 1.0 + 1e-9) {
+      gpu_multiply<<<atom_blocks, 256>>>(size, abc_multiplier, v.data(), v.data());
+      GPU_CHECK_KERNEL
+    }
+
+    // ------------------------------------------------------------------
+    // 5. Velocity limiters (second key fix)
+    //    - Atomic DOF: max displacement = maxstep_ (Angstrom)
+    //    - Cell DOF:   max strain step  = max_strain_step_ (dimensionless)
+    //      This is the vmax equivalent from LAMMPS box/relax.
+    // ------------------------------------------------------------------
+    filter_v_atoms<<<atom_blocks, 256>>>(size, dt, maxstep_, v.data());
     GPU_CHECK_KERNEL
-
-
-      alpha = std::max(alpha, 1e-10);
-      double abc_multiplier = 1.0 / (1.0 - std::pow(1.0 - alpha, (Nsteps + 1)));
-      // Mix velocity: v = (1 - alpha) * v + alpha * |v|/|f| * f
-      gpu_norm_squared_kernel<<<1, 1024>>>(v.data(), d_temp.data(), ndof);
-      GPU_CHECK_KERNEL
-      double v_norm_sq;
-      d_temp.copy_to_host(&v_norm_sq);
-      double v_norm = sqrt(v_norm_sq);
-
-      gpu_norm_squared_kernel<<<1, 1024>>>(f_extended.data(), d_temp.data(), ndof);
-      GPU_CHECK_KERNEL
-      double f_norm_sq;
-      d_temp.copy_to_host(&f_norm_sq);
-      double f_norm = sqrt(f_norm_sq);
-
-      if (f_norm > 1e-10) {
-        update_velocity_kernel<<<(ndof + 255) / 256, 256>>>(
-          v.data(), f_extended.data(), alpha, v_norm, f_norm, ndof);
-        GPU_CHECK_KERNEL
-      }
-      int threads = 256;
-      int blocks = (ndof + threads - 1) / threads;
-      gpu_multiply<<<blocks, threads>>>(ndof, abc_multiplier, v.data(), v.data());
-      GPU_CHECK_KERNEL
-      filter_v<<<blocks, threads>>>(ndof, dt, maxstep_, v.data());
-      GPU_CHECK_KERNEL
-    
-
-    // Compute displacement: dr = dt * v
-    compute_dr_kernel<<<(ndof + 255) / 256, 256>>>(v.data(), dr.data(), dt, ndof);
-    GPU_CHECK_KERNEL
-
-    // Update positions and box
-    blocks = (N + threads - 1) / threads;
 
     if (optimize_cell_) {
-      // Update unstrained positions
-      update_positions_unstrained_kernel<<<blocks, threads>>>(pos_unstrained.data(), dr.data(), N);
+      filter_v_cell<<<1, 256>>>(size, dt, max_strain_step_, v.data());
+      GPU_CHECK_KERNEL
+    }
+
+    // ------------------------------------------------------------------
+    // 6. Compute displacement dr = dt * v
+    // ------------------------------------------------------------------
+    compute_dr_kernel<<<ndof_blocks, 256>>>(v.data(), dr.data(), dt, ndof);
+    GPU_CHECK_KERNEL
+
+    // ------------------------------------------------------------------
+    // 7. Apply displacements
+    // ------------------------------------------------------------------
+    if (optimize_cell_) {
+      update_positions_unstrained_kernel<<<atom_blocks, 256>>>(pos_unstrained.data(), dr.data(), N);
       GPU_CHECK_KERNEL
 
-      // Update deformation gradient
       double dr_cell[9];
       cudaMemcpy(dr_cell, dr.data() + size, 9 * sizeof(double), cudaMemcpyDeviceToHost);
-      for (int i = 0; i < 9; i++) {
+      for (int i = 0; i < 9; i++)
         dr_cell[i] /= cell_factor_;
-      }
 
-      double cur_deform_grad[9];
-      solve_linear_equation_3x3(orig_box, box.cpu_h, cur_deform_grad);
-      transpose9(cur_deform_grad);
-
-      for (int i = 0; i < 9; i++) {
-        cur_deform_grad[i] += dr_cell[i];
-      }
-
-      // Update box: new_box = orig_box @ (I + deform)
-      double deform[9];
-      for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-          deform[i * 3 + j] = cur_deform_grad[j * 3 + i] - (i == j ? 1.0 : 0.0);
-        }
-      }
-
-      double result[9];
-      matrix_multiply(orig_box, deform, result);
-      for (int i = 0; i < 9; i++) {
-        box.cpu_h[i] = orig_box[i] + result[i];
-      }
-      box.get_inverse();
-
-      // Update actual positions: pos = pos_unstrained @ (I + deform)
-      double* d_deform;
-      cudaMalloc(&d_deform, 9 * sizeof(double));
-      cudaMemcpy(d_deform, deform, 9 * sizeof(double), cudaMemcpyHostToDevice);
-
-      cudaMemcpy(
-        position_per_atom.data(),
-        pos_unstrained.data(),
-        size * sizeof(double),
-        cudaMemcpyDeviceToDevice);
-      transform_positions_kernel<<<blocks, threads>>>(position_per_atom.data(), d_deform, N);
-      GPU_CHECK_KERNEL
-
-      cudaFree(d_deform);
+      apply_cell_update(box, orig_box, dr_cell, position_per_atom, pos_unstrained, N, d_deform_buf);
     } else {
-      // Simple position update
-      update_positions_unstrained_kernel<<<blocks, threads>>>(
+      update_positions_unstrained_kernel<<<atom_blocks, 256>>>(
         position_per_atom.data(), dr.data(), N);
       GPU_CHECK_KERNEL
     }
   }
 
-  printf("FIRE2 energy minimization finished.\n\n");
+  if (optimize_cell_ && d_deform_buf)
+    cudaFree(d_deform_buf);
+
+  printf("Energy minimization finished.\n\n");
 }
