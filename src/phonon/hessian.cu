@@ -33,6 +33,7 @@ Then calculate the dynamical matrices with different k points.
 void Hessian::compute(
   Force& force,
   Box& box,
+  const std::vector<double>& cpu_mass,
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
@@ -41,7 +42,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(type.size());
+  create_basis(cpu_mass, type.size());
   find_H(
     force,
     box,
@@ -62,25 +63,29 @@ void Hessian::compute(
   }
 }
 
-void Hessian::read_basis(size_t N)
+void Hessian::create_basis(const std::vector<double>& cpu_mass, size_t N)
 {
-  FILE* fid = fopen("basis.in", "r");
-  size_t count;
-  count = fscanf(fid, "%zu", &num_basis);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
+  std::ifstream fin("run.in");
+  std::string key;
+  if (!(fin >> key && key == "replicate")) {
+    PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
+  }
+  fin >> cx >> cy >> cz;
+  fin.close();
+  num_basis = N / (cx * cy * cz);
 
   basis.resize(num_basis);
   mass.resize(num_basis);
-  for (size_t m = 0; m < num_basis; ++m) {
-    count = fscanf(fid, "%zu%lf", &basis[m], &mass[m]);
-    PRINT_SCANF_ERROR(count, 2, "Reading error for basis.in.");
+  for (size_t i = 0; i < num_basis; ++i) {
+    basis[i] = i;
+    mass[i] = cpu_mass[i];
   }
+
   label.resize(N);
   for (size_t n = 0; n < N; ++n) {
-    count = fscanf(fid, "%zu", &label[n]);
-    PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
+    size_t atom = n % num_basis;
+    label[n] = atom;
   }
-  fclose(fid);
 }
 
 void Hessian::read_kpoints()
@@ -100,7 +105,7 @@ void Hessian::read_kpoints()
 
 void Hessian::initialize(size_t N)
 {
-  read_basis(N);
+  create_basis(cpu_mass, N);
   read_kpoints();
   size_t num_H = num_basis * N * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
