@@ -103,7 +103,7 @@ void Hessian::read_kpoints()
   fclose(fid);
 }
 
-void Hessian::initialize(size_t N)
+void Hessian::initialize(const std::vector<double>& cpu_mass, size_t N)
 {
   create_basis(cpu_mass, N);
   read_kpoints();
