@@ -55,12 +55,15 @@ protected:
   std::vector<size_t> label;
   std::vector<double> mass;
   std::vector<double> kpoints;
+  std::vector<double> kpath;
+  std::vector<double> kpath_sym;
   std::vector<double> H;
   std::vector<double> DR;
   std::vector<double> DI;
+  std::vector<std::string> sym_names;
 
   void create_basis(const std::vector<double>& cpu_mass, size_t N);
-  void read_kpoints();
+  void create_kpoints(const Box& box);
   void initialize(const std::vector<double>& cpu_mass, size_t N);
   void finalize(void);
 
