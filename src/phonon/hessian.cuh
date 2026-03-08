@@ -36,7 +36,7 @@ public:
   void compute(
     Force& force,
     Box& box,
-    std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_mass,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
