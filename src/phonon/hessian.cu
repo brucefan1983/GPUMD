@@ -30,6 +30,7 @@ Then calculate the dynamical matrices with different k points.
 #include <vector>
 #include <cstring>
 
+#define M_PI 3.14159265358979323846
 namespace
 {
   // Helper structures for automatic k-point generation

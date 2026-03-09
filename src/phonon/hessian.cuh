@@ -32,7 +32,6 @@ private:
 public:
   double displacement = 0.005;
   double cutoff = 4.0;
-  double M_PI = 3.14159265358979323846;
 
   void compute(
     Force& force,
