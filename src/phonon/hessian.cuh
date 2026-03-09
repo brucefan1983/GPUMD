@@ -31,7 +31,8 @@ private:
 
 public:
   double displacement = 0.005;
-  double cutoff = 4.0;
+  double cutoff = 8.0; 
+  double phonon_cutoff = 16.0;
 
   void compute(
     Force& force,
@@ -46,6 +47,7 @@ public:
     GPU_Vector<double>& virial_per_atom);
 
   void parse(const char**, size_t);
+  void get_cutoff_from_potential(Force& force);
 
 protected:
   size_t num_basis;
@@ -64,7 +66,7 @@ protected:
 
   void create_basis(const std::vector<double>& cpu_mass, size_t N);
   void create_kpoints(const Box& box);
-  void initialize(const std::vector<double>& cpu_mass, const Box& box, size_t N);
+  void initialize(const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N);
   void finalize(void);
 
   void find_H(
@@ -90,6 +92,6 @@ protected:
 
   void find_eigenvectors();
   void output_D();
-  void find_omega(FILE*, size_t);
+  void find_omega(FILE*, size_t, size_t);
   void find_omega_batch(FILE*);
 };
