@@ -107,7 +107,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(cpu_mass, box, type.size());
+  initialize(cpu_mass, box, force, type.size());
   find_H(
     force,
     box,
@@ -128,15 +128,19 @@ void Hessian::compute(
   }
 }
 
+void Hessian::get_cutoff_from_potential(Force& force)
+{
+  for (const auto& potential : force.potentials) {
+    if (potential->rc > cutoff) {
+      cutoff = potential->rc;
+    }
+  }
+  phonon_cutoff = cutoff * 2.0;
+  printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);
+}
+
 void Hessian::create_basis(const std::vector<double>& cpu_mass, size_t N)
 {
-  std::ifstream fin("run.in");
-  std::string key;
-  if (!(fin >> key && key == "replicate")) {
-    PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
-  }
-  fin >> cx >> cy >> cz;
-  fin.close();
   num_basis = N / (cx * cy * cz);
 
   basis.resize(num_basis);
@@ -183,7 +187,7 @@ void Hessian::create_kpoints(const Box& box)
     char name[16];
     int n = sscanf(line.c_str(), "%lf %lf %lf %15[^# \n]", &x, &y, &z, name);
     if (n < 4) {
-      PRINT_INPUT_ERROR("kpoints.in file error.");
+      PRINT_INPUT_ERROR("kpoints.in file format error.");
     }
 
     hsp.push_back({x, y, z});
@@ -204,11 +208,11 @@ void Hessian::create_kpoints(const Box& box)
   kpath_sym.resize(num_kpoints);
   num_kpoints = (num_kpoints - 1) * 100 + 1;
 
-  const Vec3 lattice[3] = {
+  const Vec3 origin_lattice[3] = {
     {box.cpu_h[0] / cx, box.cpu_h[3] / cx, box.cpu_h[6] / cx},
     {box.cpu_h[1] / cy, box.cpu_h[4] / cy, box.cpu_h[7] / cy},
     {box.cpu_h[2] / cz, box.cpu_h[5] / cz, box.cpu_h[8] / cz}};
-  const auto rec_lat = reciprocal_lattice(lattice);
+  const auto rec_lat = reciprocal_lattice(origin_lattice);
 
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
@@ -254,8 +258,32 @@ void Hessian::create_kpoints(const Box& box)
   }
 }
 
-void Hessian::initialize(const std::vector<double>& cpu_mass, const Box& box, size_t N)
+void Hessian::initialize(const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N)
 {
+  get_cutoff_from_potential(force);
+  std::ifstream fin("run.in");
+  std::string key;
+  if (!(fin >> key && key == "replicate")) {
+    PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
+  }
+  fin >> cx >> cy >> cz;
+  fin.close();
+
+  double lattice_lengths[3] = {box.cpu_h[0] / cx, box.cpu_h[4] / cy, box.cpu_h[8] / cz};
+  int s_c[3] = {1, 1, 1};
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 1; j < 100; ++j) {
+      if (lattice_lengths[i] * j >= cutoff * 4) {
+        s_c[i] = j;
+        break;
+      }
+    }
+  }
+  printf("Suggested replicate size for phonon calculations:\n");
+  printf("Replicate in x >= %d.\n", s_c[0]);
+  printf("Replicate in y >= %d.\n", s_c[1]);
+  printf("Replicate in z >= %d.\n", s_c[2]);
+
   create_basis(cpu_mass, N);
   create_kpoints(box);
   size_t num_H = num_basis * N * 9;
@@ -282,7 +310,7 @@ bool Hessian::is_too_far(
                cpu_position_per_atom[n1 + number_of_atoms * 2];
   apply_mic(box, x12, y12, z12);
   double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-  return (d12_square > (cutoff * cutoff));
+  return (d12_square > (phonon_cutoff * phonon_cutoff));
 }
 
 void Hessian::find_H(
@@ -355,7 +383,7 @@ void Hessian::output_D()
       }
       if (num_kpoints > 1) {
         for (size_t n2 = 0; n2 < num_basis * 3; ++n2) {
-          // cuSOLVER requires column-major
+          //cuSOLVER requires column-major
           fprintf(fid, "%g ", DI[offset + n1 + n2 * num_basis * 3]);
         }
       }
@@ -365,12 +393,13 @@ void Hessian::output_D()
   fclose(fid);
 }
 
-void Hessian::find_omega(FILE* fid, size_t offset)
+void Hessian::find_omega(FILE* fid, size_t offset, size_t nk)
 {
   size_t dim = num_basis * 3;
   std::vector<double> W(dim);
   eig_hermitian_QR(dim, DR.data() + offset, DI.data() + offset, W.data());
   double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION * TIME_UNIT_CONVERSION);
+  fprintf(fid, "%.6f ", kpath[nk]);
   for (size_t n = 0; n < dim; ++n) {
     fprintf(fid, "%g ", W[n] * natural_to_THz);
   }
@@ -385,6 +414,7 @@ void Hessian::find_omega_batch(FILE* fid)
   double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION * TIME_UNIT_CONVERSION);
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * dim;
+    fprintf(fid, "%.6f ", kpath[nk]);
     for (size_t n = 0; n < dim; ++n) {
       fprintf(fid, "%g ", W[offset + n] * natural_to_THz);
     }
@@ -397,6 +427,17 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
   const int number_of_atoms = cpu_position_per_atom.size() / 3;
 
   FILE* fid_omega2 = fopen("omega2.out", "w");
+  fprintf(fid_omega2, "#");
+  for (size_t i = 0; i < kpath_sym.size(); ++i) {
+    fprintf(fid_omega2, " %.6f", kpath_sym[i]);
+  }
+  fprintf(fid_omega2, " ");
+  for (size_t i = 0; i < sym_names.size(); ++i) {
+    if (i > 0) fprintf(fid_omega2, "|");
+    fprintf(fid_omega2, "%s", sym_names[i].c_str());
+  }
+  fprintf(fid_omega2, "\n");
+
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * num_basis * num_basis * 9;
     for (size_t nb = 0; nb < num_basis; ++nb) {
@@ -427,7 +468,7 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
       }
     }
     if (num_basis > 10) {
-      find_omega(fid_omega2, offset);
+      find_omega(fid_omega2, offset, nk);
     } // > 32x32
   }
   output_D();
@@ -504,20 +545,12 @@ void Hessian::find_eigenvectors()
 
 void Hessian::parse(const char** param, size_t num_param)
 {
-  if (num_param != 3) {
+  if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");
   }
-  // cutoff
-  if (!is_valid_real(param[1], &cutoff)) {
-    PRINT_INPUT_ERROR("cutoff for compute_phonon should be a number.\n");
-  }
-  if (cutoff <= 0) {
-    PRINT_INPUT_ERROR("cutoff for compute_phonon should be positive.\n");
-  }
-  printf("Cutoff distance for compute_phonon = %g A.\n", cutoff);
 
   // displacement
-  if (!is_valid_real(param[2], &displacement)) {
+  if (!is_valid_real(param[1], &displacement)) {
     PRINT_INPUT_ERROR("displacement for compute_phonon should be a number.\n");
   }
   if (displacement <= 0) {
