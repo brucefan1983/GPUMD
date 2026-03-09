@@ -174,11 +174,14 @@ void Hessian::create_kpoints(const Box& box)
     }
     if (line[beg] == '#')
       continue;
-    std::istringstream iss(line);
+    
     double x, y, z;
-    std::string name;
-    if (!(iss >> x >> y >> z >> name))
-      break;
+    char name[16];
+    int n = sscanf(line.c_str(), "%lf %lf %lf %15[^# \n]", &x, &y, &z, name);
+    if (n < 4) {
+      PRINT_INPUT_ERROR("kpoints.in file error.");
+    }
+
     hsp.push_back({x, y, z});
     sym_names.push_back(name);
   }
