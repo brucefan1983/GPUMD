@@ -244,7 +244,7 @@ void Hessian::create_kpoints(const Box& box)
 void Hessian::initialize(const std::vector<double>& cpu_mass, size_t N)
 {
   create_basis(cpu_mass, N);
-  read_kpoints();
+  create_kpoints(box);
   size_t num_H = num_basis * N * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
   H.resize(num_H, 0.0);
