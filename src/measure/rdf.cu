@@ -228,7 +228,6 @@ void RDF::postprocess(
   fprintf(fid, "#radius total");
   for (int a = 0; a < rdf_para.num_types; a++) {
     for (int b = a; b < rdf_para.num_types; b++) {
-      fprintf(fid, " type_%d_%d", rdf_para.type_index[a], rdf_para.type_index[b]);
       fprintf(fid, " %s-%s", type_symbols[a].c_str(), type_symbols[b].c_str());
     }
   }
