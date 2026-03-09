@@ -163,12 +163,15 @@ void Hessian::create_kpoints(const Box& box)
   std::vector<Vec3> hsp;
   sym_names.clear();
   std::string line;
+  std::string names;
 
   while (std::getline(kin, line)) {
     const auto beg = line.find_first_not_of(" \t\r\n");
     if (beg == std::string::npos) {
       if (!hsp.empty()) {
         hsps.push_back(hsp);
+        sym_names.push_back(names);
+        names.clear();
         hsp.clear();
       }
       continue;
@@ -184,14 +187,21 @@ void Hessian::create_kpoints(const Box& box)
     }
 
     hsp.push_back({x, y, z});
-    sym_names.push_back(name);
+    if (!names.empty()) names += " ";
+      names += name;
   }
   if (!hsp.empty())
     hsps.push_back(hsp);
-  
+    sym_names.push_back(names);
+
+  if (!sym_names.empty() && sym_names.back().empty()) {
+    sym_names.pop_back();
+  }
+
   num_kpoints = 1 - hsps.size();
   for (const auto& seg : hsps)
     num_kpoints += seg.size();
+  kpath_sym.resize(num_kpoints);
   num_kpoints = (num_kpoints - 1) * 100 + 1;
 
   const Vec3 lattice[3] = {
@@ -202,7 +212,6 @@ void Hessian::create_kpoints(const Box& box)
 
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
-  kpath_sym.resize(num_kpoints);
   std::vector<double> sym_idx;
 
   size_t k_idx = 0;
