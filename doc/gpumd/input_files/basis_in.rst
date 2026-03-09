@@ -6,6 +6,7 @@ Primitive cell (``basis.in``)
 =============================
 
 This file is used to define the unit cell for phonon calculations.
+This file is applicable prior to version 5.0; after that, it is no longer required as input.
 
 File format
 -----------
