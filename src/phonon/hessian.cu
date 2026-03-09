@@ -27,72 +27,63 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 #define M_PI 3.14159265358979323846
 namespace
 {
-  // Helper structures for automatic k-point generation
-  struct Vec3 {
-    double x, y, z;
-  };
+// Helper structures for automatic k-point generation
+struct Vec3 {
+  double x, y, z;
+};
 
-  struct Mat3 {
-    double data[3][3];
-  };
+struct Mat3 {
+  double data[3][3];
+};
 
-  double dot(const Vec3& a, const Vec3& b)
-  {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-  }
+double dot(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
-  Vec3 cross(const Vec3& a, const Vec3& b)
-  {
-    return {a.y * b.z - a.z * b.y,
-            a.z * b.x - a.x * b.z,
-            a.x * b.y - a.y * b.x};
-  }
+Vec3 cross(const Vec3& a, const Vec3& b)
+{
+  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
 
-  Mat3 transpose(const Mat3& m)
-  {
-    Mat3 t;
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j)
-        t.data[j][i] = m.data[i][j];
-    return t;
-  }
+Mat3 transpose(const Mat3& m)
+{
+  Mat3 t;
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      t.data[j][i] = m.data[i][j];
+  return t;
+}
 
-  Vec3 matvec(const Mat3& m, const Vec3& v)
-  {
-    return {m.data[0][0] * v.x + m.data[0][1] * v.y + m.data[0][2] * v.z,
-            m.data[1][0] * v.x + m.data[1][1] * v.y + m.data[1][2] * v.z,
-            m.data[2][0] * v.x + m.data[2][1] * v.y + m.data[2][2] * v.z};
-  }
+Vec3 matvec(const Mat3& m, const Vec3& v)
+{
+  return {
+    m.data[0][0] * v.x + m.data[0][1] * v.y + m.data[0][2] * v.z,
+    m.data[1][0] * v.x + m.data[1][1] * v.y + m.data[1][2] * v.z,
+    m.data[2][0] * v.x + m.data[2][1] * v.y + m.data[2][2] * v.z};
+}
 
-  Vec3 lerp(const Vec3& a, const Vec3& b, double t)
-  {
-    return {a.x + t * (b.x - a.x),
-            a.y + t * (b.y - a.y),
-            a.z + t * (b.z - a.z)};
-  }
+Vec3 lerp(const Vec3& a, const Vec3& b, double t)
+{
+  return {a.x + t * (b.x - a.x), a.y + t * (b.y - a.y), a.z + t * (b.z - a.z)};
+}
 
-  Vec3 operator*(const Vec3& v, double s)
-  {
-    return {v.x * s, v.y * s, v.z * s};
-  }
+Vec3 operator*(const Vec3& v, double s) { return {v.x * s, v.y * s, v.z * s}; }
 
-  Mat3 reciprocal_lattice(const Vec3 lat[3])
-  {
-    double volume = dot(lat[0], cross(lat[1], lat[2]));
-    double factor = 2.0 * M_PI / volume;
+Mat3 reciprocal_lattice(const Vec3 lat[3])
+{
+  double volume = dot(lat[0], cross(lat[1], lat[2]));
+  double factor = 2.0 * M_PI / volume;
 
-    Vec3 c0 = cross(lat[1], lat[2]) * factor;
-    Vec3 c1 = cross(lat[2], lat[0]) * factor;
-    Vec3 c2 = cross(lat[0], lat[1]) * factor;
-    Mat3 rec = {{{c0.x, c0.y, c0.z}, {c1.x, c1.y, c1.z}, {c2.x, c2.y, c2.z}}};
-    return transpose(rec);
-  }
+  Vec3 c0 = cross(lat[1], lat[2]) * factor;
+  Vec3 c1 = cross(lat[2], lat[0]) * factor;
+  Vec3 c2 = cross(lat[0], lat[1]) * factor;
+  Mat3 rec = {{{c0.x, c0.y, c0.z}, {c1.x, c1.y, c1.z}, {c2.x, c2.y, c2.z}}};
+  return transpose(rec);
+}
 } // namespace
 
 void Hessian::compute(
@@ -182,7 +173,7 @@ void Hessian::create_kpoints(const Box& box)
     }
     if (line[beg] == '#')
       continue;
-    
+
     double x, y, z;
     char name[16];
     int n = sscanf(line.c_str(), "%lf %lf %lf %15[^# \n]", &x, &y, &z, name);
@@ -191,12 +182,13 @@ void Hessian::create_kpoints(const Box& box)
     }
 
     hsp.push_back({x, y, z});
-    if (!names.empty()) names += " ";
-      names += name;
+    if (!names.empty())
+      names += " ";
+    names += name;
   }
   if (!hsp.empty())
     hsps.push_back(hsp);
-    sym_names.push_back(names);
+  sym_names.push_back(names);
 
   if (!sym_names.empty() && sym_names.back().empty()) {
     sym_names.pop_back();
@@ -258,7 +250,8 @@ void Hessian::create_kpoints(const Box& box)
   }
 }
 
-void Hessian::initialize(const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N)
+void Hessian::initialize(
+  const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N)
 {
   get_cutoff_from_potential(force);
   std::ifstream fin("run.in");
@@ -383,7 +376,7 @@ void Hessian::output_D()
       }
       if (num_kpoints > 1) {
         for (size_t n2 = 0; n2 < num_basis * 3; ++n2) {
-          //cuSOLVER requires column-major
+          // cuSOLVER requires column-major
           fprintf(fid, "%g ", DI[offset + n1 + n2 * num_basis * 3]);
         }
       }
@@ -433,7 +426,8 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
   }
   fprintf(fid_omega2, " ");
   for (size_t i = 0; i < sym_names.size(); ++i) {
-    if (i > 0) fprintf(fid_omega2, "|");
+    if (i > 0)
+      fprintf(fid_omega2, "|");
     fprintf(fid_omega2, "%s", sym_names[i].c_str());
   }
   fprintf(fid_omega2, "\n");

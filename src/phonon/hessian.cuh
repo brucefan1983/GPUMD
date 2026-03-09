@@ -27,11 +27,11 @@ class Force;
 class Hessian
 {
 private:
-    size_t cx = 1, cy = 1, cz = 1;
+  size_t cx = 1, cy = 1, cz = 1;
 
 public:
   double displacement = 0.005;
-  double cutoff = 8.0; 
+  double cutoff = 8.0;
   double phonon_cutoff = 16.0;
 
   void compute(
