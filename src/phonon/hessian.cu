@@ -106,7 +106,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  create_basis(cpu_mass, type.size());
+  initialize(cpu_mass, box, type.size());
   find_H(
     force,
     box,
@@ -244,7 +244,7 @@ void Hessian::create_kpoints(const Box& box)
   }
 }
 
-void Hessian::initialize(const std::vector<double>& cpu_mass, size_t N)
+void Hessian::initialize(const std::vector<double>& cpu_mass, const Box& box, size_t N)
 {
   create_basis(cpu_mass, N);
   create_kpoints(box);
