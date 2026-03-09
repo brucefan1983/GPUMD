@@ -32,6 +32,7 @@ private:
 public:
   double displacement = 0.005;
   double cutoff = 4.0;
+  double M_PI = 3.14159265358979323846;
 
   void compute(
     Force& force,
@@ -64,7 +65,7 @@ protected:
 
   void create_basis(const std::vector<double>& cpu_mass, size_t N);
   void create_kpoints(const Box& box);
-  void initialize(const std::vector<double>& cpu_mass, size_t N);
+  void initialize(const std::vector<double>& cpu_mass, const Box& box, size_t N);
   void finalize(void);
 
   void find_H(
