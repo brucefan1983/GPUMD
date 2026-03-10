@@ -7,7 +7,7 @@ k-points (``kpoints.in``)
 
 This file is used to specify the k points needed for phonon calculations.
 
-File format 
+File format
 -----------
 
 The format of this file must be as follows:
