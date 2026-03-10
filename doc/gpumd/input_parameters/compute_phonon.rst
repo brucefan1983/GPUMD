@@ -17,24 +17,18 @@ To use this keyword, please make sure the following files have been preprared in
 
    * - Input filename
      - Brief description
-   * - ``basis.in``
-     - Define the mapping from the atom label to the basis label (before version 5.0)
    * - ``kpoints.in``
-     - Specify the :math:`\boldsymbol{k}`-points (before version 5.0)
-     - High Symmetric Point Path (starting from version 5.0)
+     - High Symmetric Point Path, coordinates and names
+
+
+To use this keyword, :attr:`replicate` keywords must write head in the :attr:`run.in` file.
 
 Syntax
 ------
 
 This keyword is used as follows::
 
-  compute_phonon <cutoff> <displacement>
-  
-  or
-
   compute_phonon <displacement>
-
-:attr:`cutoff` is the cutoff distance (in units of Å) for calculating the force constants. (before version 5.0)
 
 :attr:`displacement` is the displacement (in units of Å) for calculating the force constants using the finite-displacement method.
 
@@ -43,18 +37,14 @@ Example
 
 For example, the command::
 
-    compute_phonon 5.0 0.01
-
-    or
-
     compute_phonon 0.01
 
-means that one wants to compute the phonon dispersion using a cutoff distance of 5 Å and a displacement of 0.01 Å.
+means that one wants to compute the phonon dispersion using a displacement of 0.01 Å.
 
 Caveats
 -------
 
-if use version 5.0 or later, :attr:`replicate` keywords must write head in the :attr:`run.in` file.
+
 This keyword should occur after all the :attr:`potential` keywords.
 
 For two-body potentials, the cutoff distance for force constants can be the same as that for force evaluations.

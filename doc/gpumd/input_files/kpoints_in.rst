@@ -7,29 +7,22 @@ k-points (``kpoints.in``)
 
 This file is used to specify the k points needed for phonon calculations.
 
-File format 1 (before version 5.0)
+File format 
 -----------
 
 The format of this file must be as follows:
 
 .. code::
-
- N_kpoints
- kx(0) ky(0) kz(0)
- kx(1) ky(1) kz(1)
- ...
- kx(N_kpoints-1) ky(N_kpoints-1) kz(N_kpoints-1)
- 
-Here,
-* ``N_kpoints`` is the number of k points you want to consider.
-* The remaining lines give the k vectors (in units of 1/Å) you want to consider.
-* The user has to make sure that the k vectors are defined in the reciprocal space with respect to the unit cell chosen.
+# high symmetry points
+points_x(0) points_y(0) points_z(0) name(0)
+points_x(1) points_y(1) points_z(1) name(1)
+...
 
 
-File format 2 (starting from version 5.0)
------------
+Example
+-------
 
-The format of this file must be as follows:
+For example, the command::
 
 .. code::
 
@@ -38,6 +31,8 @@ The format of this file must be as follows:
  0.333 0.333 0 K
  0 0 0 G
  
+or
+
 .. code::
 
  0 0 0 G
