@@ -26,13 +26,18 @@ class Force;
 
 class Hessian
 {
+private:
+  size_t cx = 1, cy = 1, cz = 1;
+
 public:
   double displacement = 0.005;
-  double cutoff = 4.0;
+  double cutoff = 8.0;
+  double phonon_cutoff = 16.0;
 
   void compute(
     Force& force,
     Box& box,
+    const std::vector<double>& cpu_mass,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
@@ -42,6 +47,7 @@ public:
     GPU_Vector<double>& virial_per_atom);
 
   void parse(const char**, size_t);
+  void get_cutoff_from_potential(Force& force);
 
 protected:
   size_t num_basis;
@@ -51,13 +57,16 @@ protected:
   std::vector<size_t> label;
   std::vector<double> mass;
   std::vector<double> kpoints;
+  std::vector<double> kpath;
+  std::vector<double> kpath_sym;
   std::vector<double> H;
   std::vector<double> DR;
   std::vector<double> DI;
+  std::vector<std::string> sym_names;
 
-  void read_basis(size_t N);
-  void read_kpoints();
-  void initialize(size_t);
+  void create_basis(const std::vector<double>& cpu_mass, size_t N);
+  void create_kpoints(const Box& box);
+  void initialize(const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N);
   void finalize(void);
 
   void find_H(
@@ -83,6 +92,6 @@ protected:
 
   void find_eigenvectors();
   void output_D();
-  void find_omega(FILE*, size_t);
+  void find_omega(FILE*, size_t, size_t);
   void find_omega_batch(FILE*);
 };
