@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+The FIRE (fast inertial relaxation engine) minimizer
+Reference: PhysRevLett 97, 170201 (2006)
+           Computational Materials Science 175 (2020) 109584
+------------------------------------------------------------------------------*/
+
 #include "minimizer_fire_box_change.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
