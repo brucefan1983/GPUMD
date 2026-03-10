@@ -228,13 +228,20 @@ void Hessian::create_kpoints(const Box& box)
       for (int j = 1; j <= 100; ++j) {
         double t = j * 0.01;
         auto kpt = lerp(start, end, t);
-
         kpoints[k_idx * 3 + 0] = kpt.x;
         kpoints[k_idx * 3 + 1] = kpt.y;
         kpoints[k_idx * 3 + 2] = kpt.z;
-        double dx = kpt.x - kpoints[k_idx * 3 - 3];
-        double dy = kpt.y - kpoints[k_idx * 3 - 2];
-        double dz = kpt.z - kpoints[k_idx * 3 - 1];
+        
+        double dx, dy, dz;
+        if (i == 1 && j == 1){
+          dx = kpt.x - start.x;
+          dy = kpt.y - start.y;
+          dz = kpt.z - start.z;
+        } else{
+          dx = kpt.x - kpoints[k_idx * 3 - 3];
+          dy = kpt.y - kpoints[k_idx * 3 - 2];
+          dz = kpt.z - kpoints[k_idx * 3 - 1];
+        }
         kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
         kpath[k_idx] = kpath_len;
 
