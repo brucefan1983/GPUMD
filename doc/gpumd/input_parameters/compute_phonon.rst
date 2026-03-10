@@ -18,7 +18,7 @@ To use this keyword, please make sure the following files have been preprared in
    * - Input filename
      - Brief description
    * - ``kpoints.in``
-     - High Symmetric Point Path, coordinates and names
+     - Specify the :math:`\boldsymbol{k}`-points along the high-symmetry paths
 
 
 To use this keyword, :attr:`replicate` keywords must write head in the :attr:`run.in` file.
