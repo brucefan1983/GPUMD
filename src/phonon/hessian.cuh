@@ -27,7 +27,7 @@ class Force;
 class Hessian
 {
 private:
-  size_t cx = 1, cy = 1, cz = 1;
+  int cxyz[3] = {1, 1, 1};
 
 public:
   double displacement = 0.005;
@@ -66,7 +66,7 @@ protected:
 
   void create_basis(const std::vector<double>& cpu_mass, size_t N);
   void create_kpoints(const Box& box);
-  void initialize(const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N);
+  void initialize(const std::vector<double>& cpu_mass, Box& box, Force& force, size_t N);
   void finalize(void);
 
   void find_H(
