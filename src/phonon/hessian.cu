@@ -285,7 +285,6 @@ void Hessian::initialize(
   for (int i= 0; i < 3; ++i){
     double thickness = volume / box.get_area(i);
     double ori_thick = thickness / cxyz[i];
-    printf("thickness in %d direction: %f\n", i, ori_thick);
     if (stru_pbc[i]) {
       for (int j= 1;j< 100;++j){
         if (ori_thick *j>= cutoff *4){
