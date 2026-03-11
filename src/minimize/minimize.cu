@@ -118,7 +118,8 @@ void Minimize::parse_minimize(
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
-      minimizer.reset(new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
+      minimizer.reset(
+        new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
@@ -173,6 +174,7 @@ void Minimize::parse_minimize(
         potential_per_atom,
         force_per_atom,
         virial_per_atom);
+
       break;
     default:
       PRINT_INPUT_ERROR("Invalid minimizer.");
