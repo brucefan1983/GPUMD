@@ -22,6 +22,7 @@ Then calculate the dynamical matrices with different k points.
 #include "force/force.cuh"
 #include "force/force_constant.cuh"
 #include "hessian.cuh"
+#include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/cusolver_wrapper.cuh"
 #include "utilities/error.cuh"
@@ -122,9 +123,7 @@ void Hessian::compute(
 void Hessian::get_cutoff_from_potential(Force& force)
 {
   for (const auto& potential : force.potentials) {
-    if (potential->rc > cutoff) {
       cutoff = potential->rc;
-    }
   }
   phonon_cutoff = cutoff * 2.0;
   printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);
@@ -132,7 +131,7 @@ void Hessian::get_cutoff_from_potential(Force& force)
 
 void Hessian::create_basis(const std::vector<double>& cpu_mass, size_t N)
 {
-  num_basis = N / (cx * cy * cz);
+  num_basis = N / (cxyz[0] * cxyz[1] * cxyz[2]);
 
   basis.resize(num_basis);
   mass.resize(num_basis);
@@ -201,9 +200,9 @@ void Hessian::create_kpoints(const Box& box)
   num_kpoints = (num_kpoints - 1) * 100 + 1;
 
   const Vec3 origin_lattice[3] = {
-    {box.cpu_h[0] / cx, box.cpu_h[3] / cx, box.cpu_h[6] / cx},
-    {box.cpu_h[1] / cy, box.cpu_h[4] / cy, box.cpu_h[7] / cy},
-    {box.cpu_h[2] / cz, box.cpu_h[5] / cz, box.cpu_h[8] / cz}};
+    {box.cpu_h[0] / cxyz[0], box.cpu_h[3] / cxyz[0], box.cpu_h[6] / cxyz[0]},
+    {box.cpu_h[1] / cxyz[1], box.cpu_h[4] / cxyz[1], box.cpu_h[7] / cxyz[1]},
+    {box.cpu_h[2] / cxyz[2], box.cpu_h[5] / cxyz[2], box.cpu_h[8] / cxyz[2]}};
   const auto rec_lat = reciprocal_lattice(origin_lattice);
 
   kpoints.resize(num_kpoints * 3);
@@ -258,24 +257,41 @@ void Hessian::create_kpoints(const Box& box)
 }
 
 void Hessian::initialize(
-  const std::vector<double>& cpu_mass, const Box& box, Force& force, size_t N)
+  const std::vector<double>& cpu_mass, Box& box, Force& force, size_t N)
 {
   get_cutoff_from_potential(force);
+
   std::ifstream fin("run.in");
-  std::string key;
-  if (!(fin >> key && key == "replicate")) {
+  std::string line;
+  bool f_rep = false;
+  while (std::getline(fin, line)) {
+    auto tokens = get_tokens(line);
+    if (!tokens.empty() && tokens[0][0] != '#' && tokens[0] == "replicate") {  // 跳过空行和注释行
+      f_rep = true;
+      cxyz[0] = get_int_from_token(tokens[1], __FILE__, __LINE__);
+      cxyz[1] = get_int_from_token(tokens[2], __FILE__, __LINE__);
+      cxyz[2] = get_int_from_token(tokens[3], __FILE__, __LINE__);
+    }
+    break;
+  }
+  fin.close();
+  if (!f_rep) {
     PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
   }
-  fin >> cx >> cy >> cz;
-  fin.close();
 
-  double lattice_lengths[3] = {box.cpu_h[0] / cx, box.cpu_h[4] / cy, box.cpu_h[8] / cz};
   int s_c[3] = {1, 1, 1};
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 1; j < 100; ++j) {
-      if (lattice_lengths[i] * j >= cutoff * 4) {
-        s_c[i] = j;
-        break;
+  int stru_pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+  double volume = box.get_volume();
+  for (int i= 0; i < 3; ++i){
+    double thickness = volume / box.get_area(i);
+    double ori_thick = thickness / cxyz[i];
+    printf("thickness in %d direction: %f\n", i, ori_thick);
+    if (stru_pbc[i]) {
+      for (int j= 1;j< 100;++j){
+        if (ori_thick *j>= cutoff *4){
+          s_c[i] = j;
+          break;
+        }
       }
     }
   }

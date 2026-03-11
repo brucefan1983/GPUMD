@@ -38,7 +38,7 @@ or
  0 0 0 G
  0.5 0 0.5 X
  0.625 0.25 0.625 U
-          #Represents a breakpoint, marking the start of the second path.
+ 
  0.375 0.375 0.75 K
  0 0 0 G
  0.5 0.5 0.5 L
@@ -47,4 +47,4 @@ or
 
 Here,
 * The first three columns represent the coordinates of high symmetry points. The last column corresponds to names.
-* A blank line indicates a breakpoint or the initiation of a second path.
+* A blank line must be used to indicate a breakpoint or the start of a second path.
