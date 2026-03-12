@@ -13,16 +13,17 @@ File format
 The format of this file must be as follows:
 
 .. code::
-# high symmetry points
-k_points_x(0) k_points_y(0) k_points_z(0) name(0)
-k_points_x(1) k_points_y(1) k_points_z(1) name(1)
-...
+
+ # high symmetry points
+ k_points_x(0) k_points_y(0) k_points_z(0) name(0)
+ k_points_x(1) k_points_y(1) k_points_z(1) name(1)
+ ...
 
 
 Example
 -------
 
-For example, the command::
+For example, the command:
 
 .. code::
 
