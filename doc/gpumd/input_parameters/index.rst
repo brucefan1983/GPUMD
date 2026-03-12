@@ -50,6 +50,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    minimize
    run
    compute
+   compute_chunk
    compute_adf
    compute_cohesive
    compute_dos

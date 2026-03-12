@@ -30,6 +30,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
 #include "measure/compute.cuh"
+#include "measure/compute_chunk.cuh"
 #include "measure/compute_dpdt.cuh"
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
@@ -563,6 +564,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "deform") == 0) {
     integrate.parse_deform(param, num_param);
+  } else if (strcmp(param[0], "compute_chunk") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new ComputeChunk(param, num_param, box));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Compute(param, num_param, group));
