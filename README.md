@@ -77,8 +77,10 @@ There is a standalone C++ implementation of the neuroevolution potential (NEP) i
 | [Liang2025]                  | NEP89 (Universal neuroevolution potential for inorganic and organic materials across 89 elements) |
 | [Huang2026]                  | GNEP: An alternative training scheme for NEP models |
 | [Fan2026a]                  | qNEP: NEP with dynamic charge (q) |
+| [Li2025]                    | CGNEP: Coarse-grained machine learning potential for mesoscale multilayered graphene (https://github.com/lmqnuaa/CGNEP) |
 | [Fan2026b]                  | NEP-CG and NEP-AACG: NEP with coarse graining |
 | [Bu2026]                  | NEP + ILP (hybrid NEP with anisotropic interlayer potential) |
+
 
 ## References
 
@@ -147,6 +149,8 @@ ACS Nano **19**, 16287 (2025).
 Computer Physics Communications **320**, 109994 (2026).
 
 [Fan2026a] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://arxiv.org/abs/2601.19034), arXiv:2601.19034 [physics.comp-ph].
+
+[Li2025] Mingqian Li, Lifeng Wang, Zhuoqun Zheng, [Coarse-grained machine learning potential for mesoscale multilayered graphene](https://doi.org/10.1038/s41524-025-01849-2), npj Computational Materials **11**, 374 (2025).
 
 [Fan2026b] Zheyong Fan, Wenjun Zhang, Zhenhao Zhang, Ke Xu, Xuecheng Shao, Haikuan Dong, [NEP-CG and NEP-AACG: Efficient coarse-grained and multiscale all-atom-coarse-grained neuroevolution potentials](https://arxiv.org/abs/2603.01234), arXiv:2603.01234 [physics.comp-ph] (2026).
 
