@@ -167,29 +167,24 @@ void Hessian::create_kpoints(const Box& box)
   }
 
   num_kpoints = 1 - hsps.size();
-  for (const auto& seg : hsps)
-    num_kpoints += seg.size();
-  kpath_sym.resize(num_kpoints);
+  for (const auto& hsp : hsps)
+    num_kpoints += hsp.size();
   num_kpoints = (num_kpoints - 1) * 100 + 1;
-
-  const Mat3 rec_lat = build_reciprocal_lattice(box, cxyz);
-
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
-  std::vector<double> sym_idx;
 
-  size_t k_idx = 0;
   double kpath_len = 0.0;
-  auto k_first = matvec(rec_lat, hsps[0][0]);
+  const Mat3 rec_lat = build_reciprocal_lattice(box, cxyz);
+  Vec3 k_first = matvec(rec_lat, hsps[0][0]);
   for (int i = 0; i < 3; ++i) {
     kpoints[i] = k_first[i];
   }
-  kpath[k_idx] = kpath_len;
-  sym_idx.push_back(k_idx);
-  ++k_idx;
+  kpath[0] = kpath_len;
+  kpath_sym.push_back(kpath_len);
 
+  int k_idx = 1;
   for (const auto& hsp : hsps) {
-    for (size_t i = 1; i < hsp.size(); ++i) {
+    for (int i = 1; i < hsp.size(); ++i) {
       const auto& start = matvec(rec_lat, hsp[i - 1]);
       const auto& end = matvec(rec_lat, hsp[i]);
       auto last = start;
@@ -200,23 +195,19 @@ void Hessian::create_kpoints(const Box& box)
           kpoints[k_idx * 3 + i] = kpt[i];
         }
         
-        double dx, dy, dz;
-          dx = kpt[0] - last[0];
-          dy = kpt[1] - last[1];
-          dz = kpt[2] - last[2];
-        kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
+        double d[3];
+        for (int i = 0; i < 3; ++i) {
+          d[i] = kpt[i] - last[i];
+        }
+        kpath_len += std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
         kpath[k_idx] = kpath_len;
         last = kpt;
 
         if (j == 100)
-          sym_idx.push_back(k_idx);
+          kpath_sym.push_back(kpath_len);
         ++k_idx;
       }
     }
-  }
-
-  for (size_t kp = 0; kp < kpath_sym.size(); ++kp) {
-    kpath_sym[kp] = kpath[sym_idx[kp]];
   }
 }
 
@@ -407,11 +398,11 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
 
   FILE* fid_omega2 = fopen("omega2.out", "w");
   fprintf(fid_omega2, "#");
-  for (size_t i = 0; i < kpath_sym.size(); ++i) {
+  for (int i = 0; i < kpath_sym.size(); ++i) {
     fprintf(fid_omega2, " %.6f", kpath_sym[i]);
   }
   fprintf(fid_omega2, " ");
-  for (size_t i = 0; i < hsp_names.size(); ++i) {
+  for (int i = 0; i < hsp_names.size(); ++i) {
     if (i > 0)
       fprintf(fid_omega2, "|");
     fprintf(fid_omega2, "%s", hsp_names[i].c_str());
