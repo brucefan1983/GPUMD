@@ -31,8 +31,8 @@ private:
 
 public:
   double displacement = 0.015;
-  double cutoff = 8.0;
-  double phonon_cutoff = 16.0;
+  double cutoff = 4.0;
+  double phonon_cutoff = 8.0;
 
   void compute(
     Force& force,
