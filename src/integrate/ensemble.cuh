@@ -76,6 +76,8 @@ public:
   int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed
   int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  int fixed_grouping_method = 0;
+  int move_grouping_method = 0;
   double move_velocity[3];
   double temperature; // target temperature at a specific time
   double delta_temperature;

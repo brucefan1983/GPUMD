@@ -27,6 +27,7 @@ public:
     const char** param,
     int num_param,
     int fixed_group,
+    int fixed_grouping_method,
     Force& force,
     Box& box,
     GPU_Vector<double>& position_per_atom,

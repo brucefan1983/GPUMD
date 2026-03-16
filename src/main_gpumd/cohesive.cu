@@ -359,7 +359,7 @@ void Cohesive::compute(
     Box new_box;
     deform_box(num_atoms, cpu_D[n], box, new_box, position_per_atom, old_box_inv);
 
-    Minimizer_SD minimizer(-1, num_atoms, 1000, 1.0e-5);
+    Minimizer_SD minimizer(-1, 0, num_atoms, 1000, 1.0e-5);
     minimizer.compute(
       force,
       new_box,

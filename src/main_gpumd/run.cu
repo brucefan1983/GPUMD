@@ -370,6 +370,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
       param,
       num_param,
       integrate.fixed_group,
+      integrate.fixed_grouping_method,
       force,
       box,
       atom.position_per_atom,
