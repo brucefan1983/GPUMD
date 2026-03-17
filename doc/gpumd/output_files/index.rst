@@ -113,7 +113,7 @@ Output files
      - :ref:`compute_phonon <kw_compute_phonon>`
      - Phonon frequency squared :math:`\omega^2(\boldsymbol{k})` for the input :math:`\boldsymbol{k}`-points
      - Overwrite
-   * - :ref:`viscosity_out <viscosity_out>`
+   * - :ref:`viscosity.out <viscosity_out>`
      - :ref:`compute_viscosity <kw_compute_viscosity>`
      - Viscosity and stress auto-correlation function
      - Append
