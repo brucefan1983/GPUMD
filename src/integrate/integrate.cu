@@ -57,11 +57,11 @@ void Integrate::initialize(
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
     }
-    if (move_group == fixed_group && move_grouping_method == fixed_grouping_method) {
-      PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
-    }
     if (fixed_grouping_method != move_grouping_method) {
       PRINT_INPUT_ERROR("The fixed and moving groups must use the same grouping method.");
+    }
+    if (move_group == fixed_group) {
+      PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
     }
     if (type != 1 && type != 2 && type != 4 && type != 22) {
       PRINT_INPUT_ERROR(
