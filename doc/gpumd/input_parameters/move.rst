@@ -33,14 +33,14 @@ One can first equilibrate the system and then move one group of atoms and at the
   # production stage
   ensemble nvt_ber 300 300 100
   fix  0            # fix atoms in group 0 (default grouping method 0)
-  move 1 0.001 0 0  # move atoms in group 1 (default grouping method 0)
+  move 1 0.001 0 0  # move atoms in group 1, with a speed of 0.001 Ångstrom/fs in the x direction (default grouping method 0)
   run  1000000
 
 Using a specific grouping method::
 
   ensemble nvt_ber 300 300 100
   fix  1 0            # fix group 0 in grouping method 1
-  move 1 1 0.001 0 0  # move group 1 in grouping method 1
+  move 1 1 0.001 0 0  # move group 1 in grouping method 1, with a speed of 0.001 Ångstrom/fs in the x direction
   run  1000000
 
 Caveats
