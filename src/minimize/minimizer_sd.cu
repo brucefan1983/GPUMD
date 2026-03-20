@@ -108,7 +108,7 @@ void Minimizer_SD::compute(
         size,
         number_of_atoms_,
         fixed_group_,
-        group[0].label.data(),
+        group[fixed_grouping_method_].label.data(),
         position_step / force_max,
         force_per_atom.data(),
         position_per_atom.data(),

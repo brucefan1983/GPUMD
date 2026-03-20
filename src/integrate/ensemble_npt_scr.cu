@@ -239,7 +239,7 @@ void Ensemble_NPT_SCR::compute2(
     atom.position_per_atom,
     atom.velocity_per_atom);
 
-  int N_fixed = (fixed_group == -1) ? 0 : group[0].cpu_size[fixed_group];
+  int N_fixed = (fixed_group == -1) ? 0 : group[fixed_grouping_method].cpu_size[fixed_group];
   find_thermo(
     true,
     box.get_volume(),

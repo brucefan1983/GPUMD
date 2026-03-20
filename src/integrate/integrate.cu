@@ -57,6 +57,9 @@ void Integrate::initialize(
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
     }
+    if (fixed_grouping_method != move_grouping_method) {
+      PRINT_INPUT_ERROR("The fixed and moving groups must use the same grouping method.");
+    }
     if (move_group == fixed_group) {
       PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
     }
@@ -208,12 +211,16 @@ void Integrate::initialize(
   ensemble->total_steps = &this->total_steps;
   ensemble->thermo = &thermo;
   ensemble->fixed_group = fixed_group;
+  ensemble->fixed_grouping_method = fixed_grouping_method;
+  ensemble->move_grouping_method = move_grouping_method;
 }
 
 void Integrate::finalize()
 {
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
+  fixed_grouping_method = 0;
+  move_grouping_method = 0;
   deform_x = 0;
   deform_y = 0;
   deform_z = 0;
@@ -990,64 +997,105 @@ void Integrate::parse_ensemble(
 
 void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>& group)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("Keyword 'fix' should have 1 parameter.");
-  }
-
-  if (!is_valid_int(param[1], &fixed_group)) {
-    PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("Keyword 'fix' should have 1 or 2 parameters.");
   }
 
   if (group.size() < 1) {
     PRINT_INPUT_ERROR("Cannot use 'fix' without grouping method.");
   }
 
+  if (num_param == 3) {
+    // fix grouping_method group_id
+    if (!is_valid_int(param[1], &fixed_grouping_method)) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should be an integer.");
+    }
+    if (fixed_grouping_method < 0) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should >= 0.");
+    }
+    if (fixed_grouping_method >= group.size()) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should < number of grouping methods.");
+    }
+    if (!is_valid_int(param[2], &fixed_group)) {
+      PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+    }
+  } else {
+    // fix group_id (default grouping_method = 0)
+    fixed_grouping_method = 0;
+    if (!is_valid_int(param[1], &fixed_group)) {
+      PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+    }
+  }
+
   if (fixed_group < 0) {
     PRINT_INPUT_ERROR("Fixed group ID should >= 0.");
   }
 
-  if (fixed_group >= group[0].number) {
+  if (fixed_group >= group[fixed_grouping_method].number) {
     PRINT_INPUT_ERROR("Fixed group ID should < number of groups.");
   }
 
-  printf("Group %d in grouping method 0 will be fixed.\n", fixed_group);
+  printf(
+    "Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
 }
 
 void Integrate::parse_move(const char** param, int num_param, std::vector<Group>& group)
 {
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("Keyword 'move' should have 4 parameters.");
-  }
-
-  if (!is_valid_int(param[1], &move_group)) {
-    PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+  if (num_param != 5 && num_param != 6) {
+    PRINT_INPUT_ERROR("Keyword 'move' should have 4 or 5 parameters.");
   }
 
   if (group.size() < 1) {
     PRINT_INPUT_ERROR("Cannot use 'move' without grouping method.");
   }
 
+  int vid; // index where vx starts
+  if (num_param == 6) {
+    // move grouping_method group_id vx vy vz
+    if (!is_valid_int(param[1], &move_grouping_method)) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should be an integer.");
+    }
+    if (move_grouping_method < 0) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should >= 0.");
+    }
+    if (move_grouping_method >= group.size()) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should < number of grouping methods.");
+    }
+    if (!is_valid_int(param[2], &move_group)) {
+      PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+    }
+    vid = 3;
+  } else {
+    // move group_id vx vy vz (default grouping_method = 0)
+    move_grouping_method = 0;
+    if (!is_valid_int(param[1], &move_group)) {
+      PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+    }
+    vid = 2;
+  }
+
   if (move_group < 0) {
     PRINT_INPUT_ERROR("Moving group ID should >= 0.");
   }
 
-  if (move_group >= group[0].number) {
+  if (move_group >= group[move_grouping_method].number) {
     PRINT_INPUT_ERROR("Moving group ID should < number of groups.");
   }
 
-  if (!is_valid_real(param[2], &move_velocity[0])) {
+  if (!is_valid_real(param[vid], &move_velocity[0])) {
     PRINT_INPUT_ERROR("Moving velocity in x direction should be a number.");
   }
-  if (!is_valid_real(param[3], &move_velocity[1])) {
+  if (!is_valid_real(param[vid + 1], &move_velocity[1])) {
     PRINT_INPUT_ERROR("Moving velocity in y direction should be a number.");
   }
-  if (!is_valid_real(param[4], &move_velocity[2])) {
+  if (!is_valid_real(param[vid + 2], &move_velocity[2])) {
     PRINT_INPUT_ERROR("Moving velocity in z direction should be a number.");
   }
 
   printf(
-    "Group %d in grouping method 0 will move with velocity vector (%g, %g, %g) A/fs.\n",
+    "Group %d in grouping method %d will move with velocity vector (%g, %g, %g) A/fs.\n",
     move_group,
+    move_grouping_method,
     move_velocity[0],
     move_velocity[1],
     move_velocity[2]);
