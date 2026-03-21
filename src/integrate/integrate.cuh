@@ -85,6 +85,9 @@ public:
   double target_pressure[6];
   int num_target_pressure_components;
   double temperature_coupling;
+  double qtb_f_max = 200.0; // in ps^-1
+  int qtb_n_f = 100;
+  int qtb_seed = 880302;
   double tau_p;
   double elastic_modulus[6];
   double pressure_coupling[6];
