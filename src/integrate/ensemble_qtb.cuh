@@ -27,7 +27,27 @@
 class Ensemble_QTB : public Ensemble
 {
 public:
+  // NVT-QTB constructor
   Ensemble_QTB(int t, int N, double T, double Tc, double dt, double f_max, int N_f, int seed);
+
+  // NPT-QTB constructor (QTB thermostat + Berendsen barostat)
+  Ensemble_QTB(
+    int t,
+    int N,
+    double T,
+    double Tc,
+    double dt,
+    double f_max,
+    int N_f,
+    int seed,
+    double target_p[6],
+    int num_target_p,
+    double pc[6],
+    int dx,
+    int dy,
+    int dz,
+    double rate[3]);
+
   ~Ensemble_QTB(void);
 
   virtual void compute1(
@@ -66,6 +86,7 @@ private:
   GPU_Vector<double> fran;
   GPU_Vector<gpurandState> curand_states;
 
+  void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input, int seed_input);
   void update_time_filter(const double target_temperature);
   void refresh_colored_random_force();
   void apply_qtb_half_step();
