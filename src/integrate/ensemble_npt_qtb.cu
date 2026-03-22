@@ -112,7 +112,7 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
 
   // NPT-QTB: barostat on, NHC thermostat off (QTB replaces it)
   ensemble_type = NPH;
-  use_barostat = true;
+  use_barostat = false;  // will be set true only when a pressure direction is parsed
   use_thermostat = false;
 
   // QTB defaults
@@ -125,6 +125,7 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
   while (i < num_params) {
     if (strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
         strcmp(params[i], "tri") == 0) {
+      if (i + 2 >= num_params) PRINT_INPUT_ERROR("iso/aniso/tri requires <p_start> <p_stop>.");
       if (!is_valid_real(params[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start.");
       p_start[1][1] = p_start[2][2] = p_start[0][0];
@@ -132,6 +133,7 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
+      use_barostat = true;
       if (strcmp(params[i], "iso") == 0)
         couple_type = XYZ;
       if (strcmp(params[i], "tri") == 0) {
@@ -141,18 +143,22 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
       }
       i += 3;
     } else if (strcmp(params[i], "x") == 0) {
+      if (i + 2 >= num_params) PRINT_INPUT_ERROR("x requires <p_start> <p_stop>.");
       if (!is_valid_real(params[i + 1], &p_start[0][0])) PRINT_INPUT_ERROR("Wrong p_start for x.");
       if (!is_valid_real(params[i + 2], &p_stop[0][0])) PRINT_INPUT_ERROR("Wrong p_stop for x.");
-      p_flag[0][0] = 1; non_hydrostatic = 1; i += 3;
+      p_flag[0][0] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
     } else if (strcmp(params[i], "y") == 0) {
+      if (i + 2 >= num_params) PRINT_INPUT_ERROR("y requires <p_start> <p_stop>.");
       if (!is_valid_real(params[i + 1], &p_start[1][1])) PRINT_INPUT_ERROR("Wrong p_start for y.");
       if (!is_valid_real(params[i + 2], &p_stop[1][1])) PRINT_INPUT_ERROR("Wrong p_stop for y.");
-      p_flag[1][1] = 1; non_hydrostatic = 1; i += 3;
+      p_flag[1][1] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
     } else if (strcmp(params[i], "z") == 0) {
+      if (i + 2 >= num_params) PRINT_INPUT_ERROR("z requires <p_start> <p_stop>.");
       if (!is_valid_real(params[i + 1], &p_start[2][2])) PRINT_INPUT_ERROR("Wrong p_start for z.");
       if (!is_valid_real(params[i + 2], &p_stop[2][2])) PRINT_INPUT_ERROR("Wrong p_stop for z.");
-      p_flag[2][2] = 1; non_hydrostatic = 1; i += 3;
+      p_flag[2][2] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
     } else if (strcmp(params[i], "pperiod") == 0) {
+      if (i + 1 >= num_params) PRINT_INPUT_ERROR("pperiod requires a value.");
       if (!is_valid_real(params[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pperiod.");
       if (p_period[0][0] < 200)
@@ -162,20 +168,30 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
           p_period[a][b] = p_period[0][0];
       i += 2;
     } else if (strcmp(params[i], "temp") == 0) {
+      if (i + 2 >= num_params) PRINT_INPUT_ERROR("temp requires two values: <T_start> <T_stop>.");
       if (!is_valid_real(params[i + 1], &t_start)) PRINT_INPUT_ERROR("Wrong t_start.");
       if (!is_valid_real(params[i + 2], &t_stop)) PRINT_INPUT_ERROR("Wrong t_stop.");
+      if (t_start <= 0) PRINT_INPUT_ERROR("t_start should > 0.");
+      if (t_stop <= 0) PRINT_INPUT_ERROR("t_stop should > 0.");
       t_target = t_start;
       i += 3;
     } else if (strcmp(params[i], "tperiod") == 0) {
+      if (i + 1 >= num_params) PRINT_INPUT_ERROR("tperiod requires a value.");
       if (!is_valid_real(params[i + 1], &t_period)) PRINT_INPUT_ERROR("Wrong tperiod.");
+      if (t_period <= 0) PRINT_INPUT_ERROR("tperiod should > 0.");
       i += 2;
     } else if (strcmp(params[i], "f_max") == 0) {
+      if (i + 1 >= num_params) PRINT_INPUT_ERROR("f_max requires a value.");
       if (!is_valid_real(params[i + 1], &qtb_f_max)) PRINT_INPUT_ERROR("f_max should be a number.");
+      if (qtb_f_max <= 0) PRINT_INPUT_ERROR("f_max should > 0.");
       i += 2;
     } else if (strcmp(params[i], "N_f") == 0) {
+      if (i + 1 >= num_params) PRINT_INPUT_ERROR("N_f requires a value.");
       if (!is_valid_int(params[i + 1], &qtb_n_f_input)) PRINT_INPUT_ERROR("N_f should be an integer.");
+      if (qtb_n_f_input <= 0) PRINT_INPUT_ERROR("N_f should > 0.");
       i += 2;
     } else if (strcmp(params[i], "seed") == 0) {
+      if (i + 1 >= num_params) PRINT_INPUT_ERROR("seed requires a value.");
       if (!is_valid_int(params[i + 1], &qtb_seed)) PRINT_INPUT_ERROR("seed should be an integer.");
       i += 2;
     } else {

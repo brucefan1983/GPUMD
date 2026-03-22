@@ -978,6 +978,8 @@ void Integrate::parse_ensemble(
       break;
     case -11:
       break;
+    case -12: // npt_qtb (self-parsed)
+      break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
