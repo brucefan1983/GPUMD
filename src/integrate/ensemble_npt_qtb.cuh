@@ -24,11 +24,11 @@
   #include <curand_kernel.h>
 #endif
 
-class Ensemble_NPH_QTB : public Ensemble_MTTK
+class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
-  Ensemble_NPH_QTB(const char** params, int num_params);
-  virtual ~Ensemble_NPH_QTB(void);
+  Ensemble_NPT_QTB(const char** params, int num_params);
+  virtual ~Ensemble_NPT_QTB(void);
 
   virtual void compute1(
     const double time_step,

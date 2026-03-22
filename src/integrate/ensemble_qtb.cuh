@@ -30,24 +30,6 @@ public:
   // NVT-QTB constructor
   Ensemble_QTB(int t, int N, double T, double Tc, double dt, double f_max, int N_f, int seed);
 
-  // NPT-QTB constructor (QTB thermostat + Berendsen barostat)
-  Ensemble_QTB(
-    int t,
-    int N,
-    double T,
-    double Tc,
-    double dt,
-    double f_max,
-    int N_f,
-    int seed,
-    double target_p[6],
-    int num_target_p,
-    double pc[6],
-    int dx,
-    int dy,
-    int dz,
-    double rate[3]);
-
   ~Ensemble_QTB(void);
 
   virtual void compute1(

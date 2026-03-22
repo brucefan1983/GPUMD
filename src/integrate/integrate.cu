@@ -24,7 +24,7 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
-#include "ensemble_nph_qtb.cuh"
+#include "ensemble_npt_qtb.cuh"
 #include "ensemble_nphug.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
@@ -111,24 +111,6 @@ void Integrate::initialize(
         qtb_n_f,
         qtb_seed));
       break;
-    case 16: // NPT-QTB
-      ensemble.reset(new Ensemble_QTB(
-        type,
-        number_of_atoms,
-        temperature,
-        temperature_coupling,
-        time_step,
-        qtb_f_max,
-        qtb_n_f,
-        qtb_seed,
-        target_pressure,
-        num_target_pressure_components,
-        pressure_coupling,
-        deform_x,
-        deform_y,
-        deform_z,
-        deform_rate));
-      break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
         type,
@@ -177,7 +159,7 @@ void Integrate::initialize(
       break;
     case -11: // ti_liquid
       break;
-    case -12: // nph_qtb
+    case -12: // npt_qtb
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -419,14 +401,6 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR(
         "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
     }
-  } else if (strcmp(param[1], "npt_qtb") == 0) {
-    type = 16;
-    // npt_qtb has same pressure params as npt_ber, plus optional QTB key-value pairs
-    // minimum: npt_qtb T1 T2 Tc p C p_coup [qtb opts] = 8 required
-    if (num_param < 8) {
-      PRINT_INPUT_ERROR(
-        "ensemble npt_qtb should have at least 6 required parameters.");
-    }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
@@ -445,9 +419,9 @@ void Integrate::parse_ensemble(
     ensemble.reset(ptr_temp);
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
-  } else if (strcmp(param[1], "nph_qtb") == 0) {
+  } else if (strcmp(param[1], "npt_qtb") == 0) {
     type = -12;
-    Ensemble_NPH_QTB* ptr_temp = new Ensemble_NPH_QTB(param, num_param);
+    Ensemble_NPT_QTB* ptr_temp = new Ensemble_NPT_QTB(param, num_param);
     ensemble.reset(ptr_temp);
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
@@ -552,14 +526,9 @@ void Integrate::parse_ensemble(
   }
 
   // 2b. Optional parameters for QTB
-  if (type == 6 || type == 16) {
+  if (type == 6) {
     // For nvt_qtb (type 6): optional params start at index 5
-    // For npt_qtb (type 16): optional params start after pressure params
-    int qtb_opt_start = 5;
-    if (type == 16) {
-      qtb_opt_start = num_target_pressure_components * 2 + 5 + 1; // after p_coup
-    }
-    int i = qtb_opt_start;
+    int i = 5;
     while (i < num_param) {
       if (strcmp(param[i], "f_max") == 0) {
         if (!is_valid_real(param[i + 1], &qtb_f_max)) {
@@ -903,45 +872,6 @@ void Integrate::parse_ensemble(
       printf("    f_max is %g ps^-1.\n", qtb_f_max);
       printf("    N_f is %d.\n", qtb_n_f);
       printf("    seed is %d.\n", qtb_seed);
-      break;
-    case 16:
-      printf("Use NPT ensemble for this run.\n");
-      printf("    choose the quantum thermal bath + Berendsen barostat method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    f_max is %g ps^-1.\n", qtb_f_max);
-      printf("    N_f is %d.\n", qtb_n_f);
-      printf("    seed is %d.\n", qtb_seed);
-      if (num_target_pressure_components == 1) {
-        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-      } else if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-      } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-        printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-      }
-      printf("    tau_p is %g time_step.\n", tau_p);
-      for (int i = 0; i < 6; i++) {
-        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-      }
       break;
     case 11:
       if (temperature_coupling <= 100000) {

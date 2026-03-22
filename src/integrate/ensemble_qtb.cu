@@ -16,13 +16,10 @@
 /*----------------------------------------------------------------------------80
 The QTB thermostat based on a colored noise filter:
 [1] Dammak, T., et al. Phys. Rev. Lett. 103, 190601 (2009).
-NPT-QTB combines QTB thermostat with Berendsen barostat, equivalent to
-LAMMPS fix nph + fix qtb.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_qtb.cuh"
 #include "langevin_utilities.cuh"
-#include "npt_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
@@ -120,95 +117,6 @@ static __global__ void gpu_apply_qtb_half_step(
   }
 }
 
-// Berendsen barostat helpers (same as ensemble_ber.cu)
-static void cpu_pressure_orthogonal(
-  int deform_x,
-  int deform_y,
-  int deform_z,
-  double deform_rate[3],
-  Box& box,
-  double* p0,
-  double* p_coupling,
-  double* thermo,
-  double* scale_factor)
-{
-  double p[3];
-  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
-
-  if (deform_x) {
-    scale_factor[0] = box.cpu_h[0];
-    scale_factor[0] = (scale_factor[0] + deform_rate[0]) / scale_factor[0];
-    box.cpu_h[0] *= scale_factor[0];
-  } else if (box.pbc_x == 1) {
-    scale_factor[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
-    box.cpu_h[0] *= scale_factor[0];
-  } else {
-    scale_factor[0] = 1.0;
-  }
-
-  if (deform_y) {
-    scale_factor[1] = box.cpu_h[4];
-    scale_factor[1] = (scale_factor[1] + deform_rate[1]) / scale_factor[1];
-    box.cpu_h[4] *= scale_factor[1];
-  } else if (box.pbc_y == 1) {
-    scale_factor[1] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
-    box.cpu_h[4] *= scale_factor[1];
-  } else {
-    scale_factor[1] = 1.0;
-  }
-
-  if (deform_z) {
-    scale_factor[2] = box.cpu_h[8];
-    scale_factor[2] = (scale_factor[2] + deform_rate[2]) / scale_factor[2];
-    box.cpu_h[8] *= scale_factor[2];
-  } else if (box.pbc_z == 1) {
-    scale_factor[2] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
-    box.cpu_h[8] *= scale_factor[2];
-  } else {
-    scale_factor[2] = 1.0;
-  }
-
-  box.get_inverse();
-}
-
-static void cpu_pressure_isotropic(
-  Box& box, double* p0, double* p_coupling, double* thermo, double& scale_factor)
-{
-  double p[3];
-  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
-  scale_factor = 1.0 - p_coupling[0] * (p0[0] - (p[0] + p[1] + p[2]) * 0.3333333333333333);
-  box.cpu_h[0] *= scale_factor;
-  box.cpu_h[4] *= scale_factor;
-  box.cpu_h[8] *= scale_factor;
-  box.get_inverse();
-}
-
-static void
-cpu_pressure_triclinic(Box& box, double* p0, double* p_coupling, double* thermo, double* mu)
-{
-  double p[6];
-  CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 6, gpuMemcpyDeviceToHost));
-  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
-  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
-  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
-  mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]);
-  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]);
-  mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]);
-  double h_old[9];
-  for (int i = 0; i < 9; ++i) {
-    h_old[i] = box.cpu_h[i];
-  }
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      double tmp = 0.0;
-      for (int k = 0; k < 3; ++k) {
-        tmp += mu[r * 3 + k] * h_old[k * 3 + c];
-      }
-      box.cpu_h[r * 3 + c] = tmp;
-    }
-  }
-  box.get_inverse();
-}
 } // namespace
 
 // PLACEHOLDER_METHODS
@@ -268,39 +176,6 @@ Ensemble_QTB::Ensemble_QTB(
   type = t;
   num_target_pressure_components = 0;
   init_qtb_common(N, T, Tc, dt_input, f_max, N_f, seed);
-}
-
-// NPT-QTB constructor
-Ensemble_QTB::Ensemble_QTB(
-  int t,
-  int N,
-  double T,
-  double Tc,
-  double dt_input,
-  double f_max,
-  int N_f,
-  int seed_input,
-  double target_p[6],
-  int num_target_p,
-  double pc[6],
-  int dx,
-  int dy,
-  int dz,
-  double rate[3])
-{
-  type = t;
-  for (int i = 0; i < 6; i++) {
-    target_pressure[i] = target_p[i];
-    pressure_coupling[i] = pc[i];
-  }
-  num_target_pressure_components = num_target_p;
-  deform_x = dx;
-  deform_y = dy;
-  deform_z = dz;
-  deform_rate[0] = rate[0];
-  deform_rate[1] = rate[1];
-  deform_rate[2] = rate[2];
-  init_qtb_common(N, T, Tc, dt_input, f_max, N_f, seed_input);
 }
 
 Ensemble_QTB::~Ensemble_QTB(void)
@@ -459,43 +334,6 @@ void Ensemble_QTB::compute2(
     atom.velocity_per_atom,
     atom.virial_per_atom,
     thermo);
-
-  // Berendsen barostat (only for npt_qtb, type == 16)
-  if (type == 16) {
-    if (num_target_pressure_components == 1) {
-      double scale_factor;
-      cpu_pressure_isotropic(box, target_pressure, pressure_coupling, thermo.data(), scale_factor);
-      gpu_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        scale_factor,
-        atom.position_per_atom.data(),
-        atom.position_per_atom.data() + number_of_atoms,
-        atom.position_per_atom.data() + number_of_atoms * 2);
-      GPU_CHECK_KERNEL
-    } else if (num_target_pressure_components == 3) {
-      double scale_factor[3];
-      cpu_pressure_orthogonal(
-        deform_x, deform_y, deform_z, deform_rate, box,
-        target_pressure, pressure_coupling, thermo.data(), scale_factor);
-      gpu_pressure_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        scale_factor[0], scale_factor[1], scale_factor[2],
-        atom.position_per_atom.data(),
-        atom.position_per_atom.data() + number_of_atoms,
-        atom.position_per_atom.data() + number_of_atoms * 2);
-      GPU_CHECK_KERNEL
-    } else {
-      double mu[9];
-      cpu_pressure_triclinic(box, target_pressure, pressure_coupling, thermo.data(), mu);
-      gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        mu[0], mu[1], mu[2], mu[3], mu[4], mu[5], mu[6], mu[7], mu[8],
-        atom.position_per_atom.data(),
-        atom.position_per_atom.data() + number_of_atoms,
-        atom.position_per_atom.data() + number_of_atoms * 2);
-      GPU_CHECK_KERNEL
-    }
-  }
 
   counter_mu = (counter_mu + 1) % alpha;
 }

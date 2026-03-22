@@ -14,13 +14,13 @@
 */
 
 /*----------------------------------------------------------------------------80
-NPH + QTB: Parrinello-Rahman barostat (MTTK) with QTB colored noise thermostat.
+NPT-QTB: Parrinello-Rahman barostat (MTTK) with QTB colored noise thermostat.
 Equivalent to LAMMPS fix nph + fix qtb.
 [1] Dammak, T., et al. Phys. Rev. Lett. 103, 190601 (2009).
 [2] Martyna, G. J., et al. J. Chem. Phys. 101, 4177 (1994).
 ------------------------------------------------------------------------------*/
 
-#include "ensemble_nph_qtb.cuh"
+#include "ensemble_npt_qtb.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -96,7 +96,7 @@ static __global__ void gpu_apply_qtb_half_step(
 
 /* PLACEHOLDER_CONSTRUCTOR */
 
-Ensemble_NPH_QTB::Ensemble_NPH_QTB(const char** params, int num_params)
+Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
 {
   // Initialize MTTK matrices to zero (same as parent constructor)
   for (int i = 0; i < 3; i++) {
@@ -110,7 +110,7 @@ Ensemble_NPH_QTB::Ensemble_NPH_QTB(const char** params, int num_params)
     }
   }
 
-  // NPH + QTB: barostat on, NHC thermostat off (QTB replaces it)
+  // NPT-QTB: barostat on, NHC thermostat off (QTB replaces it)
   ensemble_type = NPH;
   use_barostat = true;
   use_thermostat = false;
@@ -120,8 +120,8 @@ Ensemble_NPH_QTB::Ensemble_NPH_QTB(const char** params, int num_params)
   int qtb_n_f_input = 100;
   qtb_seed = 880302;
 
-  // Parse parameters: nph_qtb <pressure_args> temp <T1> <T2> tperiod <tp> [f_max ...] [N_f ...] [seed ...]
-  int i = 2; // skip "ensemble" and "nph_qtb"
+  // Parse parameters: npt_qtb <pressure_args> temp <T1> <T2> tperiod <tp> [f_max ...] [N_f ...] [seed ...]
+  int i = 2; // skip "ensemble" and "npt_qtb"
   while (i < num_params) {
     if (strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
         strcmp(params[i], "tri") == 0) {
@@ -179,19 +179,19 @@ Ensemble_NPH_QTB::Ensemble_NPH_QTB(const char** params, int num_params)
       if (!is_valid_int(params[i + 1], &qtb_seed)) PRINT_INPUT_ERROR("seed should be an integer.");
       i += 2;
     } else {
-      PRINT_INPUT_ERROR("Unknown nph_qtb keyword.");
+      PRINT_INPUT_ERROR("Unknown npt_qtb keyword.");
     }
   }
 
   if (t_start <= 0 || t_stop <= 0)
-    PRINT_INPUT_ERROR("nph_qtb requires temp <T_start> <T_stop>.");
+    PRINT_INPUT_ERROR("npt_qtb requires temp <T_start> <T_stop>.");
   if (!use_barostat)
-    PRINT_INPUT_ERROR("nph_qtb requires pressure specification (iso/aniso/tri/x/y/z).");
+    PRINT_INPUT_ERROR("npt_qtb requires pressure specification (iso/aniso/tri/x/y/z).");
 
   qtb_N_f = qtb_n_f_input;
 
   // Print summary
-  printf("Use NPH + QTB ensemble for this run.\n");
+  printf("Use NPT-QTB ensemble for this run.\n");
   printf("    Parrinello-Rahman barostat + quantum thermal bath thermostat.\n");
   printf("    QTB temperature: t_start=%g K, t_stop=%g K\n", t_start, t_stop);
   printf("    QTB tperiod=%g timesteps\n", t_period);
@@ -204,11 +204,11 @@ Ensemble_NPH_QTB::Ensemble_NPH_QTB(const char** params, int num_params)
         printf("    %s: p_start=%g, p_stop=%g, pperiod=%g\n", sc[a][b], p_start[a][b], p_stop[a][b], p_period[a][b]);
 }
 
-Ensemble_NPH_QTB::~Ensemble_NPH_QTB(void) {}
+Ensemble_NPT_QTB::~Ensemble_NPT_QTB(void) {}
 
 /* PLACEHOLDER_INIT */
 
-void Ensemble_NPH_QTB::init_mttk()
+void Ensemble_NPT_QTB::init_mttk()
 {
   // Call parent init for barostat setup
   Ensemble_MTTK::init_mttk();
@@ -216,7 +216,7 @@ void Ensemble_NPH_QTB::init_mttk()
   init_qtb();
 }
 
-void Ensemble_NPH_QTB::init_qtb()
+void Ensemble_NPT_QTB::init_qtb()
 {
   qtb_number_of_atoms = atom->number_of_atoms;
   qtb_dt = time_step;
@@ -251,12 +251,12 @@ void Ensemble_NPH_QTB::init_qtb()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPH_QTB::get_target_temp()
+void Ensemble_NPT_QTB::get_target_temp()
 {
   t_target = t_start + (t_stop - t_start) * get_delta();
 }
 
-void Ensemble_NPH_QTB::qtb_update_time_filter(const double target_temperature)
+void Ensemble_NPT_QTB::qtb_update_time_filter(const double target_temperature)
 {
   if (fabs(target_temperature - qtb_last_filter_temperature) < 1.0e-12)
     return;
@@ -289,7 +289,7 @@ void Ensemble_NPH_QTB::qtb_update_time_filter(const double target_temperature)
   qtb_last_filter_temperature = target_temperature;
 }
 
-void Ensemble_NPH_QTB::qtb_refresh_colored_random_force()
+void Ensemble_NPT_QTB::qtb_refresh_colored_random_force()
 {
   const double g3p = sqrt(2.0 * qtb_fric_coef * 12.0 / qtb_h_timestep);
   gpu_refresh_qtb_random_force<<<(qtb_number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -301,7 +301,7 @@ void Ensemble_NPH_QTB::qtb_refresh_colored_random_force()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPH_QTB::qtb_apply_half_step()
+void Ensemble_NPT_QTB::qtb_apply_half_step()
 {
   const int N = qtb_number_of_atoms;
   const double dt_half = 0.5 * qtb_dt;
@@ -334,7 +334,7 @@ void Ensemble_NPH_QTB::qtb_apply_half_step()
 // compute1: press_chain -> QTB_half_kick -> barostat_v -> verlet_v -> box -> verlet_x -> box
 // compute2: verlet_v -> barostat_v -> omega_dot -> QTB_half_kick -> press_chain -> thermo
 
-void Ensemble_NPH_QTB::compute1(
+void Ensemble_NPT_QTB::compute1(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
@@ -375,7 +375,7 @@ void Ensemble_NPH_QTB::compute1(
   propagate_box();
 }
 
-void Ensemble_NPH_QTB::compute2(
+void Ensemble_NPT_QTB::compute2(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
