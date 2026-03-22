@@ -52,6 +52,25 @@ void __global__ gpu_compute_dpdt(
   }
 }
 
+void __global__ gpu_compute_p_direct(
+  const int N,
+  const float sqrt_epsilon_inf,
+  const float* g_charge,
+  const double* g_unwrapped_pos,
+  const double* g_initial_pos,
+  float* g_px,
+  float* g_py,
+  float* g_pz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    const float q_scaled = g_charge[i] * sqrt_epsilon_inf;
+    g_px[i] = q_scaled * (float)(g_unwrapped_pos[i]         - g_initial_pos[i]);
+    g_py[i] = q_scaled * (float)(g_unwrapped_pos[i + N]     - g_initial_pos[i + N]);
+    g_pz[i] = q_scaled * (float)(g_unwrapped_pos[i + 2 * N] - g_initial_pos[i + 2 * N]);
+  }
+}
+
 void __global__ gpu_sum_dpdt(const int N, const float* g_dpdt_per_atom, float* g_dpdt)
 {
   const int tid = threadIdx.x;
@@ -92,7 +111,8 @@ void Compute_dpdt::preprocess(
   Force& force)
 {
   fid = fopen("dpdt.out", "a");
-  gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
+  const int N = atom.number_of_atoms;
+  gpu_dpdt_per_atom.resize(3 * N);
   gpu_dpdt_total.resize(3);
   cpu_dpdt_total.resize(3);
   p_integral[0] = 0.0;
@@ -100,6 +120,12 @@ void Compute_dpdt::preprocess(
   p_integral[2] = 0.0;
   p_integral_time = 0.0;
   p_integral_dt = time_step * sample_interval;
+  gpu_initial_unwrapped_pos.resize(3 * N);
+  atom.unwrapped_position.copy_to_device(gpu_initial_unwrapped_pos.data(), 3 * N);
+  gpu_p_direct_per_atom.resize(3 * N);
+  gpu_p_direct_total.resize(3);
+  cpu_p_direct_total.resize(3);
+  sqrt_epsilon_inf_ = force.potentials[0]->get_sqrt_epsilon_inf();
 }
 
 void Compute_dpdt::process(
@@ -135,20 +161,39 @@ void Compute_dpdt::process(
   gpu_sum_dpdt<<<3, 1024>>>(N, gpu_dpdt_per_atom.data(), gpu_dpdt_total.data());
   GPU_CHECK_KERNEL
 
+  GPU_Vector<float>& charge = force.potentials[0]->get_charge_reference();
+  gpu_compute_p_direct<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    sqrt_epsilon_inf_,
+    charge.data(),
+    atom.unwrapped_position.data(),
+    gpu_initial_unwrapped_pos.data(),
+    gpu_p_direct_per_atom.data(),
+    gpu_p_direct_per_atom.data() + N,
+    gpu_p_direct_per_atom.data() + N * 2);
+  GPU_CHECK_KERNEL
+
+  gpu_sum_dpdt<<<3, 1024>>>(N, gpu_p_direct_per_atom.data(), gpu_p_direct_total.data());
+  GPU_CHECK_KERNEL
+
   p_integral_time += p_integral_dt * TIME_UNIT_CONVERSION;
   gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
+  gpu_p_direct_total.copy_to_host(cpu_p_direct_total.data());
   for (int d = 0; d < 3; ++d) {
     p_integral[d] += cpu_dpdt_total[d] * p_integral_dt; //  e A
     cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION; // e A / fs
   }
-  fprintf(fid, "%g %g %g %g %g %g %g\n", 
+  fprintf(fid, "%9g %g %g %g %g %g %g %g %g %g\n",
     p_integral_time,
-    cpu_dpdt_total[0], 
-    cpu_dpdt_total[1], 
-    cpu_dpdt_total[2], 
-    p_integral[0], 
-    p_integral[1], 
-    p_integral[2]);
+    cpu_dpdt_total[0],
+    cpu_dpdt_total[1],
+    cpu_dpdt_total[2],
+    p_integral[0],
+    p_integral[1],
+    p_integral[2],
+    cpu_p_direct_total[0],
+    cpu_p_direct_total[1],
+    cpu_p_direct_total[2]);
   fflush(fid);
 }
 

@@ -87,6 +87,8 @@ public:
     return dummy_bec;
   }
 
+  virtual float get_sqrt_epsilon_inf() const { return 1.0f; }
+
 protected:
   void find_properties_many_body(
     Box& box,

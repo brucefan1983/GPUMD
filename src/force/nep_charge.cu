@@ -2033,3 +2033,10 @@ const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radi
 GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }
 
 GPU_Vector<float>& NEP_Charge::get_bec_reference() { return nep_data.bec; }
+
+float NEP_Charge::get_sqrt_epsilon_inf() const
+{
+  float val;
+  CHECK(gpuMemcpy(&val, annmb.sqrt_epsilon_inf, sizeof(float), gpuMemcpyDeviceToHost));
+  return val;
+}

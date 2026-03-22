@@ -64,5 +64,10 @@ private:
   double p_integral[3];
   double p_integral_dt;
   double p_integral_time;
+  GPU_Vector<double> gpu_initial_unwrapped_pos;
+  GPU_Vector<float> gpu_p_direct_per_atom;
+  GPU_Vector<float> gpu_p_direct_total;
+  std::vector<float> cpu_p_direct_total;
+  float sqrt_epsilon_inf_;
   FILE* fid;
 };

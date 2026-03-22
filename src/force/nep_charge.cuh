@@ -142,6 +142,8 @@ public:
 
   GPU_Vector<float>& get_bec_reference();
 
+  float get_sqrt_epsilon_inf() const override;
+
 private:
   ParaMB paramb;
   ANN annmb;
