@@ -120,6 +120,13 @@ void Compute_dpdt::preprocess(
   p_integral[2] = 0.0;
   p_integral_time = 0.0;
   p_integral_dt = time_step * sample_interval;
+  if (atom.unwrapped_position.size() < static_cast<size_t>(3 * N)) {
+    atom.unwrapped_position.resize(3 * N);
+    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+  }
+  if (atom.position_temp.size() < static_cast<size_t>(3 * N)) {
+    atom.position_temp.resize(3 * N);
+  }
   gpu_initial_unwrapped_pos.resize(3 * N);
   atom.unwrapped_position.copy_to_device(gpu_initial_unwrapped_pos.data(), 3 * N);
   gpu_p_direct_per_atom.resize(3 * N);
