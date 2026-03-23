@@ -30,9 +30,9 @@ private:
   int cxyz[3] = {1, 1, 1};
 
 public:
-  double displacement = 0.015;
-  double cutoff = 4.0;
-  double phonon_cutoff = 8.0;
+  double displacement = 0.005;
+  double cutoff = 8.0;
+  double phonon_cutoff = 16.0;
 
   void compute(
     Force& force,
@@ -62,7 +62,7 @@ protected:
   std::vector<double> H;
   std::vector<double> DR;
   std::vector<double> DI;
-  std::vector<std::string> hsp_names;
+  std::vector<std::string> sym_names;
 
   void create_basis(const std::vector<double>& cpu_mass, size_t N);
   void create_kpoints(const Box& box);

@@ -22,6 +22,7 @@ Then calculate the dynamical matrices with different k points.
 #include "force/force.cuh"
 #include "force/force_constant.cuh"
 #include "hessian.cuh"
+#include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/cusolver_wrapper.cuh"
 #include "utilities/error.cuh"
@@ -29,37 +30,62 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <vector>
-#include <array>
 
+#define M_PI 3.14159265358979323846
 namespace
 {
-  using Vec3 = std::array<double, 3>;
-  using Mat3 = std::array<std::array<double, 3>, 3>;
+// Helper structures for automatic k-point generation
+struct Vec3 {
+  double x, y, z;
+};
 
-  Vec3 matvec(const Mat3& m, const Vec3& v)
-  {
-    return Vec3{{
-      m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
-      m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-      m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]}};
-  }
+struct Mat3 {
+  double data[3][3];
+};
 
-  Vec3 lerp(const Vec3& a, const Vec3& b, double t)
-  {
-    return Vec3{{a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])}};
-  }
+double dot(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
-  Mat3 build_reciprocal_lattice(const Box& box, const int cxyz[3])
-  {
-    Mat3 rec;
-    for (int i = 0; i < 3; ++i) {
-      for (int j = 0; j < 3; ++j) {
-        rec[i][j] = 2.0 * PI * cxyz[i] * box.cpu_h[9 + i * 3 + j];
-      }
-    }
-    return rec;
-  }
+Vec3 cross(const Vec3& a, const Vec3& b)
+{
+  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
 }
+
+Mat3 transpose(const Mat3& m)
+{
+  Mat3 t;
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      t.data[j][i] = m.data[i][j];
+  return t;
+}
+
+Vec3 matvec(const Mat3& m, const Vec3& v)
+{
+  return {
+    m.data[0][0] * v.x + m.data[0][1] * v.y + m.data[0][2] * v.z,
+    m.data[1][0] * v.x + m.data[1][1] * v.y + m.data[1][2] * v.z,
+    m.data[2][0] * v.x + m.data[2][1] * v.y + m.data[2][2] * v.z};
+}
+
+Vec3 lerp(const Vec3& a, const Vec3& b, double t)
+{
+  return {a.x + t * (b.x - a.x), a.y + t * (b.y - a.y), a.z + t * (b.z - a.z)};
+}
+
+Vec3 operator*(const Vec3& v, double s) { return {v.x * s, v.y * s, v.z * s}; }
+
+Mat3 reciprocal_lattice(const Vec3 lat[3])
+{
+  double volume = dot(lat[0], cross(lat[1], lat[2]));
+  double factor = 2.0 * M_PI / volume;
+
+  Vec3 c0 = cross(lat[1], lat[2]) * factor;
+  Vec3 c1 = cross(lat[2], lat[0]) * factor;
+  Vec3 c2 = cross(lat[0], lat[1]) * factor;
+  Mat3 rec = {{{c0.x, c0.y, c0.z}, {c1.x, c1.y, c1.z}, {c2.x, c2.y, c2.z}}};
+  return transpose(rec);
+}
+} // namespace
 
 void Hessian::compute(
   Force& force,
@@ -97,7 +123,7 @@ void Hessian::compute(
 void Hessian::get_cutoff_from_potential(Force& force)
 {
   for (const auto& potential : force.potentials) {
-    cutoff = std::max(cutoff, potential->rc);
+      cutoff = potential->rc;
   }
   phonon_cutoff = cutoff * 2.0;
   printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);
@@ -129,85 +155,104 @@ void Hessian::create_kpoints(const Box& box)
 
   std::vector<std::vector<Vec3>> hsps;
   std::vector<Vec3> hsp;
+  sym_names.clear();
   std::string line;
-  std::string k_name;
-  std::string k_names;
+  std::string names;
 
   while (std::getline(kin, line)) {
-    auto tokens = get_tokens(line);
-    if (tokens.empty()) {
+    const auto beg = line.find_first_not_of(" \t\r\n");
+    if (beg == std::string::npos) {
       if (!hsp.empty()) {
         hsps.push_back(hsp);
+        sym_names.push_back(names);
+        names.clear();
         hsp.clear();
-        hsp_names.push_back(k_names);
-        k_names.clear();
       }
       continue;
     }
-    if (tokens[0][0] == '#') 
+    if (line[beg] == '#')
       continue;
-    
-    if (tokens.size() < 4) {
-      PRINT_INPUT_ERROR("kpoints.in file at least 4 parameters for each line.");
-    } else {
-      double k[3];
-      for (int i = 0; i < 3; ++i) {
-        k[i] = get_double_from_token(tokens[i], __FILE__, __LINE__);
-      }
-      hsp.push_back(Vec3{{k[0], k[1], k[2]}});
-      k_name = tokens[3];
-      if (!k_names.empty())
-        k_names += " ";
-      k_names += k_name;
+
+    double x, y, z;
+    char name[16];
+    int n = sscanf(line.c_str(), "%lf %lf %lf %15[^# \n]", &x, &y, &z, name);
+    if (n < 4) {
+      PRINT_INPUT_ERROR("kpoints.in file format error.");
     }
+
+    hsp.push_back({x, y, z});
+    if (!names.empty())
+      names += " ";
+    names += name;
   }
-  if (!hsp.empty()) {
+  if (!hsp.empty())
     hsps.push_back(hsp);
-    hsp_names.push_back(k_names);
+  sym_names.push_back(names);
+
+  if (!sym_names.empty() && sym_names.back().empty()) {
+    sym_names.pop_back();
   }
 
   num_kpoints = 1 - hsps.size();
-  for (const auto& hsp : hsps)
-    num_kpoints += hsp.size();
+  for (const auto& seg : hsps)
+    num_kpoints += seg.size();
+  kpath_sym.resize(num_kpoints);
   num_kpoints = (num_kpoints - 1) * 100 + 1;
+
+  const Vec3 origin_lattice[3] = {
+    {box.cpu_h[0] / cxyz[0], box.cpu_h[3] / cxyz[0], box.cpu_h[6] / cxyz[0]},
+    {box.cpu_h[1] / cxyz[1], box.cpu_h[4] / cxyz[1], box.cpu_h[7] / cxyz[1]},
+    {box.cpu_h[2] / cxyz[2], box.cpu_h[5] / cxyz[2], box.cpu_h[8] / cxyz[2]}};
+  const auto rec_lat = reciprocal_lattice(origin_lattice);
+
   kpoints.resize(num_kpoints * 3);
   kpath.resize(num_kpoints);
+  std::vector<double> sym_idx;
 
+  size_t k_idx = 0;
   double kpath_len = 0.0;
-  const Mat3 rec_lat = build_reciprocal_lattice(box, cxyz);
-  Vec3 k_first = matvec(rec_lat, hsps[0][0]);
-  for (int i = 0; i < 3; ++i) {
-    kpoints[i] = k_first[i];
-  }
-  kpath[0] = kpath_len;
-  kpath_sym.push_back(kpath_len);
+  auto k_first = matvec(rec_lat, hsps[0][0]);
+  kpoints[0] = k_first.x;
+  kpoints[1] = k_first.y;
+  kpoints[2] = k_first.z;
+  kpath[k_idx] = kpath_len;
+  sym_idx.push_back(k_idx);
+  ++k_idx;
 
-  int k_idx = 1;
   for (const auto& hsp : hsps) {
-    for (int i = 1; i < hsp.size(); ++i) {
+    for (size_t i = 1; i < hsp.size(); ++i) {
       const auto& start = matvec(rec_lat, hsp[i - 1]);
       const auto& end = matvec(rec_lat, hsp[i]);
-      auto last = start;
 
       for (int j = 1; j <= 100; ++j) {
-        auto kpt = lerp(start, end, j * 0.01);
-        for (int i = 0; i < 3; ++i) {
-          kpoints[k_idx * 3 + i] = kpt[i];
-        }
+        double t = j * 0.01;
+        auto kpt = lerp(start, end, t);
+        kpoints[k_idx * 3 + 0] = kpt.x;
+        kpoints[k_idx * 3 + 1] = kpt.y;
+        kpoints[k_idx * 3 + 2] = kpt.z;
         
-        double d[3];
-        for (int i = 0; i < 3; ++i) {
-          d[i] = kpt[i] - last[i];
+        double dx, dy, dz;
+        if (i == 1 && j == 1){
+          dx = kpt.x - start.x;
+          dy = kpt.y - start.y;
+          dz = kpt.z - start.z;
+        } else{
+          dx = kpt.x - kpoints[k_idx * 3 - 3];
+          dy = kpt.y - kpoints[k_idx * 3 - 2];
+          dz = kpt.z - kpoints[k_idx * 3 - 1];
         }
-        kpath_len += std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        kpath_len += std::sqrt(dx * dx + dy * dy + dz * dz);
         kpath[k_idx] = kpath_len;
-        last = kpt;
 
         if (j == 100)
-          kpath_sym.push_back(kpath_len);
+          sym_idx.push_back(k_idx);
         ++k_idx;
       }
     }
+  }
+
+  for (size_t kp = 0; kp < kpath_sym.size(); ++kp) {
+    kpath_sym[kp] = kpath[sym_idx[kp]];
   }
 }
 
@@ -223,9 +268,9 @@ void Hessian::initialize(
     auto tokens = get_tokens(line);
     if (!tokens.empty() && tokens[0][0] != '#' && tokens[0] == "replicate") {  // 跳过空行和注释行
       f_rep = true;
-      for (int i = 0; i < 3; ++i) {
-        cxyz[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
-      }
+      cxyz[0] = get_int_from_token(tokens[1], __FILE__, __LINE__);
+      cxyz[1] = get_int_from_token(tokens[2], __FILE__, __LINE__);
+      cxyz[2] = get_int_from_token(tokens[3], __FILE__, __LINE__);
     }
     break;
   }
@@ -398,14 +443,14 @@ void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_pos
 
   FILE* fid_omega2 = fopen("omega2.out", "w");
   fprintf(fid_omega2, "#");
-  for (int i = 0; i < kpath_sym.size(); ++i) {
+  for (size_t i = 0; i < kpath_sym.size(); ++i) {
     fprintf(fid_omega2, " %.6f", kpath_sym[i]);
   }
   fprintf(fid_omega2, " ");
-  for (int i = 0; i < hsp_names.size(); ++i) {
+  for (size_t i = 0; i < sym_names.size(); ++i) {
     if (i > 0)
       fprintf(fid_omega2, "|");
-    fprintf(fid_omega2, "%s", hsp_names[i].c_str());
+    fprintf(fid_omega2, "%s", sym_names[i].c_str());
   }
   fprintf(fid_omega2, "\n");
 
@@ -520,6 +565,7 @@ void Hessian::parse(const char** param, size_t num_param)
     PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");
   }
 
+  // displacement
   if (!is_valid_real(param[1], &displacement)) {
     PRINT_INPUT_ERROR("displacement for compute_phonon should be a number.\n");
   }
