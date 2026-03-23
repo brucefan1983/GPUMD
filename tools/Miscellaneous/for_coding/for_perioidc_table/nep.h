@@ -18,6 +18,7 @@
 #include <vector>
 
 // #define USE_TABLE_FOR_RADIAL_FUNCTIONS
+extern const std::string ELEMENTS[];
 
 class NEP3
 {
