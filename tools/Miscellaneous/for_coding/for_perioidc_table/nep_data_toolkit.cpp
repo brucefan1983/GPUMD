@@ -590,12 +590,15 @@ static std::vector<std::string> get_atom_symbols(const std::string& nep_file)
 
 static void calculate_one_structure(
   NEP3& nep3,
-  std::vector<std::string>& atom_symbols,
   Structure& structure,
   const std::string& functional,
   double D3_cutoff,
   double D3_cutoff_cn)
 {
+  for (int z = 0; z < 94; ++z) {
+    nep3.dftd3.atomic_number[z] = z;
+  }
+  
   std::vector<double> box(9);
   for (int d1 = 0; d1 < 3; ++d1) {
     for (int d2 = 0; d2 < 3; ++d2) {
@@ -608,21 +611,21 @@ static void calculate_one_structure(
   std::vector<double> potential(structure.num_atom);
   std::vector<double> force(structure.num_atom * 3);
   std::vector<double> virial(structure.num_atom * 9);
-
+  
   for (int n = 0; n < structure.num_atom; n++) {
     position[n] = structure.x[n];
     position[n + structure.num_atom] = structure.y[n];
     position[n + structure.num_atom * 2] = structure.z[n];
 
     bool is_allowed_element = false;
-    for (int t = 0; t < atom_symbols.size(); ++t) {
-      if (structure.atom_symbol[n] == atom_symbols[t]) {
+    for (int t = 0; t < 94; ++t) {
+      if (structure.atom_symbol[n] == ELEMENTS[t]) {
         type[n] = t;
         is_allowed_element = true;
       }
     }
     if (!is_allowed_element) {
-      std::cout << "There is atom not allowed in the used NEP potential.\n";
+      std::cout << "Unknown element: " << structure.atom_symbol[n] << "\n";
       exit(1);
     }
   }
@@ -652,10 +655,9 @@ static void calculate_one_structure(
 
 static void add_d3(std::vector<Structure>& structures, const std::string& functional)
 {
-  NEP3 nep3("nep.txt");
-  std::vector<std::string> atom_symbols = get_atom_symbols("nep.txt");
+  NEP3 nep3;
   for (int nc = 0; nc < structures.size(); ++nc) {
-    calculate_one_structure(nep3, atom_symbols, structures[nc], functional, 12, 6);
+    calculate_one_structure(nep3, structures[nc], functional, 12, 6);
     if ((nc+1) % 10000 == 0) {
       printf("%d stuctures finished.\n", nc+1);
     }
