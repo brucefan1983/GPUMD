@@ -32,6 +32,7 @@ void Minimize::parse_minimize(
   const char** param,
   int num_param,
   int fixed_group,
+  int fixed_grouping_method,
   Force& force,
   Box& box,
   GPU_Vector<double>& position_per_atom,
@@ -119,7 +120,7 @@ void Minimize::parse_minimize(
       printf("    for maximally %d steps.\n", number_of_steps);
 
       minimizer.reset(
-        new Minimizer_SD(fixed_group, number_of_atoms, number_of_steps, force_tolerance));
+        new Minimizer_SD(fixed_group, fixed_grouping_method, number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
