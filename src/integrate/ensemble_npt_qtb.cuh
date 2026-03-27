@@ -46,7 +46,6 @@ public:
 
 private:
   int qtb_number_of_atoms;
-  int qtb_seed;
   int qtb_N_f;
   int qtb_nfreq2;
   int qtb_alpha;

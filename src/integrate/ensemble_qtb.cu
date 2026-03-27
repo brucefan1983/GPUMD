@@ -122,13 +122,12 @@ static __global__ void gpu_apply_qtb_half_step(
 // PLACEHOLDER_METHODS
 
 void Ensemble_QTB::init_qtb_common(
-  int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input, int seed_input)
+  int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input)
 {
   number_of_atoms = N;
   temperature = T;
   temperature_coupling = Tc;
   dt = dt_input;
-  seed = seed_input;
   N_f = N_f_input;
   nfreq2 = 2 * N_f;
 
@@ -156,7 +155,7 @@ void Ensemble_QTB::init_qtb_common(
 
   curand_states.resize(number_of_atoms);
   initialize_curand_states<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    curand_states.data(), number_of_atoms, seed);
+    curand_states.data(), number_of_atoms, rand());
   GPU_CHECK_KERNEL
 
   gpu_initialize_qtb_history<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -171,11 +170,11 @@ void Ensemble_QTB::init_qtb_common(
 
 // NVT-QTB constructor
 Ensemble_QTB::Ensemble_QTB(
-  int t, int N, double T, double Tc, double dt_input, double f_max, int N_f, int seed)
+  int t, int N, double T, double Tc, double dt_input, double f_max, int N_f)
 {
   type = t;
   num_target_pressure_components = 0;
-  init_qtb_common(N, T, Tc, dt_input, f_max, N_f, seed);
+  init_qtb_common(N, T, Tc, dt_input, f_max, N_f);
 }
 
 Ensemble_QTB::~Ensemble_QTB(void)

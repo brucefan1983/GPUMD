@@ -118,7 +118,6 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
   // QTB defaults
   qtb_f_max = 200.0;
   int qtb_n_f_input = 100;
-  qtb_seed = 880302;
 
   // Parse parameters: npt_qtb <pressure_args> temp <T1> <T2> tperiod <tp> [f_max ...] [N_f ...] [seed ...]
   int i = 2; // skip "ensemble" and "npt_qtb"
@@ -190,10 +189,6 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
       if (!is_valid_int(params[i + 1], &qtb_n_f_input)) PRINT_INPUT_ERROR("N_f should be an integer.");
       if (qtb_n_f_input <= 0) PRINT_INPUT_ERROR("N_f should > 0.");
       i += 2;
-    } else if (strcmp(params[i], "seed") == 0) {
-      if (i + 1 >= num_params) PRINT_INPUT_ERROR("seed requires a value.");
-      if (!is_valid_int(params[i + 1], &qtb_seed)) PRINT_INPUT_ERROR("seed should be an integer.");
-      i += 2;
     } else {
       PRINT_INPUT_ERROR("Unknown npt_qtb keyword.");
     }
@@ -211,7 +206,7 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
   printf("    Parrinello-Rahman barostat + quantum thermal bath thermostat.\n");
   printf("    QTB temperature: t_start=%g K, t_stop=%g K\n", t_start, t_stop);
   printf("    QTB tperiod=%g timesteps\n", t_period);
-  printf("    QTB f_max=%g ps^-1, N_f=%d, seed=%d\n", qtb_f_max, qtb_N_f, qtb_seed);
+  printf("    QTB f_max=%g ps^-1, N_f=%d\n", qtb_f_max, qtb_N_f);
 
   const char* sc[3][3] = {{"xx","xy","xz"},{"yx","yy","yz"},{"zx","zy","zz"}};
   for (int a = 0; a < 3; a++)
@@ -258,7 +253,7 @@ void Ensemble_NPT_QTB::init_qtb()
 
   qtb_curand_states.resize(qtb_number_of_atoms);
   initialize_curand_states<<<(qtb_number_of_atoms - 1) / 128 + 1, 128>>>(
-    qtb_curand_states.data(), qtb_number_of_atoms, qtb_seed);
+    qtb_curand_states.data(), qtb_number_of_atoms, rand());
   GPU_CHECK_KERNEL
 
   gpu_initialize_qtb_history<<<(qtb_number_of_atoms - 1) / 128 + 1, 128>>>(

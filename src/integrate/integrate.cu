@@ -108,8 +108,7 @@ void Integrate::initialize(
         temperature_coupling,
         time_step,
         qtb_f_max,
-        qtb_n_f,
-        qtb_seed));
+        qtb_n_f));
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
@@ -362,7 +361,6 @@ void Integrate::parse_ensemble(
 {
   qtb_f_max = 200.0;
   qtb_n_f = 100;
-  qtb_seed = 880302;
 
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
@@ -543,13 +541,6 @@ void Integrate::parse_ensemble(
         }
         if (qtb_n_f <= 0) {
           PRINT_INPUT_ERROR("N_f should > 0.");
-        }
-      } else if (strcmp(param[i], "seed") == 0) {
-        if (!is_valid_int(param[i + 1], &qtb_seed)) {
-          PRINT_INPUT_ERROR("seed should be an integer.");
-        }
-        if (qtb_seed <= 0) {
-          PRINT_INPUT_ERROR("seed should > 0.");
         }
       } else {
         PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
@@ -871,7 +862,6 @@ void Integrate::parse_ensemble(
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    f_max is %g ps^-1.\n", qtb_f_max);
       printf("    N_f is %d.\n", qtb_n_f);
-      printf("    seed is %d.\n", qtb_seed);
       break;
     case 11:
       if (temperature_coupling <= 100000) {

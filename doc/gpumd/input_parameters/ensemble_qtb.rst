@@ -22,20 +22,19 @@ Syntax
 
 Run an NVT simulation with the QTB thermostat::
 
-    ensemble nvt_qtb <T_1> <T_2> <T_coup> [f_max <value>] [N_f <value>] [seed <value>]
+    ensemble nvt_qtb <T_1> <T_2> <T_coup> [f_max <value>] [N_f <value>]
 
 * :attr:`<T_1>` and :attr:`<T_2>`: Initial and final target temperature (K). The target temperature varies linearly during the run.
 * :attr:`<T_coup>`: Thermostat coupling parameter (in units of timestep). Controls the friction coefficient: :math:`\gamma = 1 / (\text{T\_coup} \times dt)`.
 * :attr:`f_max`: (Optional, default 200) Maximum frequency of the QTB filter in ps\ :sup:`-1`. Should be larger than the highest phonon frequency in the system.
 * :attr:`N_f`: (Optional, default 100) Number of frequency points in the filter. The filter uses :math:`2 N_f` points total.
-* :attr:`seed`: (Optional, default 880302) Random number seed for the colored noise generator.
 
 :attr:`npt_qtb`
 ^^^^^^^^^^^^^^^
 
 Run an NPT simulation with the QTB thermostat and Parrinello-Rahman (MTTK) barostat::
 
-    ensemble npt_qtb <direction> <p_1> <p_2> temp <T_1> <T_2> tperiod <tau_T> pperiod <tau_p> [f_max <value>] [N_f <value>] [seed <value>]
+    ensemble npt_qtb <direction> <p_1> <p_2> temp <T_1> <T_2> tperiod <tau_T> pperiod <tau_p> [f_max <value>] [N_f <value>]
 
 Pressure control parameters:
 
@@ -52,7 +51,6 @@ QTB-specific optional parameters (same as :attr:`nvt_qtb`):
 
 * :attr:`f_max`: Maximum frequency (ps\ :sup:`-1`, default 200).
 * :attr:`N_f`: Number of frequency points (default 100).
-* :attr:`seed`: Random seed (default 880302).
 
 
 Examples
@@ -84,7 +82,7 @@ Run at 300 K and 0 GPa with isotropic pressure control.
 
 .. code-block:: rst
 
-    ensemble npt_qtb aniso 0 0 temp 300 300 tperiod 100 pperiod 1000 f_max 200 N_f 100 seed 12345
+    ensemble npt_qtb aniso 0 0 temp 300 300 tperiod 100 pperiod 1000 f_max 200 N_f 100
 
 Anisotropic pressure control with explicit QTB parameters.
 

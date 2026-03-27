@@ -28,7 +28,7 @@ class Ensemble_QTB : public Ensemble
 {
 public:
   // NVT-QTB constructor
-  Ensemble_QTB(int t, int N, double T, double Tc, double dt, double f_max, int N_f, int seed);
+  Ensemble_QTB(int t, int N, double T, double Tc, double dt, double f_max, int N_f);
 
   ~Ensemble_QTB(void);
 
@@ -48,7 +48,6 @@ public:
 
 private:
   int number_of_atoms;
-  int seed;
   int N_f;
   int nfreq2;
   int alpha;
@@ -68,7 +67,7 @@ private:
   GPU_Vector<double> fran;
   GPU_Vector<gpurandState> curand_states;
 
-  void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input, int seed_input);
+  void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
   void update_time_filter(const double target_temperature);
   void refresh_colored_random_force();
   void apply_qtb_half_step();
