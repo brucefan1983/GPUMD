@@ -24,10 +24,12 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_npt_qtb.cuh"
 #include "ensemble_nphug.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
+#include "ensemble_qtb.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_liquid.cuh"
@@ -98,6 +100,16 @@ void Integrate::initialize(
     case 5: // NVT-BAOAB_Langevin
       ensemble.reset(new Ensemble_BAO(type, number_of_atoms, temperature, temperature_coupling));
       break;
+    case 6: // NVT-QTB
+      ensemble.reset(new Ensemble_QTB(
+        type,
+        number_of_atoms,
+        temperature,
+        temperature_coupling,
+        time_step,
+        qtb_f_max,
+        qtb_n_f));
+      break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
         type,
@@ -145,6 +157,8 @@ void Integrate::initialize(
     case -10:
       break;
     case -11: // ti_liquid
+      break;
+    case -12: // npt_qtb
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -345,6 +359,9 @@ void Integrate::parse_ensemble(
   std::vector<Group>& group,
   GPU_Vector<double>& thermo)
 {
+  qtb_f_max = 200.0;
+  qtb_n_f = 100;
+
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
     type = 0;
@@ -376,6 +393,12 @@ void Integrate::parse_ensemble(
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
     }
+  } else if (strcmp(param[1], "nvt_qtb") == 0) {
+    type = 6;
+    if (num_param < 5 || num_param % 2 == 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
+    }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
@@ -391,6 +414,12 @@ void Integrate::parse_ensemble(
     strcmp(param[1], "nph_mttk") == 0) {
     type = -3;
     Ensemble_MTTK* ptr_temp = new Ensemble_MTTK(param, num_param);
+    ensemble.reset(ptr_temp);
+    temperature1 = ptr_temp->t_start;
+    temperature2 = ptr_temp->t_stop;
+  } else if (strcmp(param[1], "npt_qtb") == 0) {
+    type = -12;
+    Ensemble_NPT_QTB* ptr_temp = new Ensemble_NPT_QTB(param, num_param);
     ensemble.reset(ptr_temp);
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
@@ -491,6 +520,32 @@ void Integrate::parse_ensemble(
       } else {
         PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
       }
+    }
+  }
+
+  // 2b. Optional parameters for QTB
+  if (type == 6) {
+    // For nvt_qtb (type 6): optional params start at index 5
+    int i = 5;
+    while (i < num_param) {
+      if (strcmp(param[i], "f_max") == 0) {
+        if (!is_valid_real(param[i + 1], &qtb_f_max)) {
+          PRINT_INPUT_ERROR("f_max should be a number.");
+        }
+        if (qtb_f_max <= 0.0) {
+          PRINT_INPUT_ERROR("f_max should > 0.");
+        }
+      } else if (strcmp(param[i], "N_f") == 0) {
+        if (!is_valid_int(param[i + 1], &qtb_n_f)) {
+          PRINT_INPUT_ERROR("N_f should be an integer.");
+        }
+        if (qtb_n_f <= 0) {
+          PRINT_INPUT_ERROR("N_f should > 0.");
+        }
+      } else {
+        PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
+      }
+      i += 2;
     }
   }
 
@@ -799,6 +854,15 @@ void Integrate::parse_ensemble(
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
+    case 6:
+      printf("Use NVT ensemble for this run.\n");
+      printf("    choose the quantum thermal bath method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    f_max is %g ps^-1.\n", qtb_f_max);
+      printf("    N_f is %d.\n", qtb_n_f);
+      break;
     case 11:
       if (temperature_coupling <= 100000) {
         printf("Use NPT ensemble for this run.\n");
@@ -903,6 +967,8 @@ void Integrate::parse_ensemble(
     case -10:
       break;
     case -11:
+      break;
+    case -12: // npt_qtb (self-parsed)
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
