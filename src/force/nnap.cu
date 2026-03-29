@@ -139,7 +139,11 @@ void NNAP::compute(
 
   // 2) copy type
   type_cpu.resize(number_of_atoms);
-  type.copy_to_host(type_cpu.data());
+  CHECK(gpuMemcpy(
+    type_cpu.data(),
+    type.data(),
+    sizeof(int) * number_of_atoms,
+    gpuMemcpyDeviceToHost));
 
   // 3) copy position and transpose to xyzxyz...
   position_gpu_trans.resize(number_of_atoms * 3);
