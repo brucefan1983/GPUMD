@@ -19,6 +19,7 @@
  */
 
 #pragma once
+#include <jni.h>
 #include "neighbor.cuh"
 #include "potential.cuh"
 
@@ -38,5 +39,7 @@ public:
     GPU_Vector<double>& virial);
     
 protected:
+  JNIEnv *mEnv = NULL;
+  jobject mCore = NULL;
   Neighbor neighbor;
 };
