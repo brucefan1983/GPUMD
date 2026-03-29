@@ -18,6 +18,9 @@ The driver class calculating force and related quantities.
 #ifdef USE_TENSORFLOW
 #include "dp.cuh"
 #endif
+#ifdef USE_NNAP
+#include "nnap.cuh"
+#endif
 #include "adp.cuh"
 #include "eam.cuh"
 #include "eam_alloy.cuh"
@@ -159,6 +162,15 @@ void Force::parse_potential(
         "potential file name.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
+#endif
+#ifdef USE_NNAP
+  } else if (strcmp(potential_name, "nnap") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR(
+        "The potential command should contain two parameters, "
+        "the setting file and the NNAP driver file name.\n");
+    }
+    potential.reset(new NNAP(param[2], number_of_atoms));
 #endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
