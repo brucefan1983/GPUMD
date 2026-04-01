@@ -17,10 +17,11 @@
  * NNAP interface for GPUMD
  * @author liqa
  */
+
+#ifdef USE_NNAP
 #include "nnap.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-
 
 static jboolean initJVM_(JNIEnv **rEnv) {
   JavaVM *tJVM = NULL;
@@ -156,3 +157,4 @@ void NNAP::compute(
   
   // TODO: invoke NNAP.computeGPUMD(...)
 }
+#endif
