@@ -35,8 +35,9 @@ static jboolean initJVM_(JNIEnv **rEnv) {
   tOptions[0].optionString = (char *)JVM_CLASS_PATH; // here, path/to/jse/lib/jse-all.jar
   tOptions[1].optionString = (char *)"-Xmx1g";
   tOptions[2].optionString = (char *)"--enable-native-access=ALL-UNNAMED";
+  tOptions[3].optionString = (char *)"-Djdk.lang.processReaperUseDefaultStackSize=true";
   tVMArgs.version = JNI_VERSION_1_6;
-  tVMArgs.nOptions = 3;
+  tVMArgs.nOptions = 4;
   tVMArgs.options = tOptions;
   tVMArgs.ignoreUnrecognized = JNI_TRUE;
   
@@ -56,7 +57,7 @@ static jclass NNAP_CLAZZ = NULL;
 
 static jboolean cacheJClass_(JNIEnv *aEnv) {
   if (NNAP_CLAZZ == NULL) {
-    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP2"); // Interim version developed for gpu version 
+    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP"); // Interim version developed for gpu version 
     if (aEnv->ExceptionCheck()) return JNI_FALSE;
     NNAP_CLAZZ = (jclass)aEnv->NewGlobalRef(clazz);
     aEnv->DeleteLocalRef(clazz);
@@ -117,7 +118,10 @@ NNAP::NNAP(const char* filename, int num_atoms)
   // get rcut
   rc = rcutMax_(mEnv, mCore);
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
-  neighbor.initialize(rc, num_atoms, 700); // 700?
+  neighbor.initialize(rc, num_atoms, 300); // 300?
+  if (!(std::isfinite(rc) && rc > 0.0)) {
+    PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
+  }
 }
 
 NNAP::~NNAP(void)
@@ -148,7 +152,7 @@ void NNAP::compute(
     rc,
     box, 
     type, 
-    position_per_atom);
+    position);
   
   // TODO: invoke NNAP.computeGPUMD(...)
 }
