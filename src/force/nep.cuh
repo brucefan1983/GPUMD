@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef USE_NNAP
 #pragma once
 #include "dftd3.cuh"
 #include "neighbor.cuh"
@@ -174,3 +175,4 @@ private:
   bool has_dftd3 = false;
   void initialize_dftd3();
 };
+#endif
