@@ -22,6 +22,10 @@
 #include "nnap.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cstdint>
+
+#define BLOCK_SIZE_NL_NNAP 256
+#define MAX_NEIGH_NUM_NNAP 512
 
 static jboolean initJVM_(JNIEnv **rEnv) {
   JavaVM *tJVM = NULL;
@@ -32,11 +36,11 @@ static jboolean initJVM_(JNIEnv **rEnv) {
     return JNI_TRUE;
   }
   JavaVMInitArgs tVMArgs;
-  JavaVMOption tOptions[3];
+  JavaVMOption tOptions[4];
   tOptions[0].optionString = (char *)JVM_CLASS_PATH; // here, path/to/jse/lib/jse-all.jar
   tOptions[1].optionString = (char *)"-Xmx1g";
   tOptions[2].optionString = (char *)"--enable-native-access=ALL-UNNAMED";
-  tOptions[3].optionString = (char *)"-Djdk.lang.processReaperUseDefaultStackSize=true";
+  tOptions[3].optionString = (char *)"-Djdk.lang.processReaperUseDefaultStackSize=true"; // avoid fail of thread create
   tVMArgs.version = JNI_VERSION_1_6;
   tVMArgs.nOptions = 4;
   tVMArgs.options = tOptions;
@@ -58,7 +62,7 @@ static jclass NNAP_CLAZZ = NULL;
 
 static jboolean cacheJClass_(JNIEnv *aEnv) {
   if (NNAP_CLAZZ == NULL) {
-    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP"); // Interim version developed for gpu version 
+    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP_cuda"); // Interim version developed for gpu version 
     if (aEnv->ExceptionCheck()) return JNI_FALSE;
     NNAP_CLAZZ = (jclass)aEnv->NewGlobalRef(clazz);
     aEnv->DeleteLocalRef(clazz);
@@ -75,6 +79,7 @@ static void uncacheJClass_(JNIEnv *aEnv) {
 static jmethodID sInit = 0;
 static jmethodID sShutdown = 0;
 static jmethodID sRcutMax = 0;
+static jmethodID sComputeGPUMD = 0;
 
 static jobject newJObject_(JNIEnv *aEnv, const char* filename) {
   jobject rOut = NULL;
@@ -98,6 +103,41 @@ static void shutdown_(JNIEnv *aEnv, jobject aSelf) {
     aEnv->CallVoidMethod(aSelf, sShutdown);
   }
 }
+static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
+    const float *nl_dx,
+    const float *nl_dy,
+    const float *nl_dz,
+    const int *g_type,
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_virial,
+    double *g_potential) {
+  if (sComputeGPUMD || (sComputeGPUMD = aEnv->GetMethodID(NNAP_CLAZZ, "computeGPUMD", "(IIIJJJJJJJJJJJ)V"))) {
+    return aEnv->CallVoidMethod(aSelf, sComputeGPUMD,
+      (jint)number_of_particles,
+      (jint)N1,
+      (jint)N2,
+      (jint)MAX_NEIGH_NUM_NNAP,
+      (jlong)(intptr_t)g_neighbor_number,
+      (jlong)(intptr_t)g_neighbor_list,
+      (jlong)(intptr_t)nl_dx,
+      (jlong)(intptr_t)nl_dy,
+      (jlong)(intptr_t)nl_dz,
+      (jlong)(intptr_t)g_type,
+      (jlong)(intptr_t)g_fx,
+      (jlong)(intptr_t)g_fy,
+      (jlong)(intptr_t)g_fz,
+      (jlong)(intptr_t)g_virial,
+      (jlong)(intptr_t)g_potential
+    );
+  }
+}
 
 NNAP::NNAP(const char* filename, int num_atoms)
 {
@@ -109,9 +149,9 @@ NNAP::NNAP(const char* filename, int num_atoms)
   }
   // init java NNAP object
   jboolean tSuc = cacheJClass_(mEnv);
-  if (exceptionCheck_(mEnv) || !tSuc) PRINT_INPUT_ERROR("Fail to cache class of java LmpFix");
+  if (exceptionCheck_(mEnv) || !tSuc) PRINT_INPUT_ERROR("Fail to cache class of java NNAP");
   jobject tObj = newJObject_(mEnv, filename);
-  if (exceptionCheck_(mEnv) || tObj==NULL) PRINT_INPUT_ERROR("Fail to create java LmpFix object");
+  if (exceptionCheck_(mEnv) || tObj==NULL) PRINT_INPUT_ERROR("Fail to create java NNAP object");
   if (mCore != NULL) mEnv->DeleteGlobalRef(mCore);
   mCore = mEnv->NewGlobalRef(tObj);
   mEnv->DeleteLocalRef(tObj);
@@ -119,10 +159,15 @@ NNAP::NNAP(const char* filename, int num_atoms)
   // get rcut
   rc = rcutMax_(mEnv, mCore);
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
-  neighbor.initialize(rc, num_atoms, 300); // 300?
+  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: ?
   if (!(std::isfinite(rc) && rc > 0.0)) {
     PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
   }
+  
+  // init nl cache
+  nl_dx.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
+  nl_dy.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
+  nl_dz.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
 }
 
 NNAP::~NNAP(void)
@@ -135,6 +180,42 @@ NNAP::~NNAP(void)
     mEnv->DeleteGlobalRef(mCore);
     mCore = NULL;
     uncacheJClass_(mEnv);
+  }
+}
+
+
+static __global__ void valid_nl_(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  float* __restrict__ nl_dx,
+  float* __restrict__ nl_dy,
+  float* __restrict__ nl_dz)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+  if (n1 < N2) {
+    int neighbor_number = g_neighbor_number[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int n2 = g_neighbor_list[n1 + number_of_particles * i1];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      
+      nl_dx[n1 + number_of_particles * i1] = x12;
+      nl_dy[n1 + number_of_particles * i1] = y12;
+      nl_dz[n1 + number_of_particles * i1] = z12;
+    }
   }
 }
 
@@ -153,8 +234,42 @@ void NNAP::compute(
     rc,
     box, 
     type, 
-    position);
+    position
+  );
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_NL_NNAP + 1;
+  valid_nl_<<<grid_size, BLOCK_SIZE_NL_NNAP>>>(
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    neighbor.NN.data(),
+    neighbor.NL.data(),
+    position.data(),
+    position.data() + number_of_atoms,
+    position.data() + number_of_atoms * 2,
+    nl_dx.data(),
+    nl_dy.data(),
+    nl_dz.data()
+  );
   
-  // TODO: invoke NNAP.computeGPUMD(...)
+  // TODO: type map? anyway
+  // invoke NNAP_cuda.computeGPUMD(...)
+  computeGPUMD_(mEnv, mCore,
+    number_of_atoms,
+    N1,
+    N2,
+    neighbor.NN.data(),
+    neighbor.NL.data(),
+    nl_dx.data(),
+    nl_dy.data(),
+    nl_dz.data(),
+    type.data(),
+    force.data(),
+    force.data() + number_of_atoms,
+    force.data() + 2 * number_of_atoms,
+    virial.data(),
+    potential.data()
+  );
+  if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail when call computeGPUMD");
 }
 #endif

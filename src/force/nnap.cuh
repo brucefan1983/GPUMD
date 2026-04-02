@@ -42,4 +42,8 @@ protected:
   JNIEnv *mEnv = NULL;
   jobject mCore = NULL;
   Neighbor neighbor;
+  
+  GPU_Vector<float> nl_dx;
+  GPU_Vector<float> nl_dy;
+  GPU_Vector<float> nl_dz;
 };
