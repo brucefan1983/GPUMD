@@ -369,13 +369,21 @@ void Parameters::check_foundation_model()
 
   // 7th line, ANN
   tokens = get_tokens(input);
-  if (tokens.size() != 3) {
+  if (tokens.size() < 2 || tokens.size() > 3) {
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
   if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
+    PRINT_INPUT_ERROR("the first layer neuron mismatches with foundation model.");
   }
-
+  if (tokens.size() == 3) {
+    if (num_neurons2 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+      PRINT_INPUT_ERROR("the second layer neuron mismatches with foundation model.");
+    }
+    num_hidden_layers = 2;
+  } else {
+    num_hidden_layers = 1;
+  }
+  
   input.close();
 }
 
@@ -494,7 +502,11 @@ void Parameters::report_inputs()
   }
 
   if (is_neuron_set) {
-    printf("    (input)   number of neurons = %d.\n", num_neurons1);
+    if (num_hidden_layers == 2) {
+      printf("    (input)   number of neurons = %d-%d.\n", num_neurons1, num_neurons2);
+    } else {
+      printf("    (input)   number of neurons = %d.\n", num_neurons1);
+    }
   } else {
     printf("    (default) number of neurons = %d.\n", num_neurons1);
   }
@@ -584,7 +596,11 @@ void Parameters::report_inputs()
   printf("    number of radial descriptor components = %d.\n", dim_radial);
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
-  printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
+  if (num_hidden_layers == 2) {
+    printf("    NN architecture = %d-%d-%d-1.\n", dim, num_neurons1, num_neurons2);
+  } else {
+    printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
+  }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
     number_of_variables_ann * (train_mode == 2 ? 2 : 1));
@@ -980,17 +996,35 @@ void Parameters::parse_neuron(const char** param, int num_param)
 {
   is_neuron_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("neuron should have 1 parameter.\n");
+  if (num_param < 2 || num_param > 3) {
+    PRINT_INPUT_ERROR("neuron should have 1 or 2 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &num_neurons1)) {
-    PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
+    PRINT_INPUT_ERROR("number of neurons1 should be an integer.\n");
   }
+  
   if (num_neurons1 < 1) {
-    PRINT_INPUT_ERROR("number of neurons should >= 1.");
+    PRINT_INPUT_ERROR("number of neurons1 should >= 1.");
   } else if (num_neurons1 > 120) {
-    PRINT_INPUT_ERROR("number of neurons should <= 120.");
+    PRINT_INPUT_ERROR("number of neurons1 should <= 120.");
+  }
+  num_hidden_layers = 1;
+
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &num_neurons2)) {
+      PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
+    }
+    if (num_neurons2 < 0) {
+      PRINT_INPUT_ERROR("number of neurons2 in the output layer should >= 0.");
+    } else if (num_neurons2 > 120) {
+      PRINT_INPUT_ERROR("number of neurons2 in the output layer should <= 120.");
+    }
+    num_hidden_layers = 2;
+
+    if (num_neurons2 == 0) {
+      num_hidden_layers = 1;
+    }
   }
 }
 
