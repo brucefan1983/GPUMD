@@ -297,16 +297,25 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
+      pointer -= ann.one_ann_no_bias;
     }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
+    
+    if (ann.num_hidden_layers == 2) {
+      pointer += ann.num_neurons1 * ann.num_neurons2;
+      ann.b1[t] = pointer;
+      pointer += ann.num_neurons2;
+      ann.w2[t] = pointer;
+      pointer += ann.num_neurons2;
+    } else {
+      pointer += ann.num_neurons1;
+    }
   }
-  ann.b1 = pointer;
+  ann.b = pointer;
   pointer += 1;
   ann.c = pointer;
 }
