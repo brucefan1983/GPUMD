@@ -375,15 +375,6 @@ void Parameters::check_foundation_model()
   if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
   }
-
-  if (num_neurons2 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("the second layer neuron mismatches with foundation model.");
-  }
-  if (num_neurons2 > 0) {
-    num_hidden_layers = 2;
-  } else {
-    num_hidden_layers = 1;
-  }
   
   input.close();
 }
