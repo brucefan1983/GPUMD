@@ -266,6 +266,7 @@ NEP::NEP(
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
+    annmb[device_id].num_hidden_layers = para.num_hidden_layers;
     annmb[device_id].num_para = para.number_of_variables;
     if (paramb.version == 4 && para.num_hidden_layers == 2) {
       annmb[device_id].num_neurons2 = para.num_neurons2;
