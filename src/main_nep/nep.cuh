@@ -101,6 +101,8 @@ public:
 
 private:
   ParaMB paramb;
+  ParaMB* d_paramb[16];
+  ANN* d_annmb[16];
   ANN annmb[16];
   NEP_Data nep_data[16];
   ZBL zbl;
