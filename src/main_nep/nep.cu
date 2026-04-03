@@ -267,6 +267,13 @@ NEP::NEP(
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
+    if (paramb.version == 4 && para.num_hidden_layers == 2) {
+      annmb[device_id].num_neurons2 = para.num_neurons2;
+      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 1) * annmb[device_id].num_neurons1 +
+        (annmb[device_id].num_neurons1 + 2) * annmb[device_id].num_neurons2;
+    } else {
+      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 2) * annmb[device_id].num_neurons1;
+    }
 
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);
