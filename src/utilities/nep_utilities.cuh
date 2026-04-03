@@ -133,7 +133,7 @@ static __device__ void apply_ann_one_layer(
   const float* w0,
   const float* b0,
   const float* w1,
-  const float* b1,
+  const float* b,
   float* q,
   float& energy,
   float* energy_derivative)
@@ -151,7 +151,7 @@ static __device__ void apply_ann_one_layer(
       energy_derivative[d] += w1[n] * y1;
     }
   }
-  energy -= b1[0];
+  energy -= b[0];
 }
 
 static __device__ void apply_ann_two_layers(
@@ -215,7 +215,7 @@ static __device__ void apply_ann_one_layer(
   const float* w0,
   const float* b0,
   const float* w1,
-  const float* b1,
+  const float* b,
   float* q,
   float& energy,
   float* energy_derivative,
@@ -244,7 +244,7 @@ static __device__ void apply_ann_one_layer(
       energy_derivative[d] += w1[n] * y1;
     }
   }
-  energy -= b1[0];
+  energy -= b[0];
 }
 
 static __device__ void apply_ann_one_layer_nep5(
@@ -253,7 +253,7 @@ static __device__ void apply_ann_one_layer_nep5(
   const float* w0,
   const float* b0,
   const float* w1,
-  const float* b1,
+  const float* b,
   float* q,
   float& energy,
   float* energy_derivative)
@@ -271,7 +271,7 @@ static __device__ void apply_ann_one_layer_nep5(
       energy_derivative[d] += w1[n] * y1;
     }
   }
-  energy -= w1[N_neu] + b1[0]; // typewise bias + common bias
+  energy -= w1[N_neu] + b[0]; // typewise bias + common bias
 }
 
 static __device__ void apply_ann_one_layer_charge(
@@ -280,7 +280,7 @@ static __device__ void apply_ann_one_layer_charge(
   const float* w0,
   const float* b0,
   const float* w1,
-  const float* b1,
+  const float* b,
   float* q,
   float& energy,
   float* energy_derivative,
@@ -302,7 +302,7 @@ static __device__ void apply_ann_one_layer_charge(
       charge_derivative[d] += w1[n + N_neu] * y1;
     }
   }
-  energy -= b1[0];
+  energy -= b[0];
 }
 
 static __device__ void apply_ann_one_layer_charge_vdw(
@@ -311,7 +311,7 @@ static __device__ void apply_ann_one_layer_charge_vdw(
   const float* w0,
   const float* b0,
   const float* w1,
-  const float* b1,
+  const float* b,
   float* q,
   float& energy,
   float* energy_derivative,
@@ -337,7 +337,7 @@ static __device__ void apply_ann_one_layer_charge_vdw(
       C6_derivative[d] += w1[n + N_neu * 2] * y1;
     }
   }
-  energy -= b1[0];
+  energy -= b[0];
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
