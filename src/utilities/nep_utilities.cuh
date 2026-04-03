@@ -154,6 +154,61 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
+static __device__ void apply_ann_two_layers(
+  const int N_des,
+  const int N_neu1,
+  const int N_neu2,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  const float* w2,
+  const float* b,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  float x1[120], x2[120];
+  float tanh_der1[120], tanh_der2[120];
+  float y1[120], y2[120];
+
+  for (int n = 0; n < N_neu1; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    x1[n] = tanh(w0_times_q - b0[n]);
+    tanh_der1[n] = 1.0f - x1[n] * x1[n];
+  }
+
+  for (int n = 0; n < N_neu2; ++n) {
+    float w1_times_x1 = 0.0f;
+    for (int m = 0; m < N_neu1; ++m) {
+      w1_times_x1 += w1[n * N_neu1 + m] * x1[m];
+    }
+    x2[n] = tanh(w1_times_x1 - b1[n]);
+    tanh_der2[n] = 1.0f - x2[n] * x2[n];
+    energy += w2[n] * x2[n];
+    y2[n] = w2[n] * tanh_der2[n];
+  }
+  energy -= b[0];
+
+  for (int m = 0; m < N_neu1; ++m) {
+    float sum = 0.0f;
+      for (int n = 0; n < N_neu2; ++n) {
+      sum += w1[n * N_neu1 + m] * y2[n];
+    }
+    y1[m] = sum * tanh_der1[m];
+  }
+
+  for (int d = 0; d < N_des; ++d) {
+    energy_derivative[d] = 0.0f;
+    for (int n = 0; n < N_neu1; ++n) {
+      energy_derivative[d] += w0[n * N_des + d] * y1[n];
+    }
+  }
+}
+
 static __device__ void apply_ann_one_layer(
   const int N_des,
   const int N_neu,
