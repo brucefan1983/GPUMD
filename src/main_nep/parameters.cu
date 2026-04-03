@@ -217,8 +217,13 @@ void Parameters::calculate_parameters()
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
     number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
   } else if (version == 4) {
-    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
-    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+    if (num_hidden_layers == 2) {
+      number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
+      number_of_variables_ann = ((dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2) * num_types + 1;
+    } else {
+      number_of_variables_ann_1 = (dim + 2) * num_neurons1;
+      number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+    }
     if (charge_mode) {
       number_of_variables_ann_1 += num_neurons1;
       number_of_variables_ann += num_neurons1 * num_types + 1;
