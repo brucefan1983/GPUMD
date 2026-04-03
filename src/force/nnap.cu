@@ -118,7 +118,7 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
     double *g_fz,
     double *g_virial,
     double *g_potential) {
-  if (sComputeGPUMD || (sComputeGPUMD = aEnv->GetMethodID(NNAP_CLAZZ, "computeGPUMD", "(IIIJJJJJJJJJJJ)V"))) {
+  if (sComputeGPUMD || (sComputeGPUMD = aEnv->GetMethodID(NNAP_CLAZZ, "computeGPUMD", "(IIIIJJJJJJJJJJJ)V"))) {
     return aEnv->CallVoidMethod(aSelf, sComputeGPUMD,
       (jint)number_of_particles,
       (jint)N1,
