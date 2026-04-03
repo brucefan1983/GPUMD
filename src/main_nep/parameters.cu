@@ -369,16 +369,17 @@ void Parameters::check_foundation_model()
 
   // 7th line, ANN
   tokens = get_tokens(input);
-  if (tokens.size() < 2 || tokens.size() > 3) {
+  if (tokens.size() != 3) {
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
   if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("the first layer neuron mismatches with foundation model.");
   }
-  if (tokens.size() == 3) {
-    if (num_neurons2 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
-      PRINT_INPUT_ERROR("the second layer neuron mismatches with foundation model.");
-    }
+
+  if (num_neurons2 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+    PRINT_INPUT_ERROR("the second layer neuron mismatches with foundation model.");
+  }
+  if (num_neurons2 > 0) {
     num_hidden_layers = 2;
   } else {
     num_hidden_layers = 1;
