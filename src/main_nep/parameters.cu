@@ -373,7 +373,7 @@ void Parameters::check_foundation_model()
     PRINT_INPUT_ERROR("Reading error for foundation model.");
   }
   if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
-    PRINT_INPUT_ERROR("the first layer neuron mismatches with foundation model.");
+    PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
   }
 
   if (num_neurons2 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
