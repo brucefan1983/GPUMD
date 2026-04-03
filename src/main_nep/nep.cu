@@ -111,8 +111,8 @@ static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -133,23 +133,23 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+      float rc = (paramb->rc_radial[t1] + paramb->rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
       float fn12[MAX_NUM_N];
-      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      find_fn(paramb->basis_size_radial, rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb->n_max_radial; ++n) {
         float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gn12 += fn12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb->basis_size_radial; ++k) {
+          int c_index = (n * (paramb->basis_size_radial + 1) + k) * paramb->num_types_sq;
+          c_index += t1 * paramb->num_types + t2;
+          gn12 += fn12[k] * annmb->c[c_index];
         }
         q[n] += gn12;
       }
     }
-    for (int n = 0; n <= paramb.n_max_radial; ++n) {
+    for (int n = 0; n <= paramb->n_max_radial; ++n) {
       g_descriptors[n1 + n * N] = q[n];
     }
   }
@@ -159,8 +159,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -174,7 +174,7 @@ static __global__ void find_descriptors_angular(
     int neighbor_number = g_NN[n1];
     float q[MAX_DIM_ANGULAR] = {0.0f};
 
-    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+    for (int n = 0; n <= paramb->n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
         int index = n1 + N * i1;
@@ -185,29 +185,29 @@ static __global__ void find_descriptors_angular(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+        float rc = (paramb->rc_angular[t1] + paramb->rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+        find_fn(paramb->basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb->basis_size_angular; ++k) {
+          int c_index = (n * (paramb->basis_size_angular + 1) + k) * paramb->num_types_sq;
+          c_index += t1 * paramb->num_types + t2 + paramb->num_c_radial;
+          gn12 += fn12[k] * annmb->c[c_index];
         }
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb->L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q);
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
+      find_q(paramb->L_max, paramb->num_L, paramb->n_max_angular + 1, n, s, q);
+      for (int abc = 0; abc < (paramb->L_max + 1) * (paramb->L_max + 1) - 1; ++abc) {
+        g_sum_fxyz[(n * ((paramb->L_max + 1) * (paramb->L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
     }
 
-    for (int n = 0; n <= paramb.n_max_angular; ++n) {
-      for (int l = 0; l < paramb.num_L; ++l) {
-        int ln = l * (paramb.n_max_angular + 1) + n;
-        g_descriptors[n1 + ((paramb.n_max_radial + 1) + ln) * N] = q[ln];
+    for (int n = 0; n <= paramb->n_max_angular; ++n) {
+      for (int l = 0; l < paramb->num_L; ++l) {
+        int ln = l * (paramb->n_max_angular + 1) + n;
+        g_descriptors[n1 + ((paramb->n_max_radial + 1) + ln) * N] = q[ln];
       }
     }
   }
@@ -289,6 +289,9 @@ NEP::NEP(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+
+    CHECK(cudaMalloc(&d_paramb[device_id], sizeof(NEP::ParaMB)));
+    CHECK(cudaMalloc(&d_annmb[device_id], sizeof(NEP::ANN)));
   }
 }
 
@@ -305,7 +308,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     
-    if (para.version == 4 && ann.num_hidden_layers == 2) {
+    if (paramb.version == 4 && ann.num_hidden_layers == 2) {
       pointer += ann.num_neurons1 * ann.num_neurons2;
       ann.b1[t] = pointer;
       pointer += ann.num_neurons2;
@@ -315,7 +318,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer += ann.num_neurons1;
     }
   }
-  ann.b = pointer;
+  ann.bo = pointer;
   pointer += 1;
   ann.c = pointer;
 }
@@ -362,8 +365,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 
 static __global__ void apply_ann(
   const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -375,41 +378,41 @@ static __global__ void apply_ann(
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d < annmb->dim; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (paramb.version == 4 && annmb.num_hidden_layers == 2) {
+    if (paramb->version == 4 && annmb->num_hidden_layers == 2) {
       apply_ann_two_layers(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.num_neurons2,
-        annmb.w0[type],
-        annmb.b0[type],
-        annmb.w1[type],
-        annmb.b1[type],
-        annmb.w2[type],
-        annmb.b,
+        annmb->dim,
+        annmb->num_neurons1,
+        annmb->num_neurons2,
+        annmb->w0[type],
+        annmb->b0[type],
+        annmb->w1[type],
+        annmb->b1[type],
+        annmb->w2[type],
+        annmb->bo,
         q,
         F,
         Fp);
     } else {
       apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[type],
-        annmb.b0[type],
-        annmb.w1[type],
-        annmb.b,
+        annmb->dim,
+        annmb->num_neurons1,
+        annmb->w0[type],
+        annmb->b0[type],
+        annmb->w1[type],
+        annmb->bo,
         q,
         F,
         Fp);
     }
     g_pe[n1] = F;
 
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d < annmb->dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
   }
@@ -417,8 +420,8 @@ static __global__ void apply_ann(
 
 static __global__ void apply_ann_temperature(
   const int N,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   float* __restrict__ g_q_scaler,
@@ -432,26 +435,26 @@ static __global__ void apply_ann_temperature(
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim - 1; ++d) {
+    for (int d = 0; d < annmb->dim - 1; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
-    g_q_scaler[annmb.dim - 1] = 0.001; // temperature dimension scaler
-    q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
+    g_q_scaler[annmb->dim - 1] = 0.001; // temperature dimension scaler
+    q[annmb->dim - 1] = temperature * g_q_scaler[annmb->dim - 1];
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
+      annmb->dim,
+      annmb->num_neurons1,
+      annmb->w0[type],
+      annmb->b0[type],
+      annmb->w1[type],
+      annmb->bo,
       q,
       F,
       Fp);
     g_pe[n1] = F;
 
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d < annmb->dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
   }
@@ -475,8 +478,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -505,20 +508,20 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+      float rc = (paramb->rc_radial[t1] + paramb->rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       float f12[3] = {0.0f};
 
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+      find_fn_and_fnp(paramb->basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb->n_max_radial; ++n) {
         float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gnp12 += fnp12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb->basis_size_radial; ++k) {
+          int c_index = (n * (paramb->basis_size_radial + 1) + k) * paramb->num_types_sq;
+          c_index += t1 * paramb->num_types + t2;
+          gnp12 += fnp12[k] * annmb->c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -553,8 +556,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP::ParaMB paramb,
-  const NEP::ANN annmb,
+  const NEP::ParaMB* paramb,
+  const NEP::ANN* annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -578,13 +581,13 @@ static __global__ void find_force_angular(
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+    for (int d = 0; d < paramb->dim_angular; ++d) {
+      Fp[d] = g_Fp[(paramb->n_max_radial + 1 + d) * N + n1];
     }
-    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+    for (int n = 0; n < paramb->n_max_angular + 1; ++n) {
+      for (int abc = 0; abc < (paramb->L_max + 1) * (paramb->L_max + 1) - 1; ++abc) {
         sum_fxyz[n * NUM_OF_ABC + abc] = 
-          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
+          g_sum_fxyz[(n * ((paramb->L_max + 1) * (paramb->L_max + 1) - 1) + abc) * N + n1];
       }
     }
     int neighbor_number = g_NN[n1];
@@ -596,24 +599,24 @@ static __global__ void find_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+      float rc = (paramb->rc_angular[t1] + paramb->rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
 
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      find_fn_and_fnp(paramb->basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb->n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
-          gnp12 += fnp12[k] * annmb.c[c_index];
+        for (int k = 0; k <= paramb->basis_size_angular; ++k) {
+          int c_index = (n * (paramb->basis_size_angular + 1) + k) * paramb->num_types_sq;
+          c_index += t1 * paramb->num_types + t2 + paramb->num_c_radial;
+          gn12 += fn12[k] * annmb->c[c_index];
+          gnp12 += fnp12[k] * annmb->c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb->L_max, paramb->num_L, n, paramb->n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -754,6 +757,9 @@ void NEP::find_force(
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
+    cudaMemcpy(d_paramb[device_id], &paramb, sizeof(NEP::ParaMB), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_annmb[device_id], &annmb[device_id], sizeof(NEP::ANN), cudaMemcpyHostToDevice);
+
     if (calculate_neighbor) {
       gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
         paramb,
@@ -784,8 +790,8 @@ void NEP::find_force(
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
-      paramb,
-      annmb[device_id],
+      d_paramb[device_id],
+      d_annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
@@ -797,8 +803,8 @@ void NEP::find_force(
       dataset[device_id].N,
       nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(),
-      paramb,
-      annmb[device_id],
+      d_paramb[device_id],
+      d_annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(),
@@ -859,8 +865,8 @@ void NEP::find_force(
     if (para.train_mode == 3) {
       apply_ann_temperature<<<grid_size, block_size>>>(
         dataset[device_id].N,
-        paramb,
-        annmb[device_id],
+        d_paramb[device_id],
+        d_annmb[device_id],
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
@@ -871,8 +877,8 @@ void NEP::find_force(
     } else {
       apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,
-        paramb,
-        annmb[device_id],
+        d_paramb[device_id],
+        d_annmb[device_id],
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
@@ -885,8 +891,8 @@ void NEP::find_force(
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
-      paramb,
-      annmb[device_id],
+      d_paramb[device_id],
+      d_annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
@@ -902,8 +908,8 @@ void NEP::find_force(
       dataset[device_id].N,
       nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(),
-      paramb,
-      annmb[device_id],
+      d_paramb[device_id],
+      d_annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(),
