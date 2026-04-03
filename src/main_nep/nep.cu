@@ -305,7 +305,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     
-    if (ann.num_hidden_layers == 2) {
+    if (para.version == 4 && ann.num_hidden_layers == 2) {
       pointer += ann.num_neurons1 * ann.num_neurons2;
       ann.b1[t] = pointer;
       pointer += ann.num_neurons2;
@@ -381,16 +381,32 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp);
+    if (paramb.version == 4 && annmb.num_hidden_layers == 2) {
+      apply_ann_two_layers(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.num_neurons2,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b1[type],
+        annmb.w2[type],
+        annmb.b,
+        q,
+        F,
+        Fp);
+    } else {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type],
+        annmb.b0[type],
+        annmb.w1[type],
+        annmb.b,
+        q,
+        F,
+        Fp);
+    }
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
