@@ -318,7 +318,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer += ann.num_neurons1;
     }
   }
-  ann.bo = pointer;
+  ann.b = pointer;
   pointer += 1;
   ann.c = pointer;
 }
@@ -394,7 +394,7 @@ static __global__ void apply_ann(
         annmb->w1[type],
         annmb->b1[type],
         annmb->w2[type],
-        annmb->bo,
+        annmb->b,
         q,
         F,
         Fp);
@@ -405,7 +405,7 @@ static __global__ void apply_ann(
         annmb->w0[type],
         annmb->b0[type],
         annmb->w1[type],
-        annmb->bo,
+        annmb->b,
         q,
         F,
         Fp);
@@ -448,7 +448,7 @@ static __global__ void apply_ann_temperature(
       annmb->w0[type],
       annmb->b0[type],
       annmb->w1[type],
-      annmb->bo,
+      annmb->b,
       q,
       F,
       Fp);
