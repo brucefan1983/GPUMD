@@ -375,7 +375,7 @@ void Parameters::check_foundation_model()
   if (num_neurons1 != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("neuron mismatches with foundation model.");
   }
-  
+
   input.close();
 }
 
