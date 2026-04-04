@@ -1003,7 +1003,7 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   num_hidden_layers = 1;
 
-  if (num_param == 3) {
+  if (num_param == 3 && version == 4) {
     if (!is_valid_int(param[2], &num_neurons2)) {
       PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
     }
@@ -1017,6 +1017,8 @@ void Parameters::parse_neuron(const char** param, int num_param)
     if (num_neurons2 == 0) {
       num_hidden_layers = 1;
     }
+  } else {
+    PRINT_INPUT_ERROR("version 3 does not support specifying the number of neurons for the output layer.");
   }
 }
 
