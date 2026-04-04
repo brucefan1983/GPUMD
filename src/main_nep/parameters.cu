@@ -213,24 +213,18 @@ void Parameters::calculate_parameters()
     dim += 1; // concatenate temeprature with descriptors
   }
 
-  if (version == 3) {
+  if (num_hidden_layers == 2) {
+    number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
+  } else {
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
-    number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  } else if (version == 4) {
-    if (num_hidden_layers == 2) {
-      number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
-      number_of_variables_ann = ((dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2) * num_types + 1;
-    } else {
-      number_of_variables_ann_1 = (dim + 2) * num_neurons1;
-      number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
-    }
-    if (charge_mode) {
+  }
+  number_of_variables_ann = number_of_variables_ann_1 * (version == 4 ? num_types : 1) + 1;
+  if (charge_mode && version == 4) {
+    number_of_variables_ann_1 += num_neurons1;
+    number_of_variables_ann += num_neurons1 * num_types + 1;
+    if (charge_mode >= 3) {
       number_of_variables_ann_1 += num_neurons1;
-      number_of_variables_ann += num_neurons1 * num_types + 1;
-      if (charge_mode >= 3) {
-        number_of_variables_ann_1 += num_neurons1;
-        number_of_variables_ann += num_neurons1 * num_types;
-      }
+      number_of_variables_ann += num_neurons1 * num_types;
     }
   }
 
@@ -1003,7 +997,7 @@ void Parameters::parse_neuron(const char** param, int num_param)
   }
   num_hidden_layers = 1;
 
-  if (num_param == 3 && version == 4) {
+  if (num_param == 3) {
     if (!is_valid_int(param[2], &num_neurons2)) {
       PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
     }
@@ -1017,8 +1011,6 @@ void Parameters::parse_neuron(const char** param, int num_param)
     if (num_neurons2 == 0) {
       num_hidden_layers = 1;
     }
-  } else {
-    PRINT_INPUT_ERROR("version 3 does not support specifying the number of neurons for the output layer.");
   }
 }
 

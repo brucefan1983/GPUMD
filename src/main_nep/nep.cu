@@ -268,7 +268,7 @@ NEP::NEP(
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_hidden_layers = para.num_hidden_layers;
     annmb[device_id].num_para = para.number_of_variables;
-    if (paramb.version == 4 && para.num_hidden_layers == 2) {
+    if (para.num_hidden_layers == 2) {
       annmb[device_id].num_neurons2 = para.num_neurons2;
       annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 1) * annmb[device_id].num_neurons1 +
         (annmb[device_id].num_neurons1 + 2) * annmb[device_id].num_neurons2;
@@ -303,7 +303,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
     ann.wb[t] = pointer;
     pointer += ann.num_neurons1 * (ann.dim + 1);
     
-    if (paramb.version == 4 && ann.num_hidden_layers == 2) {
+    if (ann.num_hidden_layers == 2) {
       pointer += (ann.num_neurons1  + 2) * ann.num_neurons2;
     } else {
       pointer += ann.num_neurons1;
@@ -375,7 +375,7 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (paramb.version == 4 && annmb.num_hidden_layers == 2) {
+    if (annmb.num_hidden_layers == 2) {
       apply_ann_two_layers(
         annmb.dim,
         annmb.num_neurons1,
