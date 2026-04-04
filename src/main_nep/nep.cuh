@@ -65,13 +65,9 @@ public:
     int num_hidden_layers = 0;      // number of hidden layers
     int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
     int num_para = 0;               // number of parameters
-    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
-    const float* b0[NUM_ELEMENTS]; // bias for the first hidden layer
-    const float* w1[NUM_ELEMENTS]; // weight from the first hidden layer to the output layer
-    const float* b1[NUM_ELEMENTS]; // bias for the second hidden layer
-    const float* w2[NUM_ELEMENTS]; // weight from the second hidden layer to the output layer
-    const float* b;                // bias for the output layer
-    const float* c;                // for elements in descriptor
+    const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
+    const float* b;                 // bias for the output layer
+    const float* c;                 // for elements in descriptor
   };
 
   struct ZBL {
@@ -101,7 +97,6 @@ public:
 
 private:
   ParaMB paramb;
-  ANN* d_annmb[16];
   ANN annmb[16];
   NEP_Data nep_data[16];
   ZBL zbl;
