@@ -112,7 +112,7 @@ static __global__ void find_descriptors_radial(
   const int* g_NN,
   const int* g_NL,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -144,7 +144,7 @@ static __global__ void find_descriptors_radial(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
-          gn12 += fn12[k] * annmb->c[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
       }
@@ -160,7 +160,7 @@ static __global__ void find_descriptors_angular(
   const int* g_NN,
   const int* g_NL,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -194,7 +194,7 @@ static __global__ void find_descriptors_angular(
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb->c[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
@@ -290,8 +290,6 @@ NEP::NEP(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
-
-    CHECK(cudaMalloc(&d_annmb[device_id], sizeof(NEP::ANN)));
   }
 }
 
@@ -302,18 +300,11 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
     if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
       pointer -= ann.one_ann_no_bias;
     }
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
+    ann.wb[t] = pointer;
+    pointer += ann.num_neurons1 * (ann.dim + 1);
     
     if (paramb.version == 4 && ann.num_hidden_layers == 2) {
-      pointer += ann.num_neurons1 * ann.num_neurons2;
-      ann.b1[t] = pointer;
-      pointer += ann.num_neurons2;
-      ann.w2[t] = pointer;
-      pointer += ann.num_neurons2;
+      pointer += (ann.num_neurons1  + 2) * ann.num_neurons2;
     } else {
       pointer += ann.num_neurons1;
     }
@@ -366,7 +357,7 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 static __global__ void apply_ann(
   const int N,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
@@ -378,41 +369,41 @@ static __global__ void apply_ann(
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb->dim; ++d) {
+    for (int d = 0; d < annmb.dim; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
-    if (paramb.version == 4 && annmb->num_hidden_layers == 2) {
+    if (paramb.version == 4 && annmb.num_hidden_layers == 2) {
       apply_ann_two_layers(
-        annmb->dim,
-        annmb->num_neurons1,
-        annmb->num_neurons2,
-        annmb->w0[type],
-        annmb->b0[type],
-        annmb->w1[type],
-        annmb->b1[type],
-        annmb->w2[type],
-        annmb->b,
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.num_neurons2,
+        annmb.wb[type],
+        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
+        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2),
+        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2) + annmb.num_neurons2,
+        annmb.b,
         q,
         F,
         Fp);
     } else {
       apply_ann_one_layer(
-        annmb->dim,
-        annmb->num_neurons1,
-        annmb->w0[type],
-        annmb->b0[type],
-        annmb->w1[type],
-        annmb->b,
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.wb[type],
+        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
+        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+        annmb.b,
         q,
         F,
         Fp);
     }
     g_pe[n1] = F;
 
-    for (int d = 0; d < annmb->dim; ++d) {
+    for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
   }
@@ -421,7 +412,7 @@ static __global__ void apply_ann(
 static __global__ void apply_ann_temperature(
   const int N,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   float* __restrict__ g_q_scaler,
@@ -435,26 +426,26 @@ static __global__ void apply_ann_temperature(
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb->dim - 1; ++d) {
+    for (int d = 0; d < annmb.dim - 1; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
-    g_q_scaler[annmb->dim - 1] = 0.001; // temperature dimension scaler
-    q[annmb->dim - 1] = temperature * g_q_scaler[annmb->dim - 1];
+    g_q_scaler[annmb.dim - 1] = 0.001; // temperature dimension scaler
+    q[annmb.dim - 1] = temperature * g_q_scaler[annmb.dim - 1];
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb->dim,
-      annmb->num_neurons1,
-      annmb->w0[type],
-      annmb->b0[type],
-      annmb->w1[type],
-      annmb->b,
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.wb[type],
+      annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
+      annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+      annmb.b,
       q,
       F,
       Fp);
     g_pe[n1] = F;
 
-    for (int d = 0; d < annmb->dim; ++d) {
+    for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
   }
@@ -479,7 +470,7 @@ static __global__ void find_force_radial(
   const int* g_NN,
   const int* g_NL,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -521,7 +512,7 @@ static __global__ void find_force_radial(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
-          gnp12 += fnp12[k] * annmb->c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -557,7 +548,7 @@ static __global__ void find_force_angular(
   const int* g_NN,
   const int* g_NL,
   const NEP::ParaMB paramb,
-  const NEP::ANN* annmb,
+  const NEP::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -613,8 +604,8 @@ static __global__ void find_force_angular(
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb->c[c_index];
-          gnp12 += fnp12[k] * annmb->c[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
@@ -757,8 +748,6 @@ void NEP::find_force(
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
-    cudaMemcpy(d_annmb[device_id], &annmb[device_id], sizeof(NEP::ANN), cudaMemcpyHostToDevice);
-
     if (calculate_neighbor) {
       gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
         paramb,
@@ -790,7 +779,7 @@ void NEP::find_force(
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
       paramb,
-      d_annmb[device_id],
+      annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
@@ -803,7 +792,7 @@ void NEP::find_force(
       nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(),
       paramb,
-      d_annmb[device_id],
+      annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(),
@@ -865,7 +854,7 @@ void NEP::find_force(
       apply_ann_temperature<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
-        d_annmb[device_id],
+        annmb[device_id],
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
@@ -877,7 +866,7 @@ void NEP::find_force(
       apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
-        d_annmb[device_id],
+        annmb[device_id],
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
@@ -891,7 +880,7 @@ void NEP::find_force(
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
       paramb,
-      d_annmb[device_id],
+      annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
@@ -908,7 +897,7 @@ void NEP::find_force(
       nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(),
       paramb,
-      d_annmb[device_id],
+      annmb[device_id],
       dataset[device_id].type.data(),
       nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(),
