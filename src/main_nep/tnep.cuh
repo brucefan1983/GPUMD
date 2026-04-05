@@ -62,6 +62,7 @@ public:
     int num_neurons2 = 0;           // number of neurons in the output layer
     int num_hidden_layers = 0;      // number of hidden layers
     int num_para = 0;               // number of parameters
+    int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
     const float* wb[NUM_ELEMENTS];  // weight from the input layer to the hidden layer
     const float* b;                 // bias for the output layer
     // for the scalar part of polarizability
