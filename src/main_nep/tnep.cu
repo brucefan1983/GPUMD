@@ -379,16 +379,19 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
+    const int neu1 = annmb.num_neurons1;
+    const int n1_dim = neu1 * annmb.dim;
     if (annmb.num_hidden_layers == 2) {
+      const int neu2 = annmb.num_neurons2;
       apply_ann_two_layers(
         annmb.dim,
-        annmb.num_neurons1,
-        annmb.num_neurons2,
+        neu1,
+        neu2,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2) + annmb.num_neurons2,
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
         annmb.b,
         q,
         F,
@@ -396,10 +399,10 @@ static __global__ void apply_ann(
     } else {
       apply_ann_one_layer(
         annmb.dim,
-        annmb.num_neurons1,
+        neu1,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
         annmb.b,
         q,
         F,
@@ -435,28 +438,31 @@ static __global__ void apply_ann_pol(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     // scalar part
+    const int neu1 = annmb.num_neurons1;
+    const int n1_dim = neu1 * annmb.dim;
+    const int neu2 = annmb.num_neurons2;
     if (annmb.num_hidden_layers == 2) {
       apply_ann_two_layers(
         annmb.dim,
-        annmb.num_neurons1,
-        annmb.num_neurons2,
+        neu1,
+        neu2,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2) + annmb.num_neurons2,
-        annmb.b,
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
+        annmb.b_pol,
         q,
         F,
         Fp);
     } else {
       apply_ann_one_layer(
         annmb.dim,
-        annmb.num_neurons1,
+        neu1,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
-        annmb.b,
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.b_pol,
         q,
         F,
         Fp);
@@ -472,13 +478,13 @@ static __global__ void apply_ann_pol(
     if (annmb.num_hidden_layers == 2) {
       apply_ann_two_layers(
         annmb.dim,
-        annmb.num_neurons1,
-        annmb.num_neurons2,
+        neu1,
+        neu2,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2),
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1 + annmb.num_neurons2) + annmb.num_neurons2,
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
         annmb.b,
         q,
         F,
@@ -486,10 +492,10 @@ static __global__ void apply_ann_pol(
     } else {
       apply_ann_one_layer(
         annmb.dim,
-        annmb.num_neurons1,
+        neu1,
         annmb.wb[type],
-        annmb.wb[type] + annmb.num_neurons1 * annmb.dim,
-        annmb.wb[type] + annmb.num_neurons1 * (annmb.dim + 1),
+        annmb.wb[type] + n1_dim,
+        annmb.wb[type] + n1_dim * (annmb.dim + 1),
         annmb.b,
         q,
         F,
