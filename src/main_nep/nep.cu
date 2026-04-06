@@ -301,13 +301,7 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer -= ann.one_ann_no_bias;
     }
     ann.wb[t] = pointer;
-    pointer += ann.num_neurons1 * (ann.dim + 1);
-    
-    if (ann.num_hidden_layers == 2) {
-      pointer += (ann.num_neurons1  + 2) * ann.num_neurons2;
-    } else {
-      pointer += ann.num_neurons1;
-    }
+    pointer += ann.one_ann_no_bias;
   }
   ann.b = pointer;
   pointer += 1;
