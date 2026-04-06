@@ -286,13 +286,7 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer -= ann.one_ann_no_bias;
     }
     ann.wb[t] = pointer;
-    pointer += ann.num_neurons1 * (ann.dim + 1);
-    
-    if (ann.num_hidden_layers == 2) {
-      pointer += (ann.num_neurons1  + 2) * ann.num_neurons2;
-    } else {
-      pointer += ann.num_neurons1;
-    }
+    pointer += ann.one_ann_no_bias;
   }
   ann.b = pointer;
   pointer += 1;
@@ -302,14 +296,8 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
       if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
         pointer -= ann.one_ann_no_bias;
       }
-      ann.wb[t] = pointer;
-      pointer += ann.num_neurons1 * (ann.dim + 1);
-      
-      if (ann.num_hidden_layers == 2) {
-        pointer += (ann.num_neurons1  + 2) * ann.num_neurons2;
-      } else {
-        pointer += ann.num_neurons1;
-      }
+      ann.wb_pol[t] = pointer;
+      pointer += ann.one_ann_no_bias;
     }
     ann.b_pol = pointer;
     pointer += 1;
@@ -380,7 +368,7 @@ static __global__ void apply_ann(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     const int neu1 = annmb.num_neurons1;
-    const int n1_dim = neu1 * annmb.dim;
+    const int neu1_dim = neu1 * annmb.dim;
     if (annmb.num_hidden_layers == 2) {
       const int neu2 = annmb.num_neurons2;
       apply_ann_two_layers(
@@ -388,10 +376,10 @@ static __global__ void apply_ann(
         neu1,
         neu2,
         annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
         annmb.b,
         q,
         F,
@@ -401,8 +389,8 @@ static __global__ void apply_ann(
         annmb.dim,
         neu1,
         annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
         annmb.b,
         q,
         F,
@@ -439,18 +427,18 @@ static __global__ void apply_ann_pol(
 
     // scalar part
     const int neu1 = annmb.num_neurons1;
-    const int n1_dim = neu1 * annmb.dim;
+    const int neu1_dim = neu1 * annmb.dim;
     const int neu2 = annmb.num_neurons2;
     if (annmb.num_hidden_layers == 2) {
       apply_ann_two_layers(
         annmb.dim,
         neu1,
         neu2,
-        annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
+        annmb.wb_pol[type],
+        annmb.wb_pol[type] + neu1_dim,
+        annmb.wb_pol[type] + neu1 * (annmb.dim + 1),
+        annmb.wb_pol[type] + neu1 * (annmb.dim + 1 + neu2),
+        annmb.wb_pol[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
         annmb.b_pol,
         q,
         F,
@@ -459,9 +447,9 @@ static __global__ void apply_ann_pol(
       apply_ann_one_layer(
         annmb.dim,
         neu1,
-        annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb_pol[type],
+        annmb.wb_pol[type] + neu1_dim,
+        annmb.wb_pol[type] + neu1 * (annmb.dim + 1),
         annmb.b_pol,
         q,
         F,
@@ -481,10 +469,10 @@ static __global__ void apply_ann_pol(
         neu1,
         neu2,
         annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2),
-        annmb.wb[type] + n1_dim * (annmb.dim + 1 + neu2) + neu2,
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
         annmb.b,
         q,
         F,
@@ -494,8 +482,8 @@ static __global__ void apply_ann_pol(
         annmb.dim,
         neu1,
         annmb.wb[type],
-        annmb.wb[type] + n1_dim,
-        annmb.wb[type] + n1_dim * (annmb.dim + 1),
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
         annmb.b,
         q,
         F,
