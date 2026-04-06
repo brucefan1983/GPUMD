@@ -267,11 +267,20 @@ NEP_Charge::NEP_Charge(
   charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
   charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 
+  const int num_outputs = (para.charge_mode >= 3) ? 3 : 2;
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
+    annmb[device_id].num_hidden_layers = para.num_hidden_layers;
     annmb[device_id].num_para = para.number_of_variables;
+    if (para.num_hidden_layers == 2) {
+      annmb[device_id].num_neurons2 = para.num_neurons2;
+      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 1) * annmb[device_id].num_neurons1 +
+        (annmb[device_id].num_neurons1 + num_outputs + 1) * annmb[device_id].num_neurons2;
+    } else {
+      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + num_outputs + 1) * annmb[device_id].num_neurons1;
+    }
 
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);
@@ -306,19 +315,14 @@ NEP_Charge::NEP_Charge(
 
 void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
-  const int num_outputs = (para.charge_mode >= 3) ? 3 : 2;
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1 * num_outputs;
+    ann.wb[t] = pointer;
+    pointer += ann.one_ann_no_bias;
   }
   ann.sqrt_epsilon_inf = pointer;
   pointer += 1;
-  ann.b1 = pointer;
+  ann.b = pointer;
   pointer += 1;
   ann.c = pointer;
 }
@@ -388,18 +392,39 @@ static __global__ void apply_ann(
     float charge = 0.0f;
     float charge_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer_charge(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp,
-      charge,
-      charge_derivative);
+    const int neu1 = annmb.num_neurons1;
+    const int neu1_dim = neu1 * annmb.dim;
+    if (annmb.num_hidden_layers == 2) {
+      const int neu2 = annmb.num_neurons2;
+      apply_ann_two_layers_charge(
+        annmb.dim,
+        neu1,
+        neu2,
+        annmb.wb[type],
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
+        annmb.b,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative);
+    } else {
+      apply_ann_one_layer_charge(
+        annmb.dim,
+        neu1,
+        annmb.wb[type],
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.b,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative);
+    }
 
     g_pe[n1] = F;
     g_charge[n1] = charge;
@@ -440,20 +465,43 @@ static __global__ void apply_ann_vdw(
     float C6 = 0.0f;
     float C6_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer_charge_vdw(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp,
-      charge,
-      charge_derivative,
-      C6,
-      C6_derivative);
+    const int neu1 = annmb.num_neurons1;
+    const int neu1_dim = neu1 * annmb.dim;
+    if (annmb.num_hidden_layers == 2) {
+      const int neu2 = annmb.num_neurons2;
+      apply_ann_two_layers_charge_vdw(
+        annmb.dim,
+        neu1,
+        neu2,
+        annmb.wb[type],
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2),
+        annmb.wb[type] + neu1 * (annmb.dim + 1 + neu2) + neu2,
+        annmb.b,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative,
+        C6,
+        C6_derivative);
+    } else {
+      apply_ann_one_layer_charge_vdw(
+        annmb.dim,
+        neu1,
+        annmb.wb[type],
+        annmb.wb[type] + neu1_dim,
+        annmb.wb[type] + neu1 * (annmb.dim + 1),
+        annmb.b,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative,
+        C6,
+        C6_derivative);
+    }
 
     g_pe[n1] = F;
     g_charge[n1] = charge;
