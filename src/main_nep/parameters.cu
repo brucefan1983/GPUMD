@@ -998,6 +998,10 @@ void Parameters::parse_neuron(const char** param, int num_param)
   num_hidden_layers = 1;
 
   if (num_param == 3) {
+    if (charge_mode != 0) {
+      PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
+    }
+
     if (!is_valid_int(param[2], &num_neurons2)) {
       PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
     }
@@ -1344,6 +1348,10 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
     if (flip_charge < 0 || flip_charge > 1) {
       PRINT_INPUT_ERROR("flip_charge should be 0 or 1.");
     }
+  }
+
+  if (num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
   }
 }
 
