@@ -18,6 +18,7 @@
  * @author liqa
  */
 
+#ifdef USE_NNAP
 #pragma once
 #include <jni.h>
 #include "neighbor.cuh"
@@ -47,3 +48,4 @@ protected:
   GPU_Vector<float> nl_dy;
   GPU_Vector<float> nl_dz;
 };
+#endif
