@@ -13,11 +13,13 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef USE_TENSORFLOW
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"
 #include <stdio.h>
 #include <vector>
+#include <cstddef>
 
 namespace deepmd_compat = deepmd;
 
@@ -107,3 +109,4 @@ protected:
 
   void set_dp_coeff();
 };
+#endif
