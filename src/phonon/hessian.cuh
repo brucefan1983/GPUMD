@@ -23,6 +23,7 @@
 class Box;
 class Group;
 class Force;
+class Atom;
 
 class Hessian
 {
@@ -34,19 +35,9 @@ public:
   double cutoff = 4.0;
   double phonon_cutoff = 8.0;
 
-  void compute(
-    Force& force,
-    Box& box,
-    const std::vector<double>& cpu_mass,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+  void compute(Force& force, Box& box, Atom& atom, std::vector<Group>& group);
 
-  void parse(const char**, size_t);
+  void parse(const char**, int);
   void get_cutoff_from_potential(Force& force);
 
 protected:
@@ -64,21 +55,12 @@ protected:
   std::vector<double> DI;
   std::vector<std::string> hsp_names;
 
-  void create_basis(const std::vector<double>& cpu_mass, size_t N);
+  void create_basis(const std::vector<double>& cpu_mass, int N);
   void create_kpoints(const Box& box);
-  void initialize(const std::vector<double>& cpu_mass, Box& box, Force& force, size_t N);
+  void initialize(const std::vector<double>& cpu_mass, Box& box, Force& force, int N);
   void finalize(void);
 
-  void find_H(
-    Force& force,
-    Box& box,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+  void find_H(Force& force, Box& box, Atom& atom, std::vector<Group>& group);
 
   bool is_too_far(
     const Box& box,
@@ -86,9 +68,9 @@ protected:
     const size_t n1,
     const size_t n2);
 
-  void find_dispersion(const Box& box, const std::vector<double>& cpu_position_per_atom);
+  void find_dispersion(const Box& box, Atom& atom);
 
-  void find_D(const Box& box, std::vector<double>& cpu_position_per_atom);
+  void find_D(const Box& box, Atom& atom);
 
   void find_eigenvectors();
   void output_D();
