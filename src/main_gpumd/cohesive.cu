@@ -135,8 +135,13 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   if (deform_d < 0 || deform_d > 6) {
     PRINT_INPUT_ERROR("deform direction should >=0 and <= 6.\n");
   }
-  num_points = (round((end_factor - start_factor) * 10) * 100) + 1;
+  num_points = round((end_factor - start_factor) * 1000) + 1;
   printf("    num_points = %d.\n", num_points);
+
+  const char* deform_mode[] = {"uniaxial", "uniaxial", "uniaxial", 
+                               "biaxial", "biaxial", "biaxial", "triaxial"};
+  const char* deform_dir[] = {"x", "y", "z", "xy", "yz", "xz", "xyz"};
+  printf("    deform mode = %s - %s .\n", deform_mode[deform_d], deform_dir[deform_d]);
 
   delta_factor = 0.001; // (end_factor - start_factor) / (num_points - 1);
   deformation_type = 0; // deformation for cohesive
@@ -190,10 +195,11 @@ void Cohesive::compute_D()
         }
       } else if (deform_d > 2 && deform_d < 6) {
         for (int k = 3 * (deform_d - 3); k < 3 * (deform_d - 2) + 3; ++k) {
-          if (k > 8) {
-            k -= 9;
+          int ki = k;
+          if (ki > 8) {
+            ki -= 9;
           }
-          cpu_D[n].data[k] = factor;
+          cpu_D[n].data[ki] = factor;
         }
       } else {
         for (int k = 0; k < 9; ++k) {
