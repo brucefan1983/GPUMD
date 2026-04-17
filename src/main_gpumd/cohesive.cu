@@ -195,10 +195,11 @@ void Cohesive::compute_D()
         }
       } else if (deform_d > 2 && deform_d < 6) {
         for (int k = 3 * (deform_d - 3); k < 3 * (deform_d - 2) + 3; ++k) {
-          if (k > 8) {
-            k -= 9;
+          int ki = k;
+          if (ki > 8) {
+            ki -= 9;
           }
-          cpu_D[n].data[k] = factor;
+          cpu_D[n].data[ki] = factor;
         }
       } else {
         for (int k = 0; k < 9; ++k) {
