@@ -138,6 +138,9 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   num_points = round((end_factor - start_factor) * 1000) + 1;
   printf("    num_points = %d.\n", num_points);
 
+  const char* deform_names[] = {"x", "y", "z", "xy", "yz", "xz", "xyz"};
+  printf("    deform direction = %d (%s).\n", deform_d, deform_names[deform_d]);
+
   delta_factor = 0.001; // (end_factor - start_factor) / (num_points - 1);
   deformation_type = 0; // deformation for cohesive
 }
