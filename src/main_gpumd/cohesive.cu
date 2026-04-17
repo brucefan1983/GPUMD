@@ -135,7 +135,7 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   if (deform_d < 0 || deform_d > 6) {
     PRINT_INPUT_ERROR("deform direction should >=0 and <= 6.\n");
   }
-  num_points = (round((end_factor - start_factor) * 10) * 100) + 1;
+  num_points = round((end_factor - start_factor) * 1000) + 1;
   printf("    num_points = %d.\n", num_points);
 
   delta_factor = 0.001; // (end_factor - start_factor) / (num_points - 1);
