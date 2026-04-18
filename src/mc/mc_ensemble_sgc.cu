@@ -418,27 +418,15 @@ void MC_Ensemble_SGC::compute(
       z12_angular.data());
     GPU_CHECK_KERNEL
 
-    nep_energy.find_energy(
+    nep_energy.find_energy_dual(
       NN_ij_cpu,
       NN_radial.data(),
       NN_angular.data(),
       local_type_before.data(),
-      t2_radial_before.data(),
-      t2_angular_before.data(),
-      x12_radial.data(),
-      y12_radial.data(),
-      z12_radial.data(),
-      x12_angular.data(),
-      y12_angular.data(),
-      z12_angular.data(),
-      pe_before.data());
-
-    nep_energy.find_energy(
-      NN_ij_cpu,
-      NN_radial.data(),
-      NN_angular.data(),
       local_type_after.data(),
+      t2_radial_before.data(),
       t2_radial_after.data(),
+      t2_angular_before.data(),
       t2_angular_after.data(),
       x12_radial.data(),
       y12_radial.data(),
@@ -446,6 +434,7 @@ void MC_Ensemble_SGC::compute(
       x12_angular.data(),
       y12_angular.data(),
       z12_angular.data(),
+      pe_before.data(),
       pe_after.data());
 
     std::vector<float> pe_before_cpu(NN_ij_cpu);

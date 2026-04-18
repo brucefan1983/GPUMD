@@ -311,6 +311,245 @@ void NEP_Energy::update_potential(float* parameters, ANN& ann)
   ann.c = ann.b1 + 1;
 }
 
+static __device__ __forceinline__ void apply_ann_one_layer_energy_only(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  const float* q,
+  float& energy)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    energy += w1[n] * tanh(w0_times_q - b0[n]);
+  }
+  energy -= b1[0];
+}
+
+static __device__ __forceinline__ void apply_ann_one_layer_nep5_energy_only(
+  const int N_des,
+  const int N_neu,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  const float* q,
+  float& energy)
+{
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    energy += w1[n] * tanh(w0_times_q - b0[n]);
+  }
+  energy -= w1[N_neu] + b1[0];
+}
+
+static __device__ __forceinline__ void accumulate_radial_descriptor_contribution(
+  const NEP_Energy::ParaMB& paramb,
+  const NEP_Energy::ANN& annmb,
+  const int t1,
+  const int t2,
+  const float d12,
+  float* q_primary,
+  float* q_secondary)
+{
+  float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+  if (d12 >= rc) {
+    return;
+  }
+
+  float rcinv = 1.0f / rc;
+  float fc12;
+  find_fc(rc, rcinv, d12, fc12);
+
+  float fn12[MAX_NUM_N];
+  find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
+  for (int n = 0; n <= paramb.n_max_radial; ++n) {
+    float gn12 = 0.0f;
+    for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+      int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+      c_index += t1 * paramb.num_types + t2;
+      gn12 += fn12[k] * annmb.c[c_index];
+    }
+    q_primary[n] += gn12;
+    if (q_secondary != nullptr) {
+      q_secondary[n] += gn12;
+    }
+  }
+}
+
+template <int L_MAX>
+static __device__ __forceinline__ void accumulate_angular_descriptor_contribution_lmax(
+  const NEP_Energy::ParaMB& paramb,
+  const NEP_Energy::ANN& annmb,
+  const int n,
+  const int t1,
+  const int t2,
+  const float x12,
+  const float y12,
+  const float z12,
+  const float d12,
+  float* s_primary,
+  float* s_secondary)
+{
+  float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+  if (d12 >= rc) {
+    return;
+  }
+
+  float rcinv = 1.0f / rc;
+  float fc12;
+  find_fc(rc, rcinv, d12, fc12);
+
+  float fn12[MAX_NUM_N];
+  find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
+  float gn12 = 0.0f;
+  for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+    int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+    c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+    gn12 += fn12[k] * annmb.c[c_index];
+  }
+  accumulate_s(L_MAX, d12, x12, y12, z12, gn12, s_primary);
+  if (s_secondary != nullptr) {
+    accumulate_s(L_MAX, d12, x12, y12, z12, gn12, s_secondary);
+  }
+}
+
+template <int L_MAX>
+static __global__ void find_energy_nep_dual_lmax(
+  NEP_Energy::ParaMB paramb,
+  NEP_Energy::ANN annmb,
+  const int N,
+  const int* g_NN_radial,
+  const int* g_NN_angular,
+  const int* __restrict__ g_type_before,
+  const int* __restrict__ g_type_after,
+  const int* __restrict__ g_t2_radial_before,
+  const int* __restrict__ g_t2_radial_after,
+  const int* __restrict__ g_t2_angular_before,
+  const int* __restrict__ g_t2_angular_after,
+  const float* __restrict__ g_x12_radial,
+  const float* __restrict__ g_y12_radial,
+  const float* __restrict__ g_z12_radial,
+  const float* __restrict__ g_x12_angular,
+  const float* __restrict__ g_y12_angular,
+  const float* __restrict__ g_z12_angular,
+  float* g_pe_before,
+  float* g_pe_after)
+{
+  constexpr int NUM_OF_ABC_LMAX = L_MAX * (L_MAX + 2);
+
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int t1_before = g_type_before[n1];
+    int t1_after = g_type_after[n1];
+    float q_before[MAX_DIM] = {0.0f};
+    float q_after[MAX_DIM] = {0.0f};
+
+    for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
+      int index = i1 * N + n1;
+      float x12 = g_x12_radial[index];
+      float y12 = g_y12_radial[index];
+      float z12 = g_z12_radial[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      int t2_before = g_t2_radial_before[index];
+      int t2_after = g_t2_radial_after[index];
+
+      if (t1_before == t1_after && t2_before == t2_after) {
+        accumulate_radial_descriptor_contribution(
+          paramb, annmb, t1_before, t2_before, d12, q_before, q_after);
+      } else {
+        accumulate_radial_descriptor_contribution(
+          paramb, annmb, t1_before, t2_before, d12, q_before, nullptr);
+        accumulate_radial_descriptor_contribution(
+          paramb, annmb, t1_after, t2_after, d12, q_after, nullptr);
+      }
+    }
+
+    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      float s_before[NUM_OF_ABC_LMAX] = {0.0f};
+      float s_after[NUM_OF_ABC_LMAX] = {0.0f};
+      for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+        int index = i1 * N + n1;
+        float x12 = g_x12_angular[index];
+        float y12 = g_y12_angular[index];
+        float z12 = g_z12_angular[index];
+        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+        int t2_before = g_t2_angular_before[index];
+        int t2_after = g_t2_angular_after[index];
+
+        if (t1_before == t1_after && t2_before == t2_after) {
+          accumulate_angular_descriptor_contribution_lmax<L_MAX>(
+            paramb, annmb, n, t1_before, t2_before, x12, y12, z12, d12, s_before, s_after);
+        } else {
+          accumulate_angular_descriptor_contribution_lmax<L_MAX>(
+            paramb, annmb, n, t1_before, t2_before, x12, y12, z12, d12, s_before, nullptr);
+          accumulate_angular_descriptor_contribution_lmax<L_MAX>(
+            paramb, annmb, n, t1_after, t2_after, x12, y12, z12, d12, s_after, nullptr);
+        }
+      }
+      find_q(L_MAX, paramb.num_L, paramb.n_max_angular + 1, n, s_before, q_before + (paramb.n_max_radial + 1));
+      find_q(L_MAX, paramb.num_L, paramb.n_max_angular + 1, n, s_after, q_after + (paramb.n_max_radial + 1));
+    }
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      q_before[d] = q_before[d] * paramb.q_scaler[d];
+      q_after[d] = q_after[d] * paramb.q_scaler[d];
+    }
+
+    float energy_before = 0.0f;
+    float energy_after = 0.0f;
+    if (paramb.version == 5) {
+      apply_ann_one_layer_nep5_energy_only(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1_before],
+        annmb.b0[t1_before],
+        annmb.w1[t1_before],
+        annmb.b1,
+        q_before,
+        energy_before);
+      apply_ann_one_layer_nep5_energy_only(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1_after],
+        annmb.b0[t1_after],
+        annmb.w1[t1_after],
+        annmb.b1,
+        q_after,
+        energy_after);
+    } else {
+      apply_ann_one_layer_energy_only(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1_before],
+        annmb.b0[t1_before],
+        annmb.w1[t1_before],
+        annmb.b1,
+        q_before,
+        energy_before);
+      apply_ann_one_layer_energy_only(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1_after],
+        annmb.b0[t1_after],
+        annmb.w1[t1_after],
+        annmb.b1,
+        q_after,
+        energy_after);
+    }
+    g_pe_before[n1] = energy_before;
+    g_pe_after[n1] = energy_after;
+  }
+}
+
 static __global__ void find_energy_nep(
   NEP_Energy::ParaMB paramb,
   NEP_Energy::ANN annmb,
@@ -462,6 +701,153 @@ static __global__ void find_energy_zbl(
   }
 }
 
+static __global__ void find_energy_zbl_dual(
+  const int N,
+  const NEP_Energy::ParaMB paramb,
+  const NEP_Energy::ZBL zbl,
+  const int* g_NN,
+  const int* __restrict__ g_type_before,
+  const int* __restrict__ g_type_after,
+  const int* g_t2_angular_before,
+  const int* g_t2_angular_after,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* g_pe_before,
+  float* g_pe_after)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    float s_pe_before = 0.0f;
+    float s_pe_after = 0.0f;
+    int type1_before = g_type_before[n1];
+    int type1_after = g_type_after[n1];
+    int zi_before = zbl.atomic_numbers[type1_before];
+    int zi_after = zbl.atomic_numbers[type1_after];
+    float pow_zi_before = pow(float(zi_before), 0.23f);
+    float pow_zi_after = pow(float(zi_after), 0.23f);
+
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int index = i1 * N + n1;
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float d12inv = 1.0f / d12;
+      int type2_before = g_t2_angular_before[index];
+      int type2_after = g_t2_angular_after[index];
+
+      if (type1_before == type1_after && type2_before == type2_after) {
+        float f, fp;
+        int zj = zbl.atomic_numbers[type2_before];
+        float a_inv = (pow_zi_before + pow(float(zj), 0.23f)) * 2.134563f;
+        float zizj = K_C_SP * zi_before * zj;
+        if (zbl.flexibled) {
+          int t1, t2;
+          if (type1_before < type2_before) {
+            t1 = type1_before;
+            t2 = type2_before;
+          } else {
+            t1 = type2_before;
+            t2 = type1_before;
+          }
+          int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+          float ZBL_para[10];
+          for (int i = 0; i < 10; ++i) {
+            ZBL_para[i] = zbl.para[10 * zbl_index + i];
+          }
+          find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
+        } else {
+          float rc_inner = zbl.rc_inner;
+          float rc_outer = zbl.rc_outer;
+          if (paramb.use_typewise_cutoff_zbl) {
+            rc_outer = min(
+              (COVALENT_RADIUS[zi_before - 1] + COVALENT_RADIUS[zj - 1]) *
+                paramb.typewise_cutoff_zbl_factor,
+              rc_outer);
+            rc_inner = 0.0f;
+          }
+          find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+        }
+        float pair_energy = f * 0.5f;
+        s_pe_before += pair_energy;
+        s_pe_after += pair_energy;
+      } else {
+        float f_before, fp_before;
+        int zj_before = zbl.atomic_numbers[type2_before];
+        float a_inv_before = (pow_zi_before + pow(float(zj_before), 0.23f)) * 2.134563f;
+        float zizj_before = K_C_SP * zi_before * zj_before;
+        if (zbl.flexibled) {
+          int t1, t2;
+          if (type1_before < type2_before) {
+            t1 = type1_before;
+            t2 = type2_before;
+          } else {
+            t1 = type2_before;
+            t2 = type1_before;
+          }
+          int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+          float ZBL_para[10];
+          for (int i = 0; i < 10; ++i) {
+            ZBL_para[i] = zbl.para[10 * zbl_index + i];
+          }
+          find_f_and_fp_zbl(ZBL_para, zizj_before, a_inv_before, d12, d12inv, f_before, fp_before);
+        } else {
+          float rc_inner = zbl.rc_inner;
+          float rc_outer = zbl.rc_outer;
+          if (paramb.use_typewise_cutoff_zbl) {
+            rc_outer = min(
+              (COVALENT_RADIUS[zi_before - 1] + COVALENT_RADIUS[zj_before - 1]) *
+                paramb.typewise_cutoff_zbl_factor,
+              rc_outer);
+            rc_inner = 0.0f;
+          }
+          find_f_and_fp_zbl(
+            zizj_before, a_inv_before, rc_inner, rc_outer, d12, d12inv, f_before, fp_before);
+        }
+        s_pe_before += f_before * 0.5f;
+
+        float f_after, fp_after;
+        int zj_after = zbl.atomic_numbers[type2_after];
+        float a_inv_after = (pow_zi_after + pow(float(zj_after), 0.23f)) * 2.134563f;
+        float zizj_after = K_C_SP * zi_after * zj_after;
+        if (zbl.flexibled) {
+          int t1, t2;
+          if (type1_after < type2_after) {
+            t1 = type1_after;
+            t2 = type2_after;
+          } else {
+            t1 = type2_after;
+            t2 = type1_after;
+          }
+          int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+          float ZBL_para[10];
+          for (int i = 0; i < 10; ++i) {
+            ZBL_para[i] = zbl.para[10 * zbl_index + i];
+          }
+          find_f_and_fp_zbl(ZBL_para, zizj_after, a_inv_after, d12, d12inv, f_after, fp_after);
+        } else {
+          float rc_inner = zbl.rc_inner;
+          float rc_outer = zbl.rc_outer;
+          if (paramb.use_typewise_cutoff_zbl) {
+            rc_outer = min(
+              (COVALENT_RADIUS[zi_after - 1] + COVALENT_RADIUS[zj_after - 1]) *
+                paramb.typewise_cutoff_zbl_factor,
+              rc_outer);
+            rc_inner = 0.0f;
+          }
+          find_f_and_fp_zbl(
+            zizj_after, a_inv_after, rc_inner, rc_outer, d12, d12inv, f_after, fp_after);
+        }
+        s_pe_after += f_after * 0.5f;
+      }
+    }
+
+    g_pe_before[n1] += s_pe_before;
+    g_pe_after[n1] += s_pe_after;
+  }
+}
+
 void NEP_Energy::find_energy(
   const int N,
   const int* g_NN_radial,
@@ -507,6 +893,225 @@ void NEP_Energy::find_energy(
       g_y12_angular,
       g_z12_angular,
       g_pe);
+    GPU_CHECK_KERNEL
+  }
+}
+
+void NEP_Energy::find_energy_dual(
+  const int N,
+  const int* g_NN_radial,
+  const int* g_NN_angular,
+  const int* g_type_before,
+  const int* g_type_after,
+  const int* g_t2_radial_before,
+  const int* g_t2_radial_after,
+  const int* g_t2_angular_before,
+  const int* g_t2_angular_after,
+  const float* g_x12_radial,
+  const float* g_y12_radial,
+  const float* g_z12_radial,
+  const float* g_x12_angular,
+  const float* g_y12_angular,
+  const float* g_z12_angular,
+  float* g_pe_before,
+  float* g_pe_after)
+{
+  switch (paramb.L_max) {
+    case 1:
+      find_energy_nep_dual_lmax<1><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 2:
+      find_energy_nep_dual_lmax<2><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 3:
+      find_energy_nep_dual_lmax<3><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 4:
+      find_energy_nep_dual_lmax<4><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 5:
+      find_energy_nep_dual_lmax<5><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 6:
+      find_energy_nep_dual_lmax<6><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 7:
+      find_energy_nep_dual_lmax<7><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+    case 8:
+    default:
+      find_energy_nep_dual_lmax<8><<<(N - 1) / 64 + 1, 64>>>(
+        paramb,
+        annmb,
+        N,
+        g_NN_radial,
+        g_NN_angular,
+        g_type_before,
+        g_type_after,
+        g_t2_radial_before,
+        g_t2_radial_after,
+        g_t2_angular_before,
+        g_t2_angular_after,
+        g_x12_radial,
+        g_y12_radial,
+        g_z12_radial,
+        g_x12_angular,
+        g_y12_angular,
+        g_z12_angular,
+        g_pe_before,
+        g_pe_after);
+      break;
+  }
+  GPU_CHECK_KERNEL
+
+  if (zbl.enabled) {
+    find_energy_zbl_dual<<<(N - 1) / 64 + 1, 64>>>(
+      N,
+      paramb,
+      zbl,
+      g_NN_angular,
+      g_type_before,
+      g_type_after,
+      g_t2_angular_before,
+      g_t2_angular_after,
+      g_x12_angular,
+      g_y12_angular,
+      g_z12_angular,
+      g_pe_before,
+      g_pe_after);
     GPU_CHECK_KERNEL
   }
 }
