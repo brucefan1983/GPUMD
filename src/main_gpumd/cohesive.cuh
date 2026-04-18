@@ -20,6 +20,7 @@
 class Box;
 class Group;
 class Force;
+class Atom;
 
 struct D {
   double data[9];
@@ -31,12 +32,8 @@ public:
   void parse(const char** param, int num_param, int type);
   void compute(
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
+    Atom& atom,
     std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
     Force& force);
 
 private:
