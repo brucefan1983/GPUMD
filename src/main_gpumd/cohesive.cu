@@ -22,6 +22,7 @@ Compute the cohesive energy curve with different deformations.
 #include "minimize/minimize.cuh"
 #include "minimize/minimizer_sd.cuh"
 #include "model/box.cuh"
+#include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -343,16 +344,11 @@ void Cohesive::output(Box& box)
 
 void Cohesive::compute(
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
+  Atom& atom,
   std::vector<Group>& group,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
   Force& force)
 {
-  const int num_atoms = potential_per_atom.size();
-  allocate_memory(num_atoms);
+  allocate_memory(atom.number_of_atoms);
   compute_D();
 
   double old_inv[9];
@@ -363,22 +359,22 @@ void Cohesive::compute(
 
   for (int n = 0; n < num_points; ++n) {
     Box new_box;
-    deform_box(num_atoms, cpu_D[n], box, new_box, position_per_atom, old_box_inv);
+    deform_box(atom.number_of_atoms, cpu_D[n], box, new_box, atom.position_per_atom, old_box_inv);
 
-    Minimizer_SD minimizer(-1, 0, num_atoms, 1000, 1.0e-5);
+    Minimizer_SD minimizer(-1, 0, atom.number_of_atoms, 1000, 1.0e-5);
     minimizer.compute(
       force,
       new_box,
       new_position_per_atom,
-      type,
+      atom.type,
       group,
-      potential_per_atom,
-      force_per_atom,
-      virial_per_atom);
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom);
 
-    potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
+    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
     cpu_potential_total[n] = 0.0;
-    for (int i = 0; i < num_atoms; ++i) {
+    for (int i = 0; i < atom.number_of_atoms; ++i) {
       cpu_potential_total[n] += cpu_potential_per_atom[i];
     }
   }
