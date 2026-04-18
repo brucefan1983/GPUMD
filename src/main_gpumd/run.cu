@@ -157,10 +157,7 @@ Run::Run()
   velocity.initialize(
     has_velocity_in_xyz,
     300,
-    atom.cpu_mass,
-    atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom,
-    atom.velocity_per_atom,
+    atom,
     false,
     123);
   if (has_velocity_in_xyz) {
@@ -252,14 +249,7 @@ void Run::perform_a_run()
 
   for (int step = 0; step < number_of_steps; ++step) {
 
-    velocity.correct_velocity(
-      step,
-      group,
-      atom.cpu_mass,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.velocity_per_atom);
+    velocity.correct_velocity(step, group, atom);
 
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
@@ -603,10 +593,7 @@ void Run::parse_velocity(const char** param, int num_param)
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,
-    atom.cpu_mass,
-    atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom,
-    atom.velocity_per_atom,
+    atom,
     use_seed,
     seed);
   if (!has_velocity_in_xyz) {
