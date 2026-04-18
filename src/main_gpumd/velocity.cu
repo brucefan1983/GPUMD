@@ -295,7 +295,7 @@ void Velocity::correct_velocity(const int step, const std::vector<Group>& group,
               velocity[m + d * cpu_size] = atom.cpu_velocity_per_atom[n + d * N];
             }
           }
-          correct_velocity(N, mass, position, velocity);
+          correct_velocity(mass.size(), mass, position, velocity);
           for (int m = 0; m < cpu_size; ++m) {
             int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
             for (int d = 0; d < 3; ++d) {
