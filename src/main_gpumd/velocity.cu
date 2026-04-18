@@ -276,8 +276,8 @@ void Velocity::correct_velocity(const int step, const std::vector<Group>& group,
 
   if (do_velocity_correction) {
     if (step % velocity_correction_interval == 0) {
-      atom.position_per_atom.copy_to_host(atom.position_per_atom.data());
-      atom.velocity_per_atom.copy_to_host(atom.velocity_per_atom.data());
+      atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
+      atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
       if (velocity_correction_group_method < 0) {
         correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
       } else {
