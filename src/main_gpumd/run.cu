@@ -363,12 +363,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
       integrate.fixed_grouping_method,
       force,
       box,
-      atom.position_per_atom,
-      atom.type,
-      group,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom);
+      atom,
+      group);
   } else if (strcmp(param[0], "compute_phonon") == 0) {
     Hessian hessian;
     hessian.parse(param, num_param);

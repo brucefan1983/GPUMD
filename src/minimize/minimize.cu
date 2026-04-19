@@ -18,6 +18,7 @@ The driver class for minimizers.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
+#include "model/atom.cuh"
 #include "minimize.cuh"
 #include "minimizer_fire.cuh"
 #include "minimizer_fire_box_change.cuh"
@@ -35,12 +36,8 @@ void Minimize::parse_minimize(
   int fixed_grouping_method,
   Force& force,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  std::vector<Group>& group,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  Atom& atom,
+  std::vector<Group>& group)
 {
 
   int minimizer_type = 0;
@@ -49,7 +46,6 @@ void Minimize::parse_minimize(
   int box_change = 0;
   int hydrostatic_strain = 0;
   std::unique_ptr<Minimizer> minimizer;
-  const int number_of_atoms = type.size();
 
   if (strcmp(param[1], "sd") == 0) {
     minimizer_type = 0;
@@ -120,17 +116,17 @@ void Minimize::parse_minimize(
       printf("    for maximally %d steps.\n", number_of_steps);
 
       minimizer.reset(
-        new Minimizer_SD(fixed_group, fixed_grouping_method, number_of_atoms, number_of_steps, force_tolerance));
+        new Minimizer_SD(fixed_group, fixed_grouping_method, atom.number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
         box,
-        position_per_atom,
-        type,
+        atom.position_per_atom,
+        atom.type,
         group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom);
 
       break;
     case 1:
@@ -140,17 +136,17 @@ void Minimize::parse_minimize(
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
-      minimizer.reset(new Minimizer_FIRE(number_of_atoms, number_of_steps, force_tolerance));
+      minimizer.reset(new Minimizer_FIRE(atom.number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
         box,
-        position_per_atom,
-        type,
+        atom.position_per_atom,
+        atom.type,
         group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom);
 
       break;
     case 2:
@@ -164,17 +160,17 @@ void Minimize::parse_minimize(
       printf("    for maximally %d steps.\n", number_of_steps);
 
       minimizer.reset(new Minimizer_FIRE_Box_Change(
-        number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+        atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
 
       minimizer->compute(
         force,
         box,
-        position_per_atom,
-        type,
+        atom.position_per_atom,
+        atom.type,
         group,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom);
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom);
 
       break;
     default:
