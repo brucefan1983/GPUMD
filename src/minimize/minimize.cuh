@@ -19,6 +19,7 @@
 class Force;
 class Box;
 class Group;
+class Atom;
 
 class Minimize
 {
@@ -30,10 +31,6 @@ public:
     int fixed_grouping_method,
     Force& force,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    Atom& atom,
+    std::vector<Group>& group);
 };
