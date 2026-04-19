@@ -20,6 +20,7 @@ Reference: PhysRevLett 97, 170201 (2006)
 ------------------------------------------------------------------------------*/
 
 #include "minimizer_fire_box_change.cuh"
+#include "model/atom.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cmath>
@@ -238,12 +239,9 @@ void vector_sum(GPU_Vector<double>& a, GPU_Vector<double>& b, GPU_Vector<double>
 void Minimizer_FIRE_Box_Change::compute(
   Force& force,
   Box& box,
+  Atom& atom,
   GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  std::vector<Group>& group,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  std::vector<Group>& group)
 {
   double next_dt;
   const int size = number_of_atoms_ * 3;
@@ -263,19 +261,19 @@ void Minimizer_FIRE_Box_Change::compute(
   for (int step = 0; step < number_of_steps_; ++step) {
 
     force.compute(
-      box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
+      box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
 
     gpu_sum_virial<<<9, 1024>>>(
       number_of_atoms_,
-      virial_per_atom.data() + 0 * number_of_atoms_, // xx
-      virial_per_atom.data() + 3 * number_of_atoms_, // xy
-      virial_per_atom.data() + 4 * number_of_atoms_, // xz
-      virial_per_atom.data() + 6 * number_of_atoms_, // yx
-      virial_per_atom.data() + 1 * number_of_atoms_, // yy
-      virial_per_atom.data() + 5 * number_of_atoms_, // yz
-      virial_per_atom.data() + 7 * number_of_atoms_, // zx
-      virial_per_atom.data() + 8 * number_of_atoms_, // zy
-      virial_per_atom.data() + 2 * number_of_atoms_, // zz
+      atom.virial_per_atom.data() + 0 * number_of_atoms_, // xx
+      atom.virial_per_atom.data() + 3 * number_of_atoms_, // xy
+      atom.virial_per_atom.data() + 4 * number_of_atoms_, // xz
+      atom.virial_per_atom.data() + 6 * number_of_atoms_, // yx
+      atom.virial_per_atom.data() + 1 * number_of_atoms_, // yy
+      atom.virial_per_atom.data() + 5 * number_of_atoms_, // yz
+      atom.virial_per_atom.data() + 7 * number_of_atoms_, // zx
+      atom.virial_per_atom.data() + 8 * number_of_atoms_, // zy
+      atom.virial_per_atom.data() + 2 * number_of_atoms_, // zz
       virialtot.data());
     GPU_CHECK_KERNEL
 
@@ -311,12 +309,12 @@ void Minimizer_FIRE_Box_Change::compute(
     }
 
     gpuMemcpy(
-      force_temp.data(), force_per_atom.data(), size * sizeof(double), gpuMemcpyDeviceToDevice);
+      force_temp.data(), atom.force_per_atom.data(), size * sizeof(double), gpuMemcpyDeviceToDevice);
     gpuMemcpy(force_temp.data() + size, virial_cpu, 9 * sizeof(double), gpuMemcpyHostToDevice);
 
-    calculate_force_square_max(force_per_atom);
+    calculate_force_square_max(atom.force_per_atom);
     const double force_max_atom = sqrt(cpu_force_square_max_[0]);
-    calculate_total_potential(potential_per_atom);
+    calculate_total_potential(atom.potential_per_atom);
 
     if (
       step == 0 || (step + 1) % base == 0 ||
