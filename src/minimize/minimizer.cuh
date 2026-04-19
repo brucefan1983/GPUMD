@@ -19,6 +19,7 @@
 class Box;
 class Group;
 class Force;
+class Atom;
 
 class Minimizer
 {
@@ -51,12 +52,9 @@ public:
   virtual void compute(
     Force& force,
     Box& box,
+    Atom& atom,
     GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom) = 0;
+    std::vector<Group>& group) = 0;
 
 protected:
   void calculate_total_potential(const GPU_Vector<double>& potential_per_atom);

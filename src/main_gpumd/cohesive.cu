@@ -362,15 +362,7 @@ void Cohesive::compute(
     deform_box(atom.number_of_atoms, cpu_D[n], box, new_box, atom.position_per_atom, old_box_inv);
 
     Minimizer_SD minimizer(-1, 0, atom.number_of_atoms, 1000, 1.0e-5);
-    minimizer.compute(
-      force,
-      new_box,
-      new_position_per_atom,
-      atom.type,
-      group,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom);
+    minimizer.compute(force, new_box, atom, new_position_per_atom, group);
 
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
     cpu_potential_total[n] = 0.0;

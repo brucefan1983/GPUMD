@@ -18,6 +18,7 @@ The SD (steepest decent) minimizer.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
+#include "model/atom.cuh"
 #include "minimizer_sd.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
@@ -69,15 +70,12 @@ __global__ void update_positions_with_fixed_group(
 void Minimizer_SD::compute(
   Force& force,
   Box& box,
+  Atom& atom,
   GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  std::vector<Group>& group,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  std::vector<Group>& group)
 {
   force.compute(
-    box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
+    box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
 
   int number_of_force_evaluations = 1;
   double position_step = 0.1;
@@ -86,7 +84,7 @@ void Minimizer_SD::compute(
   printf("\nEnergy minimization started.\n");
 
   for (int step = 0; step < number_of_steps_; ++step) {
-    calculate_force_square_max(force_per_atom);
+    calculate_force_square_max(atom.force_per_atom);
     const double force_max = sqrt(cpu_force_square_max_[0]);
 
     if (force_max < force_tolerance_) {
@@ -100,7 +98,7 @@ void Minimizer_SD::compute(
       update_positions<<<(size - 1) / 128 + 1, 128>>>(
         size,
         position_step / force_max,
-        force_per_atom.data(),
+        atom.force_per_atom.data(),
         position_per_atom.data(),
         position_per_atom_temp_.data());
     } else {
@@ -110,7 +108,7 @@ void Minimizer_SD::compute(
         fixed_group_,
         group[fixed_grouping_method_].label.data(),
         position_step / force_max,
-        force_per_atom.data(),
+        atom.force_per_atom.data(),
         position_per_atom.data(),
         position_per_atom_temp_.data());
     }
@@ -118,22 +116,22 @@ void Minimizer_SD::compute(
     force.compute(
       box,
       position_per_atom_temp_,
-      type,
+      atom.type,
       group,
       potential_per_atom_temp_,
       force_per_atom_temp_,
-      virial_per_atom);
+      atom.virial_per_atom);
 
     ++number_of_force_evaluations;
 
-    calculate_total_potential(potential_per_atom);
+    calculate_total_potential(atom.potential_per_atom);
 
     if (cpu_total_potential_[1] > cpu_total_potential_[0]) {
       position_step *= decreasing_factor;
     } else {
       position_per_atom_temp_.copy_to_device(position_per_atom.data());
-      force_per_atom_temp_.copy_to_device(force_per_atom.data());
-      potential_per_atom_temp_.copy_to_device(potential_per_atom.data());
+      force_per_atom_temp_.copy_to_device(atom.force_per_atom.data());
+      potential_per_atom_temp_.copy_to_device(atom.potential_per_atom.data());
       position_step *= increasing_factor;
     }
 
