@@ -86,8 +86,8 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   type       	2 Te Pb # this is a mandatory keyword
   version       4       # default
   cutoff     	8 4     # default
-  n_max      	4 4     # default
-  basis_size	8 8     # default
+  n_max      	6 6     # default
+  basis_size	6 6     # default
   l_max      	4 2 0   # default
   neuron     	30      # default
   lambda_e      1.0     # default
