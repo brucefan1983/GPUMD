@@ -118,15 +118,7 @@ void Minimize::parse_minimize(
       minimizer.reset(
         new Minimizer_SD(fixed_group, fixed_grouping_method, atom.number_of_atoms, number_of_steps, force_tolerance));
 
-      minimizer->compute(
-        force,
-        box,
-        atom.position_per_atom,
-        atom.type,
-        group,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
+      minimizer->compute(force, box, atom, atom.position_per_atom, group);
 
       break;
     case 1:
@@ -138,15 +130,7 @@ void Minimize::parse_minimize(
 
       minimizer.reset(new Minimizer_FIRE(atom.number_of_atoms, number_of_steps, force_tolerance));
 
-      minimizer->compute(
-        force,
-        box,
-        atom.position_per_atom,
-        atom.type,
-        group,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
+      minimizer->compute(force, box, atom, atom.position_per_atom, group);
 
       break;
     case 2:
@@ -162,15 +146,7 @@ void Minimize::parse_minimize(
       minimizer.reset(new Minimizer_FIRE_Box_Change(
         atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
 
-      minimizer->compute(
-        force,
-        box,
-        atom.position_per_atom,
-        atom.type,
-        group,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
+      minimizer->compute(force, box, atom, atom.position_per_atom, group);
 
       break;
     default:
