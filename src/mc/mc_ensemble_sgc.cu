@@ -27,9 +27,11 @@ integration across phase boundaries, Phys. Rev. B 86, 134204 (2012).
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble_sgc.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
+#include <cmath>
 #include <map>
-#include <cstring>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},
@@ -287,6 +289,74 @@ static __global__ void create_inputs_for_energy_calculator(
   }
 }
 
+static __global__ void create_inputs_for_energy_calculator_from_global_shell(
+  const int N,
+  const int N_local,
+  const int global_shell_stride,
+  const int* atom_local,
+  const Box box,
+  const float rc_radial_square,
+  const float rc_angular_square,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const int* __restrict__ g_type_before,
+  const int* __restrict__ g_type_after,
+  const int* __restrict__ g_NN_global,
+  const int* __restrict__ g_NL_global,
+  int* g_NN_radial,
+  int* g_NN_angular,
+  int* g_t2_radial_before,
+  int* g_t2_radial_after,
+  int* g_t2_angular_before,
+  int* g_t2_angular_after,
+  float* g_x12_radial,
+  float* g_y12_radial,
+  float* g_z12_radial,
+  float* g_x12_angular,
+  float* g_y12_angular,
+  float* g_z12_angular)
+{
+  int candidate = blockIdx.x * blockDim.x + threadIdx.x;
+  int total_candidates = N_local * global_shell_stride;
+  if (candidate >= total_candidates) {
+    return;
+  }
+
+  int k = candidate % N_local;
+  int slot = candidate / N_local;
+  int n1 = atom_local[k];
+  if (slot >= g_NN_global[n1]) {
+    return;
+  }
+
+  int n2 = g_NL_global[n1 + N * slot];
+  double x12 = g_x[n2] - g_x[n1];
+  double y12 = g_y[n2] - g_y[n1];
+  double z12 = g_z[n2] - g_z[n1];
+  apply_mic(box, x12, y12, z12);
+  float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
+
+  if (distance_square < rc_radial_square) {
+    int count_radial = atomicAdd(&g_NN_radial[k], 1);
+    int index_radial = count_radial * N_local + k;
+    g_t2_radial_before[index_radial] = g_type_before[n2];
+    g_t2_radial_after[index_radial] = g_type_after[n2];
+    g_x12_radial[index_radial] = float(x12);
+    g_y12_radial[index_radial] = float(y12);
+    g_z12_radial[index_radial] = float(z12);
+  }
+  if (distance_square < rc_angular_square) {
+    int count_angular = atomicAdd(&g_NN_angular[k], 1);
+    int index_angular = count_angular * N_local + k;
+    g_t2_angular_before[index_angular] = g_type_before[n2];
+    g_t2_angular_after[index_angular] = g_type_after[n2];
+    g_x12_angular[index_angular] = float(x12);
+    g_y12_angular[index_angular] = float(y12);
+    g_z12_angular[index_angular] = float(z12);
+  }
+}
+
 // a kernel with a single thread <<<1, 1>>>
 static __global__ void gpu_flip(
   const int i,
@@ -326,7 +396,9 @@ void MC_Ensemble_SGC::compute(
   int grouping_method,
   int group_id)
 {
-  if (check_if_small_box(nep_energy.paramb.rc_radial_max, box)) {
+  float required_shell_cutoff =
+    std::max(nep_energy.paramb.rc_radial_max, nep_energy.paramb.rc_angular_max);
+  if (check_if_small_box(required_shell_cutoff, box)) {
     printf("Cannot use small box for MCMD.\n");
     exit(1);
   }
@@ -335,6 +407,13 @@ void MC_Ensemble_SGC::compute(
     type_before.resize(atom.number_of_atoms);
     type_after.resize(atom.number_of_atoms);
   }
+
+  Neighbor global_shell_neighbor;
+  int seed_neighbors = std::max(nep_energy.paramb.MN_radial, nep_energy.paramb.MN_angular);
+  global_shell_neighbor.initialize(required_shell_cutoff, atom.number_of_atoms, seed_neighbors);
+  global_shell_neighbor.find_neighbor_global(
+    required_shell_cutoff, box, atom.type, atom.position_per_atom);
+  int global_shell_stride = int(global_shell_neighbor.NL.size() / atom.number_of_atoms);
 
   int group_size =
     grouping_method >= 0 ? groups[grouping_method].cpu_size[group_id] : atom.number_of_atoms;
@@ -392,30 +471,62 @@ void MC_Ensemble_SGC::compute(
 
     CHECK(gpuMemset(NN_radial.data(), 0, sizeof(int) * NN_radial.size()));
     CHECK(gpuMemset(NN_angular.data(), 0, sizeof(int) * NN_angular.size()));
-    create_inputs_for_energy_calculator<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-      atom.number_of_atoms,
-      NN_ij_cpu,
-      NL_ij.data(),
-      box,
-      nep_energy.paramb.rc_radial_max * nep_energy.paramb.rc_radial_max,
-      nep_energy.paramb.rc_angular_max * nep_energy.paramb.rc_angular_max,
-      atom.position_per_atom.data(),
-      atom.position_per_atom.data() + atom.number_of_atoms,
-      atom.position_per_atom.data() + atom.number_of_atoms * 2,
-      type_before.data(),
-      type_after.data(),
-      NN_radial.data(),
-      NN_angular.data(),
-      t2_radial_before.data(),
-      t2_radial_after.data(),
-      t2_angular_before.data(),
-      t2_angular_after.data(),
-      x12_radial.data(),
-      y12_radial.data(),
-      z12_radial.data(),
-      x12_angular.data(),
-      y12_angular.data(),
-      z12_angular.data());
+    if (global_shell_stride > 0) {
+      int total_candidates = NN_ij_cpu * global_shell_stride;
+      create_inputs_for_energy_calculator_from_global_shell<<<
+        (total_candidates - 1) / 128 + 1, 128>>>(
+        atom.number_of_atoms,
+        NN_ij_cpu,
+        global_shell_stride,
+        NL_ij.data(),
+        box,
+        nep_energy.paramb.rc_radial_max * nep_energy.paramb.rc_radial_max,
+        nep_energy.paramb.rc_angular_max * nep_energy.paramb.rc_angular_max,
+        atom.position_per_atom.data(),
+        atom.position_per_atom.data() + atom.number_of_atoms,
+        atom.position_per_atom.data() + atom.number_of_atoms * 2,
+        type_before.data(),
+        type_after.data(),
+        global_shell_neighbor.NN.data(),
+        global_shell_neighbor.NL.data(),
+        NN_radial.data(),
+        NN_angular.data(),
+        t2_radial_before.data(),
+        t2_radial_after.data(),
+        t2_angular_before.data(),
+        t2_angular_after.data(),
+        x12_radial.data(),
+        y12_radial.data(),
+        z12_radial.data(),
+        x12_angular.data(),
+        y12_angular.data(),
+        z12_angular.data());
+    } else {
+      create_inputs_for_energy_calculator<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+        atom.number_of_atoms,
+        NN_ij_cpu,
+        NL_ij.data(),
+        box,
+        nep_energy.paramb.rc_radial_max * nep_energy.paramb.rc_radial_max,
+        nep_energy.paramb.rc_angular_max * nep_energy.paramb.rc_angular_max,
+        atom.position_per_atom.data(),
+        atom.position_per_atom.data() + atom.number_of_atoms,
+        atom.position_per_atom.data() + atom.number_of_atoms * 2,
+        type_before.data(),
+        type_after.data(),
+        NN_radial.data(),
+        NN_angular.data(),
+        t2_radial_before.data(),
+        t2_radial_after.data(),
+        t2_angular_before.data(),
+        t2_angular_after.data(),
+        x12_radial.data(),
+        y12_radial.data(),
+        z12_radial.data(),
+        x12_angular.data(),
+        y12_angular.data(),
+        z12_angular.data());
+    }
     GPU_CHECK_KERNEL
 
     nep_energy.find_energy_dual(
