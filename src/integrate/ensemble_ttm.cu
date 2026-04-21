@@ -182,6 +182,7 @@ static __global__ void gpu_accumulate_ttm_power(
   const double* __restrict__ g_vx,
   const double* __restrict__ g_vy,
   const double* __restrict__ g_vz,
+  const double time_unit_conversion,
   double* __restrict__ g_net_energy)
 {
   int m = blockIdx.x * blockDim.x + threadIdx.x;
@@ -197,7 +198,7 @@ static __global__ void gpu_accumulate_ttm_power(
     double fx = g_ttm_force[m];
     double fy = g_ttm_force[m + N_metal];
     double fz = g_ttm_force[m + 2 * N_metal];
-    const double power_fs = (fx * vx + fy * vy + fz * vz) / TIME_UNIT_CONVERSION;
+    const double power_fs = (fx * vx + fy * vy + fz * vz) / time_unit_conversion;
     atomicAdd(&g_net_energy[grid_idx], power_fs);
   }
 }
@@ -886,6 +887,7 @@ void Ensemble_TTM::accumulate_ttm_power(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
+    TIME_UNIT_CONVERSION,
     gpu_net_energy.data());
   GPU_CHECK_KERNEL
 }
