@@ -19,6 +19,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
+#include <string>
 #include <vector>
 
 class Atom;
@@ -97,6 +98,30 @@ public:
 
   // PIMD
   int number_of_beads;
+
+  // TTM parameters
+  int ttm_grouping_method = 0;
+  int ttm_group = 0;
+  double ttm_Ce = 0.0;
+  double ttm_rho_e = 0.0;
+  double ttm_kappa_e = 0.0;
+  double ttm_gamma_p = 0.0;
+  double ttm_gamma_s = 0.0;
+  double ttm_v_0 = 0.0;
+  int ttm_nx = 0;
+  int ttm_ny = 0;
+  int ttm_nz = 0;
+  int ttm_active_x_min = 1;
+  int ttm_active_x_max = 0;
+  int ttm_active_y_min = 1;
+  int ttm_active_y_max = 0;
+  int ttm_active_z_min = 1;
+  int ttm_active_z_max = 0;
+  double ttm_T_e_init = 0.0;
+  int ttm_out_interval = 1;
+  std::string ttm_infile;
+  std::string ttm_properties_file;
+  double ttm_source = 0.0;
 
   // save some quantities for ensemble to use.
   int current_step = 0;
