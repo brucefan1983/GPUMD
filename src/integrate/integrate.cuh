@@ -20,7 +20,6 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
-#include <string>
 #include <vector>
 
 class Atom;
