@@ -373,7 +373,8 @@ void Integrate::compute2(
 // 0:     NVE
 // 1-10:  NVT
 // 11-20: NPT
-// 21-30: heat and TTM related methods
+// 21-30: heat (NEMD method for heat conductivity)
+// 24-25: TTM related methods
 // 31-40: PIMD related
 void Integrate::parse_ensemble(
   const char** param,
