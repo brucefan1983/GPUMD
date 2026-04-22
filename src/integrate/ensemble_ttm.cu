@@ -36,6 +36,7 @@ References:
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -48,6 +49,272 @@ References:
 #else
   #define TTM_RAND_UNIFORM(a) curand_uniform(a)
 #endif
+
+static void parse_ttm_active_range(
+  const char* text,
+  const char* axis_name,
+  const int upper_bound,
+  int& lower,
+  int& upper)
+{
+  if (strcmp(text, "all") == 0) {
+    lower = 1;
+    upper = upper_bound;
+    return;
+  }
+
+  int value = 0;
+  if (is_valid_int(text, &value)) {
+    lower = value;
+    upper = value;
+  } else {
+    const char* separator = strchr(text, ':');
+    if (separator == nullptr) {
+      separator = strchr(text, '-');
+    }
+    if (separator == nullptr) {
+      PRINT_INPUT_ERROR("TTM active range should be an integer, all, or min:max.");
+    }
+
+    const std::string lower_text(text, separator - text);
+    const std::string upper_text(separator + 1);
+    if (!is_valid_int(lower_text.c_str(), &lower) || !is_valid_int(upper_text.c_str(), &upper)) {
+      PRINT_INPUT_ERROR("TTM active range bounds should be integers.");
+    }
+  }
+
+  if (lower < 1 || upper < 1 || lower > upper_bound || upper > upper_bound || lower > upper) {
+    if (strcmp(axis_name, "x") == 0) {
+      PRINT_INPUT_ERROR("ttm_active_x is out of range.");
+    } else if (strcmp(axis_name, "y") == 0) {
+      PRINT_INPUT_ERROR("ttm_active_y is out of range.");
+    } else {
+      PRINT_INPUT_ERROR("ttm_active_z is out of range.");
+    }
+  }
+}
+
+void parse_ttm_parameters(
+  const int type,
+  const char** param,
+  const int num_param,
+  const Atom& atom,
+  const Box& box,
+  const std::vector<Group>& group,
+  const int source,
+  const int sink,
+  TTM_Parameters& ttm_parameters)
+{
+  ttm_parameters = TTM_Parameters();
+
+  if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+    PRINT_INPUT_ERROR("ensemble ttm/heat_ttm requires periodic boundary conditions in all directions.");
+  }
+  if (
+    box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+    box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+    PRINT_INPUT_ERROR("ensemble ttm/heat_ttm only supports orthogonal boxes.");
+  }
+  if (group.empty()) {
+    PRINT_INPUT_ERROR("ensemble ttm/heat_ttm requires at least one grouping method.");
+  }
+
+  const int ttm_offset = (type == 24) ? 7 : 2;
+
+  if (!is_valid_int(param[ttm_offset], &ttm_parameters.grouping_method)) {
+    PRINT_INPUT_ERROR("TTM grouping method should be an integer.");
+  }
+  if (ttm_parameters.grouping_method < 0 || ttm_parameters.grouping_method >= group.size()) {
+    PRINT_INPUT_ERROR("TTM grouping method out of range.");
+  }
+
+  if (!is_valid_int(param[ttm_offset + 1], &ttm_parameters.group_id)) {
+    PRINT_INPUT_ERROR("TTM group ID should be an integer.");
+  }
+  if (
+    ttm_parameters.group_id < 0 ||
+    ttm_parameters.group_id >= group[ttm_parameters.grouping_method].number) {
+    PRINT_INPUT_ERROR("TTM group ID out of range.");
+  }
+  if (group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id] <= 0) {
+    PRINT_INPUT_ERROR("TTM metal group cannot be empty.");
+  }
+
+  if (type == 24) {
+    if (group[0].cpu_size[source] <= 0) {
+      PRINT_INPUT_ERROR("Heat source group for ensemble heat_ttm cannot be empty.");
+    }
+    if (group[0].cpu_size[sink] <= 0) {
+      PRINT_INPUT_ERROR("Heat sink group for ensemble heat_ttm cannot be empty.");
+    }
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      if (
+        group[ttm_parameters.grouping_method].cpu_label[n] == ttm_parameters.group_id &&
+        (group[0].cpu_label[n] == source || group[0].cpu_label[n] == sink)) {
+        PRINT_INPUT_ERROR("TTM metal group cannot overlap with the heat source or sink group.");
+      }
+    }
+  }
+
+  if (!is_valid_real(param[ttm_offset + 2], &ttm_parameters.Ce)) {
+    PRINT_INPUT_ERROR("Ce (electronic specific heat) should be a number.");
+  }
+  if (ttm_parameters.Ce <= 0.0) {
+    PRINT_INPUT_ERROR("Ce should > 0.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 3], &ttm_parameters.rho_e)) {
+    PRINT_INPUT_ERROR("rho_e (electronic density) should be a number.");
+  }
+  if (ttm_parameters.rho_e <= 0.0) {
+    PRINT_INPUT_ERROR("rho_e should > 0.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 4], &ttm_parameters.kappa_e)) {
+    PRINT_INPUT_ERROR("kappa_e (electronic thermal conductivity) should be a number.");
+  }
+  if (ttm_parameters.kappa_e < 0.0) {
+    PRINT_INPUT_ERROR("kappa_e should >= 0.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 5], &ttm_parameters.gamma_p)) {
+    PRINT_INPUT_ERROR("gamma_p (e-ph coupling friction) should be a number.");
+  }
+  if (ttm_parameters.gamma_p <= 0.0) {
+    PRINT_INPUT_ERROR("gamma_p should > 0.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 6], &ttm_parameters.gamma_s)) {
+    PRINT_INPUT_ERROR("gamma_s (stopping power friction) should be a number.");
+  }
+  if (ttm_parameters.gamma_s < 0.0) {
+    PRINT_INPUT_ERROR("gamma_s should >= 0.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 7], &ttm_parameters.v_0)) {
+    PRINT_INPUT_ERROR("v_0 (velocity threshold) should be a number.");
+  }
+  if (ttm_parameters.v_0 < 0.0) {
+    PRINT_INPUT_ERROR("v_0 should >= 0.");
+  }
+
+  if (!is_valid_int(param[ttm_offset + 8], &ttm_parameters.nx)) {
+    PRINT_INPUT_ERROR("nx (electron grid x) should be an integer.");
+  }
+  if (!is_valid_int(param[ttm_offset + 9], &ttm_parameters.ny)) {
+    PRINT_INPUT_ERROR("ny (electron grid y) should be an integer.");
+  }
+  if (!is_valid_int(param[ttm_offset + 10], &ttm_parameters.nz)) {
+    PRINT_INPUT_ERROR("nz (electron grid z) should be an integer.");
+  }
+  if (ttm_parameters.nx <= 0 || ttm_parameters.ny <= 0 || ttm_parameters.nz <= 0) {
+    PRINT_INPUT_ERROR("Electron grid sizes must all be > 0.");
+  }
+
+  ttm_parameters.active_x_max = ttm_parameters.nx;
+  ttm_parameters.active_y_max = ttm_parameters.ny;
+  ttm_parameters.active_z_max = ttm_parameters.nz;
+
+  const long long ttm_ngrid_total =
+    1LL * ttm_parameters.nx * ttm_parameters.ny * ttm_parameters.nz;
+  if (ttm_ngrid_total > 2147483647LL) {
+    PRINT_INPUT_ERROR("Too many electron grid points for ensemble ttm/heat_ttm.");
+  }
+
+  if (!is_valid_real(param[ttm_offset + 11], &ttm_parameters.T_e_init)) {
+    PRINT_INPUT_ERROR("T_e_init (initial electron temperature) should be a number.");
+  }
+  if (ttm_parameters.T_e_init <= 0.0) {
+    PRINT_INPUT_ERROR("T_e_init should > 0.");
+  }
+
+  int i = ttm_offset + 12;
+  while (i < num_param) {
+    if (strcmp(param[i], "ttm_out_interval") == 0) {
+      if (!is_valid_int(param[i + 1], &ttm_parameters.out_interval)) {
+        PRINT_INPUT_ERROR("ttm_out_interval should be an integer.");
+      }
+      if (ttm_parameters.out_interval <= 0) {
+        PRINT_INPUT_ERROR("ttm_out_interval should > 0.");
+      }
+    } else if (strcmp(param[i], "ttm_infile") == 0) {
+      ttm_parameters.infile = param[i + 1];
+      if (ttm_parameters.infile.empty()) {
+        PRINT_INPUT_ERROR("ttm_infile should be a valid file path.");
+      }
+    } else if (strcmp(param[i], "ttm_properties_file") == 0) {
+      ttm_parameters.properties_file = param[i + 1];
+      if (ttm_parameters.properties_file.empty()) {
+        PRINT_INPUT_ERROR("ttm_properties_file should be a valid file path.");
+      }
+    } else if (strcmp(param[i], "ttm_source") == 0) {
+      if (!is_valid_real(param[i + 1], &ttm_parameters.source)) {
+        PRINT_INPUT_ERROR("ttm_source should be a number.");
+      }
+    } else if (strcmp(param[i], "ttm_active_x") == 0) {
+      parse_ttm_active_range(
+        param[i + 1], "x", ttm_parameters.nx, ttm_parameters.active_x_min, ttm_parameters.active_x_max);
+    } else if (strcmp(param[i], "ttm_active_y") == 0) {
+      parse_ttm_active_range(
+        param[i + 1], "y", ttm_parameters.ny, ttm_parameters.active_y_min, ttm_parameters.active_y_max);
+    } else if (strcmp(param[i], "ttm_active_z") == 0) {
+      parse_ttm_active_range(
+        param[i + 1], "z", ttm_parameters.nz, ttm_parameters.active_z_min, ttm_parameters.active_z_max);
+    } else {
+      PRINT_INPUT_ERROR("Unknown ensemble ttm/heat_ttm optional keyword.");
+    }
+    i += 2;
+  }
+}
+
+void print_ttm_settings(const TTM_Parameters& ttm_parameters)
+{
+  printf(
+    "    TTM metal group is group %d in grouping method %d.\n",
+    ttm_parameters.group_id,
+    ttm_parameters.grouping_method);
+  printf(
+    "    Ce = %g, rho_e = %g, kappa_e = %g.\n",
+    ttm_parameters.Ce,
+    ttm_parameters.rho_e,
+    ttm_parameters.kappa_e);
+  printf(
+    "    gamma_p = %g, gamma_s = %g, v_0 = %g.\n",
+    ttm_parameters.gamma_p,
+    ttm_parameters.gamma_s,
+    ttm_parameters.v_0);
+  printf(
+    "    electron grid: %d x %d x %d.\n",
+    ttm_parameters.nx,
+    ttm_parameters.ny,
+    ttm_parameters.nz);
+  printf(
+    "    active electron cells: x %d:%d, y %d:%d, z %d:%d.\n",
+    ttm_parameters.active_x_min,
+    ttm_parameters.active_x_max,
+    ttm_parameters.active_y_min,
+    ttm_parameters.active_y_max,
+    ttm_parameters.active_z_min,
+    ttm_parameters.active_z_max);
+  if (ttm_parameters.infile.empty()) {
+    printf("    uniform initial electron temperature is %g K.\n", ttm_parameters.T_e_init);
+  } else {
+    printf("    initial electron temperature is read from %s.\n", ttm_parameters.infile.c_str());
+  }
+  if (ttm_parameters.properties_file.empty()) {
+    printf("    electron properties are spatially uniform.\n");
+  } else {
+    printf(
+      "    electron cell properties are read from %s.\n", ttm_parameters.properties_file.c_str());
+  }
+  if (ttm_parameters.source != 0.0) {
+    printf("    electron volumetric source is %g.\n", ttm_parameters.source);
+  }
+  printf(
+    "    electron temperature snapshots are written every %d step(s) to "
+    "ttm_electron_temperature.out.\n",
+    ttm_parameters.out_interval);
+}
 
 // Map a metal atom to its electron grid cell index.
 // For orthogonal GPUMD boxes, positions are wrapped into [0, L).
@@ -494,36 +761,15 @@ void Ensemble_TTM::initialize_ttm_gpu_data()
 
 void Ensemble_TTM::initialize_ttm_common(
   int type_input,
-  int ttm_grouping_method_input,
-  int ttm_group_input,
   int ttm_group_size,
   int ttm_group_offset,
-  double Ce_input,
-  double rho_e_input,
-  double kappa_e_input,
-  double gamma_p_input,
-  double gamma_s_input,
-  double v_0_input,
-  int nx_input,
-  int ny_input,
-  int nz_input,
-  int active_x_min_input,
-  int active_x_max_input,
-  int active_y_min_input,
-  int active_y_max_input,
-  int active_z_min_input,
-  int active_z_max_input,
-  double T_e_init,
-  int electron_temperature_output_interval_input,
-  const std::string& electron_temperature_init_file_input,
-  const std::string& electron_property_file_input,
-  double electron_source_input,
+  const TTM_Parameters& ttm_parameters,
   const Box& box)
 {
   type = type_input;
 
-  ttm_grouping_method = ttm_grouping_method_input;
-  ttm_group_id = ttm_group_input;
+  ttm_grouping_method = ttm_parameters.grouping_method;
+  ttm_group_id = ttm_parameters.group_id;
   N_metal = ttm_group_size;
   offset_metal = ttm_group_offset;
   initialize_ttm_random_states();
@@ -537,31 +783,35 @@ void Ensemble_TTM::initialize_ttm_common(
   //   kappa_e : eV / (ps * K * A)
   //   gamma_* : mass / ps
   //   v_0     : A / ps
-  Ce = Ce_input;
-  rho_e = rho_e_input;
-  kappa_e = kappa_e_input / 1000.0;
-  gamma_p = gamma_p_input;
-  gamma_s = gamma_s_input;
+  Ce = ttm_parameters.Ce;
+  rho_e = ttm_parameters.rho_e;
+  kappa_e = ttm_parameters.kappa_e / 1000.0;
+  gamma_p = ttm_parameters.gamma_p;
+  gamma_s = ttm_parameters.gamma_s;
   gamma_p_nat = gamma_p * TIME_UNIT_CONVERSION / 1000.0;
   gamma_s_nat = gamma_s * TIME_UNIT_CONVERSION / 1000.0;
-  double v_0_nat = v_0_input * TIME_UNIT_CONVERSION / 1000.0;
+  double v_0_nat = ttm_parameters.v_0 * TIME_UNIT_CONVERSION / 1000.0;
   v_0_sq = v_0_nat * v_0_nat;
-  electron_source = electron_source_input / 1000.0;
-  use_electron_properties = !electron_property_file_input.empty();
+  electron_source = ttm_parameters.source / 1000.0;
+  use_electron_properties = !ttm_parameters.properties_file.empty();
 
-  nx = nx_input;
-  ny = ny_input;
-  nz = nz_input;
+  nx = ttm_parameters.nx;
+  ny = ttm_parameters.ny;
+  nz = ttm_parameters.nz;
   ngrid_total = nx * ny * nz;
-  active_x_min = active_x_min_input;
-  active_x_max = active_x_max_input;
-  active_y_min = active_y_min_input;
-  active_y_max = active_y_max_input;
-  active_z_min = active_z_min_input;
-  active_z_max = active_z_max_input;
-  electron_temperature_output_interval = electron_temperature_output_interval_input;
+  active_x_min = ttm_parameters.active_x_min;
+  active_x_max = ttm_parameters.active_x_max;
+  active_y_min = ttm_parameters.active_y_min;
+  active_y_max = ttm_parameters.active_y_max;
+  active_z_min = ttm_parameters.active_z_min;
+  active_z_max = ttm_parameters.active_z_max;
+  electron_temperature_output_interval = ttm_parameters.out_interval;
 
-  initialize_electron_grid(T_e_init, electron_temperature_init_file_input, electron_property_file_input, box);
+  initialize_electron_grid(
+    ttm_parameters.T_e_init,
+    ttm_parameters.infile,
+    ttm_parameters.properties_file,
+    box);
   initialize_ttm_gpu_data();
 }
 
@@ -573,33 +823,12 @@ Ensemble_TTM::Ensemble_TTM(
   int sink_size,
   int source_offset,
   int sink_offset,
-  int ttm_grouping_method_input,
-  int ttm_group_input,
   int ttm_group_size,
   int ttm_group_offset,
   double T,
   double Tc,
   double dT,
-  double Ce_input,
-  double rho_e_input,
-  double kappa_e_input,
-  double gamma_p_input,
-  double gamma_s_input,
-  double v_0_input,
-  int nx_input,
-  int ny_input,
-  int nz_input,
-  int active_x_min_input,
-  int active_x_max_input,
-  int active_y_min_input,
-  int active_y_max_input,
-  int active_z_min_input,
-  int active_z_max_input,
-  double T_e_init,
-  int electron_temperature_output_interval_input,
-  const std::string& electron_temperature_init_file_input,
-  const std::string& electron_property_file_input,
-  double electron_source_input,
+  const TTM_Parameters& ttm_parameters,
   const Box& box)
 {
   use_heat_lan = true;
@@ -631,59 +860,17 @@ Ensemble_TTM::Ensemble_TTM(
   GPU_CHECK_KERNEL
   initialize_ttm_common(
     type_input,
-    ttm_grouping_method_input,
-    ttm_group_input,
     ttm_group_size,
     ttm_group_offset,
-    Ce_input,
-    rho_e_input,
-    kappa_e_input,
-    gamma_p_input,
-    gamma_s_input,
-    v_0_input,
-    nx_input,
-    ny_input,
-    nz_input,
-    active_x_min_input,
-    active_x_max_input,
-    active_y_min_input,
-    active_y_max_input,
-    active_z_min_input,
-    active_z_max_input,
-    T_e_init,
-    electron_temperature_output_interval_input,
-    electron_temperature_init_file_input,
-    electron_property_file_input,
-    electron_source_input,
+    ttm_parameters,
     box);
 }
 
 Ensemble_TTM::Ensemble_TTM(
   int type_input,
-  int ttm_grouping_method_input,
-  int ttm_group_input,
   int ttm_group_size,
   int ttm_group_offset,
-  double Ce_input,
-  double rho_e_input,
-  double kappa_e_input,
-  double gamma_p_input,
-  double gamma_s_input,
-  double v_0_input,
-  int nx_input,
-  int ny_input,
-  int nz_input,
-  int active_x_min_input,
-  int active_x_max_input,
-  int active_y_min_input,
-  int active_y_max_input,
-  int active_z_min_input,
-  int active_z_max_input,
-  double T_e_init,
-  int electron_temperature_output_interval_input,
-  const std::string& electron_temperature_init_file_input,
-  const std::string& electron_property_file_input,
-  double electron_source_input,
+  const TTM_Parameters& ttm_parameters,
   const Box& box)
 {
   use_heat_lan = false;
@@ -701,30 +888,9 @@ Ensemble_TTM::Ensemble_TTM(
   curand_states_sink.resize(0);
   initialize_ttm_common(
     type_input,
-    ttm_grouping_method_input,
-    ttm_group_input,
     ttm_group_size,
     ttm_group_offset,
-    Ce_input,
-    rho_e_input,
-    kappa_e_input,
-    gamma_p_input,
-    gamma_s_input,
-    v_0_input,
-    nx_input,
-    ny_input,
-    nz_input,
-    active_x_min_input,
-    active_x_max_input,
-    active_y_min_input,
-    active_y_max_input,
-    active_z_min_input,
-    active_z_max_input,
-    T_e_init,
-    electron_temperature_output_interval_input,
-    electron_temperature_init_file_input,
-    electron_property_file_input,
-    electron_source_input,
+    ttm_parameters,
     box);
 }
 

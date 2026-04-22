@@ -24,6 +24,8 @@ References:
 
 #pragma once
 #include "ensemble.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -33,6 +35,47 @@ References:
 #include <cstdio>
 #include <string>
 #include <vector>
+
+class Atom;
+
+struct TTM_Parameters
+{
+  int grouping_method = 0;
+  int group_id = 0;
+  double Ce = 0.0;
+  double rho_e = 0.0;
+  double kappa_e = 0.0;
+  double gamma_p = 0.0;
+  double gamma_s = 0.0;
+  double v_0 = 0.0;
+  int nx = 0;
+  int ny = 0;
+  int nz = 0;
+  int active_x_min = 1;
+  int active_x_max = 0;
+  int active_y_min = 1;
+  int active_y_max = 0;
+  int active_z_min = 1;
+  int active_z_max = 0;
+  double T_e_init = 0.0;
+  int out_interval = 1;
+  std::string infile;
+  std::string properties_file;
+  double source = 0.0;
+};
+
+void parse_ttm_parameters(
+  const int type,
+  const char** param,
+  const int num_param,
+  const Atom& atom,
+  const Box& box,
+  const std::vector<Group>& group,
+  const int source,
+  const int sink,
+  TTM_Parameters& ttm_parameters);
+
+void print_ttm_settings(const TTM_Parameters& ttm_parameters);
 
 class Ensemble_TTM : public Ensemble
 {
@@ -45,61 +88,19 @@ public:
     int sink_size,
     int source_offset,
     int sink_offset,
-    int ttm_grouping_method_input,
-    int ttm_group_input,
     int ttm_group_size,
     int ttm_group_offset,
     double T,
     double Tc,
     double dT,
-    double Ce_input,
-    double rho_e_input,
-    double kappa_e_input,
-    double gamma_p_input,
-    double gamma_s_input,
-    double v_0_input,
-    int nx_input,
-    int ny_input,
-    int nz_input,
-    int active_x_min_input,
-    int active_x_max_input,
-    int active_y_min_input,
-    int active_y_max_input,
-    int active_z_min_input,
-    int active_z_max_input,
-    double T_e_init,
-    int electron_temperature_output_interval_input,
-    const std::string& electron_temperature_init_file_input,
-    const std::string& electron_property_file_input,
-    double electron_source_input,
+    const TTM_Parameters& ttm_parameters,
     const Box& box);
 
   Ensemble_TTM(
     int type_input,
-    int ttm_grouping_method_input,
-    int ttm_group_input,
     int ttm_group_size,
     int ttm_group_offset,
-    double Ce_input,
-    double rho_e_input,
-    double kappa_e_input,
-    double gamma_p_input,
-    double gamma_s_input,
-    double v_0_input,
-    int nx_input,
-    int ny_input,
-    int nz_input,
-    int active_x_min_input,
-    int active_x_max_input,
-    int active_y_min_input,
-    int active_y_max_input,
-    int active_z_min_input,
-    int active_z_max_input,
-    double T_e_init,
-    int electron_temperature_output_interval_input,
-    const std::string& electron_temperature_init_file_input,
-    const std::string& electron_property_file_input,
-    double electron_source_input,
+    const TTM_Parameters& ttm_parameters,
     const Box& box);
 
   virtual ~Ensemble_TTM(void);
@@ -177,30 +178,9 @@ private:
   // methods
   void initialize_ttm_common(
     int type_input,
-    int ttm_grouping_method_input,
-    int ttm_group_input,
     int ttm_group_size,
     int ttm_group_offset,
-    double Ce_input,
-    double rho_e_input,
-    double kappa_e_input,
-    double gamma_p_input,
-    double gamma_s_input,
-    double v_0_input,
-    int nx_input,
-    int ny_input,
-    int nz_input,
-    int active_x_min_input,
-    int active_x_max_input,
-    int active_y_min_input,
-    int active_y_max_input,
-    int active_z_min_input,
-    int active_z_max_input,
-    double T_e_init,
-    int electron_temperature_output_interval_input,
-    const std::string& electron_temperature_init_file_input,
-    const std::string& electron_property_file_input,
-    double electron_source_input,
+    const TTM_Parameters& ttm_parameters,
     const Box& box);
   void initialize_ttm_random_states();
   void initialize_electron_grid(
