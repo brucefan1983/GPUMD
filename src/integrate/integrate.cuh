@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ensemble.cuh"
+#include "ensemble_ttm.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -97,6 +98,9 @@ public:
 
   // PIMD
   int number_of_beads;
+
+  // TTM parameters
+  TTM_Parameters ttm_parameters;
 
   // save some quantities for ensemble to use.
   int current_step = 0;
