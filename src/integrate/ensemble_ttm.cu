@@ -27,8 +27,8 @@ diffusion. Metal atoms exchange energy with the local electron temperature
 via a Langevin-like coupling (friction + stochastic force).
 
 References:
-[1] P.B. Crozier, R.E. Jones, et al., LAMMPS fix_ttm implementation.
-[2] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+[1] D.M. Duffy and A.M. Rutherford, J. Phys.: Condens. Matter 19, 016207 (2007).
+[2] A.M. Rutherford and D.M. Duffy, J. Phys.: Condens. Matter 19, 496201 (2007).
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ttm.cuh"
@@ -422,7 +422,7 @@ static __global__ void gpu_update_ttm_force(
     double gamma = gamma_p;
     if (vsq > v_0_sq) gamma = gamma_p + gamma_s;
 
-    // LAMMPS fix_ttm uses a uniform random number in [-0.5, 0.5].
+    // Use zero-mean uniform random numbers for the stochastic force.
     double gfactor = sqrt(Te * 24.0 * K_B * gamma_p / time_step);
 
     gpurandState state = g_state[m];
@@ -778,8 +778,7 @@ void Ensemble_TTM::initialize_ttm_common(
   energy_transferred[1] = 0.0;
 
   // TTM physics parameters.
-  // Inputs follow the LAMMPS fix_ttm convention so the same numeric
-  // parameters can be reused here:
+  // Input units are converted to internal GPUMD units:
   //   kappa_e : eV / (ps * K * A)
   //   gamma_* : mass / ps
   //   v_0     : A / ps

@@ -18,8 +18,8 @@ Two-Temperature Model (TTM) for metals, with an optional heat_lan source/sink
 channel for heat transport across metal-nonmetal heterointerfaces.
 
 References:
-[1] P.B. Crozier, R.E. Jones, et al., LAMMPS fix_ttm implementation.
-[2] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+[1] D.M. Duffy and A.M. Rutherford, J. Phys.: Condens. Matter 19, 016207 (2007).
+[2] A.M. Rutherford and D.M. Duffy, J. Phys.: Condens. Matter 19, 496201 (2007).
 ------------------------------------------------------------------------------*/
 
 #pragma once
@@ -136,11 +136,11 @@ private:
   GPU_Vector<gpurandState> curand_states_metal;
 
   // electron-phonon coupling parameters
-  double Ce;           // electronic specific heat, matching LAMMPS fix_ttm input
+  double Ce;           // electronic specific heat
   double rho_e;        // electronic density [1/A^3] (Ce*rho_e = volumetric heat capacity)
   double kappa_e;      // internal conductivity [eV/(fs*K*A)]
-  double gamma_p;      // raw LAMMPS-style input [mass/ps]
-  double gamma_s;      // raw LAMMPS-style input [mass/ps]
+  double gamma_p;      // input electron-phonon friction [mass/ps]
+  double gamma_s;      // input electronic stopping friction [mass/ps]
   double gamma_p_nat;  // internal friction coefficient [mass/natural_time]
   double gamma_s_nat;  // internal stopping coefficient [mass/natural_time]
   double v_0_sq;       // velocity threshold squared in internal velocity units
