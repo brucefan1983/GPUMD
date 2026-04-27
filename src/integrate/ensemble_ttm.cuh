@@ -122,38 +122,34 @@ public:
 private:
   bool use_heat_lan;
 
-  // source/sink Langevin parameters (same as heat_lan)
   int N_source, N_sink, offset_source, offset_sink;
   double c1, c2_source, c2_sink;
   GPU_Vector<gpurandState> curand_states_source;
   GPU_Vector<gpurandState> curand_states_sink;
 
-  // TTM metal group
   int ttm_grouping_method;
   int ttm_group_id;
   int N_metal;
   int offset_metal;
   GPU_Vector<gpurandState> curand_states_metal;
 
-  // electron-phonon coupling parameters
-  double Ce;           // electronic specific heat
-  double rho_e;        // electronic density [1/A^3] (Ce*rho_e = volumetric heat capacity)
+  double Ce;
+  double rho_e;
   double kappa_e;      // internal conductivity [eV/(fs*K*A)]
-  double gamma_p;      // input electron-phonon friction [mass/ps]
-  double gamma_s;      // input electronic stopping friction [mass/ps]
-  double gamma_p_nat;  // internal friction coefficient [mass/natural_time]
-  double gamma_s_nat;  // internal stopping coefficient [mass/natural_time]
-  double v_0_sq;       // velocity threshold squared in internal velocity units
+  double gamma_p;
+  double gamma_s;
+  double gamma_p_nat;
+  double gamma_s_nat;
+  double v_0_sq;
   double electron_source;
   bool use_electron_properties;
 
-  // electron temperature grid
   int nx, ny, nz;
   int ngrid_total;
   int active_x_min, active_x_max;
   int active_y_min, active_y_max;
   int active_z_min, active_z_max;
-  double dx, dy, dz; // grid spacing in Angstrom
+  double dx, dy, dz;
   std::vector<double> T_electron;
   std::vector<double> T_electron_old;
   std::vector<int> electron_cell_active;
@@ -164,18 +160,15 @@ private:
   FILE* electron_temperature_file = nullptr;
   int electron_temperature_output_interval;
 
-  // GPU arrays for TTM coupling
-  GPU_Vector<double> gpu_T_electron;       // electron temperature at each grid point
+  GPU_Vector<double> gpu_T_electron;
   GPU_Vector<int> gpu_electron_cell_active;
   GPU_Vector<double> gpu_electron_gamma_p_nat;
-  GPU_Vector<double> gpu_net_energy;       // net electron-to-atom power per grid cell
-  GPU_Vector<int> gpu_atom_grid_index;     // grid cell index for each metal atom
-  GPU_Vector<double> gpu_ttm_force;        // stored Langevin force for each metal atom
+  GPU_Vector<double> gpu_net_energy;
+  GPU_Vector<int> gpu_atom_grid_index;
+  GPU_Vector<double> gpu_ttm_force;
 
-  // box dimensions (orthogonal periodic box)
   double box_length[3];
 
-  // methods
   void initialize_ttm_common(
     int type_input,
     int ttm_group_size,

@@ -16,19 +16,6 @@
 /*----------------------------------------------------------------------------80
 Two-Temperature Model (TTM) for metals, with an optional heat_lan source/sink
 channel for heat transport across metal-nonmetal heterointerfaces.
-
-Three atom categories:
-  1. Source/sink atoms (grouping method 0): Langevin thermostat at T+dT / T-dT
-  2. Metal atoms (ttm_grouping_method): TTM Langevin coupled to electron grid
-  3. All other atoms: NVE (no thermostat)
-
-The electron subsystem is modeled as a 3D grid with finite-difference heat
-diffusion. Metal atoms exchange energy with the local electron temperature
-via a Langevin-like coupling (friction + stochastic force).
-
-References:
-[1] D.M. Duffy and A.M. Rutherford, J. Phys.: Condens. Matter 19, 016207 (2007).
-[2] A.M. Rutherford and D.M. Duffy, J. Phys.: Condens. Matter 19, 496201 (2007).
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ttm.cuh"
@@ -316,8 +303,6 @@ void print_ttm_settings(const TTM_Parameters& ttm_parameters)
     ttm_parameters.out_interval);
 }
 
-// Map a metal atom to its electron grid cell index.
-// For orthogonal GPUMD boxes, positions are wrapped into [0, L).
 static __global__ void gpu_map_atoms_to_grid(
   const int N_metal,
   const int offset,
@@ -354,7 +339,6 @@ static __global__ void gpu_map_atoms_to_grid(
   }
 }
 
-// Apply a stored TTM force for half a timestep.
 static __global__ void gpu_apply_ttm_force_half(
   const int N_metal,
   const int offset,
@@ -376,7 +360,6 @@ static __global__ void gpu_apply_ttm_force_half(
   }
 }
 
-// Compute the current TTM Langevin force from the electron grid.
 static __global__ void gpu_update_ttm_force(
   gpurandState* __restrict__ g_state,
   const int N_metal,
@@ -422,7 +405,6 @@ static __global__ void gpu_update_ttm_force(
     double gamma = gamma_p;
     if (vsq > v_0_sq) gamma = gamma_p + gamma_s;
 
-    // Use zero-mean uniform random numbers for the stochastic force.
     double gfactor = sqrt(Te * 24.0 * K_B * gamma_p / time_step);
 
     gpurandState state = g_state[m];
@@ -437,8 +419,6 @@ static __global__ void gpu_update_ttm_force(
   }
 }
 
-// Accumulate the instantaneous electron-to-atom power using the stored
-// Langevin force and the final velocity of the MD step.
 static __global__ void gpu_accumulate_ttm_power(
   const int N_metal,
   const int offset,
@@ -777,7 +757,6 @@ void Ensemble_TTM::initialize_ttm_common(
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
 
-  // TTM physics parameters.
   // Input units are converted to internal GPUMD units:
   //   kappa_e : eV / (ps * K * A)
   //   gamma_* : mass / ps
@@ -841,12 +820,10 @@ Ensemble_TTM::Ensemble_TTM(
   offset_source = source_offset;
   offset_sink = sink_offset;
 
-  // source/sink Langevin coefficients (same as heat_lan)
   c1 = exp(-0.5 / temperature_coupling);
   c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
   c2_sink = sqrt((1 - c1 * c1) * K_B * (T - dT));
 
-  // initialize curand states for source, sink, and metal
   curand_states_source.resize(N_source);
   curand_states_sink.resize(N_sink);
   int grid_size_source = (N_source - 1) / 128 + 1;
@@ -898,7 +875,6 @@ Ensemble_TTM::~Ensemble_TTM(void)
   close_electron_temperature_file();
 }
 
-// Source/sink Langevin thermostat (identical to heat_lan)
 void Ensemble_TTM::integrate_heat_lan_half(
   const std::vector<Group>& group,
   const GPU_Vector<double>& mass,
@@ -967,7 +943,6 @@ void Ensemble_TTM::integrate_heat_lan_half(
   energy_transferred[1] -= ek2[sink] * 0.5;
 }
 
-// Apply the stored TTM force to metal atoms for half a timestep.
 void Ensemble_TTM::apply_ttm_force_half(
   const double half_time_step,
   const std::vector<Group>& group,
@@ -989,7 +964,6 @@ void Ensemble_TTM::apply_ttm_force_half(
   GPU_CHECK_KERNEL
 }
 
-// Compute the current TTM Langevin force from the electron grid.
 void Ensemble_TTM::update_ttm_force(
   const double time_step,
   const std::vector<Group>& group,
@@ -1057,17 +1031,14 @@ void Ensemble_TTM::accumulate_ttm_power(
   GPU_CHECK_KERNEL
 }
 
-// Solve the electron heat diffusion equation with explicit finite differences
 void Ensemble_TTM::update_electron_temperature(const double time_step)
 {
   double dt_fs = time_step * TIME_UNIT_CONVERSION;
   double del_vol = dx * dy * dz;
 
-  // copy net electron-to-atom power from GPU to CPU
   std::vector<double> net_energy_cpu(ngrid_total);
   gpu_net_energy.copy_to_host(net_energy_cpu.data());
 
-  // stability criterion for explicit FD
   int num_inner_steps = 1;
   double inner_dt = dt_fs;
 
@@ -1096,14 +1067,11 @@ void Ensemble_TTM::update_electron_temperature(const double time_step)
     }
   }
 
-  // finite difference iterations
   for (int istep = 0; istep < num_inner_steps; istep++) {
-    // save old temperatures
     for (int i = 0; i < ngrid_total; i++) {
       T_electron_old[i] = T_electron[i];
     }
 
-    // update electron temperature
     for (int iz = 0; iz < nz; iz++) {
       for (int iy = 0; iy < ny; iy++) {
         for (int ix = 0; ix < nx; ix++) {
@@ -1114,7 +1082,6 @@ void Ensemble_TTM::update_electron_temperature(const double time_step)
             continue;
           }
 
-          // periodic neighbors
           int xr = (ix + 1 < nx) ? ix + 1 : 0;
           int xl = (ix - 1 >= 0) ? ix - 1 : nx - 1;
           int yr = (iy + 1 < ny) ? iy + 1 : 0;
@@ -1178,7 +1145,6 @@ void Ensemble_TTM::update_electron_temperature(const double time_step)
     }
   }
 
-  // copy updated electron temperatures back to GPU
   gpu_T_electron.copy_from_host(T_electron.data());
   const int step = *current_step + 1;
   if (step % electron_temperature_output_interval == 0) {
@@ -1196,14 +1162,11 @@ void Ensemble_TTM::compute1(
   update_box_geometry(box);
 
   if (use_heat_lan) {
-    // 1. Apply source/sink Langevin thermostat (NEMD part)
     integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
   }
 
-  // 2. Apply the stored TTM force for the first half-step.
   apply_ttm_force_half(0.5 * time_step, group, atom.mass, atom.velocity_per_atom);
 
-  // 3. Velocity Verlet first half-step (all atoms)
   velocity_verlet(
     true,
     time_step,
@@ -1223,10 +1186,8 @@ void Ensemble_TTM::compute2(
 {
   update_box_geometry(box);
 
-  // 1. Generate the current TTM force using the pre-final-integrate velocity.
   update_ttm_force(time_step, group, atom.position_per_atom, atom.velocity_per_atom);
 
-  // 2. Velocity Verlet second half-step (all atoms)
   velocity_verlet(
     false,
     time_step,
@@ -1237,16 +1198,12 @@ void Ensemble_TTM::compute2(
     atom.velocity_per_atom);
 
   if (use_heat_lan) {
-    // 3. Apply source/sink Langevin thermostat (NEMD part)
     integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
   }
 
-  // 4. Apply the current TTM force for the second half-step.
   apply_ttm_force_half(0.5 * time_step, group, atom.mass, atom.velocity_per_atom);
 
-  // 5. Accumulate the electron-to-atom power with the final velocity.
   accumulate_ttm_power(group, atom.velocity_per_atom);
 
-  // 6. Update electron temperature grid (FD diffusion)
   update_electron_temperature(time_step);
 }
