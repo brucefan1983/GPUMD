@@ -87,6 +87,25 @@ public:
     const float* g_z12_angular,
     float* g_pe);
 
+  void find_energy_dual(
+    const int N,
+    const int* g_NN_radial,
+    const int* g_NN_angular,
+    const int* g_type_before,
+    const int* g_type_after,
+    const int* g_t2_radial_before,
+    const int* g_t2_radial_after,
+    const int* g_t2_angular_before,
+    const int* g_t2_angular_after,
+    const float* g_x12_radial,
+    const float* g_y12_radial,
+    const float* g_z12_radial,
+    const float* g_x12_angular,
+    const float* g_y12_angular,
+    const float* g_z12_angular,
+    float* g_pe_before,
+    float* g_pe_after);
+
 private:
   GPU_Vector<float> nep_parameters; // parameters to be optimized
   void update_potential(float* parameters, ANN& ann);
