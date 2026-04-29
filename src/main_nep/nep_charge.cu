@@ -1320,6 +1320,46 @@ static __global__ void zero_total_charge(
   }
 }
 
+
+// Per-structure mean subtraction of D_real for training.
+// Chain rule correction for zero_total_charge (see MD-side comment for derivation).
+// Launch: <<<Nc, 1024>>>
+static __global__ void zero_mean_D_real_train(
+  const int* Na,
+  const int* Na_sum,
+  float* g_D_real)
+{
+  int tid = threadIdx.x;
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  __shared__ double s_sum[1024];
+  double sum = 0.0;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024 + N1;
+    if (n < N2) {
+      sum += (double)g_D_real[n];
+    }
+  }
+  s_sum[tid] = sum;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_sum[tid] += s_sum[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  float mean_D = (float)(s_sum[0] / (N2 - N1));
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024 + N1;
+    if (n < N2) {
+      g_D_real[n] -= mean_D;
+    }
+  }
+}
+
 void NEP_Charge::find_force(
   Parameters& para,
   const float* parameters,
@@ -1620,6 +1660,13 @@ void NEP_Charge::find_force(
         nep_data[device_id].D_C6.data());
       GPU_CHECK_KERNEL
     }
+
+    // Chain rule correction: D_real -= mean(D_real) per structure
+    zero_mean_D_real_train<<<dataset[device_id].Nc, 1024>>>(
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      nep_data[device_id].D_real.data());
+    GPU_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
