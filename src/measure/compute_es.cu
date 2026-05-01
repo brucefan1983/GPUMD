@@ -68,7 +68,6 @@ void Compute_es::preprocess(
   Box& box,
   Force& force)
 {
-  fid = fopen("elactrostatic.out", "a");
   alpha = float(PI) / 10.0f; // a good value
   check_ewald_pppm();
   if (use_pppm) {
@@ -93,6 +92,8 @@ void Compute_es::process(
   Force& force)
 {
   const int N = atom.number_of_atoms;
+  GPU_Vector<float> D_real(N);
+
   if (use_pppm) {
     pppm.find_force(
       N,
@@ -119,8 +120,14 @@ void Compute_es::process(
       atom.potential_per_atom);
   }
 
+  std::vector<double> force_cpu(N * 3);
+  atom.force_per_atom.copy_to_host(force_cpu.data());
 
-  fflush(fid);
+  FILE* fid = fopen("elactrostatic.out", "a");
+  for (int n = 0; n < N; ++n) {
+    printf("%15.8e%15.8e%15.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
+  }
+  fclose(fid);
 }
 
 void Compute_es::postprocess(
@@ -131,7 +138,7 @@ void Compute_es::postprocess(
   const double time_step,
   const double temperature)
 {
-  fclose(fid);
+  // nothing
 }
 
 void Compute_es::parse(const char** param, int num_param)

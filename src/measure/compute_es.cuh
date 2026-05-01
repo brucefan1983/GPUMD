@@ -60,10 +60,6 @@ public:
   void parse(const char**, int);
 
 private:
-  GPU_Vector<float> D_real;
-  std::vector<float> force;
-  FILE* fid;
-
   Ewald ewald;
   PPPM pppm;
   float alpha = 0.0f;
