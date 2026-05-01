@@ -16,6 +16,8 @@
 #pragma once
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "force/ewald.cuh"
+#include "force/pppm.cuh"
 
 class Compute_es : public Property
 {
@@ -58,11 +60,14 @@ public:
   void parse(const char**, int);
 
 private:
-  GPU_Vector<float> gpu_dpdt_per_atom;
-  GPU_Vector<float> gpu_dpdt_total;
-  std::vector<float> cpu_dpdt_total;
-  double p_integral[3];
-  double p_integral_dt;
-  double p_integral_time;
+  GPU_Vector<float> charge;
+  GPU_Vector<float> D_real;
+  std::vector<float> force;
   FILE* fid;
+
+  Ewald ewald;
+  PPPM pppm;
+  float alpha = 0.0f;
+  bool use_pppm = true; // use PPPM by default
+  void check_ewald_pppm();
 };

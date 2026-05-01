@@ -23,63 +23,46 @@ Calculate the electrostatic energy and forces
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <iostream>
 #include <vector>
 
 namespace{
 
-void __global__ gpu_compute_dpdt(
-  const int num_atoms,
-  const float* g_bec,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
-  float* g_dpdt_x,
-  float* g_dpdt_y,
-  float* g_dpdt_z)
-{
-  const int atom_id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (atom_id < num_atoms) {
-    float bec[9] = {0.0f};
-    for (int d = 0; d < 9; ++d) {
-      bec[d] = g_bec[atom_id + d * num_atoms];
-    }
-    const float vx = g_vx[atom_id];
-    const float vy = g_vy[atom_id];
-    const float vz = g_vz[atom_id];
-    g_dpdt_x[atom_id] = bec[0] * vx + bec[1] * vy + bec[2] * vz;
-    g_dpdt_y[atom_id] = bec[3] * vx + bec[4] * vy + bec[5] * vz;
-    g_dpdt_z[atom_id] = bec[6] * vx + bec[7] * vy + bec[8] * vz;
-  }
+
+
 }
 
-void __global__ gpu_sum_dpdt(const int N, const float* g_dpdt_per_atom, float* g_dpdt)
+void Compute_es::check_ewald_pppm()
 {
-  const int tid = threadIdx.x;
-  const int number_of_batches = (N - 1) / 1024 + 1;
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
 
-  __shared__ float s_data[1024];
-  s_data[tid] = 0.0f;
-
-  for (int batch = 0; batch < number_of_batches; ++batch) {
-    const int n = tid + batch * 1024;
-    if (n < N) {
-      s_data[tid] += g_dpdt_per_atom[n + N * blockIdx.x];
+  use_pppm = true;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "kspace") {
+        if (tokens.size() != 2) {
+          std::cout << "kspace must have 1 parameter\n";
+          exit(1);
+        }
+        std::string kspace_method = tokens[1];
+        if (kspace_method == "ewald") {
+          use_pppm = false;
+        } else if (kspace_method == "pppm") {
+          use_pppm = true;
+        } else {
+          std::cout << "kspace method can only be ewald or pppm\n";
+          exit(1);
+        }
+      }
     }
   }
 
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_data[tid] += s_data[tid + offset];
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    g_dpdt[blockIdx.x] = s_data[0];
-  }
-}
-
+  input_run.close();
 }
 
 void Compute_es::preprocess(
@@ -91,15 +74,14 @@ void Compute_es::preprocess(
   Box& box,
   Force& force)
 {
-  fid = fopen("dpdt.out", "a");
-  gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
-  gpu_dpdt_total.resize(3);
-  cpu_dpdt_total.resize(3);
-  p_integral[0] = 0.0;
-  p_integral[1] = 0.0;
-  p_integral[2] = 0.0;
-  p_integral_time = 0.0;
-  p_integral_dt = time_step * sample_interval;
+  fid = fopen("elactrostatic.out", "a");
+  alpha = float(PI) / 10.0f; // a good value
+  check_ewald_pppm();
+  if (use_pppm) {
+    pppm.initialize(alpha);
+  } else {
+    ewald.initialize(alpha);
+  }
 }
 
 void Compute_es::process(
@@ -116,39 +98,34 @@ void Compute_es::process(
   Atom& atom,
   Force& force)
 {
-  if ((step + 1) % sample_interval != 0)
-    return;
-
   const int N = atom.number_of_atoms;
-  GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
-  gpu_compute_dpdt<<<(N - 1) / 64 + 1, 64>>>(
-    N,
-    bec.data(),
-    atom.velocity_per_atom.data(),
-    atom.velocity_per_atom.data() + N,
-    atom.velocity_per_atom.data() + N * 2,
-    gpu_dpdt_per_atom.data(),
-    gpu_dpdt_per_atom.data() + N,
-    gpu_dpdt_per_atom.data() + N * 2);
-  GPU_CHECK_KERNEL
-
-  gpu_sum_dpdt<<<3, 1024>>>(N, gpu_dpdt_per_atom.data(), gpu_dpdt_total.data());
-  GPU_CHECK_KERNEL
-
-  p_integral_time += p_integral_dt * TIME_UNIT_CONVERSION;
-  gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
-  for (int d = 0; d < 3; ++d) {
-    p_integral[d] += cpu_dpdt_total[d] * p_integral_dt; //  e A
-    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION; // e A / fs
+  if (use_pppm) {
+    pppm.find_force(
+      N,
+      0,
+      N,
+      box,
+      charge,
+      atom.position_per_atom,
+      D_real,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.potential_per_atom);
+  } else {
+    ewald.find_force(
+      N,
+      0,
+      N,
+      box.cpu_h,
+      charge,
+      atom.position_per_atom,
+      D_real,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.potential_per_atom);
   }
-  fprintf(fid, "%15.8e %g %g %g %g %g %g\n", 
-    p_integral_time,
-    cpu_dpdt_total[0], 
-    cpu_dpdt_total[1], 
-    cpu_dpdt_total[2], 
-    p_integral[0], 
-    p_integral[1], 
-    p_integral[2]);
+
+
   fflush(fid);
 }
 
@@ -165,21 +142,17 @@ void Compute_es::postprocess(
 
 void Compute_es::parse(const char** param, int num_param)
 {
-  printf("Compute dp/dt.\n");
-
-  if (!check_is_nep_charge()) {
-    PRINT_INPUT_ERROR("cannot use compute_dpdt for a non-NEP-Charge model.\n");
-  }
+  printf("Compute electrostatic energy and force.\n");
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
 
   if (!is_valid_int(param[1], &sample_interval)) {
-    PRINT_INPUT_ERROR("sample interval for compute_dpdt should be an integer number.\n");
+    PRINT_INPUT_ERROR("sample interval for compute_es should be an integer number.\n");
   }
-  if (sample_interval <= 0) {
-    PRINT_INPUT_ERROR("sample interval for compute_dpdt should be positive.\n");
+  if (sample_interval != 1) {
+    PRINT_INPUT_ERROR("sample interval for compute_es should be 1.\n");
   }
   printf("    sample interval is %d.\n", sample_interval);
 }
@@ -187,5 +160,5 @@ void Compute_es::parse(const char** param, int num_param)
 Compute_es::Compute_es(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_dpdt";
+  property_name = "compute_es";
 }
