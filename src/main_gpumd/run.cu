@@ -32,6 +32,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/compute.cuh"
 #include "measure/compute_chunk.cuh"
 #include "measure/compute_dpdt.cuh"
+#include "measure/compute_es.cuh"
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
@@ -494,6 +495,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_dpdt") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Compute_dpdt(param, num_param));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_es") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new Compute_es(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hac") == 0) {
     std::unique_ptr<Property> property;
