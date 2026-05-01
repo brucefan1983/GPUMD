@@ -60,9 +60,26 @@ public:
   void parse(const char**, int);
 
 private:
-  Ewald ewald;
-  PPPM pppm;
-  float alpha = 0.0f;
-  bool use_pppm = true; // use PPPM by default
-  void check_ewald_pppm();
+  void initialize();
+  void find_force(
+    const int N,
+    const int N1,
+    const int N2,
+    const double* box,
+    const GPU_Vector<float>& charge,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& potential_per_atom);
+  int num_kpoints_max = 1;
+  int num_kpoints = 1;
+  float alpha = 0.5f; // 1 / (2 Angstrom)
+  float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  void find_k_and_G(const double* box);
 };
