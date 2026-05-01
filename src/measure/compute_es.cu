@@ -26,12 +26,6 @@ Calculate the electrostatic energy and forces
 #include <iostream>
 #include <vector>
 
-namespace{
-
-
-
-}
-
 void Compute_es::check_ewald_pppm()
 {
   std::ifstream input_run("run.in");
@@ -105,7 +99,7 @@ void Compute_es::process(
       0,
       N,
       box,
-      charge,
+      atom.charge,
       atom.position_per_atom,
       D_real,
       atom.force_per_atom,
@@ -117,7 +111,7 @@ void Compute_es::process(
       0,
       N,
       box.cpu_h,
-      charge,
+      atom.charge,
       atom.position_per_atom,
       D_real,
       atom.force_per_atom,

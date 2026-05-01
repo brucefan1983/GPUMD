@@ -60,7 +60,6 @@ public:
   void parse(const char**, int);
 
 private:
-  GPU_Vector<float> charge;
   GPU_Vector<float> D_real;
   std::vector<float> force;
   FILE* fid;
