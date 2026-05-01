@@ -20,7 +20,6 @@ The k-space part of the Ewald summation
 #include "ewald.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <chrono>
 #include <cmath>
 #include <vector>
 
