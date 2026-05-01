@@ -126,20 +126,20 @@ __global__ void find_force_charge_reciprocal_space(
       temp_force_sum[1] += ky * imag_term;
       temp_force_sum[2] += kz * imag_term;
     }
-    g_pe[n] += K_C_SP * temp_energy_sum;
-    g_virial[n + 0 * N] += K_C_SP * temp_virial_sum[0];
-    g_virial[n + 1 * N] += K_C_SP * temp_virial_sum[1];
-    g_virial[n + 2 * N] += K_C_SP * temp_virial_sum[2];
-    g_virial[n + 3 * N] += K_C_SP * temp_virial_sum[3];
-    g_virial[n + 4 * N] += K_C_SP * temp_virial_sum[5];
-    g_virial[n + 5 * N] += K_C_SP * temp_virial_sum[4];
-    g_virial[n + 6 * N] += K_C_SP * temp_virial_sum[3];
-    g_virial[n + 7 * N] += K_C_SP * temp_virial_sum[5];
-    g_virial[n + 8 * N] += K_C_SP * temp_virial_sum[4];
+    g_pe[n] = K_C_SP * temp_energy_sum;
+    g_virial[n + 0 * N] = K_C_SP * temp_virial_sum[0];
+    g_virial[n + 1 * N] = K_C_SP * temp_virial_sum[1];
+    g_virial[n + 2 * N] = K_C_SP * temp_virial_sum[2];
+    g_virial[n + 3 * N] = K_C_SP * temp_virial_sum[3];
+    g_virial[n + 4 * N] = K_C_SP * temp_virial_sum[5];
+    g_virial[n + 5 * N] = K_C_SP * temp_virial_sum[4];
+    g_virial[n + 6 * N] = K_C_SP * temp_virial_sum[3];
+    g_virial[n + 7 * N] = K_C_SP * temp_virial_sum[5];
+    g_virial[n + 8 * N] = K_C_SP * temp_virial_sum[4];
     const float charge_factor = K_C_SP * 2.0f * q;
-    g_fx[n] += charge_factor * temp_force_sum[0];
-    g_fy[n] += charge_factor * temp_force_sum[1];
-    g_fz[n] += charge_factor * temp_force_sum[2];
+    g_fx[n] = charge_factor * temp_force_sum[0];
+    g_fy[n] = charge_factor * temp_force_sum[1];
+    g_fz[n] = charge_factor * temp_force_sum[2];
   }
 }
 
@@ -448,7 +448,7 @@ void Compute_es::process(
 
   FILE* fid = fopen("elactrostatic.out", "a");
   for (int n = 0; n < N; ++n) {
-    printf("%16.8e%16.8e%16.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
+    fprintf(fid, "%16.8e%16.8e%16.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
   }
   fclose(fid);
 }
