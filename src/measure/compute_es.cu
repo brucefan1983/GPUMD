@@ -125,7 +125,7 @@ void Compute_es::process(
 
   FILE* fid = fopen("elactrostatic.out", "a");
   for (int n = 0; n < N; ++n) {
-    printf("%15.8e%15.8e%15.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
+    printf("%16.8e%16.8e%16.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
   }
   fclose(fid);
 }
