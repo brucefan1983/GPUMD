@@ -443,14 +443,21 @@ void Compute_es::process(
     atom.virial_per_atom,
     atom.potential_per_atom);
 
+  std::vector<double> potential_cpu(N);
   std::vector<double> force_cpu(N * 3);
+  atom.potential_per_atom.copy_to_host(potential_cpu.data());
   atom.force_per_atom.copy_to_host(force_cpu.data());
 
-  FILE* fid = fopen("elactrostatic.out", "a");
+  FILE* fid_force = fopen("elactrostatic_force.out", "a");
+  FILE* fid_energy = fopen("elactrostatic_energy.out", "a");
+  double potential_total = 0.0;
   for (int n = 0; n < N; ++n) {
-    fprintf(fid, "%16.8e%16.8e%16.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
+    potential_total += potential_cpu[n];
+    fprintf(fid_force, "%16.8e%16.8e%16.8e\n", force_cpu[0 * N + n], force_cpu[1 * N + n], force_cpu[2 * N + n]);
   }
-  fclose(fid);
+  fprintf(fid_energy, "%16.8e\n", potential_total);
+  fclose(fid_force);
+  fclose(fid_energy);
 }
 
 void Compute_es::postprocess(
