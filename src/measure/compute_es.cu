@@ -143,12 +143,105 @@ __global__ void find_force_charge_reciprocal_space(
   }
 }
 
+__global__ void find_force_charge_real_space(
+  const int N,
+  const float rc,
+  const float alpha,
+  const float alpha_factor,
+  const float two_alpha_over_sqrt_pi,
+  const int N1,
+  const int N2,
+  const Box box,
+  const float* g_charge,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_sxx = 0.0f;
+    float s_sxy = 0.0f;
+    float s_sxz = 0.0f;
+    float s_syx = 0.0f;
+    float s_syy = 0.0f;
+    float s_syz = 0.0f;
+    float s_szx = 0.0f;
+    float s_szy = 0.0f;
+    float s_szz = 0.0f;
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    float q1 = g_charge[n1];
+    float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
+
+    for (int n2 = 0; n2 < N2; ++n2) {
+      if (n2 == n1) {
+        continue;
+      }
+      float q2 = g_charge[n2];
+      float qq = q1 * q2;
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      if (d12 > rc) {
+        continue;
+      }
+      float d12inv = 1.0f / d12;
+
+      float erfc_r = erfc(alpha * d12) * d12inv;
+      s_pe += 0.5f * qq * erfc_r;
+      float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
+      f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
+
+      s_fx += f12[0] - f21[0];
+      s_fy += f12[1] - f21[1];
+      s_fz += f12[2] - f21[2];
+      s_sxx -= r12[0] * f12[0];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_syz -= r12[1] * f12[2];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
+      s_szz -= r12[2] * f12[2];
+    }
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
 }
 
 void Compute_es::initialize()
 {
-  alpha = float(PI) / 10.0f;
+  alpha = float(PI) / rc;
   alpha_factor = 0.25f / (alpha * alpha);
+  two_alpha_over_sqrt_pi = 2.0f * alpha / sqrt(PI);
   kx.resize(num_kpoints_max);
   ky.resize(num_kpoints_max);
   kz.resize(num_kpoints_max);
@@ -242,14 +335,14 @@ void Compute_es::find_force(
   const int N,
   const int N1,
   const int N2,
-  const double* box,
+  Box& box,
   const GPU_Vector<float>& charge,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
-  find_k_and_G(box);
+  find_k_and_G(box.cpu_h);
   find_structure_factor<<<(num_kpoints - 1) / 64 + 1, 64>>>(
     num_kpoints,
     N1,
@@ -281,6 +374,26 @@ void Compute_es::find_force(
     G.data(),
     S_real.data(),
     S_imag.data(),
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
+    virial_per_atom.data(),
+    potential_per_atom.data());
+  GPU_CHECK_KERNEL
+
+  find_force_charge_real_space<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    rc,
+    alpha,
+    alpha_factor,
+    two_alpha_over_sqrt_pi,
+    N1,
+    N2,
+    box,
+    charge.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
@@ -323,7 +436,7 @@ void Compute_es::process(
     N,
     0,
     N,
-    box.cpu_h,
+    box,
     atom.charge,
     atom.position_per_atom,
     atom.force_per_atom,

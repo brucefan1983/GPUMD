@@ -65,7 +65,7 @@ private:
     const int N,
     const int N1,
     const int N2,
-    const double* box,
+    Box& box,
     const GPU_Vector<float>& charge,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
@@ -73,8 +73,10 @@ private:
     GPU_Vector<double>& potential_per_atom);
   int num_kpoints_max = 1;
   int num_kpoints = 1;
+  float rc = 10.0f;
   float alpha = 0.5f; // 1 / (2 Angstrom)
   float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+  float two_alpha_over_sqrt_pi;
   GPU_Vector<float> kx;
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
