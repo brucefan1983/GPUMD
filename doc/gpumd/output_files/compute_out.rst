@@ -26,3 +26,5 @@ Assuming that the system is divided into :math:`M` groups according to the group
   * if temperature is computed, the last second column is the total energy of the thermostat coupling to the heat source region (in units of eV) and the last column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
 
 Note that regardless of the order of properties in the :ref:`compute keyword <kw_compute>`, the order of the output data is fixed as given above.
+
+For runs that do not use explicit source and sink thermostats, such as a pure :attr:`ttm` run, the last two columns are present but remain zero.
