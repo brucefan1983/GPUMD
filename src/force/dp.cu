@@ -23,6 +23,7 @@ The class dealing with the Deep Potential(DP).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <thrust/execution_policy.h>
+#include <thrust/reduce.h>
 #include <thrust/scan.h>
 #include <sstream>
 #include <cstring>
@@ -60,10 +61,6 @@ DP::DP(const char* filename_dp, int num_atoms)
   ghost_count.resize(num_atoms);
   ghost_sum.resize(num_atoms);
   danger_flag.resize(num_atoms);
-
-  // init dp nghost temporary vector
-  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-  nghost_tmp.resize(grid_size);
 }
 
 void DP::initialize_dp(const char* filename_dp)
@@ -146,7 +143,8 @@ static __global__ void transpose_and_update_unit(
   double f_factor,
   double v_factor,
   const int N,
-  const int ndanger)
+  const int ndanger,
+  const int nghost)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
@@ -177,19 +175,21 @@ static __global__ void transpose_and_update_unit(
         int ghost_id = ghost_id_map[ghost_idx + ndanger * i];
         if (ghost_id != -1) {
           ghost_id -= N;
-          fx += f_ghost_in[ghost_id * 3];
-          fy += f_ghost_in[ghost_id * 3 + 1];
-          fz += f_ghost_in[ghost_id * 3 + 2];
+          if ((unsigned int) ghost_id < (unsigned int) nghost) {
+            fx += f_ghost_in[ghost_id * 3];
+            fy += f_ghost_in[ghost_id * 3 + 1];
+            fz += f_ghost_in[ghost_id * 3 + 2];
 
-          vxx +=  v_ghost_in[ghost_id * 9];
-          vyy +=  v_ghost_in[ghost_id * 9 + 4];
-          vzz +=  v_ghost_in[ghost_id * 9 + 8];
-          vxy +=  v_ghost_in[ghost_id * 9 + 3];
-          vxz +=  v_ghost_in[ghost_id * 9 + 6];
-          vyz +=  v_ghost_in[ghost_id * 9 + 7];
-          vyx +=  v_ghost_in[ghost_id * 9 + 1];
-          vzx +=  v_ghost_in[ghost_id * 9 + 2];
-          vzy +=  v_ghost_in[ghost_id * 9 + 5];
+            vxx +=  v_ghost_in[ghost_id * 9];
+            vyy +=  v_ghost_in[ghost_id * 9 + 4];
+            vzz +=  v_ghost_in[ghost_id * 9 + 8];
+            vxy +=  v_ghost_in[ghost_id * 9 + 3];
+            vxz +=  v_ghost_in[ghost_id * 9 + 6];
+            vyz +=  v_ghost_in[ghost_id * 9 + 7];
+            vyx +=  v_ghost_in[ghost_id * 9 + 1];
+            vzx +=  v_ghost_in[ghost_id * 9 + 2];
+            vzy +=  v_ghost_in[ghost_id * 9 + 5];
+          }
         }
       }
     }
@@ -210,16 +210,7 @@ static __global__ void transpose_and_update_unit(
 }
 
 
-static __device__ void warp_reduce(volatile int* sdata, int tid) {
-  sdata[tid] += sdata[tid + 32];
-  sdata[tid] += sdata[tid + 16];
-  sdata[tid] += sdata[tid + 8];
-  sdata[tid] += sdata[tid + 4];
-  sdata[tid] += sdata[tid + 2];
-  sdata[tid] += sdata[tid + 1];
-}
-
-static __global__ void calc_ghost_atom_number_each_block(
+static __global__ void calc_ghost_atom_number_each_atom(
   const int N,
   const double rc,
   const double* x,
@@ -227,14 +218,9 @@ static __global__ void calc_ghost_atom_number_each_block(
   const double* z,
   int* ghost_count,
   int* danger_flag,
-  int* nghost_tmp,
   const Box box)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
-  int tid = threadIdx.x;
-  extern __shared__ int nghost_block[];
-  // init shared memory
-  nghost_block[tid] = 0;
   if (n1 < N) {
     int nghost = 1;
     double x1 = x[n1];
@@ -242,12 +228,11 @@ static __global__ void calc_ghost_atom_number_each_block(
     double z1 = z[n1];
     if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
         box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-      // triclinic box
-      // TODO
       printf("TODO: triclinc box\n");
+      ghost_count[n1] = 0;
+      danger_flag[n1] = 0;
       return;
     } else {
-      // orthogonal box
       if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
         nghost <<= 1;
       }
@@ -258,61 +243,13 @@ static __global__ void calc_ghost_atom_number_each_block(
         nghost <<= 1;
       }
     }
-    // ghost boudary | nghost
-    // x, y, z       | 1
-    // xy, xz, yz    | 3
-    // xyz           | 7
     --nghost;
-    nghost_block[tid] = nghost;
     ghost_count[n1] = nghost;
     danger_flag[n1] = nghost != 0;
   }
-  __syncthreads();
-
-  // reduce
-  for (int s = blockDim.x >> 1; s > 32; s >>= 1) {
-    if (tid < s) {
-      nghost_block[tid] += nghost_block[tid + s];
-    }
-    __syncthreads();
-  }
-  if (tid < 32) {
-    warp_reduce(nghost_block, tid);
-  }
-
-  // save to nghost_tmp
-  if (tid == 0) {
-    nghost_tmp[blockIdx.x] = nghost_block[0];
-  }
 }
 
-static __global__ void reduce_nghost(int* idata, int* odata, int N) {
-  extern __shared__ int sdata[];
-  int tid = threadIdx.x;
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  sdata[tid] = i < N ? idata[i] : 0;
-  __syncthreads();
-
-  // reduce
-  for (int s = blockDim.x >> 1; s > 32; s >>= 1) {
-    if (tid < s) {
-      sdata[tid] += sdata[tid + s];
-    }
-    __syncthreads();
-  }
-  if (tid < 32) {
-    warp_reduce(sdata, tid);
-  }
-
-  // save to nghost_tmp
-  if (tid == 0) {
-    odata[blockIdx.x] = sdata[0];
-  }
-}
-
-// this function has two step to calculate ghost atom number
-// step 1: calculate nghost for each atom and reduce in each block
-// step 2: reduce the nghost_tmp to get the total nghost
+// this function calculates ghost atom number for each atom and then reduces on device
 static int calc_ghost_atom_number(
   const int block_size,
   const int grid_size,
@@ -321,10 +258,9 @@ static int calc_ghost_atom_number(
   const double* position,
   int* ghost_count,
   int* danger_flag,
-  GPU_Vector<int>& nghost_tmp,
   const Box& box)
 {
-  calc_ghost_atom_number_each_block<<<grid_size, block_size, block_size * sizeof(int)>>>(
+  calc_ghost_atom_number_each_atom<<<grid_size, block_size>>>(
     N,
     rc,
     position,
@@ -332,79 +268,15 @@ static int calc_ghost_atom_number(
     position + 2 * N,
     ghost_count,
     danger_flag,
-    nghost_tmp.data(),
     box);
   GPU_CHECK_KERNEL
 
-  int nghost = 0;
-  if (grid_size == 1) {
-    nghost_tmp.copy_to_host(&nghost, 1);
-    return nghost;
-  }
-
-  // more than 128 atoms
-  int new_grid_size = (grid_size - 1) / block_size + 1;
-  int old_grid_size = grid_size;
-  GPU_Vector<int> tmp1(new_grid_size);
-  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
-    nghost_tmp.data(),
-    tmp1.data(),
-    old_grid_size);
-  GPU_CHECK_KERNEL
-
-  if (new_grid_size == 1) {
-    tmp1.copy_to_host(&nghost, 1);
-    return nghost;
-  }
-
-  // more than 128x128 atoms
-  old_grid_size = new_grid_size;
-  new_grid_size = (new_grid_size - 1) / block_size + 1;
-  GPU_Vector<int> tmp2(new_grid_size);
-  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
-    tmp1.data(),
-    tmp2.data(),
-    old_grid_size);
-  GPU_CHECK_KERNEL
-
-  if (new_grid_size == 1) {
-    int nghost = 0;
-    tmp2.copy_to_host(&nghost, 1);
-    return nghost;
-  }
-
-  // more than 128x128x128 atoms
-  old_grid_size = new_grid_size;
-  new_grid_size = (new_grid_size - 1) / block_size + 1;
-  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
-    tmp2.data(),
-    tmp1.data(),
-    old_grid_size);
-  GPU_CHECK_KERNEL
-
-  if (new_grid_size == 1) {
-    int nghost = 0;
-    tmp1.copy_to_host(&nghost, 1);
-    return nghost;
-  }
-
-  // more than 128x128x128x128 atoms
-  old_grid_size = new_grid_size;
-  new_grid_size = (new_grid_size - 1) / block_size + 1;
-  reduce_nghost<<<new_grid_size, block_size, block_size * sizeof(int)>>>(
-    tmp1.data(),
-    tmp2.data(),
-    old_grid_size);
-  GPU_CHECK_KERNEL
-
-  if (new_grid_size == 1) {
-    int nghost = 0;
-    tmp2.copy_to_host(&nghost, 1);
-    return nghost;
-  }
-
-  printf("\nTO MANY ATOMS!!!\n\n");
-  return 0;
+  return thrust::reduce(
+    thrust::device,
+    ghost_count,
+    ghost_count + N,
+    0,
+    thrust::plus<int>());
 }
 
 static __global__ void create_ghost_map(
@@ -431,10 +303,13 @@ static __global__ void create_ghost_map(
     double z1 = z[n1];
     int nall = N + nghost;
     int nall_2 = nall * 2;
+    const double shift_x = (box.pbc_x ? rc : 0.0);
+    const double shift_y = (box.pbc_y ? rc : 0.0);
+    const double shift_z = (box.pbc_z ? rc : 0.0);
 
-    dp_position[n1] = x1;
-    dp_position[n1 + nall] = y1;
-    dp_position[n1 + nall_2] = z1;
+    dp_position[n1] = x1 + shift_x;
+    dp_position[n1 + nall] = y1 + shift_y;
+    dp_position[n1 + nall_2] = z1 + shift_z;
     type_ghost[n1] = type[n1];
     if (ghost_count[n1] == 0) {
       danger_list[n1] = -1;
@@ -459,9 +334,9 @@ static __global__ void create_ghost_map(
         ghost_x_flag = 1;
         ghost_id_map[ghost_idx + ndanger * GHOST_X] = ghost_id;
         type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-        dp_position[ghost_id + nall] = y1;
-        dp_position[ghost_id + nall_2] = z1;
+        dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
+        dp_position[ghost_id + nall] = y1 + shift_y;
+        dp_position[ghost_id + nall_2] = z1 + shift_z;
         ++ghost_id;
       }
 
@@ -470,18 +345,18 @@ static __global__ void create_ghost_map(
         ghost_y_flag = 1;
         ghost_id_map[ghost_idx + ndanger * GHOST_Y] = ghost_id;
         type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = x1;
-        dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
-        dp_position[ghost_id + nall_2] = z1;
+        dp_position[ghost_id] = x1 + shift_x;
+        dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
+        dp_position[ghost_id + nall_2] = z1 + shift_z;
         ++ghost_id;
 
         if (ghost_x_flag == 1) {
           // xy
           ghost_id_map[ghost_idx + ndanger * GHOST_XY] = ghost_id;
           type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
-          dp_position[ghost_id + nall_2] = z1;
+          dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
+          dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
+          dp_position[ghost_id + nall_2] = z1 + shift_z;
           ++ghost_id;
         }
       }
@@ -490,27 +365,27 @@ static __global__ void create_ghost_map(
         // z
         ghost_id_map[ghost_idx + ndanger * GHOST_Z] = ghost_id;
         type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = x1;
-        dp_position[ghost_id + nall] = y1;
-        dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
+        dp_position[ghost_id] = x1 + shift_x;
+        dp_position[ghost_id + nall] = y1 + shift_y;
+        dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
         ++ghost_id;
 
         if (ghost_x_flag == 1) {
           // xz
           ghost_id_map[ghost_idx + ndanger * GHOST_XZ] = ghost_id;
           type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-          dp_position[ghost_id + nall] = y1;
-          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
+          dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
+          dp_position[ghost_id + nall] = y1 + shift_y;
+          dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
           ++ghost_id;
 
           if (ghost_y_flag == 1) {
             // xyz
             ghost_id_map[ghost_idx + ndanger * GHOST_XYZ] = ghost_id;
             type_ghost[ghost_id] = type[n1];
-            dp_position[ghost_id] = x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0];
-            dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
-            dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
+            dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
+            dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
+            dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
             ++ghost_id;
           }
         }
@@ -519,9 +394,9 @@ static __global__ void create_ghost_map(
           // yz
           ghost_id_map[ghost_idx + ndanger * GHOST_YZ] = ghost_id;
           type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = x1;
-          dp_position[ghost_id + nall] = y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4];
-          dp_position[ghost_id + nall_2] = z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8];
+          dp_position[ghost_id] = x1 + shift_x;
+          dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
+          dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
           ++ghost_id;
         }
       }
@@ -538,30 +413,32 @@ void DP::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+  if (number_of_atoms <= 0) return;
+  dp_nl.inum = number_of_atoms;
+  int grid_size = (number_of_atoms - 1) / BLOCK_SIZE_FORCE + 1;
 
   // get ghost atom number
-  nghost = calc_ghost_atom_number(
-    BLOCK_SIZE_FORCE,
-    grid_size,
-    number_of_atoms,
-    rc,
-    position_per_atom.data(),
-    ghost_count.data(),
-    danger_flag.data(),
-    nghost_tmp,
-    box);
+nghost = calc_ghost_atom_number(
+  BLOCK_SIZE_FORCE,
+  grid_size,
+  number_of_atoms,
+  rc,
+  position_per_atom.data(),
+  ghost_count.data(),
+  danger_flag.data(),
+  box);
 
   thrust::exclusive_scan(
     thrust::device, ghost_count.data(), ghost_count.data() + number_of_atoms, ghost_sum.data());
   thrust::exclusive_scan(
     thrust::device, danger_flag.data(), danger_flag.data() + number_of_atoms, danger_list.data());
 
-  // get the number of dangerous atoms from the last number of danger_list
-  int last_atom_danger_flag = 0;
-  danger_flag.copy_to_host(&last_atom_danger_flag, 1, number_of_atoms - 1);
-  danger_list.copy_to_host(&ndanger, 1, number_of_atoms - 1);
-  ndanger += last_atom_danger_flag;
+  ndanger = thrust::reduce(
+    thrust::device,
+    danger_flag.data(),
+    danger_flag.data() + number_of_atoms,
+    0,
+    thrust::plus<int>());
 
   // check_ghost<<<grid_size, BLOCK_SIZE_FORCE>>>(ghost_count.data(), ghost_sum.data(), ghost_flag.data(), ghost_list.data(), number_of_atoms);
   // resize the ghost vectors
@@ -611,15 +488,15 @@ void DP::compute(
     std::cout << "Error: Currently, the DP potential in GPUMD only supports simulations of orthogonal systems!" << std::endl;
     exit(1);
   } else {
-    box_ghost.cpu_h[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
+    box_ghost.cpu_h[0] = box.cpu_h[0] + (box.pbc_x ? 2 * rc : 0);
     box_ghost.cpu_h[1] = 0;
     box_ghost.cpu_h[2] = 0;
     box_ghost.cpu_h[3] = 0;
-    box_ghost.cpu_h[4] = box.cpu_h[4] + box.pbc_y ? 2 * rc : 0;
+    box_ghost.cpu_h[4] = box.cpu_h[4] + (box.pbc_y ? 2 * rc : 0);
     box_ghost.cpu_h[5] = 0;
     box_ghost.cpu_h[6] = 0;
     box_ghost.cpu_h[7] = 0;
-    box_ghost.cpu_h[8] = box.cpu_h[8] + box.pbc_z ? 2 * rc : 0;
+    box_ghost.cpu_h[8] = box.cpu_h[8] + (box.pbc_z ? 2 * rc : 0);
   }
   box_ghost.get_inverse();
 
@@ -649,6 +526,7 @@ void DP::compute(
     dp_position_gpu.data(),
     dp_position_gpu_trans.data(),
     num_all_atoms);
+  GPU_CHECK_KERNEL
   dp_position_cpu.resize(num_all_atoms * 3);
   dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
   type_cpu.resize(num_all_atoms);
@@ -666,9 +544,9 @@ void DP::compute(
     dp_box[6] = box.cpu_h[6];
     dp_box[3] = box.cpu_h[3];
   } else {
-    dp_box[0] = box.cpu_h[0] + box.pbc_x ? 2 * rc : 0;
-    dp_box[4] = box.cpu_h[4] + box.pbc_y ? 2 * rc : 0;
-    dp_box[8] = box.cpu_h[8] + box.pbc_z ? 2 * rc : 0;
+    dp_box[0] = box.cpu_h[0] + (box.pbc_x ? 2 * rc : 0);
+    dp_box[4] = box.cpu_h[4] + (box.pbc_y ? 2 * rc : 0);
+    dp_box[8] = box.cpu_h[8] + (box.pbc_z ? 2 * rc : 0);
   }
 
   dp_nl.ilist.resize(num_all_atoms, 0);
@@ -677,6 +555,14 @@ void DP::compute(
 
   // Allocate lmp_ilist and lmp_numneigh
   dp_data.NN.copy_to_host(dp_nl.numneigh.data());
+  int max_numneigh = 0;
+  for (int i = 0; i < num_all_atoms; ++i) {
+    if (dp_nl.numneigh[i] > max_numneigh) max_numneigh = dp_nl.numneigh[i];
+  }
+  if (max_numneigh > MAX_NEIGH_NUM_DP) {
+    printf("Error: DP neighbor overflow. max_numneigh = %d, limit = %d\n", max_numneigh, MAX_NEIGH_NUM_DP);
+    exit(1);
+  }
   cpu_NL.resize(dp_data.NL.size());
   dp_data.NL.copy_to_host(cpu_NL.data());
 
@@ -713,10 +599,12 @@ void DP::compute(
   e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
   
   // copy ghost atom force and virial to modify the local atoms' force and virial
-  f_ghost.resize(nghost * 3);
-  v_ghost.resize(nghost * 9);
-  f_ghost.copy_from_host(dp_force.data() + number_of_atoms * 3, nghost * 3);
-  v_ghost.copy_from_host(dp_vir_atom.data() + number_of_atoms * 9, nghost * 9);
+  if (nghost > 0) {
+    f_ghost.resize(nghost * 3);
+    v_ghost.resize(nghost * 9);
+    f_ghost.copy_from_host(dp_force.data() + number_of_atoms * 3, nghost * 3);
+    v_ghost.copy_from_host(dp_vir_atom.data() + number_of_atoms * 9, nghost * 9);
+  }
 
   // transpose dp vectors
   transpose_and_update_unit<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -732,7 +620,8 @@ void DP::compute(
     force_unit_cvt_factor,
     virial_unit_cvt_factor,
     number_of_atoms,
-    ndanger);
+    ndanger,
+    nghost);
   GPU_CHECK_KERNEL
 }
 #endif

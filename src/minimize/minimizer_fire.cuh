@@ -37,17 +37,14 @@ private:
 
 public:
   Minimizer_FIRE(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(-1, number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 
   void compute(
     Force& force,
     Box& box,
+    Atom& atom,
     GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    std::vector<Group>& group);
 };

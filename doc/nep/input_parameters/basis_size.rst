@@ -13,6 +13,6 @@ The syntax is::
 where :attr:`<N_bas_R>` and :attr:`<N_bas_A>` set :math:`N_\mathrm{bas}^\mathrm{R}` and :math:`N_\mathrm{bas}^\mathrm{A}`, respectively.
 The parameters must satisfy :math:`0 \leq N_\mathrm{bas}^\mathrm{R} \leq 16` and :math:`0 \leq N_\mathrm{bas}^\mathrm{A} \leq 12`.
 
-The default values of :math:`N_\mathrm{bas}^\mathrm{R}=8` and :math:`N_\mathrm{bas}^\mathrm{A}=8` are usually sufficient.
+The default values of :math:`N_\mathrm{bas}^\mathrm{R}=6` and :math:`N_\mathrm{bas}^\mathrm{A}=6` are usually sufficient.
 
 **Note:** These parameters should not be confused with :math:`n_\mathrm{max}^\mathrm{R}` and :math:`n_\mathrm{max}^\mathrm{A}`, which are set via the :ref:`n_max keyword <kw_n_max>`.

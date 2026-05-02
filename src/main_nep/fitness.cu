@@ -282,7 +282,9 @@ void Fitness::output(
     for (int n = 0; n < num_components; ++n) {
       float ref_value = reference[n * dataset.Nc + nc];
       if (is_stress) {
-        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        if (ref_value > -1e5) {
+          ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
+        }
       }
       if (n == num_components - 1) {
         fprintf(fid, "%g\n", ref_value);
@@ -397,7 +399,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
 
-  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  if (para.num_hidden_layers == 2) {
+    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
+  } else {
+    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  }
+
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
   }

@@ -1,5 +1,6 @@
+replicate       6 6 6
 potential       ../../../potentials/tersoff/Si_Tersoff_1989.txt
 minimize        sd 1.0e-6 10000
 #for_testing
-compute_phonon  4.0 0.005 # in units of A
+compute_phonon  0.005 # in units of A
 

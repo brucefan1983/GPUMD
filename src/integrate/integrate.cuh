@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ensemble.cuh"
+#include "ensemble_ttm.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -74,6 +75,8 @@ public:
   int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed
   int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  int fixed_grouping_method = 0;
+  int move_grouping_method = 0;
   double move_velocity[3];
 
   double temperature;  // target temperature at a specific time
@@ -83,6 +86,8 @@ public:
   double target_pressure[6];
   int num_target_pressure_components;
   double temperature_coupling;
+  double qtb_f_max = 200.0; // in ps^-1
+  int qtb_n_f = 100;
   double tau_p;
   double elastic_modulus[6];
   double pressure_coupling[6];
@@ -93,6 +98,9 @@ public:
 
   // PIMD
   int number_of_beads;
+
+  // TTM parameters
+  TTM_Parameters ttm_parameters;
 
   // save some quantities for ensemble to use.
   int current_step = 0;

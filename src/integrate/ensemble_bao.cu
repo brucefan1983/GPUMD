@@ -278,7 +278,7 @@ void Ensemble_BAO::operator_A(
     gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       fixed_group,
-      group[0].label.data(),
+      group[fixed_grouping_method].label.data(),
       time_step,
       mass.data(),
       position_per_atom.data(),
@@ -400,7 +400,7 @@ void Ensemble_BAO::operator_B(
     gpu_operator_B<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       fixed_group,
-      group[0].label.data(),
+      group[fixed_grouping_method].label.data(),
       time_step,
       mass.data(),
       position_per_atom.data(),

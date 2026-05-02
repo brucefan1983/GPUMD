@@ -30,26 +30,17 @@ public:
   void initialize(
     const bool has_velocity_in_xyz,
     const double initial_temperature,
-    const std::vector<double>& cpu_mass,
-    const std::vector<double>& cpu_position_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     bool use_seed,
     int seed);
 
-  void correct_velocity(
-    const int step,
-    const std::vector<Group>& group,
-    const std::vector<double>& cpu_mass,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& velocity_per_atom);
+  void correct_velocity(const int step, const std::vector<Group>& group, Atom& atom);
 
   void finalize();
 
 private:
   void correct_velocity(
+    const int N,
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom);

@@ -25,21 +25,21 @@ private:
   const double f_dec = 0.5;
   const double alpha_start = 0.25;
   const double f_alpha = 0.99;
-  const double dt_0 = 1 / TIME_UNIT_CONVERSION; // Time step of 1 fs.
+  const double dt_0 = 1 / TIME_UNIT_CONVERSION;
   const double dt_max = 10 * dt_0;
   const double dt_min = 0.02 * dt_0;
   const int N_min = 20;
-  const double m = 5; // The mass of atoms. Doesn't matter in minimization.
+  const double m = 5.0;
   double dt = dt_0;
   double alpha = alpha_start;
-  int N_neg = 0;
+  int N_pos = 0;
   double P;
   int hydrostatic_strain = 0;
 
 public:
   Minimizer_FIRE_Box_Change(
     const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(-1, number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 
@@ -48,7 +48,7 @@ public:
     const int number_of_steps,
     const double force_tolerance,
     const int _hydrostatic_strain)
-    : Minimizer(-1, number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
   {
     hydrostatic_strain = _hydrostatic_strain;
   }
@@ -56,10 +56,7 @@ public:
   void compute(
     Force& force,
     Box& box,
+    Atom& atom,
     GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    std::vector<Group>& group);
 };

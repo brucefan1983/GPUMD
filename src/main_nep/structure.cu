@@ -598,6 +598,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].num_atom = structures[nc].num_atom;
     structures_copy[nc].weight = structures[nc].weight;
     structures_copy[nc].has_virial = structures[nc].has_virial;
+    structures_copy[nc].has_bec = structures[nc].has_bec;
     structures_copy[nc].energy = structures[nc].energy;
     structures_copy[nc].energy_weight = structures[nc].energy_weight;
     structures_copy[nc].has_temperature = structures[nc].has_temperature;
@@ -622,6 +623,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_copy[nc].fx.resize(structures[nc].num_atom);
     structures_copy[nc].fy.resize(structures[nc].num_atom);
     structures_copy[nc].fz.resize(structures[nc].num_atom);
+    structures_copy[nc].bec.resize(structures[nc].num_atom * 9);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
       structures_copy[nc].type[na] = structures[nc].type[na];
       structures_copy[nc].x[na] = structures[nc].x[na];
@@ -630,6 +632,9 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
       structures_copy[nc].fx[na] = structures[nc].fx[na];
       structures_copy[nc].fy[na] = structures[nc].fy[na];
       structures_copy[nc].fz[na] = structures[nc].fz[na];
+      for (int d = 0; d < 9; ++d) {
+        structures_copy[nc].bec[na * 9 + d] = structures[nc].bec[na * 9 + d];
+      }
     }
   }
 
@@ -637,6 +642,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
     structures[nc].weight = structures_copy[configuration_id[nc]].weight;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
+    structures[nc].has_bec = structures_copy[configuration_id[nc]].has_bec;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
     structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
     structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
@@ -661,6 +667,7 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures[nc].fx.resize(structures[nc].num_atom);
     structures[nc].fy.resize(structures[nc].num_atom);
     structures[nc].fz.resize(structures[nc].num_atom);
+    structures[nc].bec.resize(structures[nc].num_atom * 9);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
       structures[nc].type[na] = structures_copy[configuration_id[nc]].type[na];
       structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
@@ -669,6 +676,9 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
       structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
       structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
       structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
+      for (int d = 0; d < 9; ++d) {
+        structures[nc].bec[na * 9 + d] = structures_copy[configuration_id[nc]].bec[na * 9 + d];
+      }
     }
   }
 }

@@ -13,11 +13,13 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef USE_TENSORFLOW
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"
 #include <stdio.h>
 #include <vector>
+#include <cstddef>
 
 namespace deepmd_compat = deepmd;
 
@@ -71,6 +73,20 @@ protected:
   bool atom_spin_flag;
   bool single_model;
 
+  // neighbor-list skin cache
+  double neighbor_skin;
+  double neighbor_cutoff;
+  bool nlist_cache_valid;
+  bool deepmd_device_api_available;
+  int cached_num_all_atoms;
+  int cached_nghost;
+  int cached_ndanger;
+  int cached_number_of_atoms;
+  int cached_pbc_x;
+  int cached_pbc_y;
+  int cached_pbc_z;
+  double cached_box_h[9];
+
   DP_Data dp_data;
   DP_NL dp_nl;
   GPU_Vector<double> dp_position_gpu;
@@ -83,11 +99,11 @@ protected:
   int ndanger;                      // number of dangerous atoms
   GPU_Vector<int> type_ghost;       // type of ghost atoms, nghost x 1
   GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom, number_of_atoms x 1
-  GPU_Vector<int> ghost_sum;        // exclusive the ghost_count
-  GPU_Vector<int> nghost_tmp;       // a temporary vector to save ghost atom number
+  GPU_Vector<int> ghost_sum;        // exclusive scan of ghost_count
   GPU_Vector<int> ghost_id_map;     // a map to find the ghost id of each dangerous atom, ndanger x 7
   GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
-  GPU_Vector<int> danger_list;      // the dangerous atom index list, according to ghost_id_map, number_of_atoms x 1
+  GPU_Vector<int> danger_list;      // for each local atom: -1 or dense index in dangerous atom list
+  GPU_Vector<int> danger_atoms;     // reverse map: dangerous atom list -> local atom index
 
   // dp instance
   deepmd_compat::DeepPot deep_pot;
@@ -98,6 +114,19 @@ protected:
   GPU_Vector<double> dp_position_gpu_trans;
   std::vector<double> dp_position_cpu;
 
+  // skin-cache helper buffers
+  GPU_Vector<double> position_ref_gpu;
+  GPU_Vector<double> disp_sq_gpu;
+  GPU_Vector<int> ghost_owner;
+  GPU_Vector<int> ghost_shift_x;
+  GPU_Vector<int> ghost_shift_y;
+  GPU_Vector<int> ghost_shift_z;
+
+  // auxiliary buffers for packed neighbor-list transfer
+  GPU_Vector<int> nl_offset_gpu;
+  GPU_Vector<int> nl_packed_gpu;
+  std::vector<int> nl_offset_cpu;
+
   // dp output vectors
   std::vector<double> dp_ene_all;
   std::vector<double> dp_ene_atom;
@@ -105,5 +134,25 @@ protected:
   std::vector<double> dp_vir_all;
   std::vector<double> dp_vir_atom;
 
+  // registered (page-locked) host buffer metadata for faster H2D/D2H copies
+  void* type_cpu_pinned_ptr;
+  size_t type_cpu_pinned_bytes;
+  void* dp_position_cpu_pinned_ptr;
+  size_t dp_position_cpu_pinned_bytes;
+  void* cpu_NL_pinned_ptr;
+  size_t cpu_NL_pinned_bytes;
+  void* nl_offset_cpu_pinned_ptr;
+  size_t nl_offset_cpu_pinned_bytes;
+  void* dp_numneigh_pinned_ptr;
+  size_t dp_numneigh_pinned_bytes;
+  void* dp_ene_atom_pinned_ptr;
+  size_t dp_ene_atom_pinned_bytes;
+  void* dp_force_pinned_ptr;
+  size_t dp_force_pinned_bytes;
+  void* dp_vir_atom_pinned_ptr;
+  size_t dp_vir_atom_pinned_bytes;
+
   void set_dp_coeff();
+  void release_pinned_host_buffers();
 };
+#endif

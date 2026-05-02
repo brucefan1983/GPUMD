@@ -141,7 +141,7 @@ void Compute_dpdt::process(
     p_integral[d] += cpu_dpdt_total[d] * p_integral_dt; //  e A
     cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION; // e A / fs
   }
-  fprintf(fid, "%g %g %g %g %g %g %g\n", 
+  fprintf(fid, "%15.8e %g %g %g %g %g %g\n", 
     p_integral_time,
     cpu_dpdt_total[0], 
     cpu_dpdt_total[1], 

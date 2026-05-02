@@ -620,6 +620,41 @@ static __global__ void zero_total_charge(const int N, float* g_charge)
   }
 }
 
+
+// Chain rule correction: zero_total_charge shifted q by -mean(q),
+// so D_real must be shifted by -mean(D_real) for consistent forces.
+// Uses double accumulator for numerical precision.
+static __global__ void zero_mean_D_real(const int N, float* g_D_real)
+{
+  int tid = threadIdx.x;
+  int number_of_batches = (N - 1) / 1024 + 1;
+  __shared__ double s_sum[1024];
+  double sum = 0.0;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < N) {
+      sum += (double)g_D_real[n];
+    }
+  }
+  s_sum[tid] = sum;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_sum[tid] += s_sum[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  float mean_D = (float)(s_sum[0] / N);
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < N) {
+      g_D_real[n] -= mean_D;
+    }
+  }
+}
+
 static __global__ void find_bec_diagonal(const int N, const float* g_q, float* g_bec)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -1558,6 +1593,10 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
   }
 
+  // Chain rule correction: D_real -= mean(D_real)
+  zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
+  GPU_CHECK_KERNEL
+
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1858,6 +1897,10 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
   }
 
+  // Chain rule correction: D_real -= mean(D_real)
+  zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
+  GPU_CHECK_KERNEL
+
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1938,13 +1981,13 @@ static bool get_expanded_box(const double rc, const Box& box, NEP_Charge::Expand
   ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
 
   bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.5 * rc) {
+  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_y && thickness_y <= 2.5 * rc) {
+  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_z && thickness_z <= 2.5 * rc) {
+  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
 

@@ -76,7 +76,8 @@ void Dump_Thermo::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+  int number_of_atoms_fixed =
+    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
 
   double thermo[8];
   gpu_thermo.copy_to_host(thermo, 8);

@@ -24,10 +24,12 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_npt_qtb.cuh"
 #include "ensemble_nphug.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
+#include "ensemble_qtb.cuh"
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_liquid.cuh"
@@ -56,6 +58,9 @@ void Integrate::initialize(
   if (move_group >= 0) {
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
+    }
+    if (fixed_grouping_method != move_grouping_method) {
+      PRINT_INPUT_ERROR("The fixed and moving groups must use the same grouping method.");
     }
     if (move_group == fixed_group) {
       PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
@@ -94,6 +99,16 @@ void Integrate::initialize(
       break;
     case 5: // NVT-BAOAB_Langevin
       ensemble.reset(new Ensemble_BAO(type, number_of_atoms, temperature, temperature_coupling));
+      break;
+    case 6: // NVT-QTB
+      ensemble.reset(new Ensemble_QTB(
+        type,
+        number_of_atoms,
+        temperature,
+        temperature_coupling,
+        time_step,
+        qtb_f_max,
+        qtb_n_f));
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
@@ -143,6 +158,8 @@ void Integrate::initialize(
       break;
     case -11: // ti_liquid
       break;
+    case -12: // npt_qtb
+      break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
         type,
@@ -173,6 +190,31 @@ void Integrate::initialize(
     case 23: // heat-BDP
       ensemble.reset(
         new Ensemble_BDP(type, source, sink, temperature, temperature_coupling, delta_temperature));
+      break;
+    case 24: // heat-TTM
+      ensemble.reset(new Ensemble_TTM(
+        type,
+        source,
+        sink,
+        group[0].cpu_size[source],
+        group[0].cpu_size[sink],
+        group[0].cpu_size_sum[source],
+        group[0].cpu_size_sum[sink],
+        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
+        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
+        temperature,
+        temperature_coupling,
+        delta_temperature,
+        ttm_parameters,
+        box));
+      break;
+    case 25: // pure TTM
+      ensemble.reset(new Ensemble_TTM(
+        type,
+        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
+        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
+        ttm_parameters,
+        box));
       break;
     case 31: // RPMD
       ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
@@ -208,12 +250,16 @@ void Integrate::initialize(
   ensemble->total_steps = &this->total_steps;
   ensemble->thermo = &thermo;
   ensemble->fixed_group = fixed_group;
+  ensemble->fixed_grouping_method = fixed_grouping_method;
+  ensemble->move_grouping_method = move_grouping_method;
 }
 
 void Integrate::finalize()
 {
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
+  fixed_grouping_method = 0;
+  move_grouping_method = 0;
   deform_x = 0;
   deform_y = 0;
   deform_z = 0;
@@ -328,6 +374,7 @@ void Integrate::compute2(
 // 1-10:  NVT
 // 11-20: NPT
 // 21-30: heat (NEMD method for heat conductivity)
+// 24-25: TTM related methods
 // 31-40: PIMD related
 void Integrate::parse_ensemble(
   const char** param,
@@ -338,6 +385,9 @@ void Integrate::parse_ensemble(
   std::vector<Group>& group,
   GPU_Vector<double>& thermo)
 {
+  qtb_f_max = 200.0;
+  qtb_n_f = 100;
+
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
     type = 0;
@@ -369,6 +419,12 @@ void Integrate::parse_ensemble(
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
     }
+  } else if (strcmp(param[1], "nvt_qtb") == 0) {
+    type = 6;
+    if (num_param < 5 || num_param % 2 == 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
+    }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
@@ -387,6 +443,12 @@ void Integrate::parse_ensemble(
     ensemble.reset(ptr_temp);
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
+  } else if (strcmp(param[1], "npt_qtb") == 0) {
+    type = -12;
+    Ensemble_NPT_QTB* ptr_temp = new Ensemble_NPT_QTB(param, num_param);
+    ensemble.reset(ptr_temp);
+    temperature1 = ptr_temp->t_start;
+    temperature2 = ptr_temp->t_stop;
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
     if (num_param != 7) {
@@ -401,6 +463,20 @@ void Integrate::parse_ensemble(
     type = 23;
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
+    }
+  } else if (strcmp(param[1], "heat_ttm") == 0) {
+    type = 24;
+    // ensemble heat_ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
+    if (num_param < 19 || (num_param - 19) % 2 != 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble heat_ttm should have 17 required parameters plus optional key-value pairs.");
+    }
+  } else if (strcmp(param[1], "ttm") == 0) {
+    type = 25;
+    // ensemble ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
+    if (num_param < 14 || (num_param - 14) % 2 != 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble ttm should have 12 required parameters plus optional key-value pairs.");
     }
   } else if (strcmp(param[1], "rpmd") == 0) {
     type = 31;
@@ -484,6 +560,32 @@ void Integrate::parse_ensemble(
       } else {
         PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
       }
+    }
+  }
+
+  // 2b. Optional parameters for QTB
+  if (type == 6) {
+    // For nvt_qtb (type 6): optional params start at index 5
+    int i = 5;
+    while (i < num_param) {
+      if (strcmp(param[i], "f_max") == 0) {
+        if (!is_valid_real(param[i + 1], &qtb_f_max)) {
+          PRINT_INPUT_ERROR("f_max should be a number.");
+        }
+        if (qtb_f_max <= 0.0) {
+          PRINT_INPUT_ERROR("f_max should > 0.");
+        }
+      } else if (strcmp(param[i], "N_f") == 0) {
+        if (!is_valid_int(param[i + 1], &qtb_n_f)) {
+          PRINT_INPUT_ERROR("N_f should be an integer.");
+        }
+        if (qtb_n_f <= 0) {
+          PRINT_INPUT_ERROR("N_f should > 0.");
+        }
+      } else {
+        PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
+      }
+      i += 2;
     }
   }
 
@@ -574,7 +676,7 @@ void Integrate::parse_ensemble(
   }
 
   // 4. heating and cooling wiht fixed temperatures
-  if (type >= 21 && type <= 30) {
+  if (type >= 21 && type <= 24) {
     // temperature
     if (!is_valid_real(param[2], &temperature)) {
       PRINT_INPUT_ERROR("Temperature should be a number.");
@@ -624,6 +726,16 @@ void Integrate::parse_ensemble(
     if (sink >= group[0].number) {
       PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
     }
+  }
+
+  if (type == 25) {
+    temperature = 0.0;
+    temperature1 = 0.0;
+    temperature2 = 0.0;
+  }
+
+  if (type == 24 || type == 25) {
+    parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, ttm_parameters);
   }
 
   // 5. PIMD related
@@ -792,6 +904,15 @@ void Integrate::parse_ensemble(
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
+    case 6:
+      printf("Use NVT ensemble for this run.\n");
+      printf("    choose the quantum thermal bath method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    f_max is %g ps^-1.\n", qtb_f_max);
+      printf("    N_f is %d.\n", qtb_n_f);
+      break;
     case 11:
       if (temperature_coupling <= 100000) {
         printf("Use NPT ensemble for this run.\n");
@@ -897,6 +1018,8 @@ void Integrate::parse_ensemble(
       break;
     case -11:
       break;
+    case -12: // npt_qtb (self-parsed)
+      break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
@@ -929,6 +1052,22 @@ void Integrate::parse_ensemble(
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
       printf("    heat source is group %d in grouping method 0.\n", source);
       printf("    heat sink is group %d in grouping method 0.\n", sink);
+      break;
+    case 24:
+      printf("Integrate with heating/cooling and TTM for this run.\n");
+      printf("    choose the Two-Temperature Model (TTM) + Langevin method.\n");
+      printf("    average temperature is %g K.\n", temperature);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    delta_T is %g K.\n", delta_temperature);
+      printf("    T_hot is %g K.\n", temperature + delta_temperature);
+      printf("    T_cold is %g K.\n", temperature - delta_temperature);
+      printf("    heat source is group %d in grouping method 0.\n", source);
+      printf("    heat sink is group %d in grouping method 0.\n", sink);
+      print_ttm_settings(ttm_parameters);
+      break;
+    case 25:
+      printf("Integrate with pure Two-Temperature Model (TTM) for this run.\n");
+      print_ttm_settings(ttm_parameters);
       break;
     case 31:
       printf("Use ring-polymer MD (RPMD) for this run.\n");
@@ -990,64 +1129,105 @@ void Integrate::parse_ensemble(
 
 void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>& group)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("Keyword 'fix' should have 1 parameter.");
-  }
-
-  if (!is_valid_int(param[1], &fixed_group)) {
-    PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("Keyword 'fix' should have 1 or 2 parameters.");
   }
 
   if (group.size() < 1) {
     PRINT_INPUT_ERROR("Cannot use 'fix' without grouping method.");
   }
 
+  if (num_param == 3) {
+    // fix grouping_method group_id
+    if (!is_valid_int(param[1], &fixed_grouping_method)) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should be an integer.");
+    }
+    if (fixed_grouping_method < 0) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should >= 0.");
+    }
+    if (fixed_grouping_method >= group.size()) {
+      PRINT_INPUT_ERROR("Grouping method for 'fix' should < number of grouping methods.");
+    }
+    if (!is_valid_int(param[2], &fixed_group)) {
+      PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+    }
+  } else {
+    // fix group_id (default grouping_method = 0)
+    fixed_grouping_method = 0;
+    if (!is_valid_int(param[1], &fixed_group)) {
+      PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
+    }
+  }
+
   if (fixed_group < 0) {
     PRINT_INPUT_ERROR("Fixed group ID should >= 0.");
   }
 
-  if (fixed_group >= group[0].number) {
+  if (fixed_group >= group[fixed_grouping_method].number) {
     PRINT_INPUT_ERROR("Fixed group ID should < number of groups.");
   }
 
-  printf("Group %d in grouping method 0 will be fixed.\n", fixed_group);
+  printf(
+    "Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
 }
 
 void Integrate::parse_move(const char** param, int num_param, std::vector<Group>& group)
 {
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("Keyword 'move' should have 4 parameters.");
-  }
-
-  if (!is_valid_int(param[1], &move_group)) {
-    PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+  if (num_param != 5 && num_param != 6) {
+    PRINT_INPUT_ERROR("Keyword 'move' should have 4 or 5 parameters.");
   }
 
   if (group.size() < 1) {
     PRINT_INPUT_ERROR("Cannot use 'move' without grouping method.");
   }
 
+  int vid; // index where vx starts
+  if (num_param == 6) {
+    // move grouping_method group_id vx vy vz
+    if (!is_valid_int(param[1], &move_grouping_method)) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should be an integer.");
+    }
+    if (move_grouping_method < 0) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should >= 0.");
+    }
+    if (move_grouping_method >= group.size()) {
+      PRINT_INPUT_ERROR("Grouping method for 'move' should < number of grouping methods.");
+    }
+    if (!is_valid_int(param[2], &move_group)) {
+      PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+    }
+    vid = 3;
+  } else {
+    // move group_id vx vy vz (default grouping_method = 0)
+    move_grouping_method = 0;
+    if (!is_valid_int(param[1], &move_group)) {
+      PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+    }
+    vid = 2;
+  }
+
   if (move_group < 0) {
     PRINT_INPUT_ERROR("Moving group ID should >= 0.");
   }
 
-  if (move_group >= group[0].number) {
+  if (move_group >= group[move_grouping_method].number) {
     PRINT_INPUT_ERROR("Moving group ID should < number of groups.");
   }
 
-  if (!is_valid_real(param[2], &move_velocity[0])) {
+  if (!is_valid_real(param[vid], &move_velocity[0])) {
     PRINT_INPUT_ERROR("Moving velocity in x direction should be a number.");
   }
-  if (!is_valid_real(param[3], &move_velocity[1])) {
+  if (!is_valid_real(param[vid + 1], &move_velocity[1])) {
     PRINT_INPUT_ERROR("Moving velocity in y direction should be a number.");
   }
-  if (!is_valid_real(param[4], &move_velocity[2])) {
+  if (!is_valid_real(param[vid + 2], &move_velocity[2])) {
     PRINT_INPUT_ERROR("Moving velocity in z direction should be a number.");
   }
 
   printf(
-    "Group %d in grouping method 0 will move with velocity vector (%g, %g, %g) A/fs.\n",
+    "Group %d in grouping method %d will move with velocity vector (%g, %g, %g) A/fs.\n",
     move_group,
+    move_grouping_method,
     move_velocity[0],
     move_velocity[1],
     move_velocity[2]);

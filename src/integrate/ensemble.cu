@@ -299,7 +299,7 @@ void Ensemble::velocity_verlet_v()
   int n = atom->number_of_atoms;
   const int* group_pointer;
   if (group->size())
-    group_pointer = (*group)[0].label.data();
+    group_pointer = (*group)[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
 
@@ -324,7 +324,7 @@ void Ensemble::velocity_verlet_x()
   int n = atom->number_of_atoms;
   const int* group_pointer;
   if (group->size())
-    group_pointer = (*group)[0].label.data();
+    group_pointer = (*group)[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
   gpu_velocity_verlet_x<<<(n - 1) / 128 + 1, 128>>>(
@@ -380,7 +380,7 @@ void Ensemble::velocity_verlet(
       move_velocity[0],
       move_velocity[1],
       move_velocity[2],
-      group[0].label.data(),
+      group[fixed_grouping_method].label.data(),
       time_step,
       mass.data(),
       position_per_atom.data(),
@@ -646,10 +646,10 @@ void Ensemble::find_thermo(
   const int number_of_atoms = mass.size();
   int num_atoms_for_temperature = number_of_atoms;
   if (fixed_group >= 0) {
-    num_atoms_for_temperature -= group[0].cpu_size[fixed_group];
+    num_atoms_for_temperature -= group[fixed_grouping_method].cpu_size[fixed_group];
   }
   if (move_group >= 0) {
-    num_atoms_for_temperature -= group[0].cpu_size[move_group];
+    num_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
   }
 
   gpu_find_thermo_instant_temperature<<<8, 1024>>>(
