@@ -21,6 +21,8 @@ Value  Model description
 2      qNEP model with charge, including reciprocal-space contribution only
 =====  ================================================================================
 
-Here, qNEP means NEP with charge (q). 
+Here, qNEP means NEP with charge (q) [Fan2026]_.
+Mode 1 in consistent with the approach first proposed by Song et al. [Song2024b]_.
+Mode 2 in consistent with the approach first proposed by Cheng [Cheng2025]_.
 To train a qNEP model, we do not need to provide target charges.
 One can choose to provide target Born effective charges (:term:`BEC`), but this usually only works for a single matter in a single phase, as we have assumed a constant high-frequency dielectric constant for the whole training dataset.
