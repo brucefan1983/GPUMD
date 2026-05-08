@@ -142,10 +142,9 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
 {
   printf("Add electric field.\n");
 
-  std::string mode_str = "bec";
   bool use_file_input = false;
-
   is_nep_charge = check_is_nep_charge();
+  std::string mode_str = is_nep_charge ? "bec" : "charge";
 
   if (num_param == 7) {
     mode_str = param[6];
