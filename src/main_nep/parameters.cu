@@ -926,13 +926,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 16) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
+  } else if (basis_size_radial > 8) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 8.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 12) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
+  } else if (basis_size_angular > 8) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 8.");
   }
 }
 
