@@ -168,12 +168,15 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
   if (is_nep_charge) {
     if (mode_str == "bec") {
       use_bec_[num_calls_] = true;
+      printf("    using the BEC values predicted by the NEP-Charge model.\n");
     } else {
       use_bec_[num_calls_] = false;
+      printf("    using the charge values predicted by the NEP-Charge model.\n");
     }
   } else {
     if (mode_str == "bec") {
       PRINT_INPUT_ERROR("Cannot use bec for non-qNEP models.\n");
+      printf("    using the charge values specified in model.xyz.\n");
     } else {
       use_bec_[num_calls_] = false;
     }
