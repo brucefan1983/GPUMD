@@ -476,8 +476,6 @@ void MSD::postprocess(
   if (!compute_)
     return;
   write("msd.out");
-  compute_ = false;
-  grouping_method_ = -1;
   
   if (calc_ion_conductivity_) {
     const double volume = box.get_volume();
@@ -489,6 +487,9 @@ void MSD::postprocess(
     printf("   Sigma_z: %g mS/cm\n", cz);
     printf("   Sigma_total: %g mS/cm\n", ct);
   }
+
+  compute_ = false;
+  grouping_method_ = -1;
 }
 
 MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
