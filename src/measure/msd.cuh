@@ -29,6 +29,7 @@ public:
   int grouping_method_ = -1;
   int group_id_ = -1;
   bool msd_over_all_groups_ = false;
+  bool calc_ion_conductivity_ = false;
 
   virtual void preprocess(
     const int number_of_steps,
@@ -62,6 +63,11 @@ public:
     const double temperature);
 
   virtual void write(const char* filename);
+  virtual void calc_ion_conductivity(
+    const int z, 
+    const double temp, 
+    const double vol, 
+    const int n);
 
   MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom);
   void parse(const char** param, const int num_param, const std::vector<Group>& groups);
@@ -79,4 +85,6 @@ private:
   GPU_Vector<double> msdx_, msdy_, msdz_;
   GPU_Vector<double> msdx_out_, msdy_out_, msdz_out_;  // holds output for writing
   GPU_Vector<int> group_per_atom_gpu_;
+  double species_charge_ = 0.0; // for computing ion conductivity
+  double cx, cy, cz, ct; // ionic conductivity in each direction
 };

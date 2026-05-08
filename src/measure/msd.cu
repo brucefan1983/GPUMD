@@ -200,6 +200,24 @@ __global__ void gpu_find_msd(
       }
     }
   }
+
+double linear_fit(const std::vector<double>& x, const std::vector<double>& y)
+{
+  const int n = x.size();
+  double sum_x = 0.0, sum_y = 0.0;
+  double sum_xy = 0.0, sum_x2 = 0.0;
+
+  for (int i = 0; i < n; ++i) {
+      sum_x  += x[i];
+      sum_y  += y[i];
+      sum_xy += x[i] * y[i];
+      sum_x2 += x[i] * x[i];
+  }
+
+  const double denom = n * sum_x2 - sum_x * sum_x;
+  const double slope = (n * sum_xy - sum_x * sum_y) / denom;
+  return slope;
+}
 } //namespace
 
 void MSD::preprocess(
@@ -417,7 +435,35 @@ void MSD::write(const char* filename)
   fclose(fid);
 }
 
+void MSD::calc_ion_conductivity(
+  const int z, 
+  const double temp, 
+  const double vol, 
+  const int n)
+{
+  double e   = 1.602176634e-19;    // Elementary charge, C
+  double kB   = 1.380649e-23;     // Boltzmann constant, J/K
+  float factor = 5e22 * n * z * z * e * e  / (vol * kB * temp);
 
+  const int start = 0.1 * num_correlation_steps_;
+  const int end   = 0.4 * num_correlation_steps_;
+  const int len   = end - start;
+  std::vector<double> t(len), mx(len), my(len), mz(len), mt(len);
+
+  for (int i = 0; i < len; ++i) {
+    int j = start + i;
+    t[i]  = j * dt_in_ps_;
+    mx[i] = msdx_out_[j];
+    my[i] = msdy_out_[j];
+    mz[i] = msdz_out_[j];
+    mt[i] = msdx_out_[j] + msdy_out_[j] + msdz_out_[j];
+  }
+
+  cx = linear_fit(t, mx) * factor; // convert from A^2/ps to cm^2/s
+  cy = linear_fit(t, my) * factor;
+  cz = linear_fit(t, mz) * factor;
+  ct = linear_fit(t, mt) * factor / 3.0;
+}
 
 void MSD::postprocess(
   Atom& atom,
@@ -432,6 +478,17 @@ void MSD::postprocess(
   write("msd.out");
   compute_ = false;
   grouping_method_ = -1;
+  
+  if (calc_ion_conductivity_) {
+    const double volume = box.get_volume();
+    calc_ion_conductivity(species_charge_, temperature, volume, num_atoms_);
+
+    printf("   Ionic conductivity of Group %d in Grouping Method %d:\n", group_id_, grouping_method_);
+    printf("   Sigma_x: %g mS/cm\n", cx);
+    printf("   Sigma_y: %g mS/cm\n", cy);
+    printf("   Sigma_z: %g mS/cm\n", cz);
+    printf("   Sigma_total: %g mS/cm\n", ct);
+  }
 }
 
 MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
@@ -481,10 +538,18 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
 
+      if (strcmp(param[6], "charge") == 0) {
+        calc_ion_conductivity_ = true;
+        if (!is_valid_real(param[7], &species_charge_)) {
+          PRINT_INPUT_ERROR("species charge should be a real number.\n");
+        }
+        printf("    will compute ion conductivity for atoms in group %d with charge %g.\n", group_id_, species_charge_);
+        k += 2; // update index for next command
+      }
     } else if (strcmp(param[k], "all_groups") == 0) {
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
-     if (!is_valid_int(param[4], &grouping_method_)) {
+     if (!is_valid_int(param[k+1], &grouping_method_)) {
         PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
       }
       if (grouping_method_ < 0) {
