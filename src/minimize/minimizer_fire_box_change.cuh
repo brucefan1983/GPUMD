@@ -35,22 +35,19 @@ private:
   int N_pos = 0;
   double P;
   int hydrostatic_strain = 0;
+  int freeze_diagonal = -1;  // -1: no freeze, 0: xx, 1: yy, 2: zz
 
 public:
-  Minimizer_FIRE_Box_Change(
-    const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
-  {
-  }
-
   Minimizer_FIRE_Box_Change(
     const int number_of_atoms,
     const int number_of_steps,
     const double force_tolerance,
-    const int _hydrostatic_strain)
+    const int _hydrostatic_strain = 0,
+    const int _freeze_diagonal = -1)
     : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
   {
     hydrostatic_strain = _hydrostatic_strain;
+    freeze_diagonal = _freeze_diagonal;
   }
 
   void compute(

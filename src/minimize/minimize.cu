@@ -67,8 +67,8 @@ void Minimize::parse_minimize(
   } else if (strcmp(param[1], "fire") == 0) {
     minimizer_type = 1;
 
-    if (!((num_param >= 4) && (num_param <= 6))) {
-      PRINT_INPUT_ERROR("minimize fire should have 2 to 4 parameters.");
+    if (!((num_param >= 4) && (num_param <= 7))) {
+      PRINT_INPUT_ERROR("minimize fire should have 2 to 5 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {
@@ -103,6 +103,16 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
+
+    if (num_param >= 7) {
+      int freeze_diagonal_input = 0;
+      if (!is_valid_int(param[6], &freeze_diagonal_input)) {
+        PRINT_INPUT_ERROR("Freeze_diagonal should be an integer.");
+      }
+      if (!(freeze_diagonal_input >= 0 && freeze_diagonal_input <= 3)) {
+        PRINT_INPUT_ERROR("Freeze_diagonal should be 0, 1, 2, or 3.");
+      }
+    }
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
@@ -133,22 +143,34 @@ void Minimize::parse_minimize(
       minimizer->compute(force, box, atom, atom.position_per_atom, group);
 
       break;
-    case 2:
+    case 2: {
+      int freeze_diagonal_input = 0;
+      if (num_param >= 7) {
+        freeze_diagonal_input = atoi(param[6]);
+      }
+      // convert: 0=none(-1), 1=xx(0), 2=yy(1), 3=zz(2)
+      int freeze_diagonal = freeze_diagonal_input - 1;
+
       printf("\nStart to do an energy minimization.\n");
       printf("    using the fast inertial relaxation engine (FIRE) method.\n");
       printf("    with variable box.\n");
       if (hydrostatic_strain == 1) {
         printf("    with hydrostatic pressure.\n");
       }
+      if (freeze_diagonal >= 0) {
+        const char* names[] = {"xx", "yy", "zz"};
+        printf("    with frozen diagonal %s.\n", names[freeze_diagonal]);
+      }
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
       minimizer.reset(new Minimizer_FIRE_Box_Change(
-        atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+        atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain, freeze_diagonal));
 
       minimizer->compute(force, box, atom, atom.position_per_atom, group);
 
       break;
+    }
     default:
       PRINT_INPUT_ERROR("Invalid minimizer.");
       break;

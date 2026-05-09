@@ -256,6 +256,14 @@ void Minimizer_FIRE_Box_Change::compute(
   double L_scale = std::cbrt(box.get_volume());
   const double stress_tolerance_GPa = 1e-4;
 
+  // freeze_diagonal: -1=none, 0=xx, 1=yy, 2=zz
+  int frozen_idx = -1;
+  double saved_h = 0.0;
+  if (freeze_diagonal >= 0) {
+    frozen_idx = (freeze_diagonal == 0) ? 0 : (freeze_diagonal == 1) ? 4 : 8;
+    saved_h = box.cpu_h[frozen_idx];
+  }
+
   printf("\nEnergy minimization with changed box started.\n");
 
   for (int step = 0; step < number_of_steps_; ++step) {
@@ -280,6 +288,11 @@ void Minimizer_FIRE_Box_Change::compute(
     double virial_cpu[9];
     virialtot.copy_to_host(virial_cpu);
 
+    // freeze: zero the virial driving force for the frozen diagonal
+    if (freeze_diagonal >= 0) {
+      virial_cpu[frozen_idx] = 0.0;
+    }
+
     double current_volume = box.get_volume();
     double stress_GPa[9];
     double max_stress_component = 0.0;
@@ -300,6 +313,9 @@ void Minimizer_FIRE_Box_Change::compute(
       virial_cpu[8] = trace_virial / 3.0;
     } else {
       for (int i = 0; i < 9; i++) {
+        // skip frozen diagonal in max stress check
+        if (freeze_diagonal >= 0 && i == frozen_idx)
+          continue;
         max_stress_component = std::max(max_stress_component, std::abs(stress_GPa[i]));
       }
     }
@@ -374,6 +390,12 @@ void Minimizer_FIRE_Box_Change::compute(
     }
     vector_sum(temp1, temp2, v);
 
+    // freeze: zero the box velocity for the frozen diagonal on device
+    if (freeze_diagonal >= 0) {
+      double zero = 0.0;
+      gpuMemcpy(v.data() + size + frozen_idx, &zero, sizeof(double), gpuMemcpyHostToDevice);
+    }
+
     double v_box_cpu[9];
     gpuMemcpy(v_box_cpu, v.data() + size, 9 * sizeof(double), gpuMemcpyDeviceToHost);
 
@@ -387,6 +409,12 @@ void Minimizer_FIRE_Box_Change::compute(
     matrix_multiply(dEps, box.cpu_h, dH);
     for (int i = 0; i < 9; i++)
       box.cpu_h[i] += dH[i];
+
+    // freeze: restore the frozen diagonal to its original value
+    if (freeze_diagonal >= 0) {
+      box.cpu_h[frozen_idx] = saved_h;
+    }
+
     box.get_inverse();
 
     // 2. dr = v*dt + dEps*r
