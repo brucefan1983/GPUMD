@@ -137,4 +137,11 @@ The last two parts can be directly copied from the fourth line of the original p
 
 Since the first three lines are comments, this modification does not affect usage in LAMMPS.
 
+Maximum neighbour count (``eam/alloy``)
+----------------------------------------
+
+For the ``eam/alloy`` form, the :ref:`potential <kw_potential>` keyword accepts an optional second argument that sets the per-atom upper bound on neighbours used to allocate the neighbour list on the GPU::
+
+   potential <potential_file>          # default: max_neighbor = 400
+   potential <potential_file> 150      # smaller value to save GPU memory
 
