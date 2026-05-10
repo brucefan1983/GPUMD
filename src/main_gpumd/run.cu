@@ -55,6 +55,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/lsqt.cuh"
 #include "measure/measure.cuh"
 #include "measure/modal_analysis.cuh"
+#include "measure/iron_conductivity.cuh"
 #include "measure/msd.cuh"
 #include "measure/orientorder.cuh"
 #include "measure/plumed.cuh"
@@ -475,6 +476,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_msd") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new MSD(param, num_param, group, atom));
+    measure.properties.emplace_back(std::move(property));
+  } else if (strcmp(param[0], "compute_ic") == 0) {
+    std::unique_ptr<Property> property;
+    property.reset(new IC(param, num_param, atom));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
     std::unique_ptr<Property> property;
