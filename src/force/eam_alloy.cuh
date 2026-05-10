@@ -21,20 +21,10 @@
 
 struct EAMAlloy_Data {
 
-  GPU_Vector<int> NN, NL;
-  GPU_Vector<float> F_rho_a_g;
-  GPU_Vector<float> F_rho_b_g;
-  GPU_Vector<float> F_rho_c_g;
-  GPU_Vector<float> F_rho_d_g;
-  GPU_Vector<float> rho_r_a_g;
-  GPU_Vector<float> rho_r_b_g;
-  GPU_Vector<float> rho_r_c_g;
-  GPU_Vector<float> rho_r_d_g;
-  GPU_Vector<float> phi_r_a_g;
-  GPU_Vector<float> phi_r_b_g;
-  GPU_Vector<float> phi_r_c_g;
-  GPU_Vector<float> phi_r_d_g;
-  GPU_Vector<float> d_F_rho_i_g;
+  GPU_Vector<float4> F_rho_g;    // size = Nelements * nrho
+  GPU_Vector<float4> rho_r_g;    // size = Nelements * nr
+  GPU_Vector<float4> phi_r_g;    // size = Nelements * Nelements * nr   (r*phi)
+  GPU_Vector<float> d_F_rho_i_g; // dF/drho per atom
 
   int Nelements;
   std::vector<std::string> elements_list;
@@ -43,28 +33,14 @@ struct EAMAlloy_Data {
   int nr;
   float dr;
   float rc;
-  std::vector<float> F_rho;
-  std::vector<float> rho_r;
-  std::vector<float> phi_r;
-  std::vector<float> F_rho_a;
-  std::vector<float> F_rho_b;
-  std::vector<float> F_rho_c;
-  std::vector<float> F_rho_d;
-  std::vector<float> rho_r_a;
-  std::vector<float> rho_r_b;
-  std::vector<float> rho_r_c;
-  std::vector<float> rho_r_d;
-  std::vector<float> phi_r_a;
-  std::vector<float> phi_r_b;
-  std::vector<float> phi_r_c;
-  std::vector<float> phi_r_d;
 };
 
 class EAMAlloy : public Potential
 {
 public:
   using Potential::compute;
-  EAMAlloy(const char*, const int number_of_atoms);
+
+  EAMAlloy(const char*, const int number_of_atoms, const int max_neighbor = 400);
   virtual ~EAMAlloy(void);
   virtual void compute(
     Box& box,
