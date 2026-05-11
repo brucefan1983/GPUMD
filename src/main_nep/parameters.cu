@@ -952,8 +952,8 @@ void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param != 2 && num_param != 3 && num_param != 4) {
-    PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
+  if (num_param < 2 || num_param > 6) {
+    PRINT_INPUT_ERROR("l_max should have 1 to 5 parameters.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
