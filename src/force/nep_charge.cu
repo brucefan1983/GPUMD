@@ -519,7 +519,8 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -822,6 +823,7 @@ static __global__ void find_bec_angular(
         }
         accumulate_f12(
           paramb.L_max,
+          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -1067,6 +1069,7 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(
           paramb.L_max,
+          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
