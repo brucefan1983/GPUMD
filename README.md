@@ -148,10 +148,10 @@ ACS Nano **19**, 16287 (2025).
 [Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
 Computer Physics Communications **320**, 109994 (2026).
 
-[Fan2026a] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://arxiv.org/abs/2601.19034), arXiv:2601.19034 [physics.comp-ph].
+[Fan2026a] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://doi.org/10.1021/acs.jctc.6c00146), Journal of Chemical Theory and Computation (2026).
 
 [Li2025] Mingqian Li, Lifeng Wang, Zhuoqun Zheng, [Coarse-grained machine learning potential for mesoscale multilayered graphene](https://doi.org/10.1038/s41524-025-01849-2), npj Computational Materials **11**, 374 (2025).
 
-[Fan2026b] Zheyong Fan, Wenjun Zhang, Zhenhao Zhang, Ke Xu, Xuecheng Shao, Haikuan Dong, [NEP-CG and NEP-AACG: Efficient coarse-grained and multiscale all-atom-coarse-grained neuroevolution potentials](https://arxiv.org/abs/2603.01234), arXiv:2603.01234 [physics.comp-ph] (2026).
+[Fan2026b] Zheyong Fan, Wenjun Zhang, Zhenhao Zhang, Ke Xu, Xuecheng Shao, Haikuan Dong, [NEP-CG and NEP-AACG: Efficient coarse-grained and multiscale all-atom-coarse-grained neuroevolution potentials](https://doi.org/10.1016/j.commt.2026.100055), Computational Materials Today **10**, 100055 (2026).
 
 [Bu2026] Hekai Bu, Wenwu Jiang, Penghua Ying, Ting Liang, Zheyong Fan, and Wengen Ouyang, [Modular hybrid machine learning and physics-based potentials for scalable modeling of Van der Waals heterostructures](https://doi.org/10.1016/j.jmps.2026.106540), J. Mech. Phys. Solids **210**, 106540 (2026).
