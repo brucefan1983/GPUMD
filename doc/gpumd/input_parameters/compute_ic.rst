@@ -19,7 +19,7 @@ with parameters defined as
 
 * :attr:`sample_interval`: Sampling interval of the position data
 * :attr:`Nc`: Maximum number of correlation steps
-* :attr:`type_iex`: Type index of the atom to compute. The index using the NEP potential
+* :attr:`type_iex`: Type index of atom to be calculated which in potential
 * :attr:`charge`: Charge of the ion to compute the conductivity.
 
 
