@@ -255,8 +255,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 
   // l_max
   tokens = get_tokens(input);
-  if (tokens.size() != 4) {
-    std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
+  if (tokens.size() < 4) {
+    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_1122]." << std::endl;
     exit(1);
   }
 
@@ -264,14 +264,28 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
-  int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  printf("    l_max_4body = %d.\n", L_max_4body);
-  printf("    l_max_5body = %d.\n", L_max_5body);
-  if (L_max_4body == 2) {
+  paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  if (tokens.size() >= 5) {
+    paramb.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  }
+  if (tokens.size() >= 6) {
+    paramb.has_q_1122 = get_int_from_token(tokens[5], __FILE__, __LINE__);
+  }
+  printf("    has_q_222 = %d.\n", paramb.has_q_222);
+  printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
+  printf("    has_q_112 = %d.\n", paramb.has_q_112);
+  printf("    has_q_1122 = %d.\n", paramb.has_q_1122);
+  if (paramb.has_q_222) {
     paramb.num_L += 1;
   }
-  if (L_max_5body == 1) {
+  if (paramb.has_q_1111) {
+    paramb.num_L += 1;
+  }
+  if (paramb.has_q_112) {
+    paramb.num_L += 1;
+  }
+  if (paramb.has_q_1122) {
     paramb.num_L += 1;
   }
 
