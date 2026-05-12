@@ -35,4 +35,5 @@ private:
   int grouping_method_[10];
   int group_id_[10];
   bool is_nep_charge = false;
+  bool use_bec_[10];
 };
