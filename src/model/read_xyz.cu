@@ -494,6 +494,7 @@ void initialize_position(
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
+  atom.number_of_atoms_max = atom.number_of_atoms;
   int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
