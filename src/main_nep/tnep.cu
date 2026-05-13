@@ -292,9 +292,6 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= ann.one_ann_no_bias;
-    }
     ann.wb[t] = pointer;
     pointer += ann.one_ann_no_bias;
   }
@@ -303,9 +300,6 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
 
   if (para.train_mode == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-        pointer -= ann.one_ann_no_bias;
-      }
       ann.wb_pol[t] = pointer;
       pointer += ann.one_ann_no_bias;
     }
