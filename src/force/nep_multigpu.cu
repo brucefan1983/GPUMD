@@ -292,11 +292,9 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
-  } else if (paramb.version == 4) {
+  if (paramb.version == 4) {
     annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
-  } else {
+  } else if (paramb.version == 5) {
     annmb[0].num_para_ann = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
   }
 

@@ -289,11 +289,9 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 + 1;
-  } else if (paramb.version == 4) {
+  if (paramb.version == 4) {
     annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  } else {
+  } else if (paramb.version == 5) {
     annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
   }
   if (paramb.model_type == 2) {
