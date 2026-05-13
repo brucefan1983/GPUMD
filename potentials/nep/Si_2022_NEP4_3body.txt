@@ -1,4 +1,4 @@
-nep3 1 Si 
+nep4 1 Si 
 cutoff 5 5 53 53
 n_max 10 10
 basis_size 10 10
