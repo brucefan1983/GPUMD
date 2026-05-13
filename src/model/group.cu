@@ -22,11 +22,11 @@ The class defining the grouping methods
 #include <vector>
 #include <cstring>
 
-void Group::find_size(const int N, const int k)
+void Group::find_size(const int number_of_atoms_max, const int k)
 {
   cpu_size.resize(number);
   cpu_size_sum.resize(number);
-  cpu_contents.resize(N);
+  cpu_contents.resize(number_of_atoms_max);
 
   if (number == 1) {
     printf("There is only one group of atoms in grouping method %d.\n", k);
@@ -39,7 +39,7 @@ void Group::find_size(const int N, const int k)
     cpu_size_sum[m] = 0;
   }
 
-  for (int n = 0; n < N; n++) {
+  for (int n = 0; n < number_of_atoms_max; n++) {
     cpu_size[cpu_label[n]]++;
   }
 
@@ -55,14 +55,14 @@ void Group::find_size(const int N, const int k)
 }
 
 // re-arrange the atoms from the first to the last group
-void Group::find_contents(const int N)
+void Group::find_contents(const int number_of_atoms_max)
 {
   std::vector<int> offset(number);
   for (int m = 0; m < number; m++) {
     offset[m] = 0;
   }
 
-  for (int n = 0; n < N; n++) {
+  for (int n = 0; n < number_of_atoms_max; n++) {
     for (int m = 0; m < number; m++) {
       if (cpu_label[n] == m) {
         cpu_contents[cpu_size_sum[m] + offset[m]++] = n;

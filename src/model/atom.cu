@@ -26,7 +26,7 @@ The class defining the simulation box.
 int Atom::number_of_type(std::string& symbol)
 {
   int sum = 0;
-  for (int i = 0; i < number_of_atoms; i++) {
+  for (int i = 0; i < number_of_atoms_max; i++) {
     if (cpu_atom_symbol[i] == symbol)
       sum++;
   }

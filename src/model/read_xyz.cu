@@ -506,8 +506,8 @@ void initialize_position(
   input.close();
 
   for (int m = 0; m < group.size(); ++m) {
-    group[m].find_size(atom.number_of_atoms, m);
-    group[m].find_contents(atom.number_of_atoms);
+    group[m].find_size(atom.number_of_atoms_max, m);
+    group[m].find_contents(atom.number_of_atoms_max);
   }
 
   find_type_size(atom, number_of_types);
