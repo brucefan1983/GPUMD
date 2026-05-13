@@ -138,17 +138,17 @@ const std::map<std::string, double> MASS_TABLE{
   {"No", 259},
   {"Lr", 262}};
 
-static void read_xyz_line_1(std::ifstream& input, int& N)
+static void read_xyz_line_1(std::ifstream& input, int& number_of_atoms)
 {
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 1) {
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
-  N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
+  number_of_atoms = get_int_from_token(tokens[0], __FILE__, __LINE__);
+  if (number_of_atoms < 2) {
     PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   } else {
-    printf("Number of atoms is %d.\n", N);
+    printf("Number of atoms is %d.\n", number_of_atoms);
   }
 }
 
@@ -311,7 +311,6 @@ static void read_xyz_line_2(
 
 void read_xyz_in_line_3(
   std::ifstream& input,
-  const int N,
   const int has_velocity_in_xyz,
   const bool has_mass,
   const bool has_charge,
@@ -319,39 +318,33 @@ void read_xyz_in_line_3(
   const int* property_offset,
   int& number_of_types,
   std::vector<std::string>& atom_symbols,
-  std::vector<std::string>& cpu_atom_symbol,
-  std::vector<int>& cpu_type,
-  std::vector<double>& cpu_mass,
-  std::vector<float>& cpu_charge,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
+  Atom& atom,
   std::vector<Group>& group)
 {
-  cpu_atom_symbol.resize(N);
-  cpu_type.resize(N);
-  cpu_mass.resize(N);
-  cpu_charge.resize(N, 0.0);
-  cpu_position_per_atom.resize(N * 3);
-  cpu_velocity_per_atom.resize(N * 3);
-  number_of_types = atom_symbols.size();
+  atom.cpu_atom_symbol.resize(atom.number_of_atoms_max);
+  atom.cpu_type.resize(atom.number_of_atoms_max);
+  atom.cpu_mass.resize(atom.number_of_atoms_max);
+  atom.cpu_charge.resize(atom.number_of_atoms_max, 0.0);
+  atom.cpu_position_per_atom.resize(atom.number_of_atoms_max * 3);
+  atom.cpu_velocity_per_atom.resize(atom.number_of_atoms_max * 3);
 
   for (int m = 0; m < group.size(); ++m) {
-    group[m].cpu_label.resize(N);
+    group[m].cpu_label.resize(atom.number_of_atoms_max);
     group[m].number = 0;
   }
 
-  for (int n = 0; n < N; n++) {
+  for (int n = 0; n < atom.number_of_atoms_max; n++) {
     std::vector<std::string> tokens = get_tokens(input);
     if (tokens.size() != num_columns) {
       PRINT_INPUT_ERROR("number of columns does not match properties.\n");
     }
 
-    cpu_atom_symbol[n] = tokens[property_offset[0]];
+    atom.cpu_atom_symbol[n] = tokens[property_offset[0]];
 
     bool is_allowed_element = false;
     for (int t = 0; t < number_of_types; ++t) {
-      if (cpu_atom_symbol[n] == atom_symbols[t]) {
-        cpu_type[n] = t;
+      if (atom.cpu_atom_symbol[n] == atom_symbols[t]) {
+        atom.cpu_type[n] = t;
         is_allowed_element = true;
       }
     }
@@ -360,27 +353,27 @@ void read_xyz_in_line_3(
     }
 
     for (int d = 0; d < 3; ++d) {
-      cpu_position_per_atom[n + N * d] =
+      atom.cpu_position_per_atom[n + atom.number_of_atoms_max * d] =
         get_double_from_token(tokens[property_offset[1] + d], __FILE__, __LINE__);
     }
 
     if (has_mass) {
-      cpu_mass[n] = get_double_from_token(tokens[property_offset[2]], __FILE__, __LINE__);
-      if (cpu_mass[n] <= 0) {
+      atom.cpu_mass[n] = get_double_from_token(tokens[property_offset[2]], __FILE__, __LINE__);
+      if (atom.cpu_mass[n] <= 0) {
         PRINT_INPUT_ERROR("Atom mass should > 0.");
       }
     } else {
-      cpu_mass[n] = MASS_TABLE.at(cpu_atom_symbol[n]);
+      atom.cpu_mass[n] = MASS_TABLE.at(atom.cpu_atom_symbol[n]);
     }
 
     if (has_charge) {
-      cpu_charge[n] = get_double_from_token(tokens[property_offset[3]], __FILE__, __LINE__);
+      atom.cpu_charge[n] = get_double_from_token(tokens[property_offset[3]], __FILE__, __LINE__);
     }
 
     if (has_velocity_in_xyz) {
       const double A_per_fs_to_natural = TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
-        cpu_velocity_per_atom[n + N * d] =
+        atom.cpu_velocity_per_atom[n + atom.number_of_atoms_max * d] =
           get_double_from_token(tokens[property_offset[4] + d], __FILE__, __LINE__) *
           A_per_fs_to_natural;
       }
@@ -389,7 +382,7 @@ void read_xyz_in_line_3(
     for (int m = 0; m < group.size(); ++m) {
       group[m].cpu_label[n] =
         get_int_from_token(tokens[property_offset[5] + m], __FILE__, __LINE__);
-      if (group[m].cpu_label[n] < 0 || group[m].cpu_label[n] >= N) {
+      if (group[m].cpu_label[n] < 0 || group[m].cpu_label[n] >= atom.number_of_atoms_max) {
         PRINT_INPUT_ERROR("Group label should >= 0 and < N.");
       }
       if ((group[m].cpu_label[n] + 1) > group[m].number) {
@@ -399,13 +392,9 @@ void read_xyz_in_line_3(
   }
 }
 
-void find_type_size(
-  const int N,
-  const int number_of_types,
-  const std::vector<int>& cpu_type,
-  std::vector<int>& cpu_type_size)
+void find_type_size(Atom& atom, const int number_of_types)
 {
-  cpu_type_size.resize(number_of_types);
+  atom.cpu_type_size.resize(number_of_types);
 
   if (number_of_types == 1) {
     printf("There is only one atom type.\n");
@@ -414,13 +403,13 @@ void find_type_size(
   }
 
   for (int m = 0; m < number_of_types; m++) {
-    cpu_type_size[m] = 0;
+    atom.cpu_type_size[m] = 0;
   }
-  for (int n = 0; n < N; n++) {
-    cpu_type_size[cpu_type[n]]++;
+  for (int n = 0; n < atom.number_of_atoms_max; n++) {
+    atom.cpu_type_size[atom.cpu_type[n]]++;
   }
   for (int m = 0; m < number_of_types; m++) {
-    printf("    %d atoms of type %d.\n", cpu_type_size[m], m);
+    printf("    %d atoms of type %d.\n", atom.cpu_type_size[m], m);
   }
 }
 
@@ -504,7 +493,6 @@ void initialize_position(
 
   read_xyz_in_line_3(
     input,
-    atom.number_of_atoms,
     has_velocity_in_xyz,
     has_mass,
     has_charge,
@@ -512,12 +500,7 @@ void initialize_position(
     property_offset,
     number_of_types,
     atom_symbols,
-    atom.cpu_atom_symbol,
-    atom.cpu_type,
-    atom.cpu_mass,
-    atom.cpu_charge,
-    atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom,
+    atom,
     group);
 
   input.close();
@@ -527,12 +510,12 @@ void initialize_position(
     group[m].find_contents(atom.number_of_atoms);
   }
 
-  find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
+  find_type_size(atom, number_of_types);
 }
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
-  const int N = atom.number_of_atoms;
+  const int N = atom.number_of_atoms_max;
   atom.type.resize(N);
   atom.type.copy_from_host(atom.cpu_type.data());
   for (int m = 0; m < group.size(); ++m) {
