@@ -32,7 +32,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/compute.cuh"
 #include "measure/compute_chunk.cuh"
 #include "measure/compute_dpdt.cuh"
-#include "measure/compute_es.cuh"
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
@@ -55,7 +54,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/lsqt.cuh"
 #include "measure/measure.cuh"
 #include "measure/modal_analysis.cuh"
-#include "measure/iron_conductivity.cuh"
 #include "measure/msd.cuh"
 #include "measure/orientorder.cuh"
 #include "measure/plumed.cuh"
@@ -145,6 +143,16 @@ static void calculate_time_step(
   }
 }
 
+#ifdef USE_PYSAGES
+static __global__ void gpu_add_external_bias(int N3, double* g_force, const double* g_bias)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N3) {
+    g_force[i] += g_bias[i];
+  }
+}
+#endif
+
 Run::Run()
 {
   print_line_1();
@@ -155,6 +163,11 @@ Run::Run()
   initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
 
   allocate_memory_gpu(group, atom, thermo);
+
+#ifdef USE_PYSAGES
+  external_bias_per_atom.resize(atom.number_of_atoms * 3);
+  external_bias_per_atom.fill(0.0);
+#endif
 
   velocity.initialize(
     has_velocity_in_xyz,
@@ -176,6 +189,50 @@ Run::Run()
   execute_run_in();
 }
 
+Run::Run(bool skip_run, const std::string& run_input_path)
+{
+  skip_run_commands = skip_run;
+  run_input_file = run_input_path;
+
+  print_line_1();
+  printf("Started initializing positions and related parameters.\n");
+  fflush(stdout);
+  print_line_2();
+
+  initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
+
+  allocate_memory_gpu(group, atom, thermo);
+
+#ifdef USE_PYSAGES
+  external_bias_per_atom.resize(atom.number_of_atoms * 3);
+  external_bias_per_atom.fill(0.0);
+#endif
+
+  velocity.initialize(
+    has_velocity_in_xyz,
+    300,
+    atom,
+    false,
+    123);
+  if (has_velocity_in_xyz) {
+    printf("Initialized velocities with data in model.xyz.\n");
+  } else {
+    printf("Initialized velocities with default T = 300 K.\n");
+  }
+
+  print_line_1();
+  printf("Finished initializing positions and related parameters.\n");
+  fflush(stdout);
+  print_line_2();
+
+  execute_run_in();
+}
+
+void Run::execute_run()
+{
+  perform_a_run();
+}
+
 void Run::execute_run_in()
 {
   print_line_1();
@@ -183,9 +240,9 @@ void Run::execute_run_in()
   fflush(stdout);
   print_line_2();
 
-  std::ifstream input("run.in");
+  std::ifstream input(run_input_file);
   if (!input.is_open()) {
-    std::cout << "Failed to open run.in." << std::endl;
+    std::cout << "Failed to open " << run_input_file << "." << std::endl;
     exit(1);
   }
 
@@ -291,6 +348,29 @@ void Run::perform_a_run()
     add_spring.compute(step, group, atom);
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom, force);
+
+#ifdef USE_PYSAGES
+    // ---- PySAGES / external-sampling hook ----
+    if (step_callback) {
+      try {
+        step_callback(step);
+      } catch (const std::exception& e) {
+        fprintf(stderr, "ERROR: step_callback threw at step %d: %s\n", step, e.what());
+        fflush(stderr);
+        throw;
+      }
+    }
+    if (external_bias_per_atom.size() > 0) {
+      int N3 = atom.number_of_atoms * 3;
+      gpu_add_external_bias<<<(N3 - 1) / 128 + 1, 128>>>(
+        N3,
+        atom.force_per_atom.data(),
+        external_bias_per_atom.data());
+      GPU_CHECK_KERNEL
+      external_bias_per_atom.fill(0.0);
+    }
+    // ------------------------------------------
+#endif
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 
@@ -477,10 +557,6 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     std::unique_ptr<Property> property;
     property.reset(new MSD(param, num_param, group, atom));
     measure.properties.emplace_back(std::move(property));
-  } else if (strcmp(param[0], "compute_ic") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new IC(param, num_param, atom));
-    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new RDF(param, num_param, box, atom.cpu_type_size, number_of_steps));
@@ -500,10 +576,6 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_dpdt") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Compute_dpdt(param, num_param));
-    measure.properties.emplace_back(std::move(property));
-  } else if (strcmp(param[0], "compute_es") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Compute_es(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_hac") == 0) {
     std::unique_ptr<Property> property;
@@ -680,7 +752,11 @@ void Run::parse_run(const char** param, int num_param)
   force.temperature = integrate.temperature1;
   force.delta_T = (integrate.temperature2 - integrate.temperature1) / number_of_steps;
 
-  perform_a_run();
+  if (!skip_run_commands) {
+    perform_a_run();
+  } else {
+    printf("  (skipping run execution in external-control mode)\n");
+  }
 }
 
 static __global__ void gpu_deform_atom(

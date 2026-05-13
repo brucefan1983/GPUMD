@@ -34,12 +34,42 @@ class Measure;
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
+#include <string>
 #include <vector>
+
+#ifdef USE_PYSAGES
+#include <functional>
+#endif
 
 class Run
 {
 public:
   Run();
+  Run(bool skip_run, const std::string& run_input_file);
+
+#ifdef USE_PYSAGES
+  // ---- PySAGES / external-sampling hook ----
+  // If set, called every timestep from within perform_a_run(),
+  // after all force computations and before integrate.compute2().
+  std::function<void(int)> step_callback;
+
+  // GPU buffer for external bias forces (N*3).  If non-empty, its
+  // contents are added to atom.force_per_atom every step.
+  GPU_Vector<double> external_bias_per_atom;
+  // ------------------------------------------
+#endif
+
+  // Accessors for Python wrapper
+  Atom& get_atom() { return atom; }
+  const Atom& get_atom() const { return atom; }
+  Box& get_box() { return box; }
+  const Box& get_box() const { return box; }
+  double get_time_step() const { return time_step; }
+  int get_number_of_steps() const { return number_of_steps; }
+  void set_number_of_steps(int n) { number_of_steps = n; }
+
+  // Execute the MD loop (callable from Python after set_number_of_steps)
+  void execute_run();
 
 private:
   void execute_run_in();
@@ -53,6 +83,9 @@ private:
   void parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group);
   void parse_time_step(const char** param, int num_param);
   void parse_run(const char** param, int num_param);
+
+  bool skip_run_commands = false;
+  std::string run_input_file = "run.in";
 
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;

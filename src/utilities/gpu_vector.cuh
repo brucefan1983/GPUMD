@@ -18,16 +18,21 @@
 #include "error.cuh"
 #include "gpu_macro.cuh"
 
+// Define the CUDA fill kernel only when compiling with nvcc.
+// When compiled by g++/clang++ (no __CUDACC__), gpu_fill is never
+// instantiated and fill() falls through to the CPU for-loop.
+#ifdef __CUDACC__
 namespace
 {
 template <typename T>
-void __global__ gpu_fill(const size_t size, const T value, T* data)
+__global__ void gpu_fill(const size_t size, const T value, T* data)
 {
   const int i = blockDim.x * blockIdx.x + threadIdx.x;
   if (i < size)
     data[i] = value;
 }
 } // anonymous namespace
+#endif // __CUDACC__
 
 enum class Memory_Type {
   global = 0, // global memory, also called (linear) device memory
@@ -179,10 +184,16 @@ public:
   void fill(const T value)
   {
     if (memory_type_ == Memory_Type::global) {
+#ifdef __CUDACC__
       const int block_size = 128;
       const int grid_size = (size_ + block_size - 1) / block_size;
       gpu_fill<<<grid_size, block_size>>>(size_, value, data_);
       GPU_CHECK_KERNEL
+#else
+      // Host compiler: nothing to do for global memory (only used when
+      // GPU_Vector is instantiated by nvcc; host code uses managed memory).
+      (void)value; // suppress unused-parameter warning
+#endif
     } else // managed (or unified) memory
     {
       for (int i = 0; i < size_; ++i)

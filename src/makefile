@@ -19,11 +19,59 @@ CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler -fPIC
 endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+
+# ---- Python / pybind11 configuration (for pygpumd target) ----
+PYBIND11_INC  := $(shell python3 -m pybind11 --includes 2>/dev/null)
+PYTHON_CFLAGS := $(shell python3-config --cflags 2>/dev/null)
+PYTHON_LDFLAGS:= $(shell python3-config --ldflags --embed 2>/dev/null)
+# If python3-config fails, fall back to simpler flags
+ifeq ($(PYTHON_CFLAGS),)
+  PYTHON_CFLAGS = -I/usr/include/python3
+  PYTHON_LDFLAGS = -lpython3
+endif
+# CUDA include path: needed because run.cuh transitively includes
+# headers (e.g. add_random_force.cuh) that require curand_kernel.h.
+# nvcc 11.x does not support --print-search-dirs, so we check common paths.
+ifneq ($(wildcard /usr/local/cuda-11.6/include/curand_kernel.h),)
+  CUDA_INC := /usr/local/cuda-11.6/include
+else ifneq ($(wildcard /usr/local/cuda-11.7/include/curand_kernel.h),)
+  CUDA_INC := /usr/local/cuda-11.7/include
+else ifneq ($(wildcard /usr/local/cuda-11.8/include/curand_kernel.h),)
+  CUDA_INC := /usr/local/cuda-11.8/include
+else ifneq ($(wildcard /usr/local/cuda-12.2/include/curand_kernel.h),)
+  CUDA_INC := /usr/local/cuda-12.2/include
+else ifneq ($(wildcard /usr/local/cuda/include/curand_kernel.h),)
+  CUDA_INC := /usr/local/cuda/include
+else
+  # last resort: user must override
+  CUDA_INC := /usr/local/cuda/targets/x86_64-linux/include
+endif
+# CUDA library path: needed for linking cublas, cusolver, cufft, cudart
+# nvcc 11.x does not support --print-search-dirs, so we rely on pkg-config
+# or a set of common CUDA install paths.
+CUDA_LIB := $(shell \
+  pkg-config --libs cuda 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($$i ~ /^-L/) print substr($$i,3)}' | head -1 || \
+  echo '/usr/local/cuda/targets/x86_64-linux/lib')
+# As a fallback, check known CUDA 11.x locations
+ifneq ($(wildcard $(CUDA_LIB)/libcusolver.so),)
+  # path is valid
+else ifneq ($(wildcard /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcusolver.so),)
+  CUDA_LIB := /usr/local/cuda-11.6/targets/x86_64-linux/lib
+else ifneq ($(wildcard /usr/local/cuda-11.7/targets/x86_64-linux/lib/libcusolver.so),)
+  CUDA_LIB := /usr/local/cuda-11.7/targets/x86_64-linux/lib
+else ifneq ($(wildcard /usr/local/cuda-12.2/targets/x86_64-linux/lib/libcusolver.so),)
+  CUDA_LIB := /usr/local/cuda-12.2/targets/x86_64-linux/lib
+else ifneq ($(wildcard /usr/local/cuda/lib64/libcusolver.so),)
+  CUDA_LIB := /usr/local/cuda/lib64
+else
+  # last resort: user must override
+endif
+# --------------------------------------------------------------
 
 
 ###########################################################
@@ -99,6 +147,39 @@ gnep: $(OBJ_GNEP)
 	@echo =================================================
 
 
+# ---- pygpumd: Python extension module for PySAGES integration ----
+# NOTE: run "make clean" before "make pygpumd" if you previously built
+# the standard gpumd executable, because this target adds -DUSE_PYSAGES
+# to CFLAGS and the object files must be recompiled.
+PYGPUMD_SRC = main_gpumd/gpumd_python.cpp
+
+ifdef OS
+PYGPUMD_OBJ = $(PYGPUMD_SRC:.cpp=.obj)
+else
+PYGPUMD_OBJ = $(PYGPUMD_SRC:.cpp=.o)
+endif
+
+# Exclude main.cu (contains int main) from the shared library.
+PY_OBJ_GPUMD = $(filter-out %/main.o %/main.obj,$(OBJ_GPUMD)) $(PYGPUMD_OBJ)
+
+# Enable PYSAGES hooks in the GPUMD core when building the Python module.
+pygpumd: CFLAGS += -DUSE_PYSAGES
+pygpumd: $(PY_OBJ_GPUMD)
+ifdef OS
+	@echo Windows Python module build not yet implemented in makefile.
+else
+	# Link with CUDA runtime (-lcudart) and set RPATH so Python can find
+	# the libraries at load time without needing LD_LIBRARY_PATH.
+	g++ -shared -fPIC $(LDFLAGS) $^ -o gpumd.so \
+	  -L$(CUDA_LIB) -Wl,-rpath,$(CUDA_LIB) \
+	  $(LIBS) -lcudart $(PYTHON_LDFLAGS)
+	@echo =================================================
+	@echo The gpumd Python module is successfully compiled!
+	@echo =================================================
+endif
+# -----------------------------------------------------------------
+
+
 ###########################################################
 # rules for building object files
 ###########################################################
@@ -148,6 +229,12 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.o: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+# Compile the pybind11 wrapper with the host C++ compiler.
+# Do NOT pass $(CFLAGS) here — it contains nvcc-only flags (-arch, -Xcompiler).
+# We add -DUSE_PYSAGES explicitly so the wrapper sees the callback members.
+main_gpumd/%.o: main_gpumd/%.cpp $(HEADERS)
+	g++ -std=c++14 -O3 -fPIC -DUSE_PYSAGES $(PYBIND11_INC) $(PYTHON_CFLAGS) -I$(CUDA_INC) $(INC) -c $< -o $@
 endif
 
 
@@ -158,6 +245,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep gnep
+	rm -f */*.o main_gpumd/*.o gpumd nep gnep gpumd.so
 endif
 
