@@ -35,6 +35,10 @@ public:
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 1, 2, ..., L_max
     int dim_angular;
+    int has_q_222;
+    int has_q_1111;
+    int has_q_112;
+    int has_q_1122;
     int num_L;
     int num_types = 0;
     int num_types_sq = 0;

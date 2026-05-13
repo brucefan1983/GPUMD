@@ -196,7 +196,7 @@ static __global__ void find_descriptors_angular(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q);
+      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, paramb.n_max_angular + 1, n, s, q);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -230,11 +230,21 @@ NEP_Charge::NEP_Charge(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
+  paramb.has_q_222 = para.has_q_222;
+  paramb.has_q_1111 = para.has_q_1111;
+  paramb.has_q_112 = para.has_q_112;
+  paramb.has_q_1122 = para.has_q_1122;
   paramb.num_L = paramb.L_max;
-  if (para.L_max_4body == 2) {
+  if (para.has_q_222) {
     paramb.num_L += 1;
   }
-  if (para.L_max_5body == 1) {
+  if (para.has_q_1111) {
+    paramb.num_L += 1;
+  }
+  if (para.has_q_112) {
+    paramb.num_L += 1;
+  }
+  if (para.has_q_1122) {
     paramb.num_L += 1;
   }
   paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
@@ -662,7 +672,8 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -817,7 +828,8 @@ static __global__ void find_bec_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
       float bec_xx = 0.5f* (r12[0] * f12[0]);
