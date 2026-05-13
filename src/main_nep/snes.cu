@@ -537,63 +537,6 @@ void SNES::regularize_NEP4(Parameters& para)
   }
 }
 
-static __global__ void gpu_find_L1_L2(
-  const int number_of_variables,
-  const float* g_population,
-  float* gpu_cost_L1reg,
-  float* gpu_cost_L2reg)
-{
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-  __shared__ float s_cost_L1reg[1024];
-  __shared__ float s_cost_L2reg[1024];
-  s_cost_L1reg[tid] = 0.0f;
-  s_cost_L2reg[tid] = 0.0f;
-  for (int v = tid; v < number_of_variables; v += blockDim.x) {
-    const float para = g_population[bid * number_of_variables + v];
-    s_cost_L1reg[tid] += abs(para);
-    s_cost_L2reg[tid] += para * para;
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
-      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    gpu_cost_L1reg[bid] = s_cost_L1reg[0];
-    gpu_cost_L2reg[bid] = s_cost_L2reg[0];
-  }
-}
-
-void SNES::regularize(Parameters& para)
-{
-  gpuSetDevice(0); // normally use GPU-0
-  gpu_find_L1_L2<<<population_size, 1024>>>(
-    number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
-  GPU_CHECK_KERNEL
-  gpu_cost_L1reg.copy_to_host(cost_L1reg.data());
-  gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
-
-  for (int p = 0; p < population_size; ++p) {
-    float cost_L1 = para.lambda_1 * cost_L1reg[p] / number_of_variables;
-    float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / number_of_variables);
-
-    for (int t = 0; t <= para.num_types; ++t) {
-      fitness_total[p + t * population_size] =
-        cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
-        fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
-      fitness_L1[p + t * population_size] = cost_L1;
-      fitness_L2[p + t * population_size] = cost_L2;
-    }
-  }
-}
-
 static void insertion_sort(float array[], int index[], int n)
 {
   for (int i = 1; i < n; i++) {
