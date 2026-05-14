@@ -327,6 +327,7 @@ void read_xyz_in_line_3(
   atom.cpu_charge.resize(atom.number_of_atoms_max, 0.0);
   atom.cpu_position_per_atom.resize(atom.number_of_atoms_max * 3);
   atom.cpu_velocity_per_atom.resize(atom.number_of_atoms_max * 3);
+  number_of_types = atom_symbols.size();
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(atom.number_of_atoms_max);
