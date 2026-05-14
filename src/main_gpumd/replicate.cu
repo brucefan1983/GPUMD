@@ -30,7 +30,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   }
   // repeat atom and group
   Atom new_atoms;
-  int n = atoms.number_of_atoms;
+  int n = atoms.number_of_atoms_max;
   int N = n * r[0] * r[1] * r[2];
 
   std::vector<Group> new_groups;
@@ -51,7 +51,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   for (int i = 0; i < r[0]; i++) {
     for (int j = 0; j < r[1]; j++) {
       for (int k = 0; k < r[2]; k++) {
-        for (int nn = 0; nn < atoms.number_of_atoms; nn++) {
+        for (int nn = 0; nn < atoms.number_of_atoms_max; nn++) {
           new_atoms.cpu_type[cur] = atoms.cpu_type[nn];
           new_atoms.cpu_mass[cur] = atoms.cpu_mass[nn];
           new_atoms.cpu_charge[cur] = atoms.cpu_charge[nn];
@@ -84,6 +84,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
     groups[m].find_contents(N);
   }
   atoms.number_of_atoms = N;
+  atoms.number_of_atoms_max = N;
   atoms.cpu_type.assign(new_atoms.cpu_type.begin(), new_atoms.cpu_type.end());
   atoms.cpu_mass.assign(new_atoms.cpu_mass.begin(), new_atoms.cpu_mass.end());
   atoms.cpu_charge.assign(new_atoms.cpu_charge.begin(), new_atoms.cpu_charge.end());
@@ -98,7 +99,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
 
   print_line_1();
   printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
-  printf("Number of atoms is %d.\n", atoms.number_of_atoms);
+  printf("Number of atoms is %d.\n", atoms.number_of_atoms_max);
   int number_of_types = atoms.cpu_type_size.size();
   if (number_of_types == 1) {
     printf("There is only one atom type.\n");
