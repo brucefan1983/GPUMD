@@ -55,7 +55,7 @@ namespace
     Mat3 rec;
     for (int i = 0; i < 3; ++i) {
       for (int j = 0; j < 3; ++j) {
-        rec[i][j] = 2.0 * PI * cxyz[i] * box.cpu_h[9 + i * 3 + j];
+        rec[j][i] = 2.0 * PI * cxyz[i] * box.cpu_h[9 + i * 3 + j];
       }
     }
     return rec;

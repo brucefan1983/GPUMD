@@ -169,7 +169,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-        (para.fine_tune ? false : true),
+        false,
         true,
         deviceCount);
     }
@@ -329,13 +329,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
     if (!para.charge_mode) {
-      if (para.version == 3) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-        } else {
-          fprintf(fid_nep, "nep3 %d ", para.num_types);
-        }
-      } else if (para.version == 4) {
+      if (para.version == 4) {
         if (para.enable_zbl) {
           fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
         } else {
@@ -350,25 +344,15 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       }
     }
   } else if (para.train_mode == 1) { // dipole model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
     }
   } else if (para.train_mode == 2) { // polarizability model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
   } else if (para.train_mode == 3) { // temperature model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);
-      }
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
       } else {

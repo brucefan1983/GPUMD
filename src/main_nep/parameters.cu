@@ -183,9 +183,6 @@ void Parameters::calculate_parameters()
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
-    if (version != 4) {
-      PRINT_INPUT_ERROR("Charge is only supported for NEP4.");
-    }
   }
 
   if (train_mode == 0) {
@@ -226,8 +223,8 @@ void Parameters::calculate_parameters()
   } else {
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
   }
-  number_of_variables_ann = number_of_variables_ann_1 * (version == 4 ? num_types : 1) + 1;
-  if (charge_mode && version == 4) {
+  number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
+  if (charge_mode) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
     if (charge_mode >= 3) {
@@ -245,23 +242,14 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (version != 3) {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-  } else {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
-    }
+  if (!is_lambda_1_set) {
+    lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
+  }
+  if (!is_lambda_2_set) {
+    lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
 
-  q_scaler_cpu.resize(dim, 1.0e10f);
+  q_scaler_cpu.resize(dim, 0.1f);
   if (fine_tune) {
     std::ifstream input(fine_tune_nep_txt);
     if (!input.is_open()) {
@@ -721,8 +709,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 3 or 4.");
+  if (version != 4) {
+    PRINT_INPUT_ERROR("version should = 4.");
   }
 }
 

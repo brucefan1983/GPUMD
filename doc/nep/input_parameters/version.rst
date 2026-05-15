@@ -10,7 +10,6 @@ The syntax is::
 
   version <version_number>
 
-Here, :attr:`<version_number>` must be an integer, which can be 3 or 4, corresponding to NEP3 and NEP4, respectively.
-The default is 4.
+Here, :attr:`<version_number>` must be an integer, which can only be 4, corresponding to NEP4.
 
 More information about the :term:`NEP` formalism can be found :ref:`here <nep_formalism>`.

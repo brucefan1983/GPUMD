@@ -1,4 +1,4 @@
-potential       ../../../potentials/nep/C_2022_NEP3.txt
+potential       ../../../potentials/nep/C_2022_NEP4.txt
 velocity        300
 
 time_step       1.0

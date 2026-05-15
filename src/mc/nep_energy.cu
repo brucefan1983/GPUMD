@@ -54,13 +54,7 @@ void NEP_Energy::initialize(const char* file_potential)
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep3") {
-    paramb.version = 3;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep3_zbl") {
-    paramb.version = 3;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep4") {
+  if (tokens[0] == "nep4") {
     paramb.version = 4;
     zbl.enabled = false;
   } else if (tokens[0] == "nep4_zbl") {
@@ -74,7 +68,7 @@ void NEP_Energy::initialize(const char* file_potential)
     zbl.enabled = true;
   } else {
     std::cout << tokens[0]
-              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << " is an unsupported NEP model. We only support NEP4 models now."
               << std::endl;
     exit(1);
   }
@@ -250,11 +244,9 @@ void NEP_Energy::initialize(const char* file_potential)
   // calculated parameters:
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
-  } else if (paramb.version == 4) {
+  if (paramb.version == 4) {
     annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  } else {
+  } else if (paramb.version == 5) {
     annmb.num_para = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
   }
 
@@ -308,9 +300,6 @@ void NEP_Energy::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
-    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
