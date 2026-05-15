@@ -68,7 +68,7 @@ void Hessian::compute(
   Atom& atom,
   std::vector<Group>& group)
 {
-  initialize(atom.cpu_mass, box, force, atom.number_of_atoms);
+  initialize(atom, box, force);
   find_H(force, box, atom, group);
 
   if (num_kpoints == 1) // currently for Alex's GKMA calculations
@@ -80,7 +80,7 @@ void Hessian::compute(
   }
 }
 
-void Hessian::get_cutoff_from_potential(Force& force)
+void Hessian::get_cutoff_from_potential(const Force& force)
 {
   for (const auto& potential : force.potentials) {
     cutoff = std::max(cutoff, potential->rc);
@@ -89,19 +89,19 @@ void Hessian::get_cutoff_from_potential(Force& force)
   printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);
 }
 
-void Hessian::create_basis(const std::vector<double>& cpu_mass, int N)
+void Hessian::create_basis(const Atom& atom)
 {
-  num_basis = N / (cxyz[0] * cxyz[1] * cxyz[2]);
+  num_basis = atom.number_of_atoms_max / (cxyz[0] * cxyz[1] * cxyz[2]);
 
   basis.resize(num_basis);
   mass.resize(num_basis);
   for (int i = 0; i < num_basis; ++i) {
     basis[i] = i;
-    mass[i] = cpu_mass[i];
+    mass[i] = atom.cpu_mass[i];
   }
 
-  label.resize(N);
-  for (int n = 0; n < N; ++n) {
+  label.resize(atom.number_of_atoms_max);
+  for (int n = 0; n < atom.number_of_atoms_max; ++n) {
     int atom_idx = n % num_basis;
     label[n] = atom_idx;
   }
@@ -197,8 +197,7 @@ void Hessian::create_kpoints(const Box& box)
   }
 }
 
-void Hessian::initialize(
-  const std::vector<double>& cpu_mass, Box& box, Force& force, int N)
+void Hessian::initialize(Atom& atom, Box& box, Force& force)
 {
   get_cutoff_from_potential(force);
 
@@ -240,9 +239,9 @@ void Hessian::initialize(
   printf("Replicate in y >= %d.\n", s_c[1]);
   printf("Replicate in z >= %d.\n", s_c[2]);
 
-  create_basis(cpu_mass, N);
+  create_basis(atom);
   create_kpoints(box);
-  size_t num_H = num_basis * N * 9;
+  size_t num_H = num_basis * atom.number_of_atoms_max * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
   H.resize(num_H, 0.0);
   DR.resize(num_D, 0.0);
@@ -254,16 +253,15 @@ void Hessian::initialize(
 
 bool Hessian::is_too_far(
   const Box& box,
-  const std::vector<double>& cpu_position_per_atom,
+  const Atom& atom,
   const size_t n1,
   const size_t n2)
 {
-  const int number_of_atoms = cpu_position_per_atom.size() / 3;
-  double x12 = cpu_position_per_atom[n2] - cpu_position_per_atom[n1];
-  double y12 =
-    cpu_position_per_atom[n2 + number_of_atoms] - cpu_position_per_atom[n1 + number_of_atoms];
-  double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2] -
-               cpu_position_per_atom[n1 + number_of_atoms * 2];
+  double x12 = atom.cpu_position_per_atom[n2] - atom.cpu_position_per_atom[n1];
+  double y12 = atom.cpu_position_per_atom[n2 + atom.number_of_atoms_max] - 
+               atom.cpu_position_per_atom[n1 + atom.number_of_atoms_max];
+  double z12 = atom.cpu_position_per_atom[n2 + atom.number_of_atoms_max * 2] -
+               atom.cpu_position_per_atom[n1 + atom.number_of_atoms_max * 2];
   apply_mic(box, x12, y12, z12);
   double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
   return (d12_square > (phonon_cutoff * phonon_cutoff));
@@ -275,15 +273,13 @@ void Hessian::find_H(
   Atom& atom,
   std::vector<Group>& group)
 {
-  const int number_of_atoms = atom.number_of_atoms;
-
   for (size_t nb = 0; nb < num_basis; ++nb) {
     size_t n1 = basis[nb];
-    for (size_t n2 = 0; n2 < number_of_atoms; ++n2) {
-      if (is_too_far(box, atom.cpu_position_per_atom, n1, n2)) {
+    for (size_t n2 = 0; n2 < atom.number_of_atoms_max; ++n2) {
+      if (is_too_far(box, atom, n1, n2)) {
         continue;
       }
-      size_t offset = (nb * number_of_atoms + n2) * 9;
+      size_t offset = (nb * atom.number_of_atoms_max + n2) * 9;
       find_H12(
         displacement,
         n1,
@@ -306,16 +302,15 @@ static void find_exp_ikr(
   const size_t n2,
   const double* k,
   const Box& box,
-  const std::vector<double>& cpu_position_per_atom,
+  const Atom& atom,
   double& cos_kr,
   double& sin_kr)
 {
-  const int number_of_atoms = cpu_position_per_atom.size() / 3;
-  double x12 = cpu_position_per_atom[n2] - cpu_position_per_atom[n1];
-  double y12 =
-    cpu_position_per_atom[n2 + number_of_atoms] - cpu_position_per_atom[n1 + number_of_atoms];
-  double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2] -
-               cpu_position_per_atom[n1 + number_of_atoms * 2];
+  double x12 = atom.cpu_position_per_atom[n2] - atom.cpu_position_per_atom[n1];
+  double y12 = atom.cpu_position_per_atom[n2 + atom.number_of_atoms_max] - 
+               atom.cpu_position_per_atom[n1 + atom.number_of_atoms_max];
+  double z12 = atom.cpu_position_per_atom[n2 + atom.number_of_atoms_max * 2] -
+               atom.cpu_position_per_atom[n1 + atom.number_of_atoms_max * 2];
   apply_mic(box, x12, y12, z12);
   double kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
   cos_kr = cos(kr);
@@ -395,10 +390,10 @@ void Hessian::find_dispersion(const Box& box, Atom& atom)
       size_t label_1 = label[n1];
       double mass_1 = mass[label_1];
       for (size_t n2 = 0; n2 < atom.number_of_atoms; ++n2) {
-        if (is_too_far(box, atom.cpu_position_per_atom, n1, n2))
+        if (is_too_far(box, atom, n1, n2))
           continue;
         double cos_kr, sin_kr;
-        find_exp_ikr(n1, n2, kpoints.data() + nk * 3, box, atom.cpu_position_per_atom, cos_kr, sin_kr);
+        find_exp_ikr(n1, n2, kpoints.data() + nk * 3, box, atom, cos_kr, sin_kr);
 
         size_t label_2 = label[n2];
         double mass_2 = mass[label_2];
@@ -435,7 +430,7 @@ void Hessian::find_D(const Box& box, Atom& atom)
     size_t label_1 = label[n1];
     double mass_1 = mass[label_1];
     for (size_t n2 = 0; n2 < atom.number_of_atoms; ++n2) {
-      if (is_too_far(box, atom.cpu_position_per_atom, n1, n2)) {
+      if (is_too_far(box, atom, n1, n2)) {
         continue;
       }
 

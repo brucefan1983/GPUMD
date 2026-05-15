@@ -38,7 +38,7 @@ public:
   void compute(Force& force, Box& box, Atom& atom, std::vector<Group>& group);
 
   void parse(const char**, int);
-  void get_cutoff_from_potential(Force& force);
+  void get_cutoff_from_potential(const Force& force);
 
 protected:
   size_t num_basis;
@@ -55,16 +55,16 @@ protected:
   std::vector<double> DI;
   std::vector<std::string> hsp_names;
 
-  void create_basis(const std::vector<double>& cpu_mass, int N);
+  void create_basis(const Atom& atom);
   void create_kpoints(const Box& box);
-  void initialize(const std::vector<double>& cpu_mass, Box& box, Force& force, int N);
+  void initialize(Atom& atom, Box& box, Force& force);
   void finalize(void);
 
   void find_H(Force& force, Box& box, Atom& atom, std::vector<Group>& group);
 
   bool is_too_far(
     const Box& box,
-    const std::vector<double>& cpu_position_per_atom,
+    const Atom& atom,
     const size_t n1,
     const size_t n2);
 
