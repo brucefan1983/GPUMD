@@ -170,6 +170,7 @@ Output files
    compute_out
    ttm_electron_temperature_out
    D_out
+   ic_out
    dos_out
    dpdt_out
    force_out
