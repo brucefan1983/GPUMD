@@ -31,7 +31,7 @@ Compute the cohesive energy curve with different deformations.
 #include <cstring>
 
 static void __global__ deform_position(
-  const int N,
+  const int number_of_atoms_max,
   const double* old_inv,
   const double* new_h,
   const double* old_x,
@@ -42,7 +42,7 @@ static void __global__ deform_position(
   double* new_z)
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
-  if (n < N) {
+  if (n < number_of_atoms_max) {
     double u = old_inv[0] * old_x[n] + old_inv[1] * old_y[n] + old_inv[2] * old_z[n];
     double v = old_inv[3] * old_x[n] + old_inv[4] * old_y[n] + old_inv[5] * old_z[n];
     double w = old_inv[6] * old_x[n] + old_inv[7] * old_y[n] + old_inv[8] * old_z[n];
@@ -54,7 +54,7 @@ static void __global__ deform_position(
 }
 
 void Cohesive::deform_box(
-  const int N,
+  const int number_of_atoms_max,
   const D& cpu_d,
   Box& old_box,
   Box& new_box,
@@ -86,16 +86,16 @@ void Cohesive::deform_box(
   new_box.get_inverse();
   new_box_h.copy_from_host(new_box.cpu_h, 9);
 
-  deform_position<<<(N - 1) / 128 + 1, 128>>>(
-    N,
+  deform_position<<<(number_of_atoms_max - 1) / 128 + 1, 128>>>(
+    number_of_atoms_max,
     old_box_inv.data(),
     new_box_h.data(),
     position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
+    position_per_atom.data() + number_of_atoms_max,
+    position_per_atom.data() + number_of_atoms_max * 2,
     new_position_per_atom.data(),
-    new_position_per_atom.data() + N,
-    new_position_per_atom.data() + N * 2);
+    new_position_per_atom.data() + number_of_atoms_max,
+    new_position_per_atom.data() + number_of_atoms_max * 2);
 }
 
 void Cohesive::parse(const char** param, int num_param, int type)
@@ -169,12 +169,12 @@ void Cohesive::parse_elastic(const char** param, int num_param)
   num_points = 181;
 }
 
-void Cohesive::allocate_memory(const int num_atoms)
+void Cohesive::allocate_memory(const int number_of_atoms_max)
 {
   cpu_D.resize(num_points);
   cpu_potential_total.resize(num_points);
-  cpu_potential_per_atom.resize(num_atoms);
-  new_position_per_atom.resize(num_atoms * 3);
+  cpu_potential_per_atom.resize(number_of_atoms_max);
+  new_position_per_atom.resize(number_of_atoms_max * 3);
   old_box_inv.resize(9);
   new_box_h.resize(9);
 }
@@ -348,7 +348,7 @@ void Cohesive::compute(
   std::vector<Group>& group,
   Force& force)
 {
-  allocate_memory(atom.number_of_atoms);
+  allocate_memory(atom.number_of_atoms_max);
   compute_D();
 
   double old_inv[9];
@@ -359,14 +359,14 @@ void Cohesive::compute(
 
   for (int n = 0; n < num_points; ++n) {
     Box new_box;
-    deform_box(atom.number_of_atoms, cpu_D[n], box, new_box, atom.position_per_atom, old_box_inv);
+    deform_box(atom.number_of_atoms_max, cpu_D[n], box, new_box, atom.position_per_atom, old_box_inv);
 
-    Minimizer_SD minimizer(-1, 0, atom.number_of_atoms, 1000, 1.0e-5);
+    Minimizer_SD minimizer(-1, 0, atom.number_of_atoms_max, 1000, 1.0e-5);
     minimizer.compute(force, new_box, atom, new_position_per_atom, group);
 
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
     cpu_potential_total[n] = 0.0;
-    for (int i = 0; i < atom.number_of_atoms; ++i) {
+    for (int i = 0; i < atom.number_of_atoms_max; ++i) {
       cpu_potential_total[n] += cpu_potential_per_atom[i];
     }
   }
