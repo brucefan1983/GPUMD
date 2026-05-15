@@ -28,8 +28,10 @@ This keyword is used in one of the following ways::
 * In usages 1 and 2, if the potential model is qNEP, the added electric force equals to the dot product of the electric field and the :term:`BEC`; otherwise it equals to the product of the electric field and the charge of the atom as specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 * In usages 3 and 4, :attr:`mode` can be charge or bec.
   * When :attr:`mode` is charge, the electric force will be calculated via 
+
     * the qNEP predicted charges for qNEP potential models
     * the user-specified charges for other potential models
+    
   * When :attr:`mode` is bec, the potential model must be qNEP, and the :term:`BEC` will be used to calculate the electric force.
 * Electric field is in units of V/Å.
 
