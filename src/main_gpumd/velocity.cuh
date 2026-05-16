@@ -40,13 +40,15 @@ public:
 
 private:
   void correct_velocity(
-    const int N,
+    const int number_of_atoms,
+    const int number_of_atoms_max,
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom);
 
   void scale(
     const double initial_temperature,
+    const int number_of_atoms,
     const std::vector<double>& cpu_mass,
     double* cpu_vx,
     double* cpu_vy,

@@ -32,39 +32,39 @@ If DEBUG is off, the velocities are different in different runs.
 
 void Velocity::scale(
   const double initial_temperature,
+  const int number_of_atoms,
   const std::vector<double>& cpu_mass,
   double* cpu_vx,
   double* cpu_vy,
   double* cpu_vz)
 {
-  const int N = cpu_mass.size();
   double temperature = 0.0;
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     double v2 = cpu_vx[n] * cpu_vx[n] + cpu_vy[n] * cpu_vy[n] + cpu_vz[n] * cpu_vz[n];
     temperature += cpu_mass[n] * v2;
   }
-  temperature /= 3.0 * K_B * N;
+  temperature /= 3.0 * K_B * number_of_atoms;
   double factor = sqrt(initial_temperature / temperature);
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     cpu_vx[n] *= factor;
     cpu_vy[n] *= factor;
     cpu_vz[n] *= factor;
   }
 }
 
-static void get_random_velocities(const int N, double* vx, double* vy, double* vz)
+static void get_random_velocities(const int number_of_atoms, double* vx, double* vy, double* vz)
 {
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
     vy[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
     vz[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
   }
 }
 
-static void get_random_velocities_by_seed(const int N, double* vx, double* vy, double* vz, int seed)
+static void get_random_velocities_by_seed(const int number_of_atoms, double* vx, double* vy, double* vz, int seed)
 {
   unsigned int s = (unsigned int)seed;
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     srand(s + n * 3);
     vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
     srand(s + n * 3 + 1);
@@ -74,11 +74,11 @@ static void get_random_velocities_by_seed(const int N, double* vx, double* vy, d
   }
 }
 
-static void zero_linear_momentum(const int N, const double* m, double* vx, double* vy, double* vz)
+static void zero_linear_momentum(const int number_of_atoms, const double* m, double* vx, double* vy, double* vz)
 {
   double center_of_mass_velocity[3] = {0.0, 0.0, 0.0};
   double total_mass = 0.0;
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     total_mass += m[n];
     center_of_mass_velocity[0] += m[n] * vx[n];
     center_of_mass_velocity[1] += m[n] * vy[n];
@@ -87,7 +87,7 @@ static void zero_linear_momentum(const int N, const double* m, double* vx, doubl
   center_of_mass_velocity[0] /= total_mass;
   center_of_mass_velocity[1] /= total_mass;
   center_of_mass_velocity[2] /= total_mass;
-  for (int n = 0; n < N; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     vx[n] -= center_of_mass_velocity[0];
     vy[n] -= center_of_mass_velocity[1];
     vz[n] -= center_of_mass_velocity[2];
@@ -95,10 +95,10 @@ static void zero_linear_momentum(const int N, const double* m, double* vx, doubl
 }
 
 static void get_center(
-  const int N, double r0[3], const double* m, const double* x, const double* y, const double* z)
+  const int number_of_atoms, double r0[3], const double* m, const double* x, const double* y, const double* z)
 {
   double mass_total = 0;
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < number_of_atoms; i++) {
     double mass = m[i];
     mass_total += mass;
     r0[0] += x[i] * mass;
@@ -111,7 +111,7 @@ static void get_center(
 }
 
 static void get_angular_momentum(
-  const int N,
+  const int number_of_atoms,
   double L[3],
   const double r0[3],
   const double* m,
@@ -122,7 +122,7 @@ static void get_angular_momentum(
   const double* vy,
   const double* vz)
 {
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < number_of_atoms; i++) {
     const double dx = x[i] - r0[0];
     const double dy = y[i] - r0[1];
     const double dz = z[i] - r0[2];
@@ -133,7 +133,7 @@ static void get_angular_momentum(
 }
 
 static void get_inertia(
-  const int N,
+  const int number_of_atoms,
   double I[3][3],
   const double r0[3],
   const double* m,
@@ -141,7 +141,7 @@ static void get_inertia(
   const double* y,
   const double* z)
 {
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < number_of_atoms; i++) {
     const double dx = x[i] - r0[0];
     const double dy = y[i] - r0[1];
     const double dz = z[i] - r0[2];
@@ -187,7 +187,7 @@ static double get_angular_velocity(const double I[3][3], const double L[3], doub
 
 // v_i = v_i - w x dr_i
 static void zero_angular_momentum(
-  const int N,
+  const int number_of_atoms,
   const double w[3],
   const double r0[3],
   const double* x,
@@ -197,7 +197,7 @@ static void zero_angular_momentum(
   double* vy,
   double* vz)
 {
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < number_of_atoms; i++) {
     const double dx = x[i] - r0[0];
     const double dy = y[i] - r0[1];
     const double dz = z[i] - r0[2];
@@ -208,49 +208,50 @@ static void zero_angular_momentum(
 }
 
 void Velocity::correct_velocity(
-  const int N,
+  const int number_of_atoms,
+  const int number_of_atoms_max,
   const std::vector<double>& cpu_mass,
   const std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom)
 {
   zero_linear_momentum(
-    N,
+    number_of_atoms,
     cpu_mass.data(),
     cpu_velocity_per_atom.data(),
-    cpu_velocity_per_atom.data() + N,
-    cpu_velocity_per_atom.data() + N * 2);
+    cpu_velocity_per_atom.data() + number_of_atoms_max,
+    cpu_velocity_per_atom.data() + number_of_atoms_max * 2);
 
   double r0[3] = {0, 0, 0}; // center of mass position
   get_center(
-    N,
+    number_of_atoms,
     r0,
     cpu_mass.data(),
     cpu_position_per_atom.data(),
-    cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2);
+    cpu_position_per_atom.data() + number_of_atoms_max,
+    cpu_position_per_atom.data() + number_of_atoms_max * 2);
 
   double L[3] = {0, 0, 0}; // angular momentum
   get_angular_momentum(
-    N,
+    number_of_atoms,
     L,
     r0,
     cpu_mass.data(),
     cpu_position_per_atom.data(),
-    cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2,
+    cpu_position_per_atom.data() + number_of_atoms_max,
+    cpu_position_per_atom.data() + number_of_atoms_max * 2,
     cpu_velocity_per_atom.data(),
-    cpu_velocity_per_atom.data() + N,
-    cpu_velocity_per_atom.data() + N * 2);
+    cpu_velocity_per_atom.data() + number_of_atoms_max,
+    cpu_velocity_per_atom.data() + number_of_atoms_max * 2);
 
   double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
   get_inertia(
-    N,
+    number_of_atoms,
     I,
     r0,
     cpu_mass.data(),
     cpu_position_per_atom.data(),
-    cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2);
+    cpu_position_per_atom.data() + number_of_atoms_max,
+    cpu_position_per_atom.data() + number_of_atoms_max * 2);
 
   double w[3]; // angular velocity
   double determinant = get_angular_velocity(I, L, w);
@@ -259,27 +260,30 @@ void Velocity::correct_velocity(
   }
 
   zero_angular_momentum(
-    N,
+    number_of_atoms,
     w,
     r0,
     cpu_position_per_atom.data(),
-    cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2,
+    cpu_position_per_atom.data() + number_of_atoms_max,
+    cpu_position_per_atom.data() + number_of_atoms_max * 2,
     cpu_velocity_per_atom.data(),
-    cpu_velocity_per_atom.data() + N,
-    cpu_velocity_per_atom.data() + N * 2);
+    cpu_velocity_per_atom.data() + number_of_atoms_max,
+    cpu_velocity_per_atom.data() + number_of_atoms_max * 2);
 }
 
 void Velocity::correct_velocity(const int step, const std::vector<Group>& group, Atom& atom)
 {
-  const int N = atom.number_of_atoms;
-
   if (do_velocity_correction) {
     if (step % velocity_correction_interval == 0) {
       atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
       atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
       if (velocity_correction_group_method < 0) {
-        correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+        correct_velocity(
+          atom.number_of_atoms,
+          atom.number_of_atoms_max, 
+          atom.cpu_mass, 
+          atom.cpu_position_per_atom, 
+          atom.cpu_velocity_per_atom);
       } else {
         for (int g = 0; g < group[velocity_correction_group_method].number; ++g) {
           int cpu_size = group[velocity_correction_group_method].cpu_size[g];
@@ -291,15 +295,15 @@ void Velocity::correct_velocity(const int step, const std::vector<Group>& group,
             int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
             mass[m] = atom.cpu_mass[n];
             for (int d = 0; d < 3; ++d) {
-              position[m + d * cpu_size] = atom.cpu_position_per_atom[n + d * N];
-              velocity[m + d * cpu_size] = atom.cpu_velocity_per_atom[n + d * N];
+              position[m + d * cpu_size] = atom.cpu_position_per_atom[n + d * atom.number_of_atoms_max];
+              velocity[m + d * cpu_size] = atom.cpu_velocity_per_atom[n + d * atom.number_of_atoms_max];
             }
           }
-          correct_velocity(mass.size(), mass, position, velocity);
+          correct_velocity(mass.size(), mass.size(), mass, position, velocity);
           for (int m = 0; m < cpu_size; ++m) {
             int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
             for (int d = 0; d < 3; ++d) {
-              atom.cpu_velocity_per_atom[n + d * N] = velocity[m + d * cpu_size];
+              atom.cpu_velocity_per_atom[n + d * atom.number_of_atoms_max] = velocity[m + d * cpu_size];
             }
           }
         }
@@ -316,31 +320,35 @@ void Velocity::initialize(
   bool use_seed,
   int seed)
 {
-  const int N = atom.number_of_atoms;
-
   do_velocity_correction = false;
   if (!has_velocity_in_xyz) {
     if (use_seed) {
       get_random_velocities_by_seed(
-        N,
+        atom.number_of_atoms,
         atom.cpu_velocity_per_atom.data(),
-        atom.cpu_velocity_per_atom.data() + N,
-        atom.cpu_velocity_per_atom.data() + N * 2,
+        atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max,
+        atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max * 2,
         seed);
     } else {
       get_random_velocities(
-        N,
+        atom.number_of_atoms,
         atom.cpu_velocity_per_atom.data(),
-        atom.cpu_velocity_per_atom.data() + N,
-        atom.cpu_velocity_per_atom.data() + N * 2);
+        atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max,
+        atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max * 2);
     }
-    correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    correct_velocity(
+      atom.number_of_atoms, 
+      atom.number_of_atoms_max, 
+      atom.cpu_mass, 
+      atom.cpu_position_per_atom, 
+      atom.cpu_velocity_per_atom);
     scale(
       initial_temperature,
+      atom.number_of_atoms,
       atom.cpu_mass,
       atom.cpu_velocity_per_atom.data(),
-      atom.cpu_velocity_per_atom.data() + N,
-      atom.cpu_velocity_per_atom.data() + N * 2);
+      atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max,
+      atom.cpu_velocity_per_atom.data() + atom.number_of_atoms_max * 2);
   }
 
   atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
