@@ -218,7 +218,6 @@ void Parameters::calculate_parameters()
     PRINT_INPUT_ERROR("Number of angular descriptors should not exceed 90.");
   }
 
-
   dim = dim_radial + dim_angular;
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
