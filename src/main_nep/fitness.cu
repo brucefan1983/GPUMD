@@ -601,7 +601,7 @@ void Fitness::report_error(
       }
     }
 
-    if (0 == (generation + 1) % 100000) {
+    if (0 == (generation + 1) % 1000) {
       predict(para, elite);
     }
   }
