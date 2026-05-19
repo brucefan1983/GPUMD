@@ -170,7 +170,6 @@ void Fitness::compute(
         dummy_solution.data(),
         train_set[n],
         false,
-        true,
         deviceCount);
     }
   } else {
