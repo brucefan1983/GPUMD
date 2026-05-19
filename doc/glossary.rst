@@ -56,6 +56,9 @@ Glossary
    HNEMDEC
         :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
 
+   IC
+        iron conductivity
+
    ILP
         interlayer potential for van der Waals materials [Ouyang2018]_ [Ouyang2020]_
 

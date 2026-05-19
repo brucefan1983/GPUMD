@@ -47,10 +47,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   number_of_variables = para.number_of_variables;
   population_size = para.population_size;
   const int N = population_size * number_of_variables;
-  int num = number_of_variables;
-  if (para.version != 3) {
-    num /= para.num_types;
-  }
+  int num = number_of_variables / para.num_types;
   eta_sigma = (3.0f + std::log(num * 1.0f)) / (5.0f * sqrt(num * 1.0f)) / 2.0f;
   fitness_total.resize(population_size * (para.num_types + 1));
   fitness_L1.resize(population_size * (para.num_types + 1));
@@ -261,19 +258,15 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  if (para.version != 3) {
-    int num_ann = (para.train_mode == 2) ? 2 : 1;
-    for (int ann = 0; ann < num_ann; ++ann) {
-      for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
-          type_of_variable[n + offset] = t;
-        }
-        offset += para.number_of_variables_ann_1;
+  int num_ann = (para.train_mode == 2) ? 2 : 1;
+  for (int ann = 0; ann < num_ann; ++ann) {
+    for (int t = 0; t < para.num_types; ++t) {
+      for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
+        type_of_variable[n + offset] = t;
       }
-      offset += para.charge_mode ? 2 : 1; // the bias
+      offset += para.number_of_variables_ann_1;
     }
-  } else {
-    offset += para.number_of_variables_ann_1 + 1;
+    offset += para.charge_mode ? 2 : 1; // the bias
   }
 
   // descriptor part
@@ -374,11 +367,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         fitness_charge.data(),
         fitness_bec.data());
 
-      if (para.version != 3) {
-        regularize_NEP4(para);
-      } else {
-        regularize(para);
-      }
+      regularize_NEP4(para);
 
       sort_population(para);
 
@@ -412,10 +401,8 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     std::vector<std::string> tokens;
     tokens = get_tokens(input);
     int num_lines_to_be_skipped = 5;
-    if (
-      tokens[0] == "nep3_zbl" || 
+    if ( 
       tokens[0] == "nep4_zbl" || 
-      tokens[0] == "nep3_zbl_temperature" ||
       tokens[0] == "nep4_zbl_temperature" || 
       tokens[0] == "nep4_zbl_charge1" ||
       tokens[0] == "nep4_zbl_charge2" ||
@@ -550,63 +537,6 @@ void SNES::regularize_NEP4(Parameters& para)
   }
 }
 
-static __global__ void gpu_find_L1_L2(
-  const int number_of_variables,
-  const float* g_population,
-  float* gpu_cost_L1reg,
-  float* gpu_cost_L2reg)
-{
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-  __shared__ float s_cost_L1reg[1024];
-  __shared__ float s_cost_L2reg[1024];
-  s_cost_L1reg[tid] = 0.0f;
-  s_cost_L2reg[tid] = 0.0f;
-  for (int v = tid; v < number_of_variables; v += blockDim.x) {
-    const float para = g_population[bid * number_of_variables + v];
-    s_cost_L1reg[tid] += abs(para);
-    s_cost_L2reg[tid] += para * para;
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
-      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    gpu_cost_L1reg[bid] = s_cost_L1reg[0];
-    gpu_cost_L2reg[bid] = s_cost_L2reg[0];
-  }
-}
-
-void SNES::regularize(Parameters& para)
-{
-  gpuSetDevice(0); // normally use GPU-0
-  gpu_find_L1_L2<<<population_size, 1024>>>(
-    number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
-  GPU_CHECK_KERNEL
-  gpu_cost_L1reg.copy_to_host(cost_L1reg.data());
-  gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
-
-  for (int p = 0; p < population_size; ++p) {
-    float cost_L1 = para.lambda_1 * cost_L1reg[p] / number_of_variables;
-    float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / number_of_variables);
-
-    for (int t = 0; t <= para.num_types; ++t) {
-      fitness_total[p + t * population_size] =
-        cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
-        fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
-      fitness_L1[p + t * population_size] = cost_L1;
-      fitness_L2[p + t * population_size] = cost_L2;
-    }
-  }
-}
-
 static void insertion_sort(float array[], int index[], int n)
 {
   for (int i = 1; i < n; i++) {
@@ -660,7 +590,7 @@ static __global__ void gpu_update_mu_and_sigma(
     }
     const float sigma = g_sigma[v];
     g_mu[v] += sigma * gradient_mu;
-    g_sigma[v] = max(0.001f, min(0.1f, sigma * exp(eta_sigma * gradient_sigma)));
+    g_sigma[v] = fminf(sigma * exp(eta_sigma * gradient_sigma), 1.0f);
   }
 }
 

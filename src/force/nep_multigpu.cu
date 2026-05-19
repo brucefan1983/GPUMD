@@ -81,19 +81,12 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     exit(1);
   }
 
-  // nep3 1 C
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
-  if (tokens[0] == "nep3") {
-    paramb.version = 3;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep3_zbl") {
-    paramb.version = 3;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep4") {
+  if (tokens[0] == "nep4") {
     paramb.version = 4;
     zbl.enabled = false;
   } else if (tokens[0] == "nep4_zbl") {
@@ -105,13 +98,6 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   } else if (tokens[0] == "nep5_zbl") {
     paramb.version = 5;
     zbl.enabled = true;
-  } else if (tokens[0] == "nep3_temperature") {
-    paramb.version = 3;
-    paramb.model_type = 3;
-  } else if (tokens[0] == "nep3_zbl_temperature") {
-    paramb.version = 3;
-    paramb.model_type = 3;
-    zbl.enabled = true;
   } else if (tokens[0] == "nep4_temperature") {
     paramb.version = 4;
     paramb.model_type = 3;
@@ -119,21 +105,15 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
-  } else if (tokens[0] == "nep3_dipole") {
-    paramb.version = 3;
-    paramb.model_type = 1;
   } else if (tokens[0] == "nep4_dipole") {
     paramb.version = 4;
     paramb.model_type = 1;
-  } else if (tokens[0] == "nep3_polarizability") {
-    paramb.version = 3;
-    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
   } else {
     std::cout << tokens[0]
-              << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+              << " is an unsupported NEP model. We only support NEP4 models now."
               << std::endl;
     exit(1);
   }
@@ -258,8 +238,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
 
   // l_max
   tokens = get_tokens(input);
-  if (tokens.size() != 4) {
-    std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
+  if (tokens.size() < 4) {
+    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_1122]." << std::endl;
     exit(1);
   }
 
@@ -267,14 +247,28 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
-  int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  printf("    l_max_4body = %d.\n", L_max_4body);
-  printf("    l_max_5body = %d.\n", L_max_5body);
-  if (L_max_4body == 2) {
+  paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  if (tokens.size() >= 5) {
+    paramb.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  }
+  if (tokens.size() >= 6) {
+    paramb.has_q_1122 = get_int_from_token(tokens[5], __FILE__, __LINE__);
+  }
+  printf("    has_q_222 = %d.\n", paramb.has_q_222);
+  printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
+  printf("    has_q_112 = %d.\n", paramb.has_q_112);
+  printf("    has_q_1122 = %d.\n", paramb.has_q_1122);
+  if (paramb.has_q_222) {
     paramb.num_L += 1;
   }
-  if (L_max_5body == 1) {
+  if (paramb.has_q_1111) {
+    paramb.num_L += 1;
+  }
+  if (paramb.has_q_112) {
+    paramb.num_L += 1;
+  }
+  if (paramb.has_q_1122) {
     paramb.num_L += 1;
   }
 
@@ -298,11 +292,9 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 3) {
-    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
-  } else if (paramb.version == 4) {
+  if (paramb.version == 4) {
     annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
-  } else {
+  } else if (paramb.version == 5) {
     annmb[0].num_para_ann = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
   }
 
@@ -423,9 +415,6 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version == 3) { // Use the same set of NN parameters for NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
-    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;
@@ -442,9 +431,6 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
   // Possibly read polarizability parameters, which are placed after the regular nep parameters.
   if (paramb.model_type == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version == 4) { // Use the same set of NN parameters for NEP3
-        pointer -= (ann.dim + 2) * ann.num_neurons1;
-      }
       ann.w0_pol[t] = pointer;
       pointer += ann.num_neurons1 * ann.dim;
       ann.b0_pol[t] = pointer;
@@ -874,7 +860,8 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -1120,7 +1107,8 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
@@ -1881,7 +1869,8 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, 
+        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }

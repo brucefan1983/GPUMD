@@ -93,7 +93,8 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
     const int num_atoms_total = atom.force_per_atom.size() / 3;
     const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
     const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
-    if (is_nep_charge) {
+
+    if (use_bec_[call]) {
       GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
       add_efield_bec<<<(group_size - 1) / 64 + 1, 64>>>(
         num_atoms_total,
@@ -107,8 +108,20 @@ void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom&
         atom.force_per_atom.data(),
         atom.force_per_atom.data() + num_atoms_total,
         atom.force_per_atom.data() + num_atoms_total * 2);
-    }
-    else {
+    } else if (is_nep_charge) {
+      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+      add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
+        group_size,
+        group_size_sum,
+        groups[grouping_method_[call]].contents.data(),
+        Ex,
+        Ey,
+        Ez,
+        nep_charge.data(),
+        atom.force_per_atom.data(),
+        atom.force_per_atom.data() + num_atoms_total,
+        atom.force_per_atom.data() + num_atoms_total * 2);
+    } else {
       add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
         group_size,
         group_size_sum,
@@ -129,9 +142,43 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
 {
   printf("Add electric field.\n");
 
-  // check the number of parameters
-  if (num_param != 6 && num_param != 4) {
-    PRINT_INPUT_ERROR("add_efield should have 5 or 3 parameters.\n");
+  bool use_file_input = false;
+  is_nep_charge = check_is_nep_charge();
+  std::string mode_str = is_nep_charge ? "bec" : "charge";
+
+  if (num_param == 7) {
+    mode_str = param[6];
+    use_file_input = false;
+  } else if (num_param == 5) {
+    mode_str = param[4];
+    use_file_input = true;
+  } else if (num_param == 6) {
+    use_file_input = false;
+  } else if (num_param == 4) {
+    use_file_input = true;
+  } else {
+    PRINT_INPUT_ERROR("add_efield should have 3, 4, 5 or 6 parameters.\n");
+  }
+
+  if (mode_str != "charge" && mode_str != "bec") {
+    PRINT_INPUT_ERROR("Mode can only be charge or bec.\n");
+  }
+
+  if (is_nep_charge) {
+    if (mode_str == "bec") {
+      use_bec_[num_calls_] = true;
+      printf("    using the BEC values predicted by the NEP-Charge model.\n");
+    } else {
+      use_bec_[num_calls_] = false;
+      printf("    using the charge values predicted by the NEP-Charge model.\n");
+    }
+  } else {
+    if (mode_str == "bec") {
+      PRINT_INPUT_ERROR("Cannot use bec for non-qNEP models.\n");
+      printf("    using the charge values specified in model.xyz.\n");
+    } else {
+      use_bec_[num_calls_] = false;
+    }
   }
 
   // parse grouping method
@@ -161,7 +208,7 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
     group_id_[num_calls_],
     grouping_method_[num_calls_]);
 
-  if (num_param == 6) {
+  if (!use_file_input) {
     table_length_[num_calls_] = 1;
     efield_table_[num_calls_].resize(table_length_[num_calls_] * 3);
     if (!is_valid_real(param[3], &efield_table_[num_calls_][0])) {
@@ -211,13 +258,6 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
 
   if (num_calls_ > 10) {
     PRINT_INPUT_ERROR("add_efield cannot be used more than 10 times in one run.");
-  }
-
-  is_nep_charge = check_is_nep_charge();
-  if (is_nep_charge) {
-    printf("    using the charge values predicted by the NEP-Charge model.\n");
-  } else {
-    printf("    using the charge values specified in model.xyz.\n");
   }
 
 }

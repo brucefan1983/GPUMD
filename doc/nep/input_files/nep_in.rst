@@ -83,19 +83,19 @@ Example
 -------
 Here is an example :attr:`nep.in` file using all the default parameters::
   
-  type       	2 Te Pb # this is a mandatory keyword
-  version       4       # default
-  cutoff     	8 4     # default
-  n_max      	6 6     # default
-  basis_size	6 6     # default
-  l_max      	4 2 0   # default
-  neuron     	30      # default
-  lambda_e      1.0     # default
-  lambda_f      1.0     # default
-  lambda_v      0.1     # default
-  batch         1000    # default
-  population	50      # default
-  generation	100000  # default
+  type       	2 Te Pb   # this is a mandatory keyword
+  version       4         # the only option
+  cutoff     	8 4       # please choose these reasonably
+  n_max      	6 6       # default
+  basis_size	6 6       # default
+  l_max      	4 1 0 0 0 # default
+  neuron     	30        # default
+  lambda_e      1.0       # default
+  lambda_f      1.0       # default
+  lambda_v      0.1       # default
+  batch         1000      # default
+  population	50        # default
+  generation	100000    # default
 
 The `NEP tutorial <https://github.com/brucefan1983/GPUMD/tree/master/examples/11_NEP_potential_PbTe/tutorial.ipynb>`_ illustrates the construction of a :term:`NEP` model.
 More examples can be found in `this repository <https://gitlab.com/brucefan1983/nep-data>`_.

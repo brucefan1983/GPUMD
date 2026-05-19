@@ -105,6 +105,10 @@ Output files
      - :ref:`compute_msd <kw_compute_msd>`
      - Mean-square displacement (:term:`MSD`) data
      - Append
+   * - :ref:`ic.out <ic_out>`
+     - :ref:`compute_ic <kw_compute_ic>`
+     - Iron conductivity (:term:`IC`) data
+     - Append
    * - :ref:`cohesive.out <cohesive_out>`
      - :ref:`compute_cohesive <kw_compute_cohesive>`
      - Cohesive energy curve
@@ -166,6 +170,7 @@ Output files
    compute_out
    ttm_electron_temperature_out
    D_out
+   ic_out
    dos_out
    dpdt_out
    force_out

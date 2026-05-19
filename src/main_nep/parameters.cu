@@ -85,8 +85,10 @@ void Parameters::set_default_parameters()
   n_max_radial = 6;            // large enough in most cases
   n_max_angular = 6;           // large enough in most cases
   L_max = 4;                   // the only supported value
-  L_max_4body = 2;             // default is to include 4body
-  L_max_5body = 0;             // default is not to include 5body
+  has_q_222 = 1;               // default is to include q_222
+  has_q_1111 = 0;              // default is not to include q_1111
+  has_q_112 = 0;               // default is not to include q_112
+  has_q_1122 = 0;              // default is not to include q_1122
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
@@ -181,9 +183,6 @@ void Parameters::calculate_parameters()
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
-    if (version != 4) {
-      PRINT_INPUT_ERROR("Charge is only supported for NEP4.");
-    }
   }
 
   if (train_mode == 0) {
@@ -202,12 +201,23 @@ void Parameters::calculate_parameters()
   }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (L_max_4body == 2) {                    // 4-body descriptors q^i_n222
+  if (has_q_222) {
     dim_angular += n_max_angular + 1;
   }
-  if (L_max_5body == 1) { // 5-body descriptors q^i_n1111
+  if (has_q_1111) {
     dim_angular += n_max_angular + 1;
   }
+  if (has_q_112) {
+    dim_angular += n_max_angular + 1;
+  }
+  if (has_q_1122) {
+    dim_angular += n_max_angular + 1;
+  }
+
+  if (dim_angular > 90) {
+    PRINT_INPUT_ERROR("Number of angular descriptors should not exceed 90.");
+  }
+
   dim = dim_radial + dim_angular;
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
@@ -218,8 +228,8 @@ void Parameters::calculate_parameters()
   } else {
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
   }
-  number_of_variables_ann = number_of_variables_ann_1 * (version == 4 ? num_types : 1) + 1;
-  if (charge_mode && version == 4) {
+  number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
+  if (charge_mode) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
     if (charge_mode >= 3) {
@@ -237,23 +247,14 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-  if (version != 3) {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
-    }
-  } else {
-    if (!is_lambda_1_set) {
-      lambda_1 = sqrt(number_of_variables * 1.0e-6f);
-    }
-    if (!is_lambda_2_set) {
-      lambda_2 = sqrt(number_of_variables * 1.0e-6f);
-    }
+  if (!is_lambda_1_set) {
+    lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
+  }
+  if (!is_lambda_2_set) {
+    lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
 
-  q_scaler_cpu.resize(dim, 1.0e10f);
+  q_scaler_cpu.resize(dim, 0.1f);
   if (fine_tune) {
     std::ifstream input(fine_tune_nep_txt);
     if (!input.is_open()) {
@@ -354,10 +355,10 @@ void Parameters::check_foundation_model()
   if (L_max != get_int_from_token(tokens[1], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("L_max mismatches with foundation model.");
   }
-  if (L_max_4body != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
+  if (has_q_222 != get_int_from_token(tokens[2], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("L_max_4body mismatches with foundation model.");
   }
-  if (L_max_5body != get_int_from_token(tokens[3], __FILE__, __LINE__)) {
+  if (has_q_1111 != get_int_from_token(tokens[3], __FILE__, __LINE__)) {
     PRINT_INPUT_ERROR("L_max_5body mismatches with foundation model.");
   }
 
@@ -479,12 +480,16 @@ void Parameters::report_inputs()
 
   if (is_l_max_set) {
     printf("    (input)   l_max_3body = %d.\n", L_max);
-    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
-    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
+    printf("    (input)   has_q_222 = %d.\n", has_q_222);
+    printf("    (input)   has_q_1111 = %d.\n", has_q_1111);
+    printf("    (input)   has_q_112 = %d.\n", has_q_112);
+    printf("    (input)   has_q_1122 = %d.\n", has_q_1122);
   } else {
     printf("    (default) l_max_3body = %d.\n", L_max);
-    printf("    (default) l_max_4body = %d.\n", L_max_4body);
-    printf("    (default) l_max_5body = %d.\n", L_max_5body);
+    printf("    (default) has_q_222 = %d.\n", has_q_222);
+    printf("    (default) has_q_1111 = %d.\n", has_q_1111);
+    printf("    (default) has_q_112 = %d.\n", has_q_112);
+    printf("    (default) has_q_1122 = %d.\n", has_q_1122);
   }
 
   if (is_neuron_set) {
@@ -709,8 +714,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 3 or 4.");
+  if (version != 4) {
+    PRINT_INPUT_ERROR("version should = 4.");
   }
 }
 
@@ -926,13 +931,13 @@ void Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_radial < 0) {
     PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
-  } else if (basis_size_radial > 16) {
-    PRINT_INPUT_ERROR("basis_size_radial should <= 16.");
+  } else if (basis_size_radial > 8) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 8.");
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 12) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
+  } else if (basis_size_angular > 8) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 8.");
   }
 }
 
@@ -940,40 +945,40 @@ void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param != 2 && num_param != 3 && num_param != 4) {
-    PRINT_INPUT_ERROR("l_max should have 1 or 2 or 3 parameters.\n");
+  if (num_param < 2 || num_param > 6) {
+    PRINT_INPUT_ERROR("l_max should have 1 to 5 parameters.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
   }
-  if (L_max < 0) {
-    PRINT_INPUT_ERROR("l_max for 3-body descriptors should >= 0.");
+  if (L_max < 2) {
+    PRINT_INPUT_ERROR("l_max for 3-body descriptors should >= 2.");
   }
   if (L_max > 8) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should <= 8.");
   }
 
   if (num_param >= 3) {
-    if (!is_valid_int(param[2], &L_max_4body)) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
-    }
-    if (L_max_4body != 0 && L_max_4body != 2) {
-      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
-    }
-    if (L_max < L_max_4body) {
-      PRINT_INPUT_ERROR("l_max_4body should <= l_max_3body.");
+    if (!is_valid_int(param[2], &has_q_222)) {
+      PRINT_INPUT_ERROR("has_q_222 should be an integer.\n");
     }
   }
 
-  if (num_param == 4) {
-    if (!is_valid_int(param[3], &L_max_5body)) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should be an integer.\n");
+  if (num_param >= 4) {
+    if (!is_valid_int(param[3], &has_q_1111)) {
+      PRINT_INPUT_ERROR("has_q_1111 should be an integer.\n");
     }
-    if (L_max_5body != 0 && L_max_5body != 1) {
-      PRINT_INPUT_ERROR("l_max for 5-body descriptors should = 0 or 1.");
+  }
+
+  if (num_param >= 5) {
+    if (!is_valid_int(param[4], &has_q_112)) {
+      PRINT_INPUT_ERROR("has_q_112 should be an integer.\n");
     }
-    if (L_max_4body == 0 && L_max_5body == 1) {
-      PRINT_INPUT_ERROR("cannot have l_max_4body = 0 with l_max_5body = 1.");
+  }
+
+  if (num_param >= 6) {
+    if (!is_valid_int(param[5], &has_q_1122)) {
+      PRINT_INPUT_ERROR("has_q_1122 should be an integer.\n");
     }
   }
 }

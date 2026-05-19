@@ -101,7 +101,14 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam/alloy") == 0) {
-    potential.reset(new EAMAlloy(param[1], number_of_atoms));
+    int max_neigh = 400;
+    if (num_param == 3) {
+      if (!is_valid_int(param[2], &max_neigh) || max_neigh <= 0 || max_neigh > 1024) {
+        PRINT_INPUT_ERROR(
+          "max_neighbor for eam/alloy must be a positive integer in (0, 1024].");
+      }
+    }
+    potential.reset(new EAMAlloy(param[1], number_of_atoms, max_neigh));
   } else if (strcmp(potential_name, "adp") == 0) {
     potential.reset(new ADP(param[1], number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {

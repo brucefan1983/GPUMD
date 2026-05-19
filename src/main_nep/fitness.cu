@@ -169,7 +169,8 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-        (para.fine_tune ? false : true),
+        false,
+        true,
         deviceCount);
     }
   } else {
@@ -325,13 +326,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
     if (!para.charge_mode) {
-      if (para.version == 3) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-        } else {
-          fprintf(fid_nep, "nep3 %d ", para.num_types);
-        }
-      } else if (para.version == 4) {
+      if (para.version == 4) {
         if (para.enable_zbl) {
           fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
         } else {
@@ -346,25 +341,15 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       }
     }
   } else if (para.train_mode == 1) { // dipole model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
     }
   } else if (para.train_mode == 2) { // polarizability model
-    if (para.version == 3) {
-      fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
   } else if (para.train_mode == 3) { // temperature model
-    if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);
-      }
-    } else if (para.version == 4) {
+    if (para.version == 4) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
       } else {
@@ -397,7 +382,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
+  fprintf(fid_nep, "l_max %d %d %d %d %d\n", para.L_max, para.has_q_222, para.has_q_1111, para.has_q_112, para.has_q_1122);
 
   if (para.num_hidden_layers == 2) {
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);

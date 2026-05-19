@@ -1206,4 +1206,14 @@ void Ensemble_TTM::compute2(
   accumulate_ttm_power(group, atom.velocity_per_atom);
 
   update_electron_temperature(time_step);
+
+  find_thermo(
+    false,
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
 }

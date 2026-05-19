@@ -6,9 +6,7 @@ Neuroevolution potential
 ************************
 
 The neuroevolution potential (:term:`NEP`) approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4).
-Currently, :program:`GPUMD` only supports NEP3 and NEP4, as NEP1 and NEP2 are deprecated.
-Both versions are identical for single-component systems.
-For multi-component systems, NEP4 usually has higher accuracy, if all the other hyperparameters are the same.
+Currently, :program:`GPUMD` only supports NEP4, as NEP1, NEP2, and NEP3 are deprecated.
 
 :program:`GPUMD` not only allows one to carry out simulations using :term:`NEP` models via the :ref:`gpumd executable <gpumd_executable>` but even the construction of such models via the :ref:`nep executable <nep_executable>`.
 
@@ -120,9 +118,7 @@ Model dimensions
    * - trainable parameters :math:`c_{nk}^{ij}` in the descriptor
      - :math:`N_\mathrm{typ}^2 [(n_\mathrm{max}^\mathrm{R}+1)(N_\mathrm{bas}^\mathrm{R}+1)+(n_\mathrm{max}^\mathrm{A}+1)(N_\mathrm{bas}^\mathrm{A}+1)]`
    * - trainable :term:`NN` parameters
-     - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu}+1` (NEP3)
-   * -
-     - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu} N_\mathrm{typ}+1` (NEP4)
+     - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu} N_\mathrm{typ}+1`
 
 The total number of trainable parameters is the sum of the number of trainable descriptor parameters and the number of :term:`NN` parameters :math:`N_\mathrm{nn}`.
 

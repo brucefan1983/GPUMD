@@ -1,4 +1,4 @@
-nep3 1 C 
+nep4 1 C 
 cutoff 4.2 3.7 80 47
 n_max 10 8
 basis_size 10 8
