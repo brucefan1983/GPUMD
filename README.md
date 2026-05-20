@@ -50,6 +50,9 @@ Various tools for `GPUMD` and `NEP` can be found in [tools](./tools/readme.md).
 ## CPU version of NEP
 There is a standalone C++ implementation of the neuroevolution potential (NEP) in the [NEP_CPU repository](https://github.com/brucefan1983/NEP_CPU), which serves as the engine for many Python packages and provides an interface to the [LAMMPS package](https://github.com/lammps/lammps).
 
+## Related packages
+* A GPU-native interface between GPUMD and PySAGES for enhanced-sampling molecular dynamics on machine-learning potentials: https://github.com/JaafarMehrez/GPUMD-PySAGES
+
 ## Citations
 
 | Reference             | cite for what?                    |
