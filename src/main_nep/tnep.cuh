@@ -43,6 +43,8 @@ public:
     int has_q_1111;
     int has_q_112;
     int has_q_1122;
+    int has_q_123;
+    int has_q_233;
     int num_L;
     int num_types = 0;
     int num_types_sq = 0;
