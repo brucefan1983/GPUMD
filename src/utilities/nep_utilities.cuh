@@ -1071,7 +1071,7 @@ static __device__ __forceinline__ void get_f12_4body_233(
     float fnp_factor3 = Fp * fnp3 * d12inv;
 
     // s2[0]
-    float tmp0 = C4B_233[0] * (2.0f * s3[0] * s3[0])
+    float tmp0 = C4B_233[0] * (s3[0] * s3[0])
                + C4B_233[1] * (s3[2]*s3[2] + s3[1]*s3[1])
                + C4B_233[2] * (-s3[2]*s3[2])
                + C4B_233[4] * (-s3[5]*s3[5] - s3[6]*s3[6]);
