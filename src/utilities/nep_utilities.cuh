@@ -1073,7 +1073,6 @@ static __device__ __forceinline__ void get_f12_4body_233(
     // s2[0]
     float tmp0 = C4B_233[0] * (s3[0] * s3[0])
                + C4B_233[1] * (s3[2]*s3[2] + s3[1]*s3[1])
-               + C4B_233[2] * (-s3[2]*s3[2])
                + C4B_233[4] * (-s3[5]*s3[5] - s3[6]*s3[6]);
     float tmp1 = tmp0 * (3.0f * r12[2] * r12[2] - d12 * d12) * fnp_factor2;
     float tmp2 = tmp0 * fn_factor2;
@@ -1189,7 +1188,7 @@ static __device__ __forceinline__ void get_f12_4body_233(
 
     // s3[6]
     tmp0 = -2.0f * C4B_233[4] * s2[0] * s3[6]
-         + C4B_233[5] * (-s2[1] * s3[3] - s2[3] * s3[2] - s2[4] * s3[1])
+         + C4B_233[5] * (- s2[3] * s3[2] - s2[4] * s3[1])
          + C4B_233[9] * (s2[1] * s3[4] + s2[2] * s3[3]);
     tmp1 = tmp0 * (3.0f * r12[0] * r12[0] - r12[1] * r12[1]) * r12[1] * fnp_factor3;
     tmp2 = tmp0 * fn_factor3;
