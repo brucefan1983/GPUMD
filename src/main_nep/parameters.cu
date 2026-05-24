@@ -1004,13 +1004,13 @@ void Parameters::parse_l_max(const char** param, int num_param)
 
   if (num_param >= 7) {
     if (!is_valid_int(param[6], &has_q_123)) {
-      PRINT_INPUT_ERROR("has_q_1122 should be an integer.\n");
+      PRINT_INPUT_ERROR("has_q_123 should be an integer.\n");
     }
   }
 
   if (num_param >= 8) {
     if (!is_valid_int(param[7], &has_q_233)) {
-      PRINT_INPUT_ERROR("has_q_1122 should be an integer.\n");
+      PRINT_INPUT_ERROR("has_q_233 should be an integer.\n");
     }
   }
 }
