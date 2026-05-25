@@ -89,7 +89,6 @@ void Parameters::set_default_parameters()
   has_q_222 = 1;               // default is to include q_222
   has_q_1111 = 0;              // default is not to include q_1111
   has_q_112 = 0;               // default is not to include q_112
-  has_q_1122 = 0;              // default is not to include q_1122
   has_q_123 = 0;               // default is not to include q_123
   has_q_233 = 0;               // default is not to include q_233
   num_neurons1 = 30;           // a relatively small value to achieve high speed
@@ -212,9 +211,6 @@ void Parameters::calculate_parameters()
     dim_angular += n_max_angular + 1;
   }
   if (has_q_112) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_1122) {
     dim_angular += n_max_angular + 1;
   }
   if (has_q_123) {
@@ -493,7 +489,6 @@ void Parameters::report_inputs()
     printf("    (input)   has_q_222 = %d.\n", has_q_222);
     printf("    (input)   has_q_1111 = %d.\n", has_q_1111);
     printf("    (input)   has_q_112 = %d.\n", has_q_112);
-    printf("    (input)   has_q_1122 = %d.\n", has_q_1122);
     printf("    (input)   has_q_123 = %d.\n", has_q_123);
     printf("    (input)   has_q_233 = %d.\n", has_q_233);
   } else {
@@ -501,7 +496,6 @@ void Parameters::report_inputs()
     printf("    (default) has_q_222 = %d.\n", has_q_222);
     printf("    (default) has_q_1111 = %d.\n", has_q_1111);
     printf("    (default) has_q_112 = %d.\n", has_q_112);
-    printf("    (default) has_q_1122 = %d.\n", has_q_1122);
     printf("    (default) has_q_123 = %d.\n", has_q_123);
     printf("    (default) has_q_233 = %d.\n", has_q_233);
   }
@@ -997,19 +991,13 @@ void Parameters::parse_l_max(const char** param, int num_param)
   }
 
   if (num_param >= 6) {
-    if (!is_valid_int(param[5], &has_q_1122)) {
-      PRINT_INPUT_ERROR("has_q_1122 should be an integer.\n");
-    }
-  }
-
-  if (num_param >= 7) {
-    if (!is_valid_int(param[6], &has_q_123)) {
+    if (!is_valid_int(param[5], &has_q_123)) {
       PRINT_INPUT_ERROR("has_q_123 should be an integer.\n");
     }
   }
 
-  if (num_param >= 8) {
-    if (!is_valid_int(param[7], &has_q_233)) {
+  if (num_param >= 7) {
+    if (!is_valid_int(param[6], &has_q_233)) {
       PRINT_INPUT_ERROR("has_q_233 should be an integer.\n");
     }
   }

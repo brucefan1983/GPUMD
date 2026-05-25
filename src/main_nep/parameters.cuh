@@ -44,7 +44,6 @@ public:
   int has_q_222;          // has q_222
   int has_q_1111;         // has q_1111
   int has_q_112;          // has q_112
-  int has_q_1122;         // has q_1122
   int has_q_123;          // has q_123
   int has_q_233;          // has q_233
   float lambda_1;         // weight parameter for L1 regularization loss

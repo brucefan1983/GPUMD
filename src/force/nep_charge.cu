@@ -247,7 +247,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   // l_max
   tokens = get_tokens(input);
   if (tokens.size() < 4) {
-    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_1122] [has_q_123] [has_q_233]." << std::endl;
+    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] [has_q_233]." << std::endl;
     exit(1);
   }
 
@@ -261,18 +261,14 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     paramb.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
   }
   if (tokens.size() >= 6) {
-    paramb.has_q_1122 = get_int_from_token(tokens[5], __FILE__, __LINE__);
+    paramb.has_q_123 = get_int_from_token(tokens[5], __FILE__, __LINE__);
   }
   if (tokens.size() >= 7) {
-    paramb.has_q_123 = get_int_from_token(tokens[6], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 8) {
-    paramb.has_q_233 = get_int_from_token(tokens[7], __FILE__, __LINE__);
+    paramb.has_q_233 = get_int_from_token(tokens[6], __FILE__, __LINE__);
   }
   printf("    has_q_222 = %d.\n", paramb.has_q_222);
   printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
   printf("    has_q_112 = %d.\n", paramb.has_q_112);
-  printf("    has_q_1122 = %d.\n", paramb.has_q_1122);
   printf("    has_q_123 = %d.\n", paramb.has_q_123);
   printf("    has_q_233 = %d.\n", paramb.has_q_233);
   if (paramb.has_q_222) {
@@ -282,9 +278,6 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     paramb.num_L += 1;
   }
   if (paramb.has_q_112) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_1122) {
     paramb.num_L += 1;
   }
   if (paramb.has_q_123) {
@@ -547,7 +540,7 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, paramb.has_q_123, paramb.has_q_233,
+        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
@@ -851,7 +844,7 @@ static __global__ void find_bec_angular(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, paramb.has_q_123, paramb.has_q_233,
+          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -1097,7 +1090,7 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_1122, paramb.has_q_123, paramb.has_q_233,
+          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
