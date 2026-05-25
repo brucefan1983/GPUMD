@@ -381,7 +381,20 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d %d %d %d %d\n", para.L_max, para.has_q_222, para.has_q_1111, para.has_q_112, para.has_q_1122);
+  fprintf(fid_nep, "l_max %d %d %d ", para.L_max, para.has_q_222, para.has_q_1111);
+  if (para.has_q_112 || para.has_q_1122 || para.has_q_123 || para.has_q_233) {
+    fprintf(fid_nep, "%d ", para.has_q_112);
+  }
+  if (para.has_q_1122 || para.has_q_123 || para.has_q_233) {
+    fprintf(fid_nep, "%d ", para.has_q_1122);
+  }
+  if (para.has_q_123 || para.has_q_233) {
+    fprintf(fid_nep, "%d ", para.has_q_123);
+  }
+  if (para.has_q_233) {
+    fprintf(fid_nep, "%d ", para.has_q_233);
+  }
+  fprintf(fid_nep, "\n");
 
   if (para.num_hidden_layers == 2) {
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
