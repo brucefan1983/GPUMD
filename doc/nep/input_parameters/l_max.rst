@@ -12,7 +12,7 @@ The syntax is::
 
 where :attr:`l_max_3b` sets the limit for the three-body descriptors, :attr:`has_q_222`, :attr:`has_q_112`, :attr:`has_q_123`, and :attr:`has_q_233` optionally specify which four-body descriptors are used, and :attr:`has_q_1111` specifies if the five-body descriptor is used.
 
-:math:`l_\mathrm{max}^\mathrm{3b}` can take values from 2 to 8, and :attr:`has_q_222`, :attr:`has_q_1111`, :attr:`has_q_112`, :attr:`has_q_123`, and :attr:`has_q_233` can be zero (not to use) or nonzero (to use).
+:math:`l_\mathrm{max}^\mathrm{3b}` can take values from 2 to 8, and :attr:`has_q_222`, :attr:`has_q_1111`, :attr:`has_q_112`, :attr:`has_q_123`, and :attr:`has_q_233` can be 0 (not to use) or 1 (to use).
 
 The default values are::
 
