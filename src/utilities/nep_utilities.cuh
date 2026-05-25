@@ -50,17 +50,6 @@ __constant__ float C4B2[5] = {
   -0.013746775424423f,
   0.041240326273270f,
   0.082480652546540f};
-__constant__ float C5B2[10] = {
-  0.008204309788260f,
-  0.086014789060637f,
-  0.021503697265159f,
-  0.012176000966294f,
-  0.048704003865174f,
-  0.005095077688639f,
-  0.006218464199244f,
-  0.012436928398488f,
-  0.037310785195463f,
-  0.074621570390925f};
 
 __constant__ float C4B_123[7] = {
   -0.008418146349617f,
@@ -769,127 +758,6 @@ static __device__ __forceinline__ void get_f12_4body_2(
   f12[2] += tmp1 * r12[2];
 }
 
-static __device__ __forceinline__ void get_f12_5body_2(
-  const float d12,
-  const float d12inv,
-  const float fn1,
-  const float fnp1,
-  const float fn2,
-  const float fnp2,
-  const float Fp,
-  const float* s1,
-  const float* s2,
-  const float* r12,
-  float* f12)
-{
-  float fn_factor = Fp * fn2;
-  float fnp_factor = Fp * fnp2 * d12inv;
-
-  // derivative wrt s2[0]
-  float tmp0 = C5B2[0] * (s1[0] * s1[0] * s2[0] * 2.0f) +
-               C5B2[5] * (s1[1] * s1[1] * s2[0] * 2.0f + s1[2] * s1[2] * s2[0] * 2.0f) +
-               C5B2[6] * (s1[2] * s1[2] * s2[3] - s1[1] * s1[1] * s2[3]) +
-               C5B2[7] * (s1[0] * s1[1] * s2[1] + s1[0] * s1[2] * s2[2] - s1[1] * s1[2] * s2[4]);
-  float tmp1 = tmp0 * (3.0f * r12[2] * r12[2] - d12 * d12) * fnp_factor;
-  float tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
-  f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
-
-  // derivative wrt s2[1]
-  tmp0 = C5B2[1] * (s1[0] * s1[0] * s2[1] * 2.0f + s1[1] * s1[1] * s2[1] * 2.0f) +
-         C5B2[4] * (s1[2] * s1[2] * s2[1] * 2.0f) +
-         C5B2[7] * (s1[0] * s1[1] * s2[0]) +
-         C5B2[8] * (s1[0] * s1[1] * s2[3] + s1[0] * s1[2] * s2[4]) +
-         C5B2[9] * (s1[1] * s1[2] * s2[2]);
-  tmp1 = tmp0 * r12[0] * r12[2] * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * r12[2];
-  f12[1] += tmp1 * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[0];
-
-  // derivative wrt s2[2]
-  tmp0 = C5B2[1] * (s1[0] * s1[0] * s2[2] * 2.0f + s1[2] * s1[2] * s2[2] * 2.0f) +
-         C5B2[4] * (s1[1] * s1[1] * s2[2] * 2.0f) +
-         C5B2[7] * (s1[0] * s1[2] * s2[0]) +
-         C5B2[8] * (s1[0] * s1[1] * s2[4] - s1[0] * s1[2] * s2[3]) +
-         C5B2[9] * (s1[1] * s1[2] * s2[1]);
-  tmp1 = tmp0 * r12[1] * r12[2] * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0];
-  f12[1] += tmp1 * r12[1] + tmp2 * r12[2];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[1];
-
-  // derivative wrt s2[3]
-  tmp0 = C5B2[2] * (s1[1] * s1[1] * s2[3] * 2.0f + s1[2] * s1[2] * s2[3] * 2.0f) +
-      C5B2[3] * (s1[0] * s1[0] * s2[3] * 2.0f) +
-      C5B2[6] * (s1[2] * s1[2] * s2[0] - s1[1] * s1[1] * s2[0]) +
-      C5B2[8] * (s1[0] * s1[1] * s2[1] - s1[0] * s1[2] * s2[2]);
-  tmp1 = tmp0 * (r12[0] * r12[0] - r12[1] * r12[1]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[0];
-  f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2];
-
-  // derivative wrt s2[4]
-  tmp0 = C5B2[2] * (s1[1] * s1[1] * s2[4] * 2.0f + s1[2] * s1[2] * s2[4] * 2.0f) +
-         C5B2[3] * (s1[0] * s1[0] * s2[4] * 2.0f) +
-         C5B2[7] * (- s1[1] * s1[2] * s2[0]) +
-         C5B2[8] * (s1[0] * s1[1] * s2[2] + s1[0] * s1[2] * s2[1]);
-  tmp1 = tmp0 * (2.0f * r12[0] * r12[1]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[1];
-  f12[1] += tmp1 * r12[1] + tmp2 * 2.0f * r12[0];
-  f12[2] += tmp1 * r12[2];
-
-  fn_factor = Fp * fn1;
-  fnp_factor = Fp * fnp1 * d12inv;
-
-  // derivative wrt s1[0]
-  tmp0 = C5B2[0] * (s1[0] * 2.0f * s2[0] * s2[0]) +
-         C5B2[1] * (s1[0] * 2.0f * s2[1] * s2[1] + s1[0] * 2.0f * s2[2] * s2[2]) +
-         C5B2[3] * (s1[0] * 2.0f * s2[3] * s2[3] + s1[0] * 2.0f * s2[4] * s2[4]) +
-         C5B2[7] * (s1[1] * s2[0] * s2[1] + s1[2] * s2[0] * s2[2]) +
-         C5B2[8] * (s1[1] * s2[1] * s2[3] + s1[1] * s2[2] * s2[4] + s1[2] * s2[1] * s2[4] - s1[2] * s2[2] * s2[3]);
-  tmp1 = tmp0 * r12[2] * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0];
-  f12[1] += tmp1 * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2;
-
-  // derivative wrt s1[1]
-  tmp0 =      
-      C5B2[1] * (s1[1] * 2.0f * s2[1] * s2[1]) +
-      C5B2[2] * (s1[1] * 2.0f * s2[3] * s2[3] + s1[1] * 2.0f * s2[4] * s2[4]) +
-      C5B2[4] * (s1[1] * 2.0f * s2[2] * s2[2]) +
-      C5B2[5] * (s1[1] * 2.0f * s2[0] * s2[0]) +
-      C5B2[6] * (- s1[1] * 2.0f * s2[0] * s2[3]) +
-      C5B2[7] * (s1[0] * s2[0] * s2[1] - s1[2] * s2[0] * s2[4]) +
-      C5B2[8] * (s1[0] * s2[1] * s2[3] + s1[0] * s2[2] * s2[4]) +
-      C5B2[9] * (s1[2] * s2[1] * s2[2]);
-  tmp1 = tmp0 * r12[0] * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2;
-  f12[1] += tmp1 * r12[1];
-  f12[2] += tmp1 * r12[2];
-
-  // derivative wrt s1[2]
-  tmp0 =      
-      C5B2[1] * (s1[2] * 2.0f * s2[2] * s2[2]) +
-      C5B2[2] * (s1[2] * 2.0f * s2[3] * s2[3] + s1[2] * 2.0f * s2[4] * s2[4]) +
-      C5B2[4] * (s1[2] * 2.0f * s2[1] * s2[1]) +
-      C5B2[5] * (s1[2] * 2.0f * s2[0] * s2[0]) +
-      C5B2[6] * (s1[2] * 2.0f * s2[0] * s2[3]) +
-      C5B2[7] * (s1[0] * s2[0] * s2[2] - s1[1] * s2[0] * s2[4]) +
-      C5B2[8] * (s1[0] * s2[1] * s2[4] - s1[0] * s2[2] * s2[3]) +
-      C5B2[9] * (s1[1] * s2[1] * s2[2]);
-  tmp1 = tmp0 * r12[1] * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0];
-  f12[1] += tmp1 * r12[1] + tmp2;
-  f12[2] += tmp1 * r12[2];
-}
-
 static __device__ __forceinline__ void get_f12_4body_123(
   const float d12,
   const float d12inv,
@@ -1396,7 +1264,6 @@ static __device__ __forceinline__ void accumulate_f12(
   const int has_q_222,
   const int has_q_1111,
   const int has_q_112,
-  const int has_q_1122,
   const int has_q_123,
   const int has_q_233,
   const int num_L,
@@ -1487,9 +1354,6 @@ static __device__ __forceinline__ void accumulate_f12(
     }
     if (has_q_112) {
       get_f12_4body_2(d12, d12inv, fn, fnp, fn2, fnp2, Fp[(L_index++) * n_max_angular_plus_1 + n], s1, s2, r12, f12);
-    }
-    if (has_q_1122) {
-      get_f12_5body_2(d12, d12inv, fn, fnp, fn2, fnp2, Fp[(L_index++) * n_max_angular_plus_1 + n], s1, s2, r12, f12);
     }
 
     if (has_q_123 || has_q_233) {
@@ -1667,7 +1531,6 @@ static __device__ __forceinline__ void find_q(
   const int has_q_222,
   const int has_q_1111,
   const int has_q_112,
-  const int has_q_1122,
   const int has_q_123,
   const int has_q_233,
   const int n_max_angular_plus_1,
@@ -1722,20 +1585,6 @@ static __device__ __forceinline__ void find_q(
       C4B2[0] * s[0] * s[0] * s[3] + C4B2[1] * s[0] * (s[1] * s[4] + s[2] * s[5]) +
       C4B2[2] * s[3] * (s[1] * s[1] + s[2] * s[2]) + C4B2[3] * s[6] * (s[1] * s[1] - s[2] * s[2]) +
       C4B2[4] * s[1] * s[2] * s[7];
-  }
-
-  if (has_q_1122) {
-    q[(L_index++) * n_max_angular_plus_1 + n] = 
-      C5B2[0] * (s[0] * s[0] * s[3] * s[3]) +
-      C5B2[1] * (s[0] * s[0] * s[4] * s[4] + s[0] * s[0] * s[5] * s[5] + s[1] * s[1] * s[4] * s[4] + s[2] * s[2] * s[5] * s[5]) +
-      C5B2[2] * (s[1] * s[1] * s[6] * s[6] + s[1] * s[1] * s[7] * s[7] + s[2] * s[2] * s[6] * s[6] + s[2] * s[2] * s[7] * s[7]) +
-      C5B2[3] * (s[0] * s[0] * s[6] * s[6] + s[0] * s[0] * s[7] * s[7]) +
-      C5B2[4] * (s[1] * s[1] * s[5] * s[5] + s[2] * s[2] * s[4] * s[4]) +
-      C5B2[5] * (s[1] * s[1] * s[3] * s[3] + s[2] * s[2] * s[3] * s[3]) +
-      C5B2[6] * (s[2] * s[2] * s[3] * s[6] - s[1] * s[1] * s[3] * s[6]) +
-      C5B2[7] * (s[0] * s[1] * s[3] * s[4] + s[0] * s[2] * s[3] * s[5] - s[1] * s[2] * s[3] * s[7]) +
-      C5B2[8] * (s[0] * s[1] * s[4] * s[6] + s[0] * s[1] * s[5] * s[7] + s[0] * s[2] * s[4] * s[7] - s[0] * s[2] * s[5] * s[6]) +
-      C5B2[9] * (s[1] * s[2] * s[4] * s[5]);
   }
 
   if (has_q_123) {
