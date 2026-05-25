@@ -169,7 +169,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-        false,
+        (para.fine_tune ? false : true),
         deviceCount);
     }
   } else {

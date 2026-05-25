@@ -260,7 +260,7 @@ void Parameters::calculate_parameters()
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
 
-  q_scaler_cpu.resize(dim, q_scaler_input);
+  q_scaler_cpu.resize(dim,  1.0e10f);
   if (fine_tune) {
     std::ifstream input(fine_tune_nep_txt);
     if (!input.is_open()) {
