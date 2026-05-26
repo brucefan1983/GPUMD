@@ -238,10 +238,6 @@ void Parameters::calculate_parameters()
   if (charge_mode) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
-    if (charge_mode >= 3) {
-      number_of_variables_ann_1 += num_neurons1;
-      number_of_variables_ann += num_neurons1 * num_types;
-    }
   }
 
   number_of_variables_descriptor =
@@ -457,8 +453,6 @@ void Parameters::report_inputs()
       printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
       printf("    (input)   use NEP-Charge and include k-space only.\n");
-    } else if (charge_mode == 3) {
-      printf("    (input)   use NEP-Charge-VdW and include k-space only.\n");
     }
     printf("        lambda_q = %g.\n", lambda_q);
     printf("        lambda_z = %g.\n", lambda_z);
@@ -1363,8 +1357,8 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &charge_mode)) {
     PRINT_INPUT_ERROR("charge mode should be an integer.\n");
   }
-  if (charge_mode < 0 || charge_mode > 3) {
-    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2 or 3.");
+  if (charge_mode < 0 || charge_mode > 2) {
+    PRINT_INPUT_ERROR("charge mode should be 0 or 1 or 2.");
   }
   if (num_param == 3) {
     if (!is_valid_int(param[2], &flip_charge)) {
