@@ -128,12 +128,8 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     // flip the charges if needed
     if (para.charge_mode && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
-      int num2 = 0;
-      if (para.charge_mode >= 3) {
-        num2 = para.num_neurons1;
-      }
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = para.number_of_variables_ann_1 * t + num1; n < para.number_of_variables_ann_1 * (t + 1) - num2; ++n) {
+        for (int n = para.number_of_variables_ann_1 * t + num1; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
           mu[n] = -mu[n];
         }
       }
