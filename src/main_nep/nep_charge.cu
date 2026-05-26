@@ -33,6 +33,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 static __global__ void find_descriptors_radial(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -49,7 +50,7 @@ static __global__ void find_descriptors_radial(
     int neighbor_number = g_NN[n1];
     float q[MAX_NUM_N] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = n1 + N * i1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float x12 = g_x12[index];
       float y12 = g_y12[index];
@@ -81,6 +82,7 @@ static __global__ void find_descriptors_radial(
 
 static __global__ void find_descriptors_angular(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -101,8 +103,8 @@ static __global__ void find_descriptors_angular(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
-        int index = n1 + N * i1;
-        int n2 = g_NL[n1 + N * i1];
+        int index = g_NN_sum[n1] + i1;
+        int n2 = g_NL[index];
         float x12 = g_x12[index];
         float y12 = g_y12[index];
         float z12 = g_z12[index];
@@ -377,6 +379,7 @@ static __global__ void scale_bec(const int N, const float* sqrt_epsilon_inf, flo
 
 static __global__ void find_force_radial(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -404,7 +407,7 @@ static __global__ void find_force_radial(
     float s_virial_zx = 0.0f;
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -458,6 +461,7 @@ static __global__ void find_force_radial(
 
 static __global__ void find_force_angular(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -498,7 +502,7 @@ static __global__ void find_force_angular(
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -550,6 +554,7 @@ static __global__ void find_force_angular(
 
 static __global__ void find_bec_radial(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -566,7 +571,7 @@ static __global__ void find_bec_radial(
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -629,6 +634,7 @@ static __global__ void find_bec_radial(
 
 static __global__ void find_bec_angular(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP_Charge::ParaMB paramb,
@@ -654,7 +660,7 @@ static __global__ void find_bec_angular(
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -718,6 +724,7 @@ static __global__ void find_force_ZBL(
   const int N,
   const NEP_Charge::ParaMB paramb,
   const NEP_Charge::ZBL zbl,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -744,7 +751,7 @@ static __global__ void find_force_ZBL(
     float pow_zi = pow(float(zi), 0.23f);
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -926,6 +933,7 @@ static __global__ void find_force_charge_real_space(
   const int N,
   const float alpha,
   const float two_alpha_over_sqrt_pi,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const float* __restrict__ g_charge,
@@ -953,7 +961,7 @@ static __global__ void find_force_charge_real_space(
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float q2 = g_charge[n2];
       float qq = q1 * q2;
@@ -1172,6 +1180,7 @@ void NEP_Charge::find_force(
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_radial_sum.data(),
       dataset[device_id].NN_radial.data(),
       dataset[device_id].NL_radial.data(),
       paramb,
@@ -1185,6 +1194,7 @@ void NEP_Charge::find_force(
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_angular_sum.data(),
       dataset[device_id].NN_angular.data(),
       dataset[device_id].NL_angular.data(),
       paramb,
@@ -1277,6 +1287,7 @@ void NEP_Charge::find_force(
       // get BEC (radial descriptor part)
       find_bec_radial<<<grid_size, block_size>>>(
         dataset[device_id].N,
+        dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
         dataset[device_id].NL_radial.data(),
         paramb,
@@ -1292,6 +1303,7 @@ void NEP_Charge::find_force(
       // get BEC (angular descriptor part)
       find_bec_angular<<<grid_size, block_size>>>(
         dataset[device_id].N,
+        dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
         dataset[device_id].NL_angular.data(),
         paramb,
@@ -1374,6 +1386,7 @@ void NEP_Charge::find_force(
         dataset[device_id].N,
         charge_para.alpha,
         charge_para.two_alpha_over_sqrt_pi,
+        dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
         dataset[device_id].NL_radial.data(),
         dataset[device_id].charge_shifted.data(),
@@ -1398,6 +1411,7 @@ void NEP_Charge::find_force(
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_radial_sum.data(),
       dataset[device_id].NN_radial.data(),
       dataset[device_id].NL_radial.data(),
       paramb,
@@ -1417,6 +1431,7 @@ void NEP_Charge::find_force(
 
     find_force_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_angular_sum.data(),
       dataset[device_id].NN_angular.data(),
       dataset[device_id].NL_angular.data(),
       paramb,
@@ -1440,6 +1455,7 @@ void NEP_Charge::find_force(
         dataset[device_id].N,
         paramb,
         zbl,
+        dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
         dataset[device_id].NL_angular.data(),
         dataset[device_id].type.data(),

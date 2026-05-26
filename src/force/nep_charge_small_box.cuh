@@ -150,8 +150,6 @@ static __global__ void find_descriptor_small_box(
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative,
-  float* g_C6,
-  float* g_C6_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -168,7 +166,7 @@ static __global__ void find_descriptor_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -220,38 +218,6 @@ static __global__ void find_descriptor_small_box(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-    if (paramb.charge_mode >= 3) {
-      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-      float charge = 0.0f;
-      float charge_derivative[MAX_DIM] = {0.0f};
-      float C6 = 0.0f;
-      float C6_derivative[MAX_DIM] = {0.0f};
-
-      apply_ann_one_layer_charge_vdw(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp,
-        charge,
-        charge_derivative,
-        C6,
-        C6_derivative);
-
-      g_pe[n1] += F;
-      g_charge[n1] = charge;
-      g_C6[n1] = C6 + 2.0f;
-
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
-        g_C6_derivative[d * N + n1] = C6_derivative[d] * annmb.q_scaler[d];
-      }
-    } else {
       float F = 0.0f, Fp[MAX_DIM] = {0.0f};
       float charge = 0.0f;
       float charge_derivative[MAX_DIM] = {0.0f};
@@ -276,7 +242,6 @@ static __global__ void find_descriptor_small_box(
         g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
         g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
       }
-    }
   }
 }
 
@@ -465,8 +430,6 @@ static __global__ void find_force_radial_small_box(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
-  const float* g_C6_derivative,
-  const float* g_D_C6,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -484,7 +447,7 @@ static __global__ void find_force_radial_small_box(
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -498,9 +461,6 @@ static __global__ void find_force_radial_small_box(
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
-        if (paramb.charge_mode >= 3) {
-          tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
-        }
         tmp12 *= gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
@@ -563,8 +523,6 @@ static __global__ void find_force_angular_small_box(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
-  const float* g_C6_derivative,
-  const float* g_D_C6,
   const float* __restrict__ g_sum_fxyz,
   double* g_fx,
   double* g_fy,
@@ -579,9 +537,6 @@ static __global__ void find_force_angular_small_box(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
-      if (paramb.charge_mode >= 3) {
-        tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
-      }
       Fp[d] = tmp;
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
@@ -698,7 +653,7 @@ static __global__ void find_bec_radial_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.charge_mode >= 3) ? paramb.rc_angular : paramb.rc_radial;
+      float rc = paramb.rc_radial;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
