@@ -19,6 +19,7 @@ The default values are::
   l_max 4 1 0 0 0 0 # equivalent to l_max 4 1 or the old-style l_max 4 2
   
 For high accuracy, one can try::
+  
   l_max 4 1 0 1 1 1
 
 The five-body descriptor switch :attr:`has_q_1111` is only provided for backward compatibility. 
