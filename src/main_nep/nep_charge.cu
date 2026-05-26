@@ -336,62 +336,6 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void apply_ann_vdw(
-  const int N,
-  const NEP_Charge::ParaMB paramb,
-  const NEP_Charge::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
-  float* g_pe,
-  float* g_Fp,
-  float* g_charge,
-  float* g_charge_derivative,
-  float* g_C6,
-  float* g_C6_derivative)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
-  if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    float charge = 0.0f;
-    float charge_derivative[MAX_DIM] = {0.0f};
-    float C6 = 0.0f;
-    float C6_derivative[MAX_DIM] = {0.0f};
-
-    apply_ann_one_layer_charge_vdw(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp,
-      charge,
-      charge_derivative,
-      C6,
-      C6_derivative);
-
-    g_pe[n1] = F;
-    g_charge[n1] = charge;
-    g_C6[n1] = C6 + 2.0f;
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
-      g_charge_derivative[n1 + d * N] = charge_derivative[d] * g_q_scaler[d];
-      g_C6_derivative[n1 + d * N] = C6_derivative[d] * g_q_scaler[d];
-    }
-  }
-}
-
 static __global__ void zero_force(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -444,8 +388,6 @@ static __global__ void find_force_radial(
   const float* g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
-  const float* g_C6_derivative,
-  const float* g_D_C6,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -527,8 +469,6 @@ static __global__ void find_force_angular(
   const float* g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
-  const float* g_C6_derivative,
-  const float* g_D_C6,
   const float* g_sum_fxyz,
   float* g_fx,
   float* g_fy,
@@ -1052,77 +992,6 @@ static __global__ void find_force_charge_real_space(
   }
 }
 
-static __global__ void find_force_vdw_static(
-  const int N,
-  const int* g_NN,
-  const int* g_NL,
-  const float* __restrict__ g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial,
-  float* g_pe,
-  float* g_D_C6)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    float q1 = g_charge[n1];
-    float s_pe = 0;
-    float D_C6 = 0;
-
-    const float R6 = 729.0f; // 3^6
-
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float q2 = g_charge[n2];
-      float qq = q1 * q1 * q2 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12_2 = d12 * d12;
-      float d12_4 = d12_2 * d12_2;
-      float d12_6 = d12_4 * d12_2;
-      float one_over_r6 = 1.0f / (d12_6 + R6);
-
-      D_C6 -= (2.0f * q1) * (q2 * q2) * one_over_r6;
-      float f2 = 3.0f * qq * d12_4 * one_over_r6 * one_over_r6;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-
-      s_pe += -0.5f * qq * one_over_r6;
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-    }
-    g_D_C6[n1] = D_C6;
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += s_pe;
-  }
-}
-
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -1540,8 +1409,6 @@ void NEP_Charge::find_force(
       nep_data[device_id].Fp.data(),
       nep_data[device_id].charge_derivative.data(),
       nep_data[device_id].D_real.data(),
-      nep_data[device_id].C6_derivative.data(),
-      nep_data[device_id].D_C6.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
@@ -1561,8 +1428,6 @@ void NEP_Charge::find_force(
       nep_data[device_id].Fp.data(),
       nep_data[device_id].charge_derivative.data(),
       nep_data[device_id].D_real.data(),
-      nep_data[device_id].C6_derivative.data(),
-      nep_data[device_id].D_C6.data(),
       nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
