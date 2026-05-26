@@ -35,6 +35,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 
 static __global__ void find_descriptors_radial(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const TNEP::ParaMB paramb,
@@ -51,7 +52,7 @@ static __global__ void find_descriptors_radial(
     int neighbor_number = g_NN[n1];
     float q[MAX_NUM_N] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = n1 + N * i1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float x12 = g_x12[index];
       float y12 = g_y12[index];
@@ -83,6 +84,7 @@ static __global__ void find_descriptors_radial(
 
 static __global__ void find_descriptors_angular(
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const TNEP::ParaMB paramb,
@@ -103,8 +105,8 @@ static __global__ void find_descriptors_angular(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
-        int index = n1 + N * i1;
-        int n2 = g_NL[n1 + N * i1];
+        int index = g_NN_sum[n1] + i1;
+        int n2 = g_NL[index];
         float x12 = g_x12[index];
         float y12 = g_y12[index];
         float z12 = g_z12[index];
@@ -435,6 +437,7 @@ static __global__ void zero_force(
 static __global__ void find_force_radial(
   const bool is_dipole,
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const TNEP::ParaMB paramb,
@@ -460,7 +463,7 @@ static __global__ void find_force_radial(
     float s_virial_zx = 0.0f;
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -521,6 +524,7 @@ static __global__ void find_force_radial(
 static __global__ void find_force_angular(
   const bool is_dipole,
   const int N,
+  const int* g_NN_sum,
   const int* g_NN,
   const int* g_NL,
   const TNEP::ParaMB paramb,
@@ -557,7 +561,7 @@ static __global__ void find_force_angular(
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
+      int index = g_NN_sum[n1] + i1;
       int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -636,6 +640,7 @@ void TNEP::find_force(
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_radial_sum.data(),
       dataset[device_id].NN_radial.data(),
       dataset[device_id].NL_radial.data(),
       paramb,
@@ -649,6 +654,7 @@ void TNEP::find_force(
 
     find_descriptors_angular<<<grid_size, block_size>>>(
       dataset[device_id].N,
+      dataset[device_id].NN_angular_sum.data(),
       dataset[device_id].NN_angular.data(),
       dataset[device_id].NL_angular.data(),
       paramb,
@@ -707,6 +713,7 @@ void TNEP::find_force(
     find_force_radial<<<grid_size, block_size>>>(
       is_dipole,
       dataset[device_id].N,
+      dataset[device_id].NN_radial_sum.data(),
       dataset[device_id].NN_radial.data(),
       dataset[device_id].NL_radial.data(),
       paramb,
@@ -725,6 +732,7 @@ void TNEP::find_force(
     find_force_angular<<<grid_size, block_size>>>(
       is_dipole,
       dataset[device_id].N,
+      dataset[device_id].NN_angular_sum.data(),
       dataset[device_id].NN_angular.data(),
       dataset[device_id].NL_angular.data(),
       paramb,
