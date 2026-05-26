@@ -62,9 +62,6 @@ public:
   struct NEP_Charge_Data {
     GPU_Vector<float> descriptors;       // descriptors
     GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
-    GPU_Vector<float> C6;                // C6
-    GPU_Vector<float> D_C6;              // related to dynamic C6
-    GPU_Vector<float> C6_derivative;     // dC6/dq
     GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
