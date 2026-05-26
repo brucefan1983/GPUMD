@@ -1308,7 +1308,7 @@ void NEP_Charge::find_force(
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      ataset[device_id].x12_radial.data(),
+      dataset[device_id].x12_radial.data(),
       dataset[device_id].y12_radial.data(),
       dataset[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
