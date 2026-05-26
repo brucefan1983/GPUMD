@@ -135,7 +135,7 @@ Nature Communications **15**, 10208 (2024).
 J. Chem. Theory Comput. **20**, 3273 (2024).
 
 [Song2026] Keke Song, Jiahui Liu, Yuanxu Zhu, Shunda Chen, Zheyong Fan, Yanjing Su, Ping Qian, [Solute Segregation in Polycrystalline Aluminum From Hybrid Monte Carlo and Molecular Dynamics Simulations With a Unified Neuroevolution Potential](https://onlinelibrary.wiley.com/doi/10.1002/mgea.70049),
-Materials Genome Engineering Advances, e70049 (2026).
+Materials Genome Engineering Advances, **4**, e70049 (2026).
 
 [Ying2025] Penghua Ying, Wenjiang Zhou, Lucas Svensson, Esmée Berger, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Jianbin Xu, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://doi.org/10.1063/5.0241006),
 J. Chem. Phys. **162**, 064109 (2025).
@@ -151,7 +151,7 @@ ACS Nano **19**, 16287 (2025).
 [Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
 Computer Physics Communications **320**, 109994 (2026).
 
-[Fan2026a] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://doi.org/10.1021/acs.jctc.6c00146), Journal of Chemical Theory and Computation (2026).
+[Fan2026a] Zheyong Fan, Benrui Tang, Esmée Berger, Ethan Berger, Erik Fransson, Ke Xu, Zihan Yan, Zhoulin Liu, Zichen Song, Haikuan Dong, Shunda Chen, Lei Li, Ziliang Wang, Yizhou Zhu, Julia Wiktor, Paul Erhart [qNEP: A highly efficient neuroevolution potential with dynamic charges for large-scale atomistic simulations](https://doi.org/10.1021/acs.jctc.6c00146), J. Chem. Theory Comput. **22**, 4787 (2026).
 
 [Li2025] Mingqian Li, Lifeng Wang, Zhuoqun Zheng, [Coarse-grained machine learning potential for mesoscale multilayered graphene](https://doi.org/10.1038/s41524-025-01849-2), npj Computational Materials **11**, 374 (2025).
 
