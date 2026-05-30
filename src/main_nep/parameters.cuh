@@ -46,6 +46,7 @@ public:
   int has_q_112;          // has q_112
   int has_q_123;          // has q_123
   int has_q_233;          // has q_233
+  int has_q_134;          // has q_134
   float lambda_1;         // weight parameter for L1 regularization loss
   float lambda_2;         // weight parameter for L2 regularization loss
   float lambda_e;         // weight parameter for energy RMSE loss
