@@ -60,6 +60,7 @@ public:
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
+    int has_q_134 = 0;
     int num_L;
     int basis_size_radial = 8;  // for nep3
     int basis_size_angular = 8; // for nep3

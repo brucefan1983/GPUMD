@@ -91,6 +91,7 @@ void Parameters::set_default_parameters()
   has_q_112 = 0;               // default is not to include q_112
   has_q_123 = 0;               // default is not to include q_123
   has_q_233 = 0;               // default is not to include q_233
+  has_q_134 = 0;               // default is not to include q_134
   num_neurons1 = 30;           // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
@@ -217,6 +218,9 @@ void Parameters::calculate_parameters()
     dim_angular += n_max_angular + 1;
   }
   if (has_q_233) {
+    dim_angular += n_max_angular + 1;
+  }
+  if (has_q_134) {
     dim_angular += n_max_angular + 1;
   }
 
@@ -485,6 +489,7 @@ void Parameters::report_inputs()
     printf("    (input)   has_q_112 = %d.\n", has_q_112);
     printf("    (input)   has_q_123 = %d.\n", has_q_123);
     printf("    (input)   has_q_233 = %d.\n", has_q_233);
+    printf("    (input)   has_q_134 = %d.\n", has_q_134);
   } else {
     printf("    (default) l_max_3body = %d.\n", L_max);
     printf("    (default) has_q_222 = %d.\n", has_q_222);
@@ -492,6 +497,7 @@ void Parameters::report_inputs()
     printf("    (default) has_q_112 = %d.\n", has_q_112);
     printf("    (default) has_q_123 = %d.\n", has_q_123);
     printf("    (default) has_q_233 = %d.\n", has_q_233);
+    printf("    (default) has_q_134 = %d.\n", has_q_134);
   }
 
   if (is_neuron_set) {
@@ -953,8 +959,8 @@ void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param < 2 || num_param > 7) {
-    PRINT_INPUT_ERROR("l_max should have 1 to 6 parameters.\n");
+  if (num_param < 2 || num_param > 8) {
+    PRINT_INPUT_ERROR("l_max should have 1 to 7 parameters.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
@@ -995,6 +1001,13 @@ void Parameters::parse_l_max(const char** param, int num_param)
       PRINT_INPUT_ERROR("has_q_233 should be an integer.\n");
     }
   }
+
+  if (num_param >= 8) {
+    if (!is_valid_int(param[7], &has_q_134)) {
+      PRINT_INPUT_ERROR("has_q_134 should be an integer.\n");
+    }
+  }
+
 }
 
 void Parameters::parse_neuron(const char** param, int num_param)
