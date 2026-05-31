@@ -88,7 +88,7 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   cutoff     	8 4       # please choose these reasonably
   n_max      	6 6       # default
   basis_size	6 6       # default
-  l_max      	4 1 0 0 0 # default
+  l_max      	4 1       # default
   neuron     	30        # default
   lambda_e      1.0       # default
   lambda_f      1.0       # default
