@@ -16,11 +16,11 @@ where :attr:`l_max_3b` sets the limit for the three-body descriptors, :attr:`has
 
 The default values are::
 
-  l_max 4 1 0 0 0 0 0 # equivalent to l_max 4 1 or the old-style l_max 4 2
-  
-For high accuracy, one can try::
-  
-  l_max 4 1 0 1 1 1 1
+  l_max 4 1
+  l_max 4 1 0 0 0 0 0 # equivalent way to write it
 
 The five-body descriptor switch :attr:`has_q_1111` is only provided for backward compatibility. 
-This five-body descriptor is equivalent to the square of two three-body descriptors and thus does not provide new information. It use is strongly discouraged.
+This five-body descriptor is equivalent to the square of two three-body descriptors and thus does not provide new information. Its use is strongly discouraged.
+
+The new four-body descriptors (:attr:`q_112`, :attr:`q_123`, :attr:`q_233`, and :attr:`q_134`) have not been comprehensively tested, and should be used with caution.
+More suggestions on this will be made in a future version.
