@@ -161,7 +161,7 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
-#ifdef USE_TENSORFLOW
+#if defined(USE_DEEPMD) || defined(USE_TENSORFLOW)
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR(
@@ -169,7 +169,7 @@ void Force::parse_potential(
         "potential file name.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
-#endif
+#endif // defined(USE_DEEPMD) || defined(USE_TENSORFLOW)
 #ifdef USE_NNAP
   } else if (strcmp(potential_name, "nnap") == 0) {
     if (num_param != 3) {

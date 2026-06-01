@@ -17,7 +17,7 @@
 The class dealing with the Deep Potential(DP).
 ------------------------------------------------------------------------------*/
 
-#ifdef USE_TENSORFLOW
+#if defined(USE_DEEPMD) || defined(USE_TENSORFLOW)
 #include "dp.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
@@ -624,4 +624,4 @@ nghost = calc_ghost_atom_number(
     nghost);
   GPU_CHECK_KERNEL
 }
-#endif
+#endif // defined(USE_DEEPMD) || defined(USE_TENSORFLOW)

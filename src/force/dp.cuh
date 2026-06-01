@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef USE_TENSORFLOW
+#if defined(USE_DEEPMD) || defined(USE_TENSORFLOW)
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"
@@ -155,4 +155,4 @@ protected:
   void set_dp_coeff();
   void release_pinned_host_buffers();
 };
-#endif
+#endif // defined(USE_DEEPMD) || defined(USE_TENSORFLOW)

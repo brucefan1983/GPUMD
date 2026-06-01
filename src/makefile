@@ -27,6 +27,19 @@ LIBS = -lcublas -lcusolver -lcufft
 
 
 ###########################################################
+# DeePMD-kit support (TensorFlow or PyTorch backend)
+# Uncomment and adjust paths for your installation:
+# CFLAGS += -DUSE_DEEPMD
+# INC += -I/path/to/deepmd-kit-install/include/deepmd
+# LDFLAGS += -L/path/to/deepmd-kit-install/lib
+# LIBS += -ldeepmd_cc
+# For PyTorch backend, also add libtorch paths:
+# LDFLAGS += -L/path/to/libtorch/lib
+# LIBS += -ltorch -ltorch_cpu -lc10
+###########################################################
+
+
+###########################################################
 # source files
 ###########################################################
 SOURCES_GPUMD =                   \
