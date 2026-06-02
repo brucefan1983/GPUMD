@@ -77,7 +77,7 @@ static void uncacheJClass_(JNIEnv *aEnv) {
 }
 
 static jmethodID sInit = 0;
-static jmethodID sShutdown = 0;
+static jmethodID sClose = 0;
 static jmethodID sRcutMax = 0;
 static jmethodID sComputeGPUMD = 0;
 
@@ -100,9 +100,9 @@ static double rcutMax_(JNIEnv *aEnv, jobject aSelf) {
   }
   return 0.0;
 }
-static void shutdown_(JNIEnv *aEnv, jobject aSelf) {
-  if (sShutdown || (sShutdown = aEnv->GetMethodID(NNAP_CLAZZ, "shutdown", "()V"))) {
-    aEnv->CallVoidMethod(aSelf, sShutdown);
+static void close_(JNIEnv *aEnv, jobject aSelf) {
+  if (sClose || (sClose = aEnv->GetMethodID(NNAP_CLAZZ, "close", "()V"))) {
+    aEnv->CallVoidMethod(aSelf, sClose);
   }
 }
 static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
@@ -175,7 +175,7 @@ NNAP::NNAP(const char* filename, int num_atoms)
 NNAP::~NNAP(void)
 {
   if (mCore != NULL && mEnv != NULL) {
-    shutdown_(mEnv, mCore);
+    close_(mEnv, mCore);
     // only check, no error on destructor
     exceptionCheck_(mEnv);
     
