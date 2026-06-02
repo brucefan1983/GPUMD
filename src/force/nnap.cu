@@ -62,7 +62,7 @@ static jclass NNAP_CLAZZ = NULL;
 
 static jboolean cacheJClass_(JNIEnv *aEnv) {
   if (NNAP_CLAZZ == NULL) {
-    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP_cuda"); // Interim version developed for gpu version 
+    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP");
     if (aEnv->ExceptionCheck()) return JNI_FALSE;
     NNAP_CLAZZ = (jclass)aEnv->NewGlobalRef(clazz);
     aEnv->DeleteLocalRef(clazz);
@@ -159,7 +159,7 @@ NNAP::NNAP(const char* filename, int num_atoms)
   // get rcut
   rc = rcutMax_(mEnv, mCore);
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
-  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: ?
+  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: auto detect
   if (!(std::isfinite(rc) && rc > 0.0)) {
     PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
   }
