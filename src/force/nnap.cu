@@ -85,10 +85,12 @@ static jobject newJObject_(JNIEnv *aEnv, const char* filename) {
   jobject rOut = NULL;
   
   jstring tJFileName = aEnv->NewStringUTF(filename);
-  if (sInit || (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;)V"))) {
-    rOut = aEnv->NewObject(NNAP_CLAZZ, sInit, tJFileName);
+  jstring tArchStr = aEnv->NewStringUTF("cuda");
+  if (sInit || (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V"))) {
+    rOut = aEnv->NewObject(NNAP_CLAZZ, sInit, tJFileName, tArchStr);
   }
   aEnv->DeleteLocalRef(tJFileName);
+  aEnv->DeleteLocalRef(tArchStr);
   
   return rOut;
 }
