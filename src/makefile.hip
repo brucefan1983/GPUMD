@@ -14,9 +14,10 @@
 ###########################################################
 CC = hipcc
 HIP_ARCH ?= gfx90a
-# rocThrust/rocPRIM (pulled in by thrust::exclusive_scan in neighbor.cu etc.)
-# require C++17; CUDA Thrust tolerates C++14 but ROCm does not.
-CFLAGS = -std=c++17 -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
+# Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
+# (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
+# hipcc defaults to it, so do not pin -std lower.
+CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
