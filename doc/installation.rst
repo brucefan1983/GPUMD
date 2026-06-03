@@ -295,7 +295,59 @@ Then, you can install it using the following command::
 GPUMD-DP with PyTorch backend
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To compile GPUMD with the DeePMD-kit **PyTorch** backend (supports DPA2/DPA3/DPA4 models), use ``-DUSE_DEEPMD`` instead of ``-DUSE_TENSORFLOW``:
+DeePMD-kit C++ interface installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The PyTorch backend requires the DeePMD-kit C++ interface libraries (``libdeepmd_cc``, ``libdeepmd_c``) and PyTorch (LibTorch). Two installation methods are available:
+
+**Method 1: pip install (recommended)**
+
+Install DeePMD-kit with PyTorch support::
+
+    >> $ pip install deepmd-kit[torch]
+
+After installation, the C++ interface files are located under the Python package directory::
+
+    >> $ python -c "import deepmd; print(deepmd.__path__[0] + '/lib')"
+    # Output example: /path/to/python/site-packages/deepmd/lib
+    # Contains: include/deepmd/*.h, libdeepmd_cc.so, libdeepmd_c.so
+
+LibTorch libraries are bundled with PyTorch::
+
+    >> $ python -c "import torch; print(torch.__path__[0] + '/lib')"
+    # Contains: libtorch.so, libtorch_cpu.so, libc10.so, libtorch_cuda.so, etc.
+
+Verify the installation::
+
+    >> $ dp --version
+    >> $ python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+
+**Method 2: Build from source**
+
+Clone and compile the DeePMD-kit C++ interface with PyTorch backend enabled::
+
+    >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
+    >> $ cd deepmd-kit/source
+    >> $ mkdir build && cd build
+    >> $ cmake -DENABLE_PYTORCH=TRUE \
+              -DUSE_CUDA_TOOLKIT=TRUE \
+              -DCMAKE_INSTALL_PREFIX=/path/to/install \
+              ../
+    >> $ make -j$(nproc) && make install
+
+The installed files will be at::
+
+    /path/to/install/include/deepmd/   # Header files
+    /path/to/install/lib/              # libdeepmd_cc.so, libdeepmd_c.so
+
+.. note::
+   Method 1 is sufficient for most users. Method 2 is needed only if you require a custom build
+   (e.g., specific CUDA version, debug symbols, or a development branch of DeePMD-kit).
+
+Compile GPUMD
+^^^^^^^^^^^^^
+
+With the C++ interface installed, configure the GPUMD makefile. Use ``-DUSE_DEEPMD`` instead of ``-DUSE_TENSORFLOW``:
 
 ``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_DEEPMD``
 
@@ -309,6 +361,10 @@ Link against the DeePMD-kit C interface and PyTorch/LibTorch libraries::
 For GPU support, also link CUDA-related torch libraries::
 
     LDFLAGS += -ltorch_cuda -lc10_cuda
+
+Then compile::
+
+    >> $ make gpumd -j
 
 .. note::
    Both ``USE_TENSORFLOW`` and ``USE_DEEPMD`` can be defined simultaneously to support all backends in a single binary.
