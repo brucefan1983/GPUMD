@@ -15,7 +15,7 @@
 The driver class calculating force and related quantities.
 ------------------------------------------------------------------------------*/
 
-#ifdef USE_TENSORFLOW
+#if defined(USE_DEEPMD) || defined(USE_TENSORFLOW)
 #include "dp.cuh"
 #endif
 #ifdef USE_NNAP
