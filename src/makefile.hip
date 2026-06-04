@@ -1,7 +1,8 @@
 ###########################################################
-# Note: 
-# 1) You can modify gfx90a according to your GPU
-#    architecture.
+# Note:
+# 1) Set HIP_ARCH to your GPU architecture, e.g.
+#    make -f makefile.hip HIP_ARCH=gfx1100
+#    (defaults to gfx90a).
 # 2) Do not remove -DUSE_HIP.
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
@@ -12,7 +13,11 @@
 # some flags
 ###########################################################
 CC = hipcc
-CFLAGS = -std=c++14 -O3 --offload-arch=gfx90a -DUSE_HIP
+HIP_ARCH ?= gfx90a
+# Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
+# (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
+# hipcc defaults to it, so do not pin -std lower.
+CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft

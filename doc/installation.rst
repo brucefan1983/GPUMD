@@ -16,12 +16,28 @@ To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card with compu
 On Linux systems, one also needs a C++ compiler supporting at least the C++11 standard.
 On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and a `64-bit version of make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
 
+Alternatively, :program:`GPUMD` can be built for AMD GPUs through ROCm/HIP (see :ref:`Building for AMD GPUs <build_amd_hip>` below); this requires a ROCm installation.
+
 
 Compilation
 ===========
 
 In the ``src`` directory run ``make``, which generates two executables, ``nep`` and ``gpumd``.
 Please check the comments in the beginning of the makefile for some compiling options.
+
+
+.. _build_amd_hip:
+
+Building for AMD GPUs (ROCm/HIP)
+================================
+
+:program:`GPUMD` also runs on AMD GPUs through ROCm/HIP. In the ``src`` directory, build with the HIP makefile instead of the default one::
+
+  make -f makefile.hip
+
+This uses ``hipcc`` and links rocThrust/rocPRIM, hipBLAS, hipSOLVER, and hipFFT, so it requires a ROCm installation. The target GPU architecture defaults to ``gfx90a``; build for another AMD GPU by setting ``HIP_ARCH``::
+
+  make -f makefile.hip HIP_ARCH=gfx1100
 
 
 Examples
