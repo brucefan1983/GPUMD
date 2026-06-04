@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef USE_TENSORFLOW
+#ifdef USE_DEEPMD
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"

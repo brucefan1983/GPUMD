@@ -293,9 +293,9 @@ The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba7208
     >> $ cd ${GPUMD}/src
     >> $ vi makefile
 
-Configure the makefile of GPUMD. The DP code is included by macro definition ``USE_TENSORFLOW``. So add it to ``CFLAGS``:
+Configure the makefile of GPUMD. The DP code is included by macro definition ``USE_DEEPMD``. So add it to ``CFLAGS``:
 
-``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_TENSORFLOW``
+``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_DEEPMD``
 
 Then link the DP C++ libraries. Add the following two lines to update the include and link paths and compile GPUMD:
 
@@ -363,7 +363,7 @@ The installed files will be at::
 Compile GPUMD
 ^^^^^^^^^^^^^
 
-With the C++ interface installed, configure the GPUMD makefile. Use ``-DUSE_DEEPMD`` instead of ``-DUSE_TENSORFLOW``:
+With the C++ interface installed, configure the GPUMD makefile. Enable DP support with ``-DUSE_DEEPMD``:
 
 ``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_DEEPMD``
 
@@ -381,9 +381,6 @@ For GPU support, also link CUDA-related torch libraries::
 Then compile::
 
     >> $ make gpumd -j
-
-.. note::
-   Both ``USE_TENSORFLOW`` and ``USE_DEEPMD`` can be defined simultaneously to support all backends in a single binary.
 
 Freeze a PyTorch model
 ^^^^^^^^^^^^^^^^^^^^^^
