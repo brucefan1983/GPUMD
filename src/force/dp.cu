@@ -17,7 +17,7 @@
 The class dealing with the Deep Potential(DP).
 ------------------------------------------------------------------------------*/
 
-#ifdef USE_TENSORFLOW
+#ifdef USE_DEEPMD
 #include "dp.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
