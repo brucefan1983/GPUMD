@@ -115,6 +115,7 @@ void DP::set_dp_coeff(void) {
   atom_spin_flag = false;
 }
 
+namespace {
 static __global__ void dp_position_transpose(
   const double* position,
   double* position_trans,
@@ -467,6 +468,7 @@ static __global__ void create_ghost_map(
   }
 }
 
+}
 void DP::compute(
   Box& box,
   const GPU_Vector<int>& type,
