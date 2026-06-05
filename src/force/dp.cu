@@ -25,12 +25,12 @@ The class dealing with the Deep Potential(DP).
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
 #include <thrust/scan.h>
+#include <cmath>
 #include <sstream>
 #include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
 #define MAX_NEIGH_NUM_DP 512    // max neighbor number of an atom for DP
-#define MAX_GHOST_NUM_EACH_DANGER 7
 
 DP::DP(const char* filename_dp, int num_atoms)
 {
@@ -144,7 +144,8 @@ static __global__ void transpose_and_update_unit(
   double v_factor,
   const int N,
   const int ndanger,
-  const int nghost)
+  const int nghost,
+  const int max_ghost_num_each_danger)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
@@ -171,7 +172,7 @@ static __global__ void transpose_and_update_unit(
     double vzy = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
     int ghost_idx = danger_list[n1];
     if (ghost_idx != -1) {
-      for (int i = 0; i < MAX_GHOST_NUM_EACH_DANGER; ++i) {
+      for (int i = 0; i < max_ghost_num_each_danger; ++i) {
         int ghost_id = ghost_id_map[ghost_idx + ndanger * i];
         if (ghost_id != -1) {
           ghost_id -= N;
@@ -209,6 +210,128 @@ static __global__ void transpose_and_update_unit(
   }
 }
 
+static __host__ __device__ double get_dp_padding_fraction(
+  const int pbc, const double rc, const double thickness)
+{
+  return (pbc == 1 && thickness > 0.0) ? rc / thickness : 0.0;
+}
+
+static __host__ __device__ void get_fractional_position(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  double& sx,
+  double& sy,
+  double& sz)
+{
+  sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+  sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+  sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+
+  if (box.pbc_x == 1) sx -= floor(sx);
+  if (box.pbc_y == 1) sy -= floor(sy);
+  if (box.pbc_z == 1) sz -= floor(sz);
+}
+
+static __device__ void get_ghost_shift_bounds(
+  const int pbc,
+  const double s,
+  const double padding,
+  int& min_shift,
+  int& max_shift)
+{
+  if (pbc == 1) {
+    min_shift = static_cast<int>(ceil(-padding - s));
+    max_shift = static_cast<int>(floor(1.0 + padding - s));
+  } else {
+    min_shift = 0;
+    max_shift = 0;
+  }
+}
+
+static __host__ int get_max_ghost_num_each_danger(const Box& box, const double rc)
+{
+  const double thickness[3] = {box.thickness_x, box.thickness_y, box.thickness_z};
+  const int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+  int max_num_images = 1;
+  for (int d = 0; d < 3; ++d) {
+    int max_num_shifts = 1;
+    if (pbc[d] == 1 && thickness[d] > 0.0) {
+      const double padding = rc / thickness[d];
+      max_num_shifts = static_cast<int>(floor(1.0 + 2.0 * padding)) + 2;
+    }
+    max_num_images *= max_num_shifts;
+  }
+  return max_num_images - 1;
+}
+
+static __host__ __device__ void get_padded_position(
+  const Box& box,
+  const double rc,
+  const double x,
+  const double y,
+  const double z,
+  const int shift_x,
+  const int shift_y,
+  const int shift_z,
+  double& px,
+  double& py,
+  double& pz)
+{
+  const double padding_x = get_dp_padding_fraction(box.pbc_x, rc, box.thickness_x);
+  const double padding_y = get_dp_padding_fraction(box.pbc_y, rc, box.thickness_y);
+  const double padding_z = get_dp_padding_fraction(box.pbc_z, rc, box.thickness_z);
+  const double offset_x = shift_x + padding_x;
+  const double offset_y = shift_y + padding_y;
+  const double offset_z = shift_z + padding_z;
+
+  px = x + box.cpu_h[0] * offset_x + box.cpu_h[1] * offset_y + box.cpu_h[2] * offset_z;
+  py = y + box.cpu_h[3] * offset_x + box.cpu_h[4] * offset_y + box.cpu_h[5] * offset_z;
+  pz = z + box.cpu_h[6] * offset_x + box.cpu_h[7] * offset_y + box.cpu_h[8] * offset_z;
+}
+
+static void create_dp_ghost_box(const Box& box, const double rc, Box& box_ghost)
+{
+  const double padding_x = get_dp_padding_fraction(box.pbc_x, rc, box.thickness_x);
+  const double padding_y = get_dp_padding_fraction(box.pbc_y, rc, box.thickness_y);
+  const double padding_z = get_dp_padding_fraction(box.pbc_z, rc, box.thickness_z);
+  const double scale_x = 1.0 + 2.0 * padding_x;
+  const double scale_y = 1.0 + 2.0 * padding_y;
+  const double scale_z = 1.0 + 2.0 * padding_z;
+
+  box_ghost.pbc_x = 0;
+  box_ghost.pbc_y = 0;
+  box_ghost.pbc_z = 0;
+
+  box_ghost.cpu_h[0] = box.cpu_h[0] * scale_x;
+  box_ghost.cpu_h[3] = box.cpu_h[3] * scale_x;
+  box_ghost.cpu_h[6] = box.cpu_h[6] * scale_x;
+
+  box_ghost.cpu_h[1] = box.cpu_h[1] * scale_y;
+  box_ghost.cpu_h[4] = box.cpu_h[4] * scale_y;
+  box_ghost.cpu_h[7] = box.cpu_h[7] * scale_y;
+
+  box_ghost.cpu_h[2] = box.cpu_h[2] * scale_z;
+  box_ghost.cpu_h[5] = box.cpu_h[5] * scale_z;
+  box_ghost.cpu_h[8] = box.cpu_h[8] * scale_z;
+
+  box_ghost.get_inverse();
+  box_ghost.set_is_orthogonal();
+}
+
+static void set_deepmd_box(const Box& box, std::vector<double>& dp_box)
+{
+  dp_box[0] = box.cpu_h[0];
+  dp_box[1] = box.cpu_h[3];
+  dp_box[2] = box.cpu_h[6];
+  dp_box[3] = box.cpu_h[1];
+  dp_box[4] = box.cpu_h[4];
+  dp_box[5] = box.cpu_h[7];
+  dp_box[6] = box.cpu_h[2];
+  dp_box[7] = box.cpu_h[5];
+  dp_box[8] = box.cpu_h[8];
+}
 
 static __global__ void calc_ghost_atom_number_each_atom(
   const int N,
@@ -222,28 +345,22 @@ static __global__ void calc_ghost_atom_number_each_atom(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
-    int nghost = 1;
     double x1 = x[n1];
     double y1 = y[n1];
     double z1 = z[n1];
-    if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-        box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-      printf("TODO: triclinc box\n");
-      ghost_count[n1] = 0;
-      danger_flag[n1] = 0;
-      return;
-    } else {
-      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
-        nghost <<= 1;
-      }
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
-        nghost <<= 1;
-      }
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[8] - rc)) {
-        nghost <<= 1;
-      }
-    }
-    --nghost;
+    double sx, sy, sz;
+    get_fractional_position(box, x1, y1, z1, sx, sy, sz);
+
+    const double padding_x = get_dp_padding_fraction(box.pbc_x, rc, box.thickness_x);
+    const double padding_y = get_dp_padding_fraction(box.pbc_y, rc, box.thickness_y);
+    const double padding_z = get_dp_padding_fraction(box.pbc_z, rc, box.thickness_z);
+    int min_x, max_x, min_y, max_y, min_z, max_z;
+    get_ghost_shift_bounds(box.pbc_x, sx, padding_x, min_x, max_x);
+    get_ghost_shift_bounds(box.pbc_y, sy, padding_y, min_y, max_y);
+    get_ghost_shift_bounds(box.pbc_z, sz, padding_z, min_z, max_z);
+
+    const int nghost =
+      (max_x - min_x + 1) * (max_y - min_y + 1) * (max_z - min_z + 1) - 1;
     ghost_count[n1] = nghost;
     danger_flag[n1] = nghost != 0;
   }
@@ -294,7 +411,8 @@ static __global__ void create_ghost_map(
   const double* y,
   const double* z,
   double* dp_position,
-  Box box)
+  Box box,
+  const int max_ghost_num_each_danger)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
@@ -303,13 +421,12 @@ static __global__ void create_ghost_map(
     double z1 = z[n1];
     int nall = N + nghost;
     int nall_2 = nall * 2;
-    const double shift_x = (box.pbc_x ? rc : 0.0);
-    const double shift_y = (box.pbc_y ? rc : 0.0);
-    const double shift_z = (box.pbc_z ? rc : 0.0);
 
-    dp_position[n1] = x1 + shift_x;
-    dp_position[n1 + nall] = y1 + shift_y;
-    dp_position[n1 + nall_2] = z1 + shift_z;
+    double px, py, pz;
+    get_padded_position(box, rc, x1, y1, z1, 0, 0, 0, px, py, pz);
+    dp_position[n1] = px;
+    dp_position[n1 + nall] = py;
+    dp_position[n1 + nall_2] = pz;
     type_ghost[n1] = type[n1];
     if (ghost_count[n1] == 0) {
       danger_list[n1] = -1;
@@ -318,86 +435,32 @@ static __global__ void create_ghost_map(
     }
     int ghost_id = N + ghost_sum[n1];
     int ghost_idx = danger_list[n1];
-    int ghost_x_flag = 0;
-    int ghost_y_flag = 0;
 
-    if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-        box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-      // triclinic box
-      // TODO
-      printf("TODO: triclinc box\n");
-      return;
-    } else {
-      // orthogonal box
-      if (box.pbc_x == 1 && (x1 < rc || x1 > box.cpu_h[0] - rc)) {
-        // x
-        ghost_x_flag = 1;
-        ghost_id_map[ghost_idx + ndanger * GHOST_X] = ghost_id;
-        type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
-        dp_position[ghost_id + nall] = y1 + shift_y;
-        dp_position[ghost_id + nall_2] = z1 + shift_z;
-        ++ghost_id;
-      }
+    double sx, sy, sz;
+    get_fractional_position(box, x1, y1, z1, sx, sy, sz);
+    const double padding_x = get_dp_padding_fraction(box.pbc_x, rc, box.thickness_x);
+    const double padding_y = get_dp_padding_fraction(box.pbc_y, rc, box.thickness_y);
+    const double padding_z = get_dp_padding_fraction(box.pbc_z, rc, box.thickness_z);
+    int min_x, max_x, min_y, max_y, min_z, max_z;
+    get_ghost_shift_bounds(box.pbc_x, sx, padding_x, min_x, max_x);
+    get_ghost_shift_bounds(box.pbc_y, sy, padding_y, min_y, max_y);
+    get_ghost_shift_bounds(box.pbc_z, sz, padding_z, min_z, max_z);
 
-      if (box.pbc_y == 1 && (y1 < rc || y1 > box.cpu_h[4] - rc)) {
-        // y
-        ghost_y_flag = 1;
-        ghost_id_map[ghost_idx + ndanger * GHOST_Y] = ghost_id;
-        type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = x1 + shift_x;
-        dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
-        dp_position[ghost_id + nall_2] = z1 + shift_z;
-        ++ghost_id;
-
-        if (ghost_x_flag == 1) {
-          // xy
-          ghost_id_map[ghost_idx + ndanger * GHOST_XY] = ghost_id;
-          type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
-          dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
-          dp_position[ghost_id + nall_2] = z1 + shift_z;
-          ++ghost_id;
-        }
-      }
-
-      if (box.pbc_z == 1 && (z1 < rc || z1 > box.cpu_h[8] - rc)) {
-        // z
-        ghost_id_map[ghost_idx + ndanger * GHOST_Z] = ghost_id;
-        type_ghost[ghost_id] = type[n1];
-        dp_position[ghost_id] = x1 + shift_x;
-        dp_position[ghost_id + nall] = y1 + shift_y;
-        dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
-        ++ghost_id;
-
-        if (ghost_x_flag == 1) {
-          // xz
-          ghost_id_map[ghost_idx + ndanger * GHOST_XZ] = ghost_id;
-          type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
-          dp_position[ghost_id + nall] = y1 + shift_y;
-          dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
-          ++ghost_id;
-
-          if (ghost_y_flag == 1) {
-            // xyz
-            ghost_id_map[ghost_idx + ndanger * GHOST_XYZ] = ghost_id;
-            type_ghost[ghost_id] = type[n1];
-            dp_position[ghost_id] = (x1 < rc ? x1 + box.cpu_h[0] : x1 - box.cpu_h[0]) + shift_x;
-            dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
-            dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
-            ++ghost_id;
+    int ghost_slot = 0;
+    for (int iz = min_z; iz <= max_z; ++iz) {
+      for (int iy = min_y; iy <= max_y; ++iy) {
+        for (int ix = min_x; ix <= max_x; ++ix) {
+          if (ix == 0 && iy == 0 && iz == 0) continue;
+          if (ghost_slot < max_ghost_num_each_danger) {
+            ghost_id_map[ghost_idx + ndanger * ghost_slot] = ghost_id;
           }
-        }
-
-        if (ghost_y_flag == 1) {
-          // yz
-          ghost_id_map[ghost_idx + ndanger * GHOST_YZ] = ghost_id;
           type_ghost[ghost_id] = type[n1];
-          dp_position[ghost_id] = x1 + shift_x;
-          dp_position[ghost_id + nall] = (y1 < rc ? y1 + box.cpu_h[4] : y1 - box.cpu_h[4]) + shift_y;
-          dp_position[ghost_id + nall_2] = (z1 < rc ? z1 + box.cpu_h[8] : z1 - box.cpu_h[8]) + shift_z;
+          get_padded_position(box, rc, x1, y1, z1, ix, iy, iz, px, py, pz);
+          dp_position[ghost_id] = px;
+          dp_position[ghost_id + nall] = py;
+          dp_position[ghost_id + nall_2] = pz;
           ++ghost_id;
+          ++ghost_slot;
         }
       }
     }
@@ -416,6 +479,9 @@ void DP::compute(
   if (number_of_atoms <= 0) return;
   dp_nl.inum = number_of_atoms;
   int grid_size = (number_of_atoms - 1) / BLOCK_SIZE_FORCE + 1;
+  int num_bins_unused[3];
+  box.get_num_bins(rc, num_bins_unused);
+  const int max_ghost_num_each_danger = get_max_ghost_num_each_danger(box, rc);
 
   // get ghost atom number
 nghost = calc_ghost_atom_number(
@@ -447,7 +513,7 @@ nghost = calc_ghost_atom_number(
 
   // Prevent ndanger == 0 from causing an error.
   if ( ndanger == 0 ) ghost_id_map.resize(1, -1);
-  else ghost_id_map.resize(ndanger * 7, -1);
+  else ghost_id_map.resize(ndanger * max_ghost_num_each_danger, -1);
 
   type_ghost.resize(num_all_atoms);
   dp_position_gpu.resize(num_all_atoms * 3);
@@ -467,7 +533,8 @@ nghost = calc_ghost_atom_number(
     position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2,
     dp_position_gpu.data(),
-    box);
+    box,
+    max_ghost_num_each_danger);
   GPU_CHECK_KERNEL
 
   dp_data.NN.resize(num_all_atoms);
@@ -477,28 +544,7 @@ nghost = calc_ghost_atom_number(
   dp_data.cell_count_sum.resize(num_all_atoms);
 
   Box box_ghost;
-  box_ghost.pbc_x = 0;
-  box_ghost.pbc_y = 0;
-  box_ghost.pbc_z = 0;
-  // TODO: triclinic
-  // TODO: use periodic box when find neigh
-  // box_ghost.triclinic = box.triclinic;
-  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-    std::cout << "Error: Currently, the DP potential in GPUMD only supports simulations of orthogonal systems!" << std::endl;
-    exit(1);
-  } else {
-    box_ghost.cpu_h[0] = box.cpu_h[0] + (box.pbc_x ? 2 * rc : 0);
-    box_ghost.cpu_h[1] = 0;
-    box_ghost.cpu_h[2] = 0;
-    box_ghost.cpu_h[3] = 0;
-    box_ghost.cpu_h[4] = box.cpu_h[4] + (box.pbc_y ? 2 * rc : 0);
-    box_ghost.cpu_h[5] = 0;
-    box_ghost.cpu_h[6] = 0;
-    box_ghost.cpu_h[7] = 0;
-    box_ghost.cpu_h[8] = box.cpu_h[8] + (box.pbc_z ? 2 * rc : 0);
-  }
-  box_ghost.get_inverse();
+  create_dp_ghost_box(box, rc, box_ghost);
 
   find_neighbor(
     N1,
@@ -534,20 +580,7 @@ nghost = calc_ghost_atom_number(
 
   // create dp box
   std::vector<double> dp_box(9, 0.0);
-
-  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-    dp_box[0] = box.cpu_h[0];
-    dp_box[4] = box.cpu_h[4];
-    dp_box[8] = box.cpu_h[8];
-    dp_box[7] = box.cpu_h[7];
-    dp_box[6] = box.cpu_h[6];
-    dp_box[3] = box.cpu_h[3];
-  } else {
-    dp_box[0] = box.cpu_h[0] + (box.pbc_x ? 2 * rc : 0);
-    dp_box[4] = box.cpu_h[4] + (box.pbc_y ? 2 * rc : 0);
-    dp_box[8] = box.cpu_h[8] + (box.pbc_z ? 2 * rc : 0);
-  }
+  set_deepmd_box(box_ghost, dp_box);
 
   dp_nl.ilist.resize(num_all_atoms, 0);
   dp_nl.numneigh.resize(num_all_atoms, 0);
@@ -639,7 +672,8 @@ nghost = calc_ghost_atom_number(
     virial_unit_cvt_factor,
     number_of_atoms,
     ndanger,
-    nghost);
+    nghost,
+    max_ghost_num_each_danger);
   GPU_CHECK_KERNEL
 }
 #endif
