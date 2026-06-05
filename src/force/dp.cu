@@ -620,20 +620,19 @@ nghost = calc_ghost_atom_number(
 
   // Build atom mapping (local + ghost -> local index) for DeePMD-kit C++ API.
   // Required by .pt2 (AOTInductor/DPA4) models; harmless no-op for .pth (TorchScript/DPA2/DPA3).
-  {
-    int num_all_atoms = number_of_atoms + nghost;
-    std::vector<int> atom_mapping(num_all_atoms);
-    for (int i = 0; i < number_of_atoms; ++i) atom_mapping[i] = i;
-    if (nghost > 0) {
-      std::vector<int> gc(number_of_atoms), gs(number_of_atoms);
-      ghost_count.copy_to_host(gc.data());
-      ghost_sum.copy_to_host(gs.data());
-      for (int i = 0; i < number_of_atoms; ++i)
-        for (int g = 0; g < gc[i]; ++g)
-          atom_mapping[number_of_atoms + gs[i] + g] = i;
-    }
-    lmp_list.set_mapping(atom_mapping.data());
+  // NOTE: atom_mapping must outlive lmp_list usage in deep_pot.compute() below,
+  // because set_mapping() stores a raw pointer — not a copy.
+  std::vector<int> atom_mapping(num_all_atoms);
+  for (int i = 0; i < number_of_atoms; ++i) atom_mapping[i] = i;
+  if (nghost > 0) {
+    std::vector<int> gc(number_of_atoms), gs(number_of_atoms);
+    ghost_count.copy_to_host(gc.data());
+    ghost_sum.copy_to_host(gs.data());
+    for (int i = 0; i < number_of_atoms; ++i)
+      for (int g = 0; g < gc[i]; ++g)
+        atom_mapping[number_of_atoms + gs[i] + g] = i;
   }
+  lmp_list.set_mapping(atom_mapping.data());
 
 
   // to calculate the atomic force and energy from deepot
