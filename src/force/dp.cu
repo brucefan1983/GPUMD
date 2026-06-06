@@ -618,10 +618,8 @@ nghost = calc_ghost_atom_number(
   // deepmd_compat::InputNlist lmp_list(nlocal, lmp_ilist, lmp_numneigh, lmp_firstneigh);
   deepmd_compat::InputNlist lmp_list(dp_nl.inum, dp_nl.ilist.data(), dp_nl.numneigh.data(), dp_nl.firstneigh.data());
 
-  // Build atom mapping (local + ghost -> local index) for DeePMD-kit C++ API.
-  // Required by .pt2 (AOTInductor/DPA4) models; harmless no-op for .pth (TorchScript/DPA2/DPA3).
-  // NOTE: atom_mapping must outlive lmp_list usage in deep_pot.compute() below,
-  // because set_mapping() stores a raw pointer — not a copy.
+  // Map each local and ghost atom to its corresponding local atom for DeePMD-kit.
+  // Keep atom_mapping alive until deep_pot.compute() has used lmp_list.
   std::vector<int> atom_mapping(num_all_atoms);
   for (int i = 0; i < number_of_atoms; ++i) atom_mapping[i] = i;
   if (nghost > 0) {
