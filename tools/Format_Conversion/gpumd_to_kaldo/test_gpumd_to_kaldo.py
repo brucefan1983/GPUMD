@@ -105,3 +105,5 @@ def test_fc3_returns_phono3py():
     assert isinstance(ph3, Phono3py)
     assert ph3.fc2 is not None, "fc2 should be set after compute_fc3"
     assert ph3.fc3 is not None, "fc3 should be set after compute_fc3"
+    assert ph3.fc2.ndim == 4, f"fc2 should be 4-D, got {ph3.fc2.ndim}-D"
+    assert ph3.fc3.ndim == 6, f"fc3 should be 6-D, got {ph3.fc3.ndim}-D"

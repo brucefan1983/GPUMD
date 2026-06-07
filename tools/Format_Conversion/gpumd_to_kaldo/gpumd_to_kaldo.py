@@ -14,7 +14,7 @@ from calorine.calculators import CPUNEP
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from phono3py import Phono3py
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar as _minimize_scalar
 
 
 # ---------------------------------------------------------------------------
@@ -83,8 +83,8 @@ def relaxed_lattice_constant(nep_path, a_min=5.40, a_max=5.47):
         atoms.calc = CPUNEP(nep_path)
         return atoms.get_potential_energy()
 
-    result = minimize_scalar(_energy, bounds=(a_min, a_max), method='bounded',
-                             options={'xatol': 1e-5})
+    result = _minimize_scalar(_energy, bounds=(a_min, a_max), method='bounded',
+                              options={'xatol': 1e-5})
     return float(result.x)
 
 
@@ -147,7 +147,7 @@ def compute_fc2(atoms, nep_path, supercell=(3, 3, 3), displacement=0.01):
                  primitive_matrix='auto')
     ph.generate_displacements(distance=displacement)
     forces = [_forces_on_phonopy_supercell(sc, nep_path)
-              for sc in ph.supercells_with_displacements if sc is not None]
+              for sc in ph.supercells_with_displacements]
     ph.forces = forces
     ph.produce_force_constants()
     return ph
@@ -181,11 +181,14 @@ def compute_fc3(atoms, nep_path, supercell=(3, 3, 3), displacement=0.03):
     ph3 = Phono3py(_to_phonopy_atoms(atoms),
                    supercell_matrix=np.diag(supercell),
                    primitive_matrix='auto')
+    # cutoff_pair_distance is intentionally not used: every displaced supercell
+    # is force-evaluated, so phono3py's force ordering stays 1:1 with the
+    # displacement dataset. (With a cutoff, phono3py emits None placeholders and
+    # the forces list must keep them — unsupported here by design.)
     ph3.generate_displacements(distance=displacement)
 
     scs = ph3.supercells_with_displacements
-    forces = [_forces_on_phonopy_supercell(sc, nep_path)
-              for sc in scs if sc is not None]
+    forces = [_forces_on_phonopy_supercell(sc, nep_path) for sc in scs]
     ph3.forces = forces
     ph3.produce_fc3()
     # When phonon_supercell_matrix is not set, produce_fc2 falls back to
