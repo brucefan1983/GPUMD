@@ -299,6 +299,8 @@ def to_kaldo_layout(ph3, atoms, supercell, third_supercell, threshold=0.0):
     fc2_arr = np.array(ph3.fc2, dtype=np.float64)
     n_satom2 = len(rep2)
     n_rep2 = int(np.prod(supercell))
+    # Compact-vs-full detection assumes n_uc != n_satom, true for any supercell
+    # larger than (1, 1, 1); a (1, 1, 1) supercell would make both ambiguous.
     is_compact2 = (fc2_arr.shape[0] == n_uc)
     if not is_compact2 and fc2_arr.shape[0] != n_satom2:
         raise ValueError(f"Unexpected fc2 axis-0 length {fc2_arr.shape[0]} "

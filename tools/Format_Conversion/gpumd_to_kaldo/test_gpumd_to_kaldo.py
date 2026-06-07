@@ -1,4 +1,4 @@
-"""Tests for gpumd_to_kaldo.py — B.1 and B.2.
+"""Tests for gpumd_to_kaldo.py — B.1 through B.4.
 
 Run from this directory:
     conda run -n gpumd-kaldo python -m pytest test_gpumd_to_kaldo.py -v
@@ -225,6 +225,72 @@ def test_fc2_layout_matches_hiphive_oracle(si_ph3):
     max_diff = np.abs(fc2_mine - fc2_oracle).max()
     print(f"\nfc2 max abs diff vs hiphive oracle: {max_diff:.3e}")
     np.testing.assert_allclose(fc2_mine, fc2_oracle, atol=1e-8)
+
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_fc2_dispersion_matches_phonopy_nonGamma(si_ph3, tmp_path):
+    """Non-Gamma frequencies from the exported fc match phonopy's native ones.
+
+    This is an INDEPENDENT cross-check of the replica -> R-vector pairing in
+    ``to_kaldo_layout``.  The hiphive fc2 oracle and the Gamma frequency test
+    cannot catch a replica-permutation bug: the oracle reuses the exporter's own
+    C-grid formula, and D(Gamma) = sum_r phi_r is invariant under any permutation
+    of the replicas.  Phonopy, by contrast, builds the dynamical matrix from its
+    OWN real-space R-vectors (it never touches kaldo's C grid), so comparing
+    frequencies at non-Gamma q-points pins down whether each phi_r block sits on
+    the correct R-vector.  A wrong permutation shifts whole modes by several THz
+    (verified offline: rolling the replica axis by 1 drives the max diff to
+    ~24 THz), so the 2e-2 THz tolerance below is tight enough to expose it while
+    absorbing the small finite-displacement / ASR numerical noise (~7e-3 THz).
+
+    Both routes use the SAME primitive ``atoms`` and the SAME (2, 2, 2)
+    supercell, so reduced-coordinate q maps 1:1 between phonopy's reduced
+    q-points and kaldo's fractional-reciprocal ``q_point``.  The q-points are all
+    COMMENSURATE with the supercell (components in {0, 1/2}); at those points the
+    Fourier sum is exact and independent of the min-image R-vector choice, so the
+    comparison probes the replica mapping rather than interpolation conventions.
+    (Incommensurate points such as [0.25, 0.25, 0.25] legitimately differ between
+    the two codes because of differing real-space image conventions and are
+    therefore excluded.)
+    """
+    pytest.importorskip('kaldo')
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+    atoms, ph3 = si_ph3
+
+    # --- phonopy-native reference (its own R-vectors, no kaldo C grid) ---
+    ph = g.compute_fc2(atoms, NEP, supercell=_SC, displacement=0.01)
+    gamma = [0.0, 0.0, 0.0]
+    nongamma = [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 0.0, 0.5],
+                [0.5, 0.5, 0.0], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5],
+                [0.5, 0.5, 0.5]]
+    qpoints = [gamma] + nongamma
+    ph.run_qpoints(qpoints)
+    phonopy_freqs = ph.get_qpoints_dict()['frequencies']  # (nq, n_modes) THz
+
+    # --- kaldo-from-exported (round-trips through to_kaldo_layout + writer) ---
+    fc2, fc3 = g.to_kaldo_layout(ph3, atoms, _SC, _SC)
+    fc2 = g.apply_acoustic_sum_rule(fc2)
+    g.write_gpumd_fc(str(tmp_path / 'gpumd_fc.npz'), atoms, _SC, _SC, fc2, fc3,
+                     nep_path=NEP, acoustic_sum_applied=True)
+    fc = ForceConstants.from_folder(folder=str(tmp_path), format='gpumd')
+
+    def kaldo_freqs(q):
+        hwq = HarmonicWithQ(q_point=np.array(q, dtype=float), second=fc.second,
+                            storage='numpy')
+        return hwq.frequency[0]  # (n_modes,) THz
+
+    # Sanity anchor: the two q-conventions must agree at Gamma first.
+    np.testing.assert_allclose(np.sort(kaldo_freqs(gamma)),
+                               np.sort(phonopy_freqs[0]), atol=2e-2)
+
+    max_diff = 0.0
+    for q, ph_f in zip(nongamma, phonopy_freqs[1:]):
+        k_sorted = np.sort(kaldo_freqs(q))
+        p_sorted = np.sort(ph_f)
+        max_diff = max(max_diff, float(np.abs(k_sorted - p_sorted).max()))
+        np.testing.assert_allclose(k_sorted, p_sorted, atol=2e-2)
+    print(f"\nnon-Gamma freq max abs diff (kaldo vs phonopy): {max_diff:.3e} THz")
 
 
 @pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
