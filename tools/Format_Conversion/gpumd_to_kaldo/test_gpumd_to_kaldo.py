@@ -227,6 +227,21 @@ def test_fc2_layout_matches_hiphive_oracle(si_ph3):
     np.testing.assert_allclose(fc2_mine, fc2_oracle, atol=1e-8)
 
 
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_fc2_acoustic_sum_rule_zeroes_rows(si_ph3):
+    """After ASR, each reference atom's full fc2 row sums to ~0 (3x3 block)."""
+    atoms, ph3 = si_ph3
+    fc2, _ = g.to_kaldo_layout(ph3, atoms, _SC, _SC)
+    fc2_asr = g.apply_acoustic_sum_rule(fc2)
+    n_uc = fc2_asr.shape[1]
+    for i in range(n_uc):
+        row_sum = np.sum(fc2_asr[0, i, :, :, :, :], axis=(-2, -3))  # (3, 3)
+        assert np.abs(row_sum).max() < 1e-9, (
+            f"ASR residual for atom {i}: {np.abs(row_sum).max():.2e}")
+    # ASR must not mutate the input array
+    assert not np.shares_memory(fc2, fc2_asr)
+
+
 # ---------------------------------------------------------------------------
 # B.3 — fc3 layout sanity (shape/dtype, non-empty, acoustic sum residual)
 # ---------------------------------------------------------------------------
@@ -352,3 +367,80 @@ def _reorder_fc3_to_kaldo(ph3, atoms, supercell, full_fc3):
         r = np.where((grid == cidx).all(axis=1))[0][0]
         perm[r * n_uc + j] = a
     return full_fc3[np.ix_(perm, perm, perm)]
+
+
+# ---------------------------------------------------------------------------
+# B.4 — writer round-trips through the kaldo reader + end-to-end load
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_write_npz_roundtrips_through_kaldo_reader(si_ph3, tmp_path):
+    """write_gpumd_fc produces an npz the kaldo reader accepts byte-for-byte."""
+    pytest.importorskip('kaldo')
+    from kaldo.interfaces import gpumd_io
+    atoms, ph3 = si_ph3
+    fc2, fc3 = g.to_kaldo_layout(ph3, atoms, _SC, _SC)
+    out = tmp_path / 'gpumd_fc.npz'
+    g.write_gpumd_fc(str(out), atoms, _SC, _SC, fc2, fc3,
+                     nep_path=NEP, acoustic_sum_applied=False)
+    meta = gpumd_io.read_gpumd_fc(str(tmp_path))
+    assert meta['fc2'].shape == fc2.shape
+    np.testing.assert_allclose(meta['fc2'], fc2)
+    assert meta['fc3'].shape == fc3.shape
+    np.testing.assert_allclose(meta['fc3'].todense(), fc3.todense())
+    assert tuple(meta['supercell']) == _SC
+    assert tuple(meta['third_supercell']) == _SC
+    assert meta['acoustic_sum_applied'] is False
+
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_write_npz_records_nep_sha256(si_ph3, tmp_path):
+    """The npz embeds a sha256 of the NEP file in nep_potential."""
+    import hashlib
+    atoms, ph3 = si_ph3
+    fc2, fc3 = g.to_kaldo_layout(ph3, atoms, _SC, _SC)
+    out = tmp_path / 'gpumd_fc.npz'
+    g.write_gpumd_fc(str(out), atoms, _SC, _SC, fc2, fc3,
+                     nep_path=NEP, acoustic_sum_applied=True)
+    with open(NEP, 'rb') as fh:
+        sha = hashlib.sha256(fh.read()).hexdigest()
+    data = np.load(out, allow_pickle=False)
+    nep_field = str(data['nep_potential'])
+    assert sha in nep_field
+    assert bool(data['acoustic_sum_applied']) is True
+
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_end_to_end_force_constants_from_folder(si_ph3, tmp_path):
+    """ForceConstants.from_folder(format='gpumd') builds with correct shapes."""
+    pytest.importorskip('kaldo')
+    from kaldo.forceconstants import ForceConstants
+    atoms, ph3 = si_ph3
+    n_uc = len(atoms)
+    n_rep = int(np.prod(_SC))
+    fc2, fc3 = g.to_kaldo_layout(ph3, atoms, _SC, _SC)
+    fc2 = g.apply_acoustic_sum_rule(fc2)
+    g.write_gpumd_fc(str(tmp_path / 'gpumd_fc.npz'), atoms, _SC, _SC, fc2, fc3,
+                     nep_path=NEP, acoustic_sum_applied=True)
+    fc = ForceConstants.from_folder(folder=str(tmp_path), format='gpumd')
+    assert fc.second.value.shape == (1, n_uc, 3, n_rep, n_uc, 3)
+    assert fc.third.value.shape == (n_uc * 3, n_rep * n_uc * 3, n_rep * n_uc * 3)
+    assert tuple(fc.supercell) == _SC
+
+
+# ---------------------------------------------------------------------------
+# B.4 — CLI smoke test
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_cli_writes_npz(tmp_path):
+    """main() wires compute -> layout -> ASR -> write and produces an npz."""
+    pytest.importorskip('kaldo')
+    from kaldo.interfaces import gpumd_io
+    out = tmp_path / 'gpumd_fc.npz'
+    g.main(['--nep', NEP, '--supercell', '2', '2', '2',
+            '--acoustic-sum', '--out', str(out)])
+    assert out.is_file()
+    meta = gpumd_io.read_gpumd_fc(str(tmp_path))
+    assert meta['acoustic_sum_applied'] is True
+    assert tuple(meta['supercell']) == (2, 2, 2)

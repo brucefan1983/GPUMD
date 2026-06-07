@@ -7,8 +7,11 @@ Pipeline:
 
 Dependencies:
     ase, calorine, phonopy, phono3py, numpy, scipy, sparse, kaldo (kaldo only
-    for the C-grid replica ordering used by ``to_kaldo_layout``).
+    for the C-grid replica ordering used by ``to_kaldo_layout`` / the writer).
 """
+import argparse
+import hashlib
+
 import numpy as np
 import sparse
 from ase import Atoms
@@ -347,3 +350,122 @@ def to_kaldo_layout(ph3, atoms, supercell, third_supercell, threshold=0.0):
         coords = np.zeros((3, 0), dtype=np.int64)
     fc3 = sparse.COO(coords, np.array(vals, dtype=np.float64), shape=shape3)
     return fc2, fc3
+
+
+# ---------------------------------------------------------------------------
+# B.4 — acoustic sum rule, npz writer, and CLI
+# ---------------------------------------------------------------------------
+
+def apply_acoustic_sum_rule(fc2):
+    """Enforce per-reference-atom translational invariance on fc2.
+
+    Mirrors kaldo's ``acoustic_sum_rule``: for each reference atom ``i``,
+    subtract the sum over all (replica, atom) pairs from the on-site block.
+
+    Parameters
+    ----------
+    fc2 : numpy.ndarray, shape (1, n_uc, 3, n_rep, n_uc, 3)
+        Second-order force constants.
+
+    Returns
+    -------
+    numpy.ndarray
+        A copy of ``fc2`` with the acoustic sum rule applied.
+    """
+    fc2 = np.array(fc2, dtype=np.float64, copy=True)
+    n_uc = fc2.shape[1]
+    for i in range(n_uc):
+        off_diag_sum = np.sum(fc2[0, i, :, :, :, :], axis=(-2, -3))   # (3, 3)
+        fc2[0, i, :, 0, i, :] -= off_diag_sum
+    return fc2
+
+
+def _nep_sha256(nep_path):
+    """Return the full hex sha256 digest of the NEP potential file."""
+    h = hashlib.sha256()
+    with open(nep_path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def write_gpumd_fc(path, atoms, supercell, third_supercell, fc2, fc3,
+                   nep_path, acoustic_sum_applied):
+    """Write a ``gpumd_fc.npz`` archive readable by kaldo ``format='gpumd'``.
+
+    Keys/dtypes match exactly what ``kaldo.interfaces.gpumd_io.read_gpumd_fc``
+    expects (format_version=1, geometry, supercells, fc2 dense, fc3 sparse COO
+    split into coords/data/shape, units, grid_order='C', ASR flag, provenance).
+
+    Parameters
+    ----------
+    path : str
+        Output ``.npz`` path.
+    atoms : ase.Atoms
+        Primitive unit cell.
+    supercell, third_supercell : tuple of int
+        Second- and third-order supercell shapes.
+    fc2 : numpy.ndarray
+        Second-order force constants, shape (1, n_uc, 3, n_rep2, n_uc, 3).
+    fc3 : sparse.COO
+        Third-order force constants.
+    nep_path : str
+        Path to the NEP potential (a sha256 of it is embedded for provenance).
+    acoustic_sum_applied : bool
+        Whether the acoustic sum rule has already been applied to ``fc2``.
+    """
+    nep_hash = _nep_sha256(nep_path)
+    np.savez_compressed(
+        path,
+        format_version=np.int64(1),
+        atomic_numbers=atoms.get_atomic_numbers().astype(np.int64),
+        positions=atoms.get_positions().astype(np.float64),
+        cell=np.array(atoms.cell).astype(np.float64),
+        supercell=np.array(supercell, dtype=np.int64),
+        third_supercell=np.array(third_supercell, dtype=np.int64),
+        fc2=np.ascontiguousarray(fc2, dtype=np.float64),
+        fc3_coords=fc3.coords.astype(np.int32),
+        fc3_data=fc3.data.astype(np.float64),
+        fc3_shape=np.array(fc3.shape, dtype=np.int64),
+        units_fc2='eV/angstrom^2',
+        units_fc3='eV/angstrom^3',
+        grid_order='C',
+        acoustic_sum_applied=np.bool_(acoustic_sum_applied),
+        nep_potential=f'{nep_path}#sha256:{nep_hash}',
+        generator='gpumd_to_kaldo v1')
+
+
+def main(argv=None):
+    """CLI: compute NEP force constants and export a kaldo ``gpumd_fc.npz``."""
+    parser = argparse.ArgumentParser(
+        description='Export NEP force constants to a kaldo gpumd_fc.npz archive.')
+    parser.add_argument('--nep', required=True, help='Path to the NEP potential file.')
+    parser.add_argument('--out', default='gpumd_fc.npz', help='Output npz path.')
+    parser.add_argument('--supercell', type=int, nargs=3, default=[3, 3, 3],
+                        metavar=('NX', 'NY', 'NZ'), help='fc2/fc3 supercell.')
+    parser.add_argument('--third-supercell', type=int, nargs=3, default=None,
+                        metavar=('NX', 'NY', 'NZ'),
+                        help='Separate fc3 supercell (defaults to --supercell).')
+    parser.add_argument('--a', type=float, default=None,
+                        help='Si lattice constant (Angstrom); default: relaxed value.')
+    parser.add_argument('--threshold', type=float, default=0.0,
+                        help='Drop fc3 entries with |value| <= threshold.')
+    parser.add_argument('--acoustic-sum', action='store_true',
+                        help='Apply the acoustic sum rule to fc2 before writing.')
+    args = parser.parse_args(argv)
+
+    third = tuple(args.third_supercell) if args.third_supercell else tuple(args.supercell)
+    a0 = args.a if args.a is not None else relaxed_lattice_constant(args.nep)
+    atoms = silicon_unitcell(a=a0)
+    ph3 = compute_fc3(atoms, args.nep, supercell=tuple(args.supercell))
+    fc2, fc3 = to_kaldo_layout(ph3, atoms, tuple(args.supercell), third,
+                               threshold=args.threshold)
+    if args.acoustic_sum:
+        fc2 = apply_acoustic_sum_rule(fc2)
+    write_gpumd_fc(args.out, atoms, tuple(args.supercell), third, fc2, fc3,
+                   nep_path=args.nep, acoustic_sum_applied=args.acoustic_sum)
+    print('wrote', args.out)
+
+
+if __name__ == '__main__':
+    main()
