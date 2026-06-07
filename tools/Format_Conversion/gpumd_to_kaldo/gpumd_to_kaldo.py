@@ -448,8 +448,13 @@ def main(argv=None):
     parser.add_argument('--third-supercell', type=int, nargs=3, default=None,
                         metavar=('NX', 'NY', 'NZ'),
                         help='Separate fc3 supercell (defaults to --supercell).')
+    parser.add_argument('--structure', default=None, metavar='PATH',
+                        help='Any ASE-readable unit cell (POSCAR, extxyz, cif, …). '
+                             'Used as-is without relaxation. '
+                             'If omitted, the built-in Si diamond cell is used.')
     parser.add_argument('--a', type=float, default=None,
-                        help='Si lattice constant (Angstrom); default: relaxed value.')
+                        help='Si lattice constant (Angstrom); default: relaxed value. '
+                             'Ignored when --structure is given.')
     parser.add_argument('--threshold', type=float, default=0.0,
                         help='Drop fc3 entries with |value| <= threshold.')
     parser.add_argument('--acoustic-sum', action='store_true',
@@ -457,8 +462,15 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     third = tuple(args.third_supercell) if args.third_supercell else tuple(args.supercell)
-    a0 = args.a if args.a is not None else relaxed_lattice_constant(args.nep)
-    atoms = silicon_unitcell(a=a0)
+
+    if args.structure is not None:
+        import ase.io
+        atoms = ase.io.read(args.structure)
+        print(f'Using structure from {args.structure} as provided (no relaxation).')
+    else:
+        a0 = args.a if args.a is not None else relaxed_lattice_constant(args.nep)
+        atoms = silicon_unitcell(a=a0)
+
     ph3 = compute_fc3(atoms, args.nep, supercell=tuple(args.supercell))
     fc2, fc3 = to_kaldo_layout(ph3, atoms, tuple(args.supercell), third,
                                threshold=args.threshold)

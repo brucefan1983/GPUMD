@@ -205,6 +205,8 @@ def test_fc2_layout_matches_hiphive_oracle(si_ph3):
     own transform (transpose(0,2,1,3).reshape(...)[0][None]).  This exercises
     the replica permutation, which Gamma-only checks cannot see.
     """
+    pytest.importorskip('kaldo')
+    pytest.importorskip('hiphive')
     from hiphive import ForceConstants as HFC
     atoms, ph3 = si_ph3
     n_uc = len(atoms)
@@ -342,6 +344,8 @@ def test_fc3_matches_hiphive_oracle(si_ph3, tmp_path):
     back through hiphive, reordering to kaldo replication order, and applying
     kaldo's own fc3 transform.  Independent of the exporter's mapping.
     """
+    pytest.importorskip('kaldo')
+    pytest.importorskip('hiphive')
     from phono3py.file_IO import write_fc3_to_hdf5
     from hiphive import ForceConstants as HFC
     atoms, ph3 = si_ph3
@@ -510,3 +514,53 @@ def test_cli_writes_npz(tmp_path):
     meta = gpumd_io.read_gpumd_fc(str(tmp_path))
     assert meta['acoustic_sum_applied'] is True
     assert tuple(meta['supercell']) == (2, 2, 2)
+
+
+# ---------------------------------------------------------------------------
+# B.5 — CLI --structure option
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_cli_structure_option(tmp_path):
+    """--structure PATH produces the same Gamma frequencies as the built-in Si path.
+
+    Writes the built-in Si cell to a POSCAR in tmp_path, then runs main() with
+    ``--structure``.  The resulting gpumd_fc.npz is loaded via kaldo
+    ``ForceConstants.from_folder(format='gpumd')`` and the Gamma-point
+    frequencies are compared against a reference run through the default
+    (built-in Si) path.  Both runs use ``--acoustic-sum`` and the same (2,2,2)
+    supercell so any index/unit bug would show as a large frequency discrepancy.
+    """
+    pytest.importorskip('kaldo')
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    # --- reference: built-in Si path ---
+    ref_dir = tmp_path / 'ref'
+    ref_dir.mkdir()
+    g.main(['--nep', NEP, '--supercell', '2', '2', '2',
+            '--acoustic-sum', '--out', str(ref_dir / 'gpumd_fc.npz')])
+    fc_ref = ForceConstants.from_folder(folder=str(ref_dir), format='gpumd')
+    freqs_ref = np.sort(HarmonicWithQ(q_point=np.array([0.0, 0.0, 0.0]),
+                                      second=fc_ref.second,
+                                      storage='numpy').frequency[0])
+
+    # --- --structure path: write the built-in cell as a POSCAR ---
+    a0 = g.relaxed_lattice_constant(NEP)
+    atoms = g.silicon_unitcell(a=a0)
+    poscar = str(tmp_path / 'POSCAR')
+    import ase.io
+    ase.io.write(poscar, atoms, format='vasp')
+
+    struct_dir = tmp_path / 'struct'
+    struct_dir.mkdir()
+    g.main(['--nep', NEP, '--structure', poscar,
+            '--supercell', '2', '2', '2',
+            '--acoustic-sum', '--out', str(struct_dir / 'gpumd_fc.npz')])
+    fc_struct = ForceConstants.from_folder(folder=str(struct_dir), format='gpumd')
+    freqs_struct = np.sort(HarmonicWithQ(q_point=np.array([0.0, 0.0, 0.0]),
+                                         second=fc_struct.second,
+                                         storage='numpy').frequency[0])
+
+    np.testing.assert_allclose(freqs_struct, freqs_ref, atol=1e-6,
+                               err_msg='--structure Gamma freqs differ from built-in Si path')
