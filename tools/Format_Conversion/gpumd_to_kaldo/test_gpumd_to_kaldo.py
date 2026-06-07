@@ -59,3 +59,49 @@ def test_equilibrium_forces_small():
     assert f.shape == (2, 3)
     assert np.abs(f).max() < 1e-6, (
         f"Forces not near zero at relaxed a0={a0:.4f}: max|F|={np.abs(f).max():.2e}")
+
+
+# ---------------------------------------------------------------------------
+# B.2 — fc2 via phonopy, fc3 via phono3py
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_fc2_returns_phonopy():
+    """compute_fc2 returns a Phonopy object."""
+    from phonopy import Phonopy
+    a0 = g.relaxed_lattice_constant(NEP)
+    atoms = g.silicon_unitcell(a=a0)
+    ph = g.compute_fc2(atoms, NEP, supercell=(2, 2, 2), displacement=0.01)
+    assert isinstance(ph, Phonopy)
+
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_fc2_gamma_optical_frequency():
+    """Gamma-point optical frequency of Si is physical (~15.5 THz).
+
+    Uses the relaxed NEP lattice constant a0 so the acoustic sum rule is
+    not contaminated by residual stress.  The Fan-2022 Si NEP4 gives an
+    optical mode near 14.3 THz at the relaxed volume (accept 14.0–16.5 THz).
+    """
+    a0 = g.relaxed_lattice_constant(NEP)
+    atoms = g.silicon_unitcell(a=a0)
+    ph = g.compute_fc2(atoms, NEP, supercell=(3, 3, 3), displacement=0.01)
+    ph.run_mesh([1, 1, 1])  # Gamma only
+    freqs = ph.get_mesh_dict()['frequencies'][0]  # THz
+    print(f"\nGamma frequencies (THz): {freqs}")
+    # triply-degenerate optical mode near 15.5 THz for diamond Si
+    assert 14.0 < max(freqs) < 16.5, (
+        f"Max Gamma frequency {max(freqs):.2f} THz outside 14.0–16.5 THz window. "
+        f"Full list: {freqs}")
+
+
+@pytest.mark.skipif(not _NEP_FOUND, reason='Si NEP not found')
+def test_fc3_returns_phono3py():
+    """compute_fc3 returns a Phono3py object with fc2 and fc3 set."""
+    from phono3py import Phono3py
+    a0 = g.relaxed_lattice_constant(NEP)
+    atoms = g.silicon_unitcell(a=a0)
+    ph3 = g.compute_fc3(atoms, NEP, supercell=(2, 2, 2), displacement=0.03)
+    assert isinstance(ph3, Phono3py)
+    assert ph3.fc2 is not None, "fc2 should be set after compute_fc3"
+    assert ph3.fc3 is not None, "fc3 should be set after compute_fc3"
