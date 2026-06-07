@@ -6,9 +6,11 @@ Pipeline:
     displacements -> kaldo-compatible output.
 
 Dependencies:
-    ase, calorine, phonopy, phono3py, numpy, scipy
+    ase, calorine, phonopy, phono3py, numpy, scipy, sparse, kaldo (kaldo only
+    for the C-grid replica ordering used by ``to_kaldo_layout``).
 """
 import numpy as np
+import sparse
 from ase import Atoms
 from calorine.calculators import CPUNEP
 from phonopy import Phonopy
@@ -195,3 +197,153 @@ def compute_fc3(atoms, nep_path, supercell=(3, 3, 3), displacement=0.03):
     # ph3.dataset (same displacements as fc3), so forces are already set.
     ph3.produce_fc2()
     return ph3
+
+
+# ---------------------------------------------------------------------------
+# B.3 — remap phono3py force constants into kaldo's canonical C-grid layout
+# ---------------------------------------------------------------------------
+
+def _supercell_atom_to_replica_unit(phono_supercell, primitive, atoms, supercell):
+    """Map each phono3py supercell atom to (kaldo C-grid replica id, unit atom).
+
+    The replica id is the row of ``Grid(supercell, 'C').grid(is_wrapping=False)``
+    whose integer cell index equals the lattice image the supercell atom sits in.
+    The unit-atom index is ``u2u_map[s2u_map[a]]`` (0..n_uc-1).
+
+    Parameters
+    ----------
+    phono_supercell : phonopy.structure.cells.Supercell
+        The phono3py supercell (``ph3.supercell``).
+    primitive : phonopy.structure.cells.Primitive
+        The phono3py primitive cell (``ph3.primitive``); used for ``p2s_map``.
+    atoms : ase.Atoms
+        The primitive unit cell whose ``cell``/positions define the C grid.
+    supercell : tuple of int
+        Supercell repetitions; defines the Grid shape.
+
+    Returns
+    -------
+    rep_of : numpy.ndarray, shape (n_satom,), int
+        Kaldo C-grid replica id for each supercell atom.
+    unit_of : numpy.ndarray, shape (n_satom,), int
+        Unit-atom index (0..n_uc-1) for each supercell atom.
+    compact_row_of : numpy.ndarray, shape (n_satom,), int
+        For each supercell atom, the compact-fc row index of its primitive
+        image (i.e. position of ``s2u_map[a]`` within ``primitive.p2s_map``).
+    """
+    from kaldo.grid import Grid
+
+    grid_cells = Grid(tuple(int(s) for s in supercell), order='C').grid(is_wrapping=False)
+    cell = np.array(atoms.cell, dtype=np.float64)
+    inv_cell = np.linalg.inv(cell)
+    prim_pos = atoms.get_positions()
+    sc_dim = np.array([int(s) for s in supercell])
+
+    s2u = np.array(phono_supercell.s2u_map)
+    u2u = phono_supercell.u2u_map               # dict: supercell index -> 0..n_uc-1
+    p2s = list(np.array(primitive.p2s_map))     # supercell indices of the n_uc prim atoms
+    sc_cart = np.array(phono_supercell.scaled_positions) @ np.array(phono_supercell.cell)
+
+    n_satom = len(sc_cart)
+    rep_of = np.empty(n_satom, dtype=int)
+    unit_of = np.empty(n_satom, dtype=int)
+    compact_row_of = np.empty(n_satom, dtype=int)
+    for a in range(n_satom):
+        prim_satom = int(s2u[a])
+        j = int(u2u[prim_satom])
+        unit_of[a] = j
+        compact_row_of[a] = p2s.index(prim_satom)
+        offset = sc_cart[a] - prim_pos[j]
+        cell_idx = np.rint(offset @ inv_cell).astype(int) % sc_dim
+        match = np.where((grid_cells == cell_idx).all(axis=1))[0]
+        if match.size == 0:
+            raise ValueError(f"Supercell atom {a} cell index {cell_idx} not on the C grid.")
+        rep_of[a] = int(match[0])
+    return rep_of, unit_of, compact_row_of
+
+
+def to_kaldo_layout(ph3, atoms, supercell, third_supercell, threshold=0.0):
+    """Remap phono3py fc2/fc3 into kaldo's canonical C-grid layout.
+
+    Works directly from phono3py structure data (no hiphive). Handles both the
+    compact (axis 0 == n_uc) and full (axis 0 == n_satom) phono3py fc storage.
+
+    Parameters
+    ----------
+    ph3 : phono3py.Phono3py
+        Object with ``fc2``, ``fc3``, ``supercell``, ``primitive`` set.
+    atoms : ase.Atoms
+        Primitive unit cell (defines the C grid and atom ordering).
+    supercell : tuple of int
+        Supercell used for fc2 (the C grid for the second-order replicas).
+    third_supercell : tuple of int
+        Supercell used for fc3 (the C grid for the third-order replicas).
+    threshold : float
+        fc3 entries with ``|value| <= threshold`` are dropped from the COO.
+
+    Returns
+    -------
+    fc2 : numpy.ndarray, float64, shape (1, n_uc, 3, n_rep2, n_uc, 3)
+        Second-order force constants in eV/Angstrom^2.
+    fc3 : sparse.COO, shape (n_uc*3, n_rep3*n_uc*3, n_rep3*n_uc*3)
+        Third-order force constants in eV/Angstrom^3.
+    """
+    n_uc = len(atoms)
+
+    # --- fc2 ---
+    rep2, unit2, crow2 = _supercell_atom_to_replica_unit(
+        ph3.supercell, ph3.primitive, atoms, supercell)
+    fc2_arr = np.array(ph3.fc2, dtype=np.float64)
+    n_satom2 = len(rep2)
+    n_rep2 = int(np.prod(supercell))
+    is_compact2 = (fc2_arr.shape[0] == n_uc)
+    if not is_compact2 and fc2_arr.shape[0] != n_satom2:
+        raise ValueError(f"Unexpected fc2 axis-0 length {fc2_arr.shape[0]} "
+                         f"(expected {n_uc} compact or {n_satom2} full).")
+
+    fc2 = np.zeros((1, n_uc, 3, n_rep2, n_uc, 3), dtype=np.float64)
+    for b in range(n_satom2):
+        j = unit2[b]
+        r = rep2[b]
+        for a in range(n_satom2):
+            i = unit2[a]
+            if rep2[a] != 0:
+                continue                        # first index must be the reference cell
+            if is_compact2:
+                fc2[0, i, :, r, j, :] = fc2_arr[crow2[a], b]
+            else:
+                fc2[0, i, :, r, j, :] = fc2_arr[a, b]
+
+    # --- fc3 ---
+    rep3, unit3, crow3 = _supercell_atom_to_replica_unit(
+        ph3.supercell, ph3.primitive, atoms, third_supercell)
+    fc3_arr = np.array(ph3.fc3, dtype=np.float64)
+    n_satom3 = len(rep3)
+    n_rep3 = int(np.prod(third_supercell))
+    is_compact3 = (fc3_arr.shape[0] == n_uc)
+    if not is_compact3 and fc3_arr.shape[0] != n_satom3:
+        raise ValueError(f"Unexpected fc3 axis-0 length {fc3_arr.shape[0]} "
+                         f"(expected {n_uc} compact or {n_satom3} full).")
+
+    shape3 = (n_uc * 3, n_rep3 * n_uc * 3, n_rep3 * n_uc * 3)
+    rows, cols1, cols2, vals = [], [], [], []
+    ref_atoms = np.where(rep3 == 0)[0]          # supercell atoms in the reference cell
+    for a in ref_atoms:
+        i = unit3[a]
+        a_src = crow3[a] if is_compact3 else a
+        for b in range(n_satom3):
+            j, l2 = unit3[b], rep3[b]
+            for c in range(n_satom3):
+                k, l3 = unit3[c], rep3[c]
+                block = fc3_arr[a_src, b, c]    # (3, 3, 3)
+                nz = np.argwhere(np.abs(block) > threshold)
+                for (al, be, ga) in nz:
+                    rows.append(i * 3 + al)
+                    cols1.append((l2 * n_uc + j) * 3 + be)
+                    cols2.append((l3 * n_uc + k) * 3 + ga)
+                    vals.append(block[al, be, ga])
+    coords = np.array([rows, cols1, cols2], dtype=np.int64)
+    if coords.size == 0:
+        coords = np.zeros((3, 0), dtype=np.int64)
+    fc3 = sparse.COO(coords, np.array(vals, dtype=np.float64), shape=shape3)
+    return fc2, fc3
