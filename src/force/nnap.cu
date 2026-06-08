@@ -62,7 +62,7 @@ static jclass NNAP_CLAZZ = NULL;
 
 static jboolean cacheJClass_(JNIEnv *aEnv) {
   if (NNAP_CLAZZ == NULL) {
-    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP_cuda"); // Interim version developed for gpu version 
+    jclass clazz = aEnv->FindClass("jsex/nnap/NNAP");
     if (aEnv->ExceptionCheck()) return JNI_FALSE;
     NNAP_CLAZZ = (jclass)aEnv->NewGlobalRef(clazz);
     aEnv->DeleteLocalRef(clazz);
@@ -77,7 +77,7 @@ static void uncacheJClass_(JNIEnv *aEnv) {
 }
 
 static jmethodID sInit = 0;
-static jmethodID sShutdown = 0;
+static jmethodID sClose = 0;
 static jmethodID sRcutMax = 0;
 static jmethodID sComputeGPUMD = 0;
 
@@ -85,10 +85,12 @@ static jobject newJObject_(JNIEnv *aEnv, const char* filename) {
   jobject rOut = NULL;
   
   jstring tJFileName = aEnv->NewStringUTF(filename);
-  if (sInit || (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;)V"))) {
-    rOut = aEnv->NewObject(NNAP_CLAZZ, sInit, tJFileName);
+  jstring tArchStr = aEnv->NewStringUTF("cuda");
+  if (sInit || (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V"))) {
+    rOut = aEnv->NewObject(NNAP_CLAZZ, sInit, tJFileName, tArchStr);
   }
   aEnv->DeleteLocalRef(tJFileName);
+  aEnv->DeleteLocalRef(tArchStr);
   
   return rOut;
 }
@@ -98,9 +100,9 @@ static double rcutMax_(JNIEnv *aEnv, jobject aSelf) {
   }
   return 0.0;
 }
-static void shutdown_(JNIEnv *aEnv, jobject aSelf) {
-  if (sShutdown || (sShutdown = aEnv->GetMethodID(NNAP_CLAZZ, "shutdown", "()V"))) {
-    aEnv->CallVoidMethod(aSelf, sShutdown);
+static void close_(JNIEnv *aEnv, jobject aSelf) {
+  if (sClose || (sClose = aEnv->GetMethodID(NNAP_CLAZZ, "close", "()V"))) {
+    aEnv->CallVoidMethod(aSelf, sClose);
   }
 }
 static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
@@ -159,7 +161,7 @@ NNAP::NNAP(const char* filename, int num_atoms)
   // get rcut
   rc = rcutMax_(mEnv, mCore);
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
-  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: ?
+  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: auto detect
   if (!(std::isfinite(rc) && rc > 0.0)) {
     PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
   }
@@ -173,7 +175,7 @@ NNAP::NNAP(const char* filename, int num_atoms)
 NNAP::~NNAP(void)
 {
   if (mCore != NULL && mEnv != NULL) {
-    shutdown_(mEnv, mCore);
+    close_(mEnv, mCore);
     // only check, no error on destructor
     exceptionCheck_(mEnv);
     
