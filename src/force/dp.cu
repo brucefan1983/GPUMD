@@ -129,6 +129,55 @@ static __global__ void dp_position_transpose(
   }
 }
 
+// Simplified transpose kernel for fully-periodic path (no ghost atoms to fold back)
+static __global__ void transpose_and_update_unit_no_ghost(
+  const double* e_f_v_in,
+  double* e_out,
+  double* f_out,
+  double* v_out,
+  double e_factor,
+  double f_factor,
+  double v_factor,
+  const int N)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    const int f_in_offset = N;
+    const int v_in_offset = N * 4;
+    e_out[n1] = e_f_v_in[n1] * e_factor;
+
+    double fx = e_f_v_in[f_in_offset + n1 * 3];
+    double fy = e_f_v_in[f_in_offset + n1 * 3 + 1];
+    double fz = e_f_v_in[f_in_offset + n1 * 3 + 2];
+
+    f_out[n1] = fx * f_factor;
+    f_out[n1 + N] = fy * f_factor;
+    f_out[n1 + N * 2] = fz * f_factor;
+
+    // virial layout from DeePMD: row-major 3x3
+    // xx xy xz yx yy yz zx zy zz  (indices 0..8)
+    double vxx = e_f_v_in[v_in_offset + n1 * 9]     * v_factor;
+    double vxy = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
+    double vxz = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
+    double vyx = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
+    double vyy = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
+    double vyz = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
+    double vzx = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
+    double vzy = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
+    double vzz = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
+
+    v_out[n1]         = vxx;
+    v_out[n1 + N]     = vyy;
+    v_out[n1 + N * 2] = vzz;
+    v_out[n1 + N * 3] = vxy;
+    v_out[n1 + N * 4] = vxz;
+    v_out[n1 + N * 5] = vyz;
+    v_out[n1 + N * 6] = vyx;
+    v_out[n1 + N * 7] = vzx;
+    v_out[n1 + N * 8] = vzy;
+  }
+}
+
 // force and virial need transpose from dp to gpumd
 // TODO: use share memory to speed up
 static __global__ void transpose_and_update_unit(
@@ -481,6 +530,62 @@ void DP::compute(
   if (number_of_atoms <= 0) return;
   dp_nl.inum = number_of_atoms;
   int grid_size = (number_of_atoms - 1) / BLOCK_SIZE_FORCE + 1;
+
+  // For fully periodic systems, use DeePMD's internal PBC handling.
+  // This avoids ghost atom construction which can cause force inconsistency
+  // for message-passing networks (e.g. DPA3) on triclinic cells.
+  if (box.pbc_x == 1 && box.pbc_y == 1 && box.pbc_z == 1) {
+    // Transpose positions from GPUMD layout (x1..xN, y1..yN, z1..zN) to
+    // row-major (x1,y1,z1, x2,y2,z2, ...)
+    dp_position_gpu_trans.resize(number_of_atoms * 3);
+    dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
+      position_per_atom.data(), dp_position_gpu_trans.data(), number_of_atoms);
+    GPU_CHECK_KERNEL
+    dp_position_cpu.resize(number_of_atoms * 3);
+    dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
+
+    // Copy types to CPU
+    type_cpu.resize(number_of_atoms);
+    type.copy_to_host(type_cpu.data());
+
+    // Set periodic box (original, not ghost-expanded)
+    std::vector<double> dp_box(9, 0.0);
+    set_deepmd_box(box, dp_box);
+
+    // Allocate output buffers
+    dp_ene_all.resize(1, 0.0);
+    dp_ene_atom.resize(number_of_atoms, 0.0);
+    dp_force.resize(number_of_atoms * 3, 0.0);
+    dp_vir_all.resize(9, 0.0);
+    dp_vir_atom.resize(number_of_atoms * 9, 0.0);
+
+    // Call DeePMD compute WITHOUT neighbor list — DeePMD handles PBC internally
+    deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom,
+                     dp_position_cpu, type_cpu, dp_box);
+
+    // Copy results to GPU
+    // Memory layout of e_f_v_gpu: e1..eN, fx1,fy1,fz1,...fxN,fyN,fzN, vxx1...
+    e_f_v_gpu.resize(number_of_atoms * (1 + 3 + 9));
+    e_f_v_gpu.copy_from_host(dp_ene_atom.data(), number_of_atoms, 0);
+    e_f_v_gpu.copy_from_host(dp_force.data(), number_of_atoms * 3, number_of_atoms);
+    e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
+
+    // Transpose forces/virials from DeePMD layout to GPUMD layout (no ghost folding)
+    transpose_and_update_unit_no_ghost<<<grid_size, BLOCK_SIZE_FORCE>>>(
+      e_f_v_gpu.data(),
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      virial_per_atom.data(),
+      ener_unit_cvt_factor,
+      force_unit_cvt_factor,
+      virial_unit_cvt_factor,
+      number_of_atoms);
+    GPU_CHECK_KERNEL
+
+    return;
+  }
+
+  // --- Existing ghost-atom path for non-fully-periodic systems ---
   int num_bins_unused[3];
   box.get_num_bins(rc, num_bins_unused);
   const int max_ghost_num_each_danger = get_max_ghost_num_each_danger(box, rc);
