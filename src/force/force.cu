@@ -15,7 +15,7 @@
 The driver class calculating force and related quantities.
 ------------------------------------------------------------------------------*/
 
-#ifdef USE_TENSORFLOW
+#ifdef USE_DEEPMD
 #include "dp.cuh"
 #endif
 #ifdef USE_NNAP
@@ -161,7 +161,7 @@ void Force::parse_potential(
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
     check_types(param[1]);
-#ifdef USE_TENSORFLOW
+#ifdef USE_DEEPMD
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR(

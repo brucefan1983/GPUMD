@@ -3,7 +3,8 @@
 ## Necessary instructions
 
 - This is a test version.
-- Only potential function files ending with `.pb` in deepmd are supported, that is, the potential function files of the tensorflow version generated using `dp --tf` freeze.
+- DeePMD-kit model formats are supported through the DeePMD-kit backend enabled at compile time.
+- TensorFlow `.pb` models and PyTorch `.pth`/`.pt2` models depend on the installed DeePMD-kit version and build options. See the PyTorch example in `examples/gpumd_dp_pytorch` for DPA2/DPA3/DPA4 usage.
 
 ## Installation Dependencies
 
@@ -12,7 +13,7 @@
 
 ## Run Test
 
-This `DP` interface requires two files: a setting file and a `DP` potential file. The first file is very simple and is used to inform `GPUMD` of the atom number and types. For example, the `dp.txt` is shown in here for use the `potential dp.txt DP_POTENTIAL_FILE.pb` command in the `run.in` file:
+This `DP` interface requires two files: a setting file and a `DP` potential file. The first file is very simple and is used to inform `GPUMD` of the atom number and types. For example, the `dp.txt` is shown in here for use the `potential dp.txt DP_POTENTIAL_FILE` command in the `run.in` file:
 
 ```dp 2 O H```
 

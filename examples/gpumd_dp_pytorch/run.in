@@ -1,0 +1,12 @@
+# GPUMD with DeePMD-kit PyTorch potential
+# Cu FCC 2x2x2, NVE ensemble, 100 steps
+
+potential       dp_settings.txt frozen_model.pt2
+velocity        300
+
+ensemble        nve
+time_step       1
+dump_thermo     10
+dump_exyz       10
+dump_restart    100
+run             100

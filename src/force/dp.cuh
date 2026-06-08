@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef USE_TENSORFLOW
+#ifdef USE_DEEPMD
 #pragma once
 #include "DeepPot.h"
 #include "potential.cuh"
@@ -93,14 +93,14 @@ protected:
   std::vector<int> type_cpu;
   GPU_Vector<double> e_f_v_gpu;     // a temporary variable to save dp energy, force and virial
 
-  // the atoms whose distance to boundaries is less than rcut are dangerous
-  // the atoms mirrored by dangerous atoms are ghost atoms
+  // Atoms that need periodic DP image atoms are marked as dangerous.
+  // Ghost atoms are translated by lattice-vector shifts, including triclinic cells.
   int nghost;                       // number of ghost atoms
   int ndanger;                      // number of dangerous atoms
   GPU_Vector<int> type_ghost;       // type of ghost atoms, nghost x 1
   GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom, number_of_atoms x 1
   GPU_Vector<int> ghost_sum;        // exclusive scan of ghost_count
-  GPU_Vector<int> ghost_id_map;     // a map to find the ghost id of each dangerous atom, ndanger x 7
+  GPU_Vector<int> ghost_id_map;     // dangerous-atom ghost ids, ndanger x max_ghost_num_each_danger
   GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
   GPU_Vector<int> danger_list;      // for each local atom: -1 or dense index in dangerous atom list
   GPU_Vector<int> danger_atoms;     // reverse map: dangerous atom list -> local atom index
