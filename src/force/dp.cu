@@ -544,9 +544,9 @@ void DP::compute(
     dp_position_cpu.resize(number_of_atoms * 3);
     dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
 
-    // Copy types to CPU
+    // Copy types to CPU (type is const, so use cudaMemcpy directly)
     type_cpu.resize(number_of_atoms);
-    type.copy_to_host(type_cpu.data());
+    CHECK(cudaMemcpy(type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, cudaMemcpyDeviceToHost));
 
     // Set periodic box (original, not ghost-expanded)
     std::vector<double> dp_box(9, 0.0);
