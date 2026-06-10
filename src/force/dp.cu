@@ -531,10 +531,15 @@ void DP::compute(
   dp_nl.inum = number_of_atoms;
   int grid_size = (number_of_atoms - 1) / BLOCK_SIZE_FORCE + 1;
 
-  // For fully periodic systems, use DeePMD's internal PBC handling.
-  // This avoids ghost atom construction which can cause force inconsistency
-  // for message-passing networks (e.g. DPA3) on triclinic cells.
-  if (box.pbc_x == 1 && box.pbc_y == 1 && box.pbc_z == 1) {
+  // Always use DeePMD's internal neighbor list construction (bypass path).
+  // This avoids ghost atom construction which causes force inconsistency
+  // for message-passing networks (e.g. DPA2/DPA3) on both bulk and slab systems.
+  //
+  // For non-periodic directions, we inflate the box and center atoms so that
+  // DeePMD's internal PBC won't create spurious periodic images in those directions.
+  // DeePMD's C++ API only supports box=all-zero (cluster) or box=non-zero (full PBC).
+  // We choose the latter and ensure non-periodic directions have sufficient vacuum.
+  {
     // Transpose positions from GPUMD layout (x1..xN, y1..yN, z1..zN) to
     // row-major (x1,y1,z1, x2,y2,z2, ...)
     dp_position_gpu_trans.resize(number_of_atoms * 3);
@@ -548,9 +553,117 @@ void DP::compute(
     type_cpu.resize(number_of_atoms);
     CHECK(cudaMemcpy(type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, cudaMemcpyDeviceToHost));
 
-    // Set periodic box (original, not ghost-expanded)
+    // Build the box for DeePMD, handling non-periodic directions.
+    // For non-periodic directions, inflate box vectors so that the effective
+    // thickness in that direction >= atom_extent + 4*rc, preventing DeePMD
+    // from finding periodic-image neighbors across the free boundary.
+    // We also shift atoms to be centered in the inflated box.
+    //
+    // Box matrix layout in GPUMD (column-major lattice vectors):
+    //   a = (cpu_h[0], cpu_h[3], cpu_h[6])  -- 1st lattice vector
+    //   b = (cpu_h[1], cpu_h[4], cpu_h[7])  -- 2nd lattice vector
+    //   c = (cpu_h[2], cpu_h[5], cpu_h[8])  -- 3rd lattice vector
+    // Thickness of direction d = Volume / Area(d).
+
+    double dp_h[9]; // local copy of box matrix for DeePMD
+    for (int i = 0; i < 9; ++i) dp_h[i] = box.cpu_h[i];
+
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      // Compute atom extent in Cartesian x, y, z
+      double xmin = 1e30, xmax = -1e30;
+      double ymin = 1e30, ymax = -1e30;
+      double zmin = 1e30, zmax = -1e30;
+      for (int i = 0; i < number_of_atoms; ++i) {
+        double x = dp_position_cpu[i * 3];
+        double y = dp_position_cpu[i * 3 + 1];
+        double z = dp_position_cpu[i * 3 + 2];
+        if (x < xmin) xmin = x; if (x > xmax) xmax = x;
+        if (y < ymin) ymin = y; if (y > ymax) ymax = y;
+        if (z < zmin) zmin = z; if (z > zmax) zmax = z;
+      }
+
+      // Compute current box volume and thicknesses
+      double vol = fabs(
+        dp_h[0] * (dp_h[4] * dp_h[8] - dp_h[5] * dp_h[7]) +
+        dp_h[1] * (dp_h[5] * dp_h[6] - dp_h[3] * dp_h[8]) +
+        dp_h[2] * (dp_h[3] * dp_h[7] - dp_h[4] * dp_h[6]));
+
+      // Area perpendicular to a (b x c)
+      auto cross_norm = [](double u0, double u1, double u2,
+                           double v0, double v1, double v2) {
+        double c0 = u1 * v2 - u2 * v1;
+        double c1 = u2 * v0 - u0 * v2;
+        double c2 = u0 * v1 - u1 * v0;
+        return sqrt(c0 * c0 + c1 * c1 + c2 * c2);
+      };
+      double area_x = cross_norm(dp_h[1], dp_h[4], dp_h[7], dp_h[2], dp_h[5], dp_h[8]);
+      double area_y = cross_norm(dp_h[2], dp_h[5], dp_h[8], dp_h[0], dp_h[3], dp_h[6]);
+      double area_z = cross_norm(dp_h[0], dp_h[3], dp_h[6], dp_h[1], dp_h[4], dp_h[7]);
+      double thick_x = (area_x > 0) ? vol / area_x : dp_h[0];
+      double thick_y = (area_y > 0) ? vol / area_y : dp_h[4];
+      double thick_z = (area_z > 0) ? vol / area_z : dp_h[8];
+
+      double shift_x = 0.0, shift_y = 0.0, shift_z = 0.0;
+
+      // For each non-periodic direction, inflate box vector and center atoms.
+      // The atom extent along that Cartesian axis is used as a proxy for the
+      // slab thickness (exact for orthogonal boxes, conservative for triclinic).
+      if (box.pbc_x == 0) {
+        double extent = xmax - xmin;
+        double needed = extent + 4.0 * rc;
+        if (needed > thick_x) {
+          double scale = needed / thick_x;
+          dp_h[0] *= scale; dp_h[3] *= scale; dp_h[6] *= scale;
+          thick_x = needed;
+        }
+        // Center atoms in x: place midpoint at half the a-vector x-component
+        // For orthogonal boxes: a = (h[0], 0, 0), so center_x = h[0]/2
+        // For triclinic: approximate using the x-component of the a-vector
+        double box_center_x = dp_h[0] * 0.5;
+        double atom_center_x = (xmin + xmax) * 0.5;
+        shift_x = box_center_x - atom_center_x;
+      }
+
+      if (box.pbc_y == 0) {
+        double extent = ymax - ymin;
+        double needed = extent + 4.0 * rc;
+        if (needed > thick_y) {
+          double scale = needed / thick_y;
+          dp_h[1] *= scale; dp_h[4] *= scale; dp_h[7] *= scale;
+          thick_y = needed;
+        }
+        double box_center_y = dp_h[4] * 0.5;
+        double atom_center_y = (ymin + ymax) * 0.5;
+        shift_y = box_center_y - atom_center_y;
+      }
+
+      if (box.pbc_z == 0) {
+        double extent = zmax - zmin;
+        double needed = extent + 4.0 * rc;
+        if (needed > thick_z) {
+          double scale = needed / thick_z;
+          dp_h[2] *= scale; dp_h[5] *= scale; dp_h[8] *= scale;
+          thick_z = needed;
+        }
+        double box_center_z = dp_h[8] * 0.5;
+        double atom_center_z = (zmin + zmax) * 0.5;
+        shift_z = box_center_z - atom_center_z;
+      }
+
+      // Apply coordinate shifts
+      for (int i = 0; i < number_of_atoms; ++i) {
+        dp_position_cpu[i * 3]     += shift_x;
+        dp_position_cpu[i * 3 + 1] += shift_y;
+        dp_position_cpu[i * 3 + 2] += shift_z;
+      }
+    }
+
+    // Construct dp_box in DeePMD row-major format from (possibly inflated) dp_h
+    // DeePMD box layout: row0=a, row1=b, row2=c (each as x,y,z)
     std::vector<double> dp_box(9, 0.0);
-    set_deepmd_box(box, dp_box);
+    dp_box[0] = dp_h[0]; dp_box[1] = dp_h[3]; dp_box[2] = dp_h[6];
+    dp_box[3] = dp_h[1]; dp_box[4] = dp_h[4]; dp_box[5] = dp_h[7];
+    dp_box[6] = dp_h[2]; dp_box[7] = dp_h[5]; dp_box[8] = dp_h[8];
 
     // Allocate output buffers
     dp_ene_all.resize(1, 0.0);
@@ -584,200 +697,5 @@ void DP::compute(
 
     return;
   }
-
-  // --- Existing ghost-atom path for non-fully-periodic systems ---
-  int num_bins_unused[3];
-  box.get_num_bins(rc, num_bins_unused);
-  const int max_ghost_num_each_danger = get_max_ghost_num_each_danger(box, rc);
-
-  // get ghost atom number
-nghost = calc_ghost_atom_number(
-  BLOCK_SIZE_FORCE,
-  grid_size,
-  number_of_atoms,
-  rc,
-  position_per_atom.data(),
-  ghost_count.data(),
-  danger_flag.data(),
-  box);
-
-  thrust::exclusive_scan(
-    thrust::device, ghost_count.data(), ghost_count.data() + number_of_atoms, ghost_sum.data());
-  thrust::exclusive_scan(
-    thrust::device, danger_flag.data(), danger_flag.data() + number_of_atoms, danger_list.data());
-
-  ndanger = thrust::reduce(
-    thrust::device,
-    danger_flag.data(),
-    danger_flag.data() + number_of_atoms,
-    0,
-    thrust::plus<int>());
-
-  // check_ghost<<<grid_size, BLOCK_SIZE_FORCE>>>(ghost_count.data(), ghost_sum.data(), ghost_flag.data(), ghost_list.data(), number_of_atoms);
-  // resize the ghost vectors
-  int num_all_atoms = number_of_atoms + nghost; // all atoms include ghost atoms
-  int grid_size_ghost = (num_all_atoms - 1) / BLOCK_SIZE_FORCE + 1;
-
-  // Prevent ndanger == 0 from causing an error.
-  if ( ndanger == 0 ) ghost_id_map.resize(1, -1);
-  else ghost_id_map.resize(ndanger * max_ghost_num_each_danger, -1);
-
-  type_ghost.resize(num_all_atoms);
-  dp_position_gpu.resize(num_all_atoms * 3);
-  
-  create_ghost_map<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms,
-    nghost,
-    ndanger,
-    rc,
-    ghost_count.data(),
-    ghost_sum.data(),
-    danger_list.data(),
-    ghost_id_map.data(),
-    type_ghost.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2,
-    dp_position_gpu.data(),
-    box,
-    max_ghost_num_each_danger);
-  GPU_CHECK_KERNEL
-
-  dp_data.NN.resize(num_all_atoms);
-  dp_data.NL.resize(num_all_atoms * MAX_NEIGH_NUM_DP);
-  dp_data.cell_contents.resize(num_all_atoms);
-  dp_data.cell_count.resize(num_all_atoms);
-  dp_data.cell_count_sum.resize(num_all_atoms);
-
-  Box box_ghost;
-  create_dp_ghost_box(box, rc, box_ghost);
-
-  find_neighbor(
-    N1,
-    num_all_atoms,
-    rc,
-    box_ghost,
-    type_ghost,
-    dp_position_gpu,
-    dp_data.cell_count,
-    dp_data.cell_count_sum,
-    dp_data.cell_contents,
-    dp_data.NN,
-    dp_data.NL);
-
-  // Initialize DeepPot computation variables
-  dp_ene_all.resize(1, 0.0);
-  dp_ene_atom.resize(num_all_atoms, 0.0);
-  dp_force.resize(num_all_atoms * 3, 0.0);
-  dp_vir_all.resize(9, 0.0);
-  dp_vir_atom.resize(num_all_atoms * 9, 0.0);
-
-  // copy position and type to CPU
-  dp_position_gpu_trans.resize(num_all_atoms * 3);
-  dp_position_transpose<<<grid_size_ghost, BLOCK_SIZE_FORCE>>>(
-    dp_position_gpu.data(),
-    dp_position_gpu_trans.data(),
-    num_all_atoms);
-  GPU_CHECK_KERNEL
-  dp_position_cpu.resize(num_all_atoms * 3);
-  dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
-  type_cpu.resize(num_all_atoms);
-  type_ghost.copy_to_host(type_cpu.data());
-
-  // create dp box
-  std::vector<double> dp_box(9, 0.0);
-  set_deepmd_box(box_ghost, dp_box);
-
-  dp_nl.ilist.resize(num_all_atoms, 0);
-  dp_nl.numneigh.resize(num_all_atoms, 0);
-  dp_nl.firstneigh.resize(num_all_atoms, nullptr);
-
-  // Allocate lmp_ilist and lmp_numneigh
-  dp_data.NN.copy_to_host(dp_nl.numneigh.data());
-  int max_numneigh = 0;
-  for (int i = 0; i < num_all_atoms; ++i) {
-    if (dp_nl.numneigh[i] > max_numneigh) max_numneigh = dp_nl.numneigh[i];
-  }
-  if (max_numneigh > MAX_NEIGH_NUM_DP) {
-    printf("Error: DP neighbor overflow. max_numneigh = %d, limit = %d\n", max_numneigh, MAX_NEIGH_NUM_DP);
-    exit(1);
-  }
-  cpu_NL.resize(dp_data.NL.size());
-  dp_data.NL.copy_to_host(cpu_NL.data());
-
-  int offset = 0;
-  dp_nl.neigh_storage.resize(dp_data.NL.size());
-  for (int i = 0; i < num_all_atoms; ++i) {
-    dp_nl.ilist[i] = i;
-    dp_nl.firstneigh[i] = dp_nl.neigh_storage.data() + offset;
-    for (int j = 0; j < dp_nl.numneigh[i]; ++j) {
-        dp_nl.neigh_storage[offset + j] = cpu_NL[i + j * num_all_atoms]; // Copy in column-major order
-    }
-    offset += dp_nl.numneigh[i];
-  }
-
-  // Constructing a neighbor list in LAMMPS format
-  // inum: number of local atoms
-  // the neighbor list record the message of ghost atoms, so len(numneigh) = nlocal + nghost 
-  // deepmd_compat::InputNlist lmp_list(nlocal, lmp_ilist, lmp_numneigh, lmp_firstneigh);
-  deepmd_compat::InputNlist lmp_list(dp_nl.inum, dp_nl.ilist.data(), dp_nl.numneigh.data(), dp_nl.firstneigh.data());
-
-  // Map each local and ghost atom to its corresponding local atom for DeePMD-kit.
-  // Keep atom_mapping alive until deep_pot.compute() has used lmp_list.
-  std::vector<int> atom_mapping(num_all_atoms);
-  for (int i = 0; i < number_of_atoms; ++i) atom_mapping[i] = i;
-  if (nghost > 0) {
-    std::vector<int> gc(number_of_atoms), gs(number_of_atoms);
-    ghost_count.copy_to_host(gc.data());
-    ghost_sum.copy_to_host(gs.data());
-    for (int i = 0; i < number_of_atoms; ++i)
-      for (int g = 0; g < gc[i]; ++g)
-        atom_mapping[number_of_atoms + gs[i] + g] = i;
-  }
-  lmp_list.set_mapping(atom_mapping.data());
-
-
-  // to calculate the atomic force and energy from deepot
-  if (single_model) {
-    if (! atom_spin_flag) {
-        deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom, 
-            dp_position_cpu, type_cpu, dp_box,
-            nghost, lmp_list, 0);
-    }
-  }
-
-  // copy dp output energy, force, and virial to gpu
-  // memory distribution of e_f_v_gpu: e1, e2 ... en, fx1, fy1, fz1, fx2 ... fzn, vxx1 ...
-  e_f_v_gpu.copy_from_host(dp_ene_atom.data(), number_of_atoms, 0);
-  e_f_v_gpu.copy_from_host(dp_force.data(), number_of_atoms * 3, number_of_atoms);
-  e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
-  
-  // copy ghost atom force and virial to modify the local atoms' force and virial
-  if (nghost > 0) {
-    f_ghost.resize(nghost * 3);
-    v_ghost.resize(nghost * 9);
-    f_ghost.copy_from_host(dp_force.data() + number_of_atoms * 3, nghost * 3);
-    v_ghost.copy_from_host(dp_vir_atom.data() + number_of_atoms * 9, nghost * 9);
-  }
-
-  // transpose dp vectors
-  transpose_and_update_unit<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    e_f_v_gpu.data(),
-    potential_per_atom.data(),
-    force_per_atom.data(),
-    virial_per_atom.data(),
-    f_ghost.data(),
-    v_ghost.data(),
-    danger_list.data(),
-    ghost_id_map.data(),
-    ener_unit_cvt_factor,
-    force_unit_cvt_factor,
-    virial_unit_cvt_factor,
-    number_of_atoms,
-    ndanger,
-    nghost,
-    max_ghost_num_each_danger);
-  GPU_CHECK_KERNEL
 }
 #endif
