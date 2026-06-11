@@ -570,76 +570,118 @@ void DP::compute(
     for (int i = 0; i < 9; ++i) dp_h[i] = box.cpu_h[i];
 
     if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-      // Convert positions to fractional coordinates using the inverse box matrix.
-      // GPUMD inverse matrix stored in cpu_h[9..17]:
-      //   s = H^{-1} * r, where H = [a, b, c] (columns)
-      //   s_x = cpu_h[9]*x + cpu_h[10]*y + cpu_h[11]*z
-      //   s_y = cpu_h[12]*x + cpu_h[13]*y + cpu_h[14]*z
-      //   s_z = cpu_h[15]*x + cpu_h[16]*y + cpu_h[17]*z
-      std::vector<double> frac(number_of_atoms * 3);
-      for (int i = 0; i < number_of_atoms; ++i) {
-        double x = dp_position_cpu[i * 3];
-        double y = dp_position_cpu[i * 3 + 1];
-        double z = dp_position_cpu[i * 3 + 2];
-        frac[i * 3]     = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-        frac[i * 3 + 1] = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-        frac[i * 3 + 2] = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-      }
+      if (box.is_orthogonal) {
+        // Orthogonal box: use simple Cartesian shift approach.
+        // pbc_x/y/z directly maps to Cartesian x/y/z axes for orthogonal boxes.
+        double xmin = 1e30, xmax = -1e30;
+        double ymin = 1e30, ymax = -1e30;
+        double zmin = 1e30, zmax = -1e30;
+        for (int i = 0; i < number_of_atoms; ++i) {
+          double x = dp_position_cpu[i * 3];
+          double y = dp_position_cpu[i * 3 + 1];
+          double z = dp_position_cpu[i * 3 + 2];
+          if (x < xmin) xmin = x; if (x > xmax) xmax = x;
+          if (y < ymin) ymin = y; if (y > ymax) ymax = y;
+          if (z < zmin) zmin = z; if (z > zmax) zmax = z;
+        }
 
-      // For each non-periodic direction, find fractional extent, inflate if needed,
-      // and center atoms at s=0.5.
-      double smin[3] = {1e30, 1e30, 1e30};
-      double smax[3] = {-1e30, -1e30, -1e30};
-      for (int i = 0; i < number_of_atoms; ++i) {
+        double shift_x = 0.0, shift_y = 0.0, shift_z = 0.0;
+
+        if (box.pbc_x == 0) {
+          double extent = xmax - xmin;
+          double needed = extent + 4.0 * rc;
+          if (needed > dp_h[0]) {
+            double scale = needed / dp_h[0];
+            dp_h[0] *= scale;
+          }
+          shift_x = dp_h[0] * 0.5 - (xmin + xmax) * 0.5;
+        }
+        if (box.pbc_y == 0) {
+          double extent = ymax - ymin;
+          double needed = extent + 4.0 * rc;
+          if (needed > dp_h[4]) {
+            double scale = needed / dp_h[4];
+            dp_h[4] *= scale;
+          }
+          shift_y = dp_h[4] * 0.5 - (ymin + ymax) * 0.5;
+        }
+        if (box.pbc_z == 0) {
+          double extent = zmax - zmin;
+          double needed = extent + 4.0 * rc;
+          if (needed > dp_h[8]) {
+            double scale = needed / dp_h[8];
+            dp_h[8] *= scale;
+          }
+          shift_z = dp_h[8] * 0.5 - (zmin + zmax) * 0.5;
+        }
+
+        // Apply shifts only to non-periodic directions
+        for (int i = 0; i < number_of_atoms; ++i) {
+          dp_position_cpu[i * 3]     += shift_x;
+          dp_position_cpu[i * 3 + 1] += shift_y;
+          dp_position_cpu[i * 3 + 2] += shift_z;
+        }
+      } else {
+        // Triclinic box: use fractional coordinate approach.
+        // pbc_x/y/z maps to lattice vector a/b/c directions, not Cartesian axes.
+        // We must work in fractional space to correctly inflate the right direction.
+        std::vector<double> frac(number_of_atoms * 3);
+        for (int i = 0; i < number_of_atoms; ++i) {
+          double x = dp_position_cpu[i * 3];
+          double y = dp_position_cpu[i * 3 + 1];
+          double z = dp_position_cpu[i * 3 + 2];
+          frac[i * 3]     = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+          frac[i * 3 + 1] = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+          frac[i * 3 + 2] = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+        }
+
+        double smin[3] = {1e30, 1e30, 1e30};
+        double smax[3] = {-1e30, -1e30, -1e30};
+        for (int i = 0; i < number_of_atoms; ++i) {
+          for (int d = 0; d < 3; ++d) {
+            double s = frac[i * 3 + d];
+            if (s < smin[d]) smin[d] = s;
+            if (s > smax[d]) smax[d] = s;
+          }
+        }
+
+        int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+        double thickness[3] = {box.thickness_x, box.thickness_y, box.thickness_z};
+
         for (int d = 0; d < 3; ++d) {
-          double s = frac[i * 3 + d];
-          if (s < smin[d]) smin[d] = s;
-          if (s > smax[d]) smax[d] = s;
-        }
-      }
-
-      int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
-      // thickness[d] = Volume / Area_d (already computed by GPUMD in box)
-      double thickness[3] = {box.thickness_x, box.thickness_y, box.thickness_z};
-
-      for (int d = 0; d < 3; ++d) {
-        if (pbc[d] == 0) {
-          double frac_extent = smax[d] - smin[d]; // in fractional units
-          double cart_extent = frac_extent * thickness[d]; // in Angstrom
-          double needed = cart_extent + 4.0 * rc; // need this much thickness
-          if (needed > thickness[d]) {
-            double scale = needed / thickness[d];
-            // Scale the d-th lattice vector (column d of H matrix)
-            dp_h[d]     *= scale; // x-component of vector d
-            dp_h[d + 3] *= scale; // y-component of vector d
-            dp_h[d + 6] *= scale; // z-component of vector d
-            // Update thickness and rescale fractional coords for this direction
-            thickness[d] = needed;
-            for (int i = 0; i < number_of_atoms; ++i) {
-              frac[i * 3 + d] /= scale;
+          if (pbc[d] == 0) {
+            double frac_extent = smax[d] - smin[d];
+            double cart_extent = frac_extent * thickness[d];
+            double needed = cart_extent + 4.0 * rc;
+            if (needed > thickness[d]) {
+              double scale = needed / thickness[d];
+              dp_h[d]     *= scale;
+              dp_h[d + 3] *= scale;
+              dp_h[d + 6] *= scale;
+              thickness[d] = needed;
+              for (int i = 0; i < number_of_atoms; ++i) {
+                frac[i * 3 + d] /= scale;
+              }
+              smin[d] /= scale;
+              smax[d] /= scale;
             }
-            // Update smin/smax after rescaling
-            smin[d] /= scale;
-            smax[d] /= scale;
-          }
-          // Center atoms at fractional coordinate 0.5
-          double frac_center = (smin[d] + smax[d]) * 0.5;
-          double shift = 0.5 - frac_center;
-          for (int i = 0; i < number_of_atoms; ++i) {
-            frac[i * 3 + d] += shift;
+            double frac_center = (smin[d] + smax[d]) * 0.5;
+            double shift = 0.5 - frac_center;
+            for (int i = 0; i < number_of_atoms; ++i) {
+              frac[i * 3 + d] += shift;
+            }
           }
         }
-      }
 
-      // Convert back to Cartesian using (possibly inflated) dp_h
-      // r = H * s, H stored column-major: col0=a=(dp_h[0],dp_h[3],dp_h[6]), etc.
-      for (int i = 0; i < number_of_atoms; ++i) {
-        double sx = frac[i * 3];
-        double sy = frac[i * 3 + 1];
-        double sz = frac[i * 3 + 2];
-        dp_position_cpu[i * 3]     = dp_h[0] * sx + dp_h[1] * sy + dp_h[2] * sz;
-        dp_position_cpu[i * 3 + 1] = dp_h[3] * sx + dp_h[4] * sy + dp_h[5] * sz;
-        dp_position_cpu[i * 3 + 2] = dp_h[6] * sx + dp_h[7] * sy + dp_h[8] * sz;
+        // Convert back to Cartesian using (possibly inflated) dp_h
+        for (int i = 0; i < number_of_atoms; ++i) {
+          double sx = frac[i * 3];
+          double sy = frac[i * 3 + 1];
+          double sz = frac[i * 3 + 2];
+          dp_position_cpu[i * 3]     = dp_h[0] * sx + dp_h[1] * sy + dp_h[2] * sz;
+          dp_position_cpu[i * 3 + 1] = dp_h[3] * sx + dp_h[4] * sy + dp_h[5] * sz;
+          dp_position_cpu[i * 3 + 2] = dp_h[6] * sx + dp_h[7] * sy + dp_h[8] * sz;
+        }
       }
     }
 
