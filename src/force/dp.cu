@@ -154,18 +154,19 @@ static __global__ void transpose_and_update_unit_no_ghost(
     f_out[n1 + N] = fy * f_factor;
     f_out[n1 + N * 2] = fz * f_factor;
 
-    // virial layout from DeePMD: row-major 3x3
-    // xx xy xz yx yy yz zx zy zz  (indices 0..8)
+    // virial layout from DeePMD atomic virial (same convention as old path):
+    // Index mapping: xx=0, yy=4, zz=8, xy=3, xz=6, yz=7, yx=1, zx=2, zy=5
     double vxx = e_f_v_in[v_in_offset + n1 * 9]     * v_factor;
-    double vxy = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
-    double vxz = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
-    double vyx = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
     double vyy = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
-    double vyz = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
-    double vzx = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
-    double vzy = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
     double vzz = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
+    double vxy = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
+    double vxz = e_f_v_in[v_in_offset + n1 * 9 + 6] * v_factor;
+    double vyz = e_f_v_in[v_in_offset + n1 * 9 + 7] * v_factor;
+    double vyx = e_f_v_in[v_in_offset + n1 * 9 + 1] * v_factor;
+    double vzx = e_f_v_in[v_in_offset + n1 * 9 + 2] * v_factor;
+    double vzy = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
 
+    // GPUMD virial_per_atom layout (SoA): xx, yy, zz, xy, xz, yz, yx, zx, zy
     v_out[n1]         = vxx;
     v_out[n1 + N]     = vyy;
     v_out[n1 + N * 2] = vzz;
@@ -549,9 +550,9 @@ void DP::compute(
     dp_position_cpu.resize(number_of_atoms * 3);
     dp_position_gpu_trans.copy_to_host(dp_position_cpu.data());
 
-    // Copy types to CPU (type is const, so use cudaMemcpy directly)
+    // Copy types to CPU (type is const, so use gpuMemcpy directly)
     type_cpu.resize(number_of_atoms);
-    CHECK(cudaMemcpy(type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, cudaMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, gpuMemcpyDeviceToHost));
 
     // Build the box for DeePMD, handling non-periodic directions.
     // For non-periodic directions, inflate box vectors so that the effective
@@ -569,92 +570,76 @@ void DP::compute(
     for (int i = 0; i < 9; ++i) dp_h[i] = box.cpu_h[i];
 
     if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-      // Compute atom extent in Cartesian x, y, z
-      double xmin = 1e30, xmax = -1e30;
-      double ymin = 1e30, ymax = -1e30;
-      double zmin = 1e30, zmax = -1e30;
+      // Convert positions to fractional coordinates using the inverse box matrix.
+      // GPUMD inverse matrix stored in cpu_h[9..17]:
+      //   s = H^{-1} * r, where H = [a, b, c] (columns)
+      //   s_x = cpu_h[9]*x + cpu_h[10]*y + cpu_h[11]*z
+      //   s_y = cpu_h[12]*x + cpu_h[13]*y + cpu_h[14]*z
+      //   s_z = cpu_h[15]*x + cpu_h[16]*y + cpu_h[17]*z
+      std::vector<double> frac(number_of_atoms * 3);
       for (int i = 0; i < number_of_atoms; ++i) {
         double x = dp_position_cpu[i * 3];
         double y = dp_position_cpu[i * 3 + 1];
         double z = dp_position_cpu[i * 3 + 2];
-        if (x < xmin) xmin = x; if (x > xmax) xmax = x;
-        if (y < ymin) ymin = y; if (y > ymax) ymax = y;
-        if (z < zmin) zmin = z; if (z > zmax) zmax = z;
+        frac[i * 3]     = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+        frac[i * 3 + 1] = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+        frac[i * 3 + 2] = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
       }
 
-      // Compute current box volume and thicknesses
-      double vol = fabs(
-        dp_h[0] * (dp_h[4] * dp_h[8] - dp_h[5] * dp_h[7]) +
-        dp_h[1] * (dp_h[5] * dp_h[6] - dp_h[3] * dp_h[8]) +
-        dp_h[2] * (dp_h[3] * dp_h[7] - dp_h[4] * dp_h[6]));
-
-      // Area perpendicular to a (b x c)
-      auto cross_norm = [](double u0, double u1, double u2,
-                           double v0, double v1, double v2) {
-        double c0 = u1 * v2 - u2 * v1;
-        double c1 = u2 * v0 - u0 * v2;
-        double c2 = u0 * v1 - u1 * v0;
-        return sqrt(c0 * c0 + c1 * c1 + c2 * c2);
-      };
-      double area_x = cross_norm(dp_h[1], dp_h[4], dp_h[7], dp_h[2], dp_h[5], dp_h[8]);
-      double area_y = cross_norm(dp_h[2], dp_h[5], dp_h[8], dp_h[0], dp_h[3], dp_h[6]);
-      double area_z = cross_norm(dp_h[0], dp_h[3], dp_h[6], dp_h[1], dp_h[4], dp_h[7]);
-      double thick_x = (area_x > 0) ? vol / area_x : dp_h[0];
-      double thick_y = (area_y > 0) ? vol / area_y : dp_h[4];
-      double thick_z = (area_z > 0) ? vol / area_z : dp_h[8];
-
-      double shift_x = 0.0, shift_y = 0.0, shift_z = 0.0;
-
-      // For each non-periodic direction, inflate box vector and center atoms.
-      // The atom extent along that Cartesian axis is used as a proxy for the
-      // slab thickness (exact for orthogonal boxes, conservative for triclinic).
-      if (box.pbc_x == 0) {
-        double extent = xmax - xmin;
-        double needed = extent + 4.0 * rc;
-        if (needed > thick_x) {
-          double scale = needed / thick_x;
-          dp_h[0] *= scale; dp_h[3] *= scale; dp_h[6] *= scale;
-          thick_x = needed;
-        }
-        // Center atoms in x: place midpoint at half the a-vector x-component
-        // For orthogonal boxes: a = (h[0], 0, 0), so center_x = h[0]/2
-        // For triclinic: approximate using the x-component of the a-vector
-        double box_center_x = dp_h[0] * 0.5;
-        double atom_center_x = (xmin + xmax) * 0.5;
-        shift_x = box_center_x - atom_center_x;
-      }
-
-      if (box.pbc_y == 0) {
-        double extent = ymax - ymin;
-        double needed = extent + 4.0 * rc;
-        if (needed > thick_y) {
-          double scale = needed / thick_y;
-          dp_h[1] *= scale; dp_h[4] *= scale; dp_h[7] *= scale;
-          thick_y = needed;
-        }
-        double box_center_y = dp_h[4] * 0.5;
-        double atom_center_y = (ymin + ymax) * 0.5;
-        shift_y = box_center_y - atom_center_y;
-      }
-
-      if (box.pbc_z == 0) {
-        double extent = zmax - zmin;
-        double needed = extent + 4.0 * rc;
-        if (needed > thick_z) {
-          double scale = needed / thick_z;
-          dp_h[2] *= scale; dp_h[5] *= scale; dp_h[8] *= scale;
-          thick_z = needed;
-        }
-        double box_center_z = dp_h[8] * 0.5;
-        double atom_center_z = (zmin + zmax) * 0.5;
-        shift_z = box_center_z - atom_center_z;
-      }
-
-      // Apply coordinate shifts
+      // For each non-periodic direction, find fractional extent, inflate if needed,
+      // and center atoms at s=0.5.
+      double smin[3] = {1e30, 1e30, 1e30};
+      double smax[3] = {-1e30, -1e30, -1e30};
       for (int i = 0; i < number_of_atoms; ++i) {
-        dp_position_cpu[i * 3]     += shift_x;
-        dp_position_cpu[i * 3 + 1] += shift_y;
-        dp_position_cpu[i * 3 + 2] += shift_z;
+        for (int d = 0; d < 3; ++d) {
+          double s = frac[i * 3 + d];
+          if (s < smin[d]) smin[d] = s;
+          if (s > smax[d]) smax[d] = s;
+        }
+      }
+
+      int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+      // thickness[d] = Volume / Area_d (already computed by GPUMD in box)
+      double thickness[3] = {box.thickness_x, box.thickness_y, box.thickness_z};
+
+      for (int d = 0; d < 3; ++d) {
+        if (pbc[d] == 0) {
+          double frac_extent = smax[d] - smin[d]; // in fractional units
+          double cart_extent = frac_extent * thickness[d]; // in Angstrom
+          double needed = cart_extent + 4.0 * rc; // need this much thickness
+          if (needed > thickness[d]) {
+            double scale = needed / thickness[d];
+            // Scale the d-th lattice vector (column d of H matrix)
+            dp_h[d]     *= scale; // x-component of vector d
+            dp_h[d + 3] *= scale; // y-component of vector d
+            dp_h[d + 6] *= scale; // z-component of vector d
+            // Update thickness and rescale fractional coords for this direction
+            thickness[d] = needed;
+            for (int i = 0; i < number_of_atoms; ++i) {
+              frac[i * 3 + d] /= scale;
+            }
+            // Update smin/smax after rescaling
+            smin[d] /= scale;
+            smax[d] /= scale;
+          }
+          // Center atoms at fractional coordinate 0.5
+          double frac_center = (smin[d] + smax[d]) * 0.5;
+          double shift = 0.5 - frac_center;
+          for (int i = 0; i < number_of_atoms; ++i) {
+            frac[i * 3 + d] += shift;
+          }
+        }
+      }
+
+      // Convert back to Cartesian using (possibly inflated) dp_h
+      // r = H * s, H stored column-major: col0=a=(dp_h[0],dp_h[3],dp_h[6]), etc.
+      for (int i = 0; i < number_of_atoms; ++i) {
+        double sx = frac[i * 3];
+        double sy = frac[i * 3 + 1];
+        double sz = frac[i * 3 + 2];
+        dp_position_cpu[i * 3]     = dp_h[0] * sx + dp_h[1] * sy + dp_h[2] * sz;
+        dp_position_cpu[i * 3 + 1] = dp_h[3] * sx + dp_h[4] * sy + dp_h[5] * sz;
+        dp_position_cpu[i * 3 + 2] = dp_h[6] * sx + dp_h[7] * sy + dp_h[8] * sz;
       }
     }
 
@@ -678,7 +663,6 @@ void DP::compute(
 
     // Copy results to GPU
     // Memory layout of e_f_v_gpu: e1..eN, fx1,fy1,fz1,...fxN,fyN,fzN, vxx1...
-    e_f_v_gpu.resize(number_of_atoms * (1 + 3 + 9));
     e_f_v_gpu.copy_from_host(dp_ene_atom.data(), number_of_atoms, 0);
     e_f_v_gpu.copy_from_host(dp_force.data(), number_of_atoms * 3, number_of_atoms);
     e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
