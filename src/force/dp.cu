@@ -68,7 +68,7 @@ void DP::initialize_dp(const char* filename_dp)
   int num_gpus;
   CHECK(gpuGetDeviceCount(&num_gpus));
   printf("\nInitialize deep potential by the file: %s and %d gpu(s).\n\n", filename_dp, num_gpus);
-  deep_pot.init(filename_dp, num_gpus);
+  deep_pot.init(filename_dp, 0);
   rc = deep_pot.cutoff();
   int numb_types = deep_pot.numb_types();
   int numb_types_spin = deep_pot.numb_types_spin();
