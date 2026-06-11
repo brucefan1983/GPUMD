@@ -645,8 +645,23 @@ void DP::compute(
           }
         }
 
+        auto cross_norm = [](double u0, double u1, double u2,
+                             double v0, double v1, double v2) {
+          double c0 = u1 * v2 - u2 * v1;
+          double c1 = u2 * v0 - u0 * v2;
+          double c2 = u0 * v1 - u1 * v0;
+          return sqrt(c0 * c0 + c1 * c1 + c2 * c2);
+        };
+        double volume = fabs(
+          dp_h[0] * (dp_h[4] * dp_h[8] - dp_h[5] * dp_h[7]) +
+          dp_h[1] * (dp_h[5] * dp_h[6] - dp_h[3] * dp_h[8]) +
+          dp_h[2] * (dp_h[3] * dp_h[7] - dp_h[4] * dp_h[6]));
+        double area_x = cross_norm(dp_h[1], dp_h[4], dp_h[7], dp_h[2], dp_h[5], dp_h[8]);
+        double area_y = cross_norm(dp_h[2], dp_h[5], dp_h[8], dp_h[0], dp_h[3], dp_h[6]);
+        double area_z = cross_norm(dp_h[0], dp_h[3], dp_h[6], dp_h[1], dp_h[4], dp_h[7]);
+
         int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
-        double thickness[3] = {box.thickness_x, box.thickness_y, box.thickness_z};
+        double thickness[3] = {volume / area_x, volume / area_y, volume / area_z};
 
         for (int d = 0; d < 3; ++d) {
           if (pbc[d] == 0) {
