@@ -54,6 +54,7 @@ static void __global__ find_stopping_force(
       g_force[0 * num_atoms + i] = 0.0;
       g_force[1 * num_atoms + i] = 0.0;
       g_force[2 * num_atoms + i] = 0.0;
+      g_power_loss[i] = 0.0;
       return;
     }
 

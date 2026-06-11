@@ -433,3 +433,182 @@ References
 ~~~~~~~~~~
 * DeePMD-kit: https://github.com/deepmodeling/deepmd-kit
 
+.. _use_nnap_in_gpumd:
+.. index::
+   single: NNAP Potential
+
+NNAP support
+
+Program introduction
+--------------------
+
+This is the beginning of :program:`GPUMD` support for NNAP in jse.
+
+jse (Java Simulation Environment, GitHub: `liqa1024/jse <https://github.com/liqa1024/jse>`_)
+is a high-performance, extensible simulation framework for atomistic and materials modeling.
+It provides the latest support for NNAP (Neural-Network Atomic Potentials), including direct execution, `ASE`, `LAMMPS`, and :program:`GPUMD` as described in this document.
+:program:`GPUMD` invokes dedicated NNAP support in jse via JNI to run simulations with NNAP potentials.
+
+Necessary instructions
+----------------------
+
+* This is a development version.
+* The NNAP potential file (``.json`` / ``.jnn``) and the corresponding GPUMD
+  setting file (``.txt``) must be correctly prepared before running
+  `GPUMD-NNAP`.
+* The element order in setting file must be consistent with that in the
+  NNAP potential file.
+
+Installation dependencies
+-------------------------
+
+To compile and run `GPUMD-NNAP`, the following requirements must be
+satisfied:
+
+* The new version (``>= 4.1.0``) of jse must be installed and able to pass JNI build ``jse --jnibuild``.
+* The installation requirements of :program:`GPUMD` itself must be met, including
+  a working CUDA compiler and a compatible NVIDIA GPU.
+
+Installation details
+--------------------
+
+If you have any questions, please contact Qing'an Li (liqa1024@vip.qq.com) and Ke Xu
+(twtdq@qq.com).
+
+This section describes how to compile :program:`GPUMD` with NNAP support on Linux.
+For an introduction to NNAP/jse and complete installation and usage guides, refer to
+`liqa1024/jse <https://github.com/liqa1024/jse>`_ and
+`liqa1024/jse-skill <https://github.com/liqa1024/jse-skill>`_.
+
+Prepare the environment
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Check the system environment::
+
+  nvcc --version
+
+Set the installation directory::
+
+  export install_dir="$HOME/software/GPUMD-NNAP"
+  mkdir -p ${install_dir}
+  cd ${install_dir}
+
+Install jse
+~~~~~~~~~~~
+
+Install jse from the dev channel to obtain the latest development version (for linux):
+
+.. code:: bash
+  
+  bash <(curl -fsSL https://raw.githubusercontent.com/liqa1024/jse/dev/scripts/get.sh)
+
+Optionally, manually run the JNI build to detect any potential environment issues in advance:
+
+.. code:: bash
+  
+  jse --jnibuild
+  jse -t 'jse.gpu.CudaCore.InitHelper.init()'
+
+:program:`GPUMD` requires the following paths to be set manually; they can be detected automatically by jse:
+
+.. code:: bash
+  
+  jse -t 'println(jse.code.OS.JAR_PATH)'
+  jse -t 'println(jse.clib.JVM.INCLUDE_DIR)'
+  jse -t 'println(jse.clib.JVM.LLIB_DIR)'
+
+As a demonstration, the paths are exported here as environment variables:
+
+.. code:: bash
+  
+  export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
+  export JVM_INCLUDE=$(jse -t 'println(jse.clib.JVM.INCLUDE_DIR)')
+  export JVM_LLIB_DIR=$(jse -t 'println(jse.clib.JVM.LLIB_DIR)')
+
+
+Configure the GPUMD makefile
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Enable NNAP support and add the jse class path by modifying ``CFLAGS``:
+
+.. code:: make
+  
+  CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
+
+Add the JVM header paths by modifying ``INC``:
+
+.. code:: make
+  
+  INC = -I./ \
+        -I$(JVM_INCLUDE) \
+        -I$(JVM_INCLUDE)/linux
+
+Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
+
+Add the JVM library path and runtime path by modifying ``LIBS``:
+
+.. code:: make
+  
+  LIBS = -lcublas -lcusolver -lcufft \
+         -L$(JVM_LLIB_DIR) -ljvm \
+         -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
+
+Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
+replaced by the actual paths obtained from the jse commands above, or exported
+as environment variables before running ``make``.
+
+Compile GPUMD-NNAP
+~~~~~~~~~~~~~~~~~~
+
+Compile the executable files:
+
+.. code:: bash
+  
+  make -j
+  ls gpumd nep
+
+If the compilation is successful, the executables ``gpumd`` and ``nep`` should
+be generated.
+
+Run the NNAP test
+-----------------
+
+In the GPUMD input file, use the NNAP potential as follows:
+
+.. code::
+  
+  potential nnap.txt CuZr-sphs.json
+
+An example GPUMD setting file ``nnap.txt`` file is:
+
+.. code::
+  
+  nnap 2 Cu Zr
+
+The element order in ``nnap.txt`` must be consistent with that in the NNAP potential
+file ``CuZr-sphs.json``.
+
+For example, if the NNAP potential file uses the element order ``Zr Cu``, then
+``nnap.txt`` should be written as:
+
+.. code::
+  
+  nnap 2 Zr Cu
+
+Run the test with::
+
+  gpumd
+
+Notice
+------
+
+The element list in the NNAP setting file and the NNAP potential file must be the
+same. Otherwise, the atom types will be mapped incorrectly during the
+simulation.
+
+References
+~~~~~~~~~~
+* jse: https://github.com/liqa1024/jse
+* jse-skill: https://github.com/liqa1024/jse-skill
+* jsex-NNAP: https://github.com/liqa1024/jsex-NNAP
+
