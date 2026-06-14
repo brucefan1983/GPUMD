@@ -133,6 +133,10 @@ void Dump_Dipole::preprocess(
   if (dump_) {
     std::string filename_ = "dipole.out";
     file_ = my_fopen(filename_.c_str(), "a");
+    fprintf(file_, "# dump_dipole %d\n", dump_interval_);
+    fprintf(file_, "# format_version 1\n");
+    fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
+    fprintf(file_, "# columns step dipole_x dipole_y dipole_z\n");
     gpu_dipole_.resize(3);
     cpu_dipole_.resize(3);
 

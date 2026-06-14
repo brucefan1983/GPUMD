@@ -134,6 +134,10 @@ void Dump_Polarizability::preprocess(
   if (dump_) {
     std::string filename_ = "polarizability.out";
     file_ = my_fopen(filename_.c_str(), "a");
+    fprintf(file_, "# dump_polarizability %d\n", dump_interval_);
+    fprintf(file_, "# format_version 1\n");
+    fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
+    fprintf(file_, "# columns step pol_xx pol_yy pol_zz pol_xy pol_yz pol_zx\n");
     gpu_pol_.resize(6);
     cpu_pol_.resize(6);
 

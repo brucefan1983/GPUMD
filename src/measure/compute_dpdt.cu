@@ -92,6 +92,10 @@ void Compute_dpdt::preprocess(
   Force& force)
 {
   fid = fopen("dpdt.out", "a");
+  fprintf(fid, "# compute_dpdt %d\n", sample_interval);
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# dt_output %.10e fs\n", time_step * sample_interval * TIME_UNIT_CONVERSION);
+  fprintf(fid, "# columns time_fs dpdt_x dpdt_y dpdt_z P_x P_y P_z\n");
   gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
   gpu_dpdt_total.resize(3);
   cpu_dpdt_total.resize(3);
