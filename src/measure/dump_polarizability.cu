@@ -136,6 +136,13 @@ void Dump_Polarizability::preprocess(
     file_ = my_fopen(filename_.c_str(), "a");
     fprintf(file_, "# dump_polarizability %d\n", dump_interval_);
     fprintf(file_, "# format_version 1\n");
+    fprintf(file_, "# num_atoms %d\n", atom.number_of_atoms);
+    fprintf(
+      file_,
+      "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+      box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
     fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
     fprintf(file_, "# columns step pol_xx pol_yy pol_zz pol_xy pol_yz pol_zx\n");
     gpu_pol_.resize(6);
