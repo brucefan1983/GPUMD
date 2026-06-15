@@ -438,6 +438,7 @@ References
    single: NNAP Potential
 
 NNAP support
+============
 
 Program introduction
 --------------------
