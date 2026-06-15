@@ -19,6 +19,7 @@ public.*
 \#*
 
 /nep
+/build/
 /gpumd*
 /gnep
 
