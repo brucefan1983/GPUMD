@@ -47,14 +47,6 @@ const char* yaml_filename(SuperionicStage stage)
                                           : "ti_superionic_stage2.yaml";
 }
 
-void write_uf_pair(FILE* yaml_file, const SuperionicUFPair& pair)
-{
-  fprintf(yaml_file, "  - element_i: %s\n", pair.element_i.c_str());
-  fprintf(yaml_file, "    element_j: %s\n", pair.element_j.c_str());
-  fprintf(yaml_file, "    p: %.17g\n", pair.p);
-  fprintf(yaml_file, "    sigma: %.17g\n", pair.sigma);
-}
-
 } // namespace
 
 Ensemble_TI_Superionic::Ensemble_TI_Superionic(
@@ -69,6 +61,8 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
   total_steps = nullptr;
 
   temperature_coupling = 100;
+  bool has_auto_spring = false;
+  bool has_explicit_spring = false;
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "temp") == 0) {
@@ -99,6 +93,9 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
         PRINT_INPUT_ERROR("Missing inputs for spring keyword.");
 
       if (strcmp(params[i], "auto") == 0) {
+        if (has_explicit_spring)
+          PRINT_INPUT_ERROR("Cannot mix auto and explicit spring inputs.");
+        has_auto_spring = true;
         auto_k = true;
         i++;
         while (i < num_params && !is_superionic_keyword(params[i])) {
@@ -106,12 +103,17 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
           i++;
         }
       } else {
+        if (has_auto_spring)
+          PRINT_INPUT_ERROR("Cannot mix auto and explicit spring inputs.");
+        has_explicit_spring = true;
         auto_k = false;
         while (i < num_params && !is_superionic_keyword(params[i])) {
           double k = 0.0;
           if (i + 1 >= num_params || is_superionic_keyword(params[i + 1]) ||
               !is_valid_real(params[i + 1], &k))
             PRINT_INPUT_ERROR("Wrong inputs for spring keyword.");
+          if (k <= 0.0)
+            PRINT_INPUT_ERROR("Spring constant must be positive.");
           spring_map[params[i]] = k;
           i += 2;
         }
@@ -137,6 +139,7 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
     PRINT_INPUT_ERROR("Please specify temp.");
   if (temperature <= 0)
     PRINT_INPUT_ERROR("Temperature should > 0.");
+  beta = 1.0 / (temperature * K_B);
   if (temperature_coupling < 1)
     PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
   if (t_switch <= 0)
@@ -153,6 +156,157 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
   type = 3;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
+}
+
+bool Ensemble_TI_Superionic::is_supported_self_p(double p) const
+{
+  return p == 1 || p == 25 || p == 50 || p == 75 || p == 100;
+}
+
+int Ensemble_TI_Superionic::find_type_for_symbol(const std::string& symbol) const
+{
+  for (int i = 0; i < atom->number_of_atoms; ++i) {
+    if (atom->cpu_atom_symbol[i] == symbol)
+      return atom->cpu_type[i];
+  }
+  return -1;
+}
+
+void Ensemble_TI_Superionic::validate_species()
+{
+  int local_num_types = static_cast<int>(atom->cpu_type_size.size());
+  if (auto_k) {
+    for (const auto& symbol : auto_spring_species) {
+      if (find_type_for_symbol(symbol) < 0)
+        PRINT_INPUT_ERROR("spring element does not exist in the structure.");
+    }
+  } else {
+    for (const auto& entry : spring_map) {
+      if (find_type_for_symbol(entry.first) < 0)
+        PRINT_INPUT_ERROR("spring element does not exist in the structure.");
+    }
+  }
+
+  bool has_self_pair = false;
+  std::vector<int> seen_uf_pair(local_num_types * local_num_types, 0);
+  for (const auto& pair : uf_pairs) {
+    int type_i = find_type_for_symbol(pair.element_i);
+    int type_j = find_type_for_symbol(pair.element_j);
+    if (type_i < 0 || type_j < 0)
+      PRINT_INPUT_ERROR("uf element does not exist in the structure.");
+    if (pair.p <= 0.0 || pair.sigma <= 0.0)
+      PRINT_INPUT_ERROR("UF p and sigma must be positive.");
+    if (pair.element_i == pair.element_j) {
+      has_self_pair = true;
+      if (!is_supported_self_p(pair.p))
+        PRINT_INPUT_ERROR("Self UF p must be 1, 25, 50, 75, or 100.");
+    }
+    int type_min = type_i < type_j ? type_i : type_j;
+    int type_max = type_i < type_j ? type_j : type_i;
+    int key = type_min * local_num_types + type_max;
+    if (seen_uf_pair[key])
+      PRINT_INPUT_ERROR("Duplicate UF pair.");
+    seen_uf_pair[key] = 1;
+  }
+  if (!has_self_pair)
+    PRINT_INPUT_ERROR("Please specify at least one self uf pair.");
+}
+
+void Ensemble_TI_Superionic::prepare_reference_state()
+{
+  validate_species();
+  int N = atom->number_of_atoms;
+  num_types = static_cast<int>(atom->cpu_type_size.size());
+  cpu_k.assign(N, 0.0);
+  cpu_spring_mask.assign(N, 0.0);
+  cpu_uf_p.assign(num_types * num_types, 0.0);
+  cpu_uf_sigma_sqrd.assign(num_types * num_types, 1.0);
+  cpu_uf_kind.assign(num_types * num_types, 0);
+
+  for (int i = 0; i < N; ++i) {
+    std::string symbol = atom->cpu_atom_symbol[i];
+    if (auto_k) {
+      for (const auto& auto_symbol : auto_spring_species) {
+        if (symbol == auto_symbol)
+          cpu_spring_mask[i] = 1.0;
+      }
+    } else {
+      auto spring = spring_map.find(symbol);
+      if (spring != spring_map.end()) {
+        cpu_spring_mask[i] = 1.0;
+        cpu_k[i] = spring->second;
+      }
+    }
+  }
+
+  for (const auto& pair : uf_pairs) {
+    int type_i = find_type_for_symbol(pair.element_i);
+    int type_j = find_type_for_symbol(pair.element_j);
+    int kind = pair.element_i == pair.element_j ? 1 : 2;
+    int ij = type_i * num_types + type_j;
+    int ji = type_j * num_types + type_i;
+    cpu_uf_p[ij] = pair.p;
+    cpu_uf_p[ji] = pair.p;
+    cpu_uf_sigma_sqrd[ij] = pair.sigma * pair.sigma;
+    cpu_uf_sigma_sqrd[ji] = pair.sigma * pair.sigma;
+    cpu_uf_kind[ij] = kind;
+    cpu_uf_kind[ji] = kind;
+  }
+
+  gpu_k.resize(N);
+  gpu_k.copy_from_host(cpu_k.data());
+  gpu_spring_mask.resize(N);
+  gpu_spring_mask.copy_from_host(cpu_spring_mask.data());
+  gpu_uf_p.resize(num_types * num_types);
+  gpu_uf_p.copy_from_host(cpu_uf_p.data());
+  gpu_uf_sigma_sqrd.resize(num_types * num_types);
+  gpu_uf_sigma_sqrd.copy_from_host(cpu_uf_sigma_sqrd.data());
+  gpu_uf_kind.resize(num_types * num_types);
+  gpu_uf_kind.copy_from_host(cpu_uf_kind.data());
+  gpu_einstein.resize(N, 0.0);
+  gpu_uf_self.resize(N, 0.0);
+  gpu_uf_cross.resize(N, 0.0);
+  gpu_aux_fx.resize(N, 0.0);
+  gpu_aux_fy.resize(N, 0.0);
+  gpu_aux_fz.resize(N, 0.0);
+  gpu_cross_fx.resize(N, 0.0);
+  gpu_cross_fy.resize(N, 0.0);
+  gpu_cross_fz.resize(N, 0.0);
+  position_0.resize(3 * N);
+  CHECK(gpuMemcpy(
+    position_0.data(),
+    atom->position_per_atom.data(),
+    sizeof(double) * position_0.size(),
+    gpuMemcpyDeviceToDevice));
+}
+
+void Ensemble_TI_Superionic::write_yaml_pair_list(
+  FILE* file, const char* key, bool self_pairs) const
+{
+  bool has_pair = false;
+  for (const auto& pair : uf_pairs) {
+    bool is_self = pair.element_i == pair.element_j;
+    if (is_self == self_pairs)
+      has_pair = true;
+  }
+  if (!has_pair) {
+    fprintf(file, "%s: []\n", key);
+    return;
+  }
+
+  fprintf(file, "%s:\n", key);
+  for (const auto& pair : uf_pairs) {
+    bool is_self = pair.element_i == pair.element_j;
+    if (is_self == self_pairs) {
+      fprintf(
+        file,
+        "  - {element_i: \"%s\", element_j: \"%s\", p: %.17g, sigma: %.17g}\n",
+        pair.element_i.c_str(),
+        pair.element_j.c_str(),
+        pair.p,
+        pair.sigma);
+    }
+  }
 }
 
 void Ensemble_TI_Superionic::init()
@@ -180,6 +334,7 @@ void Ensemble_TI_Superionic::init()
   GPU_CHECK_KERNEL
 
   thermo_cpu.resize(thermo->size());
+  prepare_reference_state();
   initialized = true;
 }
 
@@ -200,54 +355,24 @@ Ensemble_TI_Superionic::~Ensemble_TI_Superionic(void)
   fprintf(yaml_file, "P: %.17g\n", target_pressure);
   fprintf(yaml_file, "N_total: %d\n", N);
 
-  if (spring_map.empty() && auto_spring_species.empty()) {
-    fprintf(yaml_file, "spring_species: []\n");
+  fprintf(yaml_file, "spring_species:\n");
+  if (auto_k) {
+    for (const auto& symbol : auto_spring_species)
+      fprintf(yaml_file, "  - \"%s\"\n", symbol.c_str());
   } else {
-    fprintf(yaml_file, "spring_species:\n");
     for (const auto& entry : spring_map) {
-      fprintf(yaml_file, "  - %s\n", entry.first.c_str());
-    }
-    for (const auto& element : auto_spring_species) {
-      fprintf(yaml_file, "  - %s\n", element.c_str());
+      fprintf(yaml_file, "  - \"%s\"\n", entry.first.c_str());
     }
   }
-
-  bool wrote_self_pair = false;
-  fprintf(yaml_file, "uf_self_pairs:");
-  for (const auto& pair : uf_pairs) {
-    if (pair.element_i == pair.element_j) {
-      if (!wrote_self_pair) {
-        fprintf(yaml_file, "\n");
-      }
-      write_uf_pair(yaml_file, pair);
-      wrote_self_pair = true;
-    }
-  }
-  if (!wrote_self_pair) {
-    fprintf(yaml_file, " []\n");
-  }
-
-  bool wrote_cross_pair = false;
-  fprintf(yaml_file, "uf_cross_pairs:");
-  for (const auto& pair : uf_pairs) {
-    if (pair.element_i != pair.element_j) {
-      if (!wrote_cross_pair) {
-        fprintf(yaml_file, "\n");
-      }
-      write_uf_pair(yaml_file, pair);
-      wrote_cross_pair = true;
-    }
-  }
-  if (!wrote_cross_pair) {
-    fprintf(yaml_file, " []\n");
-  }
+  write_yaml_pair_list(yaml_file, "uf_self_pairs", true);
+  write_yaml_pair_list(yaml_file, "uf_cross_pairs", false);
 
   fprintf(yaml_file, "W_forward: %.17g\n", W_forward);
   fprintf(yaml_file, "W_backward: %.17g\n", W_backward);
   fprintf(yaml_file, "delta_F: %.17g\n", delta_F);
-  fprintf(yaml_file, "F_Einstein: 0\n");
-  fprintf(yaml_file, "F_UF_self: 0\n");
-  fprintf(yaml_file, "F_ref: 0\n");
+  fprintf(yaml_file, "F_Einstein: %.17g\n", F_Einstein);
+  fprintf(yaml_file, "F_UF_self: %.17g\n", F_UF_self);
+  fprintf(yaml_file, "F_ref: %.17g\n", F_ref);
 
   if (output_file != nullptr) {
     printf("Closing %s output file...\n", csv_filename(stage));

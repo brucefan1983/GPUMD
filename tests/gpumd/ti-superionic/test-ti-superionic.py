@@ -76,10 +76,27 @@ def test_stage_command_writes_yaml(tmp_path, run_in, yaml_name, stage, csv_name,
     result = run_gpumd(tmp_path, run_in)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / yaml_name).exists()
-    data = yaml.safe_load((tmp_path / yaml_name).read_text(encoding="utf-8"))
+    yaml_text = (tmp_path / yaml_name).read_text(encoding="utf-8")
+    data = yaml.safe_load(yaml_text)
     assert data["stage"] == stage
     assert REQUIRED_YAML_KEYS <= data.keys()
     assert data["spring_species"] == ["C"]
+    assert data["uf_self_pairs"] == [
+        {"element_i": "H", "element_j": "H", "p": 25.0, "sigma": 1.0}
+    ]
+    assert data["uf_cross_pairs"] == [
+        {"element_i": "C", "element_j": "H", "p": 10.0, "sigma": 1.0}
+    ]
+    assert isinstance(data["spring_species"][0], str)
+    assert isinstance(data["uf_self_pairs"][0]["element_i"], str)
+    assert isinstance(data["uf_cross_pairs"][0]["element_j"], str)
+    assert '  - "C"' in yaml_text
+    assert 'element_i: "H", element_j: "H"' in yaml_text
+    assert 'element_i: "C", element_j: "H"' in yaml_text
+    assert data["uf_self_pairs"][0]["p"] == pytest.approx(25.0)
+    assert data["uf_self_pairs"][0]["sigma"] == pytest.approx(1.0)
+    assert data["uf_cross_pairs"][0]["p"] == pytest.approx(10.0)
+    assert data["uf_cross_pairs"][0]["sigma"] == pytest.approx(1.0)
     assert data["F_Einstein"] == 0
     assert data["F_UF_self"] == 0
     assert data["F_ref"] == 0
@@ -113,3 +130,59 @@ def test_stage_command_rejects_invalid_thermostat_inputs(
     result = run_gpumd_with_ensemble(tmp_path, ensemble_line)
     assert result.returncode != 0
     assert error_substring in result.stderr
+
+
+@pytest.mark.parametrize(
+    "ensemble_line, message",
+    [
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring X 1.0 uf H H 25 1.0",
+            "spring element does not exist",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf H H 10 1.0",
+            "Self UF p must be 1, 25, 50, 75, or 100",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf C H 10 1.0",
+            "Please specify at least one self uf pair",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring auto C spring H 1.0 uf H H 25 1.0",
+            "Cannot mix auto and explicit spring inputs.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf H H 25 1.0 uf H H 50 1.0",
+            "Duplicate UF pair.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf H H 25 1.0 uf C H 10 1.0 uf H C 12 1.0",
+            "Duplicate UF pair.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 0 uf H H 25 1.0",
+            "Spring constant must be positive.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf H H -25 1.0",
+            "UF p and sigma must be positive.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring C 1.0 uf H H 25 0",
+            "UF p and sigma must be positive.",
+        ),
+    ],
+)
+def test_rejects_invalid_reference_inputs(tmp_path, ensemble_line, message):
+    result = run_gpumd_with_ensemble(tmp_path, ensemble_line)
+    assert result.returncode != 0
+    assert message in result.stderr
