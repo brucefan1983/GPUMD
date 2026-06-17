@@ -33,6 +33,7 @@ The driver class for the various integrators.
 #include "ensemble_ti_liquid.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
+#include "ensemble_ti_superionic.cuh"
 #include "ensemble_wall_harmonic.cuh"
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
@@ -142,6 +143,10 @@ void Integrate::initialize(
     case -10:
       break;
     case -11: // ti_liquid
+      break;
+    case -12: // ti_superionic_stage1
+      break;
+    case -13: // ti_superionic_stage2
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -315,7 +320,7 @@ void Integrate::compute2(
   } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
-  } else if (type == -11) {
+  } else if (type == -11 || type == -12 || type == -13) {
     ensemble->compute3(time_step, group, box, atom, thermo, force);
     return;
   }
@@ -447,6 +452,12 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "ti_liquid") == 0) {
     type = -11;
     ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
+  } else if (strcmp(param[1], "ti_superionic_stage1") == 0) {
+    type = -12;
+    ensemble.reset(new Ensemble_TI_Superionic(param, num_param, SuperionicStage::stage1));
+  } else if (strcmp(param[1], "ti_superionic_stage2") == 0) {
+    type = -13;
+    ensemble.reset(new Ensemble_TI_Superionic(param, num_param, SuperionicStage::stage2));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -896,6 +907,10 @@ void Integrate::parse_ensemble(
     case -10:
       break;
     case -11:
+      break;
+    case -12:
+      break;
+    case -13:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
