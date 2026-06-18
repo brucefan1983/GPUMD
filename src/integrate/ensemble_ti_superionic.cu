@@ -14,6 +14,7 @@
 */
 
 #include "ensemble_ti_superionic.cuh"
+#include "uf_reference.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstdlib>
 #include <cstring>
@@ -379,6 +380,8 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
     PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
   if (t_switch <= 0)
     PRINT_INPUT_ERROR("t_switch should be > 0.");
+  if (auto_k)
+    PRINT_INPUT_ERROR("Automatic spring constants are not implemented yet.");
   if (spring_map.empty() && auto_spring_species.empty())
     PRINT_INPUT_ERROR("Please specify at least one spring species.");
   if (uf_pairs.empty())
@@ -395,7 +398,7 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
 
 bool Ensemble_TI_Superionic::is_supported_self_p(double p) const
 {
-  return p == 1 || p == 25 || p == 50 || p == 75 || p == 100;
+  return uf_reference::supports_p(p);
 }
 
 int Ensemble_TI_Superionic::find_type_for_symbol(const std::string& symbol) const
@@ -544,6 +547,81 @@ void Ensemble_TI_Superionic::write_yaml_pair_list(
   }
 }
 
+double Ensemble_TI_Superionic::get_uf_fe_for_pair(const SuperionicUFPair& pair, int count)
+{
+  if (count <= 0)
+    PRINT_INPUT_ERROR("Self UF species has no atoms.");
+
+  double kT = K_B * temperature;
+  double species_volume = box->get_volume() / count;
+  double sigma_sqrd = pair.sigma * pair.sigma;
+  double x_UF = pow(PI * sigma_sqrd, 1.5) / (2.0 * species_volume);
+  int index = 0;
+  if (x_UF < 0.1) {
+    index = static_cast<int>(x_UF * 400);
+  } else if (x_UF < 1) {
+    index = 40 + static_cast<int>(x_UF * 40 - 4);
+  } else if (x_UF < 4) {
+    index = 76 + static_cast<int>(x_UF * 10 - 10);
+  } else {
+    index = 105;
+  }
+
+  const auto uf_data = uf_reference::get_data(pair.p);
+  const std::vector<double>& sum_spline = uf_data.sum_spline;
+  const std::vector<std::vector<double>>& spline = uf_data.spline;
+  double coef[4] = {spline[index][0], spline[index][1], spline[index][2], spline[index][3]};
+
+  double F_UF = uf_reference::fe(x_UF, coef, sum_spline, index) * kT * count;
+  double mass = 0.0;
+  int type = find_type_for_symbol(pair.element_i);
+  for (int i = 0; i < atom->number_of_atoms; ++i) {
+    if (atom->cpu_type[i] == type) {
+      mass = atom->cpu_mass[i];
+      break;
+    }
+  }
+  if (mass <= 0.0)
+    PRINT_INPUT_ERROR("Mass is not available for a self UF species.");
+  double de_broglie = log(HBAR * sqrt(2 * PI / (mass * kT)));
+  double F_IG = count * kT * (log(1.0 / species_volume) - 1.0) + 3.0 * kT * count * de_broglie;
+  return (F_UF + F_IG) / atom->number_of_atoms;
+}
+
+void Ensemble_TI_Superionic::compute_reference_free_energy()
+{
+  if (
+    cpu_spring_mask.size() != static_cast<size_t>(atom->number_of_atoms) ||
+    cpu_k.size() != static_cast<size_t>(atom->number_of_atoms))
+    PRINT_INPUT_ERROR("Reference state is not available for free-energy calculation.");
+
+  double kT = K_B * temperature;
+  F_Einstein = 0.0;
+  for (int i = 0; i < atom->number_of_atoms; ++i) {
+    if (cpu_spring_mask[i] > 0.5) {
+      if (cpu_k[i] <= 0.0)
+        PRINT_INPUT_ERROR("Spring constant is not available for a spring atom.");
+      double omega = sqrt(cpu_k[i] / atom->cpu_mass[i]);
+      F_Einstein += log(omega * HBAR / kT);
+    }
+  }
+  F_Einstein = 3.0 * kT * F_Einstein / atom->number_of_atoms;
+
+  F_UF_self = 0.0;
+  for (const auto& pair : uf_pairs) {
+    if (pair.element_i == pair.element_j) {
+      int count = 0;
+      int type = find_type_for_symbol(pair.element_i);
+      for (int i = 0; i < atom->number_of_atoms; ++i) {
+        if (atom->cpu_type[i] == type)
+          count++;
+      }
+      F_UF_self += get_uf_fe_for_pair(pair, count);
+    }
+  }
+  F_ref = F_Einstein + F_UF_self;
+}
+
 void Ensemble_TI_Superionic::init()
 {
   printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
@@ -581,6 +659,7 @@ Ensemble_TI_Superionic::~Ensemble_TI_Superionic(void)
   }
   if (atom != nullptr && box != nullptr && N > 0) {
     V = box->get_volume() / N;
+    compute_reference_free_energy();
   }
 
   FILE* yaml_file = my_fopen(yaml_filename(stage), "w");

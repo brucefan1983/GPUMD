@@ -15,6 +15,7 @@
 
 #include "ensemble_ti_liquid.cuh"
 #include "force/force.cuh"
+#include "uf_reference.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
 #include <unordered_map>
@@ -202,43 +203,6 @@ Ensemble_TI_Liquid::Ensemble_TI_Liquid(const char** params, int num_params)
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
-double
-Ensemble_TI_Liquid::fe(double x, const double coef[4], const double sum_spline[106], int index)
-{
-  double result;
-  double x_0 = 0.0;
-
-  if (x < 0.0025) {
-    result = coef[0] * (x * x) / 2.0 + coef[1] * x;
-    return result;
-  } else if (x < 0.1) {
-    if (static_cast<int>(x * 10000) % 25 == 0) {
-      return sum_spline[index - 1];
-    } else {
-      x_0 = 0.0025 * static_cast<int>(x * 400);
-    }
-  } else if (x < 1) {
-    if (static_cast<int>(x * 1000) % 25 == 0) {
-      return sum_spline[index - 1];
-    } else {
-      x_0 = 0.025 * static_cast<int>(x * 40);
-    }
-  } else if (x < 4) {
-    if (static_cast<int>(x * 100) % 10 == 0) {
-      return sum_spline[index - 1];
-    } else {
-      x_0 = 0.1 * static_cast<int>(x * 10);
-    }
-  } else {
-    return sum_spline[index];
-  }
-
-  result = sum_spline[index - 1] + coef[0] * (x * x - x_0 * x_0) / 2.0 + coef[1] * (x - x_0) +
-           (coef[2] - 1.0) * std::log(x / x_0) - coef[3] * (1.0 / x - 1.0 / x_0);
-
-  return result;
-}
-
 void Ensemble_TI_Liquid::init()
 {
   if (auto_switch) {
@@ -305,38 +269,15 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
     index = 105;
   }
 
+  const auto uf_data = uf_reference::get_data(p);
+  const std::vector<double>& sum_spline = uf_data.sum_spline;
+  const std::vector<std::vector<double>>& spline = uf_data.spline;
   double coef[4] = {0.0};
-  for (int n = 0; n < 4; n++) {
-    if (p == 1) {
-      coef[n] = spline1[index][n];
-    } else if (p == 25) {
-      coef[n] = spline25[index][n];
-    } else if (p == 50) {
-      coef[n] = spline50[index][n];
-    } else if (p == 75) {
-      coef[n] = spline75[index][n];
-    } else if (p == 100) {
-      coef[n] = spline100[index][n];
-    }
-  }
-
-  double sum_spline[106] = {0.0};
-  for (int n = 0; n < 106; n++) {
-    if (p == 1) {
-      sum_spline[n] = sum_spline1[n];
-    } else if (p == 25) {
-      sum_spline[n] = sum_spline25[n];
-    } else if (p == 50) {
-      sum_spline[n] = sum_spline50[n];
-    } else if (p == 75) {
-      sum_spline[n] = sum_spline75[n];
-    } else {
-      sum_spline[n] = sum_spline100[n];
-    }
-  }
+  for (int n = 0; n < 4; n++)
+    coef[n] = spline[index][n];
   double F_UF = 0;
 
-  F_UF = fe(x_UF, coef, sum_spline, index) * kT * N;
+  F_UF = uf_reference::fe(x_UF, coef, sum_spline, index) * kT * N;
 
   double c_sum = 0;
   double de_broigle_sum = 0;

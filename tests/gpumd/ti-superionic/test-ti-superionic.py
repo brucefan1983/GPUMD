@@ -114,11 +114,23 @@ def test_stage_command_writes_yaml(tmp_path, run_in, yaml_name, stage, csv_name,
     assert data["uf_self_pairs"][0]["sigma"] == pytest.approx(1.0)
     assert data["uf_cross_pairs"][0]["p"] == pytest.approx(10.0)
     assert data["uf_cross_pairs"][0]["sigma"] == pytest.approx(1.0)
-    assert data["F_Einstein"] == 0
-    assert data["F_UF_self"] == 0
-    assert data["F_ref"] == 0
+    assert isinstance(data["F_Einstein"], float)
+    assert isinstance(data["F_UF_self"], float)
+    assert isinstance(data["F_ref"], float)
     assert (tmp_path / csv_name).exists()
     assert (tmp_path / csv_name).read_text(encoding="utf-8").splitlines()[0] == csv_header
+
+
+def test_stage_yaml_contains_reference_free_energy(tmp_path):
+    result = run_gpumd(tmp_path, "run_stage1.in")
+    assert result.returncode == 0, result.stderr
+    data = yaml.safe_load((tmp_path / "ti_superionic_stage1.yaml").read_text(encoding="utf-8"))
+    assert data["F_Einstein"] != 0.0
+    assert data["F_UF_self"] != 0.0
+    assert data["F_ref"] == pytest.approx(data["F_Einstein"] + data["F_UF_self"])
+    assert data["spring_species"] == ["C"]
+    assert data["uf_self_pairs"][0]["element_i"] == "H"
+    assert data["uf_cross_pairs"][0]["element_i"] == "C"
 
 
 @pytest.mark.parametrize(
@@ -171,6 +183,11 @@ def test_stage_command_rejects_invalid_thermostat_inputs(
             "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
             "spring auto C spring H 1.0 uf H H 25 1.0",
             "Cannot mix auto and explicit spring inputs.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring auto C uf H H 25 1.0",
+            "Automatic spring constants are not implemented yet.",
         ),
         (
             "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "

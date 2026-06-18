@@ -67,6 +67,9 @@ public:
   double dswitch_func(double t);
 
 protected:
+  double get_uf_fe_for_pair(const SuperionicUFPair& pair, int count);
+  void compute_reference_free_energy();
+
   SuperionicStage stage;
   FILE* output_file = nullptr;
   double lambda = 0, dlambda = 0;
