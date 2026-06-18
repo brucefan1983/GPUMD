@@ -44,6 +44,7 @@ def base_stage(stage, delta_f):
         "P": 0.01,
         "N_total": 4,
         "spring_species": ["O"],
+        "spring_constants": [{"element": "O", "k": 1.5}],
         "uf_self_pairs": [{"element_i": "H", "element_j": "H", "p": 25.0, "sigma": 1.0}],
         "uf_cross_pairs": [{"element_i": "O", "element_j": "H", "p": 10.0, "sigma": 1.0}],
         "W_forward": delta_f + 0.2,
@@ -138,6 +139,7 @@ def test_rejects_non_exact_stage_values(tmp_path, stage_a, stage_b):
     "key, value",
     [
         ("spring_species", ["Al", "O"]),
+        ("spring_constants", [{"element": "O", "k": 2.0}]),
         ("uf_self_pairs", [{"element_i": "H", "element_j": "H", "p": 30.0, "sigma": 1.0}]),
         ("uf_cross_pairs", [{"element_i": "O", "element_j": "H", "p": 12.0, "sigma": 1.0}]),
     ],

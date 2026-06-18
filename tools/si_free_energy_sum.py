@@ -6,7 +6,7 @@ import sys
 import yaml
 
 
-REFERENCE_KEYS = ("spring_species", "uf_self_pairs", "uf_cross_pairs")
+REFERENCE_KEYS = ("spring_species", "spring_constants", "uf_self_pairs", "uf_cross_pairs")
 META_KEYS = ("T", "V", "P", "N_total", "F_ref")
 
 
@@ -35,6 +35,7 @@ def require_keys(data, path):
         "delta_F",
         "F_ref",
         "spring_species",
+        "spring_constants",
         "uf_self_pairs",
         "uf_cross_pairs",
     )

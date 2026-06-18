@@ -16,6 +16,7 @@ REQUIRED_YAML_KEYS = {
     "P",
     "N_total",
     "spring_species",
+    "spring_constants",
     "uf_self_pairs",
     "uf_cross_pairs",
     "W_forward",
@@ -98,6 +99,7 @@ def test_stage_command_writes_yaml(tmp_path, run_in, yaml_name, stage, csv_name,
     assert data["stage"] == stage
     assert REQUIRED_YAML_KEYS <= data.keys()
     assert data["spring_species"] == ["C"]
+    assert data["spring_constants"] == [{"element": "C", "k": pytest.approx(1.0)}]
     assert data["uf_self_pairs"] == [
         {"element_i": "H", "element_j": "H", "p": 25.0, "sigma": 1.0}
     ]
@@ -105,9 +107,11 @@ def test_stage_command_writes_yaml(tmp_path, run_in, yaml_name, stage, csv_name,
         {"element_i": "C", "element_j": "H", "p": 10.0, "sigma": 1.0}
     ]
     assert isinstance(data["spring_species"][0], str)
+    assert isinstance(data["spring_constants"][0]["element"], str)
     assert isinstance(data["uf_self_pairs"][0]["element_i"], str)
     assert isinstance(data["uf_cross_pairs"][0]["element_j"], str)
     assert '  - "C"' in yaml_text
+    assert 'element: "C", k: 1' in yaml_text
     assert 'element_i: "H", element_j: "H"' in yaml_text
     assert 'element_i: "C", element_j: "H"' in yaml_text
     assert data["uf_self_pairs"][0]["p"] == pytest.approx(25.0)
@@ -129,6 +133,7 @@ def test_stage_yaml_contains_reference_free_energy(tmp_path):
     assert data["F_UF_self"] != 0.0
     assert data["F_ref"] == pytest.approx(data["F_Einstein"] + data["F_UF_self"])
     assert data["spring_species"] == ["C"]
+    assert data["spring_constants"] == [{"element": "C", "k": pytest.approx(1.0)}]
     assert data["uf_self_pairs"][0]["element_i"] == "H"
     assert data["uf_cross_pairs"][0]["element_i"] == "C"
 
@@ -138,6 +143,8 @@ def test_auto_spring_estimates_finite_reference(tmp_path):
     assert result.returncode == 0, result.stderr
     data = yaml.safe_load((tmp_path / "ti_superionic_stage1.yaml").read_text(encoding="utf-8"))
     assert data["spring_species"] == ["C"]
+    assert data["spring_constants"][0]["element"] == "C"
+    assert data["spring_constants"][0]["k"] > 0.0
     assert data["F_Einstein"] != 0.0
     rows = read_csv_rows(tmp_path / "ti_superionic_stage1.csv")
     assert rows

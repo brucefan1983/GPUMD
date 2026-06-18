@@ -709,6 +709,10 @@ Ensemble_TI_Superionic::~Ensemble_TI_Superionic(void)
       fprintf(yaml_file, "  - \"%s\"\n", entry.first.c_str());
     }
   }
+  fprintf(yaml_file, "spring_constants:\n");
+  for (const auto& entry : spring_map) {
+    fprintf(yaml_file, "  - {element: \"%s\", k: %.17g}\n", entry.first.c_str(), entry.second);
+  }
   write_yaml_pair_list(yaml_file, "uf_self_pairs", true);
   write_yaml_pair_list(yaml_file, "uf_cross_pairs", false);
 
@@ -898,6 +902,51 @@ void Ensemble_TI_Superionic::find_reference_forces(Force& force)
   U_aux = U_einstein + U_uf_self + U_uf_cross;
 }
 
+void Ensemble_TI_Superionic::apply_stage_forces()
+{
+  int N = atom->number_of_atoms;
+  const int grid_size = (N - 1) / 128 + 1;
+
+  if (stage == SuperionicStage::stage1) {
+    dHdlambda = U_uf_cross;
+    gpu_apply_superionic_stage1<<<grid_size, 128>>>(
+      N,
+      lambda,
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data(),
+      gpu_cross_fx.data(),
+      gpu_cross_fy.data(),
+      gpu_cross_fz.data(),
+      atom->force_per_atom.data(),
+      atom->force_per_atom.data() + N,
+      atom->force_per_atom.data() + 2 * N);
+    GPU_CHECK_KERNEL
+  } else {
+    dHdlambda = pe - U_aux;
+    gpu_add_cross_to_aux<<<grid_size, 128>>>(
+      N,
+      gpu_cross_fx.data(),
+      gpu_cross_fy.data(),
+      gpu_cross_fz.data(),
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data());
+    GPU_CHECK_KERNEL
+
+    gpu_apply_superionic_stage2<<<grid_size, 128>>>(
+      N,
+      lambda,
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data(),
+      atom->force_per_atom.data(),
+      atom->force_per_atom.data() + N,
+      atom->force_per_atom.data() + 2 * N);
+    GPU_CHECK_KERNEL
+  }
+}
+
 void Ensemble_TI_Superionic::accumulate_work()
 {
   double increment = dHdlambda * dlambda / atom->number_of_atoms;
@@ -944,55 +993,21 @@ void Ensemble_TI_Superionic::compute3(
   Force& force)
 {
   int N = atom->number_of_atoms;
-  const int grid_size = (N - 1) / 128 + 1;
 
   find_lambda();
   if (auto_k && *current_step < t_equil) {
     Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+    if (*current_step == t_equil - 1) {
+      find_thermo();
+      find_reference_forces(force);
+      apply_stage_forces();
+    }
     return;
   }
 
   find_thermo();
   find_reference_forces(force);
-
-  if (stage == SuperionicStage::stage1) {
-    dHdlambda = U_uf_cross;
-    gpu_apply_superionic_stage1<<<grid_size, 128>>>(
-      N,
-      lambda,
-      gpu_aux_fx.data(),
-      gpu_aux_fy.data(),
-      gpu_aux_fz.data(),
-      gpu_cross_fx.data(),
-      gpu_cross_fy.data(),
-      gpu_cross_fz.data(),
-      atom->force_per_atom.data(),
-      atom->force_per_atom.data() + N,
-      atom->force_per_atom.data() + 2 * N);
-    GPU_CHECK_KERNEL
-  } else {
-    dHdlambda = pe - U_aux;
-    gpu_add_cross_to_aux<<<grid_size, 128>>>(
-      N,
-      gpu_cross_fx.data(),
-      gpu_cross_fy.data(),
-      gpu_cross_fz.data(),
-      gpu_aux_fx.data(),
-      gpu_aux_fy.data(),
-      gpu_aux_fz.data());
-    GPU_CHECK_KERNEL
-
-    gpu_apply_superionic_stage2<<<grid_size, 128>>>(
-      N,
-      lambda,
-      gpu_aux_fx.data(),
-      gpu_aux_fy.data(),
-      gpu_aux_fz.data(),
-      atom->force_per_atom.data(),
-      atom->force_per_atom.data() + N,
-      atom->force_per_atom.data() + 2 * N);
-    GPU_CHECK_KERNEL
-  }
+  apply_stage_forces();
 
   if (lambda_active) {
     accumulate_work();
