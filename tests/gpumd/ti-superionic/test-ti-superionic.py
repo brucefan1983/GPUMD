@@ -139,6 +139,8 @@ def test_auto_spring_estimates_finite_reference(tmp_path):
     data = yaml.safe_load((tmp_path / "ti_superionic_stage1.yaml").read_text(encoding="utf-8"))
     assert data["spring_species"] == ["C"]
     assert data["F_Einstein"] != 0.0
+    rows = read_csv_rows(tmp_path / "ti_superionic_stage1.csv")
+    assert rows
 
 
 @pytest.mark.parametrize(
@@ -191,6 +193,16 @@ def test_stage_command_rejects_invalid_thermostat_inputs(
             "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
             "spring auto C spring H 1.0 uf H H 25 1.0",
             "Cannot mix auto and explicit spring inputs.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 0 tswitch 4 press 0 "
+            "spring auto C uf H H 25 1.0",
+            "tequil should be > 0 for auto spring constants.",
+        ),
+        (
+            "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "
+            "spring auto C C uf H H 25 1.0",
+            "Duplicate auto spring species.",
         ),
         (
             "ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 2 tswitch 4 press 0 "

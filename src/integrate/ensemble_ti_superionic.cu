@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <math.h>
+#include <set>
 
 namespace
 {
@@ -402,6 +403,15 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
     PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
   if (t_switch <= 0)
     PRINT_INPUT_ERROR("t_switch should be > 0.");
+  if (auto_k && t_equil <= 0)
+    PRINT_INPUT_ERROR("tequil should be > 0 for auto spring constants.");
+  if (auto_k) {
+    std::set<std::string> seen_auto_spring_species;
+    for (const auto& symbol : auto_spring_species) {
+      if (!seen_auto_spring_species.insert(symbol).second)
+        PRINT_INPUT_ERROR("Duplicate auto spring species.");
+    }
+  }
   if (spring_map.empty() && auto_spring_species.empty())
     PRINT_INPUT_ERROR("Please specify at least one spring species.");
   if (uf_pairs.empty())
@@ -937,6 +947,11 @@ void Ensemble_TI_Superionic::compute3(
   const int grid_size = (N - 1) / 128 + 1;
 
   find_lambda();
+  if (auto_k && *current_step < t_equil) {
+    Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+    return;
+  }
+
   find_thermo();
   find_reference_forces(force);
 
