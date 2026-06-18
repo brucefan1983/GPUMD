@@ -62,6 +62,8 @@ public:
   void find_thermo();
   void find_reference_forces(Force& force);
   double get_sum(GPU_Vector<double>& data);
+  void accumulate_msd_for_auto_k();
+  void finalize_auto_k();
   void accumulate_work();
   double switch_func(double t);
   double dswitch_func(double t);
@@ -104,6 +106,7 @@ protected:
   GPU_Vector<double> gpu_einstein;
   GPU_Vector<double> gpu_uf_self;
   GPU_Vector<double> gpu_uf_cross;
+  GPU_Vector<double> gpu_msd;
   GPU_Vector<double> gpu_aux_fx;
   GPU_Vector<double> gpu_aux_fy;
   GPU_Vector<double> gpu_aux_fz;

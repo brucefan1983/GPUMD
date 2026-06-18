@@ -116,6 +116,28 @@ static __global__ void gpu_find_superionic_spring(
   }
 }
 
+static __global__ void gpu_add_superionic_msd(
+  const int N,
+  Box box,
+  const double* spring_mask,
+  const double* x,
+  const double* y,
+  const double* z,
+  const double* x0,
+  const double* y0,
+  const double* z0,
+  double* msd)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N && spring_mask[i] > 0.5) {
+    double dx = x[i] - x0[i];
+    double dy = y[i] - y0[i];
+    double dz = z[i] - z0[i];
+    apply_mic(box, dx, dy, dz);
+    msd[i] += dx * dx + dy * dy + dz * dz;
+  }
+}
+
 static __global__ void gpu_find_superionic_uf(
   const int N,
   const int num_types,
@@ -380,8 +402,6 @@ Ensemble_TI_Superionic::Ensemble_TI_Superionic(
     PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
   if (t_switch <= 0)
     PRINT_INPUT_ERROR("t_switch should be > 0.");
-  if (auto_k)
-    PRINT_INPUT_ERROR("Automatic spring constants are not implemented yet.");
   if (spring_map.empty() && auto_spring_species.empty())
     PRINT_INPUT_ERROR("Please specify at least one spring species.");
   if (uf_pairs.empty())
@@ -504,6 +524,7 @@ void Ensemble_TI_Superionic::prepare_reference_state()
   gpu_einstein.resize(N, 0.0);
   gpu_uf_self.resize(N, 0.0);
   gpu_uf_cross.resize(N, 0.0);
+  gpu_msd.resize(N, 0.0);
   gpu_aux_fx.resize(N, 0.0);
   gpu_aux_fy.resize(N, 0.0);
   gpu_aux_fz.resize(N, 0.0);
@@ -722,6 +743,68 @@ void Ensemble_TI_Superionic::find_thermo()
   pe = thermo_cpu[1];
 }
 
+void Ensemble_TI_Superionic::accumulate_msd_for_auto_k()
+{
+  if (!auto_k || *current_step >= t_equil)
+    return;
+
+  int N = atom->number_of_atoms;
+  gpu_add_superionic_msd<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    *box,
+    gpu_spring_mask.data(),
+    atom->position_per_atom.data(),
+    atom->position_per_atom.data() + N,
+    atom->position_per_atom.data() + 2 * N,
+    position_0.data(),
+    position_0.data() + N,
+    position_0.data() + 2 * N,
+    gpu_msd.data());
+  GPU_CHECK_KERNEL
+}
+
+void Ensemble_TI_Superionic::finalize_auto_k()
+{
+  if (!auto_k || *current_step != t_equil - 1)
+    return;
+
+  int N = atom->number_of_atoms;
+  std::vector<double> cpu_msd(N, 0.0);
+  gpu_msd.copy_to_host(cpu_msd.data());
+  spring_map.clear();
+
+  printf("---------------------------------------\n");
+  printf("Estimating spring constants from MSD...\n");
+  for (const auto& symbol : auto_spring_species) {
+    double sum_msd = 0.0;
+    int count = 0;
+    for (int i = 0; i < N; ++i) {
+      if (cpu_spring_mask[i] > 0.5 && atom->cpu_atom_symbol[i] == symbol) {
+        sum_msd += cpu_msd[i];
+        count++;
+      }
+    }
+    if (count <= 0)
+      PRINT_INPUT_ERROR("spring element does not exist in the structure.");
+    const double mean_msd = sum_msd / (count * t_equil);
+    if (mean_msd <= 0.0)
+      PRINT_INPUT_ERROR("Mean-squared displacement is not positive for auto spring constants.");
+    spring_map[symbol] = 3.0 * K_B * temperature / mean_msd;
+    printf("  %s --- %f eV/A^2\n", symbol.c_str(), spring_map[symbol]);
+  }
+  printf("---------------------------------------\n");
+
+  for (int i = 0; i < N; ++i) {
+    cpu_k[i] = 0.0;
+    if (cpu_spring_mask[i] > 0.5) {
+      auto spring = spring_map.find(atom->cpu_atom_symbol[i]);
+      if (spring != spring_map.end())
+        cpu_k[i] = spring->second;
+    }
+  }
+  gpu_k.copy_from_host(cpu_k.data());
+}
+
 double Ensemble_TI_Superionic::get_sum(GPU_Vector<double>& data)
 {
   double value = 0.0;
@@ -822,6 +905,9 @@ void Ensemble_TI_Superionic::find_lambda()
   dlambda = 0.0;
   lambda_active = false;
   V = box->get_volume() / atom->number_of_atoms;
+
+  accumulate_msd_for_auto_k();
+  finalize_auto_k();
 
   const int t = *current_step - t_equil;
   const double r_switch = 1.0 / t_switch;

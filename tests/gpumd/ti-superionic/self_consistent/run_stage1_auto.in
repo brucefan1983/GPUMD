@@ -1,0 +1,5 @@
+potential nep.txt
+velocity 300
+time_step 1
+ensemble ti_superionic_stage1 temp 300 tperiod 100 tequil 4 tswitch 4 press 0 spring auto C uf H H 25 1.0 uf C H 10 1.0
+run 16
