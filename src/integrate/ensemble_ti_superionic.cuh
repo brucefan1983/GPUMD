@@ -59,6 +59,10 @@ public:
 
   void init();
   void find_lambda();
+  void find_thermo();
+  void find_reference_forces(Force& force);
+  double get_sum(GPU_Vector<double>& data);
+  void accumulate_work();
   double switch_func(double t);
   double dswitch_func(double t);
 

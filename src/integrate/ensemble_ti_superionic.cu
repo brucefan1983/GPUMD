@@ -47,6 +47,241 @@ const char* yaml_filename(SuperionicStage stage)
                                           : "ti_superionic_stage2.yaml";
 }
 
+bool is_nep_small_box(const Potential* potential, const Box& box)
+{
+  if (potential->nep_model_type < 0) {
+    return false;
+  }
+
+  const double volume = box.get_volume();
+  const double limit = 2.5 * (potential->rc + 1.0);
+  return (box.pbc_x && volume / box.get_area(0) <= limit) ||
+         (box.pbc_y && volume / box.get_area(1) <= limit) ||
+         (box.pbc_z && volume / box.get_area(2) <= limit);
+}
+
+static __global__ void gpu_zero_superionic_arrays(
+  const int N,
+  double* einstein,
+  double* uf_self,
+  double* uf_cross,
+  double* aux_fx,
+  double* aux_fy,
+  double* aux_fz,
+  double* cross_fx,
+  double* cross_fy,
+  double* cross_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    einstein[i] = 0.0;
+    uf_self[i] = 0.0;
+    uf_cross[i] = 0.0;
+    aux_fx[i] = 0.0;
+    aux_fy[i] = 0.0;
+    aux_fz[i] = 0.0;
+    cross_fx[i] = 0.0;
+    cross_fy[i] = 0.0;
+    cross_fz[i] = 0.0;
+  }
+}
+
+static __global__ void gpu_find_superionic_spring(
+  const int N,
+  Box box,
+  const double* k,
+  const double* x,
+  const double* y,
+  const double* z,
+  const double* x0,
+  const double* y0,
+  const double* z0,
+  double* einstein,
+  double* aux_fx,
+  double* aux_fy,
+  double* aux_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    double dx = x[i] - x0[i];
+    double dy = y[i] - y0[i];
+    double dz = z[i] - z0[i];
+    apply_mic(box, dx, dy, dz);
+    const double spring_k = k[i];
+    einstein[i] = 0.5 * spring_k * (dx * dx + dy * dy + dz * dz);
+    aux_fx[i] += -spring_k * dx;
+    aux_fy[i] += -spring_k * dy;
+    aux_fz[i] += -spring_k * dz;
+  }
+}
+
+static __global__ void gpu_find_superionic_uf(
+  const int N,
+  const int num_types,
+  Box box,
+  const double beta,
+  const int* type,
+  const double* x,
+  const double* y,
+  const double* z,
+  const double* uf_p,
+  const double* uf_sigma_sqrd,
+  const int* uf_kind,
+  const int* NN,
+  const int* NL,
+  double* uf_self,
+  double* uf_cross,
+  double* aux_fx,
+  double* aux_fy,
+  double* aux_fz,
+  double* cross_fx,
+  double* cross_fy,
+  double* cross_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    const double x1 = x[i];
+    const double y1 = y[i];
+    const double z1 = z[i];
+    const int type_i = type[i];
+    double local_uf_self = 0.0;
+    double local_uf_cross = 0.0;
+    double local_aux_fx = 0.0;
+    double local_aux_fy = 0.0;
+    double local_aux_fz = 0.0;
+    double local_cross_fx = 0.0;
+    double local_cross_fy = 0.0;
+    double local_cross_fz = 0.0;
+
+    for (int i1 = 0; i1 < NN[i]; ++i1) {
+      const int j = NL[i + N * i1];
+      const int type_j = type[j];
+      const int pair = type_i * num_types + type_j;
+      const int kind = uf_kind[pair];
+      if (kind == 0) {
+        continue;
+      }
+
+      double dx = x[j] - x1;
+      double dy = y[j] - y1;
+      double dz = z[j] - z1;
+      apply_mic(box, dx, dy, dz);
+      const double r2 = dx * dx + dy * dy + dz * dz;
+      const double p = uf_p[pair];
+      const double sigma2 = uf_sigma_sqrd[pair];
+      const double pair_energy = -p / beta * log(1.0 - exp(-r2 / sigma2));
+      const double factor = -2.0 * p / (beta * sigma2 * (exp(r2 / sigma2) - 1.0));
+      const double fx = dx * factor;
+      const double fy = dy * factor;
+      const double fz = dz * factor;
+
+      if (kind == 1) {
+        local_uf_self += 0.5 * pair_energy;
+        local_aux_fx += fx;
+        local_aux_fy += fy;
+        local_aux_fz += fz;
+      } else if (kind == 2) {
+        local_uf_cross += 0.5 * pair_energy;
+        local_cross_fx += fx;
+        local_cross_fy += fy;
+        local_cross_fz += fz;
+      }
+    }
+
+    uf_self[i] += local_uf_self;
+    uf_cross[i] += local_uf_cross;
+    aux_fx[i] += local_aux_fx;
+    aux_fy[i] += local_aux_fy;
+    aux_fz[i] += local_aux_fz;
+    cross_fx[i] += local_cross_fx;
+    cross_fy[i] += local_cross_fy;
+    cross_fz[i] += local_cross_fz;
+  }
+}
+
+static __global__ void gpu_apply_superionic_stage1(
+  const int N,
+  const double lambda,
+  const double* aux_fx,
+  const double* aux_fy,
+  const double* aux_fz,
+  const double* cross_fx,
+  const double* cross_fy,
+  const double* cross_fz,
+  double* fx,
+  double* fy,
+  double* fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    fx[i] = aux_fx[i] + lambda * cross_fx[i];
+    fy[i] = aux_fy[i] + lambda * cross_fy[i];
+    fz[i] = aux_fz[i] + lambda * cross_fz[i];
+  }
+}
+
+static __global__ void gpu_add_cross_to_aux(
+  const int N,
+  const double* cross_fx,
+  const double* cross_fy,
+  const double* cross_fz,
+  double* aux_fx,
+  double* aux_fy,
+  double* aux_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    aux_fx[i] += cross_fx[i];
+    aux_fy[i] += cross_fy[i];
+    aux_fz[i] += cross_fz[i];
+  }
+}
+
+static __global__ void gpu_apply_superionic_stage2(
+  const int N,
+  const double lambda,
+  const double* aux_fx,
+  const double* aux_fy,
+  const double* aux_fz,
+  double* fx,
+  double* fy,
+  double* fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    fx[i] = (1.0 - lambda) * aux_fx[i] + lambda * fx[i];
+    fy[i] = (1.0 - lambda) * aux_fy[i] + lambda * fy[i];
+    fz[i] = (1.0 - lambda) * aux_fz[i] + lambda * fz[i];
+  }
+}
+
+static __global__ void gpu_sum_array(const int N, double* data)
+{
+  const int tid = threadIdx.x;
+  const int number_of_patches = (N - 1) / blockDim.x + 1;
+  __shared__ double s_data[1024];
+  s_data[tid] = 0.0;
+
+  for (int patch = 0; patch < number_of_patches; ++patch) {
+    const int n = tid + patch * blockDim.x;
+    if (n < N) {
+      s_data[tid] += data[n];
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    data[0] = s_data[0];
+  }
+}
+
 } // namespace
 
 Ensemble_TI_Superionic::Ensemble_TI_Superionic(
@@ -393,10 +628,121 @@ void Ensemble_TI_Superionic::compute1(
   Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
 }
 
+void Ensemble_TI_Superionic::find_thermo()
+{
+  Ensemble::find_thermo(
+    false,
+    box->get_volume(),
+    *group,
+    atom->mass,
+    atom->potential_per_atom,
+    atom->velocity_per_atom,
+    atom->virial_per_atom,
+    *thermo);
+  thermo->copy_to_host(thermo_cpu.data());
+  pe = thermo_cpu[1];
+}
+
+double Ensemble_TI_Superionic::get_sum(GPU_Vector<double>& data)
+{
+  double value = 0.0;
+  gpu_sum_array<<<1, 1024>>>(atom->number_of_atoms, data.data());
+  GPU_CHECK_KERNEL
+  data.copy_to_host(&value, 1);
+  return value;
+}
+
+void Ensemble_TI_Superionic::find_reference_forces(Force& force)
+{
+  int N = atom->number_of_atoms;
+  const int grid_size = (N - 1) / 128 + 1;
+
+  gpu_zero_superionic_arrays<<<grid_size, 128>>>(
+    N,
+    gpu_einstein.data(),
+    gpu_uf_self.data(),
+    gpu_uf_cross.data(),
+    gpu_aux_fx.data(),
+    gpu_aux_fy.data(),
+    gpu_aux_fz.data(),
+    gpu_cross_fx.data(),
+    gpu_cross_fy.data(),
+    gpu_cross_fz.data());
+  GPU_CHECK_KERNEL
+
+  gpu_find_superionic_spring<<<grid_size, 128>>>(
+    N,
+    *box,
+    gpu_k.data(),
+    atom->position_per_atom.data(),
+    atom->position_per_atom.data() + N,
+    atom->position_per_atom.data() + 2 * N,
+    position_0.data(),
+    position_0.data() + N,
+    position_0.data() + 2 * N,
+    gpu_einstein.data(),
+    gpu_aux_fx.data(),
+    gpu_aux_fy.data(),
+    gpu_aux_fz.data());
+  GPU_CHECK_KERNEL
+
+  if (is_nep_small_box(force.potentials[0].get(), *box))
+    PRINT_INPUT_ERROR(
+      "ti_superionic requires the main NEP potential to expose the active radial neighbor list; "
+      "please use a larger periodic box.");
+
+  const GPU_Vector<int>& NN = force.potentials[0]->get_NN_radial_ptr();
+  const GPU_Vector<int>& NL = force.potentials[0]->get_NL_radial_ptr();
+  if (NN.size() == 0 || NL.size() == 0)
+    PRINT_INPUT_ERROR("The main potential must provide a radial neighbor list for ti_superionic.");
+
+  gpu_find_superionic_uf<<<grid_size, 128>>>(
+    N,
+    num_types,
+    *box,
+    beta,
+    atom->type.data(),
+    atom->position_per_atom.data(),
+    atom->position_per_atom.data() + N,
+    atom->position_per_atom.data() + 2 * N,
+    gpu_uf_p.data(),
+    gpu_uf_sigma_sqrd.data(),
+    gpu_uf_kind.data(),
+    NN.data(),
+    NL.data(),
+    gpu_uf_self.data(),
+    gpu_uf_cross.data(),
+    gpu_aux_fx.data(),
+    gpu_aux_fy.data(),
+    gpu_aux_fz.data(),
+    gpu_cross_fx.data(),
+    gpu_cross_fy.data(),
+    gpu_cross_fz.data());
+  GPU_CHECK_KERNEL
+
+  U_einstein = get_sum(gpu_einstein);
+  U_uf_self = get_sum(gpu_uf_self);
+  U_uf_cross = get_sum(gpu_uf_cross);
+  U_aux = U_einstein + U_uf_self + U_uf_cross;
+}
+
+void Ensemble_TI_Superionic::accumulate_work()
+{
+  double increment = dHdlambda * dlambda / atom->number_of_atoms;
+  if (dlambda > 0.0) {
+    W_forward += increment;
+  } else if (dlambda < 0.0) {
+    W_backward += increment;
+  }
+  delta_F = 0.5 * (W_forward - W_backward);
+}
+
 void Ensemble_TI_Superionic::find_lambda()
 {
-  V = box->get_volume() / atom->number_of_atoms;
+  lambda = 0.0;
+  dlambda = 0.0;
   lambda_active = false;
+  V = box->get_volume() / atom->number_of_atoms;
 
   const int t = *current_step - t_equil;
   const double r_switch = 1.0 / t_switch;
@@ -405,18 +751,12 @@ void Ensemble_TI_Superionic::find_lambda()
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
     lambda_active = true;
+  } else if ((t > t_switch) && (t < t_equil + t_switch)) {
+    lambda = 1.0;
   } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     lambda_active = true;
-  }
-
-  if (lambda_active && output_file != nullptr) {
-    if (stage == SuperionicStage::stage1) {
-      fprintf(output_file, "%e,%e,0,0,0,0\n", lambda, dlambda);
-    } else {
-      fprintf(output_file, "%e,%e,0,0,0,0,0,0\n", lambda, dlambda);
-    }
   }
 }
 
@@ -428,8 +768,81 @@ void Ensemble_TI_Superionic::compute3(
   GPU_Vector<double>& thermo,
   Force& force)
 {
-  (void)force;
+  int N = atom->number_of_atoms;
+  const int grid_size = (N - 1) / 128 + 1;
+
   find_lambda();
+  find_thermo();
+  find_reference_forces(force);
+
+  if (stage == SuperionicStage::stage1) {
+    dHdlambda = U_uf_cross;
+    gpu_apply_superionic_stage1<<<grid_size, 128>>>(
+      N,
+      lambda,
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data(),
+      gpu_cross_fx.data(),
+      gpu_cross_fy.data(),
+      gpu_cross_fz.data(),
+      atom->force_per_atom.data(),
+      atom->force_per_atom.data() + N,
+      atom->force_per_atom.data() + 2 * N);
+    GPU_CHECK_KERNEL
+  } else {
+    dHdlambda = pe - U_aux;
+    gpu_add_cross_to_aux<<<grid_size, 128>>>(
+      N,
+      gpu_cross_fx.data(),
+      gpu_cross_fy.data(),
+      gpu_cross_fz.data(),
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data());
+    GPU_CHECK_KERNEL
+
+    gpu_apply_superionic_stage2<<<grid_size, 128>>>(
+      N,
+      lambda,
+      gpu_aux_fx.data(),
+      gpu_aux_fy.data(),
+      gpu_aux_fz.data(),
+      atom->force_per_atom.data(),
+      atom->force_per_atom.data() + N,
+      atom->force_per_atom.data() + 2 * N);
+    GPU_CHECK_KERNEL
+  }
+
+  if (lambda_active) {
+    accumulate_work();
+    if (output_file != nullptr) {
+      if (stage == SuperionicStage::stage1) {
+        fprintf(
+          output_file,
+          "%.17e,%.17e,%.17e,%.17e,%.17e,%.17e\n",
+          lambda,
+          dlambda,
+          U_einstein / N,
+          U_uf_self / N,
+          U_uf_cross / N,
+          dHdlambda / N);
+      } else {
+        fprintf(
+          output_file,
+          "%.17e,%.17e,%.17e,%.17e,%.17e,%.17e,%.17e,%.17e\n",
+          lambda,
+          dlambda,
+          pe / N,
+          U_einstein / N,
+          U_uf_self / N,
+          U_uf_cross / N,
+          U_aux / N,
+          dHdlambda / N);
+      }
+    }
+  }
+
   Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
 }
 

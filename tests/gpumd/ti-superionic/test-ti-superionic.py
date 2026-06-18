@@ -53,6 +53,23 @@ def run_gpumd_with_ensemble(tmp_path, ensemble_line):
     return subprocess.run([str(GPUMD)], cwd=tmp_path, text=True, capture_output=True, check=False)
 
 
+def write_small_model(path):
+    path.write_text(
+        "\n".join(
+            [
+                "4",
+                'Lattice="12 0 0 0 12 0 0 0 12" Properties=species:S:1:pos:R:3',
+                "C 0.0 0.0 0.0",
+                "C 3.0 0.0 0.0",
+                "H 0.0 3.0 0.0",
+                "H 3.0 3.0 0.0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 @pytest.mark.parametrize(
     "run_in, yaml_name, stage, csv_name, csv_header",
     [
@@ -186,3 +203,49 @@ def test_rejects_invalid_reference_inputs(tmp_path, ensemble_line, message):
     result = run_gpumd_with_ensemble(tmp_path, ensemble_line)
     assert result.returncode != 0
     assert message in result.stderr
+
+
+def test_rejects_nep_small_box_radial_list(tmp_path):
+    for name in ("model.xyz", "nep.txt", "run_stage1.in"):
+        shutil.copy(FIXTURE / name, tmp_path / name)
+    write_small_model(tmp_path / "model.xyz")
+    shutil.copy(tmp_path / "run_stage1.in", tmp_path / "run.in")
+
+    result = subprocess.run(
+        [str(GPUMD)], cwd=tmp_path, text=True, capture_output=True, check=False
+    )
+
+    assert result.returncode != 0
+    assert (
+        "ti_superionic requires the main NEP potential to expose the active radial neighbor list"
+        in result.stderr
+    )
+
+
+def read_csv_rows(path):
+    lines = path.read_text(encoding="utf-8").strip().splitlines()
+    header = lines[0].split(",")
+    rows = []
+    for line in lines[1:]:
+        rows.append(dict(zip(header, [float(x) for x in line.split(",")])))
+    return rows
+
+
+def test_stage1_csv_has_cross_driving_force(tmp_path):
+    result = run_gpumd(tmp_path, "run_stage1.in")
+    assert result.returncode == 0, result.stderr
+    rows = read_csv_rows(tmp_path / "ti_superionic_stage1.csv")
+    assert rows
+    assert any(abs(row["U_uf_cross"]) > 0.0 for row in rows)
+    for row in rows:
+        assert row["dHdlambda"] == pytest.approx(row["U_uf_cross"])
+
+
+def test_stage2_csv_has_aux_and_target_terms(tmp_path):
+    result = run_gpumd(tmp_path, "run_stage2.in")
+    assert result.returncode == 0, result.stderr
+    rows = read_csv_rows(tmp_path / "ti_superionic_stage2.csv")
+    assert rows
+    assert any(abs(row["U_aux"]) > 0.0 for row in rows)
+    for row in rows:
+        assert row["dHdlambda"] == pytest.approx(row["U_target"] - row["U_aux"])
