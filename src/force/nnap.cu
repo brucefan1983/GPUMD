@@ -22,10 +22,23 @@
 #include "nnap.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <string>
 
-#define BLOCK_SIZE_NL_NNAP 256
+#define BLOCK_SIZE_NNAP 256
 #define MAX_NEIGH_NUM_NNAP 512
+
+const std::string ELEMENTS[NUM_ELEMENTS] = {
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 static jboolean initJVM_(JNIEnv **rEnv) {
   JavaVM *tJVM = NULL;
@@ -141,8 +154,85 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
   }
 }
 
-NNAP::NNAP(const char* filename, int num_atoms)
+NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
 {
+  // init GPUMD settings, like zbl
+  std::ifstream input(setting_file);
+  if (!input.is_open()) {
+    std::cout << "Failed to open " << setting_file << std::endl;
+    exit(1);
+  }
+
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() < 3) {
+    std::cout << "The first line of nnap.txt should have at least 3 items." << std::endl;
+    exit(1);
+  }
+  if (tokens[0] == "nnap") {
+    zbl.enabled = false;
+  } else if (tokens[0] == "nnap_zbl") {
+    zbl.enabled = true;
+  } else {
+    std::cout << tokens[0]
+              << " is an unsupported NNAP model. Expected: nnap, nnap_zbl"
+              << std::endl;
+    exit(1);
+  }
+  // zbl
+  if (zbl.enabled) {
+    zbl.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    if (tokens.size() != 2 + zbl.num_types) {
+      std::cout << "The first line of nnap.txt should have " << zbl.num_types << " atom symbols."
+                << std::endl;
+      exit(1);
+    }
+    for (int n = 0; n < zbl.num_types; ++n) {
+      int atomic_number = 0;
+      for (int m = 0; m < NUM_ELEMENTS; ++m) {
+        if (tokens[2 + n] == ELEMENTS[m]) {
+          atomic_number = m + 1;
+          break;
+        }
+      }
+      zbl.atomic_numbers[n] = atomic_number;
+      printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    }
+    // zbl params
+    tokens = get_tokens(input);
+    if (tokens.size() != 3 && tokens.size() != 4) {
+      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
+      exit(1);
+    }
+    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
+    if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
+      zbl.flexibled = true;
+      printf("    has the flexible ZBL potential\n");
+    } else {
+      if (tokens.size() == 4) {
+        zbl.typewise_cutoff_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+        zbl.use_typewise_cutoff = true;
+        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+          zbl.typewise_cutoff_factor);
+      } else {
+        printf(
+          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+          zbl.rc_inner,
+          zbl.rc_outer);
+      }
+    }
+    // flexible zbl potential parameters
+    if (zbl.flexibled) {
+      int num_type_zbl = (zbl.num_types * (zbl.num_types + 1)) / 2;
+      for (int d = 0; d < 10 * num_type_zbl; ++d) {
+        tokens = get_tokens(input);
+        zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+      }
+    }
+  }
+  input.close();
+
+
   // init jni env
   if (mEnv == NULL) {
     jboolean tSuc = initJVM_(&mEnv);
@@ -152,7 +242,7 @@ NNAP::NNAP(const char* filename, int num_atoms)
   // init java NNAP object
   jboolean tSuc = cacheJClass_(mEnv);
   if (exceptionCheck_(mEnv) || !tSuc) PRINT_INPUT_ERROR("Fail to cache class of java NNAP");
-  jobject tObj = newJObject_(mEnv, filename);
+  jobject tObj = newJObject_(mEnv, nnap_file);
   if (exceptionCheck_(mEnv) || tObj==NULL) PRINT_INPUT_ERROR("Fail to create java NNAP object");
   if (mCore != NULL) mEnv->DeleteGlobalRef(mCore);
   mCore = mEnv->NewGlobalRef(tObj);
@@ -221,6 +311,107 @@ static __global__ void valid_nl_(
   }
 }
 
+static __global__ void find_force_ZBL(
+  const int N,
+  const NNAP::ZBL zbl,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const float* __restrict__ nl_dx,
+  const float* __restrict__ nl_dy,
+  const float* __restrict__ nl_dz,
+  const int* __restrict__ g_type,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    float s_pe = 0.0f;
+    float s_fx = 0.0f, s_fy = 0.0f, s_fz = 0.0f;
+    float s_sxx = 0.0f, s_sxy = 0.0f, s_sxz = 0.0f;
+    float s_syx = 0.0f, s_syy = 0.0f, s_syz = 0.0f;
+    float s_szx = 0.0f, s_szy = 0.0f, s_szz = 0.0f;
+    int type1 = g_type[n1];
+    int zi = zbl.atomic_numbers[type1];
+    float pow_zi = pow(float(zi), 0.23f);
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
+      float x12 = nl_dx[n1 + N * i1];
+      float y12 = nl_dy[n1 + N * i1];
+      float z12 = nl_dz[n1 + N * i1];
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float f, fp;
+      int type2 = g_type[n2];
+      int zj = zbl.atomic_numbers[type2];
+      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
+      float zizj = K_C_SP * zi * zj;
+      if (zbl.flexibled) {
+        int t1, t2;
+        if (type1 < type2) {
+          t1 = type1; t2 = type2;
+        } else {
+          t1 = type2; t2 = type1;
+        }
+        int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+        float ZBL_para[10];
+        for (int i = 0; i < 10; ++i) {
+          ZBL_para[i] = zbl.para[10 * zbl_index + i];
+        }
+        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
+      } else {
+        float rc_inner = zbl.rc_inner;
+        float rc_outer = zbl.rc_outer;
+        if (zbl.use_typewise_cutoff) {
+          // zi and zj start from 1, so need to minus 1 here
+          rc_outer = min(
+            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * zbl.typewise_cutoff_factor,
+            rc_outer);
+          rc_inner = 0.0f;
+        }
+        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+      }
+      float f2 = fp * d12inv * 0.5f;
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
+      s_fx += f12[0] - f21[0];
+      s_fy += f12[1] - f21[1];
+      s_fz += f12[2] - f21[2];
+      s_sxx -= r12[0] * f12[0];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_syz -= r12[1] * f12[2];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
+      s_szz -= r12[2] * f12[2];
+      s_pe += f * 0.5f;
+    }
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
+    g_pe[n1] += s_pe;
+  }
+}
+
+
 void NNAP::compute(
   Box& box,
   const GPU_Vector<int>& type,
@@ -238,8 +429,8 @@ void NNAP::compute(
     type, 
     position
   );
-  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_NL_NNAP + 1;
-  valid_nl_<<<grid_size, BLOCK_SIZE_NL_NNAP>>>(
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_NNAP + 1;
+  valid_nl_<<<grid_size, BLOCK_SIZE_NNAP>>>(
     number_of_atoms,
     N1,
     N2,
@@ -253,8 +444,7 @@ void NNAP::compute(
     nl_dy.data(),
     nl_dz.data()
   );
-  
-  // TODO: type map? anyway
+
   // invoke NNAP_cuda.computeGPUMD(...)
   computeGPUMD_(mEnv, mCore,
     number_of_atoms,
@@ -273,5 +463,27 @@ void NNAP::compute(
     potential.data()
   );
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail when call computeGPUMD");
+
+  // zbl support
+  if (zbl.enabled) {
+    find_force_ZBL<<<grid_size, BLOCK_SIZE_NNAP>>>(
+      number_of_atoms,
+      zbl,
+      N1,
+      N2,
+      box,
+      neighbor.NN.data(),
+      neighbor.NL.data(),
+      nl_dx.data(),
+      nl_dy.data(),
+      nl_dz.data(),
+      type.data(),
+      force.data(),
+      force.data() + number_of_atoms,
+      force.data() + 2 * number_of_atoms,
+      virial.data(),
+      potential.data());
+    GPU_CHECK_KERNEL
+  }
 }
 #endif

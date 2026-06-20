@@ -165,19 +165,17 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR(
-        "The potential command should contain two parameters, the setting file and the DP "
-        "potential file name.\n");
+        "The potential command should contain two parameters, the setting file and the DP potential file.\n");
     }
     potential.reset(new DP(param[2], number_of_atoms));
 #endif
 #ifdef USE_NNAP
-  } else if (strcmp(potential_name, "nnap") == 0) {
+  } else if (strcmp(potential_name, "nnap") == 0 || strcmp(potential_name, "nnap_zbl") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR(
-        "The potential command should contain two parameters, "
-        "the setting file and the NNAP driver file name.\n");
+        "The potential command should contain two parameters, the setting file and the NNAP potential file.\n");
     }
-    potential.reset(new NNAP(param[2], number_of_atoms));
+    potential.reset(new NNAP(param[1], param[2], number_of_atoms));
 #endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
