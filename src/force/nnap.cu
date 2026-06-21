@@ -30,7 +30,6 @@
 #include <string>
 
 #define BLOCK_SIZE_NNAP 256
-#define MAX_NEIGH_NUM_NNAP 512
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -122,6 +121,7 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
     const int number_of_particles,
     const int N1,
     const int N2,
+    const int nn_max,
     const int *g_neighbor_number,
     const int *g_neighbor_list,
     const float *nl_dx,
@@ -138,7 +138,7 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
       (jint)number_of_particles,
       (jint)N1,
       (jint)N2,
-      (jint)MAX_NEIGH_NUM_NNAP,
+      (jint)nn_max,
       (jlong)(intptr_t)g_neighbor_number,
       (jlong)(intptr_t)g_neighbor_list,
       (jlong)(intptr_t)nl_dx,
@@ -178,15 +178,20 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
               << std::endl;
     exit(1);
   }
+  num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (num_types == 1) {
+    printf("Use the NNAP potential with %d atom type.\n", num_types);
+  } else {
+    printf("Use the NNAP potential with %d atom types.\n", num_types);
+  }
   // zbl
   if (zbl.enabled) {
-    zbl.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    if (tokens.size() != 2 + zbl.num_types) {
-      std::cout << "The first line of nnap.txt should have " << zbl.num_types << " atom symbols."
+    if (tokens.size() != 2 + num_types) {
+      std::cout << "The first line of nnap.txt should have " << num_types << " atom symbols."
                 << std::endl;
       exit(1);
     }
-    for (int n = 0; n < zbl.num_types; ++n) {
+    for (int n = 0; n < num_types; ++n) {
       int atomic_number = 0;
       for (int m = 0; m < NUM_ELEMENTS; ++m) {
         if (tokens[2 + n] == ELEMENTS[m]) {
@@ -199,36 +204,44 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
     }
     // zbl params
     tokens = get_tokens(input);
-    if (tokens.size() != 3 && tokens.size() != 4) {
-      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
+    if ((tokens.size() != 3 && tokens.size() != 4) || tokens[0] != "zbl") {
+      std::cout << "This line should be zbl <rc_inner> <rc_outer> [zbl_factor]." << std::endl;
       exit(1);
     }
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
-      printf("    has the flexible ZBL potential\n");
+      std::cout << "Flexible ZBL is invalid for nnap_zbl" << std::endl;
+      exit(1);
+    }
+    if (tokens.size() == 4) {
+      zbl.typewise_cutoff_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+      zbl.use_typewise_cutoff = true;
+      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+        zbl.typewise_cutoff_factor);
     } else {
-      if (tokens.size() == 4) {
-        zbl.typewise_cutoff_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        zbl.use_typewise_cutoff = true;
-        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
-          zbl.typewise_cutoff_factor);
-      } else {
-        printf(
-          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-          zbl.rc_inner,
-          zbl.rc_outer);
-      }
+      printf(
+        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+        zbl.rc_inner,
+        zbl.rc_outer);
     }
-    // flexible zbl potential parameters
-    if (zbl.flexibled) {
-      int num_type_zbl = (zbl.num_types * (zbl.num_types + 1)) / 2;
-      for (int d = 0; d < 10 * num_type_zbl; ++d) {
-        tokens = get_tokens(input);
-        zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-      }
+  }
+  // nn_max
+  tokens = get_tokens(input);
+  if (tokens.size() > 0 && tokens[0] == "nn_max") {
+    if (tokens.size() != 2) {
+      std::cout << "This line should be nn_max <nn_max>." << std::endl;
+      exit(1);
     }
+    int nn_max_ = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    printf("    nn_max = %d.\n", nn_max_);
+    if (nn_max_ > 819) {
+      std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
+                << std::endl;
+      exit(1);
+    }
+    nn_max = int(ceil(nn_max_ * 1.25));
+    printf("    enlarged nn_max = %d.\n", nn_max);
   }
   input.close();
 
@@ -251,15 +264,16 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
   // get rcut
   rc = rcutMax_(mEnv, mCore);
   if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
-  neighbor.initialize(rc, num_atoms, MAX_NEIGH_NUM_NNAP); // TODO: auto detect
+  neighbor.initialize(rc, num_atoms, nn_max);
   if (!(std::isfinite(rc) && rc > 0.0)) {
     PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
   }
+  printf("    max cutoff = %g A.\n", rc);
   
   // init nl cache
-  nl_dx.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
-  nl_dy.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
-  nl_dz.resize(num_atoms * MAX_NEIGH_NUM_NNAP);
+  nl_dx.resize(num_atoms * nn_max);
+  nl_dy.resize(num_atoms * nn_max);
+  nl_dz.resize(num_atoms * nn_max);
 }
 
 NNAP::~NNAP(void)
@@ -353,31 +367,16 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
-        int t1, t2;
-        if (type1 < type2) {
-          t1 = type1; t2 = type2;
-        } else {
-          t1 = type2; t2 = type1;
-        }
-        int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float ZBL_para[10];
-        for (int i = 0; i < 10; ++i) {
-          ZBL_para[i] = zbl.para[10 * zbl_index + i];
-        }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
-      } else {
-        float rc_inner = zbl.rc_inner;
-        float rc_outer = zbl.rc_outer;
-        if (zbl.use_typewise_cutoff) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * zbl.typewise_cutoff_factor,
-            rc_outer);
-          rc_inner = 0.0f;
-        }
-        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+      float rc_inner = zbl.rc_inner;
+      float rc_outer = zbl.rc_outer;
+      if (zbl.use_typewise_cutoff) {
+        // zi and zj start from 1, so need to minus 1 here
+        rc_outer = min(
+          (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * zbl.typewise_cutoff_factor,
+          rc_outer);
+        rc_inner = 0.0f;
       }
+      find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
@@ -450,6 +449,7 @@ void NNAP::compute(
     number_of_atoms,
     N1,
     N2,
+    nn_max,
     neighbor.NN.data(),
     neighbor.NL.data(),
     nl_dx.data(),

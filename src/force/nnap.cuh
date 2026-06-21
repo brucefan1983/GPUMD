@@ -30,12 +30,9 @@ class NNAP : public Potential
 public:
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
-    float para[550];
     int atomic_numbers[NUM_ELEMENTS];
-    int num_types = 0;
 
     bool use_typewise_cutoff = false;
     float typewise_cutoff_factor = 0.0f;
@@ -59,6 +56,8 @@ private:
   JNIEnv *mEnv = NULL;
   jobject mCore = NULL;
   Neighbor neighbor;
+  int nn_max = 200;
+  int num_types = 0;
   
   GPU_Vector<float> nl_dx;
   GPU_Vector<float> nl_dy;
