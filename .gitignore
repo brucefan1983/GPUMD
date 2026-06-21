@@ -1,5 +1,6 @@
 \.cproject
 \.project
+\.idea
 core
 
 src/.vscode/*
@@ -19,6 +20,7 @@ public.*
 \#*
 
 /nep
+/*build*/
 /gpumd*
 /gnep
 
