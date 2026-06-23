@@ -12,18 +12,51 @@ The source code is hosted on `github <https://github.com/brucefan1983/GPUMD>`_.
 Prerequisites
 =============
 
-To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card with compute capability no less than 3.5 and CUDA toolkit 9.0 or newer.
-On Linux systems, one also needs a C++ compiler supporting at least the C++11 standard.
-On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and a `64-bit version of make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
+.. tabs::
 
-Alternatively, :program:`GPUMD` can be built for AMD GPUs through ROCm/HIP (see :ref:`Building for AMD GPUs <build_amd_hip>` below); this requires a ROCm installation.
+   .. tab:: Make
 
+      To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card with compute capability no less than 3.5 and CUDA toolkit 9.0 or newer.
+      On Linux systems, one also needs a C++ compiler supporting at least the C++11 standard.
+      On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and a `64-bit version of make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
+
+      Alternatively, :program:`GPUMD` can be built for AMD GPUs through ROCm/HIP (see :ref:`Building for AMD GPUs <build_amd_hip>` below); this requires a ROCm installation.
+
+   .. tab:: CMake (pre-release)
+
+      To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card and CUDA toolkit.
+      On Linux systems, one also needs a C++ compiler supporting the C++17 standard.
+      On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and CMake 3.24 or newer.
+
+.. _compilation:
 
 Compilation
 ===========
 
-In the ``src`` directory run ``make``, which generates two executables, ``nep`` and ``gpumd``.
-Please check the comments in the beginning of the makefile for some compiling options.
+.. tabs::
+
+   .. tab:: Make
+
+      In the ``src`` directory run ``make``, which generates two executables, ``nep`` and ``gpumd``.
+      Please check the comments in the beginning of the makefile for some compiling options.
+
+   .. tab:: CMake (pre-release)
+
+      Configure and compile from the project root:
+
+      .. code-block:: bash
+
+        cmake -S . -B build
+        cmake --build build --config Release --parallel
+
+      The executables (``gpumd`` and ``nep``) will be placed in the ``build`` directory.
+      Omit ``--parallel`` to fall back to serial compilation.
+
+      To target a specific GPU architecture, add ``-D`` at configure time:
+
+      .. code-block:: bash
+
+        -D CMAKE_CUDA_ARCHITECTURES=value   # 80, 90, ... (default native)
 
 
 .. _build_amd_hip:
@@ -31,13 +64,21 @@ Please check the comments in the beginning of the makefile for some compiling op
 Building for AMD GPUs (ROCm/HIP)
 ================================
 
-:program:`GPUMD` also runs on AMD GPUs through ROCm/HIP. In the ``src`` directory, build with the HIP makefile instead of the default one::
+.. tabs::
 
-  make -f makefile.hip
+   .. tab:: Make
 
-This uses ``hipcc`` and links rocThrust/rocPRIM, hipBLAS, hipSOLVER, and hipFFT, so it requires a ROCm installation. The target GPU architecture defaults to ``gfx90a``; build for another AMD GPU by setting ``HIP_ARCH``::
+      :program:`GPUMD` also runs on AMD GPUs through ROCm/HIP. In the ``src`` directory, build with the HIP makefile instead of the default one::
 
-  make -f makefile.hip HIP_ARCH=gfx1100
+        make -f makefile.hip
+
+      This uses ``hipcc`` and links rocThrust/rocPRIM, hipBLAS, hipSOLVER, and hipFFT, so it requires a ROCm installation. The target GPU architecture defaults to ``gfx90a``; build for another AMD GPU by setting ``HIP_ARCH``::
+
+        make -f makefile.hip HIP_ARCH=gfx1100
+
+   .. tab:: CMake (pre-release)
+
+      CMake build for AMD GPUs is not yet supported.
 
 
 Examples
@@ -56,7 +97,19 @@ GNEP setup
 GNEP stands for a method of training NEP models using analytical Gradients (G stands for Gradients).
 See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for details.
 
-To compile the ``gnep`` executable, one can run ``make gnep`` in the ``src`` directory.
+.. tabs::
+
+   .. tab:: Make
+
+      To compile the ``gnep`` executable, run ``make gnep`` in the ``src`` directory.
+
+   .. tab:: CMake (pre-release)
+
+      To compile the ``gnep`` executable, configure with CMake as described in the :ref:`compilation` section above, then run:
+
+      .. code-block:: bash
+
+        cmake --build build --target gnep
 
 The usage of the ``gnep`` executable is similar to that of the ``nep`` executable.
 The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``'
@@ -438,6 +491,7 @@ References
    single: NNAP Potential
 
 NNAP support
+============
 
 Program introduction
 --------------------
