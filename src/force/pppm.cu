@@ -258,6 +258,15 @@ void __global__ find_mesh_virial(
       g_mesh_virial_yz[n] = {B * GSx, B * GSy};
       B = -alpha_k_factor * kz * kx;
       g_mesh_virial_zx[n] = {B * GSx, B * GSy};
+    } else {
+      // The k = 0 mode must be reset explicitly because mesh_virial is reused in-place
+      // across steps and later overwritten by inverse FFT output.
+      g_mesh_virial_xx[n] = {0.0f, 0.0f};
+      g_mesh_virial_yy[n] = {0.0f, 0.0f};
+      g_mesh_virial_zz[n] = {0.0f, 0.0f};
+      g_mesh_virial_xy[n] = {0.0f, 0.0f};
+      g_mesh_virial_yz[n] = {0.0f, 0.0f};
+      g_mesh_virial_zx[n] = {0.0f, 0.0f};
     }
   }
 }

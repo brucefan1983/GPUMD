@@ -126,6 +126,28 @@ bool check_need_peratom_virial()
         need_peratom_virial = true;
         break;
       }
+      if (tokens[0] == "compute") {
+        for (const auto& token : tokens) {
+          if (token == "virial" || token == "jp") {
+            need_peratom_virial = true;
+            break;
+          }
+        }
+        if (need_peratom_virial) {
+          break;
+        }
+      }
+      if (tokens[0] == "dump_xyz") {
+        for (const auto& token : tokens) {
+          if (token == "virial") {
+            need_peratom_virial = true;
+            break;
+          }
+        }
+        if (need_peratom_virial) {
+          break;
+        }
+      }
     }
   }
   input_run.close();
