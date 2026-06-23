@@ -28,6 +28,7 @@ Prerequisites
       On Linux systems, one also needs a C++ compiler supporting the C++17 standard.
       On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and CMake 3.24 or newer.
 
+.. _compilation:
 
 Compilation
 ===========
@@ -104,7 +105,7 @@ See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for
 
    .. tab:: CMake (pre-release)
 
-      To compile the ``gnep`` executable, configure with CMake as described in :ref:`Compilation` above, then run:
+      To compile the ``gnep`` executable, configure with CMake as described in the :ref:`compilation` section above, then run:
 
       .. code-block:: bash
 
