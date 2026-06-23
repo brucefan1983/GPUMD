@@ -23,12 +23,23 @@
 #include <jni.h>
 #include "neighbor.cuh"
 #include "potential.cuh"
+#include "utilities/common.cuh"
 
 class NNAP : public Potential
 {
 public:
+  struct ZBL {
+    bool enabled = false;
+    float rc_inner = 1.0f;
+    float rc_outer = 2.0f;
+    int atomic_numbers[NUM_ELEMENTS];
+
+    bool use_typewise_cutoff = false;
+    float typewise_cutoff_factor = 0.0f;
+  };
+
   using Potential::compute;
-  NNAP(const char* filename, int num_atoms);
+  NNAP(const char* setting_file, const char* nnap_file, int num_atoms);
   virtual ~NNAP(void);
 
   virtual void compute(
@@ -39,10 +50,14 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
     
-protected:
+private:
+  ZBL zbl;
+
   JNIEnv *mEnv = NULL;
   jobject mCore = NULL;
   Neighbor neighbor;
+  int nn_max = 200;
+  int num_types = 0;
   
   GPU_Vector<float> nl_dx;
   GPU_Vector<float> nl_dy;
