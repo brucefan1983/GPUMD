@@ -154,6 +154,26 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
   }
 }
 
+static bool check_if_small_box(const double rc, const Box& box)
+{
+  double volume = box.get_volume();
+  double thickness_x = volume / box.get_area(0);
+  double thickness_y = volume / box.get_area(1);
+  double thickness_z = volume / box.get_area(2);
+  bool is_small_box = false;
+  if (box.pbc_x && thickness_x <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_y && thickness_y <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_z && thickness_z <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  return is_small_box;
+}
+
+
 NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
 {
   // init GPUMD settings, like zbl
@@ -419,6 +439,11 @@ void NNAP::compute(
   GPU_Vector<double>& force,
   GPU_Vector<double>& virial)
 {
+  if (check_if_small_box(rc, box)) {
+    printf("Cannot use small box for NNAP.\n");
+    exit(1);
+  }
+
   const int number_of_atoms = type.size();
   
   // build neighbor list here
