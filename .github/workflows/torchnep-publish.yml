@@ -1,0 +1,51 @@
+name: Publish TorchNEP to PyPI
+
+# Publishes the torchnep/ package to PyPI. Triggered by pushing a tag of the
+# form `torchnep-vX.Y.Z` (a dedicated prefix so it never clashes with GPUMD's
+# own version tags). The published version comes from torchnep/__init__.py
+# (__version__) — bump it before tagging. `workflow_dispatch` allows a manual,
+# non-publishing build for verification (publish step is skipped unless tagged).
+on:
+  push:
+    tags:
+      - 'torchnep-v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build torchnep --outdir dist
+          twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: torchnep-dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    # Only publish on an actual tag push, never on manual/dispatch dry runs.
+    if: startsWith(github.ref, 'refs/tags/torchnep-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # required for PyPI Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: torchnep-dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
