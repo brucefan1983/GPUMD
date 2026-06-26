@@ -99,8 +99,6 @@ public:
     Parameters& para,
     int N,
     int Nc,
-    int N_times_max_NN_radial,
-    int N_times_max_NN_angular,
     int version,
     int deviceCount);
   void find_force(
@@ -117,5 +115,5 @@ private:
   NEP_Charge_Data nep_data[16];
   ZBL zbl;
   Charge_Para charge_para;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  void update_potential(float* parameters, ANN& ann);
 };

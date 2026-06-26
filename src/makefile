@@ -19,7 +19,7 @@ CUDA_ARCH=-arch=sm_60
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="-Wall -Wextra -Wno-sign-compare"
 endif
 INC = -I./
 LDFLAGS = 

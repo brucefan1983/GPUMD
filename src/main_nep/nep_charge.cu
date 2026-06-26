@@ -143,8 +143,6 @@ NEP_Charge::NEP_Charge(
   Parameters& para,
   int N,
   int Nc,
-  int N_times_max_NN_radial,
-  int N_times_max_NN_angular,
   int version,
   int deviceCount)
 {
@@ -235,7 +233,7 @@ NEP_Charge::NEP_Charge(
   }
 }
 
-void NEP_Charge::update_potential(Parameters& para, float* parameters, ANN& ann)
+void NEP_Charge::update_potential(float* parameters, ANN& ann)
 {
   const int num_outputs = 2;
   float* pointer = parameters;
@@ -1174,7 +1172,7 @@ void NEP_Charge::find_force(
     CHECK(gpuSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
-    update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
+    update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
