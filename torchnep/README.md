@@ -1,6 +1,6 @@
 # TorchNEP
 
-A pure PyTorch implementation of the [NEP4](https://gpumd.org/theory/nep.html) (Neuroevolution Potential) training framework.
+A pure PyTorch implementation of the [NEP4](https://gpumd.org/potentials/nep.html) (Neuroevolution Potential) training framework.
 
 ## Features
 
