@@ -32,6 +32,35 @@ from .data import read_xyz
 from . import ops
 
 
+# GPUMD writes this sentinel into the reference column of virial_train.out /
+# stress_train.out for structures that carry no reference virial (see GPUMD
+# src/main_nep/structure.cu: ``structure.virial[m] = -1e6``). For stress it
+# also skips the unit conversion when the reference is below -1e5 (fitness.cu,
+# ``if (ref_value > -1e5)``). We mirror both so a missing virial reads as
+# -1e6 (not NaN) and the files stay drop-in comparable for third-party tools.
+_MISSING_VIRIAL = -1e6
+_MISSING_VIRIAL_CUTOFF = -1e5
+
+
+def _stress_from_virial(virial_pa, nat_col, vol_col, keep_missing):
+    """Per-atom virial (eV/atom) -> stress (GPa), matching GPUMD's sign:
+    ``stress = +virial_total / V`` (so stress shares virial's sign, unlike a
+    physical Cauchy stress).
+
+    ``virial_pa``   : (n, 6) per-atom virial.
+    ``nat_col``     : (n, 1) atom counts.
+    ``vol_col``     : (n, 1) cell volumes (<=0 treated as 1 to avoid div-by-0).
+    ``keep_missing``: if True, rows holding the -1e6 missing-virial sentinel are
+                      passed through unscaled (GPUMD's reference-column rule).
+    """
+    from .constants import EV_PER_A3_TO_GPa
+    vol_safe = np.where(vol_col > 0, vol_col, 1.0)
+    stress = virial_pa * (nat_col / vol_safe * EV_PER_A3_TO_GPa)
+    if keep_missing:
+        stress = np.where(virial_pa > _MISSING_VIRIAL_CUTOFF, stress, virial_pa)
+    return stress
+
+
 def _virial9_to_6(v9):
     r"""Re-order length-9 row-major virial (xx,xy,xz,yx,yy,yz,zx,zy,zz) into
     the GPUMD 6-vector (xx,yy,zz,xy,yz,zx).
@@ -183,7 +212,7 @@ def predict_dataset(
                     np.asarray(f).reshape(-1, 3)
 
     has_virial_global = any(s.get("virial") is not None for s in structures)
-    virial_ref = np.full((n_struct, 6), np.nan, dtype=np.float64)
+    virial_ref = np.full((n_struct, 6), _MISSING_VIRIAL, dtype=np.float64)
     if has_virial_global:
         # Per-atom virial, to match GPUMD's *_train.out columns. Off-diagonal
         # pairs are picked the same way as the prediction, so the two columns
@@ -342,20 +371,15 @@ def predict_dataset(
     np.savetxt(os.path.join(output_dir, "virial_train.out"),
                np.column_stack([v_pred_arr, virial_ref]), fmt="%.10g")
 
-    # Stress = -virial_total / V * EV_PER_A3_TO_GPa  (GPa). The negative
-    # sign makes the round-trip XYZ-stress <-> output-stress consistent:
-    # data.py reads a stress= tag as virial = -stress * V, so emitting
-    # stress_out = -virial / V cancels that flip and the user sees the
-    # same sign on input and output (positive = tensile per torchnep/GPUMD
-    # README). NOTE this differs from GPUMD's own stress_train.out by a
-    # sign — GPUMD writes +virial/V, inheriting its internal virial sign.
-    from .constants import EV_PER_A3_TO_GPa
+    # Stress (GPa) = +virial_total / V * EV_PER_A3_TO_GPa, matching GPUMD's
+    # convention so stress and virial carry the same sign (see
+    # _stress_from_virial). Missing references keep the -1e6 sentinel unscaled.
     nat_col = natoms_arr.astype(np.float64)[:, None]
     vol_col = volumes_arr[:, None]
-    vol_safe = np.where(vol_col > 0, vol_col, 1.0)
-    scale = -nat_col / vol_safe * EV_PER_A3_TO_GPa
-    stress_pred = v_pred_arr * scale
-    stress_ref = virial_ref * scale
+    stress_pred = _stress_from_virial(v_pred_arr, nat_col, vol_col,
+                                      keep_missing=False)
+    stress_ref = _stress_from_virial(virial_ref, nat_col, vol_col,
+                                     keep_missing=True)
     np.savetxt(os.path.join(output_dir, "stress_train.out"),
                np.column_stack([stress_pred, stress_ref]), fmt="%.10g")
 
@@ -448,7 +472,7 @@ def predict_from_store(model, data_store, output_dir: str,
             a_lo, a_hi = int(nat_cum[i]), int(nat_cum[i + 1])
             forces_ref[a_lo:a_hi] = data_store.forces[i].cpu().numpy()
 
-    virial_ref = np.full((n_struct, 6), np.nan, dtype=np.float64)
+    virial_ref = np.full((n_struct, 6), _MISSING_VIRIAL, dtype=np.float64)
     for i in range(n_struct):
         if data_store.has_virial_flag[i]:
             v9 = data_store.virial[i].cpu().numpy().flatten()  # length-9
@@ -472,17 +496,15 @@ def predict_from_store(model, data_store, output_dir: str,
     np.savetxt(os.path.join(output_dir, "virial_train.out"),
                np.column_stack([v_pred, virial_ref]), fmt="%.10g")
 
-    # Stress (GPa) = -virial_total / V * conversion. Sign picked so round-
-    # trip XYZ-stress <-> output-stress is consistent (see predict_dataset
-    # for the derivation; differs from GPUMD's stress_train.out by a sign).
-    from .constants import EV_PER_A3_TO_GPa
+    # Stress (GPa) = +virial_total / V * conversion (GPUMD sign; see
+    # predict_dataset / _stress_from_virial). Missing refs keep -1e6 unscaled.
     vol_arr = data_store.volumes.detach().cpu().numpy().astype(np.float64)
     nat_col = nat_arr.astype(np.float64)[:, None]
     vol_col = vol_arr[:, None]
-    vol_safe = np.where(vol_col > 0, vol_col, 1.0)
-    scale = -nat_col / vol_safe * EV_PER_A3_TO_GPa
-    stress_pred = v_pred * scale
-    stress_ref = virial_ref * scale
+    stress_pred = _stress_from_virial(v_pred, nat_col, vol_col,
+                                      keep_missing=False)
+    stress_ref = _stress_from_virial(virial_ref, nat_col, vol_col,
+                                     keep_missing=True)
     np.savetxt(os.path.join(output_dir, "stress_train.out"),
                np.column_stack([stress_pred, stress_ref]), fmt="%.10g")
 
@@ -553,7 +575,7 @@ def _compute_local_predictions(model, data_store, batch_size, backend):
             a_lo, a_hi = int(nat_cum[i]), int(nat_cum[i + 1])
             forces_ref[a_lo:a_hi] = data_store.forces[i].cpu().numpy()
 
-    virial_ref = np.full((n_struct, 6), np.nan, dtype=np.float64)
+    virial_ref = np.full((n_struct, 6), _MISSING_VIRIAL, dtype=np.float64)
     for i in range(n_struct):
         if data_store.has_virial_flag[i]:
             v9 = data_store.virial[i].cpu().numpy().flatten()
@@ -576,7 +598,6 @@ def _write_predictions(output_dir: str, n_total_frames: int,
                        e_pred, e_ref, f_pred, f_ref, v_pred, v_ref):
     """Write the four *_train.out files in frame-order. All arrays are
     already in global input-xyz order (frame 0 first)."""
-    from .constants import EV_PER_A3_TO_GPa
     os.makedirs(output_dir, exist_ok=True)
 
     np.savetxt(os.path.join(output_dir, "energy_train.out"),
@@ -586,12 +607,15 @@ def _write_predictions(output_dir: str, n_total_frames: int,
     np.savetxt(os.path.join(output_dir, "virial_train.out"),
                np.column_stack([v_pred, v_ref]), fmt="%.10g")
 
+    # Stress (GPa), GPUMD sign (+virial/V); missing refs keep -1e6 unscaled.
     nat_col = natoms.astype(np.float64)[:, None]
     vol_col = volumes[:, None]
-    vol_safe = np.where(vol_col > 0, vol_col, 1.0)
-    scale = -nat_col / vol_safe * EV_PER_A3_TO_GPa
+    stress_pred = _stress_from_virial(v_pred, nat_col, vol_col,
+                                      keep_missing=False)
+    stress_ref = _stress_from_virial(v_ref, nat_col, vol_col,
+                                     keep_missing=True)
     np.savetxt(os.path.join(output_dir, "stress_train.out"),
-               np.column_stack([v_pred * scale, v_ref * scale]), fmt="%.10g")
+               np.column_stack([stress_pred, stress_ref]), fmt="%.10g")
 
 
 def predict_from_store_sharded(model, data_store, local_global_idx,
@@ -653,7 +677,7 @@ def predict_from_store_sharded(model, data_store, local_global_idx,
     e_pred_g = np.full(n_total_frames, np.nan)
     e_ref_g  = np.full(n_total_frames, np.nan)
     v_pred_g = np.full((n_total_frames, 6), np.nan)
-    v_ref_g  = np.full((n_total_frames, 6), np.nan)
+    v_ref_g  = np.full((n_total_frames, 6), _MISSING_VIRIAL)
 
     # First pass: frame-level arrays + natoms (to size the atom-level arrays).
     for part in gathered:

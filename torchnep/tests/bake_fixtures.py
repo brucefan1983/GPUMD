@@ -38,7 +38,8 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR.parent))
 
 from torchnep.data import read_xyz
-from _common import (FIXTURES, parse_nep_header, write_gpumd_xyz, write_nep_in)
+from _common import (FIXTURES, DATA_DIR, parse_nep_header, write_gpumd_xyz,
+                     write_nep_in, write_virial_mix_xyz)
 
 
 GPUMD_NEP = os.environ.get("GPUMD_NEP", "/u/22/wuy33/unix/Study/GPUMD/src/nep")
@@ -103,6 +104,33 @@ def bake_one(fixture: dict) -> None:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def bake_virial_mix() -> None:
+    """Bake GPUMD's full virial_train.out / stress_train.out (both predicted
+    and reference columns) for the mixed-virial fixture, so the output-parity
+    test can check predict_dataset against GPUMD without a GPUMD build."""
+    print("baking virial_mix", flush=True)
+    nep = DATA_DIR / "nep_CrCoNi.txt"
+    frames = read_xyz(str(DATA_DIR / "CrCoNi.xyz"))
+    hdr = parse_nep_header(nep)
+
+    workdir = Path(tempfile.mkdtemp(prefix="bake_virial_mix_"))
+    try:
+        shutil.copy(nep, workdir / "nep.txt")
+        write_virial_mix_xyz(frames, workdir / "train.xyz")
+        write_nep_in(hdr, workdir / "nep.in", output_descriptor=0)
+        _run_gpumd(workdir)
+
+        # 12 columns each: 0..5 predicted (per-atom virial / stress in GPa),
+        # 6..11 reference (-1e6 sentinel where the frame has no virial).
+        v_out = np.loadtxt(workdir / "virial_train.out").reshape(-1, 12)
+        s_out = np.loadtxt(workdir / "stress_train.out").reshape(-1, 12)
+        ref = DATA_DIR / "virial_mix.gpumd.npz"
+        np.savez(ref, virial_out=v_out, stress_out=s_out)
+        print(f"    wrote {ref}  (virial:{v_out.shape} stress:{s_out.shape})")
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def main() -> int:
     if not Path(GPUMD_NEP).is_file():
         sys.exit(f"GPUMD nep binary not found: {GPUMD_NEP}")
@@ -110,6 +138,7 @@ def main() -> int:
 
     for fx in FIXTURES:
         bake_one(fx)
+    bake_virial_mix()
 
     print("\nAll fixtures regenerated.")
     return 0

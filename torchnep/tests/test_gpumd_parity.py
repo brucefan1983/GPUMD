@@ -47,12 +47,12 @@ import torch
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR.parent))
 
-from torchnep import ops
+from torchnep import ops, predict_dataset
 from torchnep.data import read_xyz, build_neighbor_list_np
 from torchnep.nep import NEPCalculator
 from torchnep.model import NEPModel
-from _common import (DTYPE_MAP, NP_DTYPE_MAP, FIXTURES, devices, dtypes,
-                     load_reference)
+from _common import (DTYPE_MAP, NP_DTYPE_MAP, DATA_DIR, FIXTURES, devices,
+                     dtypes, load_reference, write_virial_mix_xyz)
 
 
 # Single-frame neighbor-list + batch builders. These mirror what the training
@@ -342,3 +342,39 @@ def test_train_vs_predict(fixture, device, dtype_s):
     print("\n" + msg)
     assert dF < tol, f"{msg}  (F tol={tol})"
     assert dV < tol, f"{msg}  (V tol={tol})"
+
+
+@_DEV
+def test_output_parity_with_gpumd(device, tmp_path):
+    """predict_dataset's virial_train.out / stress_train.out match GPUMD column
+    for column on a mixed-virial dataset — covering the stress sign (+virial/V,
+    GPUMD convention) and the -1e6 missing-virial sentinel. The GPUMD reference
+    (both predicted and reference columns) is baked in virial_mix.gpumd.npz.
+    """
+    ref = np.load(DATA_DIR / "virial_mix.gpumd.npz")
+    g_vir, g_str = ref["virial_out"], ref["stress_out"]   # (3, 12) each
+
+    frames = read_xyz(str(DATA_DIR / "CrCoNi.xyz"))
+    xyz = tmp_path / "virial_mix.xyz"
+    write_virial_mix_xyz(frames, xyz)
+
+    # GPUMD computes in float32, so float32 is the tightest comparison.
+    predict_dataset(str(DATA_DIR / "nep_CrCoNi.txt"), str(xyz),
+                    output_dir=str(tmp_path), dtype="float32",
+                    device=device, verbose=False)
+    t_vir = np.loadtxt(tmp_path / "virial_train.out").reshape(-1, 12)
+    t_str = np.loadtxt(tmp_path / "stress_train.out").reshape(-1, 12)
+
+    # Frame 1 has no virial -> reference columns 6..11 are the -1e6 sentinel in
+    # both files; frames 0/2 carry a real virial. allclose handles both (the
+    # sentinel is bit-identical, real values agree at the float32 GPUMD floor).
+    for name, g, t in [("virial", g_vir, t_vir), ("stress", g_str, t_str)]:
+        d = float(np.abs(g - t).max())
+        print(f"\n[{name}_train.out {device:4s}] max|d|={d:.2e}")
+        assert np.allclose(t, g, rtol=1e-4, atol=1e-3), (
+            f"[{name}_train.out {device}] max|d|={d:.2e} exceeds tolerance")
+    # Explicit sentinel check: frame 1 reference columns are exactly -1e6.
+    assert np.all(t_vir[1, 6:] == -1e6)
+    assert np.all(t_str[1, 6:] == -1e6)
+    # Explicit sign check: predicted stress shares the predicted virial's sign.
+    assert np.array_equal(np.sign(t_str[:, :6]), np.sign(t_vir[:, :6]))

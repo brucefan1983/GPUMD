@@ -123,6 +123,43 @@ def write_gpumd_xyz(frames, dst_path: Path) -> None:
     dst_path.write_text("\n".join(lines) + "\n")
 
 
+# Mixed-virial fixture: first three CrCoNi frames, with an explicit virial tag
+# on frames 0 and 2 and NONE on frame 1. Exercises predict_dataset's output
+# parity with GPUMD for both the present-virial path (reference scaled to
+# stress) and the missing-virial path (reference written as the -1e6 sentinel
+# in both virial_train.out and stress_train.out). The baker and the test both
+# build the input from this single definition so they stay in lock-step.
+VIRIAL_MIX_NAME = "virial_mix"
+VIRIAL_MIX_NFRAMES = 3
+VIRIAL_MIX = {            # frame index -> 9-component (row-major) virial string
+    0: "12 1 2 1 25 3 2 3 31",
+    2: "-8 0.5 0 0.5 -6 1 0 1 -7",
+}
+
+
+def write_virial_mix_xyz(frames, dst_path: Path) -> None:
+    """Write the mixed-virial fixture (GPUMD-compatible: energy + force column,
+    plus a virial tag on the frames named in ``VIRIAL_MIX``). Forces are zero —
+    only the virial/stress columns are under test."""
+    lines = []
+    for k, fr in enumerate(frames[:VIRIAL_MIX_NFRAMES]):
+        na = fr["natoms"]
+        cell = " ".join(f"{x:.10f}" for x in np.asarray(fr["cell"]).reshape(-1))
+        tag = f"energy={-3.0 * na:.6f} "
+        if k in VIRIAL_MIX:
+            tag += f'virial="{VIRIAL_MIX[k]}" '
+        tag += (f'pbc="T T T" Lattice="{cell}" '
+                f'Properties=species:S:1:pos:R:3:force:R:3')
+        lines.append(str(na))
+        lines.append(tag)
+        pos = np.asarray(fr["positions"])
+        sp = list(fr["species"])
+        for i in range(na):
+            x, y, z = pos[i]
+            lines.append(f"{sp[i]} {x:.10f} {y:.10f} {z:.10f} 0.0 0.0 0.0")
+    dst_path.write_text("\n".join(lines) + "\n")
+
+
 def parse_nep_header(nep_path: Path) -> dict:
     """Extract just the architecture fields we need to reconstruct nep.in for
     GPUMD prediction mode (cutoff / n_max / basis_size / l_max / neuron /
