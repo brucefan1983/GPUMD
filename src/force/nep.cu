@@ -355,8 +355,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.NL_angular.resize(static_cast<size_t>(num_atoms) * paramb.MN_angular);
   nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
   nep_data.sum_fxyz.resize(
-    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) *
-    ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
@@ -543,8 +542,7 @@ static __global__ void find_descriptor(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) *
-          (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
@@ -768,8 +766,7 @@ static __global__ void find_partial_force_angular(
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[static_cast<size_t>(N) *
-            (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
+          g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
       }
     }
 
@@ -1438,8 +1435,7 @@ static __global__ void find_descriptor(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) *
-          (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
