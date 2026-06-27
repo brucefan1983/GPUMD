@@ -118,7 +118,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
   extern __shared__ int atom_index_copy[];
 
   if (tid < neighbor_number) {
-    atom_index = NL[bid + tid * N];
+    atom_index = NL[static_cast<size_t>(N) * tid + bid];
     atom_index_copy[tid] = atom_index;
   }
   int count = 0;
@@ -131,7 +131,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
   }
 
   if (tid < neighbor_number) {
-    NL[bid + count * N] = atom_index;
+    NL[static_cast<size_t>(N) * count + bid] = atom_index;
   }
 }
 
@@ -146,13 +146,13 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
 
   if (neighbor_number <= 1024) {
     if (tid < neighbor_number) {
-      atom_index = NL[bid + tid * N];
+      atom_index = NL[static_cast<size_t>(N) * tid + bid];
       atom_index_copy[tid] = atom_index;
     }
   } else {
     int tid_plus = tid;
     for (int i = 0; tid_plus < neighbor_number; ++i) {
-      atom_index = NL[bid + tid_plus * N];
+      atom_index = NL[static_cast<size_t>(N) * tid_plus + bid];
       atom_index_copy[tid_plus] = atom_index;
       atom_index_hold[i] = atom_index;
       tid_plus += 1024;
@@ -169,7 +169,7 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
     }
 
     if (tid < neighbor_number) {
-      NL[bid + count * N] = atom_index;
+      NL[static_cast<size_t>(N) * count + bid] = atom_index;
     }
   } else {
     int tid_plus = tid;
@@ -184,7 +184,7 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
       }
 
       if (tid_plus < neighbor_number) {
-        NL[bid + count * N] = atom_index;
+        NL[static_cast<size_t>(N) * count + bid] = atom_index;
       }
       tid_plus += 1024;
     }

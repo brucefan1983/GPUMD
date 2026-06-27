@@ -109,17 +109,19 @@ static __global__ void find_neighbor_list_small_box(
             float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
 
             if (distance_square < rc_radial * rc_radial) {
-              g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = x12;
-              g_y12_radial[count_radial * N + n1] = y12;
-              g_z12_radial[count_radial * N + n1] = z12;
+              const size_t index = static_cast<size_t>(N) * count_radial + n1;
+              g_NL_radial[index] = n2;
+              g_x12_radial[index] = x12;
+              g_y12_radial[index] = y12;
+              g_z12_radial[index] = z12;
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
-              g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = x12;
-              g_y12_angular[count_angular * N + n1] = y12;
-              g_z12_angular[count_angular * N + n1] = z12;
+              const size_t index = static_cast<size_t>(N) * count_angular + n1;
+              g_NL_angular[index] = n2;
+              g_x12_angular[index] = x12;
+              g_y12_angular[index] = y12;
+              g_z12_angular[index] = z12;
               count_angular++;
             }
           }
@@ -164,7 +166,7 @@ static __global__ void find_descriptor_small_box(
 
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
-      int index = i1 * N + n1;
+      size_t index = static_cast<size_t>(N) * i1 + n1;
       int n2 = g_NL_radial[index];
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -190,7 +192,7 @@ static __global__ void find_descriptor_small_box(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int index = i1 * N + n1;
+        size_t index = static_cast<size_t>(N) * i1 + n1;
         int n2 = g_NL_angular[index];
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -213,7 +215,8 @@ static __global__ void find_descriptor_small_box(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) *
+          (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
@@ -286,7 +289,7 @@ static __global__ void find_descriptor_small_box(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -321,7 +324,7 @@ static __global__ void find_descriptor_small_box(
 
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
-      int index = i1 * N + n1;
+      size_t index = static_cast<size_t>(N) * i1 + n1;
       int n2 = g_NL_radial[index];
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -347,7 +350,7 @@ static __global__ void find_descriptor_small_box(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int index = i1 * N + n1;
+        size_t index = static_cast<size_t>(N) * i1 + n1;
         int n2 = g_NL_angular[index];
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
@@ -370,7 +373,8 @@ static __global__ void find_descriptor_small_box(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) *
+          (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
@@ -388,7 +392,7 @@ static __global__ void find_descriptor_small_box(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -416,7 +420,7 @@ static __global__ void find_force_radial_small_box(
   if (n1 < N2) {
     int t1 = g_type[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
+      size_t index = static_cast<size_t>(N) * i1 + n1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
@@ -437,7 +441,7 @@ static __global__ void find_force_radial_small_box(
           c_index += t1 * paramb.num_types + t2;
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+        float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
         }
@@ -517,20 +521,21 @@ static __global__ void find_force_angular_small_box(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      Fp[d] = g_Fp[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d) + n1];
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         sum_fxyz[n * NUM_OF_ABC + abc] = 
-          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
+          g_sum_fxyz[static_cast<size_t>(N) *
+            (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
       }
     }
 
     int t1 = g_type[n1];
 
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL_angular[n1 + N * i1];
+      size_t index = static_cast<size_t>(N) * i1 + n1;
+      int n2 = g_NL_angular[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
@@ -639,7 +644,7 @@ static __global__ void find_force_ZBL_small_box(
     int zi = zbl.atomic_numbers[type1];
     float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
+      size_t index = static_cast<size_t>(N) * i1 + n1;
       int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);

@@ -150,7 +150,7 @@ static __global__ void gpu_find_neighbor_ON1(
               const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square) {
-                NL[count++ * N + n1] = n2;
+                NL[static_cast<size_t>(N) * count++ + n1] = n2;
               }
             }
           }
@@ -424,9 +424,9 @@ static __global__ void gpu_find_neighbor_ON1_ilp(
 
               bool different_layer = group_label[n1] != group_label[n2];
               if (different_layer && d2 < cutoff_square) {
-                NL[count++ * N + n1] = n2;
+                NL[static_cast<size_t>(N) * count++ + n1] = n2;
               } else if (!different_layer && d2 < big_ilp_cutoff_square) {
-                big_ilp_NL[ilp_count++ * N + n1] = n2;
+                big_ilp_NL[static_cast<size_t>(N) * ilp_count++ + n1] = n2;
               }
 
             }
@@ -574,7 +574,7 @@ static __global__ void gpu_find_neighbor_ON1_SW(
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square && group_label[n1] ==  group_label[n2]) {
-                NL[count++ * N + n1] = n2;
+                NL[static_cast<size_t>(N) * count++ + n1] = n2;
               }
             }
           }
@@ -720,7 +720,7 @@ __global__ void gpu_find_local_neighbor_from_global(
   int count_local = 0;
 
   for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
-    int n2 = g_NL_global[n1 + N * i1];
+    int n2 = g_NL_global[static_cast<size_t>(N) * i1 + n1];
     float x12 = g_x[n2] - x1;
     float y12 = g_y[n2] - y1;
     float z12 = g_z[n2] - z1;
@@ -730,7 +730,7 @@ __global__ void gpu_find_local_neighbor_from_global(
     if (d12_square >= rc_square) {
       continue;
     }
-    g_NL_local[count_local++ * N + n1] = n2;
+    g_NL_local[static_cast<size_t>(N) * count_local++ + n1] = n2;
   }
 
   g_NN_local[n1] = count_local;
@@ -826,7 +826,7 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   const double rc_plus_skin = rc + skin;
   const int MN = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
   NN.resize(num_atoms);
-  NL.resize(num_atoms * MN);
+  NL.resize(static_cast<size_t>(num_atoms) * MN);
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
