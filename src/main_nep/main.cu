@@ -29,6 +29,9 @@ void print_welcome_information(void);
 
 int main(int argc, char* argv[])
 {
+  (void)argc;
+  (void)argv;
+
   print_welcome_information();
   print_gpu_information();
 

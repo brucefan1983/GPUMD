@@ -352,7 +352,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
   if (para.prediction == 0) {
     for (int n = 0; n < maximum_generation; ++n) {
-      create_population(para);
+      create_population();
       fitness_function->compute(
         n, 
         para, 
@@ -376,17 +376,17 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         fitness_L2[para.num_types * population_size + best_index],
         population.data() + number_of_variables * best_index);
 
-      update_mu_and_sigma(para);
+      update_mu_and_sigma();
       if (0 == (n + 1) % 100) {
         const char* filename = "nep.restart";
-        output_mu_and_sigma(para, filename);
+        output_mu_and_sigma(filename);
       }
       // Optionally save the nep.restart file at the same time as save_potential
       if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
         std::string restart_file;
         fitness_function->get_save_potential_label(para, n, restart_file);
         restart_file += ".restart";
-        output_mu_and_sigma(para, restart_file.c_str());
+        output_mu_and_sigma(restart_file.c_str());
       }
     }
   } else {
@@ -442,7 +442,7 @@ static __global__ void gpu_create_population(
   }
 }
 
-void SNES::create_population(Parameters& para)
+void SNES::create_population()
 {
   gpuSetDevice(0); // normally use GPU-0
   const int N = population_size * number_of_variables;
@@ -590,7 +590,7 @@ static __global__ void gpu_update_mu_and_sigma(
   }
 }
 
-void SNES::update_mu_and_sigma(Parameters& para)
+void SNES::update_mu_and_sigma()
 {
   gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
@@ -609,7 +609,7 @@ void SNES::update_mu_and_sigma(Parameters& para)
   GPU_CHECK_KERNEL;
 }
 
-void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
+void SNES::output_mu_and_sigma(const char* filename)
 {
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());

@@ -16,10 +16,17 @@
 ###########################################################
 CC = nvcc
 CUDA_ARCH=-arch=sm_60
+WARN_FLAGS = -Wall -Wextra
+WARN_FLAGS += -Wno-sign-compare -Wno-unused-parameter
+WARN_FLAGS += -Wnull-dereference -Wstringop-overflow -Wstringop-truncation -Wrestrict
+WARN_FLAGS += -Wduplicated-cond -Wduplicated-branches -Wlogical-op
+WARN_FLAGS += -Wsequence-point -Wswitch-default
+WARN_FLAGS += -Wcast-align -Wcast-qual -Wvla
+WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH)
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
 INC = -I./
 LDFLAGS = 

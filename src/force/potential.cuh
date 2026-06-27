@@ -45,23 +45,23 @@ public:
     GPU_Vector<double>& virial) = 0;
 
   virtual void compute(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial){};
+    const float /* temperature */,
+    Box& /* box */,
+    const GPU_Vector<int>& /* type */,
+    const GPU_Vector<double>& /* position */,
+    GPU_Vector<double>& /* potential */,
+    GPU_Vector<double>& /* force */,
+    GPU_Vector<double>& /* virial */){}
 
   // add group message for ILPs
   virtual void compute_ilp(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial,
-    std::vector<Group>& group){};
+    Box& /* box */,
+    const GPU_Vector<int>& /* type */,
+    const GPU_Vector<double>& /* position */,
+    GPU_Vector<double>& /* potential */,
+    GPU_Vector<double>& /* force */,
+    GPU_Vector<double>& /* virial */,
+    std::vector<Group>& /* group */){}
 
   virtual const GPU_Vector<int>& get_NN_radial_ptr()
   {

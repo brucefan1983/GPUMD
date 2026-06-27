@@ -124,15 +124,12 @@ Fitness::Fitness(Parameters& para)
   }
 
   if (para.train_mode == 1 || para.train_mode == 2) {
-    potential.reset(
-      new TNEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+    potential.reset(new TNEP(para, N, para.version, deviceCount));
   } else {
     if (para.charge_mode) {
-      potential.reset(
-        new NEP_Charge(para, N, Nc, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+      potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
     } else {
-      potential.reset(
-        new NEP(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+      potential.reset(new NEP(para, N, para.version, deviceCount));
     }
   }
 
@@ -692,8 +689,8 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_energy = my_fopen("energy_train.out", "w");
     FILE* fid_virial = my_fopen("virial_train.out", "w");
     FILE* fid_stress = my_fopen("stress_train.out", "w");
-    FILE* fid_charge;
-    FILE* fid_bec;
+    FILE* fid_charge = nullptr;
+    FILE* fid_bec = nullptr;
     if (para.charge_mode) {
       fid_charge = my_fopen("charge_train.out", "w");
       if (para.has_bec) {
