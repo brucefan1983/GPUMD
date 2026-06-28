@@ -37,10 +37,9 @@ import numpy as np
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR.parent))
 
-from torchnep.data import read_xyz, parse_nep_in
-from torchnep.model import NEPModel
+from torchnep.data import read_xyz
 from _common import (FIXTURES, DATA_DIR, parse_nep_header, write_gpumd_xyz,
-                     write_nep_in, write_virial_mix_xyz, QSCALER_NEP_IN)
+                     write_nep_in, write_virial_mix_xyz)
 
 
 GPUMD_NEP = os.environ.get("GPUMD_NEP", "/u/22/wuy33/unix/Study/GPUMD/src/nep")
@@ -132,30 +131,6 @@ def bake_virial_mix() -> None:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def bake_qscaler() -> None:
-    """Bake GPUMD's generation-0 q_scaler (descriptor coefficients = 1.0,
-    1/(max-min) per dimension over the full CrCoNi set). Lets the q_scaler
-    parity test check compute_q_scaler against GPUMD without a GPUMD build."""
-    print("baking qscaler", flush=True)
-    frames = read_xyz(str(DATA_DIR / "CrCoNi.xyz"))
-    workdir = Path(tempfile.mkdtemp(prefix="bake_qscaler_"))
-    try:
-        (workdir / "nep.in").write_text(QSCALER_NEP_IN)
-        write_gpumd_xyz(frames, workdir / "train.xyz")
-        _run_gpumd(workdir)
-        # q_scaler is the trailing `dim` single-value lines of nep.txt.
-        dim = NEPModel(parse_nep_in(str(workdir / "nep.in"))).dim
-        vals = [float(p[0]) for p in
-                (ln.split() for ln in (workdir / "nep.txt").read_text().splitlines())
-                if len(p) == 1]
-        q_scaler = np.array(vals[-dim:])
-        ref = DATA_DIR / "qscaler_CrCoNi.gpumd.npz"
-        np.savez(ref, q_scaler=q_scaler)
-        print(f"    wrote {ref}  (q_scaler:{q_scaler.shape})")
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
-
-
 def main() -> int:
     if not Path(GPUMD_NEP).is_file():
         sys.exit(f"GPUMD nep binary not found: {GPUMD_NEP}")
@@ -164,7 +139,6 @@ def main() -> int:
     for fx in FIXTURES:
         bake_one(fx)
     bake_virial_mix()
-    bake_qscaler()
 
     print("\nAll fixtures regenerated.")
     return 0
