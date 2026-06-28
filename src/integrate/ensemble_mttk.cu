@@ -621,7 +621,7 @@ double Ensemble_MTTK::find_current_temperature()
 // propagate eta_dot by 1/2 step
 void Ensemble_MTTK::nhc_temp_integrate()
 {
-  double expfac;
+  double expfac = 0;
   for (int n = 0; n < tchain; n++)
     Q[n] = kB * t_target / (t_freq * t_freq);
   Q[0] *= temperature_dof;
@@ -654,7 +654,7 @@ void Ensemble_MTTK::nhc_press_integrate()
 {
 
   int cell_dof; // DOF of cell
-  double expfac, factor_eta_p;
+  double expfac = 0;
   double kT;
   double ke_omega_current, ke_omega_target;
 
@@ -698,7 +698,7 @@ void Ensemble_MTTK::nhc_press_integrate()
     eta_p_dot[n] = (eta_p_dot[n] * expfac + eta_p_dotdot[n] * dt4) * expfac;
   }
 
-  factor_eta_p = exp(-dt2 * eta_p_dot[0]);
+  double factor_eta_p = exp(-dt2 * eta_p_dot[0]);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j])

@@ -79,8 +79,6 @@ public:
   NEP(
     Parameters& para,
     int N,
-    int N_times_max_NN_radial,
-    int N_times_max_NN_angular,
     int version,
     int deviceCount);
   void find_force(
@@ -95,5 +93,5 @@ private:
   ANN annmb[16];
   NEP_Data nep_data[16];
   ZBL zbl;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  void update_potential(float* parameters, ANN& ann);
 };

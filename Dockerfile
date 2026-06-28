@@ -31,6 +31,7 @@ RUN pip3 install --break-system-packages --no-cache-dir \
       sphinx-rtd-theme \
       sphinx_sitemap \
       sphinxcontrib-bibtex \
+      sphinx-tabs \
       nbsphinx
 
 CMD ["/bin/bash"]

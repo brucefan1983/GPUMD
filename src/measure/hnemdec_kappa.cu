@@ -210,7 +210,8 @@ void HNEMDEC::process(
     }
 
     double volume = box.get_volume();
-    double factor1, factor2;
+    double factor1 = 0;
+    double factor2 = 0;
     if (compute == 0) {
       factor1 = KAPPA_UNIT_CONVERSION / output_interval;
       factor1 /= (volume * temperature * fe);

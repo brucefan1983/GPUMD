@@ -44,14 +44,13 @@ public:
     GPU_Vector<double>& thermo) = 0;
 
   virtual void compute3(
-    const double time_step,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atom,
-    GPU_Vector<double>& thermo,
-    Force& force){
-
-  };
+    const double /* time_step */,
+    const std::vector<Group>& /* group */,
+    Box& /* box */,
+    Atom& /* atom */,
+    GPU_Vector<double>& /* thermo */,
+    Force& /* force */){
+  }
 
   void find_thermo(
     const bool use_target_temperature,

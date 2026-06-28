@@ -684,8 +684,6 @@ static __device__ void calc_vdW(
   Vilp = -C_6 * r6inv * TSvdwinv_float;
 
   // derivatives
-  // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
-  //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
   fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r ) * C_6 * TSvdwinv_float * r8inv;
   fsum = fpair * Tap - Vilp * dTap * rinv;
 

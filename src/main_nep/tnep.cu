@@ -144,8 +144,6 @@ static __global__ void find_descriptors_angular(
 TNEP::TNEP(
   Parameters& para,
   int N,
-  int N_times_max_NN_radial,
-  int N_times_max_NN_angular,
   int version,
   int deviceCount)
 {

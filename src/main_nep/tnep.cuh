@@ -71,8 +71,6 @@ public:
   TNEP(
     Parameters& para,
     int N,
-    int N_times_max_NN_radial,
-    int N_times_max_NN_angular,
     int version,
     int deviceCount);
   void find_force(
