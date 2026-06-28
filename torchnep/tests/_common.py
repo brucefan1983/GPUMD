@@ -123,6 +123,25 @@ def write_gpumd_xyz(frames, dst_path: Path) -> None:
     dst_path.write_text("\n".join(lines) + "\n")
 
 
+# q_scaler GPUMD-parity fixture. The descriptor coefficients are all 1.0
+# (GPUMD's generation-0 ``initial_para``) and q_scaler = 1/(max-min) per
+# dimension over the dataset. ``batch`` is set larger than the frame count so
+# GPUMD computes the GLOBAL range in one batch — GPUMD otherwise takes the min
+# of the per-batch 1/(max-min), which depends on batch size; the global value
+# (what TorchNEP always computes) is what they agree on. l_max kept to the
+# 3-field legacy form to match nep_CrCoNi.txt.
+QSCALER_NEP_IN = """type 3 Cr Co Ni
+version 4
+cutoff 6 4
+n_max 8 8
+basis_size 12 12
+l_max 4 2 1
+neuron 80
+generation 100
+batch 1000
+"""
+
+
 # Mixed-virial fixture: first three CrCoNi frames, with an explicit virial tag
 # on frames 0 and 2 and NONE on frame 1. Exercises predict_dataset's output
 # parity with GPUMD for both the present-virial path (reference scaled to

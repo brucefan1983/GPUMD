@@ -127,7 +127,7 @@ from .train import (
     _trim_loss_log, _accumulate_true_loss_sums,
     _make_lr_scheduler, _scheduler_step,
     _compile_check, _quiet_compile_logs, _maybe_enable_tf32,
-    _clean_warning_format,
+    _clean_warning_format, _VIRIAL_6,
 )
 
 
@@ -640,8 +640,8 @@ def train_nep_sharded(
                         or os.path.getsize(loss_log_path) == 0)
         loss_log = open(loss_log_path, "w" if start_epoch == 1 else "a")
         if write_header:
-            loss_log.write("epoch  loss  rmse_e(eV/atom)  rmse_f(eV/A)  "
-                           "rmse_v(eV/atom)  rmse_stress(GPa)  gnorm\n")
+            loss_log.write("# epoch  loss  rmse_e(eV/atom)  rmse_f(eV/A)  "
+                           "rmse_v(eV/atom)  rmse_stress(GPa)\n")
 
     # All training hyperparameters (lr/scheduler/loss weights/stage2 ...)
     # already printed by format_config_summary above; here we just announce
@@ -807,18 +807,20 @@ def train_nep_sharded(
                     v_ref = batch["virial"]
                     if v_ref.shape[1] == 9:
                         na = batch["natoms"][v_mask].unsqueeze(-1)
-                        v_pred_pa = v_sys[v_mask] / na
-                        v_ref_pa = v_ref[v_mask] / na
+                        # 6 unique components only (see _VIRIAL_6); all 9 would
+                        # weight the symmetric off-diagonals twice.
+                        v_pred_pa = v_sys[:, _VIRIAL_6][v_mask] / na
+                        v_ref_pa = v_ref[:, _VIRIAL_6][v_mask] / na
                         v_diff = v_pred_pa - v_ref_pa
                         sum_sq_v = (v_diff ** 2).sum()
-                        # 9 components per frame -> divide by (9 * n_v_g)
-                        loss = loss + cur_pref_v * sum_sq_v * ws / (9.0 * n_v_g)
-                        sum_lv += (sum_sq_v.item() / 9.0)
-                        # Stress (eV/A**3) = -virial_total / V. Sign cancels in MSE.
+                        # 6 components per frame -> divide by (6 * n_v_g)
+                        loss = loss + cur_pref_v * sum_sq_v * ws / (6.0 * n_v_g)
+                        sum_lv += (sum_sq_v.item() / 6.0)
+                        # Stress (eV/A**3) = virial_total / V. Sign cancels in MSE.
                         scale = (batch["natoms"][v_mask]
                                  / batch["volumes"][v_mask]).unsqueeze(-1)
                         sum_sq_s = ((v_diff * scale) ** 2).sum()
-                        sum_ls += (sum_sq_s.item() / 9.0)
+                        sum_ls += (sum_sq_s.item() / 6.0)
 
                 if lambda_1 > 0:
                     l1 = sum(p.abs().sum() for p in model.parameters())
@@ -886,8 +888,7 @@ def train_nep_sharded(
 
             if is_main:
                 loss_log.write(f"{epoch} {avg_loss:.6e} {rmse_e:.6f} "
-                               f"{rmse_f:.6f} {rmse_v:.6f} "
-                               f"{rmse_s_gpa:.4f} {max_gn:.2f}\n")
+                               f"{rmse_f:.6f} {rmse_v:.6f} {rmse_s_gpa:.4f}\n")
                 loss_log.flush()
 
                 stage_str = "[S2] " if in_stage2 else ""

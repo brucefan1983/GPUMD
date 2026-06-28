@@ -52,7 +52,8 @@ from torchnep.data import read_xyz, build_neighbor_list_np
 from torchnep.nep import NEPCalculator
 from torchnep.model import NEPModel
 from _common import (DTYPE_MAP, NP_DTYPE_MAP, DATA_DIR, FIXTURES, devices,
-                     dtypes, load_reference, write_virial_mix_xyz)
+                     dtypes, load_reference, write_virial_mix_xyz,
+                     QSCALER_NEP_IN)
 
 
 # Single-frame neighbor-list + batch builders. These mirror what the training
@@ -378,3 +379,35 @@ def test_output_parity_with_gpumd(device, tmp_path):
     assert np.all(t_str[1, 6:] == -1e6)
     # Explicit sign check: predicted stress shares the predicted virial's sign.
     assert np.array_equal(np.sign(t_str[:, :6]), np.sign(t_vir[:, :6]))
+
+
+@_DEV
+def test_qscaler_vs_gpumd(device, tmp_path):
+    """compute_q_scaler matches GPUMD's generation-0 q_scaler exactly.
+
+    GPUMD evaluates the descriptors with all coefficients = initial_para (1.0)
+    and sets q_scaler = 1/(max-min) per dimension; compute_q_scaler does the
+    same (descriptor coefficients forced to 1.0). The baked reference used a
+    full batch so GPUMD's per-batch min reduces to the global range that
+    compute_q_scaler computes. Deterministic — no dependence on weight init.
+    """
+    from torchnep.data import parse_nep_in
+    from torchnep.model import NEPModel
+    from torchnep.train import preprocess_structures, GPUDataStore, compute_q_scaler
+
+    g_qscaler = np.load(DATA_DIR / "qscaler_CrCoNi.gpumd.npz")["q_scaler"]
+
+    (tmp_path / "nep.in").write_text(QSCALER_NEP_IN)
+    cfg = parse_nep_in(str(tmp_path / "nep.in"))
+    frames = read_xyz(str(DATA_DIR / "CrCoNi.xyz"))
+
+    model = NEPModel(cfg).to(torch.float64).to(device)
+    structs = preprocess_structures(frames, cfg, np.float64)
+    ds = GPUDataStore(structs, torch.device(device), torch.float64, config=cfg)
+    q_min, q_max = compute_q_scaler(model, ds, backend="loop")
+    t_qscaler = (1.0 / torch.clamp(q_max - q_min, min=1e-10)).cpu().numpy()
+
+    d = float(np.abs(t_qscaler - g_qscaler).max())
+    print(f"\n[q_scaler {device:4s}] max|d|={d:.2e}")
+    assert np.allclose(t_qscaler, g_qscaler, rtol=1e-4, atol=1e-7), (
+        f"[q_scaler {device}] max|d|={d:.2e} exceeds tolerance")
