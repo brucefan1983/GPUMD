@@ -345,14 +345,14 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     zbl.num_types = paramb.num_types;
   }
 
-  nep_data.f12x.resize(static_cast<size_t>(num_atoms) * paramb.MN_angular);
-  nep_data.f12y.resize(static_cast<size_t>(num_atoms) * paramb.MN_angular);
-  nep_data.f12z.resize(static_cast<size_t>(num_atoms) * paramb.MN_angular);
+  nep_data.f12x.resize(num_atoms * paramb.MN_angular);
+  nep_data.f12y.resize(num_atoms * paramb.MN_angular);
+  nep_data.f12z.resize(num_atoms * paramb.MN_angular);
   neighbor.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
-  nep_data.NL_angular.resize(static_cast<size_t>(num_atoms) * paramb.MN_angular);
+  nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
   nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
   nep_data.sum_fxyz.resize(
     static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
@@ -446,7 +446,7 @@ static __global__ void find_neighbor_list_large_box(
     }
     g_NL_radial[static_cast<size_t>(N) * count_radial++ + n1] = n2;
     if (d12_square < rc_angular * rc_angular) {
-      g_NL_angular[static_cast<size_t>(N) * count_angular++ + n1] = n2;
+      g_NL_angular[count_angular++ * N + n1] = n2;
     }
   }
 
@@ -517,7 +517,7 @@ static __global__ void find_descriptor(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int n2 = g_NL_angular[static_cast<size_t>(N) * i1 + n1];
+        int n2 = g_NL_angular[n1 + N * i1];
         float x12 = g_x[n2] - x1;
         float y12 = g_y[n2] - y1;
         float z12 = g_z[n2] - z1;
@@ -775,8 +775,8 @@ static __global__ void find_partial_force_angular(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-      size_t index = static_cast<size_t>(N) * i1 + n1;
-      int n2 = g_NL_angular[index];
+      int index = i1 * N + n1;
+      int n2 = g_NL_angular[n1 + N * i1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
@@ -864,7 +864,7 @@ static __global__ void find_force_ZBL(
     int zi = zbl.atomic_numbers[type1];
     float pow_zi = pow(float(zi), 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
+      int n2 = g_NL[n1 + N * i1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
@@ -1113,8 +1113,8 @@ void NEP::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const size_t big_neighbor_size = 2000;
-  const size_t size_x12 = type.size() * big_neighbor_size;
+  const int big_neighbor_size = 2000;
+  const int size_x12 = type.size() * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1327,10 +1327,10 @@ void NEP::compute(
   const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
   if (is_small_box) {
     // update small_box_data
-    const size_t current_num_atoms = type.size();
+    const int current_num_atoms = type.size();
     if (small_box_data.NN_radial.size() != current_num_atoms) {
-        const size_t big_neighbor_size = 2000;
-        const size_t size_x12 = current_num_atoms * big_neighbor_size;
+        const int big_neighbor_size = 2000;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
 
         small_box_data.NN_radial.resize(current_num_atoms);
         small_box_data.NL_radial.resize(size_x12);
@@ -1410,7 +1410,7 @@ static __global__ void find_descriptor(
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int n2 = g_NL_angular[static_cast<size_t>(N) * i1 + n1];
+        int n2 = g_NL_angular[n1 + N * i1];
         float x12 = g_x[n2] - x1;
         float y12 = g_y[n2] - y1;
         float z12 = g_z[n2] - z1;
@@ -1631,8 +1631,8 @@ void NEP::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const size_t big_neighbor_size = 2000;
-  const size_t size_x12 = type.size() * big_neighbor_size;
+  const int big_neighbor_size = 2000;
+  const int size_x12 = type.size() * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1782,10 +1782,10 @@ void NEP::compute(
 
   if (is_small_box) {
     // update small_box_data
-    const size_t current_num_atoms = type.size();
+    const int current_num_atoms = type.size();
     if (small_box_data.NN_radial.size() != current_num_atoms) {
-        const size_t big_neighbor_size = 2000;
-        const size_t size_x12 = current_num_atoms * big_neighbor_size;
+        const int big_neighbor_size = 2000;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
 
         small_box_data.NN_radial.resize(current_num_atoms);
         small_box_data.NL_radial.resize(size_x12);

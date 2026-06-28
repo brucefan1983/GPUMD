@@ -424,9 +424,9 @@ static __global__ void gpu_find_neighbor_ON1_ilp(
 
               bool different_layer = group_label[n1] != group_label[n2];
               if (different_layer && d2 < cutoff_square) {
-                NL[static_cast<size_t>(N) * count++ + n1] = n2;
+                NL[count++ * N + n1] = n2;
               } else if (!different_layer && d2 < big_ilp_cutoff_square) {
-                big_ilp_NL[static_cast<size_t>(N) * ilp_count++ + n1] = n2;
+                big_ilp_NL[ilp_count++ * N + n1] = n2;
               }
 
             }
