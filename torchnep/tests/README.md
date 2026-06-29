@@ -15,6 +15,7 @@ TEST_DEVICE=cpu pytest tests/      # restrict device (default: cpu + cuda if pre
 | `test_neighbor.py` | Cell-list vs brute-force neighbor search; tiled / auto-block paths. |
 | `test_parsing.py` | Legacy and current `l_max` nep.in / nep.txt parsing. |
 | `test_ase_calculator.py` | Optional ASE calculator (energy/forces/stress, ZBL split). |
+| `test_b1_and_gpumd_qscalar.py` | Analytical `b1` offset (residual → 0, `nep_best` ≤ `nep_final`); `use_gpumd_qscalar` reproduces GPUMD's `c=1` q_scaler. |
 
 **Tolerance vs GPUMD:** `rtol=1e-5, atol=2e-4`.
 

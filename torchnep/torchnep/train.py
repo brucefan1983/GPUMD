@@ -592,7 +592,8 @@ _VIRIAL_6 = [0, 4, 8, 1, 5, 6]
 
 
 @torch.no_grad()
-def compute_q_scaler(model, data_store, batch_size=1000, backend="loop"):
+def compute_q_scaler(model, data_store, batch_size=1000, backend="loop",
+                     gpumd_init=False):
     """Compute descriptor min/max across training set.
 
     Uses the cached-basis path (reusing data_store's precomputed Chebyshev +
@@ -604,12 +605,24 @@ def compute_q_scaler(model, data_store, batch_size=1000, backend="loop"):
     ``backend`` should match the training backend so the type-pair contraction
     order of operations (and hence the floating-point accumulation) is the
     same as what training will see.
+
+    ``gpumd_init`` selects how the descriptor coefficients are set for this
+    pass. False (default): the model's actual (init) coefficients — q_scaler is
+    self-consistent with the init. True: all coefficients forced to 1.0,
+    exactly matching GPUMD's generation-0 q_scaler (``initial_para``).
     """
     model.eval()
     dev = next(model.parameters()).device
     dtype = next(model.parameters()).dtype
     q_min = torch.full((model.dim,), float("inf"), dtype=dtype, device=dev)
     q_max = torch.full((model.dim,), float("-inf"), dtype=dtype, device=dev)
+
+    if gpumd_init:
+        c2 = torch.ones_like(model.c_param_2)
+        c3 = (torch.ones_like(model.c_param_3)
+              if model.c_param_3 is not None else None)
+    else:
+        c2, c3 = model.c_param_2, model.c_param_3
 
     for start in range(0, data_store.n, batch_size):
         end = min(start + batch_size, data_store.n)
@@ -619,7 +632,7 @@ def compute_q_scaler(model, data_store, batch_size=1000, backend="loop"):
             batch["pair_i_rad"], batch["pair_j_rad"],
             batch["pair_i_ang"], batch["pair_j_ang"],
             batch["atom_types"], batch["N"],
-            model.c_param_2, model.c_param_3,
+            c2, c3,
             model.n_max_radial, model.n_max_angular,
             model.l_max_3b,
             model.has_q_222, model.has_q_1111, model.has_q_112,
@@ -635,6 +648,49 @@ def compute_q_scaler(model, data_store, batch_size=1000, backend="loop"):
 
     model.train()
     return q_min, q_max
+
+
+@torch.no_grad()
+def recompute_b1_shift(raw_model, data_store, batch_size, backend):
+    """Set the energy offset ``b1`` to its analytical optimum (GPUMD-style).
+
+    ``b1`` is not a gradient-trained parameter — its gradient is tiny (the
+    mean per-atom energy error) so Adam moves it slowly, which on some datasets
+    leaves the predicted energies globally shifted. Instead we solve the 1-D
+    least-squares offset in closed form each epoch: the optimal shift is the
+    (current) mean per-atom residual, and since the predicted energy already
+    contains ``b1`` it is an additive correction
+
+        b1 <- b1 + mean_over_energy_structs(E_pred/Na - E_ref/Na).
+
+    This mirrors GPUMD, which recomputes the energy shift every generation so
+    the energy loss is offset-free and the overall level cannot drift.
+    Returns the new b1 value (float).
+    """
+    was_training = raw_model.training
+    raw_model.eval()
+    dev = raw_model.b1.device
+    dtype = raw_model.b1.dtype
+    num = torch.zeros((), dtype=dtype, device=dev)
+    den = 0
+    for start in range(0, data_store.n, batch_size):
+        end = min(start + batch_size, data_store.n)
+        batch = data_store.collate(list(range(start, end)))
+        e_mask = batch["energy_mask"]
+        if not bool(e_mask.any()):
+            continue
+        res = raw_model.compute_properties_cached(
+            batch, need_forces=False, need_virial=False, backend=backend)
+        e_pa_pred = res["Etot"] / batch["natoms"]
+        e_pa_ref = batch["energy"] / batch["natoms"]
+        diff = (e_pa_pred - e_pa_ref)[e_mask]
+        num = num + diff.sum()
+        den += int(e_mask.sum().item())
+    if den > 0:
+        raw_model.b1.add_(num / den)
+    if was_training:
+        raw_model.train()
+    return float(raw_model.b1.item())
 
 
 # ---------------------------------------------------------------------------
@@ -788,13 +844,17 @@ def _accumulate_true_loss_sums(data_store, batch_size, raw_model,
 
     Mirrors the training-epoch accumulation exactly (same masks, same
     per-sample units), but forward-only on one fixed set of weights.
-    Returns (sum_le, sum_lf, sum_lv, n_e, n_f, n_v) so callers can finish
-    the per-sample averaging themselves — the DDP path all-reduces these
-    six numbers across ranks first, which makes the aggregated loss
-    EXACTLY the full-dataset value (a sum of per-shard sums), identical
-    to the single-GPU result.
+    Returns (sum_le, sum_lf, sum_lv, n_e, n_f, n_v, sum_e_resid) so callers
+    can finish the per-sample averaging themselves — the DDP path all-reduces
+    these numbers across ranks first, which makes the aggregated loss EXACTLY
+    the full-dataset value (a sum of per-shard sums), identical to the
+    single-GPU result. ``sum_e_resid`` (Σ signed per-atom energy residual)
+    lets the caller solve the exact optimal energy offset b1 for these frozen
+    weights in this same pass: δ = sum_e_resid / n_e, and the offset-corrected
+    energy MSE is sum_le/n_e − δ².
     """
     sum_le = sum_lf = sum_lv = 0.0
+    sum_e_resid = 0.0      # Σ signed per-atom energy residual (for exact b1)
     n_e = n_f = n_v = 0
 
     was_training = raw_model.training
@@ -829,6 +889,7 @@ def _accumulate_true_loss_sums(data_store, batch_size, raw_model,
                     e_pa_ref = batch["energy"] / batch["natoms"]
                     diff_e = e_pa_pred[e_mask] - e_pa_ref[e_mask]
                     sum_le += (diff_e ** 2).sum().item()
+                    sum_e_resid += diff_e.sum().item()
                     n_e += int(e_mask.sum().item())
 
                 if has_forces:
@@ -858,7 +919,7 @@ def _accumulate_true_loss_sums(data_store, batch_size, raw_model,
         if was_training:
             raw_model.train()
 
-    return sum_le, sum_lf, sum_lv, n_e, n_f, n_v
+    return sum_le, sum_lf, sum_lv, n_e, n_f, n_v, sum_e_resid
 
 
 def _evaluate_true_loss(data_store, batch_size, raw_model,
@@ -871,15 +932,28 @@ def _evaluate_true_loss(data_store, batch_size, raw_model,
     decide whether a candidate epoch really is the best model (see the
     best-save block in the epoch loop).
 
-    Returns (true_loss, rmse_e, rmse_f, rmse_v).
+    Side effect: sets the exact optimal energy offset ``b1`` for these frozen
+    weights (δ = sum_e_resid / n_e) so the evaluated loss and the saved model
+    agree. This is what keeps nep_best ≤ nep_final: every candidate (the final
+    epoch always among them) is judged AND saved with its own exact b1.
+
+    Returns (true_loss, rmse_e, rmse_f, rmse_v) — energy terms offset-corrected.
     """
     has_forces = data_store.has_forces and pref_f > 0
     has_virial = data_store.has_virial and pref_v > 0
-    sum_le, sum_lf, sum_lv, n_e, n_f, n_v = _accumulate_true_loss_sums(
-        data_store, batch_size, raw_model,
-        compute_props, compute_props_cached,
-        use_autograd_forces, backend, has_forces, has_virial, dtype, dev)
-    mse_e = sum_le / max(n_e, 1)
+    sum_le, sum_lf, sum_lv, n_e, n_f, n_v, sum_e_resid = \
+        _accumulate_true_loss_sums(
+            data_store, batch_size, raw_model,
+            compute_props, compute_props_cached,
+            use_autograd_forces, backend, has_forces, has_virial, dtype, dev)
+    # Exact optimal b1 for these frozen weights, solved from this same pass.
+    delta = sum_e_resid / n_e if n_e > 0 else 0.0
+    if n_e > 0:
+        with torch.no_grad():
+            raw_model.b1.add_(delta)
+    # Offset-corrected energy MSE = Var(residual) = E[r²] − δ². Clamp tiny
+    # negatives from float round-off.
+    mse_e = max(0.0, sum_le / max(n_e, 1) - delta * delta)
     mse_f = sum_lf / max(n_f, 1)
     mse_v = sum_lv / max(n_v, 1)
     true_loss = pref_e * mse_e + pref_f * mse_f + pref_v * mse_v
@@ -976,6 +1050,7 @@ def train_nep(
     recompute_q_scaler: bool = False,
     slim_types: bool = False,
     energy_key: str = "energy",
+    use_gpumd_qscalar: bool = False,
 ):
     """Train a NEP model on a single device (GPU / CPU / MPS).
 
@@ -1027,6 +1102,12 @@ def train_nep(
     energy_key : name of the comment-line tag read as the reference energy
         (default ``"energy"``). Set to ``"atomization_energy"`` to train
         against atomization energies instead of totals.
+    use_gpumd_qscalar : Default False — train with the self-consistent
+        q_scaler (computed from the model's actual init coefficients). True
+        reproduces GPUMD's initialization: descriptor coefficients are
+        re-initialised uniform(-1, 1) and the q_scaler is computed with all
+        coefficients = 1.0 (GPUMD's generation-0 ``initial_para``). Only
+        applies to fresh training (ignored under finetune_from).
     """
     _clean_warning_format()
 
@@ -1152,6 +1233,23 @@ def train_nep(
     _log("-----")
     model = NEPModel(config).to(dtype).to(dev)
 
+    # use_gpumd_qscalar: reproduce GPUMD's init for fresh training — descriptor
+    # coefficients uniform(-1, 1) (GPUMD initialises every parameter this way)
+    # paired with the c=1 q_scaler computed below. Skipped under finetune_from,
+    # where the loaded trained coefficients must be kept.
+    if use_gpumd_qscalar and finetune_from is None:
+        with torch.no_grad():
+            torch.nn.init.uniform_(model.c_param_2, -1.0, 1.0)
+            if model.c_param_3 is not None:
+                torch.nn.init.uniform_(model.c_param_3, -1.0, 1.0)
+        _log("  use_gpumd_qscalar: descriptor coeffs re-init uniform(-1,1), "
+             "q_scaler will use c=1 (GPUMD-consistent)")
+
+    # b1 (global energy offset) is determined analytically each epoch, not by
+    # gradient descent (see recompute_b1_shift) — exclude it from the optimizer.
+    model.b1.requires_grad_(False)
+    trainable_params = [p for n, p in model.named_parameters() if n != "b1"]
+
     if finetune_from is not None:
         # Load pre-trained weights; skip random b1 init from mean_epa.
         # The stored q_scaler is part of the loaded model and is KEPT (see
@@ -1237,7 +1335,8 @@ def train_nep(
                  "(recompute_q_scaler=True) — the loaded weights will "
                  "see rescaled descriptors and must re-adapt")
         t0 = time.time()
-        q_min, q_max = compute_q_scaler(model, data_store, backend=backend)
+        q_min, q_max = compute_q_scaler(model, data_store, backend=backend,
+                                        gpumd_init=use_gpumd_qscalar)
         model.set_q_scaler(q_min, q_max)
         if dev.type == "cuda":
             torch.cuda.synchronize()
@@ -1258,7 +1357,7 @@ def train_nep(
     if compile_msg is not None:
         _log(compile_msg)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr,
+    optimizer = torch.optim.Adam(trainable_params, lr=lr,
                                  weight_decay=lambda_2, amsgrad=True)
 
     if stage2 and start_stage2 is None:
@@ -1384,6 +1483,7 @@ def train_nep(
             sum_le = sum_lf = sum_lv = 0.0
             sum_ls = 0.0                     # (eV/A**3)**2 accumulator for stress
             sum_e_structs = sum_f_atoms = sum_v_structs = 0
+            sum_e_resid = 0.0                # Σ(E_pred/Na − E_ref/Na) for b1
             max_gn = 0.0
 
             in_stage2 = stage2 and epoch >= start_stage2
@@ -1478,6 +1578,9 @@ def train_nep(
                     loss_e = _loss_fn(e_pa_pred[e_mask], e_pa_ref[e_mask])
                     loss = loss + cur_pref_e * loss_e
                     sum_le += (diff_e ** 2).mean().item() * e_mask.sum().item()
+                    # Accumulate the signed residual for the analytical b1
+                    # update (folded into this pass — no extra forward).
+                    sum_e_resid += diff_e.sum().item()
 
                 if has_forces:
                     f_mask = batch["force_mask"]
@@ -1514,7 +1617,7 @@ def train_nep(
                             sum_ls += (s_diff ** 2).mean().item() * v_mask.sum().item()
 
                 if lambda_1 > 0:
-                    l1 = sum(p.abs().sum() for p in model.parameters())
+                    l1 = sum(p.abs().sum() for p in trainable_params)
                     loss = loss + lambda_1 * l1
 
                 optimizer.zero_grad(set_to_none=True)
@@ -1541,6 +1644,15 @@ def train_nep(
                 sum_f_atoms += batch["force_mask"].sum().item()
                 sum_v_structs += batch["virial_mask"].sum().item()
                 max_gn = max(max_gn, gn)
+
+            # Analytical b1 (GPUMD-style), folded into the training pass: b1
+            # absorbs this epoch's mean per-atom energy residual. Updated AFTER
+            # the batch loop but BEFORE the best-model eval / nep_best save, so
+            # the saved weights and offset stay consistent. ``b1`` is not a
+            # gradient parameter (see the optimizer exclusion above).
+            if sum_e_structs > 0:
+                with torch.no_grad():
+                    raw_model.b1.add_(sum_e_resid / sum_e_structs)
 
             # Per-sample (not per-batch) averaging so avg_loss is self-
             # consistent with rmse_{e,f,v}: avg_loss == \Sigma pref_X * MSE_X
@@ -1640,7 +1752,12 @@ def train_nep(
         if loss_log is not None:
             loss_log.close()
 
-    # Final-epoch model (what the current weights actually are).
+    # Final-epoch model (what the current weights actually are). b1 is already
+    # exact for these weights: the final epoch (epoch == num_epochs) always
+    # runs the best-model eval, which solves and sets the optimal b1. Do NOT
+    # recompute it here — that would give nep_final a different (lower-loss) b1
+    # than the value the best-model comparison used, which could make nep_final
+    # beat the saved nep_best.
     raw_model.save_nep_txt(os.path.join(output_dir, "nep_final.txt"),
                            max_NN_rad, max_NN_ang)
     # SWA-averaged model (only when user opted in and stage 2 ran).

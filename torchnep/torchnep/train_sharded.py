@@ -137,11 +137,15 @@ from .train import (
 
 @torch.no_grad()
 def _compute_q_scaler_sharded(model, data_store, batch_size=1000,
-                               backend="loop"):
+                               backend="loop", gpumd_init=False):
     """Compute descriptor min/max over the local shard, then all-reduce.
 
     Uses cached basis from data_store (no Chebyshev recompute). batch_size
     here is q-scaler-only (independent from training batch), default 1000.
+
+    ``gpumd_init`` mirrors train.compute_q_scaler: False (default) uses the
+    model's actual init coefficients (self-consistent); True forces all
+    coefficients to 1.0, matching GPUMD's generation-0 q_scaler.
     """
     model.eval()
     dev = next(model.parameters()).device
@@ -149,6 +153,13 @@ def _compute_q_scaler_sharded(model, data_store, batch_size=1000,
 
     q_min = torch.full((model.dim,), float("inf"), dtype=dtype, device=dev)
     q_max = torch.full((model.dim,), float("-inf"), dtype=dtype, device=dev)
+
+    if gpumd_init:
+        c2 = torch.ones_like(model.c_param_2)
+        c3 = (torch.ones_like(model.c_param_3)
+              if model.c_param_3 is not None else None)
+    else:
+        c2, c3 = model.c_param_2, model.c_param_3
 
     for start in range(0, data_store.n, batch_size):
         end = min(start + batch_size, data_store.n)
@@ -158,7 +169,7 @@ def _compute_q_scaler_sharded(model, data_store, batch_size=1000,
             batch["pair_i_rad"], batch["pair_j_rad"],
             batch["pair_i_ang"], batch["pair_j_ang"],
             batch["atom_types"], batch["N"],
-            model.c_param_2, model.c_param_3,
+            c2, c3,
             model.n_max_radial, model.n_max_angular,
             model.l_max_3b,
             model.has_q_222, model.has_q_1111, model.has_q_112,
@@ -201,6 +212,7 @@ def train_nep_sharded(
     recompute_q_scaler: bool = False,
     slim_types: bool = False,
     energy_key: str = "energy",
+    use_gpumd_qscalar: bool = False,
 ):
     """Data-sharded NEP training.  Launch via torchrun (or any launcher that
     sets RANK / LOCAL_RANK / WORLD_SIZE / MASTER_ADDR / MASTER_PORT).
@@ -424,6 +436,27 @@ def train_nep_sharded(
     _log("-----")
     model = NEPModel(config).to(dtype).to(dev)
 
+    # use_gpumd_qscalar: reproduce GPUMD's init (descriptor coeffs uniform(-1,1)
+    # + c=1 q_scaler). Re-init on rank 0 then broadcast so every replica starts
+    # identical; skipped under finetune_from (keep the loaded coefficients).
+    if use_gpumd_qscalar and finetune_from is None:
+        with torch.no_grad():
+            if rank == 0:
+                torch.nn.init.uniform_(model.c_param_2, -1.0, 1.0)
+                if model.c_param_3 is not None:
+                    torch.nn.init.uniform_(model.c_param_3, -1.0, 1.0)
+            dist.broadcast(model.c_param_2.data, src=0)
+            if model.c_param_3 is not None:
+                dist.broadcast(model.c_param_3.data, src=0)
+        _log("  use_gpumd_qscalar: descriptor coeffs re-init uniform(-1,1), "
+             "q_scaler will use c=1 (GPUMD-consistent)")
+
+    # b1 (global energy offset) is determined analytically (folded into the
+    # training pass + the best-model eval), not by gradient descent — keep it
+    # out of the optimizer (and out of DDP's gradient sync, since it gets no
+    # grad).
+    model.b1.requires_grad_(False)
+
     if finetune_from is not None:
         def _load_weights(target, path):
             if path.endswith(".pt"):
@@ -513,8 +546,8 @@ def train_nep_sharded(
                  "see rescaled descriptors and must re-adapt")
         # q_scaler: local shard -> all_reduce
         t_qs = time.time()
-        q_min, q_max = _compute_q_scaler_sharded(model, data_store,
-                                                 backend=backend)
+        q_min, q_max = _compute_q_scaler_sharded(
+            model, data_store, backend=backend, gpumd_init=use_gpumd_qscalar)
         model.set_q_scaler(q_min, q_max)
         if cuda_available:
             torch.cuda.synchronize()
@@ -544,7 +577,11 @@ def train_nep_sharded(
     _shim = model.module
     raw_model = _shim.model
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr,
+    # b1 is analytically determined (not gradient-trained) — exclude it from
+    # the optimizer (and L1), matching the single-GPU path.
+    trainable_params = [p for n, p in raw_model.named_parameters()
+                        if n != "b1"]
+    optimizer = torch.optim.Adam(trainable_params, lr=lr,
                                  weight_decay=lambda_2, amsgrad=True)
 
     if stage2 and start_stage2 is None:
@@ -681,6 +718,7 @@ def train_nep_sharded(
 
             sum_le = sum_lf = sum_lv = sum_ls = 0.0  # sum_ls is in (eV/A**3)**2
             sum_e_structs = sum_f_atoms = sum_v_structs = 0
+            sum_e_resid = 0.0                # Σ(E_pred/Na − E_ref/Na) for b1
             max_gn = 0.0
 
             in_stage2 = stage2 and epoch >= start_stage2
@@ -789,6 +827,9 @@ def train_nep_sharded(
                     sum_sq_e = (diff_e ** 2).sum()
                     loss = loss + cur_pref_e * sum_sq_e * ws / n_e_g
                     sum_le += sum_sq_e.item()  # global sum-of-squared-errors
+                    # Signed residual for the analytical b1 update (folded into
+                    # this pass; all-reduced below with the other metrics).
+                    sum_e_resid += diff_e.sum().item()
 
                 if f_mask is not None and f_mask.any():
                     f_pred = result["forces"][f_mask]
@@ -823,7 +864,7 @@ def train_nep_sharded(
                         sum_ls += (sum_sq_s.item() / 6.0)
 
                 if lambda_1 > 0:
-                    l1 = sum(p.abs().sum() for p in model.parameters())
+                    l1 = sum(p.abs().sum() for p in trainable_params)
                     loss = loss + lambda_1 * l1
 
                 optimizer.zero_grad(set_to_none=True)
@@ -854,14 +895,23 @@ def train_nep_sharded(
             metrics = torch.tensor(
                 [sum_le, sum_lf, sum_lv, sum_ls,
                  float(sum_e_structs), float(sum_f_atoms),
-                 float(sum_v_structs)],
+                 float(sum_v_structs), sum_e_resid],
                 device=dev)
             dist.all_reduce(metrics)
             gn_t = torch.tensor(max_gn, device=dev)
             dist.all_reduce(gn_t, op=dist.ReduceOp.MAX)
             (sum_le, sum_lf, sum_lv, sum_ls,
-             sum_e_structs, sum_f_atoms, sum_v_structs) = metrics.tolist()
+             sum_e_structs, sum_f_atoms, sum_v_structs,
+             sum_e_resid) = metrics.tolist()
             max_gn = gn_t.item()
+
+            # Analytical b1 (GPUMD-style), folded into the training pass and
+            # all-reduced above — identical on every rank. Updated before the
+            # best-model eval / nep_best save so weights and offset stay
+            # consistent. b1 is not gradient-trained (optimizer-excluded).
+            if sum_e_structs > 0:
+                with torch.no_grad():
+                    raw_model.b1.add_(sum_e_resid / sum_e_structs)
 
             # Per-sample (not per-batch) averaging so avg_loss is self-
             # consistent with rmse_{e,f,v}: avg_loss == \Sigma pref_X * MSE_X
@@ -930,8 +980,15 @@ def train_nep_sharded(
                 sums_t = torch.tensor(local_sums, device=dev,
                                       dtype=torch.float64)
                 dist.all_reduce(sums_t)
-                s_le, s_lf, s_lv, n_e, n_f, n_v = sums_t.tolist()
-                t_loss = (cur_pref_e * s_le / max(n_e, 1.0)
+                s_le, s_lf, s_lv, n_e, n_f, n_v, s_e_resid = sums_t.tolist()
+                # Exact optimal b1 for these frozen weights, from the global
+                # (all-reduced) residual — identical on every rank.
+                delta = s_e_resid / n_e if n_e > 0 else 0.0
+                if n_e > 0:
+                    with torch.no_grad():
+                        raw_model.b1.add_(delta)
+                mse_e = max(0.0, s_le / max(n_e, 1.0) - delta * delta)
+                t_loss = (cur_pref_e * mse_e
                           + cur_pref_f * s_lf / max(n_f, 1.0)
                           + cur_pref_v * s_lv / max(n_v, 1.0))
                 if t_loss < best_true_loss:
@@ -971,6 +1028,10 @@ def train_nep_sharded(
         if is_main and loss_log is not None:
             loss_log.close()
 
+    # b1 is already exact for the final weights: the final epoch always runs
+    # the best-model eval, which solves and sets the optimal b1 (all ranks).
+    # Recomputing here would desync nep_final's offset from the value the
+    # best comparison used and could make nep_final beat nep_best.
     if is_main:
         raw_model.save_nep_txt(os.path.join(output_dir, "nep_final.txt"),
                                max_NN_rad, max_NN_ang)
