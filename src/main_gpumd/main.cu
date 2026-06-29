@@ -18,9 +18,9 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <cstring>
 
 void print_welcome_information();
