@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
   return EXIT_SUCCESS;
 }
 
-void print_welcome_information(void)
+void print_welcome_information()
 {
   printf("\n");
   printf("***************************************************************\n");
