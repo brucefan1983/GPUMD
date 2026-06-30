@@ -212,7 +212,7 @@ def train_nep_sharded(
     recompute_q_scaler: bool = False,
     slim_types: bool = False,
     energy_key: str = "energy",
-    use_gpumd_qscalar: bool = False,
+    use_gpumd_qscaler: bool = True,
 ):
     """Data-sharded NEP training.  Launch via torchrun (or any launcher that
     sets RANK / LOCAL_RANK / WORLD_SIZE / MASTER_ADDR / MASTER_PORT).
@@ -436,10 +436,10 @@ def train_nep_sharded(
     _log("-----")
     model = NEPModel(config).to(dtype).to(dev)
 
-    # use_gpumd_qscalar: reproduce GPUMD's init (descriptor coeffs uniform(-1,1)
+    # use_gpumd_qscaler: reproduce GPUMD's init (descriptor coeffs uniform(-1,1)
     # + c=1 q_scaler). Re-init on rank 0 then broadcast so every replica starts
     # identical; skipped under finetune_from (keep the loaded coefficients).
-    if use_gpumd_qscalar and finetune_from is None:
+    if use_gpumd_qscaler and finetune_from is None:
         with torch.no_grad():
             if rank == 0:
                 torch.nn.init.uniform_(model.c_param_2, -1.0, 1.0)
@@ -448,7 +448,7 @@ def train_nep_sharded(
             dist.broadcast(model.c_param_2.data, src=0)
             if model.c_param_3 is not None:
                 dist.broadcast(model.c_param_3.data, src=0)
-        _log("  use_gpumd_qscalar: descriptor coeffs re-init uniform(-1,1), "
+        _log("  use_gpumd_qscaler: descriptor coeffs re-init uniform(-1,1), "
              "q_scaler will use c=1 (GPUMD-consistent)")
 
     # b1 (global energy offset) is determined analytically (folded into the
@@ -547,7 +547,7 @@ def train_nep_sharded(
         # q_scaler: local shard -> all_reduce
         t_qs = time.time()
         q_min, q_max = _compute_q_scaler_sharded(
-            model, data_store, backend=backend, gpumd_init=use_gpumd_qscalar)
+            model, data_store, backend=backend, gpumd_init=use_gpumd_qscaler)
         model.set_q_scaler(q_min, q_max)
         if cuda_available:
             torch.cuda.synchronize()

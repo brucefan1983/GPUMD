@@ -1050,7 +1050,7 @@ def train_nep(
     recompute_q_scaler: bool = False,
     slim_types: bool = False,
     energy_key: str = "energy",
-    use_gpumd_qscalar: bool = False,
+    use_gpumd_qscaler: bool = True,
 ):
     """Train a NEP model on a single device (GPU / CPU / MPS).
 
@@ -1102,12 +1102,12 @@ def train_nep(
     energy_key : name of the comment-line tag read as the reference energy
         (default ``"energy"``). Set to ``"atomization_energy"`` to train
         against atomization energies instead of totals.
-    use_gpumd_qscalar : Default False — train with the self-consistent
-        q_scaler (computed from the model's actual init coefficients). True
-        reproduces GPUMD's initialization: descriptor coefficients are
-        re-initialised uniform(-1, 1) and the q_scaler is computed with all
-        coefficients = 1.0 (GPUMD's generation-0 ``initial_para``). Only
-        applies to fresh training (ignored under finetune_from).
+    use_gpumd_qscaler : Default True — reproduce GPUMD's initialization:
+        descriptor coefficients are re-initialised uniform(-1, 1) and the
+        q_scaler is computed with all coefficients = 1.0 (GPUMD's generation-0
+        ``initial_para``). False uses the self-consistent q_scaler (computed
+        from the model's actual init coefficients). Only applies to fresh
+        training (ignored under finetune_from).
     """
     _clean_warning_format()
 
@@ -1233,16 +1233,16 @@ def train_nep(
     _log("-----")
     model = NEPModel(config).to(dtype).to(dev)
 
-    # use_gpumd_qscalar: reproduce GPUMD's init for fresh training — descriptor
+    # use_gpumd_qscaler: reproduce GPUMD's init for fresh training — descriptor
     # coefficients uniform(-1, 1) (GPUMD initialises every parameter this way)
     # paired with the c=1 q_scaler computed below. Skipped under finetune_from,
     # where the loaded trained coefficients must be kept.
-    if use_gpumd_qscalar and finetune_from is None:
+    if use_gpumd_qscaler and finetune_from is None:
         with torch.no_grad():
             torch.nn.init.uniform_(model.c_param_2, -1.0, 1.0)
             if model.c_param_3 is not None:
                 torch.nn.init.uniform_(model.c_param_3, -1.0, 1.0)
-        _log("  use_gpumd_qscalar: descriptor coeffs re-init uniform(-1,1), "
+        _log("  use_gpumd_qscaler: descriptor coeffs re-init uniform(-1,1), "
              "q_scaler will use c=1 (GPUMD-consistent)")
 
     # b1 (global energy offset) is determined analytically each epoch, not by
@@ -1336,7 +1336,7 @@ def train_nep(
                  "see rescaled descriptors and must re-adapt")
         t0 = time.time()
         q_min, q_max = compute_q_scaler(model, data_store, backend=backend,
-                                        gpumd_init=use_gpumd_qscalar)
+                                        gpumd_init=use_gpumd_qscaler)
         model.set_q_scaler(q_min, q_max)
         if dev.type == "cuda":
             torch.cuda.synchronize()

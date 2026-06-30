@@ -11,14 +11,14 @@
 # You should have received a copy of the GNU General Public License
 # along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Tests for the analytical b1 energy shift and the ``use_gpumd_qscalar``
+"""Tests for the analytical b1 energy shift and the ``use_gpumd_qscaler``
 training option (branch ``qscaler-optimizer-test``).
 
 Two features under test:
   * ``recompute_b1_shift`` sets the global energy offset b1 to its analytical
     optimum (mean per-atom residual -> 0), and train_nep keeps b1 out of the
     gradient optimizer.
-  * ``use_gpumd_qscalar=True`` trains with GPUMD's init: descriptor coeffs
+  * ``use_gpumd_qscaler=True`` trains with GPUMD's init: descriptor coeffs
     uniform(-1,1) and a q_scaler computed with all coefficients = 1.0.
 """
 import numpy as np
@@ -182,8 +182,8 @@ def test_nep_best_not_worse_than_final(tmp_path):
     assert energy_mse(str(out / "nep_best.txt")) <= energy_mse(str(out / "nep_final.txt")) + 1e-9
 
 
-def test_train_nep_use_gpumd_qscalar(tmp_path):
-    """use_gpumd_qscalar=True -> the saved q_scaler equals the c=1 value, and
+def test_train_nep_use_gpumd_qscaler(tmp_path):
+    """use_gpumd_qscaler=True -> the saved q_scaler equals the c=1 value, and
     differs from the default self-consistent run."""
     nepin, xyz = _write_run_files(tmp_path)
 
@@ -191,13 +191,13 @@ def test_train_nep_use_gpumd_qscalar(tmp_path):
     train_nep(config_file=nepin, data_file=xyz, output_dir=str(out_g),
               device="cpu", precision="float64", print_interval=1, restart=False,
               checkpoint_interval=1000, prediction_interval=1000,
-              use_gpumd_qscalar=True)
+              use_gpumd_qscaler=True)
 
     out_s = tmp_path / "out_self"
     train_nep(config_file=nepin, data_file=xyz, output_dir=str(out_s),
               device="cpu", precision="float64", print_interval=1, restart=False,
               checkpoint_interval=1000, prediction_interval=1000,
-              use_gpumd_qscalar=False)
+              use_gpumd_qscaler=False)
 
     cfg = parse_nep_in(nepin)
     ds = _store(cfg)

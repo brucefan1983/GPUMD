@@ -126,7 +126,7 @@ function (`train_nep` / `train_nep_sharded`):
 | `recompute_q_scaler` | `False` | only with `finetune_from`: recompute the descriptor scaler on the new data instead of keeping the source model's |
 | `slim_types` | `False` | drop element types absent from the dataset |
 | `energy_key` | `"energy"` | comment-line tag read as reference energy (e.g. `"atomization_energy"`) |
-| `use_gpumd_qscalar` | `False` | use GPUMD's `q_scalar`; fresh training only |
+| `use_gpumd_qscaler` | `True` | use GPUMD's `q_scaler` (coeffs `c=1`); fresh training only |
 
 ---
 

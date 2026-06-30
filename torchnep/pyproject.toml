@@ -40,6 +40,9 @@ filterwarnings = [
     # torch-internal: torch.compile's inductor import trips torch's own
     # torch.jit.script_method deprecation. Not actionable by us.
     "ignore:.*torch.jit.script_method.*is deprecated.*:DeprecationWarning",
+    # torch probes NVML on CUDA init; harmless when the driver/library
+    # versions mismatch (monitoring only — CUDA compute still works).
+    "ignore:.*Can't initialize NVML.*:UserWarning",
 ]
 
 [project.urls]
