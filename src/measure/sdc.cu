@@ -258,6 +258,20 @@ void SDC::postprocess(
   const double vac_unit_conversion = sdc_unit_conversion * sdc_unit_conversion;
 
   FILE* fid = fopen("sdc.out", "a");
+  fprintf(fid, "# compute_sdc %d %d", sample_interval_, num_correlation_steps_);
+  if (grouping_method_ >= 0)
+    fprintf(fid, " group %d %d", grouping_method_, group_id_);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", num_atoms_);
+  fprintf(
+    fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
+  fprintf(fid, "# columns time_ps vacx vacy vacz sdcx sdcy sdcz\n");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(
       fid,
