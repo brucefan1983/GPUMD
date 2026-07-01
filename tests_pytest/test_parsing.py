@@ -38,12 +38,24 @@ REFERENCE_HEADER_LINES = (MODELS_DIR / 'nep_C.txt').read_text().splitlines()
 
 def _read_fixed_width_output(path, ncols, label):
     """Reads a whitespace-separated, fixed-column-count GPUMD output file (thermo.out,
-    dpdt.out) with no header line, raising ValueError on any row with the wrong column count
-    or non-numeric data rather than a bare numpy exception."""
+    dpdt.out), raising ValueError on any data row with the wrong column count or non-numeric
+    data rather than a bare numpy exception.
+
+    Tolerates (but doesn't require) leading '#'-prefixed comment/header lines: dpdt.out (like
+    dipole.out and polarizability.out) carries a self-describing comment header ('compute_dpdt',
+    'format_version', 'num_atoms', 'cell', 'dt_output', 'columns' metadata lines) meant to be
+    read by comment-aware downstream parsers -- confirmed directly against the real binary, and
+    predating this suite's development rather than something that changed underneath it.
+    doc/gpumd/output_files/dpdt_out.rst intentionally documents only the data columns, not the
+    comment header -- that's consistent with dipole_out.rst/polarizability_out.rst, so leave the
+    header out of a future doc update too rather than treating its absence as an oversight to
+    fix. thermo.out has no such header as of this writing, so this is a no-op for it, but
+    tolerating comment lines here costs nothing and covers both cases with one reader.
+    """
     rows = []
     with open(path) as f:
         for lineno, line in enumerate(f, start=1):
-            if not line.strip():
+            if not line.strip() or line.lstrip().startswith('#'):
                 continue
             fields = line.split()
             if len(fields) != ncols:

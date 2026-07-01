@@ -8,7 +8,6 @@ GPU; see `gpumd_pytest_suite_spec.md` at the repo root for the full design.
 from pathlib import Path
 
 import pytest
-from ase.build import molecule
 from ase.io import read
 from calorine.calculators import CPUNEP, GPUNEP
 
@@ -150,25 +149,28 @@ def make_bulk_perovskite():
     return read(STRUCTURES_DIR / 'BaTiO3-nat40-rattled.xyz')
 
 
-def make_water_molecule():
-    """Single H2O molecule in a padded periodic box, rattled with a fixed seed for
-    reproducibility. No high-symmetry/zero-force concern here, so this one is generated on the
-    fly rather than read from a pre-rattled file. Periodic boundaries are enabled (6 Angstrom
-    vacuum padding on each side, safely beyond the ~6 Angstrom NEP/qNEP radial cutoffs used in
-    this suite's water models) because qNEP models require PBC: gpumd raises 'Cannot use
-    non-periodic boundaries for qNEP models' otherwise (its charge contribution uses Ewald
-    summation, which assumes periodicity)."""
-    atoms = molecule('H2O')
-    atoms.center(vacuum=6.0)
-    atoms.pbc = True
-    atoms.rattle(stdev=0.01, seed=42)
-    return atoms
+def make_bulk_water():
+    """63-atom (21 H2O) small bulk (liquid) water box taken from an MD snapshot -- not a gas-phase
+    molecule, despite the single-molecule naming this fixture used earlier in this suite's
+    development. Already periodic (pbc="T T T"), satisfying qNEP models' PBC requirement (gpumd
+    raises 'Cannot use non-periodic boundaries for qNEP models' otherwise, since the charge
+    contribution uses Ewald/PPPM summation, which assumes periodicity) without needing manual
+    vacuum padding. No embedded energy/forces/stress in this file (unlike bulk_C/bulk_perovskite
+    above) -- it carries only species and positions."""
+    return read(STRUCTURES_DIR / 'water-nat63-from-md.xyz')
+
+
+def make_bulk_bazro3():
+    """40-atom cubic BaZrO3 cell, pre-rattled. Used only by test_regression.py as the one
+    realistic non-toy system, not part of _STRUCTURE_BUILDERS/the toy-model matrix used
+    elsewhere. No embedded energy/forces/stress -- species and positions only."""
+    return read(STRUCTURES_DIR / 'BaZrO3-nat40-rattled.xyz')
 
 
 _STRUCTURE_BUILDERS = {
     'bulk_C': make_bulk_C,
     'bulk_perovskite': make_bulk_perovskite,
-    'water_molecule': make_water_molecule,
+    'bulk_water': make_bulk_water,
 }
 
 # (structure_name, model_type) -> file in fixtures/models/. Missing combinations (currently
@@ -179,9 +181,9 @@ _MODEL_FILES = {
     ('bulk_perovskite', 'nep'): 'nep_BaTiO3.txt',
     ('bulk_perovskite', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
     ('bulk_perovskite', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
-    ('water_molecule', 'nep'): 'nep_water.txt',
-    ('water_molecule', 'qnep_mode1'): 'qnep_mode1_water.txt',
-    ('water_molecule', 'qnep_mode2'): 'qnep_mode2_water.txt',
+    ('bulk_water', 'nep'): 'nep_water.txt',
+    ('bulk_water', 'qnep_mode1'): 'qnep_mode1_water.txt',
+    ('bulk_water', 'qnep_mode2'): 'qnep_mode2_water.txt',
 }
 
 

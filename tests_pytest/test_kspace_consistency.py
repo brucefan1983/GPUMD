@@ -11,14 +11,14 @@ tolerance is not meant to be tightened toward TOLERANCES the way other compariso
 are) -- a property to guard against regressing, not a bug to fix.
 
 Spans multiple system sizes since PPPM's mesh/k-point resolution scales with the box: the
-existing water_molecule and bulk_perovskite fixtures, plus a larger supercell built by tiling
+existing bulk_water and bulk_perovskite fixtures, plus a larger supercell built by tiling
 bulk_perovskite further (no new fixture file needed).
 """
 import numpy as np
 import pytest
 from calorine.calculators import GPUNEP
 
-from conftest import MODELS_DIR, approx_tol, make_bulk_perovskite, make_water_molecule
+from conftest import MODELS_DIR, approx_tol, make_bulk_perovskite, make_bulk_water
 
 pytestmark = pytest.mark.fast
 
@@ -38,7 +38,7 @@ def make_bulk_perovskite_large():
 
 
 _STRUCTURE_BUILDERS = {
-    'water_molecule': make_water_molecule,
+    'bulk_water': make_bulk_water,
     'bulk_perovskite': make_bulk_perovskite,
     'bulk_perovskite_large': make_bulk_perovskite_large,
 }
@@ -46,8 +46,8 @@ _STRUCTURE_BUILDERS = {
 # No qNEP model exists for carbon (bulk_C), same gap as elsewhere in this suite, so bulk_C is
 # simply not one of the structures covered here.
 _MODEL_FILES = {
-    ('water_molecule', 'qnep_mode1'): 'qnep_mode1_water.txt',
-    ('water_molecule', 'qnep_mode2'): 'qnep_mode2_water.txt',
+    ('bulk_water', 'qnep_mode1'): 'qnep_mode1_water.txt',
+    ('bulk_water', 'qnep_mode2'): 'qnep_mode2_water.txt',
     ('bulk_perovskite', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
     ('bulk_perovskite', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
     ('bulk_perovskite_large', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
