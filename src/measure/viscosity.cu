@@ -18,8 +18,10 @@ Calculate the stress autocorrelation function and viscosity.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include "integrate/integrate.cuh"
 #include "viscosity.cuh"
 #include <vector>
 #include <cstring>
@@ -38,6 +40,8 @@ void Viscosity::preprocess(
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
+    accumulated_kinetic_temperature_ = 0.0;
+    kinetic_temperature_sample_count_ = 0;
   }
 }
 
@@ -109,6 +113,17 @@ void Viscosity::process(
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
     N, Nd, nd, atom.mass.data(), atom.velocity_per_atom.data(), atom.virial_per_atom.data(), stress_all.data());
   GPU_CHECK_KERNEL
+
+  double thermo_cpu[1];
+  thermo.copy_to_host(thermo_cpu, 1);
+  double kinetic_temperature = thermo_cpu[0];
+  if (integrate.type >= 31) {
+    kinetic_temperature = temperature;
+  }
+  if (kinetic_temperature > 0.0) {
+    accumulated_kinetic_temperature_ += kinetic_temperature;
+    kinetic_temperature_sample_count_ += 1;
+  }
 }
 
 static __global__ void gpu_correct_stress(const int Nd, double* g_stress_all)
@@ -223,7 +238,23 @@ void Viscosity::postprocess(
 
   correlation_gpu.copy_to_host(correlation_cpu.data());
 
-  double factor = dt * 0.5 / (K_B * temperature * box.get_volume());
+  double temperature_for_green_kubo = temperature;
+  if (kinetic_temperature_sample_count_ > 0) {
+    temperature_for_green_kubo =
+      accumulated_kinetic_temperature_ / kinetic_temperature_sample_count_;
+    if (integrate.type == 0) {
+      printf(
+        "Use averaged kinetic temperature %g K for viscosity Green-Kubo prefactor "
+        "(NVE has no thermostat target temperature).\n",
+        temperature_for_green_kubo);
+    }
+  } else if (temperature_for_green_kubo <= 0.0) {
+    PRINT_INPUT_ERROR(
+      "Invalid temperature for compute_viscosity. Use NVT/NPT equilibration before "
+      "NVE production, or ensure kinetic temperature can be sampled from thermo.\n");
+  }
+
+  double factor = dt * 0.5 / (K_B * temperature_for_green_kubo * box.get_volume());
   factor *= PRESSURE_UNIT_CONVERSION * TIME_UNIT_CONVERSION * 1.0e-6; // Pa s
 
   find_viscosity(Nc, factor, correlation_cpu.data(), viscosity.data());

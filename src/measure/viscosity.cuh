@@ -60,4 +60,6 @@ public:
 
 private:
   GPU_Vector<double> stress_all;
+  double accumulated_kinetic_temperature_ = 0.0;
+  int kinetic_temperature_sample_count_ = 0;
 };
