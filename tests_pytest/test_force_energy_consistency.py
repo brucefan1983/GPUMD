@@ -4,6 +4,11 @@ GPUNEP only, deliberately: the point of this file is to validate GPUMD's (this r
 force/energy self-consistency, not calorine's separately-maintained nep_cpu reference
 implementation living in a different repo -- checking CPUNEP here would only test calorine.
 GPUNEP-vs-CPUNEP agreement is exercised separately in test_cross_check.py.
+
+Unlike test_cross_check.py and test_invariances.py, this file intentionally does NOT request
+`kspace ewald` for qNEP models (see conftest.py's make_gpunep) -- the residual here is not
+primarily a reciprocal-space-method artifact (checked directly), so there is no mismatch to
+correct, and testing GPUMD's default (PPPM) self-consistency is exactly the point.
 """
 import numpy as np
 import pytest

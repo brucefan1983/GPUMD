@@ -21,10 +21,11 @@ TIME_STEP = 1.0  # fs
 N_STEPS = 200
 DUMP_INTERVAL = 1
 
-ENERGY_DRIFT_COEFFICIENT = 1e-2  # eV / fs**2; qNEP charge models drift somewhat more than plain
-# NEP (observed ~0.006 eV over 200 steps at time_step=1fs on water_molecule+qnep_mode2, vs.
-# <0.003 eV for the other structure/model combinations), likely from the added reciprocal-space
-# Ewald contribution -- this coefficient covers both with margin.
+ENERGY_DRIFT_COEFFICIENT = 1e-2  # eV / fs**2; qNEP charge models carry an extra electrostatic
+# energy term evaluated every step on top of the short-range descriptor energy plain NEP models
+# already have, so some extra drift relative to plain NEP is expected here; this coefficient is
+# calibrated to cover both with margin (checked directly against plain NEP and qNEP models
+# across all structures in this suite).
 MOMENTUM_DRIFT_BOUND = 1e-3  # Dalton * Angstrom / fs
 
 

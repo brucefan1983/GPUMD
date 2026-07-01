@@ -19,13 +19,18 @@ from conftest import MODELS_DIR
 THERMO_OUT_NCOLS = 18
 DPDT_OUT_NCOLS = 7
 
-# calorine.nep.model.read_model is a hand-rolled parser. These are the exception types it is
-# documented/observed to raise for malformed nep.txt input: AssertionError from its many
-# `assert field in data` sanity checks, ValueError from int()/float() conversions and its
-# unknown-field check, OSError from lines with the wrong token count. Anything outside this
-# envelope (KeyError, IndexError, TypeError, UnicodeDecodeError, ...) is a real parser bug to
-# report, not a suite issue to paper over by widening the tuple.
-EXPECTED_MODEL_PARSE_EXCEPTIONS = (AssertionError, ValueError, OSError)
+# calorine.nep.model.read_model is a hand-rolled parser. As of calorine's
+# bug/fix-read_model-behavior-for-missing-version-line fix (merged to master, commit f02fad6),
+# every file-content validation check in the read path (missing header fields, bad version,
+# malformed cutoff/basis_size/n_max/l_max, non-finite cutoff, unknown field, wrong token count)
+# raises ValueError or OSError -- the remaining `assert` statements in read_model are reserved
+# for internal invariants ("please submit a bug report" style) that malformed *input* should
+# never be able to trigger. So AssertionError is deliberately excluded from this envelope: if
+# hypothesis ever finds a malformed nep.txt that raises AssertionError, that is itself the bug
+# report (a calorine internal-invariant check firing on bad input, not a suite issue to paper
+# over by widening this tuple). Anything else outside (KeyError, IndexError, TypeError,
+# UnicodeDecodeError, ...) is likewise a real parser bug to report.
+EXPECTED_MODEL_PARSE_EXCEPTIONS = (ValueError, OSError)
 
 ALL_MODEL_FILES = sorted(MODELS_DIR.glob('*.txt'))
 REFERENCE_HEADER_LINES = (MODELS_DIR / 'nep_C.txt').read_text().splitlines()

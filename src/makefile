@@ -15,7 +15,7 @@
 # some flags
 ###########################################################
 CC = nvcc
-CUDA_ARCH=-arch=sm_60
+CUDA_ARCH=-arch=sm_80
 WARN_FLAGS = -Wall -Wextra
 WARN_FLAGS += -Wno-sign-compare -Wno-unused-parameter
 WARN_FLAGS += -Wnull-dereference -Wstringop-overflow -Wstringop-truncation -Wrestrict
@@ -26,11 +26,11 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
+CFLAGS = -std=c++17 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
-INC = -I./
-LDFLAGS = 
-LIBS = -lcublas -lcusolver -lcufft
+INC = -I./ -I${HOME}/repos/netcdf/include
+LDFLAGS = -L${HOME}/repos/netcdf/lib
+LIBS = -lcublas -lcusolver -lcufft -l:libnetcdf.a
 
 
 ###########################################################

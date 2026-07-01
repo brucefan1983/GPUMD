@@ -51,18 +51,18 @@ def approx(value, kind):
 # Translating/rotating/permuting a structure and re-evaluating it on the 'gpu' calculator runs a
 # second, independent gpumd subprocess on genuinely different floating-point input (different
 # absolute coordinates, different neighbor-list/atom ordering), not just a second read of the
-# same configuration. That is a larger, but still expected, source of fp32/reduction-order noise
-# than TOLERANCES was calibrated for -- confirmed by the identical checks against the
-# deterministic CPUNEP reference passing cleanly at TOLERANCES. It's most visible for small
-# systems: the water_molecule fixture's total energy is only ~0.03-0.25 eV, so the same absolute
-# noise floor is a much larger relative fraction than for the ~100+ eV bulk_C/bulk_perovskite
-# cells. The noise floor itself is also larger for qNEP charge models specifically (up to
-# ~2.8e-4 eV/Angstrom per force component on the water_molecule fixture, vs. ~2.2e-5 for plain
-# NEP), likely because the reciprocal-space Ewald sum is more sensitive to the absolute
-# geometry/box of a small periodic cell than the short-range descriptor terms. Used only by
-# test_invariances.py's translation/rotation/permutation checks on the 'gpu' calculator param.
-GPU_TRANSFORM_ENERGY_TOLERANCE = dict(rtol=1e-3, atol=2e-4)
-GPU_TRANSFORM_FORCE_TOLERANCE = dict(rtol=1e-3, atol=5e-4)
+# same configuration -- a larger, but still expected, source of fp32/reduction-order noise than
+# TOLERANCES was calibrated for (same-configuration comparisons). This is most visible on small
+# systems, where the total energy itself is small enough that a fixed absolute noise floor is a
+# much larger relative fraction than on a large cell -- hence atol carrying more weight here than
+# in TOLERANCES. qNEP models route through Ewald for these checks (see make_gpunep) specifically
+# so that the reciprocal-space method itself isn't an additional variable on top of this ordinary
+# reduction-order noise; what's left afterward is the same kind of noise plain NEP models show
+# under the same transforms, just calibrated with enough margin to cover the smallest systems.
+# Used only by test_invariances.py's translation/rotation/permutation checks on the 'gpu'
+# calculator param.
+GPU_TRANSFORM_ENERGY_TOLERANCE = dict(rtol=1e-4, atol=1e-5)
+GPU_TRANSFORM_FORCE_TOLERANCE = dict(rtol=1e-4, atol=3e-5)
 
 
 def transform_tolerance(kind, calculator_kind):
@@ -79,18 +79,20 @@ def transform_tolerance(kind, calculator_kind):
 # test_force_energy_consistency.py checks GPUNEP's own analytic forces against a central
 # finite-difference of GPUNEP's own energy -- deliberately GPUNEP only, since the point is to
 # validate GPUMD's (this repo's) force/energy self-consistency, not calorine's separate nep_cpu
-# reference implementation. At DISPLACEMENT=1e-2 Angstrom (a deliberately larger step than pure
-# truncation-error minimization would pick, to stay clear of GPU fp32 noise at very small steps),
-# measured worst-case |numeric - analytic| across bulk_C/bulk_perovskite/water_molecule and all
-# three model types (nep, qnep_mode1, qnep_mode2) was ~2.5e-3 eV/Angstrom.
+# reference implementation. GPU-computed energies have a precision floor that a smaller
+# finite-difference step does not shrink below (unlike the usual truncation-error argument for
+# picking a small step), so DISPLACEMENT is chosen large enough that the resulting energy
+# difference sits comfortably above that floor, and the tolerance below is set accordingly rather
+# than to the tightest value truncation error alone would justify.
 GPU_FINITE_DIFFERENCE_FORCE_TOLERANCE = dict(rtol=1e-2, atol=4e-3)
 
 
 # test_cross_check.py compares GPUNEP against CPUNEP -- two wholly separate codebases, so some
-# fp32/implementation-detail divergence is expected even where both are correct. Measured
-# worst-case |gpu - cpu| for plain (non-charge) NEP models: ~2.3e-5 eV/Angstrom (force),
-# ~1.8e-5 eV (energy, on the ~0.03-0.25 eV water_molecule system where the same absolute
-# difference is a much larger relative fraction), ~7.5e-6 e (Born effective charges).
+# fp32/implementation-detail divergence is expected even where both are correct, and small
+# systems (where the total energy/force magnitude is itself small) make atol carry more weight
+# than rtol alone would. qNEP models route through Ewald on the GPUNEP side for this comparison
+# (see make_gpunep) so the reciprocal-space method matches calorine's Ewald-only implementation;
+# what remains is the same class of cross-implementation noise seen for plain NEP models.
 CROSS_CHECK_ENERGY_TOLERANCE = dict(rtol=1e-3, atol=2e-4)
 CROSS_CHECK_FORCE_TOLERANCE = dict(rtol=1e-3, atol=5e-5)
 CROSS_CHECK_BEC_TOLERANCE = dict(rtol=1e-3, atol=1e-5)
@@ -133,7 +135,7 @@ def nep_command():
     return str(NEP_EXECUTABLE)
 
 
-def _make_bulk_C():
+def make_bulk_C():
     """16-atom diamond-C cell, pre-rattled (stdev=0.01, seed=42) with reference NEP energy,
     forces, and stress embedded as extended-xyz arrays. Diamond is high-symmetry with zero
     forces at the ideal positions, so we read an already-rattled structure from file rather
@@ -141,14 +143,14 @@ def _make_bulk_C():
     return read(STRUCTURES_DIR / 'C-nat16-rattled.xyz')
 
 
-def _make_bulk_perovskite():
+def make_bulk_perovskite():
     """40-atom (2x2x2) cubic BaTiO3 cell, a=4.009 Angstrom, pre-rattled (stdev=0.01, seed=42)
     with reference NEP energy, forces, and stress embedded. Same high-symmetry rationale as
     bulk_C above."""
     return read(STRUCTURES_DIR / 'BaTiO3-nat40-rattled.xyz')
 
 
-def _make_water_molecule():
+def make_water_molecule():
     """Single H2O molecule in a padded periodic box, rattled with a fixed seed for
     reproducibility. No high-symmetry/zero-force concern here, so this one is generated on the
     fly rather than read from a pre-rattled file. Periodic boundaries are enabled (6 Angstrom
@@ -164,20 +166,21 @@ def _make_water_molecule():
 
 
 _STRUCTURE_BUILDERS = {
-    'bulk_C': _make_bulk_C,
-    'bulk_perovskite': _make_bulk_perovskite,
-    'water_molecule': _make_water_molecule,
+    'bulk_C': make_bulk_C,
+    'bulk_perovskite': make_bulk_perovskite,
+    'water_molecule': make_water_molecule,
 }
 
 # (structure_name, model_type) -> file in fixtures/models/. Missing combinations (currently
-# only qnep_mode1 + water_molecule, since no qnep-mode1-water.txt toy model was supplied) are
-# skipped explicitly in model_path below rather than silently omitted from the params list.
+# bulk_C + either qnep mode, since no qnep toy model was supplied for carbon) are skipped
+# explicitly in model_path below rather than silently omitted from the params list.
 _MODEL_FILES = {
     ('bulk_C', 'nep'): 'nep_C.txt',
     ('bulk_perovskite', 'nep'): 'nep_BaTiO3.txt',
     ('bulk_perovskite', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
     ('bulk_perovskite', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
     ('water_molecule', 'nep'): 'nep_water.txt',
+    ('water_molecule', 'qnep_mode1'): 'qnep_mode1_water.txt',
     ('water_molecule', 'qnep_mode2'): 'qnep_mode2_water.txt',
 }
 
@@ -206,15 +209,38 @@ def model_path(structure_name, model_type):
     return MODELS_DIR / filename
 
 
+def make_gpunep(model_path, gpumd_command, model_type):
+    """Builds a GPUNEP calculator. For qNEP (charge) models, explicitly requests the Ewald
+    reciprocal-space method rather than GPUMD's default PPPM (see
+    doc/gpumd/input_parameters/kspace.rst), because:
+    - calorine's CPUNEP only implements Ewald (src/nepy/ewald_nep.cpp) -- comparing against it
+      while GPUNEP uses PPPM would be comparing two different approximations to the
+      reciprocal-space sum, not validating agreement between two implementations of the same
+      method.
+    - PPPM's FFT mesh has a fixed orientation relative to the simulation box, so rotating the
+      box (unlike relabeling/permuting atoms) changes the mesh's relationship to the atoms and
+      introduces a real difference unrelated to whatever invariance is actually being checked.
+
+    GPUMD's own PPPM-vs-Ewald agreement is validated directly in test_kspace_consistency.py,
+    not routed around here -- this helper exists so that *other* comparisons (against CPUNEP, or
+    against a transformed copy of the same structure) aren't also, incidentally, comparisons
+    between two different reciprocal-space methods.
+    """
+    calc = GPUNEP(str(model_path), command=gpumd_command)
+    if model_type != 'nep':
+        calc.single_point_parameters = calc.single_point_parameters + [('kspace', 'ewald')]
+    return calc
+
+
 @pytest.fixture(params=['gpu', 'cpu_reference'])
 def calculator_kind(request):
     return request.param
 
 
 @pytest.fixture
-def calculator(calculator_kind, model_path, gpumd_command):
+def calculator(calculator_kind, model_path, model_type, gpumd_command):
     if calculator_kind == 'gpu':
-        return GPUNEP(str(model_path), command=gpumd_command)
+        return make_gpunep(model_path, gpumd_command, model_type)
     return CPUNEP(str(model_path))
 
 
@@ -228,7 +254,7 @@ def _write_sanitizer_fixtures():
     cases = [
         (
             'nep_bulk_C',
-            _make_bulk_C(),
+            make_bulk_C(),
             MODELS_DIR / 'nep_C.txt',
             [
                 ('velocity', 300),
@@ -241,7 +267,7 @@ def _write_sanitizer_fixtures():
         ),
         (
             'qnep_mode1_bulk_perovskite',
-            _make_bulk_perovskite(),
+            make_bulk_perovskite(),
             MODELS_DIR / 'qnep_mode1_BaTiO3.txt',
             [
                 ('velocity', 300),
