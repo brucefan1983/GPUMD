@@ -64,6 +64,7 @@ public:
     const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
     const float* b;                 // bias for the output layer
     const float* c;                 // for elements in descriptor
+    const float* rc;
   };
 
   struct ZBL {
@@ -93,5 +94,5 @@ private:
   ANN annmb[16];
   NEP_Data nep_data[16];
   ZBL zbl;
-  void update_potential(float* parameters, ANN& ann);
+  void update_potential(Parameters& para, float* parameters, ANN& ann);
 };

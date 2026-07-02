@@ -244,14 +244,25 @@ void Parameters::calculate_parameters()
     number_of_variables_ann += num_neurons1 * num_types + 1;
   }
 
+
+#ifdef USE_CJ
+  number_of_variables_descriptor = 
+    num_types *
+    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+#else
   number_of_variables_descriptor =
     num_types * num_types *
     (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+#endif
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;
   }
+
+#ifdef TRAIN_CUTOFF
+    number_of_variables += num_types * 2;
+#endif
 
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);

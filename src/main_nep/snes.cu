@@ -266,6 +266,26 @@ void SNES::find_type_of_variable(Parameters& para)
   }
 
   // descriptor part
+#ifdef USE_CJ
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+          type_of_variable[nk * para.num_types + t1 + offset] = t1;
+      }
+    }
+  }
+  offset +=
+    (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types;
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+          type_of_variable[nk * para.num_types + t1 + offset] = t1;
+      }
+    }
+  }
+#else
   for (int n = 0; n <= para.n_max_radial; ++n) {
     for (int k = 0; k <= para.basis_size_radial; ++k) {
       int nk = n * (para.basis_size_radial + 1) + k;
@@ -290,6 +310,7 @@ void SNES::find_type_of_variable(Parameters& para)
       }
     }
   }
+#endif
 }
 
 void SNES::compute(Parameters& para, Fitness* fitness_function)
