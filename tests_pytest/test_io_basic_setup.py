@@ -6,7 +6,7 @@ io_helpers.py's module docstring.
 
 No qNEP dependency: every case here works identically for plain NEP and qNEP models, so this
 file runs across the full structure x model_type matrix with no skip logic of its own (beyond
-the combinations conftest.py's model_path fixture already skips for missing toy models).
+the combinations conftest.py's model_path fixture already skips for missing models).
 """
 from dataclasses import replace
 

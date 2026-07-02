@@ -14,7 +14,7 @@ coordination shells uniformly across all structures. compute_orientorder shares 
 cutoff for simplicity but has no such thickness constraint, so it runs unrepeated.
 
 compute_elastic runs multiple internal energy minimizations per strain component, but measured
-in isolation this stays within a few tens of seconds per case for this suite's small toy
+in isolation this stays within a few tens of seconds per case for this suite's small test
 structures -- comfortably within `fast`. (An earlier measurement of several minutes turned out to
 be an artifact of running a second gpumd process concurrently on the same GPU during that
 investigation, not the command's actual cost -- not reproduced with a single gpumd process at a
@@ -22,14 +22,14 @@ time.) Only applies to crystalline structures (bulk_C, bulk_perovskite) -- see t
 compute_elastic/bulk_water skip below for why bulk_water is excluded.
 
 compute_phonon is deferred, not merely skipped, from Tier 1 entirely (see test_compute_phonon
-below for the full reasoning): the toy NEP models in this suite have large cutoffs (6-7
-Angstrom), and doc/gpumd/input_parameters/compute_phonon.rst requires the box to be at least
-2x(2x cutoff) per direction for many-body potentials -- a supercell of thousands of atoms.
-Measured directly: with a 3456-atom supercell (bulk_C replicated 6x6x6, matching the scale used
-in the working tests/gpumd/silicon_dispersion/ example, which uses a much cheaper two-body
-Tersoff potential instead of NEP), compute_phonon did not finish within 6+ minutes. That's not a
-hang (CPU usage stayed pegged the whole time) -- it's genuinely too expensive for any of this
-suite's toy models to fit a "smoke test" tier at all, let alone `fast`.
+below for the full reasoning): the NEP models in this suite have large cutoffs (6-7 Angstrom),
+and doc/gpumd/input_parameters/compute_phonon.rst requires the box to be at least 2x(2x cutoff)
+per direction for many-body potentials -- a supercell of thousands of atoms. Measured directly:
+with a 3456-atom supercell (bulk_C replicated 6x6x6, matching the scale used in the working
+tests/gpumd/silicon_dispersion/ example, which uses a much cheaper two-body Tersoff potential
+instead of NEP), compute_phonon did not finish within 6+ minutes. That's not a hang (CPU usage
+stayed pegged the whole time) -- it's genuinely too expensive for any of this suite's small test
+structures to fit a "smoke test" tier at all, let alone `fast`.
 """
 import numpy as np
 import pytest
@@ -164,5 +164,5 @@ def test_compute_phonon():
         '(replicate 6 6 6, matching the scale of the working tests/gpumd/silicon_dispersion/ '
         'example, which uses a far cheaper two-body Tersoff potential instead of NEP): did not '
         'finish within 6+ minutes of pegged CPU usage (not a hang, genuinely that expensive). '
-        'Revisit with a smaller-cutoff toy model if compute_phonon coverage is wanted, rather '
+        'Revisit with a smaller-cutoff model if compute_phonon coverage is wanted, rather '
         'than accepting this cost in a nominally "smoke test" tier.')

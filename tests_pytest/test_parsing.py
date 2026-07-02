@@ -84,8 +84,8 @@ def read_dpdt_out(path):
 
 @pytest.mark.parametrize('model_file', ALL_MODEL_FILES, ids=lambda p: p.name)
 def test_read_model_round_trip(model_file):
-    """Every toy model file supplied for this suite should parse without error and report
-    metadata consistent with a real nep.txt file."""
+    """Every model file supplied for this suite should parse without error and report valid
+    nep.txt metadata."""
     model = read_model(str(model_file))
     assert model.types
     assert model.version in (3, 4, 5)

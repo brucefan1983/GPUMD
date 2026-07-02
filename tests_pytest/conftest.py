@@ -7,6 +7,7 @@ GPU; see `gpumd_pytest_suite_spec.md` at the repo root for the full design.
 """
 from pathlib import Path
 
+import numpy as np
 import pytest
 from ase.io import read
 from calorine.calculators import CPUNEP, GPUNEP
@@ -108,7 +109,7 @@ def pytest_addoption(parser):
         '--dump-fixtures',
         action='store_true',
         default=False,
-        help='Write the toy structures/models used by run_sanitizer_checks.sh into '
+        help='Write the small test structures/models used by run_sanitizer_checks.sh into '
              'fixtures/sanitizer_inputs/ and exit without running any tests.',
     )
 
@@ -122,6 +123,31 @@ def pytest_configure(config):
 @pytest.fixture
 def update_golden(request):
     return request.config.getoption('--update-golden')
+
+
+def compare_or_update_golden(name, values, tolerances, update_golden):
+    """Shared compare-or-update logic for golden-file regression tests. `values` is a dict of
+    {key: array-like} to freeze/check; `tolerances` is either a single {'atol', 'rtol'} dict
+    applied to every key, or a {key: {'atol', 'rtol'}} dict for per-key tolerances.
+
+    GPUMD's own output is the ground truth for NEP-family architectures here, not an
+    independently maintained reference implementation (calorine's CPUNEP is a separate codebase
+    not guaranteed to support the same features) -- so correctness is judged by comparing against
+    this repo's own previously-generated output, not by cross-checking against calorine. A real
+    discrepancy against golden data is a signal to investigate (regression, or an intentional
+    change needing --update-golden), never something to reconcile against a different evaluator.
+    """
+    path = GOLDEN_DIR / f'{name}.npz'
+    if update_golden:
+        GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
+        np.savez(path, **values)
+        pytest.skip(f'Updated golden file {path}; rerun without --update-golden to verify it.')
+    if not path.exists():
+        pytest.fail(f'Golden file {path} does not exist; run with --update-golden to create it.')
+    golden = np.load(path)
+    for key, value in values.items():
+        tol = tolerances[key] if key in tolerances else tolerances
+        assert np.allclose(value, golden[key], **tol), f'{name}: {key} mismatch vs golden file'
 
 
 @pytest.fixture
@@ -161,9 +187,11 @@ def make_bulk_water():
 
 
 def make_bulk_bazro3():
-    """40-atom cubic BaZrO3 cell, pre-rattled. Used only by test_regression.py as the one
-    realistic non-toy system, not part of _STRUCTURE_BUILDERS/the toy-model matrix used
-    elsewhere. No embedded energy/forces/stress -- species and positions only."""
+    """40-atom cubic BaZrO3 cell, pre-rattled. Used by test_regression.py and
+    test_io_tnep_commands.py, not part of _STRUCTURE_BUILDERS/the structure x model_type matrix
+    used elsewhere, since both consumers pair it with one specific model rather than sweeping
+    it across every model_type. No embedded energy/forces/stress -- species and positions
+    only."""
     return read(STRUCTURES_DIR / 'BaZrO3-nat40-rattled.xyz')
 
 
@@ -174,7 +202,7 @@ _STRUCTURE_BUILDERS = {
 }
 
 # (structure_name, model_type) -> file in fixtures/models/. Missing combinations (currently
-# bulk_C + either qnep mode, since no qnep toy model was supplied for carbon) are skipped
+# bulk_C + either qnep mode, since no qNEP model was supplied for carbon) are skipped
 # explicitly in model_path below rather than silently omitted from the params list.
 _MODEL_FILES = {
     ('bulk_C', 'nep'): 'nep_C.txt',
@@ -207,7 +235,7 @@ def model_type(request):
 def model_path(structure_name, model_type):
     filename = _MODEL_FILES.get((structure_name, model_type))
     if filename is None:
-        pytest.skip(f'No {model_type} toy model available for structure {structure_name!r}.')
+        pytest.skip(f'No {model_type} model available for structure {structure_name!r}.')
     return MODELS_DIR / filename
 
 

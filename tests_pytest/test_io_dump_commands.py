@@ -3,15 +3,11 @@
 Confirms each keyword runs without error (exit code 0) and produces a parseable output file of
 the expected shape -- not physical correctness. See io_helpers.py's module docstring.
 
-Known spec discrepancy, confirmed against the real gpumd binary: dump_dipole does NOT work with
-qNEP (charge) models, contrary to this suite's original Tier 1 scope ("dump_dipole (qNEP models
-only)"). GPUMD's own error is explicit: "dump_dipole requires the second NEP potential to be a
-dipole model" -- it strictly requires a genuine TNEP dipole model (model_type 1) as the second
-potential, which is a different model family from qNEP charge models (model_type charge_mode
-1/2). No TNEP dipole model exists in fixtures/models/ (TNEP is explicitly deferred for this
-suite -- see gpumd_pytest_suite_spec.md's "Model types and phasing" section), so dump_dipole is
-skipped here entirely rather than silently reinterpreted to mean something GPUMD doesn't
-actually support. Revisit once TNEP fixtures are in scope.
+dump_dipole (and its rank-2 counterpart dump_polarizability) are covered in
+test_io_tnep_commands.py, not here -- both strictly require a genuine TNEP model (not a qNEP
+charge model, contrary to this suite's original Tier 1 scope) as the second `potential`, which
+doesn't fit this file's calculator/model_type fixture pattern the way the rest of these dump_*
+commands do.
 """
 import numpy as np
 import pytest
@@ -123,13 +119,3 @@ def test_dump_observer(tmp_path, structure, model_path, model_type, gpumd_comman
         parse_check=_check_thermo_format,
     )
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
-
-
-@pytest.mark.parametrize('structure_name', ['bulk_perovskite', 'bulk_water'])
-@pytest.mark.parametrize('model_type', ['qnep_mode1', 'qnep_mode2'])
-def test_dump_dipole(structure_name, model_type):
-    pytest.skip(
-        "dump_dipole requires a genuine TNEP dipole model as its second potential ('dump_dipole "
-        "requires the second NEP potential to be a dipole model', confirmed against the real "
-        'gpumd binary) -- it does not accept qNEP charge models. No TNEP dipole model is in '
-        'scope for this suite (TNEP is explicitly deferred). See module docstring.')
