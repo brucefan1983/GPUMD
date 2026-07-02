@@ -79,4 +79,5 @@ private:
   GPU_Vector<double> msdx_, msdy_, msdz_;
   GPU_Vector<double> msdx_out_, msdy_out_, msdz_out_;  // holds output for writing
   GPU_Vector<int> group_per_atom_gpu_;
+  double cpu_h_[9];
 };
