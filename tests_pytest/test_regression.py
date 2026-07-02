@@ -3,9 +3,14 @@
 Uses nep_BaZrO3.txt against the file-backed bulk_BaZrO3 structure (conftest.py's
 make_bulk_bazro3); a TNEP susceptibility counterpart for BaZrO3 does exist
 (tnep-BaZrO3-susceptibility.txt) and is exercised directly in test_io_tnep_commands.py, just not
-through this file's golden-comparison path. Golden reference arrays (energy, forces) are frozen
-in fixtures/golden/ and regenerated only via --update-golden; never overwritten silently on
-failure. Uses conftest.py's compare_or_update_golden, shared with test_io_tnep_commands.py.
+through this file's golden-comparison path. Golden reference arrays (energy, forces, stress) are
+frozen in fixtures/golden/ and regenerated only via --update-golden; never overwritten silently
+on failure. Uses conftest.py's compare_or_update_golden, shared with test_io_tnep_commands.py.
+
+Stress is included alongside energy/forces since GPUNEP already computes it as part of the same
+calculation (calorine's GPUNEP reads energy/forces/stress together from thermo.out in one pass,
+see calorine/calculators/gpunep.py) -- this is the only place in the suite TOLERANCES['virial']
+is exercised.
 
 test_bec_regression is ported from the now-removed test_cross_check.py (relocated to
 scripts/compare_gpunep_cpunep.py -- CPUNEP has no role in this suite; see conftest.py's module
@@ -32,9 +37,11 @@ def test_bulk_bazro3_regression(update_golden, gpumd_command):
     atoms.calc = make_gpunep(MODELS_DIR / 'nep_BaZrO3.txt', gpumd_command, 'nep')
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    stress = atoms.get_stress()
     compare_or_update_golden(
-        'bulk_bazro3', {'energy': energy, 'forces': forces},
-        {'energy': TOLERANCES['energy'], 'forces': TOLERANCES['force']}, update_golden)
+        'bulk_bazro3', {'energy': energy, 'forces': forces, 'stress': stress},
+        {'energy': TOLERANCES['energy'], 'forces': TOLERANCES['force'],
+         'stress': TOLERANCES['virial']}, update_golden)
 
 
 @pytest.mark.parametrize('kspace', ['ewald', 'pppm'])

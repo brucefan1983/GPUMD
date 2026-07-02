@@ -5,8 +5,10 @@ steps executed, not just a no-op parse). Does not validate physical correctness 
 io_helpers.py's module docstring.
 
 No qNEP dependency: every case here works identically for plain NEP and qNEP models, so this
-file runs across the full structure x model_type matrix with no skip logic of its own (beyond
-the combinations conftest.py's model_path fixture already skips for missing models).
+file runs across the full structure x model_type matrix, with skips only for the combinations
+conftest.py's model_path fixture already skips for missing models, plus one deliberate,
+evidenced skip below (change_box/bulk_C, a confirmed GPUMD hang) -- not a blanket "no skip
+logic" file.
 """
 from dataclasses import replace
 

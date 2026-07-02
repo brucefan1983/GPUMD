@@ -21,7 +21,6 @@ GOLDEN_DIR = FIXTURES_DIR / 'golden'
 SANITIZER_INPUTS_DIR = FIXTURES_DIR / 'sanitizer_inputs'
 
 GPUMD_EXECUTABLE = REPO_ROOT / 'gpumd'
-NEP_EXECUTABLE = REPO_ROOT / 'nep'
 
 # Tolerances are set with fp32 accumulation error and non-associative reduction order in mind:
 # GPUMD sums per-atom contributions across GPU threads/blocks in an order that is not fixed
@@ -31,7 +30,7 @@ NEP_EXECUTABLE = REPO_ROOT / 'nep'
 TOLERANCES = {
     'energy': dict(rtol=1e-5, atol=1e-8),  # eV
     'force': dict(rtol=1e-4, atol=1e-6),   # eV/Angstrom
-    'virial': dict(rtol=1e-4, atol=1e-6),
+    'virial': dict(rtol=1e-4, atol=1e-6),  # eV/Angstrom^3 (ASE's atoms.get_stress() convention)
     # Born effective charges (dimensionless, e/e): several off-diagonal components are near zero,
     # so a relative bound alone is unstable there -- atol needs to comfortably cover the absolute
     # run-to-run noise floor by itself (observed empirically across repeated runs, closer in
@@ -47,12 +46,6 @@ def approx_tol(value, tol):
     return pytest.approx(value, rel=tol['rtol'], abs=tol['atol'])
 
 
-def approx(value, kind):
-    """approx_tol() using this suite's centralized TOLERANCES, keyed by 'energy'/'force'/
-    'virial'."""
-    return approx_tol(value, TOLERANCES[kind])
-
-
 # Translating/rotating/permuting a structure and re-evaluating it runs a second, independent
 # gpumd subprocess on genuinely different floating-point input (different absolute coordinates,
 # different neighbor-list/atom ordering), not just a second read of the same configuration -- a
@@ -62,8 +55,8 @@ def approx(value, kind):
 # fraction than on a large cell -- hence atol carrying more weight here than in TOLERANCES. qNEP
 # models route through Ewald for these checks (see make_gpunep) specifically so that the
 # reciprocal-space method itself isn't an additional variable on top of this ordinary
-# reduction-order noise. Used only by test_invariances.py's translation/rotation/permutation
-# checks.
+# reduction-order noise. Used by all four of test_invariances.py's checks (translation, rotation,
+# permutation, lattice-vector shift).
 GPU_TRANSFORM_ENERGY_TOLERANCE = dict(rtol=1e-4, atol=1e-5)
 GPU_TRANSFORM_FORCE_TOLERANCE = dict(rtol=1e-4, atol=3e-5)
 
@@ -134,11 +127,6 @@ def compare_or_update_golden(name, values, tolerances, update_golden):
 @pytest.fixture
 def gpumd_command():
     return str(GPUMD_EXECUTABLE)
-
-
-@pytest.fixture
-def nep_command():
-    return str(NEP_EXECUTABLE)
 
 
 def make_bulk_C():

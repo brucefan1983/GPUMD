@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # compute-sanitizer companion check, run manually outside pytest whenever kernel code changes.
 #
-# Nothing in the pytest suite (including test_cross_check.py) reliably catches kernel-level
-# memory/race errors, since those can produce numerically plausible-but-wrong output on a given
-# run. Pass/fail here means "sanitizer reported no errors," not a numerical match -- a
-# different, complementary signal to the rest of this suite.
+# Nothing in the pytest suite (including the standalone scripts/compare_gpunep_cpunep.py
+# developer utility) reliably catches kernel-level memory/race errors, since those can produce
+# numerically plausible-but-wrong output on a given run. Pass/fail here means "sanitizer
+# reported no errors," not a numerical match -- a different, complementary signal to the rest of
+# this suite.
 #
 # Sanitizer runs are substantially slower than the numerical tests, so this is not wired into
 # any automated trigger (matching CI wiring being out of scope for this suite in general).

@@ -98,6 +98,9 @@ def test_permutation_invariance(structure, calculator):
 
 
 def test_lattice_vector_shift_invariance(structure, structure_name, calculator):
+    # Currently unreachable -- all of this suite's structure fixtures are fully periodic -- but
+    # kept as a guard against a future non-periodic fixture hitting a meaningless shift/wrap
+    # instead of skipping cleanly.
     if not any(structure.pbc):
         pytest.skip(f'{structure_name} is not periodic; lattice-vector shift is N/A.')
 

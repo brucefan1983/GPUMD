@@ -1,5 +1,6 @@
 """Shared infrastructure for the Tier 1 command IO smoke tests (test_io_basic_setup.py,
-test_io_dump_commands.py, test_io_compute_commands.py).
+test_io_dump_commands.py, test_io_compute_commands.py, test_io_tnep_commands.py) and TNEP's
+rotational self-consistency checks (test_tnep_invariances.py).
 
 These tests confirm each gpumd run.in keyword runs (exit code 0) and produces a parseable
 output file of the expected shape -- not physical correctness, which is out of scope here and

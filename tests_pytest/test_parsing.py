@@ -16,6 +16,8 @@ from hypothesis import given, settings, strategies as st
 
 from conftest import MODELS_DIR
 
+pytestmark = pytest.mark.fast
+
 THERMO_OUT_NCOLS = 18
 DPDT_OUT_NCOLS = 7
 
