@@ -26,7 +26,7 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" -DUSE_CJ -DTRAIN_CUTOFF
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" -DUSE_CJ -DFIX_DESCRIPTOR
 endif
 INC = -I./
 LDFLAGS = 

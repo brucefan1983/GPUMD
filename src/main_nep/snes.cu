@@ -121,10 +121,24 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
     }
   } else {
+#ifdef FIX_DESCRIPTOR
+    std::uniform_real_distribution<float> r1(0, 1);
+    for (int n = 0; n < number_of_variables; ++n) {
+      int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
+      PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
+      if (n <= para.number_of_variables_ann) {
+        mu[n] = (r1(rng) - 0.5f) * 2.0f;
+        sigma[n] = para.sigma0;
+      } else {
+        sigma[n] = 0.0f;
+      }
+    }
+#else
     for (int n = 0; n < number_of_variables; ++n) {
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
+#endif
     // flip the charges if needed
     if (para.charge_mode && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
