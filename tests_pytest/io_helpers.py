@@ -3,8 +3,8 @@ test_io_dump_commands.py, test_io_compute_commands.py).
 
 These tests confirm each gpumd run.in keyword runs (exit code 0) and produces a parseable
 output file of the expected shape -- not physical correctness, which is out of scope here and
-already covered elsewhere (test_cross_check.py, test_md_conservation.py) for the handful of
-quantities those files touch.
+already covered elsewhere (test_invariances.py, test_md_conservation.py, test_regression.py)
+for the handful of quantities those files touch.
 
 Not a test_*.py module itself (pytest won't collect it), just shared helpers.
 """

@@ -1,14 +1,14 @@
 """GPUMD's own PPPM-vs-Ewald consistency for qNEP models.
 
-Nothing else in this suite exercises PPPM directly: test_cross_check.py and test_invariances.py
-explicitly request Ewald for qNEP models (see conftest.py's make_gpunep) so that the
-reciprocal-space method itself isn't a variable in those comparisons. That leaves GPUMD's own
-PPPM approximation -- the default a typical user actually gets (doc/gpumd/input_parameters/
-kspace.rst) -- entirely unvalidated elsewhere in this suite. This file evaluates the same
-structure with both methods directly and checks they agree within a bound wide enough to reflect
-PPPM being a genuine, expected approximation to Ewald (not floating-point noise, so this
-tolerance is not meant to be tightened toward TOLERANCES the way other comparisons in this suite
-are) -- a property to guard against regressing, not a bug to fix.
+test_invariances.py explicitly requests Ewald for qNEP models (see conftest.py's make_gpunep) so
+that the reciprocal-space method itself isn't a variable in those comparisons. This file instead
+evaluates the same structure with both methods directly and checks they agree within a bound wide
+enough to reflect PPPM being a genuine, expected approximation to Ewald (not floating-point
+noise, so this tolerance is not meant to be tightened toward TOLERANCES the way other comparisons
+in this suite are) -- a *relative* approximation-quality check, complementary to
+test_regression.py's golden-file regression for each method's own output against frozen
+reference data (which catches a regression in either implementation individually, not just their
+mutual disagreement).
 
 Spans multiple system sizes since PPPM's mesh/k-point resolution scales with the box: the
 existing bulk_water and bulk_perovskite fixtures, plus a larger supercell built by tiling

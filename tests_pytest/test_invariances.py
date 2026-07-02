@@ -1,12 +1,13 @@
 """Translation / rotation / permutation / PBC invariance checks.
 
-Parametrized over `structure` x `calculator` (see conftest.py) so both GPUNEP and CPUNEP get
-the same checks.
+Parametrized over `structure` x `model_type` (see conftest.py); `calculator` always builds a
+GPUNEP -- these checks validate GPUMD's own self-consistency under geometric transforms, not
+agreement with an independent implementation.
 """
 import numpy as np
 import pytest
 
-from conftest import approx_tol, transform_tolerance
+from conftest import GPU_TRANSFORM_ENERGY_TOLERANCE, GPU_TRANSFORM_FORCE_TOLERANCE, approx_tol
 
 RNG_SEED = 7
 
@@ -27,7 +28,7 @@ def _rotation_matrix(angle_deg, axis):
     return np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * (K @ K)
 
 
-def test_translation_invariance(structure, calculator, calculator_kind):
+def test_translation_invariance(structure, calculator):
     atoms = structure.copy()
     atoms.calc = calculator
     energy_before = atoms.get_potential_energy()
@@ -40,11 +41,10 @@ def test_translation_invariance(structure, calculator, calculator_kind):
     shifted.calc = calculator
     energy_after = shifted.get_potential_energy()
 
-    energy_tol = transform_tolerance('energy', calculator_kind)
-    assert energy_after == approx_tol(energy_before, energy_tol)
+    assert energy_after == approx_tol(energy_before, GPU_TRANSFORM_ENERGY_TOLERANCE)
 
 
-def test_rotation_invariance(structure, calculator, calculator_kind):
+def test_rotation_invariance(structure, calculator):
     atoms = structure.copy()
     atoms.calc = calculator
     energy_before = atoms.get_potential_energy()
@@ -64,14 +64,12 @@ def test_rotation_invariance(structure, calculator, calculator_kind):
     energy_after = rotated.get_potential_energy()
     forces_after = rotated.get_forces()
 
-    energy_tol = transform_tolerance('energy', calculator_kind)
-    force_tol = transform_tolerance('force', calculator_kind)
-    assert energy_after == approx_tol(energy_before, energy_tol)
+    assert energy_after == approx_tol(energy_before, GPU_TRANSFORM_ENERGY_TOLERANCE)
     expected_forces_after = forces_before @ rot.T
-    assert np.allclose(forces_after, expected_forces_after, **force_tol)
+    assert np.allclose(forces_after, expected_forces_after, **GPU_TRANSFORM_FORCE_TOLERANCE)
 
 
-def test_permutation_invariance(structure, calculator, calculator_kind):
+def test_permutation_invariance(structure, calculator):
     atoms = structure.copy()
     atoms.calc = calculator
     energy_before = atoms.get_potential_energy()
@@ -94,13 +92,12 @@ def test_permutation_invariance(structure, calculator, calculator_kind):
     energy_after = permuted.get_potential_energy()
     forces_after = permuted.get_forces()
 
-    energy_tol = transform_tolerance('energy', calculator_kind)
-    force_tol = transform_tolerance('force', calculator_kind)
-    assert energy_after == approx_tol(energy_before, energy_tol)
-    assert np.allclose(forces_after, forces_before[permutation], **force_tol)
+    assert energy_after == approx_tol(energy_before, GPU_TRANSFORM_ENERGY_TOLERANCE)
+    assert np.allclose(
+        forces_after, forces_before[permutation], **GPU_TRANSFORM_FORCE_TOLERANCE)
 
 
-def test_lattice_vector_shift_invariance(structure, structure_name, calculator, calculator_kind):
+def test_lattice_vector_shift_invariance(structure, structure_name, calculator):
     if not any(structure.pbc):
         pytest.skip(f'{structure_name} is not periodic; lattice-vector shift is N/A.')
 
@@ -114,5 +111,4 @@ def test_lattice_vector_shift_invariance(structure, structure_name, calculator, 
     shifted.calc = calculator
     energy_after = shifted.get_potential_energy()
 
-    energy_tol = transform_tolerance('energy', calculator_kind)
-    assert energy_after == approx_tol(energy_before, energy_tol)
+    assert energy_after == approx_tol(energy_before, GPU_TRANSFORM_ENERGY_TOLERANCE)
