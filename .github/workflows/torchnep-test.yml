@@ -1,0 +1,48 @@
+name: TorchNEP tests
+
+# Run the TorchNEP pytest suite only when TorchNEP *code* changes — i.e. a .py
+# file under torchnep/, the package config, or this workflow itself. Doc-only
+# edits (README, etc.) do NOT trigger it, and ordinary GPUMD (C++/CUDA) pull
+# requests are unaffected.
+on:
+  pull_request:
+    paths:
+      - 'torchnep/**.py'
+      - 'torchnep/pyproject.toml'
+      - '.github/workflows/torchnep-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'torchnep/**.py'
+      - 'torchnep/pyproject.toml'
+      - '.github/workflows/torchnep-test.yml'
+
+defaults:
+  run:
+    working-directory: torchnep
+
+jobs:
+  test:
+    name: pytest (CPU, py3.10)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install CPU PyTorch + TorchNEP (with test extras)
+        run: |
+          python -m pip install --upgrade pip
+          # CPU-only torch wheel — keeps CI light and avoids CUDA downloads.
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          # torch is already satisfied above; this pulls numpy + ase + pytest.
+          pip install -e '.[torch,ase,dev]'
+
+      - name: Run tests (CPU)
+        env:
+          TEST_DEVICE: cpu
+        run: pytest -q

@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "torchnep"
+dynamic = ["version"]
+description = "PyTorch implementation of NEP (Neuroevolution Potential)"
+readme = "README.md"
+authors = [{ name = "Yongchao Wu", email = "yongchao.wu@aalto.fi" }]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+keywords = [
+    "machine-learning-potential", "neuroevolution-potential", "NEP",
+    "molecular-dynamics", "interatomic-potential", "GPUMD", "pytorch",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+# torch and numpy are intentionally NOT hard dependencies: install the build
+# of PyTorch that matches your CUDA/CPU setup yourself (numpy comes with it).
+# `pip install torchnep` therefore pulls nothing; use the `torch` extra below
+# only if you want pip to fetch a default CPU build for you.
+dependencies = []
+
+[project.optional-dependencies]
+torch = ["torch>=2.0", "numpy>=1.20"]
+ase = ["ase>=3.22"]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+
+filterwarnings = [
+    "ignore:.*has_q_1111.*redundant.*:UserWarning",
+    # torch-internal: torch.compile's inductor import trips torch's own
+    # torch.jit.script_method deprecation. Not actionable by us.
+    "ignore:.*torch.jit.script_method.*is deprecated.*:DeprecationWarning",
+    # torch probes NVML on CUDA init; harmless when the driver/library
+    # versions mismatch (monitoring only — CUDA compute still works).
+    "ignore:.*Can't initialize NVML.*:UserWarning",
+]
+
+[project.urls]
+Homepage = "https://github.com/mushroomfire/torchnep"
+Repository = "https://github.com/mushroomfire/torchnep"
+Issues = "https://github.com/mushroomfire/torchnep/issues"
+
+[tool.hatch.version]
+path = "torchnep/__init__.py"
+
+# Wheel: install only the torchnep/ package.
+[tool.hatch.build.targets.wheel]
+packages = ["torchnep"]
+
+[tool.hatch.build.targets.sdist]
+include = ["torchnep/**/*.py", "README.md", "LICENSE", "pyproject.toml"]
+exclude = [".gitignore", "tests", "example", "my_test", ".github"]
