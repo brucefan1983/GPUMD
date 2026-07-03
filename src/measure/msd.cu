@@ -251,6 +251,8 @@ void MSD::preprocess(
   
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+  for (int i = 0; i < 9; ++i)
+    cpu_h_[i] = box.cpu_h[i];
   x_.resize(num_atoms_ * num_correlation_steps_);
   y_.resize(num_atoms_ * num_correlation_steps_);
   z_.resize(num_atoms_ * num_correlation_steps_);
@@ -397,6 +399,35 @@ void MSD::write(const char* filename)
   const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
 
   FILE* fid = fopen(filename, "a");
+  fprintf(fid, "# compute_msd %d %d", sample_interval_, num_correlation_steps_);
+  if (msd_over_all_groups_)
+    fprintf(fid, " all_groups %d", grouping_method_);
+  else if (grouping_method_ >= 0)
+    fprintf(fid, " group %d %d", grouping_method_, group_id_);
+  if (save_output_every_ > 0)
+    fprintf(fid, " save_every %d", save_output_every_);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", num_atoms_);
+  fprintf(fid, "# num_groups %d\n", num_groups_);
+  fprintf(fid, "# num_atoms_per_group");
+  for (int g = 0; g < num_groups_; ++g)
+    fprintf(fid, " %d", num_atoms_per_group_[g]);
+  fprintf(fid, "\n");
+  fprintf(fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    cpu_h_[0], cpu_h_[3], cpu_h_[6],
+    cpu_h_[1], cpu_h_[4], cpu_h_[7],
+    cpu_h_[2], cpu_h_[5], cpu_h_[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
+  fprintf(fid, "# columns time_ps");
+  if (!msd_over_all_groups_) {
+    fprintf(fid, " msdx msdy msdz sdcx sdcy sdcz");
+  } else {
+    for (int g = 0; g < num_groups_; ++g)
+      fprintf(fid, " msdx_%d msdy_%d msdz_%d sdcx_%d sdcy_%d sdcz_%d", g, g, g, g, g, g);
+  }
+  fprintf(fid, "\n");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(fid, "%g", nc * dt_in_ps_);
     for (int group_id = 0; group_id < num_groups_; group_id++) {
