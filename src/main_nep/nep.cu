@@ -58,10 +58,9 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-#ifdef TRAIN_CUTOFF
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2] - (1.0f + tanh(annmb.rc[t1])) - (1.0f + tanh(annmb.rc[t2])) ) * 0.5f;
-#else
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+#ifdef TRAIN_CUTOFF
+      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
 #endif
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
@@ -119,10 +118,9 @@ static __global__ void find_descriptors_angular(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-#ifdef TRAIN_CUTOFF
-        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2] - (1.0f + tanh(annmb.rc[paramb.num_types + t1])) - (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.5f;
-#else
         float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+#ifdef TRAIN_CUTOFF
+      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
 #endif
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
@@ -453,10 +451,9 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-#ifdef TRAIN_CUTOFF
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2] - (1.0f + tanh(annmb.rc[t1])) - (1.0f + tanh(annmb.rc[t2])) ) * 0.5f;
-#else
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+#ifdef TRAIN_CUTOFF
+      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
 #endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
@@ -553,10 +550,9 @@ static __global__ void find_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-#ifdef TRAIN_CUTOFF
-      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2] - (1.0f + tanh(annmb.rc[paramb.num_types + t1])) - (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.5f;
-#else
       float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+#ifdef TRAIN_CUTOFF
+      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
 #endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
