@@ -100,13 +100,8 @@ def _resolve_case(case, structure, model_path):
 def test_command_io(tmp_path, structure, structure_name, model_path, model_type, gpumd_command,
                      case):
     if case.name == 'change_box' and structure_name == 'bulk_C':
-        pytest.skip(
-            "confirmed GPUMD hang (not a crash/error, genuinely never returns): "
-            "'change_box <delta>' (isotropic form) hangs indefinitely on bulk_C's box, which "
-            'has zero on-diagonal components (the primitive rhombohedral representation of '
-            'diamond, with lattice vectors along face-diagonal directions). A generic sheared '
-            'triclinic box with nonzero diagonal components works fine, so this is specific to '
-            'the zero-diagonal case, not triclinic boxes in general -- likely a genuine GPUMD '
-            'bug worth reporting/fixing upstream, not a test setup issue.')
+        pytest.skip("confirmed GPUMD hang on bulk_C's zero-diagonal box (change_box <delta> "
+                    'never returns); other triclinic boxes work fine -- likely a genuine '
+                    'upstream bug.')
     case = _resolve_case(case, structure, model_path)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)

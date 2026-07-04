@@ -13,23 +13,14 @@ they run against (CommandIOCase.repeat) to get enough headroom for a cutoff that
 coordination shells uniformly across all structures. compute_orientorder shares the same nominal
 cutoff for simplicity but has no such thickness constraint, so it runs unrepeated.
 
-compute_elastic runs multiple internal energy minimizations per strain component, but measured
-in isolation this stays within a few tens of seconds per case for this suite's small test
-structures -- comfortably within `fast`. (An earlier measurement of several minutes turned out to
-be an artifact of running a second gpumd process concurrently on the same GPU during that
-investigation, not the command's actual cost -- not reproduced with a single gpumd process at a
-time.) Only applies to crystalline structures (bulk_C, bulk_perovskite) -- see the
-compute_elastic/bulk_water skip below for why bulk_water is excluded.
+compute_elastic runs a few tens of seconds per case (single-GPU measurement) -- comfortably
+`fast`. Crystalline structures only (bulk_C, bulk_perovskite); bulk_water is skipped below since
+elastic constants presuppose a stable equilibrium lattice.
 
-compute_phonon is deferred, not merely skipped, from Tier 1 entirely (see test_compute_phonon
-below for the full reasoning): the NEP models in this suite have large cutoffs (6-7 Angstrom),
-and doc/gpumd/input_parameters/compute_phonon.rst requires the box to be at least 2x(2x cutoff)
-per direction for many-body potentials -- a supercell of thousands of atoms. Measured directly:
-with a 3456-atom supercell (bulk_C replicated 6x6x6, matching the scale used in the working
-tests/gpumd/silicon_dispersion/ example, which uses a much cheaper two-body Tersoff potential
-instead of NEP), compute_phonon did not finish within 6+ minutes. That's not a hang (CPU usage
-stayed pegged the whole time) -- it's genuinely too expensive for any of this suite's small test
-structures to fit a "smoke test" tier at all, let alone `fast`.
+compute_phonon is deferred entirely, not just skipped: this suite's 6-7 Angstrom NEP cutoffs need
+a multi-thousand-atom supercell (doc/gpumd/input_parameters/compute_phonon.rst's box-size
+requirement for many-body potentials) -- measured at 6+ minutes on a 3456-atom bulk_C supercell,
+too expensive for a smoke-test tier.
 """
 import numpy as np
 import pytest
@@ -136,13 +127,8 @@ COMPUTE_ELASTIC_CASE = CommandIOCase(
 def test_command_io(tmp_path, structure, structure_name, model_path, model_type, gpumd_command,
                      case):
     if case.name == 'compute_elastic' and structure_name == 'bulk_water':
-        pytest.skip(
-            'compute_elastic derives elastic constants from the stress response to small '
-            'strains around a relaxed equilibrium structure -- a notion that presupposes a '
-            'stable crystalline reference structure. bulk_water is a disordered/molecular '
-            'liquid-like system with no such well-defined equilibrium lattice, so applying '
-            'compute_elastic to it is not physically meaningful; bulk_C and bulk_perovskite '
-            '(both crystalline) are the appropriate structures for this command.')
+        pytest.skip('compute_elastic needs a crystalline reference structure; bulk_water has no '
+                    'well-defined equilibrium lattice.')
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
 
 
@@ -156,13 +142,5 @@ def test_compute_dpdt(tmp_path, structure, model_type, model_path, gpumd_command
 
 
 def test_compute_phonon():
-    pytest.skip(
-        'deferred, not merely skipped: compute_phonon requires a box at least 2x(2x potential '
-        'cutoff) per direction for many-body potentials (doc/gpumd/input_parameters/'
-        'compute_phonon.rst) -- with this suite\'s 6-7 Angstrom NEP cutoffs that means a '
-        'supercell of thousands of atoms. Measured directly on a 3456-atom bulk_C supercell '
-        '(replicate 6 6 6, matching the scale of the working tests/gpumd/silicon_dispersion/ '
-        'example, which uses a far cheaper two-body Tersoff potential instead of NEP): did not '
-        'finish within 6+ minutes of pegged CPU usage (not a hang, genuinely that expensive). '
-        'Revisit with a smaller-cutoff model if compute_phonon coverage is wanted, rather '
-        'than accepting this cost in a nominally "smoke test" tier.')
+    pytest.skip("deferred: this suite's NEP cutoffs need a multi-thousand-atom supercell for "
+                'compute_phonon (see module docstring) -- too expensive for a smoke-test tier.')

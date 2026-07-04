@@ -93,13 +93,8 @@ def test_command_io(tmp_path, structure, model_path, model_type, gpumd_command, 
 
 
 def test_dump_netcdf():
-    pytest.skip(
-        "the gpumd binary at the repo root was not actually compiled with -DUSE_NETCDF, "
-        "despite src/makefile.loc listing it in CFLAGS -- confirmed directly: it prints "
-        "'dump_netcdf is available only when USE_NETCDF flag is set.' (that exact string is "
-        'present in the binary), most likely built before that flag was added or via a '
-        'different invocation than makefile.loc. netCDF4 is available in this Python '
-        'environment for parsing if/when the binary is rebuilt with NetCDF support.')
+    pytest.skip('gpumd binary lacks NetCDF support despite makefile.loc listing -DUSE_NETCDF '
+                '(confirmed via strings); revisit once rebuilt.')
 
 
 def test_dump_observer(tmp_path, structure, model_path, model_type, gpumd_command):
