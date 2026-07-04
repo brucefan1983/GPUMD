@@ -128,6 +128,8 @@ public:
   bool has_multiple_cutoffs = false;
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
+  GPU_Vector<float> q_scaler_max[16]; // used to scale some descriptor components (GPU)
+  GPU_Vector<float> q_scaler_min[16]; // used to scale some descriptor components (GPU)
 
 private:
   void set_default_parameters();

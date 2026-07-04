@@ -1,3 +1,12 @@
+# compute_shc 2 250 1 1000 400 group 0 4
+# format_version 1
+# num_atoms 40400
+# cell 2.4595100000e+02 0.0000000000e+00 0.0000000000e+00 0.0000000000e+00 4.3026000000e+02 0.0000000000e+00 0.0000000000e+00 0.0000000000e+00 3.3500000000e+00
+# dt_output 2.0000000000e-03 ps
+# num_correlation_rows 499
+# num_frequency_rows 1000
+# columns_correlation time_ps ki ko
+# columns_shc omega_THz shc_i shc_o
 -0.498 -0.00341509 -0.00251952
 -0.496 -0.0081802 -0.00583407
 -0.494 -0.00746465 -0.00400825
