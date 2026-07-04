@@ -13,11 +13,11 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "deposition.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
-#include <chrono>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -39,7 +39,16 @@ int main(int argc, char* argv[])
   CHECK(gpuDeviceSynchronize());
   const auto time_begin = std::chrono::high_resolution_clock::now();
 
-  Run run;
+  Deposition deposition;
+  if (!deposition.has_deposition("run.in")) {
+    Run run;
+  } else {
+    deposition.initialize();
+    for (int i = 0; i < deposition.deposit_runs + 1; ++i) {
+      deposition.prepare_subrun(i);
+      Run run;
+    }
+  }
 
   CHECK(gpuDeviceSynchronize());
   const auto time_finish = std::chrono::high_resolution_clock::now();
