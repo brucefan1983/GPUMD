@@ -214,8 +214,11 @@ void Deposition::split(const std::string& filename)
       }
 
       if (int(n) == run_line) {
-        out << "dump_xyz -1 0 " << interval << " deposition_" << i
-            << ".xyz velocity group\n";
+        out << "dump_xyz -1 0 " << interval << " deposition_" << i << ".xyz velocity";
+        if (has_model_group_) {
+          out << " group";
+        }
+        out << "\n";
         out << "run " << interval << "\n";
       } else {
         out << raw_lines[n] << "\n";
@@ -371,6 +374,17 @@ void Deposition::initialize()
 {
   copy_file("run.in", "run.in.original");
   copy_file("model.xyz", "model.xyz.original");
+
+  std::ifstream model_input("model.xyz");
+  if (model_input.is_open()) {
+    std::string line;
+    std::getline(model_input, line); // number of atoms
+    std::getline(model_input, line); // comment line with properties
+    int num_group_methods = 0;
+    has_model_group_ = has_group_property(line, num_group_methods);
+    model_input.close();
+  }
+
   split("run.in.original");
   printf("Split run.in into %zu sub-run input files.\n", subrun_files.size());
 }

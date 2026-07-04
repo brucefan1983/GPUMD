@@ -48,6 +48,7 @@ private:
   void deposit(const std::string& in_xyz, const std::string& out_xyz);
 
   std::vector<int> deposited_group_label_;
+  bool has_model_group_ = false;
 };
 
 
