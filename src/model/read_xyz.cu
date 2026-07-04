@@ -424,7 +424,7 @@ void find_type_size(
   }
 }
 
-static std::string get_filename_potential()
+std::string get_filename_potential()
 {
   std::ifstream input_run("run.in");
   if (!input_run.is_open()) {
@@ -449,7 +449,7 @@ static std::string get_filename_potential()
   }
 }
 
-static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
+std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
   if (!input_potential.is_open()) {
