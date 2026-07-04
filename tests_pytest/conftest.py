@@ -20,7 +20,17 @@ STRUCTURES_DIR = FIXTURES_DIR / 'structures'
 GOLDEN_DIR = FIXTURES_DIR / 'golden'
 SANITIZER_INPUTS_DIR = FIXTURES_DIR / 'sanitizer_inputs'
 
-GPUMD_EXECUTABLE = REPO_ROOT / 'gpumd'
+def _find_gpumd_executable():
+    """Defaults to REPO_ROOT/src/gpumd, where `cd src && make` puts it -- so the suite works
+    right after a normal build with no extra setup. Falls back to REPO_ROOT/gpumd for a manually
+    placed copy/symlink there."""
+    default_path = REPO_ROOT / 'src' / 'gpumd'
+    if default_path.exists():
+        return default_path
+    return REPO_ROOT / 'gpumd'
+
+
+GPUMD_EXECUTABLE = _find_gpumd_executable()
 
 # Tolerances are set with fp32 accumulation error and non-associative reduction order in mind:
 # GPUMD sums per-atom contributions across GPU threads/blocks in an order that is not fixed
