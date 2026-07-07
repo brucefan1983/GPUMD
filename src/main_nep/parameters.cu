@@ -280,8 +280,13 @@ void Parameters::calculate_parameters()
     std::vector<std::string> tokens;
     const int NUM89 = 89;
     const int num_ann = NUM89 * number_of_variables_ann_1 + (charge_mode ? 2 : 1);
+#ifdef USE_CJ
+    const int num_cnk_radial = NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
+#else
     const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
+#endif
     const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
     for (int n = 0; n < num_tot + 7; ++n) {
       tokens = get_tokens(input); // not used
@@ -308,6 +313,41 @@ void Parameters::calculate_parameters()
     q_scaler_min[device_id].copy_from_host(q_scaler_min_cpu.data());
   }
 }
+
+#ifdef USE_CJ
+
+void Parameters::check_foundation_model()
+{
+  // This map is needed because the foundation model misses 5 elements between H-Pu
+  const int element_map[94] = {
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+    20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
+    40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,
+    60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+    80,81,82,0,0,0,0,0,83,84,85,86,87,88
+  };
+
+  const double rc_table_radial[94] = {4.59, 5.20, 6.00, 5.60, 5.30, 5.43, 5.25, 5.00, 5.05, 5.11, 6.54, 6.10, 6.23, 5.93, 5.86, 5.88, 5.80, 6.09, 7.18, 6.73, 6.20, 6.13, 6.18, 5.82, 5.80, 5.86, 5.70, 5.60, 5.76, 5.86, 5.95, 5.80, 6.39, 5.88, 5.90, 5.90, 7.52, 7.30, 6.90, 6.56, 6.70, 6.30, 6.08, 5.90, 6.13, 6.25, 6.40, 6.00, 6.57, 6.25, 6.12, 6.10, 6.53, 6.68, 7.83, 7.40, 6.88, 6.64, 6.77, 7.10, 6.61, 6.93, 6.50, 6.74, 7.00, 6.55, 7.00, 6.50, 7.00, 7.09, 6.40, 6.35, 6.45, 6.31, 6.24, 6.05, 6.01, 5.98, 6.40, 6.21, 6.70, 6.39, 6.47, 0, 0, 0, 0, 0, 6.81, 6.60, 6.63, 6.67, 6.61, 6.65};
+  const double rc_table_angular[94] = {3.54, 3.93, 5.00, 4.68, 4.33, 4.23, 4.33, 4.12, 4.12, 4.60, 5.34, 5.10, 4.95, 4.78, 4.84, 4.79, 4.65, 4.60, 5.90, 5.60, 5.41, 5.00, 5.34, 4.83, 4.89, 4.92, 4.72, 4.90, 4.95, 4.80, 5.14, 4.80, 4.97, 4.87, 5.10, 5.40, 6.70, 5.84, 5.40, 5.56, 5.47, 5.10, 5.01, 4.90, 4.98, 5.30, 5.09, 5.37, 5.10, 5.23, 5.10, 5.29, 5.60, 5.66, 6.50, 5.91, 5.70, 5.90, 5.60, 5.63, 5.62, 5.60, 5.54, 5.50, 5.76, 5.50, 5.51, 5.50, 5.50, 5.76, 5.72, 5.76, 5.23, 5.50, 5.00, 5.24, 4.92, 5.31, 5.40, 5.33, 5.46, 5.41, 5.46, 0, 0, 0, 0, 0, 6.06, 5.60, 5.68, 5.60, 5.60, 5.67};
+
+  has_multiple_cutoffs = true;
+
+  rc_radial_max = 0.0f;
+  rc_angular_max = 0.0f;
+  for (int i = 0; i < num_types; ++ i) {
+    int element_index = element_map[atomic_numbers[i] - 1];
+    rc_radial[i] = rc_table_radial[element_index];
+    rc_angular[i] = rc_table_angular[element_index];
+    if (rc_radial[i] > rc_radial_max) {
+      rc_radial_max = rc_radial[i];
+    }
+    if (rc_angular[i] > rc_angular_max) {
+      rc_angular_max = rc_angular[i];
+    }
+  }
+}
+
+#else
 
 void Parameters::check_foundation_model()
 {
@@ -397,6 +437,8 @@ void Parameters::check_foundation_model()
 
   input.close();
 }
+
+#endif
 
 void Parameters::report_inputs()
 {

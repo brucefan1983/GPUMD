@@ -168,8 +168,13 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   // read in the whole foundation file first
   const int NUM89 = 89;
   const int num_ann = NUM89 * para.number_of_variables_ann_1 + (para.charge_mode ? 2 : 1);
+#ifdef USE_CJ
+  const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#else
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#endif
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
   std::vector<float> restart_mu(num_tot);
   std::vector<float> restart_sigma(num_tot);
@@ -202,6 +207,44 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
     }
   }
   ++count; // the global bias
+
+#ifdef USE_CJ
+
+  // radial descriptors
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t2 = 0; t2 < para.num_types; ++t2) {
+        int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann];
+        if (para.fine_tune_descriptor) {
+          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann];
+        } else {
+          sigma[count] = 0.0f;
+        }
+        ++count;
+      }
+    }
+  }
+
+  // angular descriptors
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t2 = 0; t2 < para.num_types; ++t2) {
+        int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+        if (para.fine_tune_descriptor) {
+          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+        } else {
+          sigma[count] = 0.0f;
+        }
+        ++count;
+      }
+    }
+  }
+
+#else
 
   // radial descriptors
   for (int n = 0; n <= para.n_max_radial; ++n) {
@@ -244,6 +287,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       }
     }
   }
+
+#endif
 
   input.close();
   gpuSetDevice(0); // normally use GPU-0
