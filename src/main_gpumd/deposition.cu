@@ -206,7 +206,7 @@ void Deposition::split(const std::string& filename)
     }
     const int num_param = tokens.size();
 
-    if (tokens[0] == "deposition") {
+    if (tokens[0] == "deposit") {
       parse_deposition(param.data(), num_param);
       deposition_line = n;
     } else if (tokens[0] == "run") {
@@ -240,7 +240,7 @@ void Deposition::split(const std::string& filename)
 
       if (int(n) == run_line) {
         lines.emplace_back(
-          "dump_xyz -1 0 " + std::to_string(interval) + " deposition_" +
+          "dump_xyz -1 0 " + std::to_string(interval) + " deposited_" +
           std::to_string(dump_index) + ".xyz velocity" + (has_model_group_ ? " group" : ""));
         lines.emplace_back("run " + std::to_string(interval));
       } else {
@@ -441,7 +441,7 @@ void Deposition::prepare_subrun(int run_idx)
 
   if (run_idx > 0) {
     const int previous_index = has_initial_velocity_ ? run_idx: (run_idx - 1);
-    std::string previous_xyz = "deposition_" + std::to_string(previous_index) + ".xyz";
+    std::string previous_xyz = "deposited_" + std::to_string(previous_index) + ".xyz";
     deposit(previous_xyz, "model.xyz");
   }
 }
@@ -464,7 +464,7 @@ bool Deposition::has_deposition(const std::string& filename)
         break;
       }
     }
-    if (!tokens_without_comments.empty() && tokens_without_comments[0] == "deposition") {
+    if (!tokens_without_comments.empty() && tokens_without_comments[0] == "deposit") {
       input.close();
       return true;
     }
