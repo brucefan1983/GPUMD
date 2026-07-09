@@ -58,10 +58,27 @@ std::string Deposition::trim_comment(const std::string& line)
   return line.substr(0, pos);
 }
 
+int Deposition::total_deposited_atoms() const
+{
+  int total = 0;
+  for (const int n : num_atoms) {
+    total += n;
+  }
+  return total;
+}
+
+static bool parse_direction(const char* token, int& direction)
+{
+  return is_valid_int(token, &direction);
+}
+
 void Deposition::parse_deposition(const char** param, int num_param)
 {
-  if (num_param != 7 && num_param != 8) {
-    PRINT_INPUT_ERROR("deposition should have 6 or 7 parameters.\n");
+  // Syntax:
+  // deposition interval direction height_min [height_max] atom
+  //     type1 num1 velocity1 [type2 num2 velocity2 ...]
+  if (num_param < 8) {
+    PRINT_INPUT_ERROR("deposition should have at least 7 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &interval)) {
@@ -71,48 +88,79 @@ void Deposition::parse_deposition(const char** param, int num_param)
     PRINT_INPUT_ERROR("deposition interval should be positive.\n");
   }
 
-  if (!is_valid_int(param[2], &atom_type)) {
-    PRINT_INPUT_ERROR("deposition atom_type should be an integer.\n");
-  }
-  if (atom_type < 0) {
-    PRINT_INPUT_ERROR("deposition atom_type should >= 0.\n");
-  }
-
-  if (!is_valid_int(param[3], &num_atoms)) {
-    PRINT_INPUT_ERROR("deposition num_atoms should be an integer.\n");
-  }
-  if (num_atoms <= 0) {
-    PRINT_INPUT_ERROR("deposition num_atoms should be positive.\n");
-  }
-
-  if (!is_valid_int(param[4], &direction)) {
-    PRINT_INPUT_ERROR("deposition direction should be an integer.\n");
+  if (!parse_direction(param[2], direction)) {
+    PRINT_INPUT_ERROR("deposition direction should be 0 (x), 1 (y), or 2 (z).\n");
   }
   if (direction < 0 || direction > 2) {
     PRINT_INPUT_ERROR("deposition direction should be 0 (x), 1 (y), or 2 (z).\n");
   }
 
-  if (!is_valid_real(param[5], &velocity)) {
-    PRINT_INPUT_ERROR("deposition velocity should be a real number.\n");
-  }
-
-  if (!is_valid_real(param[6], &height_min)) {
+  if (!is_valid_real(param[3], &height_min)) {
     PRINT_INPUT_ERROR("deposition height should be a real number.\n");
   }
   if (height_min <= 0) {
     PRINT_INPUT_ERROR("deposition height_min should be positive.\n");
   }
-  if (num_param == 8) {
-    if (!is_valid_real(param[7], &height_max)) {
-      PRINT_INPUT_ERROR("deposition height_max should be a real number.\n");
+
+  int idx = 4;
+  if (std::string(param[idx]) == "atom") {
+    height_max = height_min;
+    has_height_range = false;
+  } else {
+    if (!is_valid_real(param[idx], &height_max)) {
+      PRINT_INPUT_ERROR("deposition height_max should be a real number or 'atom'.\n");
     }
     if (height_max < height_min) {
       PRINT_INPUT_ERROR("deposition height_max should >= height_min.\n");
     }
     has_height_range = true;
-  } else {
-    height_max = height_min;
-    has_height_range = false;
+    ++idx;
+  }
+
+  if (idx >= num_param || std::string(param[idx]) != "atom") {
+    PRINT_INPUT_ERROR("deposition should have 'atom' keyword before species.\n");
+  }
+  ++idx;
+
+  atom_types.clear();
+  num_atoms.clear();
+  velocities.clear();
+  while (idx < num_param) {
+    if (idx + 2 > num_param) {
+      PRINT_INPUT_ERROR("deposition atom species requires type, number, and velocity.\n");
+    }
+
+    int atom_type = 0;
+    if (!is_valid_int(param[idx], &atom_type)) {
+      PRINT_INPUT_ERROR("deposition atom_type should be an integer.\n");
+    }
+    if (atom_type < 0) {
+      PRINT_INPUT_ERROR("deposition atom_type should >= 0.\n");
+    }
+    ++idx;
+
+    int number = 0;
+    if (!is_valid_int(param[idx], &number)) {
+      PRINT_INPUT_ERROR("deposition num_atoms should be an integer.\n");
+    }
+    if (number <= 0) {
+      PRINT_INPUT_ERROR("deposition num_atoms should be positive.\n");
+    }
+    ++idx;
+
+    double velocity = 0.0;
+    if (!is_valid_real(param[idx], &velocity)) {
+      PRINT_INPUT_ERROR("deposition velocity should be a real number.\n");
+    }
+    ++idx;
+
+    atom_types.emplace_back(atom_type);
+    num_atoms.emplace_back(number);
+    velocities.emplace_back(velocity);
+  }
+
+  if (atom_types.empty()) {
+    PRINT_INPUT_ERROR("deposition should have at least one atom species.\n");
   }
 }
 
@@ -129,7 +177,7 @@ static bool has_group_property(const std::string& comment_line, int& num_group_m
 
 void Deposition::split(const std::string& filename)
 {
-  subrun_files.clear();
+  subrun_lines.clear();
 
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -189,44 +237,24 @@ void Deposition::split(const std::string& filename)
   }
 
   for (int i = 0; i < deposit_runs + 1; ++i) {
-    std::string filename = "run_" + std::to_string(i) + ".in";
-    std::ofstream out(filename);
-    if (!out.is_open()) {
-      std::cout << "Failed to open " << filename << " for writing." << std::endl;
-      exit(1);
-    }
+    std::vector<std::string> lines;
 
     for (size_t n = 0; n < raw_lines.size(); ++n) {
       if (int(n) == deposition_line) {
         continue;
       }
 
-      if (i > 0) {
-        std::string line = trim_comment(raw_lines[n]);
-        size_t start = line.find_first_not_of(" \t\r\n");
-        if (start != std::string::npos) {
-          line = line.substr(start);
-          std::vector<std::string> tokens = get_tokens(line);
-          if (!tokens.empty() && tokens[0] == "velocity") {
-            continue;
-          }
-        }
-      }
-
       if (int(n) == run_line) {
-        out << "dump_xyz -1 0 " << interval << " deposition_" << i << ".xyz velocity";
-        if (has_model_group_) {
-          out << " group";
-        }
-        out << "\n";
-        out << "run " << interval << "\n";
+        lines.emplace_back(
+          "dump_xyz -1 0 " + std::to_string(interval) + " deposition_" + std::to_string(i) +
+          ".xyz velocity" + (has_model_group_ ? " group" : ""));
+        lines.emplace_back("run " + std::to_string(interval));
       } else {
-        out << raw_lines[n] << "\n";
+        lines.emplace_back(raw_lines[n]);
       }
     }
-    out.close();
 
-    subrun_files.emplace_back(filename);
+    subrun_lines.emplace_back(std::move(lines));
   }
 
 }
@@ -276,7 +304,6 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
 
   std::string potential_filename = get_filename_potential();
   std::vector<std::string> atom_symbols = get_atom_symbols(potential_filename);
-  const std::string symbol = atom_symbols[atom_type];
 
   std::vector<std::string> lattice_tokens = get_tokens(comment_line);
   for (auto& token : lattice_tokens) {
@@ -309,48 +336,52 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   std::uniform_real_distribution<double> dist01(0.0, 1.0);
 
   std::vector<std::string> new_atom_lines;
-  for (int n = 0; n < num_atoms; ++n) {
-    double height = height_min;
-    if (has_height_range) {
-      height = height_min + dist01(gen) * (height_max - height_min);
-    }
-
-    double pos_a = 0.0, pos_b = 0.0;
-    double x = 0.0, y = 0.0, z = 0.0;
-    double vx = 0.0, vy = 0.0, vz = 0.0;
-
-    if (direction == 0) {
-      pos_a = dist01(gen) * ly;
-      pos_b = dist01(gen) * lz;
-      x = height;
-      y = pos_a;
-      z = pos_b;
-      vx = velocity;
-    } else if (direction == 1) {
-      pos_a = dist01(gen) * lx;
-      pos_b = dist01(gen) * lz;
-      x = pos_a;
-      y = height;
-      z = pos_b;
-      vy = velocity;
-    } else {
-      pos_a = dist01(gen) * lx;
-      pos_b = dist01(gen) * ly;
-      x = pos_a;
-      y = pos_b;
-      z = height;
-      vz = velocity;
-    }
-
-    std::ostringstream atom_line;
-    atom_line << symbol << " " << x << " " << y << " " << z << " " << vx << " " << vy << " "
-              << vz;
-    if (has_group) {
-      for (int g = 0; g < num_group_methods; ++g) {
-        atom_line << " " << deposited_group_label_[g];
+  for (size_t s = 0; s < atom_types.size(); ++s) {
+    const std::string symbol = atom_symbols[atom_types[s]];
+    const double velocity = velocities[s];
+    for (int n = 0; n < num_atoms[s]; ++n) {
+      double height = height_min;
+      if (has_height_range) {
+        height = height_min + dist01(gen) * (height_max - height_min);
       }
+
+      double pos_a = 0.0, pos_b = 0.0;
+      double x = 0.0, y = 0.0, z = 0.0;
+      double vx = 0.0, vy = 0.0, vz = 0.0;
+
+      if (direction == 0) {
+        pos_a = dist01(gen) * ly;
+        pos_b = dist01(gen) * lz;
+        x = height;
+        y = pos_a;
+        z = pos_b;
+        vx = velocity;
+      } else if (direction == 1) {
+        pos_a = dist01(gen) * lx;
+        pos_b = dist01(gen) * lz;
+        x = pos_a;
+        y = height;
+        z = pos_b;
+        vy = velocity;
+      } else {
+        pos_a = dist01(gen) * lx;
+        pos_b = dist01(gen) * ly;
+        x = pos_a;
+        y = pos_b;
+        z = height;
+        vz = velocity;
+      }
+
+      std::ostringstream atom_line;
+      atom_line << symbol << " " << x << " " << y << " " << z << " " << vx << " " << vy << " "
+                << vz;
+      if (has_group) {
+        for (int g = 0; g < num_group_methods; ++g) {
+          atom_line << " " << deposited_group_label_[g];
+        }
+      }
+      new_atom_lines.emplace_back(atom_line.str());
     }
-    new_atom_lines.emplace_back(atom_line.str());
   }
 
   std::ofstream out(output_xyz);
@@ -359,7 +390,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     exit(1);
   }
 
-  out << original_num_atoms + num_atoms << "\n";
+  out << original_num_atoms + total_deposited_atoms() << "\n";
   out << comment_line << "\n";
   for (const auto& atom_line : atom_lines) {
     out << atom_line << "\n";
@@ -386,17 +417,24 @@ void Deposition::initialize()
   }
 
   split("run.in.original");
-  printf("Split run.in into %zu sub-run input files.\n", subrun_files.size());
+  printf("Split run.in into %zu sub-runs.\n", subrun_lines.size());
 }
 
 void Deposition::prepare_subrun(int run_idx)
 {
   printf(
-    "Running sub-run %d / %zu (%s).\n", run_idx + 1, subrun_files.size(),
-    subrun_files[run_idx].c_str());
+    "Running sub-run %d / %zu.\n", run_idx + 1, subrun_lines.size());
   fflush(stdout);
 
-  copy_file(subrun_files[run_idx], "run.in");
+  std::ofstream out("run.in");
+  if (!out.is_open()) {
+    std::cout << "Failed to open run.in for writing." << std::endl;
+    exit(1);
+  }
+  for (const auto& line : subrun_lines[run_idx]) {
+    out << line << "\n";
+  }
+  out.close();
 
   if (run_idx > 0) {
     std::string previous_xyz = "deposition_" + std::to_string(run_idx - 1) + ".xyz";

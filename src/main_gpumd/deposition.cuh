@@ -13,28 +13,31 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
-#include <string>
-#include <vector>
-
 /*----------------------------------------------------------------------------80
 The Deposition class splits a run.in file into sub-run input files according to
 the deposition keyword and performs atom insertion between consecutive sub-runs.
 ------------------------------------------------------------------------------*/
 
+#pragma once
+#include <string>
+#include <vector>
+
 class Deposition {
 public:
-  std::vector<std::string> subrun_files;
+  std::vector<std::vector<std::string>> subrun_lines;
 
   int interval = 0;
-  int atom_type = 0;
-  int num_atoms = 1;
   int direction = 2;
   int deposit_runs = 1;
-  double velocity = 0.0;
   double height_min = 0.0;
   double height_max = 0.0;
   bool has_height_range = false;
+  std::vector<int> atom_types;
+  std::vector<int> num_atoms;
+  std::vector<double> velocities;
+
+  int total_deposited_atoms() const;
+  bool is_active() const { return interval > 0; }
 
   void initialize();
   void prepare_subrun(int run_idx);
@@ -50,5 +53,3 @@ private:
   std::vector<int> deposited_group_label_;
   bool has_model_group_ = false;
 };
-
-
