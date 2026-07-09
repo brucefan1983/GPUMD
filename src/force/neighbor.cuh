@@ -118,7 +118,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
   extern __shared__ int atom_index_copy[];
 
   if (tid < neighbor_number) {
-    atom_index = NL[bid + tid * N];
+    atom_index = NL[static_cast<size_t>(N) * tid + bid];
     atom_index_copy[tid] = atom_index;
   }
   int count = 0;
@@ -131,7 +131,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
   }
 
   if (tid < neighbor_number) {
-    NL[bid + count * N] = atom_index;
+    NL[static_cast<size_t>(N) * count + bid] = atom_index;
   }
 }
 

@@ -30,6 +30,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -349,12 +350,12 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
   neighbor.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
-  nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
+  nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
   nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
-  nep_data.Fp.resize(num_atoms * annmb.dim);
+  nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
   nep_data.sum_fxyz.resize(
-    num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
@@ -431,7 +432,7 @@ static __global__ void find_neighbor_list_large_box(
   int count_angular = 0;
 
   for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
-    int n2 = g_NL_global[n1 + N * i1];
+    int n2 = g_NL_global[static_cast<size_t>(N) * i1 + n1];
     float x12 = g_x[n2] - x1;
     float y12 = g_y[n2] - y1;
     float z12 = g_z[n2] - z1;
@@ -443,7 +444,7 @@ static __global__ void find_neighbor_list_large_box(
     if (d12_square >= rc_radial * rc_radial) {
       continue;
     }
-    g_NL_radial[count_radial++ * N + n1] = n2;
+    g_NL_radial[static_cast<size_t>(N) * count_radial++ + n1] = n2;
     if (d12_square < rc_angular * rc_angular) {
       g_NL_angular[count_angular++ * N + n1] = n2;
     }
@@ -487,7 +488,7 @@ static __global__ void find_descriptor(
 
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
+      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
@@ -541,7 +542,7 @@ static __global__ void find_descriptor(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
@@ -618,7 +619,7 @@ static __global__ void find_descriptor(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -662,7 +663,7 @@ static __global__ void find_force_radial(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
+      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
       int t2 = g_type[n2];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
@@ -688,8 +689,8 @@ static __global__ void find_force_radial(
           gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
           gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
         }
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
+        float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
+        float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -760,12 +761,12 @@ static __global__ void find_partial_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      Fp[d] = g_Fp[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d) + n1];
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
+          g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
       }
     }
 
@@ -1381,7 +1382,7 @@ static __global__ void find_descriptor(
 
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
+      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
@@ -1434,7 +1435,7 @@ static __global__ void find_descriptor(
         paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
+        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
       }
     }
 
@@ -1452,7 +1453,7 @@ static __global__ void find_descriptor(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
     }
   }
 }
