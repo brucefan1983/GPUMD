@@ -229,6 +229,20 @@ void Viscosity::postprocess(
   find_viscosity(Nc, factor, correlation_cpu.data(), viscosity.data());
 
   FILE* fid = fopen("viscosity.out", "a");
+  fprintf(fid, "# compute_viscosity %d %d\n", sample_interval, Nc);
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps);
+  fprintf(
+    fid,
+    "# columns time_ps"
+    " sacf_xx sacf_yy sacf_zz sacf_xy sacf_xz sacf_yz sacf_yx sacf_zx sacf_zy"
+    " visc_xx visc_yy visc_zz visc_xy visc_xz visc_yz visc_yx visc_zx visc_zy\n");
   for (int nc = 0; nc < Nc; nc++) {
     fprintf(fid, "%25.15e", nc * dt_in_ps);
     for (int m = 0; m < NUM_OF_COMPONENTS; m++) {

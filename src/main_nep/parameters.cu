@@ -288,6 +288,13 @@ void Parameters::calculate_parameters()
     CHECK(gpuSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
+
+    q_scaler_max[device_id].resize(dim);
+    q_scaler_min[device_id].resize(dim);
+    std::vector<float> q_scaler_max_cpu(dim, -1.0e10f);
+    std::vector<float> q_scaler_min_cpu(dim, 1.0e10f);
+    q_scaler_max[device_id].copy_from_host(q_scaler_max_cpu.data());
+    q_scaler_min[device_id].copy_from_host(q_scaler_min_cpu.data());
   }
 }
 

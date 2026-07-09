@@ -57,6 +57,17 @@ void Dump_Thermo::preprocess(
   Force& force)
 {
   fid_ = my_fopen("thermo.out", "a");
+  fprintf(fid_, "# dump_thermo %d\n", dump_interval_);
+  fprintf(fid_, "# format_version 1\n");
+  fprintf(fid_, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(fid_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
+  if (integrate.type >= 31) {
+    fprintf(
+      fid_,
+      "# columns T_target KE_quantum PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
+  } else {
+    fprintf(fid_, "# columns T KE PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
+  }
 }
 
 void Dump_Thermo::process(
