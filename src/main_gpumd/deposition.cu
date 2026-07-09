@@ -161,6 +161,12 @@ static bool has_group_property(const std::string& comment_line, int& num_group_m
   return num_group_methods > 0;
 }
 
+static bool has_velocity_property(const std::string& comment_line)
+{
+  const std::string velocity_marker = "vel:R:3";
+  return comment_line.find(velocity_marker) != std::string::npos;
+}
+
 void Deposition::split(const std::string& filename)
 {
   subrun_lines.clear();
@@ -217,13 +223,15 @@ void Deposition::split(const std::string& filename)
   if (total_steps % interval != 0) {
     PRINT_INPUT_ERROR("total steps should be divisible by deposition interval.\n");
   }
-  deposit_runs = total_steps / interval;
+  const int deposit_runs = total_steps / interval;
   if (deposit_runs < 1) {
     PRINT_INPUT_ERROR("total steps should be at least the deposition interval.\n");
   }
 
-  for (int i = 0; i < deposit_runs + 1; ++i) {
+  num_subruns = has_initial_velocity_ ? deposit_runs : deposit_runs + 1;
+  for (int i = 0; i < num_subruns; ++i) {
     std::vector<std::string> lines;
+    const int dump_index = has_initial_velocity_ ? (i + 1) : i;
 
     for (size_t n = 0; n < raw_lines.size(); ++n) {
       if (int(n) == deposition_line) {
@@ -232,8 +240,8 @@ void Deposition::split(const std::string& filename)
 
       if (int(n) == run_line) {
         lines.emplace_back(
-          "dump_xyz -1 0 " + std::to_string(interval) + " deposition_" + std::to_string(i) +
-          ".xyz velocity" + (has_model_group_ ? " group" : ""));
+          "dump_xyz -1 0 " + std::to_string(interval) + " deposition_" +
+          std::to_string(dump_index) + ".xyz velocity" + (has_model_group_ ? " group" : ""));
         lines.emplace_back("run " + std::to_string(interval));
       } else {
         lines.emplace_back(raw_lines[n]);
@@ -403,6 +411,7 @@ void Deposition::initialize()
     std::getline(model_input, line); // comment line with properties
     int num_group_methods = 0;
     has_model_group_ = has_group_property(line, num_group_methods);
+    has_initial_velocity_ = has_velocity_property(line);
     model_input.close();
   }
 
@@ -426,8 +435,13 @@ void Deposition::prepare_subrun(int run_idx)
   }
   out.close();
 
+  if (has_initial_velocity_ && run_idx == 0) {
+    deposit("model.xyz.original", "model.xyz");
+  }
+
   if (run_idx > 0) {
-    std::string previous_xyz = "deposition_" + std::to_string(run_idx - 1) + ".xyz";
+    const int previous_index = has_initial_velocity_ ? run_idx: (run_idx - 1);
+    std::string previous_xyz = "deposition_" + std::to_string(previous_index) + ".xyz";
     deposit(previous_xyz, "model.xyz");
   }
 }

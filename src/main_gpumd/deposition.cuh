@@ -28,7 +28,7 @@ public:
 
   int interval = 0;
   int direction = 2;
-  int deposit_runs = 1;
+  int num_subruns = 0;
   double height_min = 0.0;
   double height_max = 0.0;
   bool has_height_range = false;
@@ -49,4 +49,5 @@ private:
 
   std::vector<int> deposited_group_label_;
   bool has_model_group_ = false;
+  bool has_initial_velocity_ = false;
 };

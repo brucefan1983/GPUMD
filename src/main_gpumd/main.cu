@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
     Run run;
   } else {
     deposition.initialize();
-    for (int i = 0; i < deposition.deposit_runs + 1; ++i) {
+    for (int i = 0; i < deposition.num_subruns; ++i) {
       deposition.prepare_subrun(i);
       Run run;
     }
