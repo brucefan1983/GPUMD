@@ -36,9 +36,6 @@ public:
   std::vector<int> num_atoms;
   std::vector<double> velocities;
 
-  int total_deposited_atoms() const;
-  bool is_active() const { return interval > 0; }
-
   void initialize();
   void prepare_subrun(int run_idx);
   bool has_deposition(const std::string& filename);

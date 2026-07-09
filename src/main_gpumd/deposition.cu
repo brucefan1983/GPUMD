@@ -58,20 +58,6 @@ std::string Deposition::trim_comment(const std::string& line)
   return line.substr(0, pos);
 }
 
-int Deposition::total_deposited_atoms() const
-{
-  int total = 0;
-  for (const int n : num_atoms) {
-    total += n;
-  }
-  return total;
-}
-
-static bool parse_direction(const char* token, int& direction)
-{
-  return is_valid_int(token, &direction);
-}
-
 void Deposition::parse_deposition(const char** param, int num_param)
 {
   // Syntax:
@@ -88,7 +74,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
     PRINT_INPUT_ERROR("deposition interval should be positive.\n");
   }
 
-  if (!parse_direction(param[2], direction)) {
+  if (!is_valid_int(param[2], &direction)) {
     PRINT_INPUT_ERROR("deposition direction should be 0 (x), 1 (y), or 2 (z).\n");
   }
   if (direction < 0 || direction > 2) {
@@ -390,7 +376,11 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     exit(1);
   }
 
-  out << original_num_atoms + total_deposited_atoms() << "\n";
+  int total_new_atoms = 0;
+  for (const int n : num_atoms) {
+    total_new_atoms += n;
+  }
+  out << original_num_atoms + total_new_atoms << "\n";
   out << comment_line << "\n";
   for (const auto& atom_line : atom_lines) {
     out << atom_line << "\n";
