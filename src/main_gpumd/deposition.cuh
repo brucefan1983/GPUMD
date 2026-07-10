@@ -19,6 +19,7 @@ the deposition keyword and performs atom insertion between consecutive sub-runs.
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include <random>
 #include <string>
 #include <vector>
 
@@ -46,8 +47,11 @@ private:
   void parse_deposition(const char** param, int num_param);
   void analyze_run(const std::string& filename);
   void deposit(const std::string& in_xyz, const std::string& out_xyz);
+  void initialize_rng();
 
   std::vector<int> deposited_groups;
+  std::mt19937 rng;
+  int deposition_count = 0;
   bool has_group = false;
   bool has_vel = false;
 };

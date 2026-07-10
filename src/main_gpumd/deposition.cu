@@ -23,6 +23,7 @@ keyword and perform deposition between consecutive sub-runs.
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -242,7 +243,7 @@ void Deposition::analyze_run(const std::string& filename)
 void Deposition::deposit(const std::string& input_xyz, const std::string& output_xyz)
 {
   std::ifstream input(input_xyz);
-  if (!input.is_open()) {
+  if (!input) {
     std::cout << "Failed to open " << input_xyz << "." << std::endl;
     exit(1);
   }
@@ -267,9 +268,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
       for (int g = 0; g < num_group_methods; ++g) {
         const int col = int(tokens.size()) - num_group_methods + g;
         const int group_label = get_int_from_token(tokens[col], __FILE__, __LINE__);
-        if (group_label > max_group[g]) {
-          max_group[g] = group_label;
-        }
+        max_group[g] = std::max(max_group[g], group_label);
       }
     }
   }
@@ -285,25 +284,16 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   std::string potential_filename = get_filename_potential();
   std::vector<std::string> atom_symbols = get_atom_symbols(potential_filename);
 
-  std::vector<std::string> lattice_tokens = get_tokens(comment_line);
-  for (auto& token : lattice_tokens) {
-    std::transform(
-      token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
-  }
-
   double h[9] = {0.0};
-  for (size_t n = 0; n < lattice_tokens.size(); ++n) {
-    const std::string lattice_string = "lattice=";
-    if (lattice_tokens[n].substr(0, lattice_string.length()) == lattice_string) {
-      for (int m = 0; m < 9; ++m) {
-        h[m] = get_double_from_token(
-          lattice_tokens[n + m].substr(
-            (m == 0) ? (lattice_string.length() + 1) : 0,
-            (m == 8) ? (lattice_tokens[n + m].length() - 1) : lattice_tokens[n + m].length()),
-          __FILE__,
-          __LINE__);
-      }
-      break;
+  const std::string lattice_marker = "Lattice=\"";
+  const size_t lattice_pos = comment_line.find(lattice_marker);
+  if (lattice_pos != std::string::npos) {
+    const size_t value_start = lattice_pos + lattice_marker.length();
+    const size_t value_end = comment_line.find("\"", value_start);
+    const std::string lattice_values = comment_line.substr(value_start, value_end - value_start);
+    const std::vector<std::string> lattice_tokens = get_tokens(lattice_values);
+    for (int m = 0; m < 9; ++m) {
+      h[m] = get_double_from_token(lattice_tokens[m], __FILE__, __LINE__);
     }
   }
 
@@ -312,8 +302,11 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     l[m] = std::sqrt(h[3 * m] * h[3 * m] + h[3 * m + 1] * h[3 * m + 1] + h[3 * m + 2] * h[3 * m + 2]);
   }
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
+#ifdef DEBUG
+  rng.seed(12345678 + deposition_count);
+#endif
+  ++deposition_count;
+
   std::uniform_real_distribution<double> dist01(0.0, 1.0);
 
   std::vector<std::string> new_atom_lines;
@@ -323,32 +316,17 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     for (int n = 0; n < num_atoms[s]; ++n) {
       double height = height_min;
       if (has_height_range) {
-        height = height_min + dist01(gen) * (height_max - height_min);
+        height = height_min + dist01(rng) * (height_max - height_min);
       }
 
-      double x = 0.0, y = 0.0, z = 0.0;
-      double vx = 0.0, vy = 0.0, vz = 0.0;
-
-      if (direction == 0) {
-        x = height;
-        y = dist01(gen) * l[1];
-        z = dist01(gen) * l[2];
-        vx = velocity;
-      } else if (direction == 1) {
-        x = dist01(gen) * l[0];
-        y = height;
-        z = dist01(gen) * l[2];
-        vy = velocity;
-      } else {
-        x = dist01(gen) * l[0];
-        y = dist01(gen) * l[1];
-        z = height;
-        vz = velocity;
-      }
+      double pos[3] = {dist01(rng) * l[0], dist01(rng) * l[1], dist01(rng) * l[2]};
+      double vel[3] = {0.0, 0.0, 0.0};
+      pos[direction] = height;
+      vel[direction] = velocity;
 
       std::ostringstream atom_line;
-      atom_line << symbol << " " << x << " " << y << " " << z << " " << vx << " " << vy << " "
-                << vz;
+      atom_line << symbol << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " << vel[0]
+                << " " << vel[1] << " " << vel[2];
       if (has_group) {
         for (int g = 0; g < num_group_methods; ++g) {
           atom_line << " " << deposited_groups[g];
@@ -359,7 +337,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   }
 
   std::ofstream out(output_xyz);
-  if (!out.is_open()) {
+  if (!out) {
     std::cout << "Failed to open " << output_xyz << " for writing." << std::endl;
     exit(1);
   }
@@ -376,13 +354,21 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   for (const auto& new_line : new_atom_lines) {
     out << new_line << "\n";
   }
-  out.close();
+}
+
+void Deposition::initialize_rng()
+{
+#ifndef DEBUG
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
 }
 
 void Deposition::initialize()
 {
   copy_file("run.in", "run.in.original");
   copy_file("model.xyz", "model.xyz.original");
+
+  initialize_rng();
 
   std::ifstream model_input("model.xyz");
   if (model_input.is_open()) {
