@@ -37,6 +37,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    population
    generation
    save_potential
+   output_interval
    output_descriptor
    fine_tune
    charge_mode
