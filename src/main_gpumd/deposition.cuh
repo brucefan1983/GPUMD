@@ -44,10 +44,10 @@ private:
   static std::string trim_comment(const std::string& line);
   static void copy_file(const std::string& in_file, const std::string& out_file);
   void parse_deposition(const char** param, int num_param);
-  void split(const std::string& filename);
+  void analyze_run(const std::string& filename);
   void deposit(const std::string& in_xyz, const std::string& out_xyz);
 
-  std::vector<int> deposited_group_label_;
-  bool has_model_group_ = false;
-  bool has_initial_velocity_ = false;
+  std::vector<int> deposited_groups;
+  bool has_group = false;
+  bool has_vel = false;
 };
