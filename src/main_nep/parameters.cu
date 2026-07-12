@@ -280,6 +280,25 @@ void Parameters::calculate_parameters()
       q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     input.close();
+  } else if (import_q_scaler) {
+    std::ifstream input("nep.txt");
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
+    }
+    std::vector<std::string> tokens;
+    // Unlike the fine_tune case above, the imported nep.txt is assumed (and validated by
+    // check_foundation_model, called from report_inputs) to already have the exact same
+    // architecture and species count as the current run, so no species-count-specific
+    // offset arithmetic is needed here: just skip the 7 header lines and this run's own
+    // number_of_variables parameter lines, then read the trailing dim-line q_scaler block.
+    for (int n = 0; n < 7 + number_of_variables; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
   }
 
   int deviceCount;
@@ -298,9 +317,9 @@ void Parameters::calculate_parameters()
   }
 }
 
-void Parameters::check_foundation_model()
+void Parameters::check_foundation_model(const std::string& filename)
 {
-  std::ifstream input(fine_tune_nep_txt);
+  std::ifstream input(filename);
   if (!input.is_open()) {
     PRINT_INPUT_ERROR("Failed to open foundation model file.");
   }
@@ -394,7 +413,11 @@ void Parameters::report_inputs()
   }
 
   if (fine_tune) {
-    check_foundation_model();
+    check_foundation_model(fine_tune_nep_txt);
+  }
+
+  if (import_q_scaler) {
+    check_foundation_model("nep.txt");
   }
 
   printf("Input or default parameters:\n");
@@ -690,6 +713,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_save_potential(param, num_param);
   } else if (strcmp(param[0], "q_scaler") == 0) {
     parse_q_scaler(param, num_param);
+  } else if (strcmp(param[0], "import_q_scaler") == 0) {
+    parse_import_q_scaler(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1458,4 +1483,20 @@ void Parameters::parse_q_scaler(const char** param, int num_param)
   if (q_scaler_input < 0.01f || q_scaler_input > 0.1f) {
     PRINT_INPUT_ERROR("q_scaler must be in [0.01 0.1].");
   }
+}
+
+void Parameters::parse_import_q_scaler(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("import_q_scaler should have 1 parameter.\n");
+  }
+
+  int flag = 0;
+  if (!is_valid_int(param[1], &flag)) {
+    PRINT_INPUT_ERROR("import_q_scaler should be an integer.\n");
+  }
+  if (flag != 0 && flag != 1) {
+    PRINT_INPUT_ERROR("import_q_scaler should be 0 or 1.");
+  }
+  import_q_scaler = (flag == 1);
 }

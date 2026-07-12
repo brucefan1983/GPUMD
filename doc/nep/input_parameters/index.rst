@@ -39,4 +39,5 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    save_potential
    output_descriptor
    fine_tune
+   import_q_scaler
    charge_mode

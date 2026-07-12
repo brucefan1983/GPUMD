@@ -166,7 +166,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-        (para.fine_tune ? false : true),
+        (para.fine_tune || para.import_q_scaler) ? false : true,
         deviceCount);
     }
   } else {

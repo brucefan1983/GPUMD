@@ -76,6 +76,7 @@ public:
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   float q_scaler_input;
+  bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -137,7 +138,7 @@ private:
   void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
-  void check_foundation_model();
+  void check_foundation_model(const std::string& filename);
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
@@ -173,4 +174,5 @@ private:
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
   void parse_q_scaler(const char** param, int num_param);
+  void parse_import_q_scaler(const char** param, int num_param);
 };
