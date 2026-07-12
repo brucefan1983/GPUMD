@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
   is_save_potential_set = false;
+  is_output_interval_set = false;
   is_q_scaler_set = false;
 
   train_mode = 0;              // potential
@@ -106,6 +107,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
+  output_interval = 100;       // write loss.out (and related output) every N generations
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -615,6 +617,12 @@ void Parameters::report_inputs()
     printf("    (default) save potential every N = %d generations.\n", save_potential);
   }
 
+  if (is_output_interval_set) {
+    printf("    (input)   output_interval = %d generations.\n", output_interval);
+  } else {
+    printf("    (default) output_interval = %d generations.\n", output_interval);
+  }
+
   if (fine_tune) {
     printf("    (input)   will fine-tune based on %s and %s.\n", 
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
@@ -711,6 +719,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
     parse_save_potential(param, num_param);
+  } else if (strcmp(param[0], "output_interval") == 0) {
+    parse_output_interval(param, num_param);
   } else if (strcmp(param[0], "q_scaler") == 0) {
     parse_q_scaler(param, num_param);
   } else if (strcmp(param[0], "import_q_scaler") == 0) {
@@ -1464,7 +1474,22 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   }
   if (save_potential_restart != 0 && save_potential_restart != 1) {
     PRINT_INPUT_ERROR("save_potential save restart should be 0 or 1.");
-  }  
+  }
+}
+
+void Parameters::parse_output_interval(const char** param, int num_param)
+{
+  is_output_interval_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_interval should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_interval)) {
+    PRINT_INPUT_ERROR("output_interval should be an integer.\n");
+  }
+  if (output_interval <= 0) {
+    PRINT_INPUT_ERROR("output_interval should be > 0.");
+  }
 }
 
 void Parameters::parse_q_scaler(const char** param, int num_param)
