@@ -559,70 +559,85 @@ Install jse from the dev channel to obtain the latest development version (for l
 Optionally, manually run the JNI build to detect any potential environment issues in advance:
 
 .. code:: bash
-  
+
   jse --jnibuild
   jse -t 'jse.gpu.CudaCore.InitHelper.init()'
 
-:program:`GPUMD` requires the following paths to be set manually; they can be detected automatically by jse:
 
-.. code:: bash
-  
-  jse -t 'println(jse.code.OS.JAR_PATH)'
-  jse -t 'println(jse.clib.JVM.INCLUDE_DIR)'
-  jse -t 'println(jse.clib.JVM.LLIB_DIR)'
+Configure and compile GPUMD-NNAP
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As a demonstration, the paths are exported here as environment variables:
+.. tabs::
 
-.. code:: bash
-  
-  export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
-  export JVM_INCLUDE=$(jse -t 'println(jse.clib.JVM.INCLUDE_DIR)')
-  export JVM_LLIB_DIR=$(jse -t 'println(jse.clib.JVM.LLIB_DIR)')
+   .. tab:: Make
 
+      Detect the required paths using ``jse`` and export them as environment variables:
 
-Configure the GPUMD makefile
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      .. code:: bash
 
-Enable NNAP support and add the jse class path by modifying ``CFLAGS``:
+        export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
+        export JVM_INCLUDE=$(jse -t 'println(jse.clib.JVM.INCLUDE_DIR)')
+        export JVM_LLIB_DIR=$(jse -t 'println(jse.clib.JVM.LLIB_DIR)')
 
-.. code:: make
-  
-  CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
+      Enable NNAP support and add the jse class path by modifying ``CFLAGS``:
 
-Add the JVM header paths by modifying ``INC``:
+      .. code:: make
 
-.. code:: make
-  
-  INC = -I./ \
-        -I$(JVM_INCLUDE) \
-        -I$(JVM_INCLUDE)/linux
+        CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
 
-Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
+      Add the JVM header paths by modifying ``INC``:
 
-Add the JVM library path and runtime path by modifying ``LIBS``:
+      .. code:: make
 
-.. code:: make
-  
-  LIBS = -lcublas -lcusolver -lcufft \
-         -L$(JVM_LLIB_DIR) -ljvm \
-         -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
+        INC = -I./ \
+              -I$(JVM_INCLUDE) \
+              -I$(JVM_INCLUDE)/linux
 
-Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
-replaced by the actual paths obtained from the jse commands above, or exported
-as environment variables before running ``make``.
+      Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
 
-Compile GPUMD-NNAP
-~~~~~~~~~~~~~~~~~~
+      Add the JVM library path and runtime path by modifying ``LIBS``:
 
-Compile the executable files:
+      .. code:: make
 
-.. code:: bash
-  
-  make -j
-  ls gpumd nep
+        LIBS = -lcublas -lcusolver -lcufft \
+               -L$(JVM_LLIB_DIR) -ljvm \
+               -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
 
-If the compilation is successful, the executables ``gpumd`` and ``nep`` should
-be generated.
+      Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
+      replaced by the actual paths obtained from the jse commands above, or exported
+      as environment variables before running ``make``.
+
+      Compile the executable files:
+
+      .. code:: bash
+
+        make -j
+        ls gpumd nep
+
+      If the compilation is successful, the executables ``gpumd`` and ``nep`` should
+      be generated.
+
+   .. tab:: CMake (pre-release)
+
+      CMake uses ``PKG_NNAP`` to control NNAP support:
+
+      .. code-block:: bash
+
+        -D PKG_NNAP=yes
+
+      Add environment variable to import jse jar path:
+
+      .. code:: bash
+
+        export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
+
+      In Windows, you need to additionally specify the JVM library path (PowerShell):
+
+      .. code:: bash
+
+        $env:JSE_JAR_PATH = "$(jse -t 'println(jse.code.OS.JAR_PATH)')"
+        $env:JVM_LIB_PATH = "$(jse -t 'println(jse.clib.JVM.LIB_PATH)')"
+
 
 Run the NNAP test
 -----------------
