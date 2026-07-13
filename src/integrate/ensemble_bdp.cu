@@ -21,9 +21,11 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "ensemble_bdp.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cstring>
+#include <sstream>
 #define DIM 3
 
 void Ensemble_BDP::initialize_rng()
@@ -64,6 +66,56 @@ Ensemble_BDP::Ensemble_BDP(int t, int source_input, int sink_input, double T, do
 Ensemble_BDP::~Ensemble_BDP(void)
 {
   // nothing now
+}
+
+void Ensemble_BDP::seed_rng(unsigned int seed)
+{
+  rng.seed(seed);
+}
+
+void Ensemble_BDP::export_state(std::vector<double>& state)
+{
+  state.clear();
+  state.push_back(1.0);
+  state.push_back(energy_transferred[0]);
+  state.push_back(energy_transferred[1]);
+
+  std::ostringstream output;
+  output << rng;
+  std::istringstream input(output.str());
+  std::vector<double> rng_state;
+  unsigned long long value = 0;
+  while (input >> value) {
+    rng_state.push_back(static_cast<double>(value));
+  }
+
+  state.push_back(static_cast<double>(rng_state.size()));
+  state.insert(state.end(), rng_state.begin(), rng_state.end());
+}
+
+void Ensemble_BDP::import_state(const std::vector<double>& state)
+{
+  if (state.size() < 4 || state[0] != 1.0) {
+    PRINT_INPUT_ERROR("Invalid BDP state for REMD replica migration.");
+  }
+
+  const size_t rng_state_size = static_cast<size_t>(state[3]);
+  if (state.size() != 4 + rng_state_size) {
+    PRINT_INPUT_ERROR("Incomplete BDP state for REMD replica migration.");
+  }
+
+  energy_transferred[0] = state[1];
+  energy_transferred[1] = state[2];
+
+  std::ostringstream output;
+  for (size_t i = 0; i < rng_state_size; ++i) {
+    output << static_cast<unsigned long long>(state[4 + i]) << ' ';
+  }
+  std::istringstream input(output.str());
+  input >> rng;
+  if (!input) {
+    PRINT_INPUT_ERROR("Failed to restore BDP RNG state for REMD replica migration.");
+  }
 }
 
 void Ensemble_BDP::integrate_nvt_bdp_2(

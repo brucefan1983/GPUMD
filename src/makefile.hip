@@ -21,6 +21,8 @@ CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
+CFLAGS_GPUMD = $(CFLAGS) -fgpu-default-stream=per-thread -pthread
+LDFLAGS_GPUMD = $(LDFLAGS) -pthread
 
 
 ###########################################################
@@ -69,7 +71,7 @@ HEADERS =                         \
 ###########################################################
 all: gpumd nep
 gpumd: $(OBJ_GPUMD)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS_GPUMD) $^ -o $@ $(LIBS)
 	@echo =================================================
 	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
@@ -84,23 +86,23 @@ nep: $(OBJ_NEP)
 # rules for building object files
 ###########################################################
 integrate/%.o: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 mc/%.o: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 force/%.o: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 measure/%.o: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 model/%.o: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 phonon/%.o: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
@@ -110,4 +112,3 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 ###########################################################
 clean:
 	rm -f */*.o gpumd nep
-

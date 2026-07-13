@@ -69,6 +69,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
+#include "replica.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -76,6 +77,7 @@ Run simulation according to the inputs in the run.in file.
 #include "velocity.cuh"
 #include <chrono>
 #include <cstring>
+#include <string>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -145,6 +147,19 @@ static void calculate_time_step(
   }
 }
 
+static bool is_multi_replica_supported_keyword(const std::string& keyword)
+{
+  return keyword == "potential" || keyword == "time_step" || keyword == "multi_replica" ||
+         keyword == "ensemble" || keyword == "dump_xyz" || keyword == "run";
+}
+
+static void print_multi_replica_keyword_error(const std::string& keyword)
+{
+  const std::string message =
+    "multi_replica does not currently support the '" + keyword + "' keyword.";
+  PRINT_INPUT_ERROR(message.c_str());
+}
+
 Run::Run()
 {
   print_line_1();
@@ -189,6 +204,7 @@ void Run::execute_run_in()
     exit(1);
   }
 
+  std::vector<std::vector<std::string>> commands;
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens(input);
     std::vector<std::string> tokens_without_comments;
@@ -200,8 +216,28 @@ void Run::execute_run_in()
       }
     }
     if (tokens_without_comments.size() > 0) {
-      parse_one_keyword(tokens_without_comments);
+      commands.push_back(std::move(tokens_without_comments));
     }
+  }
+
+  int number_of_runs = 0;
+  current_run_has_multi_replica_ = false;
+  for (const auto& command : commands) {
+    if (command[0] == "multi_replica") {
+      current_run_has_multi_replica_ = true;
+    } else if (command[0] == "run") {
+      ++number_of_runs;
+    }
+  }
+  if (current_run_has_multi_replica_) {
+    if (number_of_runs != 1 || commands.back()[0] != "run") {
+      PRINT_INPUT_ERROR("multi_replica currently requires a standalone input with one run command.");
+    }
+    replica::reset();
+  }
+
+  for (auto& command : commands) {
+    parse_one_keyword(command);
   }
 
   print_line_1();
@@ -342,6 +378,42 @@ void Run::perform_a_run()
 
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
+  const std::string& keyword = tokens[0];
+
+  if (current_run_has_multi_replica_) {
+    if (!is_multi_replica_supported_keyword(keyword)) {
+      if (keyword == "velocity") {
+        PRINT_INPUT_ERROR(
+          "REMD initializes replica velocities from the temperature ladder; do not use velocity.");
+      }
+      print_multi_replica_keyword_error(keyword);
+    }
+
+    if (keyword == "multi_replica") {
+      std::vector<const char*> param(tokens.size());
+      for (size_t i = 0; i < tokens.size(); ++i) {
+        param[i] = tokens[i].c_str();
+      }
+      replica::parse(param.data(), static_cast<int>(param.size()));
+      return;
+    }
+    if (keyword == "potential") {
+      replica::remember_potential_command(tokens);
+      return;
+    }
+    if (keyword == "ensemble") {
+      replica::remember_ensemble_command(tokens);
+      return;
+    }
+    if (keyword == "dump_xyz") {
+      if (!replica::enabled()) {
+        PRINT_INPUT_ERROR("REMD dump_xyz should appear after multi_replica.");
+      }
+      replica::remember_dump_xyz_command(tokens);
+      return;
+    }
+  }
+
   int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
@@ -675,6 +747,11 @@ void Run::parse_run(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   printf("Run %d steps.\n", number_of_steps);
+
+  if (replica::run_if_enabled(
+        atom, box, group, time_step, number_of_steps, max_distance_per_step)) {
+    return;
+  }
 
   // set target temperature for temperature-dependent NEP
   force.temperature = integrate.temperature1;

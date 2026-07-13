@@ -16,6 +16,7 @@
 #pragma once
 #include "ensemble.cuh"
 #include <random>
+#include <vector>
 
 class Ensemble_BDP : public Ensemble
 {
@@ -37,6 +38,10 @@ public:
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo);
+
+  void export_state(std::vector<double>& state);
+  void import_state(const std::vector<double>& state);
+  void seed_rng(unsigned int seed);
 
 protected:
   std::mt19937 rng;

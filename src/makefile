@@ -31,6 +31,12 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+CFLAGS_GPUMD = $(CFLAGS) --default-stream per-thread
+LDFLAGS_GPUMD = $(LDFLAGS)
+ifndef OS
+CFLAGS_GPUMD += -Xcompiler -pthread
+LDFLAGS_GPUMD += -Xcompiler -pthread
+endif
 
 
 ###########################################################
@@ -90,7 +96,7 @@ HEADERS =                         \
 ###########################################################
 all: gpumd nep 
 gpumd: $(OBJ_GPUMD)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS_GPUMD) $^ -o $@ $(LIBS)
 	@echo =================================================
 	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
@@ -111,46 +117,46 @@ gnep: $(OBJ_GNEP)
 ###########################################################
 ifdef OS # for Windows
 integrate/%.obj: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 mc/%.obj: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 minimize/%.obj: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 force/%.obj: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 measure/%.obj: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 utilities/%.obj: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 model/%.obj: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 phonon/%.obj: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 mc/%.o: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 force/%.o: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 measure/%.o: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 model/%.o: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 phonon/%.o: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS_GPUMD) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.o: main_gnep/%.cu $(HEADERS)
@@ -167,4 +173,3 @@ ifdef OS
 else
 	rm -f */*.o gpumd nep gnep
 endif
-

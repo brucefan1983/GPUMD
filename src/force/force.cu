@@ -73,7 +73,11 @@ void Force::check_types(const char* file_potential)
 }
 
 void Force::parse_potential(
-  const char** param, int num_param, const Box& box, const int number_of_atoms)
+  const char** param,
+  int num_param,
+  const Box& box,
+  const int number_of_atoms,
+  bool allow_multi_gpu)
 {
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
@@ -141,7 +145,7 @@ void Force::parse_potential(
 #ifdef ZHEYONG
     num_gpus = 3;
 #endif
-    if (num_gpus == 1) {
+    if (num_gpus == 1 || !allow_multi_gpu) {
       potential.reset(new NEP(param[1], number_of_atoms));
     } else {
       int partition_direction = -1;
