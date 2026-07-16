@@ -55,8 +55,8 @@ std::string Deposition::trim_comment(const std::string& line)
 
 void Deposition::parse_deposition(const char** param, int num_param)
 {
-  if (num_param < 8) {
-    PRINT_INPUT_ERROR("deposit should have at least 7 parameters.\n");
+  if (num_param < 6) {
+    PRINT_INPUT_ERROR("deposit should have at least 5 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &interval)) {
@@ -67,78 +67,97 @@ void Deposition::parse_deposition(const char** param, int num_param)
   }
 
   if (!is_valid_int(param[2], &direction)) {
-    PRINT_INPUT_ERROR("deposit direction should be 0 (x), 1 (y), or 2 (z).\n");
+    PRINT_INPUT_ERROR("deposit direction should be -1 or 0 (x), 1 (y), 2 (z).\n");
   }
-  if (direction < 0 || direction > 2) {
-    PRINT_INPUT_ERROR("deposit direction should be 0 (x), 1 (y), or 2 (z).\n");
+  if (direction < -1 || direction > 2) {
+    PRINT_INPUT_ERROR("deposit direction should be -1 or 0 (x), 1 (y), 2 (z).\n");
   }
 
   if (!is_valid_real(param[3], &height_min)) {
     PRINT_INPUT_ERROR("deposit height should be a real number.\n");
   }
-  if (height_min <= 0) {
+  if (direction >= 0 && height_min <= 0) {
     PRINT_INPUT_ERROR("deposit height_min should be positive.\n");
   }
 
   int idx = 4;
-  if (std::string(param[idx]) == "atom") {
+  if (std::string(param[idx]) == "atom" || std::string(param[idx]) == "file") {
     height_max = height_min;
     has_height_range = false;
   } else {
     if (!is_valid_real(param[idx], &height_max)) {
-      PRINT_INPUT_ERROR("deposit height_max should be a real number or 'atom'.\n");
+      PRINT_INPUT_ERROR("deposit height_max should be a real number, 'atom', or 'file'.\n");
     }
-    if (height_max < height_min) {
+    if (direction >= 0 && height_max < height_min) {
       PRINT_INPUT_ERROR("deposit height_max should >= height_min.\n");
     }
     has_height_range = true;
     ++idx;
   }
 
-  if (idx >= num_param || std::string(param[idx]) != "atom") {
-    PRINT_INPUT_ERROR("deposit should have 'atom' keyword before species.\n");
-  }
-  ++idx;
-
-  atom_types.clear();
-  num_atoms.clear();
-  velocities.clear();
-  while (idx < num_param) {
-    if (idx + 2 > num_param) {
-      PRINT_INPUT_ERROR("deposit atom species requires type, number, and velocity.\n");
-    }
-
-    int atom_type = 0;
-    if (!is_valid_int(param[idx], &atom_type)) {
-      PRINT_INPUT_ERROR("deposit atom_type should be an integer.\n");
-    }
-    if (atom_type < 0) {
-      PRINT_INPUT_ERROR("deposit atom_type should >= 0.\n");
-    }
-    ++idx;
-
-    int number = 0;
-    if (!is_valid_int(param[idx], &number)) {
-      PRINT_INPUT_ERROR("deposit num_atoms should be an integer.\n");
-    }
-    if (number <= 0) {
-      PRINT_INPUT_ERROR("deposit num_atoms should be positive.\n");
-    }
-    ++idx;
-
-    double velocity = 0.0;
-    if (!is_valid_real(param[idx], &velocity)) {
-      PRINT_INPUT_ERROR("deposit velocity should be a real number.\n");
-    }
-    ++idx;
-
-    atom_types.emplace_back(atom_type);
-    num_atoms.emplace_back(number);
-    velocities.emplace_back(velocity);
+  if (idx >= num_param || (std::string(param[idx]) != "atom" && std::string(param[idx]) != "file")) {
+    PRINT_INPUT_ERROR("deposit should have 'atom' or 'file' keyword.\n");
   }
 
-  if (atom_types.empty()) {
-    PRINT_INPUT_ERROR("deposit should have at least one atom species.\n");
+  if (std::string(param[idx]) == "atom") {
+    if (direction == -1) {
+      PRINT_INPUT_ERROR("deposit with direction=-1 does not support 'atom' mode.\n");
+    }
+    has_file = false;
+    ++idx;
+
+    atom_types.clear();
+    num_atoms.clear();
+    velocities.clear();
+    while (idx < num_param) {
+      if (idx + 2 > num_param) {
+        PRINT_INPUT_ERROR("deposit atom species requires type, number, and velocity.\n");
+      }
+
+      int atom_type = 0;
+      if (!is_valid_int(param[idx], &atom_type)) {
+        PRINT_INPUT_ERROR("deposit atom_type should be an integer.\n");
+      }
+      if (atom_type < 0) {
+        PRINT_INPUT_ERROR("deposit atom_type should >= 0.\n");
+      }
+      ++idx;
+
+      int number = 0;
+      if (!is_valid_int(param[idx], &number)) {
+        PRINT_INPUT_ERROR("deposit num_atoms should be an integer.\n");
+      }
+      if (number <= 0) {
+        PRINT_INPUT_ERROR("deposit num_atoms should be positive.\n");
+      }
+      ++idx;
+
+      double velocity = 0.0;
+      if (!is_valid_real(param[idx], &velocity)) {
+        PRINT_INPUT_ERROR("deposit velocity should be a real number.\n");
+      }
+      ++idx;
+
+      atom_types.emplace_back(atom_type);
+      num_atoms.emplace_back(number);
+      velocities.emplace_back(velocity);
+    }
+
+    if (atom_types.empty()) {
+      PRINT_INPUT_ERROR("deposit should have at least one atom species.\n");
+    }
+  } else {
+    has_file = true;
+    ++idx;
+    if (idx >= num_param) {
+      PRINT_INPUT_ERROR("deposit file keyword should be followed by a file name.\n");
+    }
+    add_atom_file = param[idx];
+    ++idx;
+    if (idx != num_param) {
+      PRINT_INPUT_ERROR("deposit file mode should not have extra parameters after the file name.\n");
+    }
+    read_file_atoms();
   }
 }
 
@@ -240,6 +259,60 @@ void Deposition::analyze_run(const std::string& filename)
   }
 }
 
+void Deposition::read_file_atoms()
+{
+  std::ifstream input(add_atom_file);
+  if (!input.is_open()) {
+    std::cout << "Failed to open " << add_atom_file << "." << std::endl;
+    exit(1);
+  }
+
+  file_atoms.clear();
+  std::string raw_line;
+  while (std::getline(input, raw_line)) {
+    std::string line = trim_comment(raw_line);
+    size_t start = line.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+      continue;
+    }
+    line = line.substr(start);
+
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.empty()) {
+      continue;
+    }
+
+    if (tokens.size() != 7) {
+      PRINT_INPUT_ERROR("deposit file should have 7 columns: type x y z vx vy vz.\n");
+    }
+
+    FileAtom fa;
+    if (!is_valid_int(tokens[0].c_str(), &fa.type)) {
+      PRINT_INPUT_ERROR("deposit file atom_type should be an integer.\n");
+    }
+    if (fa.type < 0) {
+      PRINT_INPUT_ERROR("deposit file atom_type should >= 0.\n");
+    }
+    for (int d = 0; d < 3; ++d) {
+      if (!is_valid_real(tokens[1 + d].c_str(), &fa.pos[d])) {
+        PRINT_INPUT_ERROR("deposit file position should be a real number.\n");
+      }
+    }
+    for (int d = 0; d < 3; ++d) {
+      if (!is_valid_real(tokens[4 + d].c_str(), &fa.vel[d])) {
+        PRINT_INPUT_ERROR("deposit file velocity should be a real number.\n");
+      }
+    }
+
+    file_atoms.emplace_back(fa);
+  }
+  input.close();
+
+  if (file_atoms.empty()) {
+    PRINT_INPUT_ERROR("deposit file should have at least one atom.\n");
+  }
+}
+
 void Deposition::deposit(const std::string& input_xyz, const std::string& output_xyz)
 {
   std::ifstream input(input_xyz);
@@ -310,29 +383,54 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   std::uniform_real_distribution<double> dist01(0.0, 1.0);
 
   std::vector<std::string> new_atom_lines;
-  for (size_t s = 0; s < atom_types.size(); ++s) {
-    const std::string symbol = atom_symbols[atom_types[s]];
-    const double velocity = velocities[s];
-    for (int n = 0; n < num_atoms[s]; ++n) {
-      double height = height_min;
-      if (has_height_range) {
-        height = height_min + dist01(rng) * (height_max - height_min);
+
+  auto add_atom_line = [&](int atom_type, const double pos[3], const double vel[3]) {
+    const std::string symbol = atom_symbols[atom_type];
+
+    std::ostringstream atom_line;
+    atom_line << symbol << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " << vel[0]
+              << " " << vel[1] << " " << vel[2];
+    if (has_group) {
+      for (int g = 0; g < num_group_methods; ++g) {
+        atom_line << " " << deposited_groups[g];
       }
+    }
+    new_atom_lines.emplace_back(atom_line.str());
+  };
 
-      double pos[3] = {dist01(rng) * l[0], dist01(rng) * l[1], dist01(rng) * l[2]};
-      double vel[3] = {0.0, 0.0, 0.0};
-      pos[direction] = height;
-      vel[direction] = velocity;
-
-      std::ostringstream atom_line;
-      atom_line << symbol << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " << vel[0]
-                << " " << vel[1] << " " << vel[2];
-      if (has_group) {
-        for (int g = 0; g < num_group_methods; ++g) {
-          atom_line << " " << deposited_groups[g];
+  if (has_file) {
+    for (const auto& fa : file_atoms) {
+      double pos[3];
+      for (int d = 0; d < 3; ++d) {
+        pos[d] = fa.pos[d];
+      }
+      if (direction >= 0) {
+        double height = height_min;
+        if (has_height_range) {
+          height = height_min + dist01(rng) * (height_max - height_min);
         }
+        pos[direction] = height;
       }
-      new_atom_lines.emplace_back(atom_line.str());
+
+      add_atom_line(fa.type, pos, fa.vel);
+    }
+  } else {
+    for (size_t s = 0; s < atom_types.size(); ++s) {
+      const double velocity = velocities[s];
+      for (int n = 0; n < num_atoms[s]; ++n) {
+        double height = height_min;
+        if (has_height_range) {
+          height = height_min + dist01(rng) * (height_max - height_min);
+        }
+
+        double pos[3] = {dist01(rng) * l[0], dist01(rng) * l[1], dist01(rng) * l[2]};
+        pos[direction] = height;
+
+        double vel[3] = {0.0, 0.0, 0.0};
+        vel[direction] = velocity;
+
+        add_atom_line(atom_types[s], pos, vel);
+      }
     }
   }
 
@@ -343,8 +441,12 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   }
 
   int total_new_atoms = 0;
-  for (const int n : num_atoms) {
-    total_new_atoms += n;
+  if (has_file) {
+    total_new_atoms = file_atoms.size();
+  } else {
+    for (const int n : num_atoms) {
+      total_new_atoms += n;
+    }
   }
   out << original_num_atoms + total_new_atoms << "\n";
   out << comment_line << "\n";

@@ -36,6 +36,14 @@ public:
   std::vector<int> atom_types;
   std::vector<int> num_atoms;
   std::vector<double> velocities;
+  bool has_file = false;
+  std::string add_atom_file;
+  struct FileAtom {
+    int type;
+    double pos[3];
+    double vel[3];
+  };
+  std::vector<FileAtom> file_atoms;
 
   void initialize();
   void prepare_subrun(int run_idx);
@@ -47,6 +55,7 @@ private:
   void parse_deposition(const char** param, int num_param);
   void analyze_run(const std::string& filename);
   void deposit(const std::string& in_xyz, const std::string& out_xyz);
+  void read_file_atoms();
   void initialize_rng();
 
   std::vector<int> deposited_groups;
