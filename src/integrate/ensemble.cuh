@@ -88,8 +88,20 @@ public:
   int deform_y = 0;
   int deform_z = 0;
   double deform_rate[3];
-
+  
   double energy_transferred[2]; // energy transferred from system to heat baths
+
+  std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths
+  // addtional function for scaling velocities in multiple groups
+  virtual void scale_velocity_groups(
+    const std::vector<double>& factors,
+    const std::vector<int>& labels,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom);
 
   double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
   double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
