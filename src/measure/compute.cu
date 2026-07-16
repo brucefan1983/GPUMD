@@ -201,7 +201,6 @@ static __global__ void find_group_sum_1(
   }
   __syncthreads();
 
-
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_data[tid] += s_data[tid + offset];
@@ -524,7 +523,15 @@ void Compute::process(
     cpu_group_sum_ave[n] += cpu_group_sum[n];
 
   if (output_flag) {
-    output_results(integrate.ensemble->energy_transferred, group);
+    if (integrate.type == 26) {
+      //  Extract energy from multiple thermal reservoirs
+      int num_thermostats = integrate.ensemble->energy_transferred_n.size();
+      output_results_n(integrate.ensemble->energy_transferred_n.data(), group, num_thermostats);
+    } else {
+      // Use legacy version for other ensemble types
+      output_results(integrate.ensemble->energy_transferred, group);
+    }
+
     for (int n = 0; n < Ng * number_of_scalars; ++n)
       cpu_group_sum_ave[n] = 0.0;
   }
@@ -547,6 +554,32 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
   if (compute_temperature) {
     fprintf(fid, "%15.6e", energy_transferred[0]);
     fprintf(fid, "%15.6e", energy_transferred[1]);
+  }
+
+  fprintf(fid, "\n");
+  fflush(fid);
+}
+
+void Compute::output_results_n(
+  const double energy_transferred_n[], const std::vector<Group>& group, int num_thermostats)
+{
+  int Ng = group[grouping_method].number;
+  for (int n = 0; n < number_of_scalars; ++n) {
+    int offset = n * Ng;
+    for (int k = 0; k < Ng; k++) {
+      double tmp = cpu_group_sum_ave[k + offset] / output_interval;
+      if (compute_temperature && n == 0) {
+        tmp /= group[grouping_method].cpu_size[k];
+      }
+      fprintf(fid, "%15.6e", tmp);
+    }
+  }
+
+  // Output energy transferred for ALL thermostats (dynamic number)
+  if (compute_temperature) {
+    for (int i = 0; i < num_thermostats; i++) {
+      fprintf(fid, "%15.6e", energy_transferred_n[i]);
+    }
   }
 
   fprintf(fid, "\n");
