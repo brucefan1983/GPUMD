@@ -26,6 +26,7 @@ struct NEP_Data {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float> descriptor_parameters_type_pair;
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
@@ -79,6 +80,7 @@ public:
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* b1;               // bias for the output layer
     const float* c;
+    const float* c_type_pair;
     // for the scalar part of polarizability
     const float* w0_pol[10];
     const float* b0_pol[10];
