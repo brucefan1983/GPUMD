@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
   is_save_potential_set = false;
+  is_output_interval_set = false;
   is_q_scaler_set = false;
 
   train_mode = 0;              // potential
@@ -106,6 +107,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
+  output_interval = 100;       // write loss.out (and related output) every N generations
   initial_para = 1.0f;
   sigma0 = 0.1f;
   atomic_v = 0;
@@ -280,6 +282,25 @@ void Parameters::calculate_parameters()
       q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     input.close();
+  } else if (import_q_scaler) {
+    std::ifstream input("nep.txt");
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
+    }
+    std::vector<std::string> tokens;
+    // Unlike the fine_tune case above, the imported nep.txt is assumed (and validated by
+    // check_foundation_model, called from report_inputs) to already have the exact same
+    // architecture and species count as the current run, so no species-count-specific
+    // offset arithmetic is needed here: just skip the 7 header lines and this run's own
+    // number_of_variables parameter lines, then read the trailing dim-line q_scaler block.
+    for (int n = 0; n < 7 + number_of_variables; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
   }
 
   int deviceCount;
@@ -298,9 +319,9 @@ void Parameters::calculate_parameters()
   }
 }
 
-void Parameters::check_foundation_model()
+void Parameters::check_foundation_model(const std::string& filename)
 {
-  std::ifstream input(fine_tune_nep_txt);
+  std::ifstream input(filename);
   if (!input.is_open()) {
     PRINT_INPUT_ERROR("Failed to open foundation model file.");
   }
@@ -394,7 +415,11 @@ void Parameters::report_inputs()
   }
 
   if (fine_tune) {
-    check_foundation_model();
+    check_foundation_model(fine_tune_nep_txt);
+  }
+
+  if (import_q_scaler) {
+    check_foundation_model("nep.txt");
   }
 
   printf("Input or default parameters:\n");
@@ -592,6 +617,12 @@ void Parameters::report_inputs()
     printf("    (default) save potential every N = %d generations.\n", save_potential);
   }
 
+  if (is_output_interval_set) {
+    printf("    (input)   output_interval = %d generations.\n", output_interval);
+  } else {
+    printf("    (default) output_interval = %d generations.\n", output_interval);
+  }
+
   if (fine_tune) {
     printf("    (input)   will fine-tune based on %s and %s.\n", 
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
@@ -688,8 +719,12 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
     parse_save_potential(param, num_param);
+  } else if (strcmp(param[0], "output_interval") == 0) {
+    parse_output_interval(param, num_param);
   } else if (strcmp(param[0], "q_scaler") == 0) {
     parse_q_scaler(param, num_param);
+  } else if (strcmp(param[0], "import_q_scaler") == 0) {
+    parse_import_q_scaler(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1439,7 +1474,22 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   }
   if (save_potential_restart != 0 && save_potential_restart != 1) {
     PRINT_INPUT_ERROR("save_potential save restart should be 0 or 1.");
-  }  
+  }
+}
+
+void Parameters::parse_output_interval(const char** param, int num_param)
+{
+  is_output_interval_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("output_interval should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &output_interval)) {
+    PRINT_INPUT_ERROR("output_interval should be an integer.\n");
+  }
+  if (output_interval <= 0) {
+    PRINT_INPUT_ERROR("output_interval should be > 0.");
+  }
 }
 
 void Parameters::parse_q_scaler(const char** param, int num_param)
@@ -1458,4 +1508,20 @@ void Parameters::parse_q_scaler(const char** param, int num_param)
   if (q_scaler_input < 0.01f || q_scaler_input > 0.1f) {
     PRINT_INPUT_ERROR("q_scaler must be in [0.01 0.1].");
   }
+}
+
+void Parameters::parse_import_q_scaler(const char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("import_q_scaler should have 1 parameter.\n");
+  }
+
+  int flag = 0;
+  if (!is_valid_int(param[1], &flag)) {
+    PRINT_INPUT_ERROR("import_q_scaler should be an integer.\n");
+  }
+  if (flag != 0 && flag != 1) {
+    PRINT_INPUT_ERROR("import_q_scaler should be 0 or 1.");
+  }
+  import_q_scaler = (flag == 1);
 }

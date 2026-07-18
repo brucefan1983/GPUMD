@@ -5,7 +5,7 @@
 ``loss.out``
 ============
 
-This files contains the terms that enter the :ref:`loss function <nep_loss_function>` for every 100-th generation.
+This files contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
 
 If a potential model is trained, each row contains the following fields::
 
