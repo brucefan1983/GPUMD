@@ -18,10 +18,9 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <cstring>
 
 void print_welcome_information();
@@ -56,7 +55,7 @@ int main(int argc, char* argv[])
   return EXIT_SUCCESS;
 }
 
-void print_welcome_information(void)
+void print_welcome_information()
 {
   printf("\n");
   printf("***************************************************************\n");
