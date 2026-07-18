@@ -27,6 +27,7 @@ keyword and perform deposition between consecutive sub-runs.
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <sstream>
@@ -44,17 +45,15 @@ void Deposition::copy_file(const std::string& in_file, const std::string& out_fi
   out << in.rdbuf();
 }
 
-std::string Deposition::trim_comment(const std::string& line)
-{
-  size_t pos = line.find('#');
-  if (pos == std::string::npos) {
-    return line;
-  }
-  return line.substr(0, pos);
-}
-
 void Deposition::parse_deposition(const char** param, int num_param)
 {
+  for (int i = 0; i < num_param; ++i) {
+    if (std::string(param[i])[0] == '#') {
+      num_param = i;
+      break;
+    }
+  }
+
   if (num_param < 6) {
     PRINT_INPUT_ERROR("deposit should have at least 5 parameters.\n");
   }
@@ -110,7 +109,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
     num_atoms.clear();
     velocities.clear();
     while (idx < num_param) {
-      if (idx + 2 > num_param) {
+      if (idx + 3 > num_param) {
         PRINT_INPUT_ERROR("deposit atom species requires type, number, and velocity.\n");
       }
 
@@ -154,8 +153,24 @@ void Deposition::parse_deposition(const char** param, int num_param)
     }
     add_atom_file = param[idx];
     ++idx;
-    if (idx != num_param) {
-      PRINT_INPUT_ERROR("deposit file mode should not have extra parameters after the file name.\n");
+
+    if (direction < 0) {
+      if (idx != num_param) {
+        PRINT_INPUT_ERROR("deposit file mode with direction=-1 should not have parameters after the file name.\n");
+      }
+      has_file_velocity = false;
+    } else {
+      if (idx >= num_param) {
+        PRINT_INPUT_ERROR("deposit file mode with a direction should be followed by a velocity.\n");
+      }
+      if (!is_valid_real(param[idx], &file_velocity)) {
+        PRINT_INPUT_ERROR("deposit file velocity should be a real number.\n");
+      }
+      has_file_velocity = true;
+      ++idx;
+      if (idx != num_param) {
+        PRINT_INPUT_ERROR("deposit file mode should not have extra parameters after the velocity.\n");
+      }
     }
     read_file_atoms();
   }
@@ -199,14 +214,7 @@ void Deposition::analyze_run(const std::string& filename)
   int total_steps = 0;
 
   for (int n = 0; n < raw_lines.size(); ++n) {
-    std::string line = trim_comment(raw_lines[n]);
-    size_t start = line.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-      continue;
-    }
-    line = line.substr(start);
-
-    std::vector<std::string> tokens = get_tokens(line);
+    std::vector<std::string> tokens = get_tokens(raw_lines[n]);
     if (tokens.empty()) {
       continue;
     }
@@ -218,9 +226,15 @@ void Deposition::analyze_run(const std::string& filename)
     const int num_param = tokens.size();
 
     if (tokens[0] == "deposit") {
+      if (deposition_line >= 0) {
+        PRINT_INPUT_ERROR("deposit should appear only once in run.in.\n");
+      }
       parse_deposition(param.data(), num_param);
       deposition_line = n;
     } else if (tokens[0] == "run") {
+      if (run_line >= 0) {
+        PRINT_INPUT_ERROR("run should appear only once in run.in when deposit is used.\n");
+      }
       if (!is_valid_int(param[1], &total_steps)) {
         PRINT_INPUT_ERROR("number of steps should be an integer.\n");
       }
@@ -270,13 +284,8 @@ void Deposition::read_file_atoms()
   file_atoms.clear();
   std::string raw_line;
   while (std::getline(input, raw_line)) {
-    std::string line = trim_comment(raw_line);
-    size_t start = line.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-      continue;
-    }
-    line = line.substr(start);
-
+    const size_t comment_pos = raw_line.find('#');
+    const std::string line = (comment_pos == std::string::npos) ? raw_line : raw_line.substr(0, comment_pos);
     std::vector<std::string> tokens = get_tokens(line);
     if (tokens.empty()) {
       continue;
@@ -331,11 +340,57 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   int num_group_methods = 0;
   const bool has_group = has_group_property(comment_line, num_group_methods);
 
-  std::vector<std::string> atom_lines;
+  int total_new_atoms = 0;
+  if (has_file) {
+    total_new_atoms = file_atoms.size();
+  } else {
+    for (const int n : num_atoms) {
+      total_new_atoms += n;
+    }
+  }
+
+  double h[9] = {0.0};
+  const std::string lattice_marker = "Lattice=\"";
+  const size_t lattice_pos = comment_line.find(lattice_marker);
+  if (lattice_pos != std::string::npos) {
+    const size_t value_start = lattice_pos + lattice_marker.length();
+    const size_t value_end = comment_line.find("\"", value_start);
+    const std::string lattice_values = comment_line.substr(value_start, value_end - value_start);
+    const std::vector<std::string> lattice_tokens = get_tokens(lattice_values);
+    if (lattice_tokens.size() < 9) {
+      PRINT_INPUT_ERROR("Lattice in the xyz file should have 9 numbers.\n");
+    }
+    for (int m = 0; m < 9; ++m) {
+      h[m] = get_double_from_token(lattice_tokens[m], __FILE__, __LINE__);
+    }
+  }
+
+  double l[3];
+  for (int m = 0; m < 3; ++m) {
+    const double* v = h + 3 * m;
+    l[m] = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  }
+
+#ifdef DEBUG
+  rng.seed(12345678 + deposition_count);
+#endif
+  ++deposition_count;
+
+  std::uniform_real_distribution<double> dist01(0.0, 1.0);
+
+  std::ofstream out(output_xyz);
+  if (!out) {
+    std::cout << "Failed to open " << output_xyz << " for writing." << std::endl;
+    exit(1);
+  }
+
+  out << original_num_atoms + total_new_atoms << "\n";
+  out << comment_line << "\n";
+
   std::vector<int> max_group(num_group_methods, -1);
   for (int n = 0; n < original_num_atoms; ++n) {
     std::getline(input, line);
-    atom_lines.emplace_back(line);
+    out << line << "\n";
     if (has_group) {
       std::vector<std::string> tokens = get_tokens(line);
       for (int g = 0; g < num_group_methods; ++g) {
@@ -357,37 +412,18 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   std::string potential_filename = get_filename_potential();
   std::vector<std::string> atom_symbols = get_atom_symbols(potential_filename);
 
-  double h[9] = {0.0};
-  const std::string lattice_marker = "Lattice=\"";
-  const size_t lattice_pos = comment_line.find(lattice_marker);
-  if (lattice_pos != std::string::npos) {
-    const size_t value_start = lattice_pos + lattice_marker.length();
-    const size_t value_end = comment_line.find("\"", value_start);
-    const std::string lattice_values = comment_line.substr(value_start, value_end - value_start);
-    const std::vector<std::string> lattice_tokens = get_tokens(lattice_values);
-    for (int m = 0; m < 9; ++m) {
-      h[m] = get_double_from_token(lattice_tokens[m], __FILE__, __LINE__);
-    }
-  }
-
-  double l[3];
-  for (int m = 0; m < 3; ++m) {
-    l[m] = std::sqrt(h[3 * m] * h[3 * m] + h[3 * m + 1] * h[3 * m + 1] + h[3 * m + 2] * h[3 * m + 2]);
-  }
-
-#ifdef DEBUG
-  rng.seed(12345678 + deposition_count);
-#endif
-  ++deposition_count;
-
-  std::uniform_real_distribution<double> dist01(0.0, 1.0);
-
-  std::vector<std::string> new_atom_lines;
+  auto sample_height = [&]() {
+    return has_height_range ? height_min + dist01(rng) * (height_max - height_min) : height_min;
+  };
 
   auto add_atom_line = [&](int atom_type, const double pos[3], const double vel[3]) {
+    if (atom_type >= int(atom_symbols.size())) {
+      PRINT_INPUT_ERROR("deposit atom_type exceeds the number of atom types in the potential file.\n");
+    }
     const std::string symbol = atom_symbols[atom_type];
 
     std::ostringstream atom_line;
+    atom_line << std::setprecision(10);
     atom_line << symbol << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " << vel[0]
               << " " << vel[1] << " " << vel[2];
     if (has_group) {
@@ -395,36 +431,29 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
         atom_line << " " << deposited_groups[g];
       }
     }
-    new_atom_lines.emplace_back(atom_line.str());
+    out << atom_line.str() << "\n";
   };
 
   if (has_file) {
     for (const auto& fa : file_atoms) {
-      double pos[3];
-      for (int d = 0; d < 3; ++d) {
-        pos[d] = fa.pos[d];
-      }
+      double pos[3] = {fa.pos[0], fa.pos[1], fa.pos[2]};
       if (direction >= 0) {
-        double height = height_min;
-        if (has_height_range) {
-          height = height_min + dist01(rng) * (height_max - height_min);
-        }
-        pos[direction] = height;
+        pos[direction] = sample_height();
       }
 
-      add_atom_line(fa.type, pos, fa.vel);
+      double vel[3] = {fa.vel[0], fa.vel[1], fa.vel[2]};
+      if (has_file_velocity) {
+        vel[direction] = file_velocity;
+      }
+
+      add_atom_line(fa.type, pos, vel);
     }
   } else {
     for (size_t s = 0; s < atom_types.size(); ++s) {
       const double velocity = velocities[s];
       for (int n = 0; n < num_atoms[s]; ++n) {
-        double height = height_min;
-        if (has_height_range) {
-          height = height_min + dist01(rng) * (height_max - height_min);
-        }
-
         double pos[3] = {dist01(rng) * l[0], dist01(rng) * l[1], dist01(rng) * l[2]};
-        pos[direction] = height;
+        pos[direction] = sample_height();
 
         double vel[3] = {0.0, 0.0, 0.0};
         vel[direction] = velocity;
@@ -432,29 +461,6 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
         add_atom_line(atom_types[s], pos, vel);
       }
     }
-  }
-
-  std::ofstream out(output_xyz);
-  if (!out) {
-    std::cout << "Failed to open " << output_xyz << " for writing." << std::endl;
-    exit(1);
-  }
-
-  int total_new_atoms = 0;
-  if (has_file) {
-    total_new_atoms = file_atoms.size();
-  } else {
-    for (const int n : num_atoms) {
-      total_new_atoms += n;
-    }
-  }
-  out << original_num_atoms + total_new_atoms << "\n";
-  out << comment_line << "\n";
-  for (const auto& atom_line : atom_lines) {
-    out << atom_line << "\n";
-  }
-  for (const auto& new_line : new_atom_lines) {
-    out << new_line << "\n";
   }
 }
 
@@ -484,13 +490,13 @@ void Deposition::initialize()
   }
 
   analyze_run("run.in.original");
-  printf("Split run.in into %zu sub-runs.\n", num_subruns);
+  printf("Split run.in into %d sub-runs.\n", num_subruns);
 }
 
 void Deposition::prepare_subrun(int run_idx)
 {
   printf(
-    "Running sub-run %d / %zu.\n", run_idx + 1, num_subruns);
+    "Running sub-run %d / %d.\n", run_idx + 1, num_subruns);
   fflush(stdout);
 
   std::ofstream out("run.in");
@@ -524,15 +530,7 @@ bool Deposition::has_deposition(const std::string& filename)
 
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens(input);
-    std::vector<std::string> tokens_without_comments;
-    for (const auto& t : tokens) {
-      if (t[0] != '#') {
-        tokens_without_comments.emplace_back(t);
-      } else {
-        break;
-      }
-    }
-    if (!tokens_without_comments.empty() && tokens_without_comments[0] == "deposit") {
+    if (!tokens.empty() && tokens[0] == "deposit") {
       input.close();
       return true;
     }

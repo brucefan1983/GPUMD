@@ -38,6 +38,8 @@ public:
   std::vector<double> velocities;
   bool has_file = false;
   std::string add_atom_file;
+  double file_velocity = 0.0;
+  bool has_file_velocity = false;
   struct FileAtom {
     int type;
     double pos[3];
@@ -50,7 +52,6 @@ public:
   bool has_deposition(const std::string& filename);
 
 private:
-  static std::string trim_comment(const std::string& line);
   static void copy_file(const std::string& in_file, const std::string& out_file);
   void parse_deposition(const char** param, int num_param);
   void analyze_run(const std::string& filename);
