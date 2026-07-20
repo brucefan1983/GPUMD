@@ -77,7 +77,6 @@ void Parameters::set_default_parameters()
   is_charge_mode_set = false;
   is_save_potential_set = false;
   is_output_interval_set = false;
-  is_q_scaler_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -115,7 +114,6 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
-  q_scaler_input = 0.02f;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -628,10 +626,6 @@ void Parameters::report_inputs()
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
   }
 
-  if (is_q_scaler_set) {
-    printf("    (input)   q_scaler = %g.\n", q_scaler_input);
-  }
-
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
@@ -721,8 +715,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_save_potential(param, num_param);
   } else if (strcmp(param[0], "output_interval") == 0) {
     parse_output_interval(param, num_param);
-  } else if (strcmp(param[0], "q_scaler") == 0) {
-    parse_q_scaler(param, num_param);
   } else if (strcmp(param[0], "import_q_scaler") == 0) {
     parse_import_q_scaler(param, num_param);
   } else {
@@ -1489,24 +1481,6 @@ void Parameters::parse_output_interval(const char** param, int num_param)
   }
   if (output_interval <= 0) {
     PRINT_INPUT_ERROR("output_interval should be > 0.");
-  }
-}
-
-void Parameters::parse_q_scaler(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("q_scaler should have 1 parameter.\n");
-  }
-
-  double q_scaler_tmp = 0.0;
-  if (!is_valid_real(param[1], &q_scaler_tmp)) {
-    PRINT_INPUT_ERROR("q_scaler should be a number.\n");
-  }
-  q_scaler_input = static_cast<float>(q_scaler_tmp);
-  is_q_scaler_set = true;
-
-  if (q_scaler_input < 0.01f || q_scaler_input > 0.1f) {
-    PRINT_INPUT_ERROR("q_scaler must be in [0.01 0.1].");
   }
 }
 
