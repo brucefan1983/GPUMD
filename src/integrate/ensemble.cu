@@ -877,3 +877,82 @@ void Ensemble::scale_velocity_local(
     velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 }
+
+static __global__ void gpu_scale_velocity_n_groups(
+  const int number_of_particles,
+  const int num_groups,
+  const int* g_group_labels, // Array of group labels to scale
+  const double* g_factors,   // Array of scaling factors (one per group)
+  const int* g_atom_label,
+  const double* g_vcx,
+  const double* g_vcy,
+  const double* g_vcz,
+  const double* g_ke,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_particles) {
+    int atom_label = g_atom_label[n];
+    double factor = 1.0;
+
+    // Find if this atom belongs to any of the groups we're scaling
+    for (int i = 0; i < num_groups; i++) {
+      if (atom_label == g_group_labels[i]) {
+        factor = g_factors[i];
+        break;
+      }
+    }
+
+    if (factor != 1.0) {
+      double vcx = g_vcx[atom_label];
+      double vcy = g_vcy[atom_label];
+      double vcz = g_vcz[atom_label];
+
+      // Scale velocity while conserving momentum
+      g_vx[n] = vcx + factor * (g_vx[n] - vcx);
+      g_vy[n] = vcy + factor * (g_vy[n] - vcy);
+      g_vz[n] = vcz + factor * (g_vz[n] - vcz);
+    }
+  }
+}
+
+void Ensemble::scale_velocity_groups(
+  const std::vector<double>& factors,
+  const std::vector<int>& labels,
+  const double* vcx,
+  const double* vcy,
+  const double* vcz,
+  const double* ke,
+  const std::vector<Group>& group,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms = velocity_per_atom.size() / 3;
+  const int num_groups = factors.size();
+
+  if (num_groups == 0)
+    return;
+
+  // Create device arrays for factors and labels
+  GPU_Vector<double> d_factors(num_groups);
+  GPU_Vector<int> d_labels(num_groups);
+
+  d_factors.copy_from_host(factors.data());
+  d_labels.copy_from_host(labels.data());
+
+  gpu_scale_velocity_n_groups<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    num_groups,
+    d_labels.data(),
+    d_factors.data(),
+    group[0].label.data(),
+    vcx,
+    vcy,
+    vcz,
+    ke,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
+  GPU_CHECK_KERNEL
+}

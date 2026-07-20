@@ -21,11 +21,12 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
+#include "ensemble_heat_hybrid.cuh"
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
-#include "ensemble_npt_qtb.cuh"
 #include "ensemble_nphug.cuh"
+#include "ensemble_npt_qtb.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
@@ -102,13 +103,7 @@ void Integrate::initialize(
       break;
     case 6: // NVT-QTB
       ensemble.reset(new Ensemble_QTB(
-        type,
-        number_of_atoms,
-        temperature,
-        temperature_coupling,
-        time_step,
-        qtb_f_max,
-        qtb_n_f));
+        type, number_of_atoms, temperature, temperature_coupling, time_step, qtb_f_max, qtb_n_f));
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
@@ -175,7 +170,7 @@ void Integrate::initialize(
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
         type,
-        move_group, 
+        move_group,
         move_velocity,
         source,
         sink,
@@ -216,6 +211,26 @@ void Integrate::initialize(
         ttm_parameters,
         box));
       break;
+    case 26: { // Heat-hybrid facilitates the use of both Langevin and Nose-Hoover thermostats
+      // Use vectors from the class (heat_labels, heat_thermostat, heat_coupling)
+      std::vector<int> sizes(heat_labels.size());
+      std::vector<int> offsets(heat_labels.size());
+      for (size_t i = 0; i < heat_labels.size(); i++) {
+        sizes[i] = group[0].cpu_size[heat_labels[i]];
+        offsets[i] = group[0].cpu_size_sum[heat_labels[i]];
+      }
+      ensemble.reset(new Ensemble_Heat_Hybrid(
+        type,
+        heat_thermostat, // Now a vector
+        heat_labels,     // Now a vector
+        sizes,
+        offsets,
+        temperature,
+        heat_coupling, // Now a vector
+        delta_temperature,
+        time_step));
+      break;
+    }
     case 31: // RPMD
       ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
       break;
@@ -478,6 +493,13 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR(
         "ensemble ttm should have 12 required parameters plus optional key-value pairs.");
     }
+  } else if (strcmp(param[1], "heat_hybrid") == 0) {
+    type = 26;
+    // Minimum parameters
+    if (num_param < 9) {
+      PRINT_INPUT_ERROR("ensemble heat_hybrid needs at least 7 parameters.");
+    }
+    // The rest of the parsing happens in the dedicated section below
   } else if (strcmp(param[1], "rpmd") == 0) {
     type = 31;
     if (num_param != 3) {
@@ -736,6 +758,100 @@ void Integrate::parse_ensemble(
 
   if (type == 24 || type == 25) {
     parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, ttm_parameters);
+  }
+
+  // heating and cooling wiht hybrid thermostat
+
+  if (type == 26) {
+    // Clear vectors in case this is parsed multiple times
+    heat_thermostat.clear();
+    heat_coupling.clear();
+    heat_labels.clear();
+
+    // Parse thermostat types - variable number
+    int num_thermostats = 0;
+    while (num_thermostats + 2 < num_param) {
+      const char* type_str = param[2 + num_thermostats];
+      if (strcmp(type_str, "nhc") == 0) {
+        heat_thermostat.push_back(0);
+        num_thermostats++;
+      } else if (strcmp(type_str, "lan") == 0) {
+        heat_thermostat.push_back(1);
+        num_thermostats++;
+      } else {
+        // Not a thermostat type, stop parsing
+        break;
+      }
+    }
+
+    if (num_thermostats < 2) {
+      PRINT_INPUT_ERROR("Heat-hybrid needs at least 2 thermostats.");
+    }
+
+    int idx = 2 + num_thermostats; // Current position in param array
+
+    // Parse temperature
+    if (idx >= num_param || !is_valid_real(param[idx], &temperature)) {
+      PRINT_INPUT_ERROR("Temperature should be a number.");
+    }
+    if (temperature <= 0.0) {
+      PRINT_INPUT_ERROR("Temperature should > 0.");
+    }
+    idx++;
+
+    // Parse coupling parameters - must match number of thermostats
+    heat_coupling.resize(num_thermostats);
+    for (int n = 0; n < num_thermostats; n++) {
+      if (idx >= num_param || !is_valid_real(param[idx], &heat_coupling[n])) {
+        PRINT_INPUT_ERROR("Heat-hybrid damping parameter should be a number.");
+      }
+      if (heat_coupling[n] < 1.0) {
+        PRINT_INPUT_ERROR("Heat-hybrid damping parameter should >= 1.");
+      }
+      idx++;
+    }
+    temperature_coupling = heat_coupling[0];
+
+    // Parse delta_temperature
+    if (idx >= num_param || !is_valid_real(param[idx], &delta_temperature)) {
+      PRINT_INPUT_ERROR("Temperature difference should be a number.");
+    }
+    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
+      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+    }
+    idx++;
+
+    // Parse group labels - must match number of thermostats
+    heat_labels.resize(num_thermostats);
+    for (int n = 0; n < num_thermostats; n++) {
+      if (idx >= num_param || !is_valid_int(param[idx], &heat_labels[n])) {
+        PRINT_INPUT_ERROR("Group ID for thermostat should be an integer.");
+      }
+      idx++;
+    }
+
+    if (group.size() < 1) {
+      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+    }
+
+    // Validate all groups
+    for (int n = 0; n < num_thermostats; n++) {
+      if (heat_labels[n] < 0 || heat_labels[n] >= group[0].number) {
+        PRINT_INPUT_ERROR("Group ID for heat thermostat is out of range.");
+      }
+      if (group[0].cpu_size[heat_labels[n]] <= 0) {
+        PRINT_INPUT_ERROR("Heat thermostat group cannot be empty.");
+      }
+    }
+
+    // Check all groups are distinct
+    for (int i = 0; i < num_thermostats; i++) {
+      for (int j = i + 1; j < num_thermostats; j++) {
+        if (heat_labels[i] == heat_labels[j]) {
+          PRINT_INPUT_ERROR("Heat thermostats must use different groups.");
+        }
+      }
+    }
   }
 
   // 5. PIMD related
@@ -1069,6 +1185,32 @@ void Integrate::parse_ensemble(
       printf("Integrate with pure Two-Temperature Model (TTM) for this run.\n");
       print_ttm_settings(ttm_parameters);
       break;
+    case 26:
+      printf("Integrate with hybrid heating and cooling for this run.\n");
+      printf("    Number of thermostats: %zu\n", heat_thermostat.size());
+      for (size_t n = 0; n < heat_thermostat.size(); n++) {
+        printf(
+          "    Thermostat %zu: %s, group %d, tau = %g time_step, T = %g K\n",
+          n + 1,
+          heat_thermostat[n] == 0 ? "NHC" : "Langevin",
+          heat_labels[n],
+          heat_coupling[n],
+          (n == 0) ? temperature + delta_temperature : temperature - delta_temperature);
+      }
+      printf("    Average temperature: %g K\n", temperature);
+      printf("    Delta T: %g K\n", delta_temperature);
+      printf(
+        "    Hot thermostat (T = %g K) is group %d\n",
+        temperature + delta_temperature,
+        heat_labels[0]);
+      for (size_t n = 1; n < heat_labels.size(); n++) {
+        printf(
+          "    Cold thermostat %zu (T = %g K) is group %d\n",
+          n,
+          temperature - delta_temperature,
+          heat_labels[n]);
+      }
+      break;
     case 31:
       printf("Use ring-polymer MD (RPMD) for this run.\n");
       printf("    number of beads is %d.\n", number_of_beads);
@@ -1167,8 +1309,7 @@ void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>&
     PRINT_INPUT_ERROR("Fixed group ID should < number of groups.");
   }
 
-  printf(
-    "Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
+  printf("Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
 }
 
 void Integrate::parse_move(const char** param, int num_param, std::vector<Group>& group)
