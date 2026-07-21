@@ -20,9 +20,13 @@ class Neighbor;
 class Group;
 class Atom;
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 void initialize_position(
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+
+std::string get_filename_potential();
+std::vector<std::string> get_atom_symbols(std::string& filename_potential);
