@@ -46,6 +46,12 @@ Bibliography
    | J. Chem. Phys. **133**, 124104 (2010)
    | DOI: `10.1063/1.3489925 <https://doi.org/10.1063/1.3489925>`_
 
+.. [Cordero2008]
+   | Beatriz Cordero, Verónica Gómez, Ana E. Platero-Prats, Marc Revés, Jorge Echeverría, Eduard Cremades, Flavia Barragán, and Santiago Alvarez
+   | *Covalent radii revisited*
+   | Dalton Transactions, 2832 (2008)
+   | DOI: `10.1039/B801115J <https://doi.org/10.1039/B801115J>`_
+
 .. [Craig2004]
    | Ian R. Craig and David E. Manolopoulos
    | *Quantum statistics and classical mechanics: Real time correlation functions from ring polymer molecular dynamics*
@@ -153,6 +159,12 @@ Bibliography
    | *Assessment and optimization of the fast inertial relaxation engine (fire) for energy minimization in atomistic simulations and its implementation in lammps*
    | Computational Materials Science **175**, 109584 (2020)
    | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
+
+.. [Hess1997]
+   | Berk Hess, Henk Bekker, Herman J. C. Berendsen, and Johannes G. E. M. Fraaije
+   | *LINCS: A linear constraint solver for molecular simulations*
+   | Journal of Computational Chemistry **18**, 1463 (1997)
+   | DOI: `10.1002/(SICI)1096-987X(199709)18:12<1463::AID-JCC4>3.0.CO;2-H <https://onlinelibrary.wiley.com/doi/10.1002/(SICI)1096-987X(199709)18:12%3C1463::AID-JCC4%3E3.0.CO;2-H>`_
 
 .. [Hoover1996]
    | William G. Hoover and Brad Lee Holian
