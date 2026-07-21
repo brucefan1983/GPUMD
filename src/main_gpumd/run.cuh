@@ -26,6 +26,7 @@ class Measure;
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
+#include "integrate/lincs.cuh"
 #include "mc/mc.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
@@ -71,6 +72,7 @@ private:
   Integrate integrate;
   MC mc;
   Measure measure;
+  Lincs lincs;
   Electron_Stop electron_stop;
   Add_Force add_force;
   Add_Spring add_spring;

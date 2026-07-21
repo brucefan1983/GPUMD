@@ -218,6 +218,20 @@ void Run::perform_a_run()
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
+  lincs.setup(atom, box);
+  if (lincs.enabled && lincs.number_of_constraints > 0) {
+    if (integrate.type >= 31) {
+      PRINT_INPUT_ERROR("Bond constraints are not supported for PIMD.");
+    }
+    if (mc.do_mc()) {
+      PRINT_INPUT_ERROR("Bond constraints cannot be used with MC.");
+    }
+  }
+  if (integrate.ensemble.get() != nullptr) {
+    integrate.ensemble->number_of_constraints =
+      lincs.enabled ? lincs.number_of_constraints : 0;
+  }
+
   // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -259,6 +273,7 @@ void Run::perform_a_run()
 
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    lincs.compute1(time_step, box, atom);
 
     if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
@@ -293,6 +308,7 @@ void Run::perform_a_run()
     add_efield.compute(step, group, atom, force);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    lincs.compute2(box, atom);
 
     mc.compute(step, number_of_steps, atom, box, group);
 
@@ -547,6 +563,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "move") == 0) {
     integrate.parse_move(param, num_param, group);
+  } else if (strcmp(param[0], "lincs") == 0) {
+    lincs.parse(param, num_param);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
   } else if (strcmp(param[0], "add_random_force") == 0) {
