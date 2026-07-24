@@ -146,7 +146,7 @@ Phys. Rev. B **110**, 224101 (2024).
 [Jiang2025] Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, [Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides](https://doi.org/10.1021/acsnano.4c12148),
 ACS Nano **19**, 16287 (2025).
 
-[Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://doi.org/10.1038/s43588-026-01009-6), Nature Computational Science (2026); [arXiv:2504.21286](https://doi.org/10.48550/arXiv.2504.21286).
+[Liang2025] Ting Liang, Ke Xu, Eric Lindgren, Zherui Chen, Rui Zhao, Jiahui Liu, Esmée Berger, Benrui Tang, Bohan Zhang, Yanzhou Wang, Keke Song, Penghua Ying, Nan Xu, Haikuan Dong, Shunda Chen, Paul Erhart, Zheyong Fan, Tapio Ala-Nissila, Jianbin Xu, [NEP89: Universal neuroevolution potential for inorganic and organic materials across 89 elements](https://doi.org/10.1038/s43588-026-01009-6), Nature Computational Science **6**, 789 (2026); [arXiv:2504.21286](https://doi.org/10.48550/arXiv.2504.21286).
 
 [Huang2026] Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, [Efficient GPU-accelerated training of a neuroevolution potential with analytical gradients](https://doi.org/10.1016/j.cpc.2025.109994),
 Computer Physics Communications **320**, 109994 (2026).
