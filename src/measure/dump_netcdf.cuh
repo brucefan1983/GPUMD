@@ -18,14 +18,16 @@
 #pragma once
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Box;
+class Group;
 
 class DUMP_NETCDF : public Property
 {
 public:
-  DUMP_NETCDF(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups);
+  void parse(const char** param, int num_param, const std::vector<Group>& groups);
   virtual void preprocess(
     const int number_of_steps,
     const double time_step,
@@ -59,13 +61,27 @@ public:
 
 private:
   bool dump_ = false;
-  int interval = 1;      // output interval
-  int has_velocity_ = 0; // 0 wthout velocities, 1 with velocities
-  char file_position[200];
-  int precision = 2; // 1 = single precision, 2 = double
+  int grouping_method_ = -1;
+  int group_id_ = 0;
+  int interval_ = 1;
+  int has_velocity_ = 0;
+  int precision_ = 1;          // 1 = single precision, 2 = double
+  int compression_level_ = -1; // -1 = classic NetCDF, 0-9 = NetCDF4 deflate
+  int number_of_atoms_to_dump_ = 0;
+  std::string filename_;
 
-  int ncid; // NetCDF ID
-  static bool append;
+  std::vector<int> cpu_type_to_dump_;
+  std::vector<double> cpu_group_position_;
+  std::vector<double> cpu_group_velocity_;
+  std::vector<float> cpu_position_float_;
+  std::vector<float> cpu_velocity_float_;
+  std::vector<double> cpu_position_double_;
+  std::vector<double> cpu_velocity_double_;
+  GPU_Vector<double> group_position_;
+  GPU_Vector<double> group_velocity_;
+
+  int ncid = -1; // NetCDF ID
+  static std::vector<std::string> initialized_files_;
 
   // dimensions
   int frame_dim;
@@ -90,15 +106,15 @@ private:
 
   size_t lenp; // frame number
 
-  void open_file(int frame_in_run);
+  void create_file();
+  void load_file_definition();
+  void validate_file_definition();
   void write(
     const double global_time,
     const Box& box,
     const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
+    const std::vector<double>& cpu_position_per_atom,
+    const std::vector<double>& cpu_velocity_per_atom);
 };
 
 #endif
