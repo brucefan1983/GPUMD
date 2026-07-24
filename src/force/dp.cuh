@@ -16,19 +16,13 @@
 #ifdef USE_DEEPMD
 #pragma once
 #include "DeepPot.h"
+#include "neighbor.cuh"
 #include "potential.cuh"
 #include <stdio.h>
 #include <vector>
 #include <cstddef>
 
 namespace deepmd_compat = deepmd;
-
-struct DP_Data {
-  GPU_Vector<int> NN, NL;
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
-};
 
 // DP neighbor list, which is the same as lammps neighbor list
 struct DP_NL {
@@ -87,7 +81,12 @@ protected:
   int cached_pbc_z;
   double cached_box_h[9];
 
-  DP_Data dp_data;
+  // Device-resident neighbor list: the global list is built at rc + skin and
+  // reused across steps until an atom drifts more than skin/2, then filtered
+  // to the true cutoff rc each step.
+  Neighbor dp_neighbor;
+  GPU_Vector<int> dp_NN_local;   // per-step neighbor counts within rc
+  GPU_Vector<int> dp_NL_local;   // per-step neighbor list within rc (stride N)
   DP_NL dp_nl;
   GPU_Vector<double> dp_position_gpu;
   std::vector<int> type_cpu;
@@ -113,6 +112,24 @@ protected:
   std::vector<int> cpu_NL;
   GPU_Vector<double> dp_position_gpu_trans;
   std::vector<double> dp_position_cpu;
+
+  // Fully device-resident edge path (SeZM/DPA4): build the neighbor list and
+  // the compact edge schema on the GPU, run the exported model on those device
+  // tensors, and scatter the device outputs back into GPUMD arrays.  No host
+  // neighbor-list build and no per-step host-device coordinate/result copies.
+  GPU_Vector<int> dp_edge_index;     // [2 * nedge]: row 0 = src, row 1 = dst
+  GPU_Vector<double> dp_edge_vec;    // [nedge * 3] minimum-image bond vectors
+  GPU_Vector<int> dp_edge_offset;    // [nloc] exclusive scan of NN
+  GPU_Vector<double> dp_atom_energy_gpu;  // [nloc]
+  GPU_Vector<double> dp_force_rowmajor;   // [nloc * 3] row-major model force
+  GPU_Vector<double> dp_atom_virial_gpu;  // [nloc * 9] row-major model virial
+  void compute_gpu_edges(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
   // skin-cache helper buffers
   GPU_Vector<double> position_ref_gpu;
