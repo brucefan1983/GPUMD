@@ -34,6 +34,8 @@ public:
 
   void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
 
+  bool do_mc(void) { return do_mcmd; }
+
 private:
   bool do_mcmd = false;
   int num_steps_md = 0;

@@ -41,6 +41,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    deposit
    electron_stop
    fix
+   lincs
    kspace
    move
    mc
