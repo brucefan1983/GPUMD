@@ -64,7 +64,7 @@ Examples
 --------
 
 Single precision without velocities
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To dump the whole-system positions every 1000 steps using the default single precision and no compression, one can add::
 
