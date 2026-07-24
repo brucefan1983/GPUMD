@@ -56,6 +56,9 @@ Requirements and specifications
 * The NetCDF files also contain atom types, cell lengths, and angles, which can be used in visualization and analysis software.
 * The atomic positions are always included in the output. For periodic MD, the wrapped
   positions are written.
+* AMBER NetCDF represents a periodic cell using lengths and angles in a standard orientation.
+  If the GPUMD cell has a different orientation, the output positions and velocities are
+  rigidly transformed with the cell so that periodic geometry is preserved.
 
 Examples
 --------

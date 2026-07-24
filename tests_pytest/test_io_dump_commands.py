@@ -11,6 +11,7 @@ commands do.
 """
 import numpy as np
 import pytest
+from ase.cell import Cell
 from ase.io import read
 from calorine.gpumd import read_xyz
 
@@ -178,6 +179,48 @@ def test_dump_netcdf_group_double_deflate(
         assert velocities.filters()['zlib']
         assert dataset.getncattr('gpumd_grouping_method') == 0
         assert dataset.getncattr('gpumd_group_id') == 1
+
+
+def test_dump_netcdf_rotates_general_cell(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    netcdf4 = pytest.importorskip('netCDF4')
+    rotated_structure = structure.copy()
+    general_cell = rotated_structure.cell.array.copy()
+    general_cell[0] += 0.05 * general_cell[2]
+    rotated_structure.set_cell(general_cell, scale_atoms=True)
+    rotated_structure.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
+    case = CommandIOCase(
+        name='dump_netcdf_general_cell',
+        run_in_lines=[
+            ('dump_xyz', [-1, 0, 1, 'reference.xyz', 'velocity']),
+            ('dump_netcdf', [
+                -1, 0, 1, 1, 'general-cell.nc', 'precision', 'double',
+            ]),
+        ],
+        expected_output_files=['reference.xyz', 'general-cell.nc'],
+    )
+    result = run_command_io_case(
+        tmp_path, rotated_structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    reference = read(tmp_path / 'reference.xyz', index=0)
+    with netcdf4.Dataset(tmp_path / 'general-cell.nc') as dataset:
+        lengths = dataset.variables['cell_lengths'][0]
+        angles = dataset.variables['cell_angles'][0]
+        netcdf_cell = Cell.fromcellpar(np.concatenate((lengths, angles))).array
+        netcdf_positions = dataset.variables['coordinates'][0]
+        netcdf_velocities = dataset.variables['velocities'][0]
+
+    reference_cell = reference.cell.array
+    rotation_transpose = np.linalg.solve(reference_cell, netcdf_cell)
+    assert not np.allclose(reference_cell, netcdf_cell)
+    assert not np.allclose(angles, (90.0, 90.0, 90.0))
+    np.testing.assert_allclose(
+        netcdf_positions, reference.positions @ rotation_transpose, atol=1.0e-6)
+    np.testing.assert_allclose(
+        netcdf_velocities,
+        reference.arrays['vel'] @ rotation_transpose * 1000.0,
+        atol=1.0e-5)
 
 
 def test_dump_observer(tmp_path, structure, model_path, model_type, gpumd_command):

@@ -436,6 +436,92 @@ void DUMP_NETCDF::validate_file_definition()
   }
 }
 
+static bool get_netcdf_cell(
+  const Box& box, double cell_lengths[3], double cell_angles[3], double rotation[9])
+{
+  // AMBER NetCDF stores only cell lengths and angles. Readers reconstruct a
+  // canonical cell with a along +x and b in the xy plane. Build the orthonormal
+  // transformation that maps GPUMD's general cell and Cartesian vectors to
+  // that same orientation.
+  const double* h = box.cpu_h;
+  const double a[3] = {h[0], h[3], h[6]};
+  const double b[3] = {h[1], h[4], h[7]};
+  const double c[3] = {h[2], h[5], h[8]};
+
+  cell_lengths[0] = 0.0;
+  cell_lengths[1] = 0.0;
+  cell_lengths[2] = 0.0;
+  for (int d = 0; d < 3; ++d) {
+    cell_lengths[0] += a[d] * a[d];
+    cell_lengths[1] += b[d] * b[d];
+    cell_lengths[2] += c[d] * c[d];
+  }
+  for (int d = 0; d < 3; ++d) {
+    cell_lengths[d] = sqrt(cell_lengths[d]);
+  }
+
+  double e1[3];
+  double e2[3];
+  for (int d = 0; d < 3; ++d) {
+    e1[d] = a[d] / cell_lengths[0];
+  }
+  const double b_along_e1 = e1[0] * b[0] + e1[1] * b[1] + e1[2] * b[2];
+  double b_perpendicular[3];
+  double b_perpendicular_length = 0.0;
+  for (int d = 0; d < 3; ++d) {
+    b_perpendicular[d] = b[d] - b_along_e1 * e1[d];
+    b_perpendicular_length += b_perpendicular[d] * b_perpendicular[d];
+  }
+  b_perpendicular_length = sqrt(b_perpendicular_length);
+  for (int d = 0; d < 3; ++d) {
+    e2[d] = b_perpendicular[d] / b_perpendicular_length;
+  }
+
+  double e3[3] = {
+    e1[1] * e2[2] - e1[2] * e2[1],
+    e1[2] * e2[0] - e1[0] * e2[2],
+    e1[0] * e2[1] - e1[1] * e2[0]};
+  if (e3[0] * c[0] + e3[1] * c[1] + e3[2] * c[2] < 0.0) {
+    for (int d = 0; d < 3; ++d) {
+      e3[d] = -e3[d];
+    }
+  }
+
+  for (int d = 0; d < 3; ++d) {
+    rotation[d] = e1[d];
+    rotation[3 + d] = e2[d];
+    rotation[6 + d] = e3[d];
+  }
+
+  const auto clamp_cosine = [](double value) {
+    return std::max(-1.0, std::min(1.0, value));
+  };
+  const double cosalpha = clamp_cosine(
+    (b[0] * c[0] + b[1] * c[1] + b[2] * c[2]) /
+    (cell_lengths[1] * cell_lengths[2]));
+  const double cosbeta = clamp_cosine(
+    (a[0] * c[0] + a[1] * c[1] + a[2] * c[2]) /
+    (cell_lengths[0] * cell_lengths[2]));
+  const double cosgamma = clamp_cosine(
+    (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
+    (cell_lengths[0] * cell_lengths[1]));
+  cell_angles[0] = acos(cosalpha) * 180.0 / PI;
+  cell_angles[1] = acos(cosbeta) * 180.0 / PI;
+  cell_angles[2] = acos(cosgamma) * 180.0 / PI;
+
+  return h[3] != 0.0 || h[6] != 0.0 || h[7] != 0.0 || h[0] < 0.0 || h[4] < 0.0 ||
+         h[8] < 0.0;
+}
+
+static void rotate_netcdf_vector(
+  const double rotation[9], const double input[3], double output[3])
+{
+  for (int d = 0; d < 3; ++d) {
+    output[d] = rotation[d * 3] * input[0] + rotation[d * 3 + 1] * input[1] +
+                rotation[d * 3 + 2] * input[2];
+  }
+}
+
 void DUMP_NETCDF::write(
   const double global_time,
   const Box& box,
@@ -445,35 +531,11 @@ void DUMP_NETCDF::write(
 {
   const int number_of_atoms = number_of_atoms_to_dump_;
 
-  //// Write Frame Header ////
-  // Get cell lengths and angles
   double cell_lengths[3];
   double cell_angles[3];
-  if (box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 ||
-      box.cpu_h[5] != 0 || box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-    const double* t = box.cpu_h;
-    double cosgamma, cosbeta, cosalpha;
-    cell_lengths[0] = sqrt(t[0] * t[0] + t[3] * t[3] + t[6] * t[6]); // a-side
-    cell_lengths[1] = sqrt(t[1] * t[1] + t[4] * t[4] + t[7] * t[7]); // b-side
-    cell_lengths[2] = sqrt(t[2] * t[2] + t[5] * t[5] + t[8] * t[8]); // c-side
-
-    cosgamma = (t[0] * t[1] + t[3] * t[4] + t[6] * t[7]) / (cell_lengths[0] * cell_lengths[1]);
-    cosbeta = (t[0] * t[2] + t[3] * t[5] + t[6] * t[8]) / (cell_lengths[0] * cell_lengths[2]);
-    cosalpha = (t[1] * t[2] + t[4] * t[5] + t[7] * t[8]) / (cell_lengths[1] * cell_lengths[2]);
-
-    cell_angles[0] = acos(cosalpha) * 180.0 / PI;
-    cell_angles[1] = acos(cosbeta) * 180.0 / PI;
-    cell_angles[2] = acos(cosgamma) * 180.0 / PI;
-
-  } else {
-    cell_lengths[0] = box.cpu_h[0];
-    cell_lengths[1] = box.cpu_h[4];
-    cell_lengths[2] = box.cpu_h[8];
-
-    cell_angles[0] = 90;
-    cell_angles[1] = 90;
-    cell_angles[2] = 90;
-  }
+  double cell_rotation[9];
+  const bool rotate_output =
+    get_netcdf_cell(box, cell_lengths, cell_angles, cell_rotation);
 
   // Set lengths to 0 if PBC is off
   if (!box.pbc_x)
@@ -502,12 +564,30 @@ void DUMP_NETCDF::write(
   if (precision_ == 1) // single precision
   {
     for (int i = 0; i < number_of_atoms; i++) {
+      double position[3] = {
+        cpu_position_per_atom[i],
+        cpu_position_per_atom[i + number_of_atoms],
+        cpu_position_per_atom[i + number_of_atoms * 2]};
+      double velocity[3] = {0.0, 0.0, 0.0};
+      if (has_velocity_) {
+        velocity[0] = cpu_velocity_per_atom[i];
+        velocity[1] = cpu_velocity_per_atom[i + number_of_atoms];
+        velocity[2] = cpu_velocity_per_atom[i + number_of_atoms * 2];
+      }
+      double rotated_position[3] = {0.0, 0.0, 0.0};
+      double rotated_velocity[3] = {0.0, 0.0, 0.0};
+      if (rotate_output) {
+        rotate_netcdf_vector(cell_rotation, position, rotated_position);
+        if (has_velocity_) {
+          rotate_netcdf_vector(cell_rotation, velocity, rotated_velocity);
+        }
+      }
       for (int dim = 0; dim < 3; ++dim) {
         cpu_position_float_[i * 3 + dim] =
-          static_cast<float>(cpu_position_per_atom[i + number_of_atoms * dim]);
+          static_cast<float>(rotate_output ? rotated_position[dim] : position[dim]);
         if (has_velocity_) {
           cpu_velocity_float_[i * 3 + dim] = static_cast<float>(
-            cpu_velocity_per_atom[i + number_of_atoms * dim] * natural_to_A_per_ps);
+            (rotate_output ? rotated_velocity[dim] : velocity[dim]) * natural_to_A_per_ps);
         }
       }
     }
@@ -519,12 +599,30 @@ void DUMP_NETCDF::write(
     }
   } else {
     for (int i = 0; i < number_of_atoms; ++i) {
+      double position[3] = {
+        cpu_position_per_atom[i],
+        cpu_position_per_atom[i + number_of_atoms],
+        cpu_position_per_atom[i + number_of_atoms * 2]};
+      double velocity[3] = {0.0, 0.0, 0.0};
+      if (has_velocity_) {
+        velocity[0] = cpu_velocity_per_atom[i];
+        velocity[1] = cpu_velocity_per_atom[i + number_of_atoms];
+        velocity[2] = cpu_velocity_per_atom[i + number_of_atoms * 2];
+      }
+      double rotated_position[3] = {0.0, 0.0, 0.0};
+      double rotated_velocity[3] = {0.0, 0.0, 0.0};
+      if (rotate_output) {
+        rotate_netcdf_vector(cell_rotation, position, rotated_position);
+        if (has_velocity_) {
+          rotate_netcdf_vector(cell_rotation, velocity, rotated_velocity);
+        }
+      }
       for (int dim = 0; dim < 3; ++dim) {
         cpu_position_double_[i * 3 + dim] =
-          cpu_position_per_atom[i + number_of_atoms * dim];
+          rotate_output ? rotated_position[dim] : position[dim];
         if (has_velocity_) {
           cpu_velocity_double_[i * 3 + dim] =
-            cpu_velocity_per_atom[i + number_of_atoms * dim] * natural_to_A_per_ps;
+            (rotate_output ? rotated_velocity[dim] : velocity[dim]) * natural_to_A_per_ps;
         }
       }
     }
