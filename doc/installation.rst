@@ -135,12 +135,12 @@ NetCDF setup
 ============
 
 To use `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (see :ref:`dump_netcdf keyword <kw_dump_netcdf>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
-First, you must download and install the correct version of NetCDF.
-Currently, :program:`GPUMD` is coded to work with `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ and it is recommended that this version is used (not newer versions).
+First, you must download and install a compatible version of NetCDF.
+:program:`GPUMD` requires netCDF-C 4.6.3 or later; version 4.6.3 remains a known-compatible baseline.
 
 The setup instructions are below:
 
-* Download `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_
+* Download `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ or a `newer release <https://github.com/Unidata/netcdf-c/releases>`_.
 * Configure and build NetCDF.
   It is best to follow the instructions included with the software but, for the configuration, please use the following flags seen in our example line
 
@@ -148,7 +148,13 @@ The setup instructions are below:
 
      ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
 
-  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install NetCDF:
+  This configuration supports the default uncompressed NetCDF output and avoids the
+  additional HDF5 and zlib dependencies. To use the optional ``compression deflate``
+  mode, install NetCDF-C with NetCDF4/HDF5 and zlib support by omitting
+  ``--disable-netcdf-4``. For newer NetCDF-C releases, if ``configure`` reports that
+  ``xml2-config`` cannot be found, add ``--disable-libxml2`` to use the bundled XML
+  parser. Here, the :attr:`--prefix` determines the output directory of the build.
+  Then make and install NetCDF:
 
   .. code:: bash
 
@@ -167,10 +173,14 @@ The setup instructions are below:
   .. code:: make
 
      INC = -I<path>/include -I./
-     LDFLAGS = -L<path>/lib
-     LIBS = -lcublas -lcusolver -l:libnetcdf.a
+     LDFLAGS = -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
+     LIBS = -lcublas -lcusolver -lcufft -lnetcdf
 
-  where :attr:`<path>` should be replaced with the installation path for NetCDF (defined in :attr:`--prefix` of the ``./configure`` command).
+  where :attr:`<path>` should be replaced with the installation path for NetCDF
+  (defined in :attr:`--prefix` of the ``./configure`` command). The ``-L`` option
+  specifies where to find NetCDF while linking, and the ``-rpath`` linker option
+  records this location so that the shared NetCDF library can also be found when
+  running :program:`GPUMD`.
 * Follow the remaining :program:`GPUMD` installation instructions
 
 Following these steps will enable the :ref:`dump_netcdf keyword <kw_dump_netcdf>`.
