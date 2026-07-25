@@ -167,6 +167,18 @@ void Integrate::initialize(
         delta_temperature,
         time_step));
       break;
+    case 27: // heat with constant power (custom); delta_temperature stores power in eV/fs
+      ensemble.reset(new Ensemble_NHC(
+        type,
+        source,
+        sink,
+        group[0].cpu_size[source],
+        group[0].cpu_size[sink],
+        temperature,
+        temperature_coupling,
+        delta_temperature,
+        time_step));
+      break;
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
         type,
@@ -479,6 +491,11 @@ void Integrate::parse_ensemble(
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
     }
+  } else if (strcmp(param[1], "heat_nhc_power") == 0) {
+    type = 27;
+    if (num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble heat_nhc_power should have 5 parameters.");
+    }
   } else if (strcmp(param[1], "heat_ttm") == 0) {
     type = 24;
     // ensemble heat_ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
@@ -721,6 +738,67 @@ void Integrate::parse_ensemble(
     }
     if (delta_temperature >= temperature || delta_temperature <= -temperature) {
       PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+    }
+
+    // group labels of heat source and sink
+    if (!is_valid_int(param[5], &source)) {
+      PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
+    }
+    if (!is_valid_int(param[6], &sink)) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+    }
+    if (group.size() < 1) {
+      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+    }
+    if (source == sink) {
+      PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+    }
+    if (source < 0) {
+      PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+    }
+    if (source >= group[0].number) {
+      PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+    }
+    if (sink < 0) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+    }
+    if (sink >= group[0].number) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+    }
+  }
+
+  // 4b. heating and cooling with a constant power (custom command heat_nhc_power)
+  // syntax: ensemble heat_nhc_power T T_coup power source sink
+  //   T       : target/average temperature in K (used for output and velocity
+  //             initialization only; no thermostat acts on source/sink)
+  //   T_coup  : parsed for syntax compatibility but NOT used by this command
+  //   power   : heating power P in eV/fs, total for the whole source/sink group
+  //             (NOT per atom); stored in delta_temperature
+  //   source  : group ID of the heat source (P added)
+  //   sink    : group ID of the heat sink (P removed)
+  if (type == 27) {
+    // temperature
+    if (!is_valid_real(param[2], &temperature)) {
+      PRINT_INPUT_ERROR("Temperature should be a number.");
+    }
+    if (temperature <= 0.0) {
+      PRINT_INPUT_ERROR("Temperature should > 0.");
+    }
+
+    // temperature_coupling (unused by heat_nhc_power, kept for syntax compatibility)
+    if (!is_valid_real(param[3], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    // heating power in eV/fs (total for the whole group, not per atom)
+    if (!is_valid_real(param[4], &delta_temperature)) {
+      PRINT_INPUT_ERROR("Heating power should be a number.");
+    }
+    if (delta_temperature <= 0.0) {
+      PRINT_INPUT_ERROR("Heating power should > 0.");
     }
 
     // group labels of heat source and sink
@@ -1144,6 +1222,18 @@ void Integrate::parse_ensemble(
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
+      printf("    heat source is group %d in grouping method 0.\n", source);
+      printf("    heat sink is group %d in grouping method 0.\n", sink);
+      break;
+    case 27:
+      printf("Integrate with constant-power heating and cooling for this run.\n");
+      printf("    choose the custom constant-power velocity-scaling method (heat_nhc_power).\n");
+      printf("    average temperature is %g K (no thermostat acts on source/sink).\n", temperature);
+      printf("    tau_T is %g time_step (parsed but NOT used by this command).\n", temperature_coupling);
+      printf("    heating power is %g eV/fs (total for the whole group, not per atom).\n",
+        delta_temperature);
+      printf("    every step, %g eV/fs * time_step is added to the source and removed from the sink.\n",
+        delta_temperature);
       printf("    heat source is group %d in grouping method 0.\n", source);
       printf("    heat sink is group %d in grouping method 0.\n", sink);
       break;
