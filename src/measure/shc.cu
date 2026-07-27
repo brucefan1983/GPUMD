@@ -411,6 +411,25 @@ void SHC::postprocess(
   const double d_omega = max_omega / num_omega;
 
   FILE* fid = my_fopen("shc.out", "a");
+  fprintf(fid, "# compute_shc %d %d %d %d %g", sample_interval, Nc, direction, num_omega, max_omega);
+  if (group_method >= 0)
+    fprintf(fid, " group %d %d", group_method, group_id);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(
+    fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps);
+  fprintf(fid, "# num_correlation_rows %d\n", Nc * 2 - 1);
+  fprintf(fid, "# num_frequency_rows %d\n", num_omega);
+  if (group_id == -1)
+    fprintf(fid, "# num_output_groups %d\n", group_num - 1);
+  fprintf(fid, "# columns_correlation time_ps ki ko\n");
+  fprintf(fid, "# columns_shc omega_THz shc_i shc_o\n");
 
   average_k();
   find_shc(dt_in_ps, d_omega);

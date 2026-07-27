@@ -95,6 +95,11 @@ public:
   int deform_y = 0;
   int deform_z = 0;
   double deform_rate[3];
+  
+  // Dynamic arrays for multiple thermostats
+  std::vector<int> heat_thermostat;  // Thermostat types (0=NHC, 1=Langevin)
+  std::vector<double> heat_coupling; // Coupling parameters for each thermostat
+  std::vector<int> heat_labels;      // Group labels for each thermostat
 
   // PIMD
   int number_of_beads;

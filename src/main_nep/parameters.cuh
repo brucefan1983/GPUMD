@@ -76,7 +76,6 @@ public:
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
-  float q_scaler_input;
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
 
   // check if a parameter has been set:
@@ -106,7 +105,6 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
-  bool is_q_scaler_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -176,6 +174,5 @@ private:
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
-  void parse_q_scaler(const char** param, int num_param);
   void parse_import_q_scaler(const char** param, int num_param);
 };

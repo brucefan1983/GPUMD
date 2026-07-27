@@ -45,3 +45,24 @@ file(GLOB GNEP_SOURCES
 add_executable(gnep EXCLUDE_FROM_ALL ${GNEP_SOURCES})
 target_include_directories(gnep PRIVATE src)
 target_link_libraries(gnep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
+
+
+# --- NNAP support (enable with -D PKG_NNAP=yes) ---
+option(PKG_NNAP "Enable NNAP support" OFF)
+if(PKG_NNAP)
+    find_package(JNI REQUIRED)
+    target_include_directories(gpumd PRIVATE ${JNI_INCLUDE_DIRS})
+    target_link_libraries(gpumd PRIVATE ${JNI_LIBRARIES})
+    target_compile_definitions(gpumd PRIVATE USE_NNAP)
+    
+    # delay load jvm.dll on windows
+    if(WIN32 AND MSVC)
+        target_link_libraries(gpumd PRIVATE delayimp)
+        target_link_options(gpumd PRIVATE "/DELAYLOAD:jvm.dll")
+        string(REPLACE "\\" "/" JSE_JVM_LIB_PATH_DEF "$ENV{JVM_LIB_PATH}")
+        add_definitions(-DJVM_LIB_PATH="${JSE_JVM_LIB_PATH_DEF}")
+    endif()
+
+    string(REPLACE "\\" "/" JSE_JAR_PATH_DEF "$ENV{JSE_JAR_PATH}")
+    target_compile_definitions(gpumd PRIVATE JVM_CLASS_PATH="-Djava.class.path=${JSE_JAR_PATH_DEF}")
+endif()

@@ -13,15 +13,15 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "deposition.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
 #include <chrono>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <cstring>
 
 void print_welcome_information();
@@ -39,7 +39,16 @@ int main(int argc, char* argv[])
   CHECK(gpuDeviceSynchronize());
   const auto time_begin = std::chrono::high_resolution_clock::now();
 
-  Run run;
+  Deposition deposition;
+  if (!deposition.has_deposition("run.in")) {
+    Run run;
+  } else {
+    deposition.initialize();
+    for (int i = 0; i < deposition.num_subruns; ++i) {
+      deposition.prepare_subrun(i);
+      Run run;
+    }
+  }
 
   CHECK(gpuDeviceSynchronize());
   const auto time_finish = std::chrono::high_resolution_clock::now();
@@ -56,13 +65,13 @@ int main(int argc, char* argv[])
   return EXIT_SUCCESS;
 }
 
-void print_welcome_information(void)
+void print_welcome_information()
 {
   printf("\n");
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-  printf("*                     version 5.5                             *\n");
+  printf("*                     version 5.6                             *\n");
   printf("*              This is the gpumd executable                   *\n");
   printf("***************************************************************\n");
   printf("\n");

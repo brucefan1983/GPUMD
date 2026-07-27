@@ -38,6 +38,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    add_force
    add_efield
    add_spring
+   deposit
    electron_stop
    fix
    kspace
