@@ -35,6 +35,7 @@ https://ambermd.org/netcdf/nctraj.pdf
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "netcdf.h"
+#include "netcdf_meta.h"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -328,6 +329,7 @@ void DUMP_NETCDF::create_file()
   NC_CHECK(nc_def_var(ncid, TYPE_STR, NC_INT, 2, dimids, &type_var));
 
   if (compression_level_ >= 0) {
+#if NC_HAS_HDF5
     const size_t bytes_per_value = precision_ == 1 ? sizeof(float) : sizeof(double);
     const size_t target_chunk_bytes = 1024 * 1024;
     const size_t max_chunk_atoms =
@@ -346,6 +348,7 @@ void DUMP_NETCDF::create_file()
         number_of_atoms_to_dump_, target_chunk_bytes / sizeof(int))};
     NC_CHECK(nc_def_var_chunking(ncid, type_var, NC_CHUNKED, type_chunks));
     NC_CHECK(nc_def_var_deflate(ncid, type_var, 1, 1, compression_level_));
+#endif // NC_HAS_HDF5
   }
 
   // Units
