@@ -5,7 +5,7 @@
 :attr:`output_interval`
 ========================
 
-This keyword sets the number of generations between writes to :ref:`loss.out <loss_out>` (and the corresponding console output, ``nep.txt``, and test-set output files).
+This keyword sets the number of generations between writes to :ref:`loss.out <loss_out>` (and the corresponding console output, ``nep.txt``, :ref:`nep.restart <nep_restart>`, and test-set output files).
 
 The syntax is::
 
