@@ -79,6 +79,34 @@ Keywords
    * - :ref:`generation <kw_generation>`
      - number of generations used by the :term:`SNES` algorithm [Schaul2011]_
 
+Consistency with model files already present
+--------------------------------------------
+
+A training run writes :ref:`nep.txt <nep_txt>` every :ref:`output_interval <kw_output_interval>` generations, and :ref:`nep.restart <nep_restart>` every 100 generations, which is a fixed interval and not affected by :ref:`output_interval <kw_output_interval>`.
+A later run started in the same directory therefore finds these files, and :program:`nep` checks that the model they describe is the one that :attr:`nep.in` asks for.
+Both the values given explicitly in :attr:`nep.in` and the defaults filled in for the keywords that are omitted take part in this comparison.
+
+The comparison covers everything recorded in the header of :ref:`nep.txt <nep_txt>`: the model type (:ref:`version <kw_version>`, :ref:`model_type <kw_model_type>` and :ref:`charge_mode <kw_charge_mode>`), the number of species and the species themselves in the order they are listed, the :ref:`zbl <kw_zbl>` setting and its cutoffs, the :ref:`cutoff <kw_cutoff>` values, :ref:`n_max <kw_n_max>`, :ref:`basis_size <kw_basis_size>`, :ref:`l_max <kw_l_max>` and :ref:`neuron <kw_neuron>`.
+The number of rows in :ref:`nep.restart <nep_restart>` is compared against the number of parameters that :attr:`nep.in` implies.
+
+How a mismatch is reported depends on whether the files are inputs to the run:
+
+* If :ref:`nep.restart <nep_restart>` is present the run is a resume, and any mismatch is an error.
+  Continuing would otherwise mean reading the restart state of a differently shaped model, which silently corrupts the training.
+  Remove :ref:`nep.restart <nep_restart>` to start a new training run instead.
+* The same applies when :ref:`prediction <kw_prediction>` is set, since :ref:`nep.txt <nep_txt>` is then the model to predict with.
+* If only :ref:`nep.txt <nep_txt>` is present it is assumed to be a stale output that this run is about to overwrite.
+  In this case, a mismatch is reported as a warning and the run proceeds.
+  Editing :attr:`nep.in` and retraining in the same directory thus keeps working.
+
+Each mismatch is reported on its own line, naming the keyword, the value used by the current run, whether that value was given in :attr:`nep.in` or is a default, and the value found in the file, for example::
+
+  The model in nep.in is inconsistent with nep.txt:
+      basis_size_radial: nep.in gives 6 (default), nep.txt gives 8.
+      basis_size_angular: nep.in gives 6 (default), nep.txt gives 8.
+
+The same comparison is applied to the foundation model named by the :ref:`fine_tune keyword <kw_fine_tune>` and to the :ref:`nep.txt <nep_txt>` read by the :ref:`import_q_scaler keyword <kw_import_q_scaler>`, where a mismatch is always an error.
+
 Example
 -------
 Here is an example :attr:`nep.in` file using all the default parameters::
