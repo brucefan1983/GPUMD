@@ -377,7 +377,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         population.data() + number_of_variables * best_index);
 
       update_mu_and_sigma();
-      if (0 == (n + 1) % 100) {
+      if (0 == (n + 1) % para.output_interval) {
         const char* filename = "nep.restart";
         output_mu_and_sigma(filename);
       }

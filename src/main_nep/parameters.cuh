@@ -69,7 +69,7 @@ public:
   int save_potential;     // number of generations between writing a checkpoint nep.txt file.
   int save_potential_format;   // format of checkpoint nep.txt file name
   int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
-  int output_interval;    // number of generations between writing a line to loss.out and related output
+  int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
   int num_hidden_layers;  // number of hidden layers

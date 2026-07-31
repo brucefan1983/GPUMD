@@ -7,7 +7,7 @@
 
 This file enables restarting an optimization run.
 If the file is present, training will start from the state saved in this file.
-The file is continuously updated during training.
+The file is updated during training every :ref:`output_interval <kw_output_interval>` generations.
 
 The file is written every 100 generations so a run shorter than that produces a :ref:`nep.txt <nep_txt>` but no restart file.
 
