@@ -45,6 +45,13 @@ Currently, the following optional arguments are accepted:
     Level 0 applies no compression. For large, frequently written trajectories, use ``none`` for
     maximum write speed, ``deflate 1`` for a practical balance, or ``deflate 9`` when minimizing
     file size is more important than write speed.
+    GPUMD itself does not require NetCDF4/HDF5 support unless ``deflate`` is used.
+    If the linked NetCDF-C library was built without NetCDF4/HDF5 support, requesting
+    ``deflate`` causes the underlying ``nc_create`` call to fail when GPUMD asks for the
+    NetCDF4 file format.
+    GPUMD already checks for this and reports a clear error instead of silently writing an
+    uncompressed file.
+    See :ref:`NetCDF setup <netcdf_setup>` for how to build NetCDF-C with NetCDF4/HDF5 support.
 
 Requirements and specifications
 -------------------------------
