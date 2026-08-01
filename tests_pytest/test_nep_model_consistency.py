@@ -2,11 +2,11 @@
 directory.
 
 A normal training run writes nep.txt, so a second invocation of `nep` in the same directory always
-finds one, and a resume additionally finds the nep.restart written every 100 generations. If the
-model hyperparameters implied by nep.in differ from the ones recorded in those files, the run used
-to continue on a differently shaped model without saying anything: reading fewer nep.restart rows
-than the file holds and reporting plausible-looking losses. Any keyword with a default can cause
-this, which is what these tests cover.
+finds one, and a resume additionally finds the nep.restart written every output_interval
+generations. If the model hyperparameters implied by nep.in differ from the ones recorded in those
+files, the run used to continue on a differently shaped model without saying anything: reading fewer
+nep.restart rows than the file holds and reporting plausible-looking losses. Any keyword with a
+default can cause this, which is what these tests cover.
 
 nep.txt counts as an input when there is a nep.restart to resume from, or when predicting, and a
 mismatch is then an error. Without a nep.restart it is a stale output about to be overwritten, and a
@@ -27,9 +27,9 @@ from conftest import TRAINING_DIR
 
 pytestmark = pytest.mark.fast
 
-# generation is kept tiny and output_interval is lowered to 1 so that nep.txt is written; note that
-# nep.restart is written every 100 generations regardless of output_interval, so a run this short
-# never produces one and the tests below write their own
+# generation is kept tiny and output_interval is lowered to 1 so that nep.txt is written; nep.restart
+# is written on the same interval, so train_once below deletes the one it produces and every test
+# that wants a nep.restart writes its own
 COMMON_KEYWORDS = {
     'type': '3 Ba Ti O',
     'cutoff': '6 4',
@@ -85,11 +85,13 @@ def run_nep(directory, nep_command, keywords=None):
 def train_once(directory, nep_command, base_model):
     """Run a short training in an empty directory so that it leaves a nep.txt behind, and return the
     number of parameters that nep.in implies, which is the number of rows a matching nep.restart
-    has."""
+    has. The nep.restart that the run itself writes is removed, so that a test only sees one if it
+    wrote it with write_nep_restart below."""
     shutil.copy(TRAINING_DIR / 'train.xyz', directory / 'train.xyz')
     result = run_nep(directory, nep_command, keywords_for(base_model))
     assert result.returncode == 0, result.stdout + result.stderr
     assert (directory / 'nep.txt').exists(), result.stdout + result.stderr
+    (directory / 'nep.restart').unlink(missing_ok=True)
     match = re.search(r'total number of parameters to be optimized = (\d+)', result.stdout)
     assert match is not None, result.stdout
     return int(match.group(1))
