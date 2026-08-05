@@ -76,6 +76,7 @@ const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 std::vector<std::string> DUMP_NETCDF::initialized_files_;
+std::vector<std::string> DUMP_NETCDF::active_files_;
 
 DUMP_NETCDF::DUMP_NETCDF(
   const char** param, int num_param, const std::vector<Group>& groups)
@@ -210,6 +211,12 @@ void DUMP_NETCDF::preprocess(
 {
   if (!dump_)
     return;
+
+  if (
+    std::find(active_files_.begin(), active_files_.end(), filename_) != active_files_.end()) {
+    PRINT_INPUT_ERROR("dump_netcdf filenames must be unique within one run.");
+  }
+  active_files_.push_back(filename_);
 
   if (grouping_method_ < 0) {
     number_of_atoms_to_dump_ = atom.number_of_atoms;
@@ -632,6 +639,10 @@ void DUMP_NETCDF::postprocess(
     NC_CHECK(nc_close(ncid));
     ncid = -1;
     dump_ = false;
+    const auto active_file = std::find(active_files_.begin(), active_files_.end(), filename_);
+    if (active_file != active_files_.end()) {
+      active_files_.erase(active_file);
+    }
   }
 }
 
