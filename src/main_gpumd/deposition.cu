@@ -262,8 +262,8 @@ void Deposition::analyze_run(const std::string& filename)
 
       if (int(n) == run_line) {
         lines.emplace_back(
-          "dump_xyz -1 0 " + std::to_string(interval) + " deposited_" +
-          std::to_string(dump_index) + ".xyz velocity" + (has_group ? " group" : ""));
+          "dump_xyz " + std::to_string(interval) + " deposited_" + std::to_string(dump_index) +
+          ".xyz velocity" + (has_group ? " group_labels" : ""));
         lines.emplace_back("run " + std::to_string(interval));
       } else {
         lines.emplace_back(raw_lines[n]);

@@ -70,7 +70,7 @@ def _build_case(name, natoms):
             expected_output_files=['force.out'],
             parse_check=lambda p: _check_columnar(p, ncols=3, natoms=natoms)),
         'dump_xyz': CommandIOCase(
-            name='dump_xyz', run_in_lines=[('dump_xyz', [-1, 0, 1, 'dump_xyz_test.xyz'])],
+            name='dump_xyz', run_in_lines=[('dump_xyz', [1, 'dump_xyz_test.xyz'])],
             expected_output_files=['dump_xyz_test.xyz'],
             parse_check=lambda p: _check_xyz_multi_frame(p, natoms)),
         'dump_exyz': CommandIOCase(
@@ -192,7 +192,7 @@ def test_dump_netcdf_rotates_general_cell(
     case = CommandIOCase(
         name='dump_netcdf_general_cell',
         run_in_lines=[
-            ('dump_xyz', [-1, 0, 1, 'reference.xyz', 'velocity']),
+            ('dump_xyz', [1, 'reference.xyz', 'velocity']),
             ('dump_netcdf', [
                 -1, 0, 1, 1, 'general-cell.nc', 'precision', 'double',
             ]),
