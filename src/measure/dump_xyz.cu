@@ -114,6 +114,16 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       if (group_seen) {
         PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_xyz.\n");
       }
+      // A bare 'group' used to be the quantity that writes the group labels as a column, so say
+      // what it is called now rather than only complaining about the missing arguments.
+      int probe;
+      if (
+        m + 2 >= num_param || !is_valid_int(param[m + 1], &probe) ||
+        !is_valid_int(param[m + 2], &probe)) {
+        PRINT_INPUT_ERROR(
+          "Option 'group' should be followed by a grouping method and a group ID. The quantity "
+          "that writes group labels as a column is now called 'group_labels'.");
+      }
       parse_group(param, num_param, false, groups, m, grouping_method_, group_id_);
       group_seen = true;
       continue;
@@ -159,6 +169,12 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       quantities.has_virial_ = true;
       printf("    has virial.\n");
     } else if (strcmp(param[m], "group_labels") == 0) {
+      // One column is written per grouping method, so with none the Properties field would say
+      // group:I:0, which is not readable as extended XYZ.
+      if (groups.size() == 0) {
+        PRINT_INPUT_ERROR(
+          "Cannot output group labels without a grouping method defined in model.xyz.\n");
+      }
       quantities.has_group_ = true;
       printf("    has group labels.\n");
     } else {
