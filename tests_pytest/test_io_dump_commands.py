@@ -352,7 +352,7 @@ def test_dump_xyz_column_order_does_not_follow_argument_order(
 
 def test_dump_xyz_group_labels_match_the_groupings(
         tmp_path, structure, model_path, model_type, gpumd_command):
-    """`group_labels`, formerly spelled `group`, writes one integer column per grouping method."""
+    """`group_labels` writes one integer column per grouping method."""
     case = CommandIOCase(
         name='dump_xyz_group_labels',
         run_in_lines=[('dump_xyz', [1, 'labels.xyz', 'group_labels'])],
@@ -484,7 +484,7 @@ REMOVED_COMMANDS = [
     ('dump_velocity', 1),
     ('dump_force', 1),
     ('dump_exyz', [1, 1, 1, 1]),
-    # the pre-2026 dump_xyz syntax, which led with <grouping_method> <group_id>
+    # the positional form, leading with <grouping_method> <group_id>
     ('dump_xyz', [-1, 0, 1, 'dump.xyz']),
 ]
 

@@ -63,5 +63,3 @@ Caveats
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 * The Born effective charge (:term:`BEC`) is only meaningful for a qNEP model trained with target :term:`BEC`.
-* Earlier versions of :program:`GPUMD` took :attr:`grouping_method` and :attr:`group_id` as the first two parameters.
-  That form is no longer accepted and produces an error pointing at the :attr:`group` option.

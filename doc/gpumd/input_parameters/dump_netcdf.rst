@@ -22,9 +22,7 @@ Grouping methods are numbered from 0. When :attr:`grouping_method` is non-negati
 :attr:`group_id` selects a group label within that grouping method, and only the atoms
 belonging to that group are written. Both values must identify an existing, non-empty
 group. When :attr:`grouping_method` is negative, :attr:`group_id` is ignored and all atoms
-in the system are written. These selection rules carry the same meaning as the :attr:`group`
-option of :ref:`dump_xyz <kw_dump_xyz>`, which takes the two values as a named option rather
-than as the first two positional parameters.
+in the system are written.
 The :attr:`interval` parameter is the output interval (number of steps) of the atom positions. :attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the output. :attr:`filename` is the relative or absolute path of the output file.
 The optional arguments (:attr:`optional_args`) provide additional functionality.
 Currently, the following optional arguments are accepted:
