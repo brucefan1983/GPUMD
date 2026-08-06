@@ -46,6 +46,19 @@ def _check_columnar(path, ncols, natoms):
     assert data.shape[0] > 0
 
 
+def _check_double_precision(path, natoms):
+    """`precision double` must write enough significant digits to recover a double exactly, which
+    the default `single` setting (nine digits) does not. Counting digits in the raw text is the
+    only way to see this, since reading through ase would hide it."""
+    _check_xyz_multi_frame(path, natoms)
+    with open(path) as handle:
+        lines = handle.read().splitlines()
+    digits = max(
+        len(token.split('e')[0].replace('-', '').replace('.', '').lstrip('0'))
+        for line in lines[2:2 + natoms] for token in line.split()[1:])
+    assert digits > 9, f'expected more than 9 significant digits, found {digits}'
+
+
 def _build_case(name, natoms):
     """Builds the CommandIOCase for `name` freshly per test invocation, since several
     parse_check callbacks need natoms, which is only known once the structure fixture runs."""
@@ -53,37 +66,30 @@ def _build_case(name, natoms):
         'dump_thermo': CommandIOCase(
             name='dump_thermo', run_in_lines=[('dump_thermo', 1)],
             expected_output_files=['thermo.out'], parse_check=_check_thermo_format),
-        'dump_position': CommandIOCase(
-            name='dump_position', run_in_lines=[('dump_position', 1)],
-            expected_output_files=['movie.xyz'],
-            parse_check=lambda p: _check_xyz_multi_frame(p, natoms)),
         'dump_restart': CommandIOCase(
             name='dump_restart', run_in_lines=[('dump_restart', 1)],
             expected_output_files=['restart.xyz'],
             parse_check=lambda p: _check_natoms_single_frame(p, natoms)),
-        'dump_velocity': CommandIOCase(
-            name='dump_velocity', run_in_lines=[('dump_velocity', 1)],
-            expected_output_files=['velocity.out'],
-            parse_check=lambda p: _check_columnar(p, ncols=3, natoms=natoms)),
-        'dump_force': CommandIOCase(
-            name='dump_force', run_in_lines=[('dump_force', 1)],
-            expected_output_files=['force.out'],
-            parse_check=lambda p: _check_columnar(p, ncols=3, natoms=natoms)),
         'dump_xyz': CommandIOCase(
             name='dump_xyz', run_in_lines=[('dump_xyz', [1, 'dump_xyz_test.xyz'])],
             expected_output_files=['dump_xyz_test.xyz'],
             parse_check=lambda p: _check_xyz_multi_frame(p, natoms)),
-        'dump_exyz': CommandIOCase(
-            name='dump_exyz', run_in_lines=[('dump_exyz', [1, 1, 1, 1])],
-            expected_output_files=['dump.xyz'],
-            parse_check=lambda p: _check_xyz_multi_frame(p, natoms)),
+        'dump_xyz_group': CommandIOCase(
+            name='dump_xyz_group',
+            run_in_lines=[('dump_xyz', [1, 'group.xyz', 'group', 0, 1])],
+            expected_output_files=['group.xyz'], n_groups=2,
+            parse_check=lambda p: _check_xyz_multi_frame(p, natoms - natoms // 2)),
+        'dump_xyz_precision': CommandIOCase(
+            name='dump_xyz_precision',
+            run_in_lines=[('dump_xyz', [1, 'precise.xyz', 'precision', 'double', 'force'])],
+            expected_output_files=['precise.xyz'],
+            parse_check=lambda p: _check_double_precision(p, natoms)),
     }
     return cases[name]
 
 
 DUMP_COMMAND_CASE_NAMES = [
-    'dump_thermo', 'dump_position', 'dump_restart', 'dump_velocity', 'dump_force', 'dump_xyz',
-    'dump_exyz',
+    'dump_thermo', 'dump_restart', 'dump_xyz', 'dump_xyz_group', 'dump_xyz_precision',
 ]
 
 
@@ -91,6 +97,30 @@ DUMP_COMMAND_CASE_NAMES = [
 def test_command_io(tmp_path, structure, model_path, model_type, gpumd_command, case_name):
     case = _build_case(case_name, len(structure))
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+REMOVED_COMMANDS = [
+    ('dump_position', 1),
+    ('dump_velocity', 1),
+    ('dump_force', 1),
+    ('dump_exyz', [1, 1, 1, 1]),
+    # the pre-2026 dump_xyz syntax, which led with <grouping_method> <group_id>
+    ('dump_xyz', [-1, 0, 1, 'dump.xyz']),
+]
+
+
+@pytest.mark.parametrize('keyword, args', REMOVED_COMMANDS)
+def test_removed_commands_are_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, keyword, args):
+    """The removed keywords, and the old dump_xyz argument order, must fail with a message naming
+    dump_xyz rather than being silently ignored or hitting a generic parse error."""
+    case = CommandIOCase(
+        name=keyword, run_in_lines=[(keyword, args)], expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    assert result.returncode != 0, f'{keyword}: gpumd unexpectedly succeeded'
+    assert 'dump_xyz' in result.stdout + result.stderr, (
+        f'{keyword}: error message does not point at dump_xyz\nstdout:\n{result.stdout}')
 
 
 def _check_netcdf_result(result):

@@ -4,8 +4,7 @@ echo "#### graphene_dos"
 diff -q thermo.out thermo1.out
 diff -q mvac.out mvac1.out
 diff -q dos.out dos1.out
-diff -q velocity.out velocity1.out
-rm thermo.out dos.out mvac.out velocity.out
+rm thermo.out dos.out mvac.out
 cd ../..
 
 cd gpumd/graphene_kappa_emd

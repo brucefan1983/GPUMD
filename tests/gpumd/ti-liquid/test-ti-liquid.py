@@ -30,7 +30,7 @@ def frenkel_ladd(tmp_path, request):
         ("potential", f"{test_folder}/nep_al.txt"),
         ("time_step", 2),
         ("ensemble", "ti_liquid temp 2500 tswitch 4000 tequil 500 press 0 tperiod 100 sigmasqrd 5 p 1"),
-        ("dump_position", 100),
+        ("dump_xyz", [100, "movie.xyz"]),
         ("dump_thermo", 1),
         ("run", 10000),
     ]

@@ -3,7 +3,7 @@ velocity    1
 
 ensemble nve
 time_step  0.5
-dump_force 1
+dump_xyz 1 dump.xyz force precision double
 dump_thermo 1
 
 run 5

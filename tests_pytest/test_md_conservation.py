@@ -15,6 +15,7 @@ here is purely numerical.
 """
 import numpy as np
 import pytest
+from ase.io import read
 from calorine.calculators import GPUNEP
 
 pytestmark = pytest.mark.slow
@@ -43,12 +44,13 @@ def _run_nve(tmp_path, structure, model_path, gpumd_command):
         ('ensemble', 'nve'),
         ('time_step', TIME_STEP),
         ('dump_thermo', DUMP_INTERVAL),
-        ('dump_velocity', DUMP_INTERVAL),
+        ('dump_xyz', [DUMP_INTERVAL, 'dump.xyz', 'velocity']),
         ('run', N_STEPS),
     ]
     calc.run_custom_md(params)
     thermo = np.loadtxt(tmp_path / 'thermo.out')
-    velocity = np.loadtxt(tmp_path / 'velocity.out')
+    # stacked frame-by-frame into (n_frames * n_atoms, 3), the shape the momentum sum below expects
+    velocity = np.vstack([frame.arrays['vel'] for frame in read(tmp_path / 'dump.xyz', index=':')])
     return thermo, velocity
 
 

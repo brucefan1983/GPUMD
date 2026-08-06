@@ -31,10 +31,8 @@ def md_without_dip(tmp_path, request):
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("dump_position", 1),
-        ("dump_force", 1),
+        ("dump_xyz", [1, "dump.xyz", "force", "velocity", "precision", "double"]),
         ("dump_thermo", 1),
-        ("dump_velocity", 1),
         ("run", 10),
     ]
     run_md(params, path, repeat=request.param)
@@ -52,10 +50,8 @@ def md(tmp_path, request):
         ("velocity", 300),
         ("ensemble", "nve"),
         ("dump_dipole", 1),
-        ("dump_position", 1),
-        ("dump_force", 1),
+        ("dump_xyz", [1, "dump.xyz", "force", "velocity", "precision", "double"]),
         ("dump_thermo", 1),
-        ("dump_velocity", 1),
         ("run", 10),
     ]
     run_md(params, path, repeat=request.param)
@@ -67,7 +63,7 @@ def test_dump_dipole_self_consistent(md):
     md_path, dipole_model = md
     dipole = np.loadtxt(f'{md_path}/dipole.out')
     # Read positions, and predict dipole with dipole model
-    for gpu_dipole, conf in zip(dipole[:, 1:], read(f'{md_path}/movie.xyz', ':')):
+    for gpu_dipole, conf in zip(dipole[:, 1:], read(f'{md_path}/dump.xyz', ':')):
         conf.calc = CPUNEP(dipole_model)
         cpu_dipole = conf.get_dipole_moment()
         assert np.allclose(cpu_dipole, gpu_dipole, atol=1e-2, rtol=1e-3)
@@ -91,11 +87,17 @@ def test_dump_dipole_does_not_change_forces_and_virials(md, md_without_dip):
     """Ensure that all regular observables are unchanged"""
     md_path, _ = md
     md_without_dip_path = md_without_dip
-    files = ('thermo.out', 'force.out', 'velocity.out')
-    for file in files:
-        pol_content = np.loadtxt(os.path.join(md_path, file))
-        reg_content = np.loadtxt(os.path.join(md_without_dip_path, file))
-        assert np.allclose(pol_content, reg_content, atol=1e-12, rtol=1e-6)
+    thermo = np.loadtxt(os.path.join(md_path, 'thermo.out'))
+    reg_thermo = np.loadtxt(os.path.join(md_without_dip_path, 'thermo.out'))
+    assert np.allclose(thermo, reg_thermo, atol=1e-12, rtol=1e-6)
+
+    frames = read(os.path.join(md_path, 'dump.xyz'), ':')
+    reg_frames = read(os.path.join(md_without_dip_path, 'dump.xyz'), ':')
+    assert len(frames) == len(reg_frames)
+    for frame, reg_frame in zip(frames, reg_frames):
+        for name in ('forces', 'vel'):
+            assert np.allclose(
+                frame.arrays[name], reg_frame.arrays[name], atol=1e-12, rtol=1e-6)
 
 
 def test_dump_dipole_invalid_potential(tmp_path):

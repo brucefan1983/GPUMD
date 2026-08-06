@@ -36,16 +36,12 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/dos.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
-#include "measure/dump_exyz.cuh"
-#include "measure/dump_force.cuh"
 #include "measure/dump_netcdf.cuh"
 #include "measure/dump_observer.cuh"
 #include "measure/dump_polarizability.cuh"
-#include "measure/dump_position.cuh"
 #include "measure/dump_restart.cuh"
 #include "measure/dump_shock_nemd.cuh"
 #include "measure/dump_thermo.cuh"
-#include "measure/dump_velocity.cuh"
 #include "measure/dump_xyz.cuh"
 #include "measure/dump_cg.cuh"
 #include "measure/extrapolation.cuh"
@@ -394,9 +390,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Dump_Thermo(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_position") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Position(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    PRINT_INPUT_ERROR(
+      "dump_position has been removed. "
+      "Use dump_xyz <interval> <filename> instead.");
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
     std::unique_ptr<Property> property;
@@ -418,17 +414,17 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Dump_Restart(param, num_param));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "dump_velocity") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Velocity(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    PRINT_INPUT_ERROR(
+      "dump_velocity has been removed. "
+      "Use dump_xyz <interval> <filename> velocity instead.");
   } else if (strcmp(param[0], "dump_force") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Force(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    PRINT_INPUT_ERROR(
+      "dump_force has been removed. "
+      "Use dump_xyz <interval> <filename> force instead.");
   } else if (strcmp(param[0], "dump_exyz") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_EXYZ(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    PRINT_INPUT_ERROR(
+      "dump_exyz has been removed. "
+      "Use dump_xyz <interval> <filename> velocity force potential instead.");
   } else if (strcmp(param[0], "dump_xyz") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new Dump_XYZ(param, num_param, group, atom));

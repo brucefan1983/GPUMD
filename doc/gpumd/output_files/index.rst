@@ -17,17 +17,13 @@ Output files
      - :ref:`dump_thermo <kw_dump_thermo>`
      - Global thermodynamic quantities
      - Append
-   * - :ref:`movie.xyz <movie_xyz>`
-     - :ref:`dump_position <kw_dump_position>`
-     - Trajectory (atomic positions, velocities etc)
-     - Append
    * - :ref:`restart.xyz <restart_xyz>`
      - :ref:`dump_restart <kw_dump_restart>`
      - The restart file
      - Overwrite
    * - :ref:`dump.xyz <dump_xyz>`
-     - :ref:`dump_exyz <kw_dump_exyz>`
-     - Atomistic positions, velocities and forces
+     - :ref:`dump_xyz <kw_dump_xyz>`
+     - Per-atom data in the extended XYZ format
      - Append
    * - :ref:`observer.xyz <observer_xyz>`
      - :ref:`dump_observer <kw_dump_observer>`
@@ -52,14 +48,6 @@ Output files
    * - :ref:`polarizability.out <gpumd_polarizability_out>`
      - :ref:`dump_polarizability <kw_dump_polarizability>`
      - Predicted polarizability
-     - Append
-   * - :ref:`velocity.out <velocity_out>`
-     - :ref:`dump_velocity <kw_dump_velocity>`
-     - Contains the atomic velocities
-     - Append
-   * - :ref:`force.out <force_out_gpumd>`
-     - :ref:`dump_force <kw_dump_force>`
-     - Contains the atomic forces
      - Append
    * - :ref:`compute.out <compute_out>`
      - :ref:`compute <kw_compute>`
@@ -173,13 +161,11 @@ Output files
    ic_out
    dos_out
    dpdt_out
-   force_out
    hac_out
    heatmode_out
    kappa_out
    kappamode_out
    mvac_out
-   movie_xyz
    omega2_out
    restart_xyz
    dump_xyz
@@ -193,7 +179,6 @@ Output files
    msd_out
    shc_out
    thermo_out
-   velocity_out
    viscosity_out
    onsager_out
    rdf_out

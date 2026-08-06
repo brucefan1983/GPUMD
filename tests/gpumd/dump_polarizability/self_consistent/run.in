@@ -4,5 +4,5 @@ time_step 1
 velocity 300
 ensemble nve
 dump_polarizability 1
-dump_position 1
+dump_xyz 1 movie.xyz
 run 10
