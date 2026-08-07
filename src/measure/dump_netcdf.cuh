@@ -82,6 +82,7 @@ private:
 
   int ncid = -1; // NetCDF ID
   static std::vector<std::string> initialized_files_;
+  static std::vector<std::string> active_files_;
 
   // dimensions
   int frame_dim;

@@ -181,6 +181,61 @@ def test_dump_netcdf_group_double_deflate(
         assert dataset.getncattr('gpumd_group_id') == 1
 
 
+def test_dump_netcdf_multiple_groups_in_one_run(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    netcdf4 = pytest.importorskip('netCDF4')
+    half = len(structure) // 2
+    group_sizes = (half, len(structure) - half)
+    filenames = ('group_0.nc', 'group_1.nc')
+    intervals = (1, 2)
+    case = CommandIOCase(
+        name='dump_netcdf_multiple_groups',
+        run_in_lines=[
+            ('dump_netcdf', [0, 0, intervals[0], 1, filenames[0]]),
+            ('dump_netcdf', [0, 1, intervals[1], 1, filenames[1]]),
+        ],
+        expected_output_files=list(filenames),
+        n_groups=2,
+    )
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    trajectories = []
+    for group_id, (filename, group_size, interval) in enumerate(
+            zip(filenames, group_sizes, intervals)):
+        with netcdf4.Dataset(tmp_path / filename) as dataset:
+            assert len(dataset.dimensions['frame']) == BASE_N_STEPS // interval
+            assert len(dataset.dimensions['atom']) == group_size
+            assert dataset.getncattr('gpumd_grouping_method') == 0
+            assert dataset.getncattr('gpumd_group_id') == group_id
+            assert 'velocities' in dataset.variables
+            trajectories.append(dataset.variables['time'][:])
+
+    np.testing.assert_allclose(
+        trajectories[0][intervals[1] - 1::intervals[1]], trajectories[1])
+
+
+def test_dump_netcdf_rejects_duplicate_filename_in_one_run(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_duplicate_filename',
+        run_in_lines=[
+            ('dump_netcdf', [0, 0, 1, 1, 'duplicate.nc']),
+            ('dump_netcdf', [0, 1, 1, 1, 'duplicate.nc']),
+        ],
+        n_groups=2,
+    )
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    if 'dump_netcdf is available only when USE_NETCDF flag is set' in output:
+        pytest.skip('gpumd binary was built without USE_NETCDF')
+    assert result.returncode != 0
+    assert 'dump_netcdf filenames must be unique within one run.' in output
+
+
 def test_dump_netcdf_rotates_general_cell(
         tmp_path, structure, model_path, model_type, gpumd_command):
     netcdf4 = pytest.importorskip('netCDF4')
