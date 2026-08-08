@@ -78,55 +78,33 @@ const char UNITS_STR[] = "units";
 std::vector<std::string> DUMP_NETCDF::initialized_files_;
 std::vector<std::string> DUMP_NETCDF::active_files_;
 
-DUMP_NETCDF::DUMP_NETCDF(
-  const char** param, int num_param, const std::vector<Group>& groups)
+DUMP_NETCDF::DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
   property_name = "dump_netcdf";
 }
 
-void DUMP_NETCDF::parse(
-  const char** param, int num_param, const std::vector<Group>& groups)
+void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
   printf("Dump positions and optional velocities in NetCDF format.\n");
 
-  if (num_param < 6) {
-    PRINT_INPUT_ERROR("dump_netcdf should have at least 5 parameters.\n");
-  }
-  if (num_param > 11) {
-    PRINT_INPUT_ERROR("dump_netcdf has too many parameters.");
+  if (num_param < 3) {
+    PRINT_INPUT_ERROR("dump_netcdf should have at least 2 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &grouping_method_)) {
-    PRINT_INPUT_ERROR("grouping method of dump_netcdf should be integer.");
-  }
-  if (grouping_method_ < 0) {
-    printf("    for the whole system.\n");
-  } else {
-    if (grouping_method_ >= int(groups.size())) {
-      PRINT_INPUT_ERROR("grouping method exceeds the bound.");
-    }
-    printf("    for grouping method %d.\n", grouping_method_);
-  }
-
-  if (!is_valid_int(param[2], &group_id_)) {
-    PRINT_INPUT_ERROR("group id of dump_netcdf should be integer.");
-  }
-  if (grouping_method_ >= 0) {
-    if (group_id_ < 0) {
-      PRINT_INPUT_ERROR("group id is negative.");
-    }
-    if (group_id_ >= groups[grouping_method_].number) {
-      PRINT_INPUT_ERROR("group id exceeds the bound.");
-    }
-    if (groups[grouping_method_].cpu_size[group_id_] <= 0) {
-      PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
-    }
-    printf("    for group id %d.\n", group_id_);
+  // The old syntax started with <grouping_method> <group_id> <interval>, so param[2] and param[3]
+  // were both integers. In the current syntax param[2] is the file name and param[3] is an option
+  // or a quantity keyword, neither of which is an integer.
+  int scratch;
+  if (num_param >= 4 && is_valid_int(param[2], &scratch) && is_valid_int(param[3], &scratch)) {
+    PRINT_INPUT_ERROR(
+      "dump_netcdf no longer takes <grouping_method> <group_id> as its first two parameters, and "
+      "<has_velocity> is now the optional quantity 'velocity'. Use dump_netcdf <interval> "
+      "<filename> [group <grouping_method> <group_id>] [velocity] instead.");
   }
 
-  if (!is_valid_int(param[3], &interval_)) {
+  if (!is_valid_int(param[1], &interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (interval_ <= 0) {
@@ -134,28 +112,34 @@ void DUMP_NETCDF::parse(
   }
   printf("    every %d steps.\n", interval_);
 
-  if (!is_valid_int(param[4], &has_velocity_)) {
-    PRINT_INPUT_ERROR("has_velocity should be an integer.");
-  }
-  if (has_velocity_ != 0 && has_velocity_ != 1) {
-    PRINT_INPUT_ERROR("has_velocity should be 0 or 1.");
-  }
-  if (has_velocity_ == 0) {
-    printf("    without velocity data.\n");
-  } else {
-    printf("    with velocity data.\n");
-  }
-
-  filename_ = param[5];
-  if (filename_.empty()) {
-    PRINT_INPUT_ERROR("dump_netcdf filename should not be empty.");
-  }
+  filename_ = param[2];
   printf("    into file %s.\n", filename_.c_str());
 
+  bool group_seen = false;
+  bool velocity_seen = false;
   bool precision_seen = false;
   bool compression_seen = false;
-  for (int k = 6; k < num_param; k++) {
-    if (strcmp(param[k], "precision") == 0) {
+  for (int k = 3; k < num_param; k++) {
+    if (strcmp(param[k], "group") == 0) {
+      if (group_seen) {
+        PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_netcdf.\n");
+      }
+      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+      // parse_group does not check this, and an empty group would be silent rather than loud:
+      // NC_UNLIMITED is 0, so defining the atom dimension with a length of zero would turn it
+      // into a second unlimited dimension instead of failing.
+      if (groups[grouping_method_].cpu_size[group_id_] <= 0) {
+        PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
+      }
+      group_seen = true;
+    } else if (strcmp(param[k], "velocity") == 0) {
+      if (velocity_seen) {
+        PRINT_INPUT_ERROR("Quantity 'velocity' is specified more than once in dump_netcdf.\n");
+      }
+      has_velocity_ = 1;
+      velocity_seen = true;
+      printf("    with velocity data.\n");
+    } else if (strcmp(param[k], "precision") == 0) {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_netcdf.\n");
       }
@@ -193,6 +177,12 @@ void DUMP_NETCDF::parse(
     }
   }
 
+  if (!group_seen) {
+    printf("    for the whole system.\n");
+  }
+  if (!has_velocity_) {
+    printf("    without velocity data.\n");
+  }
   if (precision_ == 1) {
     printf("    using single precision for NetCDF output.\n");
   } else {
@@ -212,8 +202,7 @@ void DUMP_NETCDF::preprocess(
   if (!dump_)
     return;
 
-  if (
-    std::find(active_files_.begin(), active_files_.end(), filename_) != active_files_.end()) {
+  if (std::find(active_files_.begin(), active_files_.end(), filename_) != active_files_.end()) {
     PRINT_INPUT_ERROR("dump_netcdf filenames must be unique within one run.");
   }
   active_files_.push_back(filename_);
@@ -264,9 +253,7 @@ void DUMP_NETCDF::create_file()
   const int creation_mode = compression_level_ >= 0 ? NC_NETCDF4 : NC_64BIT_OFFSET;
   const int create_status = nc_create(filename_.c_str(), creation_mode, &ncid);
   if (create_status != NC_NOERR) {
-    if (
-      compression_level_ >= 0 &&
-      (create_status == NC_ENOTBUILT || create_status == NC_ENOTNC4)) {
+    if (compression_level_ >= 0 && (create_status == NC_ENOTBUILT || create_status == NC_ENOTNC4)) {
       fprintf(
         stderr,
         "Error: dump_netcdf deflate compression requires a NetCDF-C build with "
@@ -281,18 +268,16 @@ void DUMP_NETCDF::create_file()
     nc_put_att_text(ncid, NC_GLOBAL, "programVersion", strlen(GPUMD_VERSION), GPUMD_VERSION));
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 5, "AMBER"));
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "ConventionVersion", 3, "1.0"));
-  NC_CHECK(nc_put_att_int(
-    ncid, NC_GLOBAL, "gpumd_grouping_method", NC_INT, 1, &grouping_method_));
+  NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_grouping_method", NC_INT, 1, &grouping_method_));
   NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_group_id", NC_INT, 1, &group_id_));
-  NC_CHECK(nc_put_att_int(
-    ncid, NC_GLOBAL, "gpumd_has_velocity", NC_INT, 1, &has_velocity_));
-  NC_CHECK(nc_put_att_int(
-    ncid, NC_GLOBAL, "gpumd_compression_level", NC_INT, 1, &compression_level_));
+  NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_has_velocity", NC_INT, 1, &has_velocity_));
+  NC_CHECK(
+    nc_put_att_int(ncid, NC_GLOBAL, "gpumd_compression_level", NC_INT, 1, &compression_level_));
 
   // dimensions
   NC_CHECK(nc_def_dim(
     ncid, FRAME_STR, NC_UNLIMITED, &frame_dim)); // unlimited number of steps (can append)
-  NC_CHECK(nc_def_dim(ncid, SPATIAL_STR, 3, &spatial_dim));         // number of spatial dimensions
+  NC_CHECK(nc_def_dim(ncid, SPATIAL_STR, 3, &spatial_dim)); // number of spatial dimensions
   NC_CHECK(nc_def_dim(ncid, ATOM_STR, number_of_atoms_to_dump_, &atom_dim));
   NC_CHECK(nc_def_dim(ncid, CELL_SPATIAL_STR, 3, &cell_spatial_dim)); // unitcell lengths
   NC_CHECK(nc_def_dim(ncid, CELL_ANGULAR_STR, 3, &cell_angular_dim)); // unitcell angles
@@ -339,10 +324,8 @@ void DUMP_NETCDF::create_file()
 #if defined(NC_HAS_HDF5) && NC_HAS_HDF5
     const size_t bytes_per_value = precision_ == 1 ? sizeof(float) : sizeof(double);
     const size_t target_chunk_bytes = 1024 * 1024;
-    const size_t max_chunk_atoms =
-      std::max<size_t>(1, target_chunk_bytes / (bytes_per_value * 3));
-    size_t chunks[3] = {
-      1, std::min<size_t>(number_of_atoms_to_dump_, max_chunk_atoms), 3};
+    const size_t max_chunk_atoms = std::max<size_t>(1, target_chunk_bytes / (bytes_per_value * 3));
+    size_t chunks[3] = {1, std::min<size_t>(number_of_atoms_to_dump_, max_chunk_atoms), 3};
     NC_CHECK(nc_def_var_chunking(ncid, coordinates_var, NC_CHUNKED, chunks));
     NC_CHECK(nc_def_var_deflate(ncid, coordinates_var, 1, 1, compression_level_));
     if (has_velocity_) {
@@ -350,9 +333,7 @@ void DUMP_NETCDF::create_file()
       NC_CHECK(nc_def_var_deflate(ncid, velocities_var, 1, 1, compression_level_));
     }
     size_t type_chunks[2] = {
-      1,
-      std::min<size_t>(
-        number_of_atoms_to_dump_, target_chunk_bytes / sizeof(int))};
+      1, std::min<size_t>(number_of_atoms_to_dump_, target_chunk_bytes / sizeof(int))};
     NC_CHECK(nc_def_var_chunking(ncid, type_var, NC_CHUNKED, type_chunks));
     NC_CHECK(nc_def_var_deflate(ncid, type_var, 1, 1, compression_level_));
 #endif // NC_HAS_HDF5
@@ -425,13 +406,10 @@ void DUMP_NETCDF::validate_file_definition()
   int previous_group_id;
   int previous_has_velocity;
   int previous_compression_level;
-  NC_CHECK(nc_get_att_int(
-    ncid, NC_GLOBAL, "gpumd_grouping_method", &previous_grouping_method));
+  NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_grouping_method", &previous_grouping_method));
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_group_id", &previous_group_id));
-  NC_CHECK(nc_get_att_int(
-    ncid, NC_GLOBAL, "gpumd_has_velocity", &previous_has_velocity));
-  NC_CHECK(nc_get_att_int(
-    ncid, NC_GLOBAL, "gpumd_compression_level", &previous_compression_level));
+  NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_has_velocity", &previous_has_velocity));
+  NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_compression_level", &previous_compression_level));
   if (previous_grouping_method != grouping_method_ || previous_group_id != group_id_) {
     PRINT_INPUT_ERROR("Cannot change the dump_netcdf group between run commands.\n");
   }
@@ -459,9 +437,7 @@ static bool build_netcdf_transform(
   const auto dot = [](const double x[3], const double y[3]) {
     return x[0] * y[0] + x[1] * y[1] + x[2] * y[2];
   };
-  const auto clamp_cosine = [](double value) {
-    return std::max(-1.0, std::min(1.0, value));
-  };
+  const auto clamp_cosine = [](double value) { return std::max(-1.0, std::min(1.0, value)); };
 
   cell_lengths[0] = sqrt(dot(a, a));
   cell_lengths[1] = sqrt(dot(b, b));
@@ -492,12 +468,9 @@ static bool build_netcdf_transform(
     }
   }
 
-  const double cosalpha =
-    clamp_cosine(dot(b, c) / (cell_lengths[1] * cell_lengths[2]));
-  const double cosbeta =
-    clamp_cosine(dot(a, c) / (cell_lengths[0] * cell_lengths[2]));
-  const double cosgamma =
-    clamp_cosine(dot(a, b) / (cell_lengths[0] * cell_lengths[1]));
+  const double cosalpha = clamp_cosine(dot(b, c) / (cell_lengths[1] * cell_lengths[2]));
+  const double cosbeta = clamp_cosine(dot(a, c) / (cell_lengths[0] * cell_lengths[2]));
+  const double cosgamma = clamp_cosine(dot(a, b) / (cell_lengths[0] * cell_lengths[1]));
   cell_angles[0] = acos(cosalpha) * 180.0 / PI;
   cell_angles[1] = acos(cosbeta) * 180.0 / PI;
   cell_angles[2] = acos(cosgamma) * 180.0 / PI;
@@ -525,25 +498,21 @@ static void pack_netcdf_frame(
   for (int i = 0; i < number_of_atoms; ++i) {
     for (int output_dim = 0; output_dim < 3; ++output_dim) {
       double position_value = position[i + number_of_atoms * output_dim];
-      double velocity_value =
-        has_velocity ? velocity[i + number_of_atoms * output_dim] : 0.0;
+      double velocity_value = has_velocity ? velocity[i + number_of_atoms * output_dim] : 0.0;
       if (transform_vectors) {
         position_value = 0.0;
         velocity_value = 0.0;
         for (int input_dim = 0; input_dim < 3; ++input_dim) {
           const double coefficient = transform[output_dim * 3 + input_dim];
-          position_value +=
-            coefficient * position[i + number_of_atoms * input_dim];
+          position_value += coefficient * position[i + number_of_atoms * input_dim];
           if (has_velocity) {
-            velocity_value +=
-              coefficient * velocity[i + number_of_atoms * input_dim];
+            velocity_value += coefficient * velocity[i + number_of_atoms * input_dim];
           }
         }
       }
       packed_position[i * 3 + output_dim] = static_cast<T>(position_value);
       if (has_velocity) {
-        packed_velocity[i * 3 + output_dim] =
-          static_cast<T>(velocity_value * velocity_scale);
+        packed_velocity[i * 3 + output_dim] = static_cast<T>(velocity_value * velocity_scale);
       }
     }
   }
@@ -660,8 +629,7 @@ static __global__ void gather_netcdf_group(
   if (n < number_of_atoms_in_group) {
     const int atom_index = group_contents[group_offset + n];
     for (int d = 0; d < 3; ++d) {
-      group_position[n + number_of_atoms_in_group * d] =
-        position[atom_index + number_of_atoms * d];
+      group_position[n + number_of_atoms_in_group * d] = position[atom_index + number_of_atoms * d];
       if (group_velocity != nullptr) {
         group_velocity[n + number_of_atoms_in_group * d] =
           velocity[atom_index + number_of_atoms * d];
