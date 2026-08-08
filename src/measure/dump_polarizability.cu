@@ -130,7 +130,6 @@ void Dump_Polarizability::preprocess(
   Box& box,
   Force& force)
 {
-  // Setup a dump_exyz with the dump_interval for dump_observer.
   if (dump_) {
     std::string filename_ = "polarizability.out";
     file_ = my_fopen(filename_.c_str(), "a");

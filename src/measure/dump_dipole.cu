@@ -129,7 +129,6 @@ void Dump_Dipole::preprocess(
   Box& box,
   Force& force)
 {
-  // Setup a dump_exyz with the dump_interval for dump_observer.
   if (dump_) {
     std::string filename_ = "dipole.out";
     file_ = my_fopen(filename_.c_str(), "a");

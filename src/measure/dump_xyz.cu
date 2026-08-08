@@ -21,6 +21,7 @@ Dump per-atom data to user-specified file(s) in the extended XYZ format
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
+#include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -51,7 +52,7 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom) 
+Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
 {
   is_nep_charge = check_is_nep_charge();
 
@@ -70,38 +71,22 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
 {
   printf("Dump extended XYZ.\n");
 
-  if (num_param < 5) {
-    PRINT_INPUT_ERROR("dump_xyz should have at least 4 parameters.\n");
+  if (num_param < 3) {
+    PRINT_INPUT_ERROR("dump_xyz should have at least 2 parameters.\n");
   }
 
-  // grouping_method
-  if (!is_valid_int(param[1], &grouping_method_)) {
-    PRINT_INPUT_ERROR("grouping method of dump_xyz should be integer.");
-  }
-  if (grouping_method_ < 0) {
-    printf("    for the whole system.\n");
-  } else {
-    if (grouping_method_ >= int(groups.size())) {
-      PRINT_INPUT_ERROR("grouping method exceeds the bound.");
-    }
-    printf("    for grouping method %d.\n", grouping_method_);
+  // The old syntax started with <grouping_method> <group_id> <interval>, so param[2] and param[3]
+  // were both integers. In the current syntax param[2] is the file name and param[3] is an option
+  // or a quantity keyword, neither of which is an integer.
+  int scratch;
+  if (num_param >= 4 && is_valid_int(param[2], &scratch) && is_valid_int(param[3], &scratch)) {
+    PRINT_INPUT_ERROR(
+      "dump_xyz no longer takes <grouping_method> <group_id> as its first two "
+      "parameters. Use dump_xyz <interval> <filename> [group <grouping_method> "
+      "<group_id>] instead.");
   }
 
-  // group_id
-  if (!is_valid_int(param[2], &group_id_)) {
-    PRINT_INPUT_ERROR("group id of dump_xyz should be integer.");
-  }
-  if (grouping_method_ >= 0) {
-    if (group_id_ >= groups[grouping_method_].number) {
-      PRINT_INPUT_ERROR("group id exceeds the bound.");
-    }
-    if (group_id_ < 0) {
-      PRINT_INPUT_ERROR("group id is negative.");
-    }
-    printf("    for group id %d.\n", group_id_);
-  }
-
-  if (!is_valid_int(param[3], &dump_interval_)) {
+  if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -111,7 +96,7 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   }
 
   // filename
-  std::string filename_temp = param[4];
+  std::string filename_temp = param[2];
   printf("    into file %s.\n", filename_temp.c_str());
   if (filename_temp.back() == '*') {
     separated_ = 1;
@@ -121,51 +106,84 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
     filename_ = filename_temp;
   }
 
-  for (int m = 5; m < num_param; ++m) {
+  bool group_seen = false;
+  bool precision_seen = false;
+
+  for (int m = 3; m < num_param; ++m) {
+    if (strcmp(param[m], "group") == 0) {
+      if (group_seen) {
+        PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_xyz.\n");
+      }
+      // A bare 'group' used to be the quantity that writes the group labels as a column, so say
+      // what it is called now rather than only complaining about the missing arguments.
+      int probe;
+      if (
+        m + 2 >= num_param || !is_valid_int(param[m + 1], &probe) ||
+        !is_valid_int(param[m + 2], &probe)) {
+        PRINT_INPUT_ERROR(
+          "Option 'group' should be followed by a grouping method and a group ID. The quantity "
+          "that writes group labels as a column is now called 'group_labels'.");
+      }
+      parse_group(param, num_param, false, groups, m, grouping_method_, group_id_);
+      group_seen = true;
+      continue;
+    }
+    if (strcmp(param[m], "precision") == 0) {
+      if (precision_seen) {
+        PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_xyz.\n");
+      }
+      parse_precision(param, num_param, m, precision_);
+      precision_seen = true;
+      continue;
+    }
     if (strcmp(param[m], "velocity") == 0) {
       quantities.has_velocity_ = true;
       printf("    has velocity.\n");
-    }
-    if (strcmp(param[m], "force") == 0) {
+    } else if (strcmp(param[m], "force") == 0) {
       quantities.has_force_ = true;
       printf("    has force.\n");
-    }
-    if (strcmp(param[m], "potential") == 0) {
+    } else if (strcmp(param[m], "potential") == 0) {
       quantities.has_potential_ = true;
       printf("    has potential.\n");
-    }
-    if (strcmp(param[m], "unwrapped_position") == 0) {
+    } else if (strcmp(param[m], "unwrapped_position") == 0) {
       quantities.has_unwrapped_position_ = true;
       printf("    has unwrapped position.\n");
-    }
-    if (strcmp(param[m], "mass") == 0) {
+    } else if (strcmp(param[m], "mass") == 0) {
       quantities.has_mass_ = true;
       printf("    has mass.\n");
-    }
-    if (strcmp(param[m], "charge") == 0) {
+    } else if (strcmp(param[m], "charge") == 0) {
       quantities.has_charge_ = true;
-      if (is_nep_charge){
+      if (is_nep_charge) {
         printf("    has charge predicted by NEP-charge.\n");
       } else {
         printf("    has charge specified in model.xyz.\n");
       }
-    }
-    if (strcmp(param[m], "bec") == 0) {
+    } else if (strcmp(param[m], "bec") == 0) {
       quantities.has_bec_ = true;
-      if (is_nep_charge){
+      if (is_nep_charge) {
         printf("    has BEC predicted by NEP-charge.\n");
       } else {
         PRINT_INPUT_ERROR("Cannot output BEC for a non-NEP-charge model.\n");
       }
-    }
-    if (strcmp(param[m], "virial") == 0) {
+    } else if (strcmp(param[m], "virial") == 0) {
       quantities.has_virial_ = true;
       printf("    has virial.\n");
-    }
-    if (strcmp(param[m], "group") == 0) {
+    } else if (strcmp(param[m], "group_labels") == 0) {
+      // One column is written per grouping method, so with none the Properties field would say
+      // group:I:0, which is not readable as extended XYZ.
+      if (groups.size() == 0) {
+        PRINT_INPUT_ERROR(
+          "Cannot output group labels without a grouping method defined in model.xyz.\n");
+      }
       quantities.has_group_ = true;
-      printf("    has group.\n");
+      printf("    has group labels.\n");
+    } else {
+      PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
+  }
+
+  if (grouping_method_ < 0) {
+    printf("    for the whole system.\n");
   }
 }
 
@@ -181,6 +199,10 @@ void Dump_XYZ::preprocess(
   if (separated_ == 0) {
     fid_ = my_fopen(filename_.c_str(), "a");
   }
+
+  // %g rather than %f so that quantities of any magnitude keep all their significant digits;
+  // %.9g round-trips a float and %.17g round-trips a double.
+  fmt_ = (precision_ == 1) ? " %.9g" : " %.17g";
 
   gpu_total_virial_.resize(6);
   cpu_total_virial_.resize(6);
@@ -201,6 +223,18 @@ void Dump_XYZ::preprocess(
   }
 }
 
+void Dump_XYZ::print_tensor(const char* name, const double* tensor)
+{
+  // fmt_ carries a leading space, which is wanted between values but not right after the quote
+  const char* separated_fmt = fmt_.c_str();
+  const char* first_fmt = separated_fmt + 1;
+  fprintf(fid_, " %s=\"", name);
+  for (int d = 0; d < 9; ++d) {
+    fprintf(fid_, (d == 0) ? first_fmt : separated_fmt, tensor[d]);
+  }
+  fprintf(fid_, "\"");
+}
+
 void Dump_XYZ::output_line2(
   const double time,
   const Box& box,
@@ -217,9 +251,7 @@ void Dump_XYZ::output_line2(
     fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
-  fprintf(
-    fid_,
-    " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+  const double lattice[9] = {
     box.cpu_h[0],
     box.cpu_h[3],
     box.cpu_h[6],
@@ -228,7 +260,8 @@ void Dump_XYZ::output_line2(
     box.cpu_h[7],
     box.cpu_h[2],
     box.cpu_h[5],
-    box.cpu_h[8]);
+    box.cpu_h[8]};
+  print_tensor("Lattice", lattice);
 
   // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];
@@ -237,10 +270,10 @@ void Dump_XYZ::output_line2(
   gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
-  fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
-  fprintf(
-    fid_,
-    " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+  fprintf(fid_, " energy=");
+  fprintf(fid_, fmt_.c_str() + 1, cpu_thermo[1]);
+
+  const double virial[9] = {
     cpu_total_virial_[0],
     cpu_total_virial_[3],
     cpu_total_virial_[4],
@@ -249,10 +282,10 @@ void Dump_XYZ::output_line2(
     cpu_total_virial_[5],
     cpu_total_virial_[4],
     cpu_total_virial_[5],
-    cpu_total_virial_[2]);
-  fprintf(
-    fid_,
-    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_total_virial_[2]};
+  print_tensor("virial", virial);
+
+  const double stress[9] = {
     cpu_thermo[2],
     cpu_thermo[5],
     cpu_thermo[6],
@@ -261,7 +294,8 @@ void Dump_XYZ::output_line2(
     cpu_thermo[7],
     cpu_thermo[6],
     cpu_thermo[7],
-    cpu_thermo[4]);
+    cpu_thermo[4]};
+  print_tensor("stress", stress);
 
   // Properties
   fprintf(fid_, " Properties=species:S:1:pos:R:3");
@@ -375,43 +409,45 @@ void Dump_XYZ::process(
 
     fprintf(fid_, "%s", atom.cpu_atom_symbol[m].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[m + atom.number_of_atoms * d]);
+      fprintf(fid_, fmt_.c_str(), atom.cpu_position_per_atom[m + atom.number_of_atoms * d]);
     }
     if (quantities.has_mass_) {
-      fprintf(fid_, " %.8f", atom.cpu_mass[m]);
+      fprintf(fid_, fmt_.c_str(), atom.cpu_mass[m]);
     }
     if (quantities.has_charge_) {
-      fprintf(fid_, " %.8f", atom.cpu_charge[m]);
+      fprintf(fid_, fmt_.c_str(), atom.cpu_charge[m]);
     }
     if (quantities.has_bec_) {
       for (int d = 0; d < 9; ++d) {
-        fprintf(fid_, " %.8f", cpu_bec_[m + atom.number_of_atoms * d]);
+        fprintf(fid_, fmt_.c_str(), cpu_bec_[m + atom.number_of_atoms * d]);
       }
     }
     if (quantities.has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
         fprintf(
-          fid_, " %.8f", atom.cpu_velocity_per_atom[m + atom.number_of_atoms * d] * natural_to_A_per_fs);
+          fid_,
+          fmt_.c_str(),
+          atom.cpu_velocity_per_atom[m + atom.number_of_atoms * d] * natural_to_A_per_fs);
       }
     }
     if (quantities.has_force_) {
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[m + atom.number_of_atoms * d]);
+        fprintf(fid_, fmt_.c_str(), cpu_force_per_atom_[m + atom.number_of_atoms * d]);
       }
     }
     if (quantities.has_potential_) {
-      fprintf(fid_, " %.8f", cpu_potential_per_atom_[m]);
+      fprintf(fid_, fmt_.c_str(), cpu_potential_per_atom_[m]);
     }
     if (quantities.has_unwrapped_position_) {
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_unwrapped_position_[m + atom.number_of_atoms * d]);
+        fprintf(fid_, fmt_.c_str(), cpu_unwrapped_position_[m + atom.number_of_atoms * d]);
       }
     }
     if (quantities.has_virial_) {
       const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
       for (int d = 0; d < 9; ++d) {
-        fprintf(fid_, " %.8f", cpu_virial_per_atom_[m + atom.number_of_atoms * index[d]]);
+        fprintf(fid_, fmt_.c_str(), cpu_virial_per_atom_[m + atom.number_of_atoms * index[d]]);
       }
     }
     if (quantities.has_group_) {

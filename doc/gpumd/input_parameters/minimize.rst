@@ -73,7 +73,7 @@ If you want to ouput the optimized structure, use `dump_xyz` in the `nve` ensemb
 
   ensemble    nve
   time_step   0
-  dump_xyz    -1 0 1 relaxed.xyz
+  dump_xyz    1 relaxed.xyz
   run         1
 
 Caveats

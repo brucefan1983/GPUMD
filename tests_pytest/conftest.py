@@ -276,7 +276,7 @@ def _write_sanitizer_fixtures():
                 ('ensemble', ['nve']),
                 ('time_step', 1),
                 ('dump_thermo', 1),
-                ('dump_force', 1),
+                ('dump_xyz', [1, 'dump.xyz', 'force']),
                 ('run', 5),
             ],
         ),

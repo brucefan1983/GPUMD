@@ -53,9 +53,9 @@ def md(tmp_path):
         ("velocity", 300),
         ("ensemble", "nve"),
         ("compute_msd", (1, 5, "all_groups", 0, "save_every", 10)),
-        ("dump_xyz", (0, 0, 1, "group_1.xyz", "unwrapped_position")),
-        ("dump_xyz", (0, 1, 1, "group_2.xyz", "unwrapped_position")),
-        ("dump_xyz", (0, 2, 1, "group_3.xyz", "unwrapped_position")),
+        ("dump_xyz", (1, "group_1.xyz", "group", 0, 0, "unwrapped_position")),
+        ("dump_xyz", (1, "group_2.xyz", "group", 0, 1, "unwrapped_position")),
+        ("dump_xyz", (1, "group_3.xyz", "group", 0, 2, "unwrapped_position")),
         ("run", 30),
     ]
     run_md(params, path)
@@ -71,7 +71,7 @@ def md_group_0(tmp_path):
         ("velocity", 300),
         ("ensemble", "nve"),
         ("compute_msd", (1, 5, "group", 0, 0)),
-        ("dump_xyz", (0, 0, 1, "group_1.xyz", "unwrapped_position")),
+        ("dump_xyz", (1, "group_1.xyz", "group", 0, 0, "unwrapped_position")),
         ("run", 30),
     ]
     run_md(params, path)

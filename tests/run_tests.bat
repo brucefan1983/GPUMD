@@ -3,8 +3,7 @@ cd gpumd\graphene_dos
 fc thermo.out thermo1.out
 fc mvac.out mvac1.out
 fc dos.out dos1.out
-fc velocity.out velocity1.out
-del thermo.out dos.out mvac.out velocity.out
+del thermo.out dos.out mvac.out
 cd ..\..
 
 cd gpumd\graphene_kappa_emd
