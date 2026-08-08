@@ -125,9 +125,12 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
         PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_netcdf.\n");
       }
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
-      // parse_group does not check this, and an empty group would be silent rather than loud:
-      // NC_UNLIMITED is 0, so defining the atom dimension with a length of zero would turn it
-      // into a second unlimited dimension instead of failing.
+      // parse_group checks the bounds but not the size, and an empty group is not caught further
+      // down either. NC_UNLIMITED is 0, so defining the atom dimension with a length of zero
+      // makes it unlimited rather than failing: with compression the run then succeeds and
+      // writes a file whose coordinates have shape (frames, 0, 3), and without it the run dies
+      // mid-way with "NC_UNLIMITED size already in use", since the classic format allows only
+      // one unlimited dimension.
       if (groups[grouping_method_].cpu_size[group_id_] <= 0) {
         PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
       }

@@ -503,10 +503,18 @@ def test_removed_commands_are_rejected(
         f'{keyword}: error message does not point at dump_xyz\nstdout:\n{result.stdout}')
 
 
-def _check_netcdf_result(result):
-    output = result.stdout + result.stderr
+def _skip_without_netcdf(output):
+    """Every dump_netcdf case has to tolerate a gpumd built without -DUSE_NETCDF, where the
+    keyword is refused in run.cu before DUMP_NETCDF::parse is ever reached. The rejection tests
+    need this as much as the passing ones, since without it they would pass for the wrong
+    reason -- a non-zero exit that says nothing about the arguments under test."""
     if 'dump_netcdf is available only when USE_NETCDF flag is set' in output:
         pytest.skip('gpumd binary was built without USE_NETCDF')
+
+
+def _check_netcdf_result(result):
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
     assert result.returncode == 0, (
         f'dump_netcdf: gpumd exited {result.returncode}\nstdout:\n{result.stdout}\n'
         f'stderr:\n{result.stderr}')
@@ -520,9 +528,9 @@ def test_dump_netcdf_default_overwrite_and_append(
     case = CommandIOCase(
         name='dump_netcdf',
         run_in_lines=[
-            ('dump_netcdf', [-1, 0, 1, 1, 'sed.nc']),
+            ('dump_netcdf', [1, 'sed.nc', 'velocity']),
             ('run', BASE_N_STEPS),
-            ('dump_netcdf', [-1, 0, 1, 1, 'sed.nc']),
+            ('dump_netcdf', [1, 'sed.nc', 'velocity']),
         ],
         expected_output_files=['sed.nc'],
     )
@@ -546,7 +554,7 @@ def test_dump_netcdf_without_velocity(
     netcdf4 = pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf_positions',
-        run_in_lines=[('dump_netcdf', [-1, 0, 1, 0, 'positions.nc'])],
+        run_in_lines=[('dump_netcdf', [1, 'positions.nc'])],
         expected_output_files=['positions.nc'],
     )
     result = run_command_io_case(
@@ -566,7 +574,7 @@ def test_dump_netcdf_group_double_deflate(
     case = CommandIOCase(
         name='dump_netcdf_group',
         run_in_lines=[('dump_netcdf', [
-            0, 1, 1, 1, 'group.nc',
+            1, 'group.nc', 'group', 0, 1, 'velocity',
             'precision', 'double', 'compression', 'deflate', 1,
         ])],
         expected_output_files=['group.nc'],
@@ -601,8 +609,8 @@ def test_dump_netcdf_multiple_groups_in_one_run(
     case = CommandIOCase(
         name='dump_netcdf_multiple_groups',
         run_in_lines=[
-            ('dump_netcdf', [0, 0, intervals[0], 1, filenames[0]]),
-            ('dump_netcdf', [0, 1, intervals[1], 1, filenames[1]]),
+            ('dump_netcdf', [intervals[0], filenames[0], 'group', 0, 0, 'velocity']),
+            ('dump_netcdf', [intervals[1], filenames[1], 'group', 0, 1, 'velocity']),
         ],
         expected_output_files=list(filenames),
         n_groups=2,
@@ -632,16 +640,15 @@ def test_dump_netcdf_rejects_duplicate_filename_in_one_run(
     case = CommandIOCase(
         name='dump_netcdf_duplicate_filename',
         run_in_lines=[
-            ('dump_netcdf', [0, 0, 1, 1, 'duplicate.nc']),
-            ('dump_netcdf', [0, 1, 1, 1, 'duplicate.nc']),
+            ('dump_netcdf', [1, 'duplicate.nc', 'group', 0, 0, 'velocity']),
+            ('dump_netcdf', [1, 'duplicate.nc', 'group', 0, 1, 'velocity']),
         ],
         n_groups=2,
     )
     result = run_command_io_case(
         tmp_path, structure, model_path, model_type, gpumd_command, case)
     output = result.stdout + result.stderr
-    if 'dump_netcdf is available only when USE_NETCDF flag is set' in output:
-        pytest.skip('gpumd binary was built without USE_NETCDF')
+    _skip_without_netcdf(output)
     assert result.returncode != 0
     assert 'dump_netcdf filenames must be unique within one run.' in output
 
@@ -659,7 +666,7 @@ def test_dump_netcdf_rotates_general_cell(
         run_in_lines=[
             ('dump_xyz', [1, 'reference.xyz', 'velocity']),
             ('dump_netcdf', [
-                -1, 0, 1, 1, 'general-cell.nc', 'precision', 'double',
+                1, 'general-cell.nc', 'velocity', 'precision', 'double',
             ]),
         ],
         expected_output_files=['reference.xyz', 'general-cell.nc'],
@@ -686,6 +693,93 @@ def test_dump_netcdf_rotates_general_cell(
         netcdf_velocities,
         reference.arrays['vel'] @ rotation_transpose * 1000.0,
         atol=1.0e-5)
+
+
+INVALID_DUMP_NETCDF_ARGUMENTS = [
+    ([1, 'f.nc', 'velocities'], 'Unrecognized argument'),
+    ([1, 'f.nc', 'group', 0, 0, 'group', 0, 0], 'more than once'),
+    ([1, 'f.nc', 'velocity', 'velocity'], 'more than once'),
+    ([1, 'f.nc', 'precision', 'double', 'precision', 'single'], 'more than once'),
+    ([1, 'f.nc', 'compression', 'none', 'compression', 'none'], 'more than once'),
+    ([1, 'f.nc', 'precision', 'triple'], 'Invalid precision'),
+    # the old syntax used -1 to mean the whole system, which is now spelled by omitting the option
+    ([1, 'f.nc', 'group', -1, 0], 'Grouping method'),
+    ([1, 'f.nc', 'group', 0], 'Not enough arguments'),
+    ([1, 'f.nc', 'compression', 'deflate'], 'deflate level is required'),
+    ([1, 'f.nc', 'compression', 'deflate', 10], 'between 0 and 9'),
+    ([1, 'f.nc', 'compression', 'gzip'], "'none' or 'deflate"),
+    ([1], 'at least 2 parameters'),
+    ([0, 'f.nc'], 'dump interval'),
+]
+
+
+@pytest.mark.parametrize('args, expected_message', INVALID_DUMP_NETCDF_ARGUMENTS)
+def test_invalid_dump_netcdf_arguments_are_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, args, expected_message):
+    """The dump_xyz rejection table applied to dump_netcdf. As there, the asserted substring
+    matters as much as the exit code, since a test that passes because gpumd died for an unrelated
+    reason is worse than no test."""
+    case = CommandIOCase(
+        name='dump_netcdf_invalid', run_in_lines=[('dump_netcdf', args)],
+        expected_output_files=[], n_groups=1)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, f'dump_netcdf {args} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'dump_netcdf {args} did not report {expected_message!r}\nstdout:\n{result.stdout}')
+
+
+def test_dump_netcdf_old_positional_form_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """An input file written for the old positional form must be told what to write instead.
+
+    Without the check this is not silent, but it is misleading: removing it and rerunning this
+    case reports "dump interval should > 0", because the old grouping method is read as the
+    interval. A positive grouping method fares no better, as the old group id then becomes the
+    file name and the old interval an unrecognized argument. The point of the check is the
+    message, so the message is what is asserted."""
+    case = CommandIOCase(
+        name='dump_netcdf_old_form',
+        run_in_lines=[('dump_netcdf', [-1, 0, 1, 1, 'movie.nc'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'the old positional form should be refused'
+    assert 'no longer takes' in output, output
+    assert 'dump_netcdf <interval> <filename>' in output, output
+
+
+def test_dump_netcdf_rejects_an_empty_group(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """An empty group must be refused rather than written, and this is the case where leaving the
+    check out would be silent rather than loud. NC_UNLIMITED is 0, so defining the atom dimension
+    with a length of zero does not fail. Removing the check and rerunning this case confirms both
+    halves of that: with `compression deflate 1` gpumd exits 0 and writes a NETCDF4 file whose
+    `atom` dimension is a second unlimited dimension of length zero and whose coordinates have
+    shape (frames, 0, 3), and without compression the run gets as far as the first frame before
+    dying with "NC_UNLIMITED size already in use", because the classic format allows only one
+    unlimited dimension. parse_group checks the bounds but not the size, so dump_netcdf checks
+    after calling it.
+
+    The grouping puts every atom in group 1, which leaves group 0 of the same grouping method
+    empty while keeping it in bounds -- GPUMD takes the number of groups from the largest label
+    it sees."""
+    case = CommandIOCase(
+        name='dump_netcdf_empty_group',
+        run_in_lines=[('dump_netcdf', [1, 'empty.nc', 'group', 0, 0])],
+        expected_output_files=[],
+        groupings=[[[], list(range(len(structure)))]])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'an empty group should be refused'
+    assert 'cannot output an empty group' in output, output
+    assert not (tmp_path / 'empty.nc').exists(), 'a file was written for an empty group'
 
 
 def test_dump_observer(tmp_path, structure, model_path, model_type, gpumd_command):
