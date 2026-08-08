@@ -14,10 +14,11 @@
 */
 
 /*----------------------------------------------------------------------------80
-Write atom types, positions, and optional velocities to NetCDF trajectory
-files. The layout is based on the AMBER 1.0 trajectory conventions, with
-GPUMD extensions for atom types, group metadata, selectable precision, and
-optional NetCDF4 deflate compression.
+Write atom types, positions, and the optional per-atom quantities shared with
+dump_xyz to NetCDF trajectory files. The layout is based on the AMBER 1.0
+trajectory conventions, with GPUMD extensions for atom types, the quantities
+AMBER does not define, group metadata, selectable precision, and optional
+NetCDF4 deflate compression.
 
 Contributing authors: Alexander Gabourie (Stanford University)
                       Liang Ting (The Chinese University of Hong Kong)
@@ -31,6 +32,7 @@ https://ambermd.org/netcdf/nctraj.pdf
 #ifdef USE_NETCDF
 
 #include "dump_netcdf.cuh"
+#include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
@@ -75,19 +77,192 @@ const char TYPE_STR[] = "type";
 const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
+const char GROUPING_METHOD_STR[] = "grouping_method";
+const char FORCES_STR[] = "forces";
+const char UNWRAPPED_COORDINATES_STR[] = "unwrapped_coordinates";
+const char POTENTIAL_STR[] = "potential_energy";
+const char CHARGE_STR[] = "charge";
+const char BEC_STR[] = "bec";
+const char VIRIAL_STR[] = "virial";
+const char MASS_STR[] = "mass";
+const char GROUP_LABELS_STR[] = "group_labels";
+
+// GPUMD keeps the per-atom virial in its own component order; this maps it to the row-major
+// order the file uses, as Dump_XYZ does. The BEC is already row-major.
+const int VIRIAL_COMPONENT[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
+const int ROW_MAJOR_COMPONENT[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+
 std::vector<std::string> DUMP_NETCDF::initialized_files_;
 std::vector<std::string> DUMP_NETCDF::active_files_;
 
-DUMP_NETCDF::DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups)
+// The three packing helpers below take one per-atom array laid out as src[atom + N * component],
+// select the atoms of the output through `indices`, apply the rotation into the restricted
+// NetCDF cell where the quantity calls for one, and write the result out atom-major in the
+// element type the file uses.
+
+template <typename T, typename S>
+static void
+pack_scalar(const std::vector<int>& indices, const std::vector<S>& src, std::vector<T>& dst)
 {
+  for (size_t n = 0; n < indices.size(); ++n) {
+    dst[n] = static_cast<T>(src[indices[n]]);
+  }
+}
+
+template <typename T, typename S>
+static void pack_vector(
+  const std::vector<int>& indices,
+  const int number_of_atoms,
+  const bool rotate,
+  const double transform[9],
+  const double scale,
+  const std::vector<S>& src,
+  std::vector<T>& dst)
+{
+  for (size_t n = 0; n < indices.size(); ++n) {
+    const int m = indices[n];
+    for (int i = 0; i < 3; ++i) {
+      double value = 0.0;
+      if (rotate) {
+        for (int j = 0; j < 3; ++j) {
+          value += transform[i * 3 + j] * src[m + number_of_atoms * j];
+        }
+      } else {
+        value = src[m + number_of_atoms * i];
+      }
+      dst[n * 3 + i] = static_cast<T>(value * scale);
+    }
+  }
+}
+
+template <typename T, typename S>
+static void pack_tensor(
+  const std::vector<int>& indices,
+  const int number_of_atoms,
+  const bool rotate,
+  const double transform[9],
+  const int component[9],
+  const std::vector<S>& src,
+  std::vector<T>& dst)
+{
+  for (size_t n = 0; n < indices.size(); ++n) {
+    const int m = indices[n];
+    double tensor[9];
+    for (int c = 0; c < 9; ++c) {
+      tensor[c] = src[m + number_of_atoms * component[c]];
+    }
+    if (rotate) {
+      // A rank-2 tensor follows the cell as R T R^T, which holds for any orthogonal R and so
+      // also when R is the reflection produced for a left-handed cell.
+      double temp[9];
+      for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+          double sum = 0.0;
+          for (int k = 0; k < 3; ++k) {
+            sum += transform[i * 3 + k] * tensor[k * 3 + j];
+          }
+          temp[i * 3 + j] = sum;
+        }
+      }
+      for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+          double sum = 0.0;
+          for (int k = 0; k < 3; ++k) {
+            sum += temp[i * 3 + k] * transform[j * 3 + k];
+          }
+          tensor[i * 3 + j] = sum;
+        }
+      }
+    }
+    for (int c = 0; c < 9; ++c) {
+      dst[n * 9 + c] = static_cast<T>(tensor[c]);
+    }
+  }
+}
+
+// The file holds floats or doubles depending on the precision option, so every pack goes through
+// one of these, which pick the buffer and instantiate the helper for its element type.
+
+template <typename S>
+static void pack_scalar_by_precision(
+  const int precision,
+  const std::vector<int>& indices,
+  const std::vector<S>& src,
+  std::vector<float>& pack_float,
+  std::vector<double>& pack_double)
+{
+  if (precision == 1) {
+    pack_scalar(indices, src, pack_float);
+  } else {
+    pack_scalar(indices, src, pack_double);
+  }
+}
+
+template <typename S>
+static void pack_vector_by_precision(
+  const int precision,
+  const std::vector<int>& indices,
+  const int number_of_atoms,
+  const bool rotate,
+  const double transform[9],
+  const double scale,
+  const std::vector<S>& src,
+  std::vector<float>& pack_float,
+  std::vector<double>& pack_double)
+{
+  if (precision == 1) {
+    pack_vector(indices, number_of_atoms, rotate, transform, scale, src, pack_float);
+  } else {
+    pack_vector(indices, number_of_atoms, rotate, transform, scale, src, pack_double);
+  }
+}
+
+template <typename S>
+static void pack_tensor_by_precision(
+  const int precision,
+  const std::vector<int>& indices,
+  const int number_of_atoms,
+  const bool rotate,
+  const double transform[9],
+  const int component[9],
+  const std::vector<S>& src,
+  std::vector<float>& pack_float,
+  std::vector<double>& pack_double)
+{
+  if (precision == 1) {
+    pack_tensor(indices, number_of_atoms, rotate, transform, component, src, pack_float);
+  } else {
+    pack_tensor(indices, number_of_atoms, rotate, transform, component, src, pack_double);
+  }
+}
+
+DUMP_NETCDF::DUMP_NETCDF(
+  const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
+{
+  is_nep_charge_ = check_is_nep_charge();
+
   parse(param, num_param, groups);
+
+  // The integrator only maintains the unwrapped positions while this array is non-empty, so
+  // asking for them has to allocate it. Unlike dump_xyz this is done only when the quantity was
+  // requested, so that a run that does not ask for it does not pay for the unwrapping.
+  if (quantities_.has_unwrapped_position_) {
+    if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
+      atom.unwrapped_position.resize(atom.number_of_atoms * 3);
+      atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
+    }
+    if (atom.position_temp.size() < atom.number_of_atoms * 3) {
+      atom.position_temp.resize(atom.number_of_atoms * 3);
+    }
+  }
+
   property_name = "dump_netcdf";
 }
 
 void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
-  printf("Dump positions and optional velocities in NetCDF format.\n");
+  printf("Dump per-atom data in NetCDF format.\n");
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("dump_netcdf should have at least 2 parameters.\n");
@@ -115,8 +290,9 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
   filename_ = param[2];
   printf("    into file %s.\n", filename_.c_str());
 
+  number_of_grouping_methods_ = groups.size();
+
   bool group_seen = false;
-  bool velocity_seen = false;
   bool precision_seen = false;
   bool compression_seen = false;
   for (int k = 3; k < num_param; k++) {
@@ -135,13 +311,6 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
         PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
       }
       group_seen = true;
-    } else if (strcmp(param[k], "velocity") == 0) {
-      if (velocity_seen) {
-        PRINT_INPUT_ERROR("Quantity 'velocity' is specified more than once in dump_netcdf.\n");
-      }
-      has_velocity_ = 1;
-      velocity_seen = true;
-      printf("    with velocity data.\n");
     } else if (strcmp(param[k], "precision") == 0) {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_netcdf.\n");
@@ -175,16 +344,34 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
         PRINT_INPUT_ERROR("Compression should be 'none' or 'deflate <0-9>'.\n");
       }
       compression_seen = true;
-    } else {
+    } else if (!parse_dump_quantity(param[k], quantities_, is_nep_charge_, groups, "dump_netcdf")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_netcdf.\n");
+    }
+  }
+
+  // A canonical listing of what was requested, independent of the order the arguments came in.
+  // It goes into the file as the gpumd_quantities attribute and is what appending compares.
+  const std::pair<bool, const char*> quantity_names[] = {
+    {quantities_.has_velocity_, "velocity"},
+    {quantities_.has_force_, "force"},
+    {quantities_.has_potential_, "potential"},
+    {quantities_.has_unwrapped_position_, "unwrapped_position"},
+    {quantities_.has_mass_, "mass"},
+    {quantities_.has_charge_, "charge"},
+    {quantities_.has_bec_, "bec"},
+    {quantities_.has_virial_, "virial"},
+    {quantities_.has_group_, "group_labels"}};
+  for (const auto& quantity : quantity_names) {
+    if (quantity.first) {
+      if (!quantity_list_.empty()) {
+        quantity_list_ += " ";
+      }
+      quantity_list_ += quantity.second;
     }
   }
 
   if (!group_seen) {
     printf("    for the whole system.\n");
-  }
-  if (!has_velocity_) {
-    printf("    without velocity data.\n");
   }
   if (precision_ == 1) {
     printf("    using single precision for NetCDF output.\n");
@@ -210,31 +397,50 @@ void DUMP_NETCDF::preprocess(
   }
   active_files_.push_back(filename_);
 
+  // The atoms of the output, in the order they are written. Group membership does not change
+  // during a run, so this is built once and then serves both the grouped and the whole-system
+  // case, which lets every quantity share one packing path.
   if (grouping_method_ < 0) {
     number_of_atoms_to_dump_ = atom.number_of_atoms;
+    dump_indices_.resize(number_of_atoms_to_dump_);
+    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
+      dump_indices_[n] = n;
+    }
   } else {
     const Group& selected_group = group[grouping_method_];
     number_of_atoms_to_dump_ = selected_group.cpu_size[group_id_];
-    cpu_type_to_dump_.resize(number_of_atoms_to_dump_);
-    group_position_.resize(number_of_atoms_to_dump_ * 3);
-    cpu_group_position_.resize(number_of_atoms_to_dump_ * 3);
-    if (has_velocity_) {
-      group_velocity_.resize(number_of_atoms_to_dump_ * 3);
-      cpu_group_velocity_.resize(number_of_atoms_to_dump_ * 3);
+    const int group_offset = selected_group.cpu_size_sum[group_id_];
+    dump_indices_.resize(number_of_atoms_to_dump_);
+    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
+      dump_indices_[n] = selected_group.cpu_contents[group_offset + n];
     }
   }
+  cpu_type_to_dump_.resize(number_of_atoms_to_dump_);
 
-  const size_t frame_values = size_t(number_of_atoms_to_dump_) * 3;
+  // one variable of one frame at a time, so nine components per atom is the widest case
+  const size_t pack_values = size_t(number_of_atoms_to_dump_) * 9;
   if (precision_ == 1) {
-    cpu_position_float_.resize(frame_values);
-    if (has_velocity_) {
-      cpu_velocity_float_.resize(frame_values);
-    }
+    pack_float_.resize(pack_values);
   } else {
-    cpu_position_double_.resize(frame_values);
-    if (has_velocity_) {
-      cpu_velocity_double_.resize(frame_values);
-    }
+    pack_double_.resize(pack_values);
+  }
+
+  // host copies of the arrays Atom does not already keep on the host, sized for the whole
+  // system since that is what is copied back from the device
+  if (quantities_.has_force_) {
+    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  }
+  if (quantities_.has_potential_) {
+    cpu_potential_per_atom_.resize(atom.number_of_atoms);
+  }
+  if (quantities_.has_unwrapped_position_) {
+    cpu_unwrapped_position_.resize(atom.number_of_atoms * 3);
+  }
+  if (quantities_.has_virial_) {
+    cpu_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  }
+  if (quantities_.has_bec_) {
+    cpu_bec_.resize(atom.number_of_atoms * 9);
   }
 
   const bool initialized =
@@ -246,12 +452,39 @@ void DUMP_NETCDF::preprocess(
     validate_file_definition();
     NC_CHECK(nc_inq_dimlen(ncid, frame_dim, &lenp));
   } else {
-    create_file();
+    create_file(group, atom);
     initialized_files_.push_back(filename_);
   }
 }
 
-void DUMP_NETCDF::create_file()
+// Defines one per-atom variable of the trajectory. `rank` is 2 for a scalar, 3 for a vector and
+// 4 for a rank-2 tensor, and `values_per_atom` the matching 1, 3 or 9, used to size the chunks.
+void DUMP_NETCDF::define_per_frame_variable(
+  const char* name, const int rank, const int values_per_atom, const char* units, int& var)
+{
+  const int dimids[4] = {frame_dim, atom_dim, spatial_dim, spatial_dim};
+  const nc_type type = precision_ == 1 ? NC_FLOAT : NC_DOUBLE;
+  NC_CHECK(nc_def_var(ncid, name, type, rank, dimids, &var));
+  if (units != nullptr) {
+    NC_CHECK(nc_put_att_text(ncid, var, UNITS_STR, strlen(units), units));
+  }
+  if (compression_level_ >= 0) {
+#if defined(NC_HAS_HDF5) && NC_HAS_HDF5
+    const size_t bytes_per_value = precision_ == 1 ? sizeof(float) : sizeof(double);
+    const size_t target_chunk_bytes = 1024 * 1024;
+    const size_t max_chunk_atoms =
+      std::max<size_t>(1, target_chunk_bytes / (bytes_per_value * values_per_atom));
+    size_t chunks[4] = {1, std::min<size_t>(number_of_atoms_to_dump_, max_chunk_atoms), 3, 3};
+    NC_CHECK(nc_def_var_chunking(ncid, var, NC_CHUNKED, chunks));
+    NC_CHECK(nc_def_var_deflate(ncid, var, 1, 1, compression_level_));
+#endif // NC_HAS_HDF5
+#if !(defined(NC_HAS_HDF5) && NC_HAS_HDF5)
+    (void)values_per_atom;
+#endif
+  }
+}
+
+void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom)
 {
   const int creation_mode = compression_level_ >= 0 ? NC_NETCDF4 : NC_64BIT_OFFSET;
   const int create_status = nc_create(filename_.c_str(), creation_mode, &ncid);
@@ -273,7 +506,8 @@ void DUMP_NETCDF::create_file()
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "ConventionVersion", 3, "1.0"));
   NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_grouping_method", NC_INT, 1, &grouping_method_));
   NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_group_id", NC_INT, 1, &group_id_));
-  NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_has_velocity", NC_INT, 1, &has_velocity_));
+  NC_CHECK(nc_put_att_text(
+    ncid, NC_GLOBAL, "gpumd_quantities", quantity_list_.size(), quantity_list_.c_str()));
   NC_CHECK(
     nc_put_att_int(ncid, NC_GLOBAL, "gpumd_compression_level", NC_INT, 1, &compression_level_));
 
@@ -285,6 +519,10 @@ void DUMP_NETCDF::create_file()
   NC_CHECK(nc_def_dim(ncid, CELL_SPATIAL_STR, 3, &cell_spatial_dim)); // unitcell lengths
   NC_CHECK(nc_def_dim(ncid, CELL_ANGULAR_STR, 3, &cell_angular_dim)); // unitcell angles
   NC_CHECK(nc_def_dim(ncid, LABEL_STR, 10, &label_dim));              // needed for cell_angular
+  if (quantities_.has_group_) {
+    NC_CHECK(
+      nc_def_dim(ncid, GROUPING_METHOD_STR, number_of_grouping_methods_, &grouping_method_dim));
+  }
 
   // Label variables
   int dimids[3];
@@ -304,54 +542,65 @@ void DUMP_NETCDF::create_file()
   dimids[1] = cell_angular_dim;
   NC_CHECK(nc_def_var(ncid, CELL_ANGLES_STR, NC_DOUBLE, 2, dimids, &cell_angles_var));
 
-  // More extensive data variables (type, coordinates, velocities)
+  // Units of the cell and time variables
+  NC_CHECK(nc_put_att_text(ncid, time_var, UNITS_STR, 10, "picosecond"));
+  NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "angstrom"));
+  NC_CHECK(nc_put_att_text(ncid, cell_angles_var, UNITS_STR, 6, "degree"));
+
+  // Per-atom data variables. The type is written per frame, as it always has been; the
+  // quantities that cannot change during a run are defined further down without a frame
+  // dimension, so that they are stored once rather than repeated every frame.
   dimids[0] = frame_dim;
   dimids[1] = atom_dim;
-  dimids[2] = spatial_dim;
-
-  if (precision_ == 1) // single precision
-  {
-    NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_FLOAT, 3, dimids, &coordinates_var));
-    if (has_velocity_) {
-      NC_CHECK(nc_def_var(ncid, VELOCITIES_STR, NC_FLOAT, 3, dimids, &velocities_var));
-    }
-  } else {
-    NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_DOUBLE, 3, dimids, &coordinates_var));
-    if (has_velocity_) {
-      NC_CHECK(nc_def_var(ncid, VELOCITIES_STR, NC_DOUBLE, 3, dimids, &velocities_var));
-    }
-  }
   NC_CHECK(nc_def_var(ncid, TYPE_STR, NC_INT, 2, dimids, &type_var));
-
   if (compression_level_ >= 0) {
 #if defined(NC_HAS_HDF5) && NC_HAS_HDF5
-    const size_t bytes_per_value = precision_ == 1 ? sizeof(float) : sizeof(double);
-    const size_t target_chunk_bytes = 1024 * 1024;
-    const size_t max_chunk_atoms = std::max<size_t>(1, target_chunk_bytes / (bytes_per_value * 3));
-    size_t chunks[3] = {1, std::min<size_t>(number_of_atoms_to_dump_, max_chunk_atoms), 3};
-    NC_CHECK(nc_def_var_chunking(ncid, coordinates_var, NC_CHUNKED, chunks));
-    NC_CHECK(nc_def_var_deflate(ncid, coordinates_var, 1, 1, compression_level_));
-    if (has_velocity_) {
-      NC_CHECK(nc_def_var_chunking(ncid, velocities_var, NC_CHUNKED, chunks));
-      NC_CHECK(nc_def_var_deflate(ncid, velocities_var, 1, 1, compression_level_));
-    }
     size_t type_chunks[2] = {
-      1, std::min<size_t>(number_of_atoms_to_dump_, target_chunk_bytes / sizeof(int))};
+      1, std::min<size_t>(number_of_atoms_to_dump_, (1024 * 1024) / sizeof(int))};
     NC_CHECK(nc_def_var_chunking(ncid, type_var, NC_CHUNKED, type_chunks));
     NC_CHECK(nc_def_var_deflate(ncid, type_var, 1, 1, compression_level_));
 #endif // NC_HAS_HDF5
   }
 
-  // Units
-  NC_CHECK(nc_put_att_text(ncid, time_var, UNITS_STR, 10, "picosecond"));
-  NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "angstrom"));
-  NC_CHECK(nc_put_att_text(ncid, coordinates_var, UNITS_STR, 8, "angstrom"));
-  NC_CHECK(nc_put_att_text(ncid, cell_angles_var, UNITS_STR, 6, "degree"));
-
-  if (has_velocity_) {
-    NC_CHECK(nc_put_att_text(
-      ncid, velocities_var, UNITS_STR, 19, "angstrom/picosecond")); // AMBER conventions
+  define_per_frame_variable(COORDINATES_STR, 3, 3, "angstrom", coordinates_var);
+  if (quantities_.has_velocity_) {
+    // AMBER conventions
+    define_per_frame_variable(VELOCITIES_STR, 3, 3, "angstrom/picosecond", velocities_var);
   }
+  if (quantities_.has_force_) {
+    define_per_frame_variable(FORCES_STR, 3, 3, "eV/angstrom", forces_var);
+  }
+  if (quantities_.has_unwrapped_position_) {
+    define_per_frame_variable(
+      UNWRAPPED_COORDINATES_STR, 3, 3, "angstrom", unwrapped_coordinates_var);
+  }
+  if (quantities_.has_potential_) {
+    define_per_frame_variable(POTENTIAL_STR, 2, 1, "eV", potential_var);
+  }
+  if (quantities_.has_charge_) {
+    define_per_frame_variable(CHARGE_STR, 2, 1, "e", charge_var);
+  }
+  if (quantities_.has_bec_) {
+    define_per_frame_variable(BEC_STR, 4, 9, "e", bec_var);
+  }
+  if (quantities_.has_virial_) {
+    define_per_frame_variable(VIRIAL_STR, 4, 9, "eV", virial_var);
+  }
+
+  // Quantities that are constant over the run. They are written once and left uncompressed,
+  // being one copy rather than one per frame.
+  const nc_type per_atom_type = precision_ == 1 ? NC_FLOAT : NC_DOUBLE;
+  if (quantities_.has_mass_) {
+    dimids[0] = atom_dim;
+    NC_CHECK(nc_def_var(ncid, MASS_STR, per_atom_type, 1, dimids, &mass_var));
+    NC_CHECK(nc_put_att_text(ncid, mass_var, UNITS_STR, 3, "amu"));
+  }
+  if (quantities_.has_group_) {
+    dimids[0] = atom_dim;
+    dimids[1] = grouping_method_dim;
+    NC_CHECK(nc_def_var(ncid, GROUP_LABELS_STR, NC_INT, 2, dimids, &group_labels_var));
+  }
+
   // Definitions are complete -> leave define mode
   NC_CHECK(nc_enddef(ncid));
 
@@ -369,7 +618,39 @@ void DUMP_NETCDF::create_file()
   startp[0] = 2;
   countp[1] = 5;
   NC_CHECK(nc_put_vara_text(ncid, cell_angular_var, startp, countp, "gamma"));
+
+  // The constant quantities, written once now rather than once per frame
+  if (quantities_.has_mass_) {
+    pack_scalar_by_precision(precision_, dump_indices_, atom.cpu_mass, pack_float_, pack_double_);
+    const size_t mass_start[1] = {0};
+    const size_t mass_count[1] = {size_t(number_of_atoms_to_dump_)};
+    put_packed(mass_var, mass_start, mass_count);
+  }
+  if (quantities_.has_group_) {
+    cpu_group_labels_.resize(size_t(number_of_atoms_to_dump_) * number_of_grouping_methods_);
+    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
+      for (int m = 0; m < number_of_grouping_methods_; ++m) {
+        cpu_group_labels_[n * number_of_grouping_methods_ + m] =
+          groups[m].cpu_label[dump_indices_[n]];
+      }
+    }
+    const size_t label_start[2] = {0, 0};
+    const size_t label_count[2] = {
+      size_t(number_of_atoms_to_dump_), size_t(number_of_grouping_methods_)};
+    NC_CHECK(
+      nc_put_vara_int(ncid, group_labels_var, label_start, label_count, cpu_group_labels_.data()));
+  }
+
   lenp = 0;
+}
+
+void DUMP_NETCDF::put_packed(const int var, const size_t* start, const size_t* count)
+{
+  if (precision_ == 1) {
+    NC_CHECK(nc_put_vara_float(ncid, var, start, count, pack_float_.data()));
+  } else {
+    NC_CHECK(nc_put_vara_double(ncid, var, start, count, pack_double_.data()));
+  }
 }
 
 void DUMP_NETCDF::load_file_definition()
@@ -407,23 +688,48 @@ void DUMP_NETCDF::validate_file_definition()
 
   int previous_grouping_method;
   int previous_group_id;
-  int previous_has_velocity;
   int previous_compression_level;
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_grouping_method", &previous_grouping_method));
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_group_id", &previous_group_id));
-  NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_has_velocity", &previous_has_velocity));
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_compression_level", &previous_compression_level));
   if (previous_grouping_method != grouping_method_ || previous_group_id != group_id_) {
     PRINT_INPUT_ERROR("Cannot change the dump_netcdf group between run commands.\n");
   }
-  if (previous_has_velocity != has_velocity_) {
-    PRINT_INPUT_ERROR("Cannot change dump_netcdf velocity output between run commands.\n");
-  }
-  if (has_velocity_) {
-    NC_CHECK(nc_inq_varid(ncid, VELOCITIES_STR, &velocities_var));
-  }
   if (previous_compression_level != compression_level_) {
     PRINT_INPUT_ERROR("Cannot change dump_netcdf compression between run commands.\n");
+  }
+
+  // One attribute covers every quantity, so the whole set is compared at once rather than one
+  // flag at a time.
+  size_t previous_length = 0;
+  NC_CHECK(nc_inq_attlen(ncid, NC_GLOBAL, "gpumd_quantities", &previous_length));
+  std::string previous_quantities(previous_length, '\0');
+  NC_CHECK(nc_get_att_text(ncid, NC_GLOBAL, "gpumd_quantities", &previous_quantities[0]));
+  if (previous_quantities != quantity_list_) {
+    PRINT_INPUT_ERROR("Cannot change the dump_netcdf quantities between run commands.\n");
+  }
+
+  // The quantities match, so every variable they call for is in the file.
+  if (quantities_.has_velocity_) {
+    NC_CHECK(nc_inq_varid(ncid, VELOCITIES_STR, &velocities_var));
+  }
+  if (quantities_.has_force_) {
+    NC_CHECK(nc_inq_varid(ncid, FORCES_STR, &forces_var));
+  }
+  if (quantities_.has_unwrapped_position_) {
+    NC_CHECK(nc_inq_varid(ncid, UNWRAPPED_COORDINATES_STR, &unwrapped_coordinates_var));
+  }
+  if (quantities_.has_potential_) {
+    NC_CHECK(nc_inq_varid(ncid, POTENTIAL_STR, &potential_var));
+  }
+  if (quantities_.has_charge_) {
+    NC_CHECK(nc_inq_varid(ncid, CHARGE_STR, &charge_var));
+  }
+  if (quantities_.has_bec_) {
+    NC_CHECK(nc_inq_varid(ncid, BEC_STR, &bec_var));
+  }
+  if (quantities_.has_virial_) {
+    NC_CHECK(nc_inq_varid(ncid, VIRIAL_STR, &virial_var));
   }
 }
 
@@ -486,55 +792,15 @@ static bool build_netcdf_transform(
   return transform_vectors;
 }
 
-template <typename T>
-static void pack_netcdf_frame(
-  const int number_of_atoms,
-  const bool has_velocity,
-  const bool transform_vectors,
-  const double transform[9],
-  const double velocity_scale,
-  const std::vector<double>& position,
-  const std::vector<double>& velocity,
-  std::vector<T>& packed_position,
-  std::vector<T>& packed_velocity)
+void DUMP_NETCDF::write(const double global_time, const Box& box, const Atom& atom)
 {
-  for (int i = 0; i < number_of_atoms; ++i) {
-    for (int output_dim = 0; output_dim < 3; ++output_dim) {
-      double position_value = position[i + number_of_atoms * output_dim];
-      double velocity_value = has_velocity ? velocity[i + number_of_atoms * output_dim] : 0.0;
-      if (transform_vectors) {
-        position_value = 0.0;
-        velocity_value = 0.0;
-        for (int input_dim = 0; input_dim < 3; ++input_dim) {
-          const double coefficient = transform[output_dim * 3 + input_dim];
-          position_value += coefficient * position[i + number_of_atoms * input_dim];
-          if (has_velocity) {
-            velocity_value += coefficient * velocity[i + number_of_atoms * input_dim];
-          }
-        }
-      }
-      packed_position[i * 3 + output_dim] = static_cast<T>(position_value);
-      if (has_velocity) {
-        packed_velocity[i * 3 + output_dim] = static_cast<T>(velocity_value * velocity_scale);
-      }
-    }
-  }
-}
-
-void DUMP_NETCDF::write(
-  const double global_time,
-  const Box& box,
-  const std::vector<int>& cpu_type,
-  const std::vector<double>& cpu_position_per_atom,
-  const std::vector<double>& cpu_velocity_per_atom)
-{
-  const int number_of_atoms = number_of_atoms_to_dump_;
+  const int number_of_atoms = atom.number_of_atoms;
+  const int number_to_dump = number_of_atoms_to_dump_;
 
   double cell_lengths[3];
   double cell_angles[3];
   double cell_transform[9];
-  const bool transform_vectors =
-    build_netcdf_transform(box, cell_lengths, cell_angles, cell_transform);
+  const bool rotate = build_netcdf_transform(box, cell_lengths, cell_angles, cell_transform);
 
   // Set lengths to 0 if PBC is off
   if (!box.pbc_x)
@@ -552,50 +818,107 @@ void DUMP_NETCDF::write(
   NC_CHECK(nc_put_vara_double(ncid, cell_lengths_var, cell_start, cell_count, cell_lengths));
   NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, cell_start, cell_count, cell_angles));
 
-  const double natural_to_A_per_ps =
-    1.0 / TIME_UNIT_CONVERSION * 1000.0; // * 1000 from A/fs to A/ps
   size_t atom_start[2] = {lenp, 0};
-  size_t atom_count[2] = {1, size_t(number_of_atoms)};
+  size_t atom_count[2] = {1, size_t(number_to_dump)};
   size_t vector_start[3] = {lenp, 0, 0};
-  size_t vector_count[3] = {1, size_t(number_of_atoms), 3};
-  NC_CHECK(nc_put_vara_int(ncid, type_var, atom_start, atom_count, cpu_type.data()));
+  size_t vector_count[3] = {1, size_t(number_to_dump), 3};
+  size_t tensor_start[4] = {lenp, 0, 0, 0};
+  size_t tensor_count[4] = {1, size_t(number_to_dump), 3, 3};
 
-  if (precision_ == 1) // single precision
-  {
-    pack_netcdf_frame(
-      number_of_atoms,
-      has_velocity_,
-      transform_vectors,
-      cell_transform,
-      natural_to_A_per_ps,
-      cpu_position_per_atom,
-      cpu_velocity_per_atom,
-      cpu_position_float_,
-      cpu_velocity_float_);
-    NC_CHECK(nc_put_vara_float(
-      ncid, coordinates_var, vector_start, vector_count, cpu_position_float_.data()));
-    if (has_velocity_) {
-      NC_CHECK(nc_put_vara_float(
-        ncid, velocities_var, vector_start, vector_count, cpu_velocity_float_.data()));
-    }
-  } else {
-    pack_netcdf_frame(
-      number_of_atoms,
-      has_velocity_,
-      transform_vectors,
-      cell_transform,
-      natural_to_A_per_ps,
-      cpu_position_per_atom,
-      cpu_velocity_per_atom,
-      cpu_position_double_,
-      cpu_velocity_double_);
-    NC_CHECK(nc_put_vara_double(
-      ncid, coordinates_var, vector_start, vector_count, cpu_position_double_.data()));
-    if (has_velocity_) {
-      NC_CHECK(nc_put_vara_double(
-        ncid, velocities_var, vector_start, vector_count, cpu_velocity_double_.data()));
-    }
+  for (int n = 0; n < number_to_dump; ++n) {
+    cpu_type_to_dump_[n] = atom.cpu_type[dump_indices_[n]];
   }
+  NC_CHECK(nc_put_vara_int(ncid, type_var, atom_start, atom_count, cpu_type_to_dump_.data()));
+
+  pack_vector_by_precision(
+    precision_,
+    dump_indices_,
+    number_of_atoms,
+    rotate,
+    cell_transform,
+    1.0,
+    atom.cpu_position_per_atom,
+    pack_float_,
+    pack_double_);
+  put_packed(coordinates_var, vector_start, vector_count);
+
+  if (quantities_.has_velocity_) {
+    const double natural_to_A_per_ps =
+      1.0 / TIME_UNIT_CONVERSION * 1000.0; // * 1000 from A/fs to A/ps
+    pack_vector_by_precision(
+      precision_,
+      dump_indices_,
+      number_of_atoms,
+      rotate,
+      cell_transform,
+      natural_to_A_per_ps,
+      atom.cpu_velocity_per_atom,
+      pack_float_,
+      pack_double_);
+    put_packed(velocities_var, vector_start, vector_count);
+  }
+  if (quantities_.has_force_) {
+    pack_vector_by_precision(
+      precision_,
+      dump_indices_,
+      number_of_atoms,
+      rotate,
+      cell_transform,
+      1.0,
+      cpu_force_per_atom_,
+      pack_float_,
+      pack_double_);
+    put_packed(forces_var, vector_start, vector_count);
+  }
+  if (quantities_.has_unwrapped_position_) {
+    pack_vector_by_precision(
+      precision_,
+      dump_indices_,
+      number_of_atoms,
+      rotate,
+      cell_transform,
+      1.0,
+      cpu_unwrapped_position_,
+      pack_float_,
+      pack_double_);
+    put_packed(unwrapped_coordinates_var, vector_start, vector_count);
+  }
+  if (quantities_.has_potential_) {
+    pack_scalar_by_precision(
+      precision_, dump_indices_, cpu_potential_per_atom_, pack_float_, pack_double_);
+    put_packed(potential_var, atom_start, atom_count);
+  }
+  if (quantities_.has_charge_) {
+    pack_scalar_by_precision(precision_, dump_indices_, atom.cpu_charge, pack_float_, pack_double_);
+    put_packed(charge_var, atom_start, atom_count);
+  }
+  if (quantities_.has_bec_) {
+    pack_tensor_by_precision(
+      precision_,
+      dump_indices_,
+      number_of_atoms,
+      rotate,
+      cell_transform,
+      ROW_MAJOR_COMPONENT,
+      cpu_bec_,
+      pack_float_,
+      pack_double_);
+    put_packed(bec_var, tensor_start, tensor_count);
+  }
+  if (quantities_.has_virial_) {
+    pack_tensor_by_precision(
+      precision_,
+      dump_indices_,
+      number_of_atoms,
+      rotate,
+      cell_transform,
+      VIRIAL_COMPONENT,
+      cpu_virial_per_atom_,
+      pack_float_,
+      pack_double_);
+    put_packed(virial_var, tensor_start, tensor_count);
+  }
+
   ++lenp;
 }
 
@@ -614,29 +937,6 @@ void DUMP_NETCDF::postprocess(
     const auto active_file = std::find(active_files_.begin(), active_files_.end(), filename_);
     if (active_file != active_files_.end()) {
       active_files_.erase(active_file);
-    }
-  }
-}
-
-static __global__ void gather_netcdf_group(
-  const int number_of_atoms_in_group,
-  const int number_of_atoms,
-  const int group_offset,
-  const int* group_contents,
-  const double* position,
-  const double* velocity,
-  double* group_position,
-  double* group_velocity)
-{
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms_in_group) {
-    const int atom_index = group_contents[group_offset + n];
-    for (int d = 0; d < 3; ++d) {
-      group_position[n + number_of_atoms_in_group * d] = position[atom_index + number_of_atoms * d];
-      if (group_velocity != nullptr) {
-        group_velocity[n + number_of_atoms_in_group * d] =
-          velocity[atom_index + number_of_atoms * d];
-      }
     }
   }
 }
@@ -660,41 +960,38 @@ void DUMP_NETCDF::process(
   if ((step + 1) % interval_ != 0)
     return;
 
-  const std::vector<double>* cpu_position = &atom.cpu_position_per_atom;
-  const std::vector<double>* cpu_velocity = &atom.cpu_velocity_per_atom;
-  const std::vector<int>* cpu_type = &atom.cpu_type;
-  if (grouping_method_ < 0) {
-    atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-    if (has_velocity_) {
-      atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
+  // Copy back what was asked for, in full. Selecting the group happens on the host while
+  // packing, through dump_indices_, which is one path for the grouped and the whole-system case.
+  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
+  if (quantities_.has_velocity_) {
+    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
+  }
+  if (quantities_.has_force_) {
+    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+  }
+  if (quantities_.has_potential_) {
+    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
+  }
+  if (quantities_.has_unwrapped_position_) {
+    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
+  }
+  if (quantities_.has_virial_) {
+    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
+  }
+  if (quantities_.has_charge_) {
+    if (is_nep_charge_) {
+      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+      nep_charge.copy_to_host(atom.cpu_charge.data());
+    } else {
+      atom.charge.copy_to_host(atom.cpu_charge.data());
     }
-  } else {
-    const Group& selected_group = group[grouping_method_];
-    const int group_offset = selected_group.cpu_size_sum[group_id_];
-    gather_netcdf_group<<<(number_of_atoms_to_dump_ - 1) / 128 + 1, 128>>>(
-      number_of_atoms_to_dump_,
-      atom.number_of_atoms,
-      group_offset,
-      selected_group.contents.data(),
-      atom.position_per_atom.data(),
-      has_velocity_ ? atom.velocity_per_atom.data() : nullptr,
-      group_position_.data(),
-      has_velocity_ ? group_velocity_.data() : nullptr);
-    GPU_CHECK_KERNEL
-    group_position_.copy_to_host(cpu_group_position_.data());
-    if (has_velocity_) {
-      group_velocity_.copy_to_host(cpu_group_velocity_.data());
-    }
-    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
-      const int atom_index = selected_group.cpu_contents[group_offset + n];
-      cpu_type_to_dump_[n] = atom.cpu_type[atom_index];
-    }
-    cpu_position = &cpu_group_position_;
-    cpu_velocity = &cpu_group_velocity_;
-    cpu_type = &cpu_type_to_dump_;
+  }
+  if (quantities_.has_bec_) {
+    GPU_Vector<float>& gpu_bec = force.potentials[0]->get_bec_reference();
+    gpu_bec.copy_to_host(cpu_bec_.data());
   }
 
-  write(global_time, box, *cpu_type, *cpu_position, *cpu_velocity);
+  write(global_time, box, atom);
 }
 
 #endif
