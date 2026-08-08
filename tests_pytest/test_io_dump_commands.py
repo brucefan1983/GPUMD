@@ -656,19 +656,30 @@ def test_dump_netcdf_rejects_duplicate_filename_in_one_run(
 
 def test_dump_netcdf_rotates_general_cell(
         tmp_path, structure, model_path, model_type, gpumd_command):
+    """AMBER NetCDF stores only cell lengths and angles, so a general GPUMD cell is written in a
+    restricted orientation and everything directional has to be rotated with it. Positions,
+    velocities, forces and unwrapped positions follow as vectors, the per-atom virial and the BEC
+    as rank-2 tensors.
+
+    The dump_xyz file written by the same run is the reference, so the two describe the same
+    trajectory and the rotation is the only thing between them. Getting the tensor rule wrong --
+    rotating one-sidedly, or transposing -- is silent otherwise, since the values stay the same
+    size and the file still reads back."""
     netcdf4 = pytest.importorskip('netCDF4')
     rotated_structure = structure.copy()
     general_cell = rotated_structure.cell.array.copy()
     general_cell[0] += 0.05 * general_cell[2]
     rotated_structure.set_cell(general_cell, scale_atoms=True)
     rotated_structure.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
+
+    quantities = ['velocity', 'force', 'unwrapped_position', 'virial']
+    if model_type != 'nep':
+        quantities.append('bec')
     case = CommandIOCase(
         name='dump_netcdf_general_cell',
         run_in_lines=[
-            ('dump_xyz', [1, 'reference.xyz', 'velocity']),
-            ('dump_netcdf', [
-                1, 'general-cell.nc', 'velocity', 'precision', 'double',
-            ]),
+            ('dump_xyz', [1, 'reference.xyz'] + quantities + ['precision', 'double']),
+            ('dump_netcdf', [1, 'general-cell.nc'] + quantities + ['precision', 'double']),
         ],
         expected_output_files=['reference.xyz', 'general-cell.nc'],
     )
@@ -677,27 +688,223 @@ def test_dump_netcdf_rotates_general_cell(
     _check_netcdf_result(result)
 
     reference = read(tmp_path / 'reference.xyz', index=0)
+    netcdf_values = {}
     with netcdf4.Dataset(tmp_path / 'general-cell.nc') as dataset:
         lengths = dataset.variables['cell_lengths'][0]
         angles = dataset.variables['cell_angles'][0]
         netcdf_cell = Cell.fromcellpar(np.concatenate((lengths, angles))).array
-        netcdf_positions = dataset.variables['coordinates'][0]
-        netcdf_velocities = dataset.variables['velocities'][0]
+        for name in ('coordinates', 'velocities', 'forces', 'unwrapped_coordinates', 'virial'):
+            netcdf_values[name] = np.array(dataset.variables[name][0])
+        if 'bec' in quantities:
+            netcdf_values['bec'] = np.array(dataset.variables['bec'][0])
 
     reference_cell = reference.cell.array
+    # v_netcdf = v_reference @ rotation_transpose, so the rotation itself is its transpose
     rotation_transpose = np.linalg.solve(reference_cell, netcdf_cell)
+    rotation = rotation_transpose.T
     assert not np.allclose(reference_cell, netcdf_cell)
     assert not np.allclose(angles, (90.0, 90.0, 90.0))
-    np.testing.assert_allclose(
-        netcdf_positions, reference.positions @ rotation_transpose, atol=1.0e-6)
-    np.testing.assert_allclose(
-        netcdf_velocities,
-        reference.arrays['vel'] @ rotation_transpose * 1000.0,
-        atol=1.0e-5)
+    np.testing.assert_allclose(rotation @ rotation.T, np.eye(3), atol=1.0e-10)
+
+    vectors = [
+        ('coordinates', reference.positions, 1.0, 1.0e-6),
+        # dump_xyz writes velocities in A/fs and NetCDF in A/ps
+        ('velocities', reference.arrays['vel'], 1000.0, 1.0e-5),
+        ('forces', reference.get_forces(), 1.0, 1.0e-6),
+        ('unwrapped_coordinates', reference.arrays['unwrapped_position'], 1.0, 1.0e-6),
+    ]
+    for name, reference_value, scale, tolerance in vectors:
+        np.testing.assert_allclose(
+            netcdf_values[name], reference_value @ rotation_transpose * scale, atol=tolerance,
+            err_msg=f'{name} is not the reference rotated into the NetCDF cell')
+
+    for name in ('virial', 'bec'):
+        if name not in netcdf_values:
+            continue
+        reference_tensor = reference.arrays[name].reshape(-1, 3, 3)
+        expected = np.einsum('ij,ajk,lk->ail', rotation, reference_tensor, rotation)
+        assert not np.allclose(netcdf_values[name], reference_tensor, atol=1.0e-6), (
+            f'{name} is unchanged by the rotation, so this comparison proves nothing')
+        np.testing.assert_allclose(
+            netcdf_values[name], expected, atol=1.0e-6,
+            err_msg=f'{name} does not follow the cell as R T R^T')
+
+
+# quantity keyword -> (variable, dimensions, units), as the documentation tabulates them. `bec`
+# is left out because it needs a charge model, and is covered on its own below.
+NETCDF_QUANTITY_LAYOUT = {
+    'velocity': ('velocities', ('frame', 'atom', 'spatial'), 'angstrom/picosecond'),
+    'force': ('forces', ('frame', 'atom', 'spatial'), 'eV/angstrom'),
+    'unwrapped_position': ('unwrapped_coordinates', ('frame', 'atom', 'spatial'), 'angstrom'),
+    'potential': ('potential_energy', ('frame', 'atom'), 'eV'),
+    'charge': ('charge', ('frame', 'atom'), 'e'),
+    'virial': ('virial', ('frame', 'atom', 'spatial', 'spatial'), 'eV'),
+    'mass': ('mass', ('atom',), 'amu'),
+    'group_labels': ('group_labels', ('atom', 'grouping_method'), None),
+}
+
+
+def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type, gpumd_command):
+    """Each quantity has to land in the variable, with the dimensions and units, that the
+    documentation promises, since that layout is the whole interface to the file. The mass and
+    the group labels are constant over a run and carry no frame dimension."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    quantities = list(NETCDF_QUANTITY_LAYOUT)
+    case = CommandIOCase(
+        name='dump_netcdf_quantities',
+        run_in_lines=[
+            ('dump_netcdf', [1, 'all.nc'] + quantities + ['precision', 'double']),
+            # the same set in the opposite order, to pin down that neither the file layout nor
+            # the recorded quantity list follows the order the arguments came in
+            ('dump_netcdf', [1, 'reversed.nc'] + quantities[::-1] + ['precision', 'double']),
+        ],
+        expected_output_files=['all.nc', 'reversed.nc'], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'all.nc') as dataset:
+        for quantity, (name, dimensions, units) in NETCDF_QUANTITY_LAYOUT.items():
+            assert name in dataset.variables, f'{quantity} did not produce a {name} variable'
+            variable = dataset.variables[name]
+            assert variable.dimensions == dimensions, quantity
+            expected_dtype = np.dtype('int32') if units is None else np.dtype('float64')
+            assert variable.dtype == expected_dtype, quantity
+            if units is None:
+                assert not hasattr(variable, 'units'), quantity
+            else:
+                assert variable.units == units, quantity
+        assert len(dataset.dimensions['grouping_method']) == 1
+        assert len(dataset.dimensions['atom']) == len(structure)
+        recorded = dataset.getncattr('gpumd_quantities')
+        assert sorted(recorded.split()) == sorted(quantities)
+
+    with netcdf4.Dataset(tmp_path / 'reversed.nc') as dataset:
+        assert dataset.getncattr('gpumd_quantities') == recorded
+
+
+def test_dump_netcdf_writes_only_the_requested_quantities(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """A quantity that was not asked for must not be in the file at all."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_one_quantity',
+        run_in_lines=[('dump_netcdf', [1, 'force.nc', 'force'])],
+        expected_output_files=['force.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'force.nc') as dataset:
+        assert 'forces' in dataset.variables
+        # the positions and types are unconditional, everything else follows the arguments
+        assert set(dataset.variables) == {
+            'spatial', 'cell_spatial', 'cell_angular', 'time', 'cell_lengths', 'cell_angles',
+            'type', 'coordinates', 'forces'}
+        assert 'grouping_method' not in dataset.dimensions
+        assert dataset.getncattr('gpumd_quantities') == 'force'
+
+
+def test_dump_netcdf_bec(tmp_path, structure, model_path, model_type, gpumd_command):
+    """BEC is a rank-2 tensor per atom and needs a charge model, so it is checked apart from the
+    other quantities."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    if model_type == 'nep':
+        pytest.skip('BEC requires a qNEP charge model')
+    case = CommandIOCase(
+        name='dump_netcdf_bec',
+        run_in_lines=[('dump_netcdf', [1, 'bec.nc', 'bec', 'precision', 'double'])],
+        expected_output_files=['bec.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'bec.nc') as dataset:
+        variable = dataset.variables['bec']
+        assert variable.dimensions == ('frame', 'atom', 'spatial', 'spatial')
+        assert variable.units == 'e'
+        assert variable.shape == (BASE_N_STEPS, len(structure), 3, 3)
+        assert np.all(np.isfinite(np.array(variable[0])))
+
+
+def test_dump_netcdf_bec_without_a_charge_model_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """BEC is only defined for a qNEP model trained against it, so asking for it otherwise has to
+    be refused rather than writing zeros."""
+    if model_type != 'nep':
+        pytest.skip('this is about the models that cannot produce BEC')
+    case = CommandIOCase(
+        name='dump_netcdf_bec_no_charge_model',
+        run_in_lines=[('dump_netcdf', [1, 'bec.nc', 'bec'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'bec without a charge model should be refused'
+    assert 'BEC' in output, output
+
+
+def test_dump_netcdf_group_labels_without_a_grouping_method_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """With no grouping method the grouping_method dimension would have length zero, which
+    NC_UNLIMITED makes indistinguishable from an unlimited dimension, the same trap the
+    empty-group check guards against."""
+    case = CommandIOCase(
+        name='dump_netcdf_group_labels_no_groups',
+        run_in_lines=[('dump_netcdf', [1, 'labels.nc', 'group_labels'])],
+        expected_output_files=[], n_groups=0)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'group_labels without a grouping method should be refused'
+    assert 'grouping method' in output, output
+
+
+def _netcdf_per_atom_virial(directory, structure, model_path, model_type, gpumd_command, kspace):
+    """Runs one qNEP single point with the given reciprocal-space method and returns the per-atom
+    virial from the NetCDF file as an (natoms, 9) array."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    directory.mkdir()
+    case = CommandIOCase(
+        name=f'dump_netcdf_virial_{kspace}',
+        prelude_lines=[('kspace', kspace)],
+        run_in_lines=[('dump_netcdf', [1, 'virial.nc', 'virial', 'precision', 'double'])],
+        expected_output_files=['virial.nc'])
+    result = run_command_io_case(
+        directory, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(directory / 'virial.nc') as dataset:
+        return np.array(dataset.variables['virial'][0]).reshape(len(structure), 9)
+
+
+def test_dump_netcdf_per_atom_virial_agrees_between_pppm_and_ewald(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The dump_netcdf counterpart of the dump_xyz test above, guarding the same scan in
+    check_need_peratom_virial in utilities/read_file.cu, which now has to recognize dump_netcdf
+    lines as well as dump_xyz ones.
+
+    The flag it sets gates only the PPPM reciprocal-space contribution, so the two methods have to
+    be compared against each other: with dump_netcdf missing from the scan, the PPPM virial
+    silently loses its k-space part while Ewald keeps it, and the file still looks perfectly
+    well-formed."""
+    if model_type == 'nep':
+        pytest.skip('a charge model is needed for there to be a reciprocal-space contribution')
+
+    pppm = _netcdf_per_atom_virial(
+        tmp_path / 'pppm', structure, model_path, model_type, gpumd_command, 'pppm')
+    ewald = _netcdf_per_atom_virial(
+        tmp_path / 'ewald', structure, model_path, model_type, gpumd_command, 'ewald')
+
+    assert pppm.shape == ewald.shape == (len(structure), 9)
+    assert np.max(np.abs(ewald)) > 0, 'the reference virial is identically zero, nothing to compare'
+    np.testing.assert_allclose(pppm, ewald, rtol=1e-2, atol=5e-3)
 
 
 INVALID_DUMP_NETCDF_ARGUMENTS = [
     ([1, 'f.nc', 'velocities'], 'Unrecognized argument'),
+    ([1, 'f.nc', 'force', 'force'], 'more than once'),
     ([1, 'f.nc', 'group', 0, 0, 'group', 0, 0], 'more than once'),
     ([1, 'f.nc', 'velocity', 'velocity'], 'more than once'),
     ([1, 'f.nc', 'precision', 'double', 'precision', 'single'], 'more than once'),
