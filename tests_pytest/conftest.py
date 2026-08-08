@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = Path(__file__).resolve().parent / 'fixtures'
 MODELS_DIR = FIXTURES_DIR / 'models'
 STRUCTURES_DIR = FIXTURES_DIR / 'structures'
+TRAINING_DIR = FIXTURES_DIR / 'training'
 GOLDEN_DIR = FIXTURES_DIR / 'golden'
 SANITIZER_INPUTS_DIR = FIXTURES_DIR / 'sanitizer_inputs'
 
@@ -30,7 +31,17 @@ def _find_gpumd_executable():
     return REPO_ROOT / 'gpumd'
 
 
+def _find_nep_executable():
+    """The same lookup as _find_gpumd_executable, for the NEP training executable, which `cd src
+    && make` builds alongside gpumd."""
+    default_path = REPO_ROOT / 'src' / 'nep'
+    if default_path.exists():
+        return default_path
+    return REPO_ROOT / 'nep'
+
+
 GPUMD_EXECUTABLE = _find_gpumd_executable()
+NEP_EXECUTABLE = _find_nep_executable()
 
 # Tolerances are set with fp32 accumulation error and non-associative reduction order in mind:
 # GPUMD sums per-atom contributions across GPU threads/blocks in an order that is not fixed
@@ -137,6 +148,11 @@ def compare_or_update_golden(name, values, tolerances, update_golden):
 @pytest.fixture
 def gpumd_command():
     return str(GPUMD_EXECUTABLE)
+
+
+@pytest.fixture
+def nep_command():
+    return str(NEP_EXECUTABLE)
 
 
 def make_bulk_C():
@@ -260,7 +276,7 @@ def _write_sanitizer_fixtures():
                 ('ensemble', ['nve']),
                 ('time_step', 1),
                 ('dump_thermo', 1),
-                ('dump_force', 1),
+                ('dump_xyz', [1, 'dump.xyz', 'force']),
                 ('run', 5),
             ],
         ),

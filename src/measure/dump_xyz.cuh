@@ -37,18 +37,18 @@ public:
     Force& force);
 
   virtual void process(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void postprocess(
     Atom& atom,
@@ -71,14 +71,15 @@ public:
   };
 
 private:
-
   bool is_nep_charge = false;
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
+  int precision_ = 1; // 1 = single precision, 2 = double
   Quantities quantities;
   int separated_ = 0;
   std::string filename_;
+  std::string fmt_;
   FILE* fid_;
 
   std::vector<double> cpu_unwrapped_position_;
@@ -88,6 +89,8 @@ private:
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
   std::vector<float> cpu_bec_;
+
+  void print_tensor(const char* name, const double* tensor);
 
   void output_line2(
     const double time,

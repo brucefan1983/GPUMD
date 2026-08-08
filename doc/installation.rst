@@ -135,12 +135,12 @@ NetCDF setup
 ============
 
 To use `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (see :ref:`dump_netcdf keyword <kw_dump_netcdf>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
-First, you must download and install the correct version of NetCDF.
-Currently, :program:`GPUMD` is coded to work with `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ and it is recommended that this version is used (not newer versions).
+First, you must download and install a compatible version of NetCDF.
+:program:`GPUMD` requires netCDF-C 4.6.3 or later; version 4.6.3 remains a known-compatible baseline.
 
 The setup instructions are below:
 
-* Download `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_
+* Download `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ or a `newer release <https://github.com/Unidata/netcdf-c/releases>`_.
 * Configure and build NetCDF.
   It is best to follow the instructions included with the software but, for the configuration, please use the following flags seen in our example line
 
@@ -148,7 +148,13 @@ The setup instructions are below:
 
      ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
 
-  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install NetCDF:
+  This configuration supports the default uncompressed NetCDF output and avoids the
+  additional HDF5 and zlib dependencies. To use the optional ``compression deflate``
+  mode, install NetCDF-C with NetCDF4/HDF5 and zlib support by omitting
+  ``--disable-netcdf-4``. For newer NetCDF-C releases, if ``configure`` reports that
+  ``xml2-config`` cannot be found, add ``--disable-libxml2`` to use the bundled XML
+  parser. Here, the :attr:`--prefix` determines the output directory of the build.
+  Then make and install NetCDF:
 
   .. code:: bash
 
@@ -167,10 +173,14 @@ The setup instructions are below:
   .. code:: make
 
      INC = -I<path>/include -I./
-     LDFLAGS = -L<path>/lib
-     LIBS = -lcublas -lcusolver -l:libnetcdf.a
+     LDFLAGS = -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
+     LIBS = -lcublas -lcusolver -lcufft -lnetcdf
 
-  where :attr:`<path>` should be replaced with the installation path for NetCDF (defined in :attr:`--prefix` of the ``./configure`` command).
+  where :attr:`<path>` should be replaced with the installation path for NetCDF
+  (defined in :attr:`--prefix` of the ``./configure`` command). The ``-L`` option
+  specifies where to find NetCDF while linking, and the ``-rpath`` linker option
+  records this location so that the shared NetCDF library can also be found when
+  running :program:`GPUMD`.
 * Follow the remaining :program:`GPUMD` installation instructions
 
 Following these steps will enable the :ref:`dump_netcdf keyword <kw_dump_netcdf>`.
@@ -559,70 +569,85 @@ Install jse from the dev channel to obtain the latest development version (for l
 Optionally, manually run the JNI build to detect any potential environment issues in advance:
 
 .. code:: bash
-  
+
   jse --jnibuild
   jse -t 'jse.gpu.CudaCore.InitHelper.init()'
 
-:program:`GPUMD` requires the following paths to be set manually; they can be detected automatically by jse:
 
-.. code:: bash
-  
-  jse -t 'println(jse.code.OS.JAR_PATH)'
-  jse -t 'println(jse.clib.JVM.INCLUDE_DIR)'
-  jse -t 'println(jse.clib.JVM.LLIB_DIR)'
+Configure and compile GPUMD-NNAP
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As a demonstration, the paths are exported here as environment variables:
+.. tabs::
 
-.. code:: bash
-  
-  export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
-  export JVM_INCLUDE=$(jse -t 'println(jse.clib.JVM.INCLUDE_DIR)')
-  export JVM_LLIB_DIR=$(jse -t 'println(jse.clib.JVM.LLIB_DIR)')
+   .. tab:: Make
 
+      Detect the required paths using ``jse`` and export them as environment variables:
 
-Configure the GPUMD makefile
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      .. code:: bash
 
-Enable NNAP support and add the jse class path by modifying ``CFLAGS``:
+        export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
+        export JVM_INCLUDE=$(jse -t 'println(jse.clib.JVM.INCLUDE_DIR)')
+        export JVM_LLIB_DIR=$(jse -t 'println(jse.clib.JVM.LLIB_DIR)')
 
-.. code:: make
-  
-  CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
+      Enable NNAP support and add the jse class path by modifying ``CFLAGS``:
 
-Add the JVM header paths by modifying ``INC``:
+      .. code:: make
 
-.. code:: make
-  
-  INC = -I./ \
-        -I$(JVM_INCLUDE) \
-        -I$(JVM_INCLUDE)/linux
+        CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
 
-Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
+      Add the JVM header paths by modifying ``INC``:
 
-Add the JVM library path and runtime path by modifying ``LIBS``:
+      .. code:: make
 
-.. code:: make
-  
-  LIBS = -lcublas -lcusolver -lcufft \
-         -L$(JVM_LLIB_DIR) -ljvm \
-         -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
+        INC = -I./ \
+              -I$(JVM_INCLUDE) \
+              -I$(JVM_INCLUDE)/linux
 
-Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
-replaced by the actual paths obtained from the jse commands above, or exported
-as environment variables before running ``make``.
+      Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
 
-Compile GPUMD-NNAP
-~~~~~~~~~~~~~~~~~~
+      Add the JVM library path and runtime path by modifying ``LIBS``:
 
-Compile the executable files:
+      .. code:: make
 
-.. code:: bash
-  
-  make -j
-  ls gpumd nep
+        LIBS = -lcublas -lcusolver -lcufft \
+               -L$(JVM_LLIB_DIR) -ljvm \
+               -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
 
-If the compilation is successful, the executables ``gpumd`` and ``nep`` should
-be generated.
+      Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
+      replaced by the actual paths obtained from the jse commands above, or exported
+      as environment variables before running ``make``.
+
+      Compile the executable files:
+
+      .. code:: bash
+
+        make -j
+        ls gpumd nep
+
+      If the compilation is successful, the executables ``gpumd`` and ``nep`` should
+      be generated.
+
+   .. tab:: CMake (pre-release)
+
+      CMake uses ``PKG_NNAP`` to control NNAP support:
+
+      .. code-block:: bash
+
+        -D PKG_NNAP=yes
+
+      Add environment variable to import jse jar path:
+
+      .. code:: bash
+
+        export JSE_JAR_PATH=$(jse -t 'println(jse.code.OS.JAR_PATH)')
+
+      In Windows, you need to additionally specify the JVM library path (PowerShell):
+
+      .. code:: bash
+
+        $env:JSE_JAR_PATH = "$(jse -t 'println(jse.code.OS.JAR_PATH)')"
+        $env:JVM_LIB_PATH = "$(jse -t 'println(jse.clib.JVM.LIB_PATH)')"
+
 
 Run the NNAP test
 -----------------

@@ -18,6 +18,42 @@
 #include <string>
 #include <vector>
 
+// the model hyperparameters as recorded in the header of a nep.txt file
+struct NepTxtHeader {
+  std::string model_token;
+  int version;
+  int train_mode;
+  int charge_mode;
+  bool enable_zbl;
+  bool flexible_zbl;
+  bool use_typewise_cutoff_zbl;
+  float zbl_rc_inner;
+  float zbl_rc_outer;
+  float typewise_cutoff_zbl_factor;
+  int num_types;
+  std::vector<std::string> elements;
+  bool has_multiple_cutoffs;
+  std::vector<float> rc_radial;
+  std::vector<float> rc_angular;
+  int n_max_radial;
+  int n_max_angular;
+  int basis_size_radial;
+  int basis_size_angular;
+  int L_max;
+  int has_q_222; // as written to nep.txt, that is 2 or 0
+  int has_q_1111;
+  int has_q_112;
+  int has_q_123;
+  int has_q_233;
+  int has_q_134;
+  int num_neurons1;
+  int num_neurons2;
+  int number_of_header_lines; // 6 without a zbl line, 7 with one
+};
+
+// parse the header of a nep.txt file; returns false and sets error if it cannot be parsed
+bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error);
+
 class Parameters
 {
 public:
@@ -30,9 +66,10 @@ public:
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
-  int save_potential;     // number of generations between writing a checkpoint nep.txt file. 
+  int save_potential;     // number of generations between writing a checkpoint nep.txt file.
   int save_potential_format;   // format of checkpoint nep.txt file name
   int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
+  int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
   int num_hidden_layers;  // number of hidden layers
@@ -75,7 +112,7 @@ public:
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
-  float q_scaler_input;
+  bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -98,12 +135,12 @@ public:
   bool is_population_set;
   bool is_generation_set;
   bool is_save_potential_set;
+  bool is_output_interval_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
-  bool is_q_scaler_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -113,6 +150,7 @@ public:
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_ann_1;      // number of parameters in the ANN for one element
   int number_of_variables_descriptor; // number of parameters in the descriptor only
+  int number_of_nep_txt_header_lines = 0; // header length of the nep.txt file that has been checked
 
   // some arrays
 
@@ -137,7 +175,10 @@ private:
   void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
-  void check_foundation_model();
+  void check_existing_model();
+  void check_nep_txt(const std::string& filename, const bool fatal, const char* remedy);
+  void check_nep_restart();
+  void compare_with_nep_txt(const std::string& filename, std::vector<std::string>& mismatches);
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
@@ -172,5 +213,6 @@ private:
   void parse_charge_mode(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
-  void parse_q_scaler(const char** param, int num_param);
+  void parse_output_interval(const char** param, int num_param);
+  void parse_import_q_scaler(const char** param, int num_param);
 };

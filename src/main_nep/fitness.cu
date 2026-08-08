@@ -166,7 +166,7 @@ void Fitness::compute(
         para,
         dummy_solution.data(),
         train_set[n],
-        (para.fine_tune ? false : true),
+        (para.fine_tune || para.import_q_scaler) ? false : true,
         deviceCount);
     }
   } else {
@@ -435,7 +435,7 @@ void Fitness::report_error(
   const float loss_L2,
   float* elite)
 {
-  if (0 == (generation + 1) % 100) {
+  if (0 == (generation + 1) % para.output_interval) {
     int batch_id = generation % num_batches;
     potential->find_force(para, elite, train_set[batch_id], false, 1);
     float energy_shift_per_structure;
@@ -610,10 +610,10 @@ void Fitness::report_error(
         fclose(fid_polarizability);
       }
     }
+  }
 
-    if (0 == (generation + 1) % 1000) {
-      predict(para, elite);
-    }
+  if (0 == (generation + 1) % 1000) {
+    predict(para, elite);
   }
 }
 

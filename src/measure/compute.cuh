@@ -80,6 +80,11 @@ private:
   GPU_Vector<double> gpu_per_atom_z;
 
   int number_of_scalars = 0;
+  
+  void output_results(
+    const double energy_transferred[], const std::vector<Group>& group);
 
-  void output_results(const double energy_transferred[], const std::vector<Group>& group);
+  // Handle multiple thermal reservoirs
+  void output_results_n(
+    const double energy_transferred_n[], const std::vector<Group>& group, int num_thermostats);
 };

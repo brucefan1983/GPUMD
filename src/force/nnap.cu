@@ -39,7 +39,22 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
+
+#ifdef JVM_LIB_PATH
+#include <windows.h>
+static void *sJvmDllHandle = NULL;
+#endif
+
 static jboolean initJVM_(JNIEnv **rEnv) {
+#ifdef JVM_LIB_PATH
+  if (sJvmDllHandle == NULL) {
+    sJvmDllHandle = (void *)LoadLibrary(JVM_LIB_PATH);
+    if (sJvmDllHandle == NULL) {
+      fprintf(stderr, "Fail to open jvm lib in %s\n", JVM_LIB_PATH);
+      return JNI_FALSE;
+    }
+  }
+#endif
   JavaVM *tJVM = NULL;
   jsize tNVMs;
   JNI_GetCreatedJavaVMs(&tJVM, 1, &tNVMs);
@@ -161,13 +176,13 @@ static bool check_if_small_box(const double rc, const Box& box)
   double thickness_y = volume / box.get_area(1);
   double thickness_z = volume / box.get_area(2);
   bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.0 * rc) {
+  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_y && thickness_y <= 2.0 * rc) {
+  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
-  if (box.pbc_z && thickness_z <= 2.0 * rc) {
+  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
     is_small_box = true;
   }
   return is_small_box;
@@ -327,15 +342,15 @@ static __global__ void valid_nl_(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
+    float x1 = (float)g_x[n1];
+    float y1 = (float)g_y[n1];
+    float z1 = (float)g_z[n1];
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
+      float x12 = (float)g_x[n2] - x1;
+      float y12 = (float)g_y[n2] - y1;
+      float z12 = (float)g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       
       nl_dx[n1 + number_of_particles * i1] = x12;
@@ -468,6 +483,7 @@ void NNAP::compute(
     nl_dy.data(),
     nl_dz.data()
   );
+  GPU_CHECK_KERNEL
 
   // invoke NNAP_cuda.computeGPUMD(...)
   computeGPUMD_(mEnv, mCore,

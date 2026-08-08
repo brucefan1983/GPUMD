@@ -10,8 +10,8 @@ syn clear
 syn keyword GPUMDpot potential
 syn keyword GPUMDsetup replicate velocity correct_velocity potential dftd3 change_box deform
 syn keyword GPUMDsetup ensemble fix time_step plumed mc electron_stop add_force add_efield active
-syn keyword GPUMDdump dump_netcdf dump_position dump_restart dump_thermo dump_velocity dump_shock_nemd
-syn keyword GPUMDdump dump_exyz dump_beads dump_observer dump_dipole dump_polarizability dump_force
+syn keyword GPUMDdump dump_netcdf dump_restart dump_thermo dump_shock_nemd
+syn keyword GPUMDdump dump_xyz dump_beads dump_observer dump_dipole dump_polarizability dump_cg
 syn keyword GPUMDcompute compute compute_cohesive compute_dos compute_elastic
 syn keyword GPUMDcompute compute_gkma compute_hac compute_hnema compute_hnemd compute_hnemdec
 syn keyword GPUMDcompute compute_phonon compute_sdc compute_msd compute_shc compute_viscosity compute_lsqt compute_rdf

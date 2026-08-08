@@ -457,7 +457,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         population.data() + number_of_variables * best_index);
 
       update_mu_and_sigma();
-      if (0 == (n + 1) % 100) {
+      if (0 == (n + 1) % para.output_interval) {
         const char* filename = "nep.restart";
         output_mu_and_sigma(filename);
       }
@@ -470,23 +470,17 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       }
     }
   } else {
+    NepTxtHeader header;
+    std::string error;
+    if (!read_nep_txt_header("nep.txt", header, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
     std::ifstream input("nep.txt");
     if (!input.is_open()) {
       PRINT_INPUT_ERROR("Failed to open nep.txt.");
     }
     std::vector<std::string> tokens;
-    tokens = get_tokens(input);
-    int num_lines_to_be_skipped = 5;
-    if ( 
-      tokens[0] == "nep4_zbl" || 
-      tokens[0] == "nep4_zbl_temperature" || 
-      tokens[0] == "nep4_zbl_charge1" ||
-      tokens[0] == "nep4_zbl_charge2" ||
-      tokens[0] == "nep4_zbl_charge3") {
-      num_lines_to_be_skipped = 6;
-    }
-
-    for (int n = 0; n < num_lines_to_be_skipped; ++n) {
+    for (int n = 0; n < header.number_of_header_lines; ++n) {
       tokens = get_tokens(input);
     }
     for (int n = 0; n < number_of_variables; ++n) {

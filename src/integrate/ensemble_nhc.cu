@@ -22,6 +22,7 @@ Oxford University Press, 2010.
 #include "ensemble_nhc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cmath>
 #include <cstring>
 #define DIM 3
 
@@ -324,6 +325,80 @@ void Ensemble_NHC::integrate_heat_nhc_2(
     factor_1, factor_2, vcx.data(), vcy.data(), vcz.data(), ke.data(), group, velocity_per_atom);
 }
 
+// integrate by one step, with a constant heating/cooling power (custom command
+// heat_nhc_power): every step, a fixed energy dE = power * time_step is added to
+// the heat source and removed from the heat sink by scaling the velocities
+// about the group center-of-mass velocity (hence no net momentum is injected).
+// No Nose-Hoover chain thermostat acts on the source/sink here, so the
+// accumulated energy_transferred is exactly the explicitly injected/removed
+// energy; there is no additional thermostat work.
+void Ensemble_NHC::integrate_heat_nhc_power_1(
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  velocity_verlet(
+    true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+}
+
+void Ensemble_NHC::integrate_heat_nhc_power_2(
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  int label_1 = source;
+  int label_2 = sink;
+
+  int Ng = group[0].number;
+
+  // allocate some memory (to be improved)
+  std::vector<double> ek2(Ng);
+  GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
+
+  velocity_verlet(
+    false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+
+  find_vc_and_ke(group, mass, velocity_per_atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+  // delta_temperature stores the heating power P in eV/fs (total for the whole
+  // group, not per atom) for this command; the energy exchanged per step is
+  // P * dt_fs, where dt_fs = time_step (in GPUMD natural time units) converted
+  // to fs via TIME_UNIT_CONVERSION
+  double dE = delta_temperature * time_step * TIME_UNIT_CONVERSION;
+  ke.copy_to_host(ek2.data());
+
+  const double K_source = ek2[label_1] * 0.5; // COM-relative kinetic energy
+  const double K_sink = ek2[label_2] * 0.5;
+  // Guards for pathological states (e.g. starting from a uniform-temperature
+  // configuration before a temperature gradient has been established): never
+  // remove more kinetic energy than the sink group has, and never heat a
+  // zero-kinetic-energy source group. The energy accounting below uses the
+  // ACTUAL energies, so any activation of these guards shows up as a
+  // deviation of the accumulated energies from +/- P * time.
+  double dE_in = (K_source > 0.0) ? dE : 0.0;
+  double dE_out = dE;
+  if (dE_out > 0.99 * K_sink) {
+    dE_out = 0.99 * K_sink;
+  }
+  if (dE_out < 0.0) {
+    dE_out = 0.0;
+  }
+  double factor_1 = (K_source > 0.0) ? sqrt(1.0 + dE_in / K_source) : 1.0; // energy in
+  double factor_2 = (K_sink > 0.0) ? sqrt(1.0 - dE_out / K_sink) : 0.0; // energy out
+
+  // accumulate the energies transferred from the system to the baths
+  energy_transferred[0] -= dE_in;
+  energy_transferred[1] += dE_out;
+
+  scale_velocity_local(
+    factor_1, factor_2, vcx.data(), vcy.data(), vcz.data(), ke.data(), group, velocity_per_atom);
+}
+
 void Ensemble_NHC::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -343,6 +418,14 @@ void Ensemble_NHC::compute1(
       atom.position_per_atom,
       atom.velocity_per_atom,
       thermo);
+  } else if (type == 27) {
+    integrate_heat_nhc_power_1(
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
+      atom.velocity_per_atom);
   } else {
     integrate_heat_nhc_1(
       time_step,
@@ -373,6 +456,14 @@ void Ensemble_NHC::compute2(
       atom.position_per_atom,
       atom.velocity_per_atom,
       thermo);
+  } else if (type == 27) {
+    integrate_heat_nhc_power_2(
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
+      atom.velocity_per_atom);
   } else {
     integrate_heat_nhc_2(
       time_step,

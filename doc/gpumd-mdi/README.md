@@ -132,7 +132,7 @@ The script:
 4. Sends QM forces and energy back to `GPUMD` via MDI.
 5. Lets `GPUMD` perform the MD time integration.
 
-Standard `GPUMD` dump and compute keywords in `run.in` (for example, `dump_force`, `dump_thermo`, etc.) work as usual, so forces and thermodynamic quantities can be written to the standard output files while using QM forces from VASP.
+Standard `GPUMD` dump and compute keywords in `run.in` (for example, `dump_xyz`, `dump_thermo`, etc.) work as usual, so forces and thermodynamic quantities can be written to the standard output files while using QM forces from VASP.
 
 ---
 

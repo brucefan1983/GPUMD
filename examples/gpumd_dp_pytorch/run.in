@@ -7,6 +7,6 @@ velocity        300
 ensemble        nve
 time_step       1
 dump_thermo     10
-dump_exyz       10
+dump_xyz        10 dump.xyz
 dump_restart    100
 run             100

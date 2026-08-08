@@ -38,6 +38,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    add_force
    add_efield
    add_spring
+   deposit
    electron_stop
    fix
    kspace
@@ -79,16 +80,12 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Output
    
    active
-   dump_exyz
    dump_xyz
    dump_beads
    dump_observer
    dump_dipole
    dump_polarizability
-   dump_force
    dump_netcdf
-   dump_position
    dump_restart
    dump_thermo
-   dump_velocity
    dump_shock_nemd
