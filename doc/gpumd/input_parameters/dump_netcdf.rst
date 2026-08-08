@@ -173,7 +173,7 @@ before the :ref:`run command <kw_run>`.
 Forces and per-atom virials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To dump forces, per-atom potential energies and per-atom virials every 100 steps, one can add::
+To dump forces, per-atom potential energies and per-atom virials every 100 steps with lossless deflate compression, one can add::
 
   dump_netcdf 100 properties.nc force potential virial compression deflate 1
 
