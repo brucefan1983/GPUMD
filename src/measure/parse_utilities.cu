@@ -14,13 +14,14 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-A function parsing the "group" option in some keywords
+Functions parsing the options and the per-atom quantities shared by several keywords
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstdio>
 #include <cstring>
 
 void parse_group(
@@ -76,4 +77,74 @@ void parse_precision(const char** param, const int num_param, int& k, int& preci
     PRINT_INPUT_ERROR("Invalid precision.\n");
   }
   k++; // update index for next command
+}
+
+static void set_quantity(bool& flag, const char* token, const char* keyword)
+{
+  if (flag) {
+    char message[128];
+    snprintf(
+      message,
+      sizeof(message),
+      "Quantity '%s' is specified more than once in %s.\n",
+      token,
+      keyword);
+    PRINT_INPUT_ERROR(message);
+  }
+  flag = true;
+}
+
+bool parse_dump_quantity(
+  const char* token,
+  DumpQuantities& quantities,
+  const bool is_nep_charge,
+  const std::vector<Group>& groups,
+  const char* keyword)
+{
+  if (strcmp(token, "velocity") == 0) {
+    set_quantity(quantities.has_velocity_, token, keyword);
+    printf("    has velocity.\n");
+  } else if (strcmp(token, "force") == 0) {
+    set_quantity(quantities.has_force_, token, keyword);
+    printf("    has force.\n");
+  } else if (strcmp(token, "potential") == 0) {
+    set_quantity(quantities.has_potential_, token, keyword);
+    printf("    has potential.\n");
+  } else if (strcmp(token, "unwrapped_position") == 0) {
+    set_quantity(quantities.has_unwrapped_position_, token, keyword);
+    printf("    has unwrapped position.\n");
+  } else if (strcmp(token, "mass") == 0) {
+    set_quantity(quantities.has_mass_, token, keyword);
+    printf("    has mass.\n");
+  } else if (strcmp(token, "charge") == 0) {
+    set_quantity(quantities.has_charge_, token, keyword);
+    if (is_nep_charge) {
+      printf("    has charge predicted by NEP-charge.\n");
+    } else {
+      printf("    has charge specified in model.xyz.\n");
+    }
+  } else if (strcmp(token, "bec") == 0) {
+    set_quantity(quantities.has_bec_, token, keyword);
+    if (is_nep_charge) {
+      printf("    has BEC predicted by NEP-charge.\n");
+    } else {
+      PRINT_INPUT_ERROR("Cannot output BEC for a non-NEP-charge model.\n");
+    }
+  } else if (strcmp(token, "virial") == 0) {
+    set_quantity(quantities.has_virial_, token, keyword);
+    printf("    has virial.\n");
+  } else if (strcmp(token, "group_labels") == 0) {
+    // One column, or one NetCDF grouping_method slot, is written per grouping method. With none
+    // the extended XYZ Properties field would say group:I:0, and the NetCDF dimension would have
+    // length zero, which NC_UNLIMITED makes indistinguishable from an unlimited dimension.
+    if (groups.size() == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot output group labels without a grouping method defined in model.xyz.\n");
+    }
+    set_quantity(quantities.has_group_, token, keyword);
+    printf("    has group labels.\n");
+  } else {
+    return false;
+  }
+  return true;
 }

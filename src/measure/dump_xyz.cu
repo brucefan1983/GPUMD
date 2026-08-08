@@ -136,48 +136,7 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       precision_seen = true;
       continue;
     }
-    if (strcmp(param[m], "velocity") == 0) {
-      quantities.has_velocity_ = true;
-      printf("    has velocity.\n");
-    } else if (strcmp(param[m], "force") == 0) {
-      quantities.has_force_ = true;
-      printf("    has force.\n");
-    } else if (strcmp(param[m], "potential") == 0) {
-      quantities.has_potential_ = true;
-      printf("    has potential.\n");
-    } else if (strcmp(param[m], "unwrapped_position") == 0) {
-      quantities.has_unwrapped_position_ = true;
-      printf("    has unwrapped position.\n");
-    } else if (strcmp(param[m], "mass") == 0) {
-      quantities.has_mass_ = true;
-      printf("    has mass.\n");
-    } else if (strcmp(param[m], "charge") == 0) {
-      quantities.has_charge_ = true;
-      if (is_nep_charge) {
-        printf("    has charge predicted by NEP-charge.\n");
-      } else {
-        printf("    has charge specified in model.xyz.\n");
-      }
-    } else if (strcmp(param[m], "bec") == 0) {
-      quantities.has_bec_ = true;
-      if (is_nep_charge) {
-        printf("    has BEC predicted by NEP-charge.\n");
-      } else {
-        PRINT_INPUT_ERROR("Cannot output BEC for a non-NEP-charge model.\n");
-      }
-    } else if (strcmp(param[m], "virial") == 0) {
-      quantities.has_virial_ = true;
-      printf("    has virial.\n");
-    } else if (strcmp(param[m], "group_labels") == 0) {
-      // One column is written per grouping method, so with none the Properties field would say
-      // group:I:0, which is not readable as extended XYZ.
-      if (groups.size() == 0) {
-        PRINT_INPUT_ERROR(
-          "Cannot output group labels without a grouping method defined in model.xyz.\n");
-      }
-      quantities.has_group_ = true;
-      printf("    has group labels.\n");
-    } else {
+    if (!parse_dump_quantity(param[m], quantities, is_nep_charge, groups, "dump_xyz")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
   }

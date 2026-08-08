@@ -437,6 +437,7 @@ INVALID_DUMP_XYZ_ARGUMENTS = [
     ([1, 'f.xyz', 'forcee'], 'Unrecognized argument'),
     ([1, 'f.xyz', 'group', 0, 0, 'group', 0, 0], 'more than once'),
     ([1, 'f.xyz', 'precision', 'double', 'precision', 'single'], 'more than once'),
+    ([1, 'f.xyz', 'force', 'force'], 'more than once'),
     ([1, 'f.xyz', 'precision', 'triple'], 'Invalid precision'),
     # a bare `group` is how the quantity now called `group_labels` used to be spelled
     ([1, 'f.xyz', 'velocity', 'group'], 'group_labels'),
