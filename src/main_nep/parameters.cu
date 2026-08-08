@@ -739,8 +739,6 @@ void Parameters::check_existing_model()
   }
 }
 
-#endif
-
 void Parameters::report_inputs()
 {
   if (!is_type_set) {
