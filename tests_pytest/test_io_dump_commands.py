@@ -638,6 +638,49 @@ def test_dump_netcdf_existing_file_that_is_not_netcdf_is_rejected(
         'the file that could not be opened was modified')
 
 
+def test_dump_netcdf_appending_to_a_file_without_recorded_quantities_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The quantities a file holds are compared through the gpumd_quantities attribute, and a
+    file that does not carry it cannot be compared against at all. Such a file still opens, and
+    still has every dimension and variable the append path looks up, so without an explicit check
+    the run dies on a bare "NetCDF: Attribute not found" naming neither the file nor the remedy.
+
+    The check has to sit at the comparison rather than where the file is opened, so that it does
+    not preempt the more specific checks before it. The second half of this test is what pins that
+    down: the same file with a different atom count must still report the atom count."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    output_path = tmp_path / 'unrecorded.nc'
+    case = CommandIOCase(
+        name='dump_netcdf_unrecorded_quantities',
+        run_in_lines=[('dump_netcdf', [1, 'unrecorded.nc', 'velocity'])],
+        expected_output_files=['unrecorded.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    # everything else about the file still matches, so the run reaches the quantity comparison
+    with netcdf4.Dataset(output_path, 'a') as dataset:
+        dataset.delncattr('gpumd_quantities')
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a file without recorded quantities should be refused'
+    assert 'unrecorded.nc' in output, output
+    assert 'does not record which quantities' in output, output
+
+    # the same file read by a run with a different number of atoms: the earlier, more specific
+    # check has to win, since claiming the quantities are unrecorded would describe the wrong
+    # difference
+    bigger = structure.repeat((2, 1, 1))
+    result = run_command_io_case(
+        tmp_path, bigger, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a differing atom count should be refused'
+    assert 'different number of atoms' in output, output
+
+
 def test_dump_netcdf_without_velocity(
         tmp_path, structure, model_path, model_type, gpumd_command):
     netcdf4 = pytest.importorskip('netCDF4')

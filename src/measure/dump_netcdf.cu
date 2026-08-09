@@ -727,7 +727,21 @@ void DUMP_NETCDF::validate_file_definition()
   }
 
   // One attribute covers every quantity, so the whole set is compared at once rather than one
-  // flag at a time.
+  // flag at a time. Every file dump_netcdf writes records it, as an empty string when no quantity
+  // was requested, so one without the attribute cannot be compared against at all. Saying so here
+  // rather than where the file is opened leaves the checks above to speak first, so a file that
+  // already differs in atom count or precision still gets that more specific message.
+  int attribute_id;
+  if (nc_inq_attid(ncid, NC_GLOBAL, "gpumd_quantities", &attribute_id) != NC_NOERR) {
+    char message[512];
+    snprintf(
+      message,
+      sizeof(message),
+      "Cannot append to %s, which does not record which quantities it holds. Remove or rename it "
+      "to start a new trajectory.\n",
+      filename_.c_str());
+    PRINT_INPUT_ERROR(message);
+  }
   size_t previous_length = 0;
   NC_CHECK(nc_inq_attlen(ncid, NC_GLOBAL, "gpumd_quantities", &previous_length));
   std::string previous_quantities(previous_length, '\0');
