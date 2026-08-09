@@ -201,7 +201,11 @@ Caveats
 * This keyword can be invoked multiple times within one run to write different
   groups to different files. Each invocation must use a distinct filename and
   can use its own output interval and options.
-* An existing output file is overwritten the first time its name is used in a GPUMD execution.
-* Repeating the keyword with the same filename in later runs of the same GPUMD execution
-  appends to that file. A different filename creates a separate trajectory file.
-* Group, quantity, precision, and compression settings cannot change while appending to the same file.
+* The output file has an appending behavior. Frames are added to an existing file of that name,
+  whether it was written by an earlier run of the same GPUMD execution or by an earlier execution.
+  A different filename creates a separate trajectory file.
+* The layout of a NetCDF file is fixed when the file is created, so the group, quantity, precision,
+  and compression settings must match those the existing file was written with. If they do not,
+  GPUMD stops with an error naming the file. Remove or rename that file to start a new trajectory.
+* The ``time`` variable restarts at the beginning of every GPUMD execution, while ``frame`` keeps
+  counting, so the times in a file appended to across executions are not monotonic.
