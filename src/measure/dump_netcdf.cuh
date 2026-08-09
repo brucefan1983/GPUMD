@@ -96,7 +96,6 @@ private:
   std::vector<double> pack_double_;
 
   int ncid = -1; // NetCDF ID
-  static std::vector<std::string> initialized_files_;
   static std::vector<std::string> active_files_;
 
   // dimensions
@@ -136,6 +135,7 @@ private:
     const char* name, const int rank, const int values_per_atom, const char* units, int& var);
   void load_file_definition();
   void validate_file_definition();
+  void append_mismatch(const char* what);
   void put_packed(const int var, const size_t* start, const size_t* count);
   void write(const double global_time, const Box& box, const Atom& atom);
 };

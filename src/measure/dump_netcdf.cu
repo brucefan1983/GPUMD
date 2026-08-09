@@ -46,7 +46,9 @@ https://ambermd.org/netcdf/nctraj.pdf
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
 
 #define GPUMD_VERSION "5.6"
 
@@ -92,7 +94,6 @@ const char GROUP_LABELS_STR[] = "group_labels";
 const int VIRIAL_COMPONENT[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
 const int ROW_MAJOR_COMPONENT[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
-std::vector<std::string> DUMP_NETCDF::initialized_files_;
 std::vector<std::string> DUMP_NETCDF::active_files_;
 
 // The three packing helpers below take one per-atom array laid out as src[atom + N * component],
@@ -443,17 +444,27 @@ void DUMP_NETCDF::preprocess(
     cpu_bec_.resize(atom.number_of_atoms * 9);
   }
 
-  const bool initialized =
-    std::find(initialized_files_.begin(), initialized_files_.end(), filename_) !=
-    initialized_files_.end();
-  if (initialized) {
-    NC_CHECK(nc_open(filename_.c_str(), NC_WRITE, &ncid));
+  // An existing file is extended rather than replaced, as dump_xyz does. Whether the file is
+  // there is decided by looking for it rather than by inferring absence from a NetCDF error
+  // code, which is not the same value in every netcdf-c build. This also covers a file written
+  // earlier in this execution: the previous command closed it, so it is simply on disk.
+  std::ifstream existing_file(filename_.c_str());
+  if (existing_file.good()) {
+    existing_file.close();
+    const int open_status = nc_open(filename_.c_str(), NC_WRITE, &ncid);
+    if (open_status != NC_NOERR) {
+      fprintf(
+        stderr,
+        "Error: dump_netcdf cannot open %s to append to it. Remove or rename it to start a new "
+        "trajectory.\n",
+        filename_.c_str());
+      ERR(open_status);
+    }
     load_file_definition();
     validate_file_definition();
     NC_CHECK(nc_inq_dimlen(ncid, frame_dim, &lenp));
   } else {
     create_file(group, atom);
-    initialized_files_.push_back(filename_);
   }
 }
 
@@ -671,19 +682,35 @@ void DUMP_NETCDF::load_file_definition()
   NC_CHECK(nc_inq_varid(ncid, TYPE_STR, &type_var));
 }
 
+// The layout of a NetCDF file is fixed when it is created, so appending is only meaningful when
+// the run produces exactly what the file already holds. The file is named because removing or
+// renaming it is what the user has to do next.
+void DUMP_NETCDF::append_mismatch(const char* what)
+{
+  char message[512];
+  snprintf(
+    message,
+    sizeof(message),
+    "Cannot append to %s, which was written with a different %s. Remove or rename it to start a "
+    "new trajectory.\n",
+    filename_.c_str(),
+    what);
+  PRINT_INPUT_ERROR(message);
+}
+
 void DUMP_NETCDF::validate_file_definition()
 {
   size_t previous_number_of_atoms = 0;
   NC_CHECK(nc_inq_dimlen(ncid, atom_dim, &previous_number_of_atoms));
   if (previous_number_of_atoms != size_t(number_of_atoms_to_dump_)) {
-    PRINT_INPUT_ERROR("Cannot append dump_netcdf data with a different number of atoms.\n");
+    append_mismatch("number of atoms");
   }
 
   nc_type coordinate_type;
   NC_CHECK(nc_inq_vartype(ncid, coordinates_var, &coordinate_type));
   const nc_type expected_type = precision_ == 1 ? NC_FLOAT : NC_DOUBLE;
   if (coordinate_type != expected_type) {
-    PRINT_INPUT_ERROR("Cannot change dump_netcdf precision between run commands.\n");
+    append_mismatch("precision");
   }
 
   int previous_grouping_method;
@@ -693,10 +720,10 @@ void DUMP_NETCDF::validate_file_definition()
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_group_id", &previous_group_id));
   NC_CHECK(nc_get_att_int(ncid, NC_GLOBAL, "gpumd_compression_level", &previous_compression_level));
   if (previous_grouping_method != grouping_method_ || previous_group_id != group_id_) {
-    PRINT_INPUT_ERROR("Cannot change the dump_netcdf group between run commands.\n");
+    append_mismatch("group");
   }
   if (previous_compression_level != compression_level_) {
-    PRINT_INPUT_ERROR("Cannot change dump_netcdf compression between run commands.\n");
+    append_mismatch("compression");
   }
 
   // One attribute covers every quantity, so the whole set is compared at once rather than one
@@ -706,7 +733,7 @@ void DUMP_NETCDF::validate_file_definition()
   std::string previous_quantities(previous_length, '\0');
   NC_CHECK(nc_get_att_text(ncid, NC_GLOBAL, "gpumd_quantities", &previous_quantities[0]));
   if (previous_quantities != quantity_list_) {
-    PRINT_INPUT_ERROR("Cannot change the dump_netcdf quantities between run commands.\n");
+    append_mismatch("set of quantities");
   }
 
   // The quantities match, so every variable they call for is in the file.
