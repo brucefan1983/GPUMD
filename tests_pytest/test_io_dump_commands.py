@@ -521,11 +521,11 @@ def _check_netcdf_result(result):
         f'stderr:\n{result.stderr}')
 
 
-def test_dump_netcdf_default_overwrite_and_append(
+def test_dump_netcdf_appends_across_run_commands(
         tmp_path, structure, model_path, model_type, gpumd_command):
+    """Two dump_netcdf commands writing the same file in one execution extend it, since the
+    keyword does not propagate and each run needs its own command."""
     netcdf4 = pytest.importorskip('netCDF4')
-    output_path = tmp_path / 'sed.nc'
-    output_path.write_bytes(b'an existing file that must be overwritten')
     case = CommandIOCase(
         name='dump_netcdf',
         run_in_lines=[
@@ -539,7 +539,7 @@ def test_dump_netcdf_default_overwrite_and_append(
         tmp_path, structure, model_path, model_type, gpumd_command, case)
     _check_netcdf_result(result)
 
-    with netcdf4.Dataset(output_path) as dataset:
+    with netcdf4.Dataset(tmp_path / 'sed.nc') as dataset:
         assert dataset.data_model == 'NETCDF3_64BIT_OFFSET'
         assert len(dataset.dimensions['frame']) == 2 * BASE_N_STEPS
         assert len(dataset.dimensions['atom']) == len(structure)
@@ -548,6 +548,94 @@ def test_dump_netcdf_default_overwrite_and_append(
         assert dataset.variables['type'].dimensions == ('frame', 'atom')
         assert dataset.variables['type'].shape == (2 * BASE_N_STEPS, len(structure))
         assert dataset.getncattr('gpumd_compression_level') == -1
+
+
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+def test_dump_netcdf_appends_across_executions(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Rerunning gpumd in a directory that already holds the file extends it rather than replacing
+    it, as dump_xyz does. The frames written the first time have to survive untouched, which is
+    what separates appending from starting over."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_rerun',
+        run_in_lines=[('dump_netcdf', [1, 'rerun.nc', 'velocity', 'precision', 'double'])],
+        expected_output_files=['rerun.nc'])
+
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(tmp_path / 'rerun.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == BASE_N_STEPS
+        first_run = np.array(dataset.variables['coordinates'][:])
+
+    # the same case again in the same directory, which rewrites run.in and model.xyz and leaves
+    # the trajectory in place
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(tmp_path / 'rerun.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == 2 * BASE_N_STEPS, (
+            'the second execution did not append to the existing file')
+        both_runs = np.array(dataset.variables['coordinates'][:])
+    np.testing.assert_array_equal(
+        both_runs[:BASE_N_STEPS], first_run,
+        err_msg='appending disturbed the frames written by the first execution')
+
+
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+def test_dump_netcdf_appending_with_changed_quantities_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """A NetCDF layout is fixed when the file is created, so a rerun that asks for a different set
+    of quantities cannot be appended. It has to stop with a message naming the file, since silently
+    replacing the trajectory would lose the earlier one."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    first = CommandIOCase(
+        name='dump_netcdf_layout_first',
+        run_in_lines=[('dump_netcdf', [1, 'layout.nc', 'velocity'])],
+        expected_output_files=['layout.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, first)
+    _check_netcdf_result(result)
+
+    second = CommandIOCase(
+        name='dump_netcdf_layout_second',
+        run_in_lines=[('dump_netcdf', [1, 'layout.nc', 'velocity', 'force'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, second)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'appending with a different quantity set should be refused'
+    assert 'layout.nc' in output, output
+    assert 'set of quantities' in output, output
+
+    # the trajectory that was already there must still be intact
+    with netcdf4.Dataset(tmp_path / 'layout.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == BASE_N_STEPS
+        assert 'forces' not in dataset.variables
+
+
+def test_dump_netcdf_existing_file_that_is_not_netcdf_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Appending means opening whatever is already there, so a file of that name that is not a
+    NetCDF file at all has to be reported clearly rather than through a bare NetCDF error."""
+    output_path = tmp_path / 'junk.nc'
+    case = CommandIOCase(
+        name='dump_netcdf_not_netcdf',
+        run_in_lines=[('dump_netcdf', [1, 'junk.nc', 'velocity'])],
+        expected_output_files=[])
+    # written after the case is built but before the run, since run_command_io_case only writes
+    # run.in and model.xyz
+    output_path.write_bytes(b'an existing file that is not a NetCDF file')
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a non-NetCDF file of that name should be refused'
+    assert 'junk.nc' in output, output
+    assert output_path.read_bytes() == b'an existing file that is not a NetCDF file', (
+        'the file that could not be opened was modified')
 
 
 def test_dump_netcdf_without_velocity(
