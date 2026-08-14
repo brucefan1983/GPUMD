@@ -19,6 +19,7 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "nep.cuh"
+#include "nep_vdw.cuh"
 #include "nep_charge.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
@@ -128,6 +129,8 @@ Fitness::Fitness(Parameters& para)
   } else {
     if (para.charge_mode) {
       potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
+    } else if (para.vdw) {
+      potential.reset(new NEP_VDW(para, N, para.version, deviceCount));
     } else {
       potential.reset(new NEP(para, N, para.version, deviceCount));
     }
@@ -324,9 +327,17 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     if (!para.charge_mode) {
       if (para.version == 4) {
         if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+          if (para.vdw) {
+            fprintf(fid_nep, "nep4_zbl_vdw %d ", para.num_types);
+          } else {
+            fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+          }
         } else {
-          fprintf(fid_nep, "nep4 %d ", para.num_types);
+          if (para.vdw) {
+            fprintf(fid_nep, "nep4_vdw %d ", para.num_types);
+          } else {
+            fprintf(fid_nep, "nep4 %d ", para.num_types);
+          }
         }
       } 
     } else {

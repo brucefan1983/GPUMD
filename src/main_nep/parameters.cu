@@ -76,6 +76,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
+  is_vdw_set = false;
   is_save_potential_set = false;
   is_output_interval_set = false;
 
@@ -115,6 +116,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
   charge_mode = 0;
+  vdw = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -190,6 +192,18 @@ void Parameters::calculate_parameters()
     }
   }
 
+  if (vdw) {
+    if (charge_mode) {
+      PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for ordinary NEP (charge_mode 0).");
+    }
+    if (train_mode != 0) {
+      PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
+    }
+    if (num_hidden_layers == 2) {
+      PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
+    }
+  }
+
   if (train_mode == 0) {
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
@@ -243,6 +257,11 @@ void Parameters::calculate_parameters()
   if (charge_mode) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
+  }
+
+  if (vdw) {
+    number_of_variables_ann_1 += num_neurons1;
+    number_of_variables_ann += num_neurons1 * num_types;
   }
 
 
@@ -349,6 +368,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   header.enable_zbl = false;
   header.train_mode = 0;
   header.charge_mode = 0;
+  header.vdw = 0;
   std::string rest = token.substr(4);
   if (rest.compare(0, 4, "_zbl") == 0) {
     header.enable_zbl = true;
@@ -356,6 +376,10 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   }
   if (rest.empty() || rest == "_temperature") {
     header.train_mode = rest.empty() ? 0 : 3;
+    return true;
+  }
+  if (rest == "_vdw") {
+    header.vdw = 1;
     return true;
   }
   if (rest == "_dipole") {
@@ -557,6 +581,7 @@ void Parameters::compare_with_nep_txt(
   compare_int("model_type", train_mode, is_train_mode_set, header.train_mode, filename, mismatches);
   compare_int(
     "charge_mode", charge_mode, is_charge_mode_set, header.charge_mode, filename, mismatches);
+  compare_int("vdw", vdw, is_vdw_set, header.vdw, filename, mismatches);
   compare_int(
     "type (number of types)", num_types, is_type_set, header.num_types, filename, mismatches);
   if (num_types == header.num_types && elements != header.elements) {
@@ -821,6 +846,16 @@ void Parameters::report_inputs()
     }
   }
 
+  if (is_vdw_set) {
+    if (vdw) {
+      printf("    (input)   add environment-dependent vdW to ordinary NEP.\n");
+    } else {
+      printf("    (input)   do not add environment-dependent vdW.\n");
+    }
+  } else {
+    printf("    (default) do not add environment-dependent vdW.\n");
+  }
+
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);
@@ -1034,6 +1069,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "charge_mode") == 0) {
     parse_charge_mode(param, num_param);
+  } else if (strcmp(param[0], "vdw") == 0) {
+    parse_vdw(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
@@ -1393,6 +1430,10 @@ void Parameters::parse_neuron(const char** param, int num_param)
       PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
     }
 
+    if (vdw != 0) {
+      PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
+    }
+
     if (!is_valid_int(param[2], &num_neurons2)) {
       PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
     }
@@ -1743,6 +1784,29 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
 
   if (num_hidden_layers == 2) {
     PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
+  }
+}
+
+void Parameters::parse_vdw(const char** param, int num_param)
+{
+  is_vdw_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("vdw should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &vdw)) {
+    PRINT_INPUT_ERROR("vdw should be an integer.\n");
+  }
+  if (vdw < 0 || vdw > 1) {
+    PRINT_INPUT_ERROR("vdw should be 0 or 1.");
+  }
+  if (vdw && charge_mode) {
+    PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for ordinary NEP (charge_mode 0).");
+  }
+  if (vdw && train_mode != 0) {
+    PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
+  }
+  if (vdw && num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
   }
 }
 
