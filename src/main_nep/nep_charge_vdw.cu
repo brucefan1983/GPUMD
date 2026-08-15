@@ -146,7 +146,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   int version,
   int deviceCount)
 {
-  paramb.charge_mode = 2;
   paramb.version = version;
   paramb.rc_radial = para.rc_radial[0];
   paramb.rc_angular = para.rc_angular[0];
@@ -205,11 +204,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   }
 
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
-  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
-  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
-  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     gpuSetDevice(device_id);
@@ -933,77 +928,6 @@ static __global__ void find_force_charge_reciprocal_space(
   }
 }
 
-static __global__ void find_force_charge_real_space(
-  const int N,
-  const float alpha,
-  const float two_alpha_over_sqrt_pi,
-  const int* g_NN_sum,
-  const int* g_NN,
-  const int* g_NL,
-  const float* __restrict__ g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial,
-  float* g_pe,
-  float* g_D_real)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    float q1 = g_charge[n1];
-    float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
-    float D_real = -q1 * two_alpha_over_sqrt_pi; // self energy part
-
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = g_NN_sum[n1] + i1;
-      int n2 = g_NL[index];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-
-      float erfc_r = erfc(alpha * d12) * d12inv;
-      D_real += q2 * erfc_r;
-      float f2 = erfc_r + two_alpha_over_sqrt_pi * exp(-alpha * alpha * d12 * d12);
-      f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-
-      s_pe += 0.5f * qq * erfc_r;
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-    }
-    g_D_real[n1] += K_C_SP * D_real;
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += K_C_SP * s_pe;
-  }
-}
-
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -1385,28 +1309,6 @@ void NEP_Charge_VDW::find_force(
       dataset[device_id].virial.data(),
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
-
-    // mode 1 has real space
-    if (paramb.charge_mode == 1) {
-      find_force_charge_real_space<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        charge_para.alpha,
-        charge_para.two_alpha_over_sqrt_pi,
-        dataset[device_id].NN_radial_sum.data(),
-        dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
-        dataset[device_id].charge_shifted.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
-        dataset[device_id].force.data(),
-        dataset[device_id].force.data() + dataset[device_id].N,
-        dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].D_real.data());
-      GPU_CHECK_KERNEL
-    } 
 
     // Chain rule correction: D_real -= mean(D_real) per structure
     zero_mean_D_real_train<<<dataset[device_id].Nc, 1024>>>(

@@ -24,7 +24,6 @@ class NEP_Charge_VDW : public Potential
 {
 public:
   struct ParaMB {
-    int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.65f;
     float rc_radial = 0.0f;     // radial cutoff
@@ -80,9 +79,6 @@ public:
     int num_kpoints_max = 50000;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    float two_alpha_over_sqrt_pi = 0.564189583547756f;
-    float A;
-    float B;
   };
 
   struct ZBL {

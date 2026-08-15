@@ -875,7 +875,6 @@ void Parameters::report_inputs()
   if (is_charge_vdw_set) {
     if (charge_vdw) {
       printf("    (input)   use the combined charge-vdW model.\n");
-      printf("        V9 uses the same charge functionality as charge_mode 1.\n");
       printf("        lambda_q = %g.\n", lambda_q);
       printf("        lambda_z = %g.\n", lambda_z);
       if (has_multiple_cutoffs) {
