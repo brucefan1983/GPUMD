@@ -59,7 +59,7 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -112,7 +112,7 @@ static __global__ void find_descriptors_angular(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
+        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -148,12 +148,12 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   int deviceCount)
 {
   paramb.version = version;
-  paramb.rc_radial = para.rc_radial[0];
-  paramb.rc_angular = para.rc_angular[0];
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;
   for (int t = 0; t < paramb.num_types; ++t) {
+    paramb.rc_radial[t] = para.rc_radial[t];
+    paramb.rc_angular[t] = para.rc_angular[t];
     int z = para.atomic_numbers[t];
     if (z < 1 || z > max_elem_vdw) {
       PRINT_INPUT_ERROR("NEP-charge-vdW currently supports elements from H to Pu.");
@@ -211,7 +211,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     }
   }
 
-  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
+  charge_para.alpha = float(PI) / para.rc_radial_max; // a good value
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -439,7 +439,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -537,7 +537,7 @@ static __global__ void find_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
@@ -607,7 +607,7 @@ static __global__ void find_bec_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -695,7 +695,7 @@ static __global__ void find_bec_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};

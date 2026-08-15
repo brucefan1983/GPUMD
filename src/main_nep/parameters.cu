@@ -878,9 +878,6 @@ void Parameters::report_inputs()
       printf("    (input)   use the combined charge-vdW model.\n");
       printf("        lambda_q = %g.\n", lambda_q);
       printf("        lambda_z = %g.\n", lambda_z);
-      if (has_multiple_cutoffs) {
-        PRINT_INPUT_ERROR("Can only use uniform cutoff for charge_vdw.");
-      }
     } else {
       printf("    (input)   do not use the combined charge-vdW model.\n");
     }
