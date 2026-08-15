@@ -59,7 +59,7 @@ static __global__ void find_descriptors_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -151,6 +151,7 @@ static __global__ void find_descriptors_angular(
 NEP_VDW::NEP_VDW(
   Parameters& para,
   int N,
+  int Nc,
   int version,
   int deviceCount)
 {
@@ -168,6 +169,8 @@ NEP_VDW::NEP_VDW(
     }
     paramb.c6_ref_sqrt[t] = c6_ref_sqrt[z - 1];
   }
+  vdw_para.alpha = float(PI) / para.rc_radial_max;
+  vdw_para.alpha_factor = 0.25f / (vdw_para.alpha * vdw_para.alpha);
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
@@ -248,6 +251,14 @@ NEP_VDW::NEP_VDW(
     nep_data[device_id].D_C6.resize(N);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+    nep_data[device_id].kx.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].ky.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].kz.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].G_vdw.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].G_vdw_virial.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].S_real.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].S_imag.resize(Nc * vdw_para.num_kpoints_max);
+    nep_data[device_id].num_kpoints.resize(Nc);
   }
 }
 
@@ -508,7 +519,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -661,88 +672,212 @@ static __global__ void find_force_angular(
   }
 }
 
-static __global__ void find_force_vdw_static(
+static __global__ void find_structure_factor(
+  const int num_kpoints_max,
+  const int* Na,
+  const int* Na_sum,
+  const float* g_C6,
+  const float* g_x,
+  const float* g_y,
+  const float* g_z,
+  const int* g_num_kpoints,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  float* g_S_real,
+  float* g_S_imag)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int num_kpoints = g_num_kpoints[blockIdx.x];
+  int number_of_batches = (num_kpoints - 1) / 1024 + 1;
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int nk = threadIdx.x + batch * 1024;
+    if (nk < num_kpoints) {
+      int nc_nk = blockIdx.x * num_kpoints_max + nk;
+      float S_real = 0.0f;
+      float S_imag = 0.0f;
+      for (int n = N1; n < N2; ++n) {
+        float kr = g_kx[nc_nk] * g_x[n] + g_ky[nc_nk] * g_y[n] + g_kz[nc_nk] * g_z[n];
+        const float C6 = g_C6[n];
+        float sin_kr = sin(kr);
+        float cos_kr = cos(kr);
+        S_real += C6 * cos_kr;
+        S_imag -= C6 * sin_kr;
+      }
+      g_S_real[nc_nk] = S_real;
+      g_S_imag[nc_nk] = S_imag;
+    }
+  }
+}
+
+static __global__ void find_force_vdw_reciprocal_space(
   const int N,
-  const int* g_NN_sum,
-  const int* g_NN,
-  const int* g_NL,
-  const NEP_VDW::ParaMB paramb,
-  const int* g_type,
-  const float* __restrict__ g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
+  const int num_kpoints_max,
+  const int* Na,
+  const int* Na_sum,
+  const float* g_C6,
+  const float* g_x,
+  const float* g_y,
+  const float* g_z,
+  const int* g_num_kpoints,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G_vdw,
+  const float* g_G_vdw_virial,
+  const float* g_S_real,
+  const float* g_S_imag,
+  float* g_D_C6,
   float* g_fx,
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe,
-  float* g_D_C6)
+  float* g_pe)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    int type1 = g_type[n1];
-    float q1 = g_charge[n1];
-    float s_pe = 0;
-    float D_C6 = 0;
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = g_NN_sum[n1] + i1;
-      int n2 = g_NL[index];
-      int type2 = g_type[n2];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12_2 = d12 * d12;
-      float d12_4 = d12_2 * d12_2;
-      float d12_6 = d12_4 * d12_2;
-      float R = (paramb.rc_angular[type1] + paramb.rc_angular[type2]) * 0.5f;
-      float R2 = R * R;
-      float R4 = R2 * R2;
-      float R6 = R4 * R2;
-      float rc = (paramb.rc_radial[type1] + paramb.rc_radial[type2]) * 0.5f;
-      float rc2 = rc * rc;
-      float rc4 = rc2 * rc2;
-      float rc5 = rc4 * rc;
-      float rc6 = rc4 * rc2;
-      float one_over_r6 = 1.0f / (d12_6 + R6);
-      float one_over_rc6 = 1.0f / (rc6 + R6);
-      float shifted_force = 6.0f * rc5 * one_over_rc6 * one_over_rc6;
-      float shifted_one_over_r6 = one_over_r6 - one_over_rc6 + (d12 - rc) * shifted_force;
-      D_C6 -= q2 * shifted_one_over_r6;
-      float f2 =
-        3.0f * qq * d12_4 * one_over_r6 * one_over_r6 -
-        0.5f * qq * shifted_force / d12;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      s_pe += -0.5f * qq * shifted_one_over_r6;
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  int num_kpoints = g_num_kpoints[blockIdx.x];
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = threadIdx.x + batch * 1024 + N1;
+    if (n < N2) {
+      float temp_energy_sum = 0.0f;
+      float temp_virial_sum[6] = {0.0f};
+      float temp_force_sum[3] = {0.0f};
+      float temp_D_C6_sum = 0.0f;
+      for (int nk = 0; nk < num_kpoints; ++nk) {
+        const int nc_nk = blockIdx.x * num_kpoints_max + nk;
+        const float kx = g_kx[nc_nk];
+        const float ky = g_ky[nc_nk];
+        const float kz = g_kz[nc_nk];
+        const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
+        const float G = g_G_vdw[nc_nk];
+        const float H = g_G_vdw_virial[nc_nk];
+        const float S_real = g_S_real[nc_nk];
+        const float S_imag = g_S_imag[nc_nk];
+        float sin_kr = sin(kr);
+        float cos_kr = cos(kr);
+        const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+        const float SS = S_real * S_real + S_imag * S_imag;
+        const float GSS = G * SS;
+        const float HSS = H * SS;
+        temp_energy_sum += GSS;
+        temp_virial_sum[0] += GSS - HSS * kx * kx; // xx
+        temp_virial_sum[1] += GSS - HSS * ky * ky; // yy
+        temp_virial_sum[2] += GSS - HSS * kz * kz; // zz
+        temp_virial_sum[3] -= HSS * kx * ky; // xy
+        temp_virial_sum[4] -= HSS * ky * kz; // yz
+        temp_virial_sum[5] -= HSS * kz * kx; // zx
+        temp_D_C6_sum += G * (S_real * cos_kr - S_imag * sin_kr);
+        temp_force_sum[0] += kx * imag_term;
+        temp_force_sum[1] += ky * imag_term;
+        temp_force_sum[2] += kz * imag_term;
+      }
+      g_pe[n] += temp_energy_sum / (N2 - N1);
+      for (int d = 0; d < 6; ++d) {
+        g_virial[n + N * d] += temp_virial_sum[d] / (N2 - N1);
+      }
+      g_D_C6[n] = 2.0f * temp_D_C6_sum;
+      const float C6_factor = 2.0f * g_C6[n];
+      g_fx[n] += C6_factor * temp_force_sum[0];
+      g_fy[n] += C6_factor * temp_force_sum[1];
+      g_fz[n] += C6_factor * temp_force_sum[2];
     }
-    g_D_C6[n1] = D_C6;
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += s_pe;
+  }
+}
+
+static __device__ void cross_product(const float a[3], const float b[3], float c[3])
+{
+  c[0] =  a[1] * b [2] - a[2] * b [1];
+  c[1] =  a[2] * b [0] - a[0] * b [2];
+  c[2] =  a[0] * b [1] - a[1] * b [0];
+}
+
+static __device__ float get_area(const float* a, const float* b)
+{
+  const float s1 = a[1] * b[2] - a[2] * b[1];
+  const float s2 = a[2] * b[0] - a[0] * b[2];
+  const float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+static __global__ void find_k_and_G(
+  const int Nc,
+  const int num_kpoints_max,
+  const float alpha,
+  const float alpha_factor,
+  const float* g_box,
+  int* g_num_kpoints,
+  float* g_kx,
+  float* g_ky,
+  float* g_kz,
+  float* g_G_vdw,
+  float* g_G_vdw_virial)
+{
+  int nc = threadIdx.x + blockIdx.x * blockDim.x; // structure index
+  if (nc < Nc) {
+    const float* box = g_box + 9 * nc;
+    const float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
+                      box[1] * (box[5] * box[6] - box[3] * box[8]) +
+                      box[2] * (box[3] * box[7] - box[4] * box[6]);
+    const float a1[3] = {box[0], box[3], box[6]};
+    const float a2[3] = {box[1], box[4], box[7]};
+    const float a3[3] = {box[2], box[5], box[8]};
+    float b1[3] = {0.0f};
+    float b2[3] = {0.0f};
+    float b3[3] = {0.0f};
+    cross_product(a2, a3, b1);
+    cross_product(a3, a1, b2);
+    cross_product(a1, a2, b3);
+    
+    const float two_pi = 6.2831853f;
+    const float two_pi_over_det = two_pi / det;
+    for (int d = 0; d < 3; ++d) {
+      b1[d] *= two_pi_over_det;
+      b2[d] *= two_pi_over_det;
+      b3[d] *= two_pi_over_det;
+    }
+
+    const float volume_k = two_pi * two_pi * two_pi / abs(det);
+    int n1_max = alpha * two_pi * get_area(b2, b3) / volume_k;
+    int n2_max = alpha * two_pi * get_area(b3, b1) / volume_k;
+    int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
+    float ksq_max = two_pi * two_pi * alpha * alpha;
+
+    int nk = 0;
+    for (int n1 = 0; n1 <= n1_max; ++n1) {
+      for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
+        for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+          const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
+          if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+          const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+          const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+          const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+          const float ksq = kx * kx + ky * ky + kz * kz;
+          if (ksq < ksq_max) {
+            const int nc_nk = nc * num_kpoints_max + (nk++);
+            g_kx[nc_nk] = kx;
+            g_ky[nc_nk] = ky;
+            g_kz[nc_nk] = kz;
+            const float sqrt_pi = 1.77245385f;
+            const float b2 = ksq * alpha_factor;
+            const float b = sqrt(b2);
+            const float exp_b2 = exp(-b2);
+            const float k = sqrt(ksq);
+            const float erfc_b = erfc(b);
+            const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
+            const float c1 = -k * ksq *
+              (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+            const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
+            g_G_vdw[nc_nk] = prefactor * c1;
+            g_G_vdw_virial[nc_nk] = prefactor * c2;
+          }
+        }
+      }
+    }
+    g_num_kpoints[nc] = nk;
   }
 }
 
@@ -863,15 +998,15 @@ void NEP_VDW::find_force(
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      dataset[device_id].NN_angular_sum.data(),
-      dataset[device_id].NN_angular.data(),
-      dataset[device_id].NL_angular.data(),
+      dataset[device_id].NN_radial_sum.data(),
+      dataset[device_id].NN_radial.data(),
+      dataset[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      dataset[device_id].x12_angular.data(),
-      dataset[device_id].y12_angular.data(),
-      dataset[device_id].z12_angular.data(),
+      dataset[device_id].x12_radial.data(),
+      dataset[device_id].y12_radial.data(),
+      dataset[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
     GPU_CHECK_KERNEL
 
@@ -980,37 +1115,73 @@ void NEP_VDW::find_force(
     }
 
     if (paramb.vdw) {
-      find_force_vdw_static<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].NN_radial_sum.data(),
-        dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
-        paramb,
-        dataset[device_id].type.data(),
+      find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
+        dataset[device_id].Nc,
+        vdw_para.num_kpoints_max,
+        vdw_para.alpha,
+        vdw_para.alpha_factor,
+        dataset[device_id].box_original.data(),
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].G_vdw.data(),
+        nep_data[device_id].G_vdw_virial.data());
+      GPU_CHECK_KERNEL
+
+      find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
+        vdw_para.num_kpoints_max,
+        dataset[device_id].Na.data(),
+        dataset[device_id].Na_sum.data(),
         nep_data[device_id].C6.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
+        dataset[device_id].r.data(),
+        dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].r.data() + dataset[device_id].N * 2,
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].S_real.data(),
+        nep_data[device_id].S_imag.data());
+      GPU_CHECK_KERNEL
+
+      find_force_vdw_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
+        dataset[device_id].N,
+        vdw_para.num_kpoints_max,
+        dataset[device_id].Na.data(),
+        dataset[device_id].Na_sum.data(),
+        nep_data[device_id].C6.data(),
+        dataset[device_id].r.data(),
+        dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].r.data() + dataset[device_id].N * 2,
+        nep_data[device_id].num_kpoints.data(),
+        nep_data[device_id].kx.data(),
+        nep_data[device_id].ky.data(),
+        nep_data[device_id].kz.data(),
+        nep_data[device_id].G_vdw.data(),
+        nep_data[device_id].G_vdw_virial.data(),
+        nep_data[device_id].S_real.data(),
+        nep_data[device_id].S_imag.data(),
+        nep_data[device_id].D_C6.data(),
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].D_C6.data());
+        dataset[device_id].energy.data());
       GPU_CHECK_KERNEL
     }
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
-      dataset[device_id].NN_angular_sum.data(),
-      dataset[device_id].NN_angular.data(),
-      dataset[device_id].NL_angular.data(),
+      dataset[device_id].NN_radial_sum.data(),
+      dataset[device_id].NN_radial.data(),
+      dataset[device_id].NL_radial.data(),
       paramb,
       annmb[device_id],
       dataset[device_id].type.data(),
-      dataset[device_id].x12_angular.data(),
-      dataset[device_id].y12_angular.data(),
-      dataset[device_id].z12_angular.data(),
+      dataset[device_id].x12_radial.data(),
+      dataset[device_id].y12_radial.data(),
+      dataset[device_id].z12_radial.data(),
       nep_data[device_id].Fp.data(),
       nep_data[device_id].C6_derivative.data(),
       nep_data[device_id].D_C6.data(),

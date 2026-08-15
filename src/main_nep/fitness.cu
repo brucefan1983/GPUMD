@@ -133,7 +133,7 @@ Fitness::Fitness(Parameters& para)
     } else if (para.charge_mode) {
       potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
     } else if (para.vdw) {
-      potential.reset(new NEP_VDW(para, N, para.version, deviceCount));
+      potential.reset(new NEP_VDW(para, N, Nc, para.version, deviceCount));
     } else {
       potential.reset(new NEP(para, N, para.version, deviceCount));
     }

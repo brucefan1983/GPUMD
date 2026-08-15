@@ -27,6 +27,14 @@ struct NEP_VDW_Data {
   GPU_Vector<float> C6_derivative;
   GPU_Vector<float> D_C6;
   GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G_vdw;
+  GPU_Vector<float> G_vdw_virial;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  GPU_Vector<int> num_kpoints;
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
@@ -71,6 +79,12 @@ public:
     const float* c;                 // for elements in descriptor
   };
 
+  struct VDW_Para {
+    int num_kpoints_max = 50000;
+    float alpha = 0.5f;
+    float alpha_factor = 1.0f;
+  };
+
   struct ZBL {
     bool enabled = false;
     bool flexibled = false;
@@ -84,6 +98,7 @@ public:
   NEP_VDW(
     Parameters& para,
     int N,
+    int Nc,
     int version,
     int deviceCount);
   void find_force(
@@ -98,5 +113,6 @@ private:
   ANN annmb[16];
   NEP_VDW_Data nep_data[16];
   ZBL zbl;
+  VDW_Para vdw_para;
   void update_potential(float* parameters, ANN& ann);
 };
