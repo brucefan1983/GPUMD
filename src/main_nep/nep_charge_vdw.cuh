@@ -73,6 +73,8 @@ public:
     GPU_Vector<float> ky;
     GPU_Vector<float> kz;
     GPU_Vector<float> G;
+    GPU_Vector<float> G_vdw;
+    GPU_Vector<float> G_vdw_virial;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
     GPU_Vector<float> D_real;

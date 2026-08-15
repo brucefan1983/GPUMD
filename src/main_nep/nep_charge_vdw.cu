@@ -232,6 +232,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].G.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].G_vdw.resize(Nc * charge_para.num_kpoints_max);
+    nep_data[device_id].G_vdw_virial.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
@@ -747,88 +749,6 @@ static __global__ void find_bec_angular(
   }
 }
 
-static __global__ void find_force_vdw_static(
-  const int N,
-  const int* g_NN_sum,
-  const int* g_NN,
-  const int* g_NL,
-  const NEP_Charge_VDW::ParaMB paramb,
-  const float* __restrict__ g_C6,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial,
-  float* g_pe,
-  float* g_D_C6)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    float q1 = g_C6[n1];
-    float s_pe = 0.0f;
-    float D_C6 = 0.0f;
-    float R = paramb.rc_angular;
-    float R2 = R * R;
-    float R4 = R2 * R2;
-    float R6 = R4 * R2;
-    float rc = paramb.rc_radial;
-    float rc2 = rc * rc;
-    float rc4 = rc2 * rc2;
-    float rc5 = rc4 * rc;
-    float rc6 = rc4 * rc2;
-    float one_over_rc6 = 1.0f / (rc6 + R6);
-    float shifted_force = 6.0f * rc5 * one_over_rc6 * one_over_rc6;
-    int neighbor_number = g_NN[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = g_NN_sum[n1] + i1;
-      int n2 = g_NL[index];
-      float q2 = g_C6[n2];
-      float qq = q1 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12_2 = d12 * d12;
-      float d12_4 = d12_2 * d12_2;
-      float d12_6 = d12_4 * d12_2;
-      float one_over_r6 = 1.0f / (d12_6 + R6);
-      float shifted_one_over_r6 = one_over_r6 - one_over_rc6 + (d12 - rc) * shifted_force;
-      D_C6 -= q2 * shifted_one_over_r6;
-      float f2 =
-        3.0f * qq * d12_4 * one_over_r6 * one_over_r6 -
-        0.5f * qq * shifted_force / d12;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      s_pe += -0.5f * qq * shifted_one_over_r6;
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-    }
-    g_D_C6[n1] = D_C6;
-    g_virial[n1 + N * 0] += s_virial_xx;
-    g_virial[n1 + N * 1] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
-    g_pe[n1] += s_pe;
-  }
-}
-
 static __global__ void find_force_ZBL(
   const int N,
   const NEP_Charge_VDW::ParaMB paramb,
@@ -1038,6 +958,82 @@ static __global__ void find_force_charge_reciprocal_space(
   }
 }
 
+static __global__ void find_force_vdw_reciprocal_space(
+  const int N,
+  const int num_kpoints_max,
+  const int* Na,
+  const int* Na_sum,
+  const float* g_C6,
+  const float* g_x,
+  const float* g_y,
+  const float* g_z,
+  const int* g_num_kpoints,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G_vdw,
+  const float* g_G_vdw_virial,
+  const float* g_S_real,
+  const float* g_S_imag,
+  float* g_D_C6,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial,
+  float* g_pe)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  int num_kpoints = g_num_kpoints[blockIdx.x];
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = threadIdx.x + batch * 1024 + N1;
+    if (n < N2) {
+      float temp_energy_sum = 0.0f;
+      float temp_virial_sum[6] = {0.0f};
+      float temp_force_sum[3] = {0.0f};
+      float temp_D_C6_sum = 0.0f;
+      for (int nk = 0; nk < num_kpoints; ++nk) {
+        const int nc_nk = blockIdx.x * num_kpoints_max + nk;
+        const float kx = g_kx[nc_nk];
+        const float ky = g_ky[nc_nk];
+        const float kz = g_kz[nc_nk];
+        const float kr = kx * g_x[n] + ky * g_y[n] + kz * g_z[n];
+        const float G = g_G_vdw[nc_nk];
+        const float H = g_G_vdw_virial[nc_nk];
+        const float S_real = g_S_real[nc_nk];
+        const float S_imag = g_S_imag[nc_nk];
+        float sin_kr = sin(kr);
+        float cos_kr = cos(kr);
+        const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+        const float SS = S_real * S_real + S_imag * S_imag;
+        const float GSS = G * SS;
+        const float HSS = H * SS;
+        temp_energy_sum += GSS;
+        temp_virial_sum[0] += GSS - HSS * kx * kx; // xx
+        temp_virial_sum[1] += GSS - HSS * ky * ky; // yy
+        temp_virial_sum[2] += GSS - HSS * kz * kz; // zz
+        temp_virial_sum[3] -= HSS * kx * ky; // xy
+        temp_virial_sum[4] -= HSS * ky * kz; // yz
+        temp_virial_sum[5] -= HSS * kz * kx; // zx
+        temp_D_C6_sum += G * (S_real * cos_kr - S_imag * sin_kr);
+        temp_force_sum[0] += kx * imag_term;
+        temp_force_sum[1] += ky * imag_term;
+        temp_force_sum[2] += kz * imag_term;
+      }
+      g_pe[n] += temp_energy_sum / (N2 - N1);
+      for (int d = 0; d < 6; ++d) {
+        g_virial[n + N * d] += temp_virial_sum[d] / (N2 - N1);
+      }
+      g_D_C6[n] = 2.0f * temp_D_C6_sum;
+      const float C6_factor = 2.0f * g_C6[n];
+      g_fx[n] += C6_factor * temp_force_sum[0];
+      g_fy[n] += C6_factor * temp_force_sum[1];
+      g_fz[n] += C6_factor * temp_force_sum[2];
+    }
+  }
+}
+
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -1063,7 +1059,9 @@ static __global__ void find_k_and_G(
   float* g_kx,
   float* g_ky,
   float* g_kz,
-  float* g_G)
+  float* g_G,
+  float* g_G_vdw,
+  float* g_G_vdw_virial)
 {
   int nc = threadIdx.x + blockIdx.x * blockDim.x; // structure index
   if (nc < Nc) {
@@ -1111,6 +1109,19 @@ static __global__ void find_k_and_G(
             g_ky[nc_nk] = ky;
             g_kz[nc_nk] = kz;
             g_G[nc_nk] = 2.0f * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+
+            const float sqrt_pi = 1.77245385f;
+            const float b2 = ksq * alpha_factor;
+            const float b = sqrt(b2);
+            const float exp_b2 = exp(-b2);
+            const float k = sqrt(ksq);
+            const float erfc_b = erfc(b);
+            const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
+            const float c1 = -k * ksq *
+              (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+            const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
+            g_G_vdw[nc_nk] = prefactor * c1;
+            g_G_vdw_virial[nc_nk] = prefactor * c2;
           }
         }
       }
@@ -1378,7 +1389,9 @@ void NEP_Charge_VDW::find_force(
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
-      nep_data[device_id].G.data());
+      nep_data[device_id].G.data(),
+      nep_data[device_id].G_vdw.data(),
+      nep_data[device_id].G_vdw_virial.data());
     GPU_CHECK_KERNEL
 
     find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
@@ -1429,22 +1442,46 @@ void NEP_Charge_VDW::find_force(
       nep_data[device_id].D_real.data());
     GPU_CHECK_KERNEL
 
-    find_force_vdw_static<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      dataset[device_id].NN_radial_sum.data(),
-      dataset[device_id].NN_radial.data(),
-      dataset[device_id].NL_radial.data(),
-      paramb,
+    // reciprocal-space vdW
+    find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
+      charge_para.num_kpoints_max,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
       nep_data[device_id].C6.data(),
-      dataset[device_id].x12_radial.data(),
-      dataset[device_id].y12_radial.data(),
-      dataset[device_id].z12_radial.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data());
+    GPU_CHECK_KERNEL
+
+    find_force_vdw_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
+      dataset[device_id].N,
+      charge_para.num_kpoints_max,
+      dataset[device_id].Na.data(),
+      dataset[device_id].Na_sum.data(),
+      nep_data[device_id].C6.data(),
+      dataset[device_id].r.data(),
+      dataset[device_id].r.data() + dataset[device_id].N,
+      dataset[device_id].r.data() + dataset[device_id].N * 2,
+      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kx.data(),
+      nep_data[device_id].ky.data(),
+      nep_data[device_id].kz.data(),
+      nep_data[device_id].G_vdw.data(),
+      nep_data[device_id].G_vdw_virial.data(),
+      nep_data[device_id].S_real.data(),
+      nep_data[device_id].S_imag.data(),
+      nep_data[device_id].D_C6.data(),
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data(),
-      dataset[device_id].energy.data(),
-      nep_data[device_id].D_C6.data());
+      dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
