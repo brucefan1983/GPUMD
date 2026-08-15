@@ -21,6 +21,7 @@ Get the fitness
 #include "nep.cuh"
 #include "nep_vdw.cuh"
 #include "nep_charge.cuh"
+#include "nep_charge_vdw.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
@@ -127,7 +128,9 @@ Fitness::Fitness(Parameters& para)
   if (para.train_mode == 1 || para.train_mode == 2) {
     potential.reset(new TNEP(para, N, para.version, deviceCount));
   } else {
-    if (para.charge_mode) {
+    if (para.charge_vdw) {
+      potential.reset(new NEP_Charge_VDW(para, N, Nc, para.version, deviceCount));
+    } else if (para.charge_mode) {
       potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
     } else if (para.vdw) {
       potential.reset(new NEP_VDW(para, N, para.version, deviceCount));
@@ -324,7 +327,7 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
   if (para.train_mode == 0) { // potential model
-    if (!para.charge_mode) {
+    if (!(para.charge_mode || para.charge_vdw)) {
       if (para.version == 4) {
         if (para.enable_zbl) {
           if (para.vdw) {
@@ -341,10 +344,18 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
         }
       } 
     } else {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+      if (para.charge_vdw) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge_vdw %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge_vdw %d ", para.num_types);
+        }
       } else {
-        fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+        }
       }
     }
   } else if (para.train_mode == 1) { // dipole model
@@ -504,7 +515,7 @@ void Fitness::report_error(
     }
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      if (!para.charge_mode) {
+      if (!(para.charge_mode || para.charge_vdw)) {
         // NEP models
         printf(
           "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
@@ -601,7 +612,7 @@ void Fitness::report_error(
         fclose(fid_force);
         fclose(fid_virial);
         fclose(fid_stress);
-        if (para.charge_mode) {
+        if ((para.charge_mode || para.charge_vdw)) {
           FILE* fid_charge = my_fopen("charge_test.out", "w");
           update_charge(fid_charge, test_set[0]);
           fclose(fid_charge);
@@ -702,7 +713,7 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_stress = my_fopen("stress_train.out", "w");
     FILE* fid_charge = nullptr;
     FILE* fid_bec = nullptr;
-    if (para.charge_mode) {
+    if ((para.charge_mode || para.charge_vdw)) {
       fid_charge = my_fopen("charge_train.out", "w");
       if (para.has_bec) {
         fid_bec = my_fopen("bec_train.out", "w");
@@ -712,7 +723,7 @@ void Fitness::predict(Parameters& para, float* elite)
       potential->find_force(para, elite, train_set[batch_id], false, 1);
       update_energy_force_virial(
         fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
-      if (para.charge_mode) {
+      if ((para.charge_mode || para.charge_vdw)) {
         update_charge(fid_charge, train_set[batch_id][0]);
         if (para.has_bec) {
           update_bec(fid_bec, train_set[batch_id][0]);
@@ -723,7 +734,7 @@ void Fitness::predict(Parameters& para, float* elite)
     fclose(fid_force);
     fclose(fid_virial);
     fclose(fid_stress);
-    if (para.charge_mode) {
+    if ((para.charge_mode || para.charge_vdw)) {
       fclose(fid_charge);
       if (para.has_bec) {
         fclose(fid_bec);

@@ -111,7 +111,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       sigma[n] = para.sigma0;
     }
     // make sure the initial charges are zero
-    if (para.charge_mode) {
+    if ((para.charge_mode || para.charge_vdw)) {
       const int num_part = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
         for (int n = para.number_of_variables_ann_1 * t + num_part; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
@@ -140,7 +140,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
 #endif
     // flip the charges if needed
-    if (para.charge_mode && para.flip_charge) {
+    if ((para.charge_mode || para.charge_vdw) && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
         for (int n = para.number_of_variables_ann_1 * t + num1; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
@@ -167,7 +167,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann = NUM89 * para.number_of_variables_ann_1 + (para.charge_mode ? 2 : 1);
+  const int num_ann = NUM89 * para.number_of_variables_ann_1 + ((para.charge_mode || para.charge_vdw) ? 2 : 1);
 #ifdef USE_CJ
   const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -321,7 +321,7 @@ void SNES::find_type_of_variable(Parameters& para)
       }
       offset += para.number_of_variables_ann_1;
     }
-    offset += para.charge_mode ? 2 : 1; // the bias
+    offset += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the bias
   }
 
   // descriptor part
@@ -387,7 +387,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      if (!para.charge_mode) {
+      if (!(para.charge_mode || para.charge_vdw)) {
         printf(
           "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
           "Step",

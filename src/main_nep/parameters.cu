@@ -77,6 +77,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_zbl_set = false;
   is_charge_mode_set = false;
   is_vdw_set = false;
+  is_charge_vdw_set = false;
   is_save_potential_set = false;
   is_output_interval_set = false;
 
@@ -117,6 +118,7 @@ void Parameters::set_default_parameters()
   output_descriptor = false;
   charge_mode = 0;
   vdw = 0;
+  charge_vdw = 0;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -186,15 +188,22 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (charge_mode) {
+  if (charge_mode || charge_vdw) {
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
+    if (num_hidden_layers == 2) {
+      PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
+    }
+  }
+
+  if ((charge_mode > 0) + vdw + charge_vdw > 1) {
+    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
 
   if (vdw) {
-    if (charge_mode) {
-      PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for ordinary NEP (charge_mode 0).");
+    if (charge_mode || charge_vdw) {
+      PRINT_INPUT_ERROR("NEP-vdW is only implemented without charge.");
     }
     if (train_mode != 0) {
       PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
@@ -254,7 +263,7 @@ void Parameters::calculate_parameters()
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
   }
   number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
-  if (charge_mode) {
+  if (charge_mode || charge_vdw) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
   }
@@ -302,7 +311,7 @@ void Parameters::calculate_parameters()
     }
     std::vector<std::string> tokens;
     const int NUM89 = 89;
-    const int num_ann = NUM89 * number_of_variables_ann_1 + (charge_mode ? 2 : 1);
+    const int num_ann = NUM89 * number_of_variables_ann_1 + ((charge_mode || charge_vdw) ? 2 : 1);
 #ifdef USE_CJ
     const int num_cnk_radial = NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
@@ -369,6 +378,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   header.train_mode = 0;
   header.charge_mode = 0;
   header.vdw = 0;
+  header.charge_vdw = 0;
   std::string rest = token.substr(4);
   if (rest.compare(0, 4, "_zbl") == 0) {
     header.enable_zbl = true;
@@ -380,6 +390,10 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   }
   if (rest == "_vdw") {
     header.vdw = 1;
+    return true;
+  }
+  if (rest == "_charge_vdw") {
+    header.charge_vdw = 1;
     return true;
   }
   if (rest == "_dipole") {
@@ -582,6 +596,8 @@ void Parameters::compare_with_nep_txt(
   compare_int(
     "charge_mode", charge_mode, is_charge_mode_set, header.charge_mode, filename, mismatches);
   compare_int("vdw", vdw, is_vdw_set, header.vdw, filename, mismatches);
+  compare_int(
+    "charge_vdw", charge_vdw, is_charge_vdw_set, header.charge_vdw, filename, mismatches);
   compare_int(
     "type (number of types)", num_types, is_type_set, header.num_types, filename, mismatches);
   if (num_types == header.num_types && elements != header.elements) {
@@ -856,6 +872,22 @@ void Parameters::report_inputs()
     printf("    (default) do not add environment-dependent vdW.\n");
   }
 
+  if (is_charge_vdw_set) {
+    if (charge_vdw) {
+      printf("    (input)   use the combined charge-vdW model.\n");
+      printf("        V9 uses the same charge functionality as charge_mode 1.\n");
+      printf("        lambda_q = %g.\n", lambda_q);
+      printf("        lambda_z = %g.\n", lambda_z);
+      if (has_multiple_cutoffs) {
+        PRINT_INPUT_ERROR("Can only use uniform cutoff for charge_vdw.");
+      }
+    } else {
+      printf("    (input)   do not use the combined charge-vdW model.\n");
+    }
+  } else {
+    printf("    (default) do not use the combined charge-vdW model.\n");
+  }
+
   if (is_n_max_set) {
     printf("    (input)   n_max_radial = %d.\n", n_max_radial);
     printf("    (input)   n_max_angular = %d.\n", n_max_angular);
@@ -1071,6 +1103,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_charge_mode(param, num_param);
   } else if (strcmp(param[0], "vdw") == 0) {
     parse_vdw(param, num_param);
+  } else if (strcmp(param[0], "charge_vdw") == 0) {
+    parse_charge_vdw(param, num_param);
   } else if (strcmp(param[0], "fine_tune") == 0) {
     parse_fine_tune(param, num_param);
   } else if (strcmp(param[0], "save_potential") == 0) {
@@ -1426,7 +1460,7 @@ void Parameters::parse_neuron(const char** param, int num_param)
   num_hidden_layers = 1;
 
   if (num_param == 3) {
-    if (charge_mode != 0) {
+    if (charge_mode != 0 || charge_vdw != 0) {
       PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
     }
 
@@ -1782,6 +1816,9 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
     }
   }
 
+  if (charge_mode && (vdw || charge_vdw)) {
+    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
+  }
   if (num_hidden_layers == 2) {
     PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
   }
@@ -1799,14 +1836,37 @@ void Parameters::parse_vdw(const char** param, int num_param)
   if (vdw < 0 || vdw > 1) {
     PRINT_INPUT_ERROR("vdw should be 0 or 1.");
   }
-  if (vdw && charge_mode) {
-    PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for ordinary NEP (charge_mode 0).");
+  if (vdw && (charge_mode || charge_vdw)) {
+    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
   if (vdw && train_mode != 0) {
     PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
   }
   if (vdw && num_hidden_layers == 2) {
     PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
+  }
+}
+
+void Parameters::parse_charge_vdw(const char** param, int num_param)
+{
+  is_charge_vdw_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("charge_vdw should have one parameter.\n");
+  }
+  if (!is_valid_int(param[1], &charge_vdw)) {
+    PRINT_INPUT_ERROR("charge_vdw should be an integer.\n");
+  }
+  if (charge_vdw < 0 || charge_vdw > 1) {
+    PRINT_INPUT_ERROR("charge_vdw should be 0 or 1.");
+  }
+  if (charge_vdw && (charge_mode || vdw)) {
+    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
+  }
+  if (charge_vdw && train_mode != 0) {
+    PRINT_INPUT_ERROR("charge_vdw is only implemented for potential training (model_type 0).");
+  }
+  if (charge_vdw && num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Can only use one hidden layer for charge_vdw.");
   }
 }
 
