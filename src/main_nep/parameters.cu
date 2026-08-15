@@ -263,14 +263,15 @@ void Parameters::calculate_parameters()
     number_of_variables_ann_1 = (dim + 2) * num_neurons1;
   }
   number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
-  if (charge_mode || charge_vdw) {
+  if (charge_mode) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types + 1;
-  }
-
-  if (vdw) {
+  } else if (vdw) {
     number_of_variables_ann_1 += num_neurons1;
     number_of_variables_ann += num_neurons1 * num_types;
+  } else if (charge_vdw) {
+    number_of_variables_ann_1 += 2 * num_neurons1;
+    number_of_variables_ann += 2 * num_neurons1 * num_types + 1;
   }
 
 

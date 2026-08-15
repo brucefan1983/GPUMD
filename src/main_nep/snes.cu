@@ -143,7 +143,11 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     if ((para.charge_mode || para.charge_vdw) && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = para.number_of_variables_ann_1 * t + num1; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
+        int num2 = para.number_of_variables_ann_1 * (t + 1);
+        if (para.charge_vdw) {
+          num2 -= para.num_neurons1;
+        }
+        for (int n = para.number_of_variables_ann_1 * t + num1; n < num2; ++n) {
           mu[n] = -mu[n];
         }
       }
@@ -206,7 +210,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       ++count;
     }
   }
-  ++count; // the global bias
+  count += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the global parameters
 
 #ifdef USE_CJ
 

@@ -28,6 +28,7 @@ public:
     float typewise_cutoff_zbl_factor = 0.65f;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
+    float c6_ref_sqrt[NUM_ELEMENTS];
     int basis_size_radial = 0;
     int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -62,6 +63,9 @@ public:
   struct NEP_Charge_VDW_Data {
     GPU_Vector<float> descriptors;       // descriptors
     GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
+    GPU_Vector<float> C6;
+    GPU_Vector<float> C6_derivative;
+    GPU_Vector<float> D_C6;
     GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
