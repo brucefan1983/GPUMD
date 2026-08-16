@@ -120,6 +120,23 @@ void Minimizer::calculate_total_potential(const GPU_Vector<double>& potential_pe
   total_potential_.copy_to_host(cpu_total_potential_.data());
 }
 
+void Minimizer::calculate_total_potential(
+  const GPU_Vector<double>& potential_per_atom, const gpuStream_t stream)
+{
+  const int size = potential_per_atom.size();
+  const int number_of_rounds = (size - 1) / 1024 + 1;
+  potential_per_atom_temp_.fill_async(0.0, stream);
+  gpu_calculate_total_potential<<<1, 1024, 0, stream>>>(
+    size,
+    number_of_rounds,
+    potential_per_atom.data(),
+    potential_per_atom_temp_.data(),
+    total_potential_.data());
+  GPU_CHECK_KERNEL
+  total_potential_.copy_to_host_async(cpu_total_potential_.data(), stream);
+  CHECK(gpuStreamSynchronize(stream));
+}
+
 void Minimizer::calculate_force_square_max(const GPU_Vector<double>& force_per_atom)
 {
   const int size = force_per_atom.size();
@@ -128,4 +145,16 @@ void Minimizer::calculate_force_square_max(const GPU_Vector<double>& force_per_a
     size, number_of_rounds, force_per_atom.data(), force_square_max_.data());
 
   force_square_max_.copy_to_host(cpu_force_square_max_.data());
+}
+
+void Minimizer::calculate_force_square_max(
+  const GPU_Vector<double>& force_per_atom, const gpuStream_t stream)
+{
+  const int size = force_per_atom.size();
+  const int number_of_rounds = (size - 1) / 1024 + 1;
+  gpu_calculate_force_square_max<<<1, 1024, 0, stream>>>(
+    size, number_of_rounds, force_per_atom.data(), force_square_max_.data());
+  GPU_CHECK_KERNEL
+  force_square_max_.copy_to_host_async(cpu_force_square_max_.data(), stream);
+  CHECK(gpuStreamSynchronize(stream));
 }
