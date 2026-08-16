@@ -18,7 +18,12 @@
 #include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <map>
+#include <memory>
+#include <mutex>
+#include <vector>
 
 struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -105,15 +110,20 @@ public:
   };
 
   struct Small_Box_Data {
-        GPU_Vector<int> NN_radial;
-        GPU_Vector<int> NL_radial;
-        GPU_Vector<int> NN_angular;
-        GPU_Vector<int> NL_angular;
-        GPU_Vector<float> r12;
-    } small_box_data;
+    GPU_Vector<int> NN_radial;
+    GPU_Vector<int> NL_radial;
+    GPU_Vector<int> NN_angular;
+    GPU_Vector<int> NL_angular;
+    GPU_Vector<float> r12;
+  };
 
-  NEP(const char* file_potential, const int num_atoms);
+  NEP(
+    const char* file_potential,
+    int num_atoms,
+    bool allocate_default_workspace = true);
   virtual ~NEP(void);
+  void prepare_stream(gpuStream_t stream);
+
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -121,6 +131,15 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+
+  void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    gpuStream_t stream);
 
   virtual void compute(
     const float temperature,
@@ -130,6 +149,16 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+
+  void compute(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    gpuStream_t stream);
 
   const GPU_Vector<int>& get_NN_radial_ptr();
 
@@ -140,8 +169,50 @@ private:
   ANN annmb;
   ZBL zbl;
   ExpandedBox ebox;
+  Small_Box_Data small_box_data;
   DFTD3 dftd3;
   Neighbor neighbor;
+
+  struct Compute_State {
+    int large_box_calls = 0;
+    int small_box_calls = 0;
+  };
+
+  struct Stream_Workspace {
+    NEP_Data data;
+    ExpandedBox ebox;
+    Small_Box_Data small_box_data;
+    Neighbor neighbor;
+    Compute_State state;
+    GPU_Pinned_Vector<int> cpu_NN_radial;
+    GPU_Pinned_Vector<int> cpu_NN_angular;
+    std::mutex submission_mutex;
+  };
+
+  struct Host_Neighbor_Data {
+    int* radial;
+    int* angular;
+  };
+
+  int num_atoms_ = 0;
+  int device_id_ = -1;
+  bool has_default_workspace_ = true;
+  Compute_State default_state_;
+  std::map<gpuStream_t, std::unique_ptr<Stream_Workspace>> stream_workspaces_;
+  std::mutex stream_workspaces_mutex_;
+  std::mutex neighbor_log_mutex_;
+
+  void initialize_workspace(
+    NEP_Data& data, Neighbor& neighbor, bool allocate_host_data) const;
+  void validate_default_workspace() const;
+  void validate_stream(const gpuStream_t stream) const;
+  Stream_Workspace& get_stream_workspace(const gpuStream_t stream);
+  void report_neighbor_information(
+    GPU_Vector<int>& radial,
+    GPU_Vector<int>& angular,
+    Host_Neighbor_Data host_data,
+    int& num_calls,
+    gpuStream_t stream);
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -151,7 +222,13 @@ private:
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
+    GPU_Vector<double>& virial,
+    NEP_Data& data,
+    Small_Box_Data& small_box,
+    const ExpandedBox& expanded_box,
+    Host_Neighbor_Data host_data,
+    int& num_calls,
+    const gpuStream_t stream);
 
   void compute_large_box(
     Box& box,
@@ -159,7 +236,12 @@ private:
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
+    GPU_Vector<double>& virial,
+    NEP_Data& data,
+    Neighbor& neighbor_list,
+    Host_Neighbor_Data host_data,
+    int& num_calls,
+    const gpuStream_t stream);
 
   void compute_small_box(
     const float temperature,
@@ -168,7 +250,13 @@ private:
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
+    GPU_Vector<double>& virial,
+    NEP_Data& data,
+    Small_Box_Data& small_box,
+    const ExpandedBox& expanded_box,
+    Host_Neighbor_Data host_data,
+    int& num_calls,
+    const gpuStream_t stream);
 
   void compute_large_box(
     const float temperature,
@@ -177,7 +265,12 @@ private:
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
+    GPU_Vector<double>& virial,
+    NEP_Data& data,
+    Neighbor& neighbor_list,
+    Host_Neighbor_Data host_data,
+    int& num_calls,
+    const gpuStream_t stream);
 
   bool has_dftd3 = false;
   void initialize_dftd3();

@@ -53,6 +53,14 @@ Force::Force(void)
   has_non_nep = false;
 }
 
+void Force::enable_explicit_streams()
+{
+  if (!potentials.empty()) {
+    PRINT_INPUT_ERROR("Explicit GPU streams must be enabled before parsing potentials.\n");
+  }
+  explicit_stream_mode_ = true;
+}
+
 void Force::check_types(const char* file_potential)
 {
   std::ifstream input(file_potential);
@@ -141,8 +149,8 @@ void Force::parse_potential(
 #ifdef ZHEYONG
     num_gpus = 3;
 #endif
-    if (num_gpus == 1) {
-      potential.reset(new NEP(param[1], number_of_atoms));
+    if (num_gpus == 1 || explicit_stream_mode_) {
+      potential.reset(new NEP(param[1], number_of_atoms, !explicit_stream_mode_));
     } else {
       int partition_direction = -1;
       if (num_param == 3) {
@@ -480,6 +488,69 @@ static __global__ void gpu_average_properties(
 }
 
 void Force::set_multiple_potentials_mode(std::string mode) { multiple_potentials_mode_ = mode; }
+
+void Force::prepare_stream(const gpuStream_t stream)
+{
+  if (!explicit_stream_mode_ || stream == nullptr || potentials.size() != 1 ||
+      potentials[0]->nep_model_type != 0)
+    PRINT_INPUT_ERROR(
+      "Explicit GPU streams require one standard energy NEP potential.\n");
+  NEP* potential = dynamic_cast<NEP*>(potentials[0].get());
+  if (potential == nullptr)
+    PRINT_INPUT_ERROR(
+      "Explicit GPU streams require one standard energy NEP potential.\n");
+  potential->prepare_stream(stream);
+}
+
+void Force::compute(
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  std::vector<Group>& group,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  const gpuStream_t stream)
+{
+  if (!explicit_stream_mode_ || stream == nullptr || potentials.size() != 1 ||
+      potentials[0]->nep_model_type != 0 || compute_hnemd_ || compute_hnemdec_ != -1 || is_fcp)
+    PRINT_INPUT_ERROR(
+      "Explicit GPU streams require one standard energy NEP potential.\n");
+  NEP* potential = dynamic_cast<NEP*>(potentials[0].get());
+  if (potential == nullptr)
+    PRINT_INPUT_ERROR(
+      "Explicit GPU streams require one standard energy NEP potential.\n");
+  (void)group;
+
+  Box stream_box = box;
+  stream_box.set_is_orthogonal();
+  const int number_of_atoms = type.size();
+  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
+    number_of_atoms,
+    stream_box,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2);
+  GPU_CHECK_KERNEL
+
+  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    virial_per_atom.data());
+  GPU_CHECK_KERNEL
+
+  potential->compute(
+    stream_box,
+    type,
+    position_per_atom,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom,
+    stream);
+}
 
 void Force::compute(
   Box& box,
