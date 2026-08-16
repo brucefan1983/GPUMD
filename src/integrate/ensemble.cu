@@ -354,10 +354,31 @@ void Ensemble::velocity_verlet(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& velocity_per_atom)
 {
+  velocity_verlet(
+    is_step1,
+    time_step,
+    group,
+    mass,
+    force_per_atom,
+    position_per_atom,
+    velocity_per_atom,
+    nullptr);
+}
+
+void Ensemble::velocity_verlet(
+  const bool is_step1,
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom,
+  const gpuStream_t stream)
+{
   const int number_of_atoms = mass.size();
 
   if (fixed_group == -1) {
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
       is_step1,
       number_of_atoms,
       time_step,
@@ -372,7 +393,7 @@ void Ensemble::velocity_verlet(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   } else {
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
       is_step1,
       number_of_atoms,
       fixed_group,
@@ -643,6 +664,29 @@ void Ensemble::find_thermo(
   const GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& thermo)
 {
+  find_thermo(
+    use_target_temperature,
+    volume,
+    group,
+    mass,
+    potential_per_atom,
+    velocity_per_atom,
+    virial_per_atom,
+    thermo,
+    nullptr);
+}
+
+void Ensemble::find_thermo(
+  const bool use_target_temperature,
+  const double volume,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential_per_atom,
+  const GPU_Vector<double>& velocity_per_atom,
+  const GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& thermo,
+  const gpuStream_t stream)
+{
   const int number_of_atoms = mass.size();
   int num_atoms_for_temperature = number_of_atoms;
   if (fixed_group >= 0) {
@@ -652,7 +696,7 @@ void Ensemble::find_thermo(
     num_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
   }
 
-  gpu_find_thermo_instant_temperature<<<8, 1024>>>(
+  gpu_find_thermo_instant_temperature<<<8, 1024, 0, stream>>>(
     number_of_atoms,
     num_atoms_for_temperature,
     temperature,
@@ -687,8 +731,16 @@ gpu_scale_velocity(const int N, const double factor, double* g_vx, double* g_vy,
 // wrapper of the above kernel
 void Ensemble::scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom)
 {
+  scale_velocity_global(factor, velocity_per_atom, nullptr);
+}
+
+void Ensemble::scale_velocity_global(
+  const double factor,
+  GPU_Vector<double>& velocity_per_atom,
+  const gpuStream_t stream)
+{
   const int number_of_atoms = velocity_per_atom.size() / 3;
-  gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
     number_of_atoms,
     factor,
     velocity_per_atom.data(),

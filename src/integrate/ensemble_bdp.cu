@@ -24,6 +24,8 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 #define DIM 3
 
 void Ensemble_BDP::initialize_rng()
@@ -66,6 +68,53 @@ Ensemble_BDP::~Ensemble_BDP(void)
   // nothing now
 }
 
+void Ensemble_BDP::seed_rng(unsigned int seed)
+{
+  rng.seed(seed);
+  gaussian_cache = SVR_Gaussian_Cache();
+}
+
+BDP_RNG_State Ensemble_BDP::get_rng_state() const
+{
+  BDP_RNG_State state;
+  state.rng = rng;
+  state.gaussian_cache = gaussian_cache;
+  return state;
+}
+
+void Ensemble_BDP::set_rng_state(const BDP_RNG_State& state)
+{
+  rng = state.rng;
+  gaussian_cache = state.gaussian_cache;
+}
+
+std::string Ensemble_BDP::export_rng_state() const
+{
+  std::ostringstream output;
+  output << 1 << ' ' << gaussian_cache.iset << ' '
+         << std::setprecision(17) << gaussian_cache.gset << ' ' << rng;
+  return output.str();
+}
+
+bool Ensemble_BDP::import_rng_state(const std::string& state)
+{
+  std::istringstream input(state);
+  int version = 0;
+  SVR_Gaussian_Cache cache;
+  std::mt19937 restored_rng;
+  if (!(input >> version >> cache.iset >> cache.gset >> restored_rng) || version != 1 ||
+      (cache.iset != 0 && cache.iset != 1)) {
+    return false;
+  }
+  input >> std::ws;
+  if (!input.eof()) {
+    return false;
+  }
+  gaussian_cache = cache;
+  rng = restored_rng;
+  return true;
+}
+
 void Ensemble_BDP::integrate_nvt_bdp_2(
   const double time_step,
   const double volume,
@@ -98,6 +147,95 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
   double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling, rng);
   factor = sqrt(factor / ek[0]);
   scale_velocity_global(factor, velocity_per_atom);
+}
+
+static __global__ void gpu_resamplekin_and_scale(
+  const int number_of_atoms,
+  const int ndeg,
+  const double temperature,
+  const double temperature_coupling,
+  const double gaussian,
+  const double sum_of_squares,
+  const double* thermo,
+  double* velocity_x,
+  double* velocity_y,
+  double* velocity_z)
+{
+  const int atom = blockIdx.x * blockDim.x + threadIdx.x;
+  if (atom >= number_of_atoms)
+    return;
+
+  const double kinetic_energy = thermo[0] * ndeg * K_B * 0.5;
+  const double target_kinetic_energy = ndeg * K_B * temperature * 0.5;
+  const double coupling =
+    temperature_coupling > 0.1 ? exp(-1.0 / temperature_coupling) : 0.0;
+  const double new_kinetic_energy =
+    kinetic_energy +
+    (1.0 - coupling) *
+      (target_kinetic_energy * (sum_of_squares + gaussian * gaussian) / ndeg -
+       kinetic_energy) +
+    2.0 * gaussian *
+      sqrt(
+        kinetic_energy * target_kinetic_energy / ndeg * (1.0 - coupling) * coupling);
+  const double factor = sqrt(new_kinetic_energy / kinetic_energy);
+  velocity_x[atom] *= factor;
+  velocity_y[atom] *= factor;
+  velocity_z[atom] *= factor;
+}
+
+void Ensemble_BDP::integrate_nvt_bdp_2(
+  const double time_step,
+  const double volume,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential_per_atom,
+  const GPU_Vector<double>& force_per_atom,
+  const GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& thermo,
+  const gpuStream_t stream)
+{
+  const int number_of_atoms = mass.size();
+  velocity_verlet(
+    false,
+    time_step,
+    group,
+    mass,
+    force_per_atom,
+    position_per_atom,
+    velocity_per_atom,
+    stream);
+
+  int number_of_fixed_atoms =
+    fixed_group == -1 ? 0 : group[fixed_grouping_method].cpu_size[fixed_group];
+  number_of_fixed_atoms +=
+    move_group == -1 ? 0 : group[move_grouping_method].cpu_size[move_group];
+  const int ndeg = 3 * (number_of_atoms - number_of_fixed_atoms);
+  find_thermo(
+    true,
+    volume,
+    group,
+    mass,
+    potential_per_atom,
+    velocity_per_atom,
+    virial_per_atom,
+    thermo,
+    stream);
+
+  const SVR_Noise noise = draw_resamplekin_noise(ndeg, rng, gaussian_cache);
+  gpu_resamplekin_and_scale<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
+    number_of_atoms,
+    ndeg,
+    temperature,
+    temperature_coupling,
+    noise.gaussian,
+    noise.sum_of_squares,
+    thermo.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
+  GPU_CHECK_KERNEL
 }
 
 // integrate by one step, with heating and cooling, using the BDP method
@@ -135,8 +273,10 @@ void Ensemble_BDP::integrate_heat_bdp_2(
   ek[label_2] *= 0.5;
 
   // get the re-scaling factors
-  double factor_1 = resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling, rng);
-  double factor_2 = resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling, rng);
+  double factor_1 =
+    resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling, rng);
+  double factor_2 =
+    resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling, rng);
   factor_1 = sqrt(factor_1 / ek[label_1]);
   factor_2 = sqrt(factor_2 / ek[label_2]);
 
@@ -193,4 +333,51 @@ void Ensemble_BDP::compute2(
       atom.position_per_atom,
       atom.velocity_per_atom);
   }
+}
+
+void Ensemble_BDP::compute1_stream(
+  const double time_step,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo,
+  const gpuStream_t stream)
+{
+  if (type != 4) {
+    PRINT_INPUT_ERROR("Only nvt_bdp supports explicit GPU streams.");
+  }
+  velocity_verlet(
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom,
+    stream);
+}
+
+void Ensemble_BDP::compute2_stream(
+  const double time_step,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo,
+  const gpuStream_t stream)
+{
+  if (type != 4) {
+    PRINT_INPUT_ERROR("Only nvt_bdp supports explicit GPU streams.");
+  }
+  integrate_nvt_bdp_2(
+    time_step,
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.force_per_atom,
+    atom.virial_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom,
+    thermo,
+    stream);
 }
