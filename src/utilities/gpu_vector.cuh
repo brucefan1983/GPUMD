@@ -129,6 +129,23 @@ public:
     CHECK(gpuMemcpy(data_ + offset, h_data, memory, gpuMemcpyHostToDevice));
   }
 
+  // Page-locked host memory is required for overlap with device work.
+  void copy_from_host_async(const T* h_data, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(data_, h_data, memory_, gpuMemcpyHostToDevice, stream));
+  }
+
+  void copy_from_host_async(const T* h_data, const size_t size, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(data_, h_data, sizeof(T) * size, gpuMemcpyHostToDevice, stream));
+  }
+
+  void copy_from_host_async(
+    const T* h_data, const size_t size, const int offset, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(data_ + offset, h_data, sizeof(T) * size, gpuMemcpyHostToDevice, stream));
+  }
+
   // copy data from device with the default size
   void copy_from_device(const T* d_data)
   {
@@ -140,6 +157,17 @@ public:
   {
     const size_t memory = sizeof(T) * size;
     CHECK(gpuMemcpy(data_, d_data, memory, gpuMemcpyDeviceToDevice));
+  }
+
+  // asynchronously copy data from device using a given stream
+  void copy_from_device_async(const T* d_data, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(data_, d_data, memory_, gpuMemcpyDeviceToDevice, stream));
+  }
+
+  void copy_from_device_async(const T* d_data, const size_t size, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(data_, d_data, sizeof(T) * size, gpuMemcpyDeviceToDevice, stream));
   }
 
   // copy data to host with the default size
@@ -162,6 +190,23 @@ public:
     CHECK(gpuMemcpy(h_data, data_ + offset, memory, gpuMemcpyDeviceToHost));
   }
 
+  // Page-locked host memory is required for overlap with device work.
+  void copy_to_host_async(T* h_data, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(h_data, data_, memory_, gpuMemcpyDeviceToHost, stream));
+  }
+
+  void copy_to_host_async(T* h_data, const size_t size, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(h_data, data_, sizeof(T) * size, gpuMemcpyDeviceToHost, stream));
+  }
+
+  void copy_to_host_async(
+    T* h_data, const size_t size, const int offset, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(h_data, data_ + offset, sizeof(T) * size, gpuMemcpyDeviceToHost, stream));
+  }
+
   // copy data to device with the default size
   void copy_to_device(T* d_data)
   {
@@ -173,6 +218,17 @@ public:
   {
     const size_t memory = sizeof(T) * size;
     CHECK(gpuMemcpy(d_data, data_, memory, gpuMemcpyDeviceToDevice));
+  }
+
+  // asynchronously copy data to device using a given stream
+  void copy_to_device_async(T* d_data, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(d_data, data_, memory_, gpuMemcpyDeviceToDevice, stream));
+  }
+
+  void copy_to_device_async(T* d_data, const size_t size, const gpuStream_t stream)
+  {
+    CHECK(gpuMemcpyAsync(d_data, data_, sizeof(T) * size, gpuMemcpyDeviceToDevice, stream));
   }
 
   // give "value" to each element
@@ -188,6 +244,17 @@ public:
       for (int i = 0; i < size_; ++i)
         data_[i] = value;
     }
+  }
+
+  // asynchronously give "value" to each element using a given stream
+  void fill_async(const T value, const gpuStream_t stream)
+  {
+    if (size_ == 0)
+      return;
+    const int block_size = 128;
+    const int grid_size = (size_ + block_size - 1) / block_size;
+    gpu_fill<<<grid_size, block_size, 0, stream>>>(size_, value, data_);
+    GPU_CHECK_KERNEL
   }
 
   // the [] operator
