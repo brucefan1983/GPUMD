@@ -111,7 +111,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       sigma[n] = para.sigma0;
     }
     // make sure the initial charges are zero
-    if (para.charge_mode) {
+    if ((para.charge_mode || para.charge_vdw)) {
       const int num_part = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
         for (int n = para.number_of_variables_ann_1 * t + num_part; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
@@ -126,10 +126,14 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
     // flip the charges if needed
-    if (para.charge_mode && para.flip_charge) {
+    if ((para.charge_mode || para.charge_vdw) && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = para.number_of_variables_ann_1 * t + num1; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
+        int num2 = para.number_of_variables_ann_1 * (t + 1);
+        if (para.charge_vdw) {
+          num2 -= para.num_neurons1;
+        }
+        for (int n = para.number_of_variables_ann_1 * t + num1; n < num2; ++n) {
           mu[n] = -mu[n];
         }
       }
@@ -153,9 +157,14 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann = NUM89 * para.number_of_variables_ann_1 + (para.charge_mode ? 2 : 1);
+  const int num_ann = NUM89 * para.number_of_variables_ann_1 + ((para.charge_mode || para.charge_vdw) ? 2 : 1);
+#ifdef USE_CJ
+  const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#else
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#endif
   const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
   std::vector<float> restart_mu(num_tot);
   std::vector<float> restart_sigma(num_tot);
@@ -187,7 +196,45 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
       ++count;
     }
   }
-  ++count; // the global bias
+  count += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the global parameters
+
+#ifdef USE_CJ
+
+  // radial descriptors
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t2 = 0; t2 < para.num_types; ++t2) {
+        int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann];
+        if (para.fine_tune_descriptor) {
+          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann];
+        } else {
+          sigma[count] = 0.0f;
+        }
+        ++count;
+      }
+    }
+  }
+
+  // angular descriptors
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t2 = 0; t2 < para.num_types; ++t2) {
+        int element_index_2 = element_map[para.atomic_numbers[t2] - 1];
+        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+        if (para.fine_tune_descriptor) {
+          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+        } else {
+          sigma[count] = 0.0f;
+        }
+        ++count;
+      }
+    }
+  }
+
+#else
 
   // radial descriptors
   for (int n = 0; n <= para.n_max_radial; ++n) {
@@ -231,6 +278,8 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
     }
   }
 
+#endif
+
   input.close();
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
@@ -262,10 +311,30 @@ void SNES::find_type_of_variable(Parameters& para)
       }
       offset += para.number_of_variables_ann_1;
     }
-    offset += para.charge_mode ? 2 : 1; // the bias
+    offset += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the bias
   }
 
   // descriptor part
+#ifdef USE_CJ
+  for (int n = 0; n <= para.n_max_radial; ++n) {
+    for (int k = 0; k <= para.basis_size_radial; ++k) {
+      int nk = n * (para.basis_size_radial + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+          type_of_variable[nk * para.num_types + t1 + offset] = t1;
+      }
+    }
+  }
+  offset +=
+    (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types;
+  for (int n = 0; n <= para.n_max_angular; ++n) {
+    for (int k = 0; k <= para.basis_size_angular; ++k) {
+      int nk = n * (para.basis_size_angular + 1) + k;
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+          type_of_variable[nk * para.num_types + t1 + offset] = t1;
+      }
+    }
+  }
+#else
   for (int n = 0; n <= para.n_max_radial; ++n) {
     for (int k = 0; k <= para.basis_size_radial; ++k) {
       int nk = n * (para.basis_size_radial + 1) + k;
@@ -290,6 +359,7 @@ void SNES::find_type_of_variable(Parameters& para)
       }
     }
   }
+#endif
 }
 
 void SNES::compute(Parameters& para, Fitness* fitness_function)
@@ -307,7 +377,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
 
     if (para.train_mode == 0 || para.train_mode == 3) {
-      if (!para.charge_mode) {
+      if (!(para.charge_mode || para.charge_vdw)) {
         printf(
           "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
           "Step",

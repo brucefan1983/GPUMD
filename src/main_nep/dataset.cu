@@ -163,7 +163,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
 
-  if (para.charge_mode) {
+  if ((para.charge_mode || para.charge_vdw)) {
     charge.resize(N);
     charge_shifted.resize(N);
     charge_cpu.resize(N);
@@ -193,7 +193,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
   for (int n = 0; n < Nc; ++n) {
     weight_cpu[n] = structures[n].weight;
-    if (para.charge_mode) {
+    if ((para.charge_mode || para.charge_vdw)) {
       charge_ref_cpu[n] = structures[n].charge;
     }
     energy_ref_cpu[n] = structures[n].energy;
@@ -229,7 +229,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
           avirial_ref_cpu[Na_sum_cpu[n] + na + N * 5] = structures[n].avirialzx[na];
         }
       }
-      if (para.charge_mode) {
+      if ((para.charge_mode || para.charge_vdw)) {
         for (int d = 0; d < 9; ++d) {
           bec_ref_cpu[Na_sum_cpu[n] + na + N * d] = structures[n].bec[na * 9 + d];
         }
@@ -248,7 +248,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   }
   temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
-  if (para.charge_mode) {
+  if ((para.charge_mode || para.charge_vdw)) {
     charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
     bec_ref_gpu.copy_from_host(bec_ref_cpu.data());
   }
@@ -1112,7 +1112,7 @@ static __global__ void gpu_sum_bec_error(
 std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
-  if (!para.charge_mode) {
+  if (!(para.charge_mode || para.charge_vdw)) {
     return rmse_array;
   }
 
@@ -1151,7 +1151,7 @@ std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
 std::vector<float> Dataset::get_rmse_bec(Parameters& para, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
-  if (!(para.charge_mode && para.has_bec)) {
+  if (!((para.charge_mode || para.charge_vdw) && para.has_bec)) {
     return rmse_array;
   }
 

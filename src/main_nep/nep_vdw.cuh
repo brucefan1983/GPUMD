@@ -20,14 +20,25 @@
 class Parameters;
 class Dataset;
 
-struct NEP_Data {
+struct NEP_VDW_Data {
   GPU_Vector<float> descriptors; // descriptors
   GPU_Vector<float> Fp;          // gradient of descriptors
+  GPU_Vector<float> C6;
+  GPU_Vector<float> C6_derivative;
+  GPU_Vector<float> D_C6;
   GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G_vdw;
+  GPU_Vector<float> G_vdw_virial;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  GPU_Vector<int> num_kpoints;
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
-class NEP : public Potential
+class NEP_VDW : public Potential
 {
 public:
   struct ParaMB {
@@ -35,6 +46,7 @@ public:
     float typewise_cutoff_zbl_factor = 0.65f;
     float rc_radial[NUM_ELEMENTS];  // radial cutoff
     float rc_angular[NUM_ELEMENTS]; // angular cutoff
+    float c6_ref_sqrt[NUM_ELEMENTS];
     int basis_size_radial = 0;
     int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -64,7 +76,12 @@ public:
     const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
     const float* b;                 // bias for the output layer
     const float* c;                 // for elements in descriptor
-    const float* rc;
+  };
+
+  struct VDW_Para {
+    int num_kpoints_max = 50000;
+    float alpha = 0.5f;
+    float alpha_factor = 1.0f;
   };
 
   struct ZBL {
@@ -77,9 +94,10 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP(
+  NEP_VDW(
     Parameters& para,
     int N,
+    int Nc,
     int version,
     int deviceCount);
   void find_force(
@@ -92,7 +110,8 @@ public:
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP_Data nep_data[16];
+  NEP_VDW_Data nep_data[16];
   ZBL zbl;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  VDW_Para vdw_para;
+  void update_potential(float* parameters, ANN& ann);
 };

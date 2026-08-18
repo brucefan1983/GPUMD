@@ -20,21 +20,15 @@
 class Parameters;
 class Dataset;
 
-struct NEP_Data {
-  GPU_Vector<float> descriptors; // descriptors
-  GPU_Vector<float> Fp;          // gradient of descriptors
-  GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> parameters; // parameters to be optimized
-};
-
-class NEP : public Potential
+class NEP_Charge_VDW : public Potential
 {
 public:
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.65f;
-    float rc_radial[NUM_ELEMENTS];  // radial cutoff
-    float rc_angular[NUM_ELEMENTS]; // angular cutoff
+    float rc_radial[NUM_ELEMENTS];  // radial cutoff for each atom type
+    float rc_angular[NUM_ELEMENTS]; // angular cutoff for each atom type
+    float c6_ref_sqrt[NUM_ELEMENTS];
     int basis_size_radial = 0;
     int basis_size_angular = 0;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -57,14 +51,40 @@ public:
   struct ANN {
     int dim = 0;                    // dimension of the descriptor
     int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_neurons2 = 0;           // number of neurons in the output layer
-    int num_hidden_layers = 0;      // number of hidden layers
-    int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
     int num_para = 0;               // number of parameters
-    const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
-    const float* b;                 // bias for the output layer
-    const float* c;                 // for elements in descriptor
-    const float* rc;
+    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
+    const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
+    const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
+    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
+    const float* b1;               // bias for the output layer
+    const float* c;                // for elements in descriptor
+  };
+
+  struct NEP_Charge_VDW_Data {
+    GPU_Vector<float> descriptors;       // descriptors
+    GPU_Vector<float> charge_derivative; // derivative of charge with respect to descriptor
+    GPU_Vector<float> C6;
+    GPU_Vector<float> C6_derivative;
+    GPU_Vector<float> D_C6;
+    GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
+    GPU_Vector<float> sum_fxyz;
+    GPU_Vector<float> parameters; // parameters to be optimized
+    GPU_Vector<float> kx;
+    GPU_Vector<float> ky;
+    GPU_Vector<float> kz;
+    GPU_Vector<float> G;
+    GPU_Vector<float> G_vdw;
+    GPU_Vector<float> G_vdw_virial;
+    GPU_Vector<float> S_real;
+    GPU_Vector<float> S_imag;
+    GPU_Vector<float> D_real;
+    GPU_Vector<int> num_kpoints;
+  };
+
+  struct Charge_Para {
+    int num_kpoints_max = 50000;
+    float alpha = 0.5f; // 1 / (2 Angstrom)
+    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   };
 
   struct ZBL {
@@ -77,9 +97,10 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP(
+  NEP_Charge_VDW(
     Parameters& para,
     int N,
+    int Nc,
     int version,
     int deviceCount);
   void find_force(
@@ -88,11 +109,13 @@ public:
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int deviceCount);
+  void find_k1k2k3();
 
 private:
   ParaMB paramb;
   ANN annmb[16];
-  NEP_Data nep_data[16];
+  NEP_Charge_VDW_Data nep_data[16];
   ZBL zbl;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  Charge_Para charge_para;
+  void update_potential(float* parameters, ANN& ann);
 };

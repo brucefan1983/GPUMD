@@ -24,6 +24,8 @@ struct NepTxtHeader {
   int version;
   int train_mode;
   int charge_mode;
+  int vdw;
+  int charge_vdw;
   bool enable_zbl;
   bool flexible_zbl;
   bool use_typewise_cutoff_zbl;
@@ -106,6 +108,8 @@ public:
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int charge_mode; // add dynamic charge to NEP potential model
+  int vdw;         // add environment-dependent vdW to ordinary NEP
+  int charge_vdw;  // combined charge-vdW model
   bool has_bec = false; // check if there are target BEC values
   int flip_charge = 0; // 1 for flipping charges upon restarting
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
@@ -141,6 +145,8 @@ public:
   bool is_zbl_set;
   bool is_use_typewise_cutoff_zbl_set;
   bool is_charge_mode_set;
+  bool is_vdw_set;
+  bool is_charge_vdw_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -211,6 +217,8 @@ private:
   void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
+  void parse_vdw(const char** param, int num_param);
+  void parse_charge_vdw(const char** param, int num_param);
   void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
