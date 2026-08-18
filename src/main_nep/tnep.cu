@@ -285,8 +285,9 @@ static __global__ void apply_ann(
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
   if (n1 < N) {
+    int type = g_type[n1];
+
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
@@ -343,8 +344,9 @@ static __global__ void apply_ann_pol(
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
   if (n1 < N) {
+    int type = g_type[n1];
+
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
