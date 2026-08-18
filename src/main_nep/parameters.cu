@@ -1441,14 +1441,6 @@ void Parameters::parse_neuron(const char** param, int num_param)
   num_hidden_layers = 1;
 
   if (num_param == 3) {
-    if (charge_mode != 0 || charge_vdw != 0) {
-      PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
-    }
-
-    if (vdw != 0) {
-      PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
-    }
-
     if (!is_valid_int(param[2], &num_neurons2)) {
       PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
     }
@@ -1796,13 +1788,6 @@ void Parameters::parse_charge_mode(const char** param, int num_param)
       PRINT_INPUT_ERROR("flip_charge should be 0 or 1.");
     }
   }
-
-  if (charge_mode && (vdw || charge_vdw)) {
-    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
-  }
-  if (num_hidden_layers == 2) {
-    PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
-  }
 }
 
 void Parameters::parse_vdw(const char** param, int num_param)
@@ -1817,15 +1802,6 @@ void Parameters::parse_vdw(const char** param, int num_param)
   if (vdw < 0 || vdw > 1) {
     PRINT_INPUT_ERROR("vdw should be 0 or 1.");
   }
-  if (vdw && (charge_mode || charge_vdw)) {
-    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
-  }
-  if (vdw && train_mode != 0) {
-    PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
-  }
-  if (vdw && num_hidden_layers == 2) {
-    PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
-  }
 }
 
 void Parameters::parse_charge_vdw(const char** param, int num_param)
@@ -1839,15 +1815,6 @@ void Parameters::parse_charge_vdw(const char** param, int num_param)
   }
   if (charge_vdw < 0 || charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_vdw should be 0 or 1.");
-  }
-  if (charge_vdw && (charge_mode || vdw)) {
-    PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
-  }
-  if (charge_vdw && train_mode != 0) {
-    PRINT_INPUT_ERROR("charge_vdw is only implemented for potential training (model_type 0).");
-  }
-  if (charge_vdw && num_hidden_layers == 2) {
-    PRINT_INPUT_ERROR("Can only use one hidden layer for charge_vdw.");
   }
 }
 
