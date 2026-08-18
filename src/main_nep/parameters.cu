@@ -857,8 +857,6 @@ void Parameters::report_inputs()
     } else {
       printf("    (input)   do not add environment-dependent vdW.\n");
     }
-  } else {
-    printf("    (default) do not add environment-dependent vdW.\n");
   }
 
   if (is_charge_vdw_set) {
@@ -869,8 +867,6 @@ void Parameters::report_inputs()
     } else {
       printf("    (input)   do not use the combined charge-vdW model.\n");
     }
-  } else {
-    printf("    (default) do not use the combined charge-vdW model.\n");
   }
 
   if (is_n_max_set) {
