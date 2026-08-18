@@ -365,17 +365,16 @@ static __global__ void apply_ann_vdw(
   }
 }
 
-static __global__ void zero_force(
-  const int N, float* g_fx, float* g_fy, float* g_fz, float* g_vxx, float* g_vyy, float* g_vzz)
+static __global__ void zero_force(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     g_fx[n1] = 0.0f;
     g_fy[n1] = 0.0f;
     g_fz[n1] = 0.0f;
-    g_vxx[n1] = 0.0f;
-    g_vyy[n1] = 0.0f;
-    g_vzz[n1] = 0.0f;
+    for (int d = 0; d < 6; ++d) {
+      g_v[n1 + N * d] = 0.0f;
+    }
   }
 }
 
@@ -460,9 +459,9 @@ static __global__ void find_force_radial(
     g_virial[n1] += s_virial_xx;
     g_virial[n1 + N] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] = s_virial_xy;
-    g_virial[n1 + N * 4] = s_virial_yz;
-    g_virial[n1 + N * 5] = s_virial_zx;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
 
@@ -964,9 +963,7 @@ void NEP_VDW::find_force(
       dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data(),
-      dataset[device_id].virial.data() + dataset[device_id].N,
-      dataset[device_id].virial.data() + dataset[device_id].N * 2);
+      dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
     apply_ann_vdw<<<grid_size, block_size>>>(
