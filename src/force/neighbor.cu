@@ -20,9 +20,14 @@ neighbor list.
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_scan.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <cstring>
+
+Neighbor::Neighbor() : scan_workspace(new GPU_Exclusive_Scan) {}
+
+Neighbor::~Neighbor() = default;
 
 static __device__ void find_cell_id(
   const Box& box,
@@ -873,7 +878,7 @@ void Neighbor::find_neighbor_global(
     cell_contents,
     NN,
     NL,
-    scan_workspace,
+    *scan_workspace,
     stream);
 }
 

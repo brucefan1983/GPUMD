@@ -16,8 +16,10 @@
 #pragma once
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
+
+class GPU_Exclusive_Scan;
 
 void find_cell_list(
   const double rc,
@@ -222,6 +224,11 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
 class Neighbor
 {
 public:
+  Neighbor();
+  ~Neighbor();
+  Neighbor(const Neighbor&) = delete;
+  Neighbor& operator=(const Neighbor&) = delete;
+
   GPU_Vector<int> NN, NL; // global neighbor list
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
@@ -247,7 +254,7 @@ private:
   GPU_Vector<int> cell_count;     // for cell list
   GPU_Vector<int> cell_count_sum; // for cell list
   GPU_Vector<int> cell_contents;  // for cell list
-  GPU_Exclusive_Scan scan_workspace;
+  std::unique_ptr<GPU_Exclusive_Scan> scan_workspace;
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
   GPU_Vector<int> atom_distance_flag;
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
