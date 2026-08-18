@@ -188,28 +188,16 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (charge_mode || charge_vdw) {
-    if (train_mode != 0) {
-      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
-    }
-    if (num_hidden_layers == 2) {
-      PRINT_INPUT_ERROR("Can only use one hidden layer for qNEP.");
-    }
-  }
-
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
 
-  if (vdw) {
-    if (charge_mode || charge_vdw) {
-      PRINT_INPUT_ERROR("NEP-vdW is only implemented without charge.");
-    }
+  if (charge_mode || charge_vdw || vdw) {
     if (train_mode != 0) {
-      PRINT_INPUT_ERROR("NEP-vdW V1 is only implemented for potential training (model_type 0).");
+      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
     }
     if (num_hidden_layers == 2) {
-      PRINT_INPUT_ERROR("Can only use one hidden layer for NEP-vdW.");
+      PRINT_INPUT_ERROR("Can only use one hidden layer.");
     }
   }
 
