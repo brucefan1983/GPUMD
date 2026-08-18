@@ -194,7 +194,7 @@ void Parameters::calculate_parameters()
 
   if (charge_mode || charge_vdw || vdw) {
     if (train_mode != 0) {
-      PRINT_INPUT_ERROR("Charge is only supported for potential model.");
+      PRINT_INPUT_ERROR("Charge/vdW is only supported for potential model.");
     }
     if (num_hidden_layers == 2) {
       PRINT_INPUT_ERROR("Can only use one hidden layer.");
