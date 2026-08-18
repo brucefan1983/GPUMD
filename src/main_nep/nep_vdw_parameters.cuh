@@ -19,7 +19,10 @@ namespace
 {
 const int max_elem_vdw = 94;
 
-// sqrt(C6) in sqrt(eV * A^6) based on TS
+// Free-atom C6 reference values are based on the TS parameter set distributed with libMBD.
+// See also: A. Tkatchenko and M. Scheffler, Phys. Rev. Lett. 102, 073005 (2009).
+// Values are converted and stored as sqrt(C6) in sqrt(eV * Angstrom^6).
+
 const float c6_ref_sqrt[max_elem_vdw] = {
   1.97076845f, 0.93401822f, 28.78837510f, 11.30800023f, 7.71064063f, 5.27681515f, 3.80265220f, 3.05310135f,
   2.38504950f, 1.95249199f, 30.49184606f, 19.35586982f, 17.76216432f, 13.49984686f, 10.51392286f, 8.94811015f,
