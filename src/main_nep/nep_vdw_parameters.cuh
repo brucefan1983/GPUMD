@@ -1,8 +1,16 @@
 /*
-    Reference free-atom vdW parameters for H-Pu (Z = 1-94).
-    The data are the TS reference parameters used by libMBD.
-
-    c6_ref_sqrt: sqrt(C6) in sqrt(eV * A^6)
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -11,6 +19,7 @@ namespace
 {
 const int max_elem_vdw = 94;
 
+// sqrt(C6) in sqrt(eV * A^6) based on TS
 const float c6_ref_sqrt[max_elem_vdw] = {
   1.97076845f, 0.93401822f, 28.78837510f, 11.30800023f, 7.71064063f, 5.27681515f, 3.80265220f, 3.05310135f,
   2.38504950f, 1.95249199f, 30.49184606f, 19.35586982f, 17.76216432f, 13.49984686f, 10.51392286f, 8.94811015f,
