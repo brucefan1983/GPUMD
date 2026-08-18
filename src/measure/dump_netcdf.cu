@@ -89,6 +89,10 @@ const char VIRIAL_STR[] = "virial";
 const char MASS_STR[] = "mass";
 const char GROUP_LABELS_STR[] = "group_labels";
 
+// The AMBER convention specifies forces in kcal/mol/A, so they are converted on the way out,
+// as the velocities already are. 1 eV = 96.48533212331 kJ/mol and 1 kcal = 4.184 kJ.
+const double EV_TO_KCAL_PER_MOL = 23.06054783061903;
+
 // GPUMD keeps the per-atom virial in its own component order; this maps it to the row-major
 // order the file uses, as Dump_XYZ does. The BEC is already row-major.
 const int VIRIAL_COMPONENT[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
@@ -579,7 +583,7 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
     define_per_frame_variable(VELOCITIES_STR, 3, 3, "angstrom/picosecond", velocities_var);
   }
   if (quantities_.has_force_) {
-    define_per_frame_variable(FORCES_STR, 3, 3, "eV/angstrom", forces_var);
+    define_per_frame_variable(FORCES_STR, 3, 3, "kilocalorie/mole/angstrom", forces_var);
   }
   if (quantities_.has_unwrapped_position_) {
     define_per_frame_variable(
@@ -905,7 +909,7 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, const Atom& at
       number_of_atoms,
       rotate,
       cell_transform,
-      1.0,
+      EV_TO_KCAL_PER_MOL,
       cpu_force_per_atom_,
       pack_float_,
       pack_double_);

@@ -53,7 +53,7 @@ Currently, the following optional arguments are accepted:
      * - :attr:`force`
        - ``forces``
        - ``(frame, atom, spatial)``
-       - eV/Å
+       - kcal/mol/Å
      * - :attr:`unwrapped_position`
        - ``unwrapped_coordinates``
        - ``(frame, atom, spatial)``
@@ -130,9 +130,12 @@ Requirements and specifications
   so that periodic geometry is preserved. Positions, velocities, forces and unwrapped positions
   are rotated as vectors, and the per-atom virial and the :term:`BEC` as rank-2 tensors, so that
   every quantity in a frame refers to the same axes.
-* The units of the ``forces``, ``potential_energy``, ``charge``, ``bec``, ``virial`` and ``mass``
-  variables are those GPUMD works in, and are given by the ``units`` attribute of each variable.
-  They are not the units the AMBER conventions specify for the variables AMBER defines.
+* The variables the AMBER conventions define, namely ``time``, ``coordinates``, ``velocities``,
+  ``forces``, ``cell_lengths`` and ``cell_angles``, carry the units those conventions specify, so
+  the velocities are written in Å/ps and the forces in kcal/mol/Å rather than in the units GPUMD
+  works in. This is what lets readers that trust the ``Conventions`` attribute, such as MDAnalysis,
+  open the file. The remaining variables are GPUMD extensions that the conventions do not cover and
+  carry GPUMD units. The ``units`` attribute of each variable is authoritative in either case.
 * For qNEP models the charge values are predicted by the model. For other models they are those
   specified in :ref:`model.xyz <model_xyz>` via ``charge:R:1``.
 * The Born effective charge (:term:`BEC`) requires a qNEP model trained with target :term:`BEC`,

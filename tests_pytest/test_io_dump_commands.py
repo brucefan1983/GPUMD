@@ -24,6 +24,11 @@ from test_parsing import read_thermo_out
 
 pytestmark = pytest.mark.fast
 
+# The AMBER convention specifies forces in kcal/mol/A while GPUMD works in eV/A, so the file
+# carries them converted. Repeated here rather than imported, so that a change to the factor in
+# dump_netcdf.cu has to be made deliberately in both places.
+EV_TO_KCAL_PER_MOL = 23.06054783061903
+
 
 def _check_thermo_format(path):
     data = read_thermo_out(path)
@@ -841,7 +846,8 @@ def test_dump_netcdf_rotates_general_cell(
         ('coordinates', reference.positions, 1.0, 1.0e-6),
         # dump_xyz writes velocities in A/fs and NetCDF in A/ps
         ('velocities', reference.arrays['vel'], 1000.0, 1.0e-5),
-        ('forces', reference.get_forces(), 1.0, 1.0e-6),
+        # dump_xyz writes forces in eV/A, the AMBER convention specifies kcal/mol/A
+        ('forces', reference.get_forces(), EV_TO_KCAL_PER_MOL, 1.0e-6),
         ('unwrapped_coordinates', reference.arrays['unwrapped_position'], 1.0, 1.0e-6),
     ]
     for name, reference_value, scale, tolerance in vectors:
@@ -865,7 +871,7 @@ def test_dump_netcdf_rotates_general_cell(
 # is left out because it needs a charge model, and is covered on its own below.
 NETCDF_QUANTITY_LAYOUT = {
     'velocity': ('velocities', ('frame', 'atom', 'spatial'), 'angstrom/picosecond'),
-    'force': ('forces', ('frame', 'atom', 'spatial'), 'eV/angstrom'),
+    'force': ('forces', ('frame', 'atom', 'spatial'), 'kilocalorie/mole/angstrom'),
     'unwrapped_position': ('unwrapped_coordinates', ('frame', 'atom', 'spatial'), 'angstrom'),
     'potential': ('potential_energy', ('frame', 'atom'), 'eV'),
     'charge': ('charge', ('frame', 'atom'), 'e'),
@@ -934,6 +940,39 @@ def test_dump_netcdf_writes_only_the_requested_quantities(
             'type', 'coordinates', 'forces'}
         assert 'grouping_method' not in dataset.dimensions
         assert dataset.getncattr('gpumd_quantities') == 'force'
+
+
+def test_dump_netcdf_is_readable_by_mdanalysis(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The file declares Conventions=AMBER, so readers that believe it are entitled to AMBER units
+    for the variables AMBER defines. MDAnalysis enforces that in NCDFReader.__init__ and raises
+    rather than converting, so a single mislabelled variable makes the whole trajectory
+    unopenable, positions included -- not merely the quantity in question unreadable.
+
+    `force` is the variable that has to be converted, since GPUMD works in eV/A and the convention
+    specifies kcal/mol/A. This asks for the AMBER-defined quantities together, so relabelling any
+    of them is caught here."""
+    mda = pytest.importorskip('MDAnalysis')
+    pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_mdanalysis',
+        run_in_lines=[('dump_netcdf', [1, 'amber.nc', 'velocity', 'force'])],
+        expected_output_files=['amber.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    universe = mda.Universe(str(tmp_path / 'amber.nc'), format='NCDF')
+    assert len(universe.atoms) == len(structure)
+    assert len(universe.trajectory) == BASE_N_STEPS
+    frame = universe.trajectory[0]
+    assert frame.has_forces, 'MDAnalysis did not expose the forces'
+    assert np.all(np.isfinite(frame.forces))
+    assert np.all(np.isfinite(frame.positions))
+    # kcal/(mol*Angstrom) is MDAnalysis's own base force unit, so it passes the values through
+    # unchanged; the numeric value of the conversion is pinned by the general-cell test above
+    assert universe.trajectory.units['force'] == 'kcal/(mol*Angstrom)'
+    assert np.max(np.abs(frame.forces)) > 0
 
 
 def test_dump_netcdf_bec(tmp_path, structure, model_path, model_type, gpumd_command):
