@@ -114,14 +114,24 @@ static __global__ void gpu_find_neighbor_ON1(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    // The cell width is rc / 2, so at most five cells per periodic
+    // direction can intersect the cutoff sphere.  When a periodic direction
+    // contains fewer than five cells, scanning the fixed offsets [-2, 2]
+    // visits the same wrapped cell more than once (for four cells, -2 and +2
+    // are identical).  That duplicates neighbors and, in particular,
+    // duplicates edges passed to graph-input DP models.  Scan one consecutive
+    // representative of each wrapped cell instead.
+    const int x_begin = box.pbc_x ? (nx < 3 ? 1 - nx : -2) : 0;
+    const int y_begin = box.pbc_y ? (ny < 3 ? 1 - ny : -2) : 0;
+    const int z_begin = box.pbc_z ? (nz < 3 ? 1 - nz : -2) : 0;
+    const int x_end = box.pbc_x ? (nx < 5 ? x_begin + nx - 1 : 2) : 0;
+    const int y_end = box.pbc_y ? (ny < 5 ? y_begin + ny - 1 : 2) : 0;
+    const int z_end = box.pbc_z ? (nz < 5 ? z_begin + nz - 1 : 2) : 0;
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k <= z_end; ++k) {
+      for (int j = y_begin; j <= y_end; ++j) {
+        for (int i = x_begin; i <= x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
