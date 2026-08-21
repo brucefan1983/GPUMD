@@ -28,10 +28,20 @@ class Ensemble_PIMD : public Ensemble
 {
 public:
   Ensemble_PIMD(
-    int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal, Atom& atom);
+    int number_of_atoms_input,
+    int number_of_beads_input,
+    bool thermostat_internal,
+    Atom& atom,
+    bool use_eco_pimd_input,
+    double eco_omega_max_cm1_input);
 
   Ensemble_PIMD(
-    int number_of_atoms_input, int number_of_beads_input, double temperature_coupling, Atom& atom);
+    int number_of_atoms_input,
+    int number_of_beads_input,
+    double temperature_coupling,
+    Atom& atom,
+    bool use_eco_pimd_input,
+    double eco_omega_max_cm1_input);
 
   Ensemble_PIMD(
     int number_of_atoms_input,
@@ -40,7 +50,9 @@ public:
     int num_target_pressure_components,
     double target_pressure[6],
     double pressure_coupling[6],
-    Atom& atom);
+    Atom& atom,
+    bool use_eco_pimd_input,
+    double eco_omega_max_cm1_input);
 
   virtual ~Ensemble_PIMD(void);
 
@@ -64,6 +76,10 @@ protected:
   bool thermostat_internal = false;
   bool thermostat_centroid = false;
   double omega_n;
+  bool use_eco_pimd = false;
+  bool eco_frequencies_reported = false;
+  double eco_omega_max_cm1 = 0.0;
+  double eco_last_temperature = -1.0;
   GPU_Vector<gpurandState> curand_states;
   GPU_Vector<double*> position_beads;
   GPU_Vector<double*> velocity_beads;
@@ -71,11 +87,14 @@ protected:
   GPU_Vector<double*> force_beads;
   GPU_Vector<double*> virial_beads;
   GPU_Vector<double> transformation_matrix;
+  GPU_Vector<double> eco_mode_factors;
   GPU_Vector<double> kinetic_energy_virial_part;
+  std::vector<double> eco_independent_frequencies;
 
   GPU_Vector<double> sum_1024; // for intermidiate summation
 
   void initialize(Atom& atom);
+  void update_eco_modes();
   void langevin(const double time_step, Atom& atom);
   std::mt19937 rng;
   void initialize_rng();

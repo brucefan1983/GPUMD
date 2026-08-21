@@ -244,15 +244,32 @@ void Integrate::initialize(
       break;
     }
     case 31: // RPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
+      ensemble.reset(new Ensemble_PIMD(
+        number_of_atoms,
+        number_of_beads,
+        false,
+        atom,
+        use_eco_pimd,
+        eco_omega_max_cm1));
       break;
     case 32: // TRPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, true, atom));
+      ensemble.reset(new Ensemble_PIMD(
+        number_of_atoms,
+        number_of_beads,
+        true,
+        atom,
+        use_eco_pimd,
+        eco_omega_max_cm1));
       break;
     case 33: // PIMD
       if (num_target_pressure_components == 0) {
-        ensemble.reset(
-          new Ensemble_PIMD(number_of_atoms, number_of_beads, temperature_coupling, atom));
+        ensemble.reset(new Ensemble_PIMD(
+          number_of_atoms,
+          number_of_beads,
+          temperature_coupling,
+          atom,
+          use_eco_pimd,
+          eco_omega_max_cm1));
       } else {
         ensemble.reset(new Ensemble_PIMD(
           number_of_atoms,
@@ -261,7 +278,9 @@ void Integrate::initialize(
           num_target_pressure_components,
           target_pressure,
           pressure_coupling,
-          atom));
+          atom,
+          use_eco_pimd,
+          eco_omega_max_cm1));
       }
       break;
     default:
@@ -414,6 +433,9 @@ void Integrate::parse_ensemble(
 {
   qtb_f_max = 200.0;
   qtb_n_f = 100;
+  use_eco_pimd = false;
+  eco_omega_max_cm1 = 0.0;
+  int pimd_num_param = num_param;
 
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
@@ -519,19 +541,10 @@ void Integrate::parse_ensemble(
     // The rest of the parsing happens in the dedicated section below
   } else if (strcmp(param[1], "rpmd") == 0) {
     type = 31;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble rpmd should have 1 parameter.");
-    }
   } else if (strcmp(param[1], "trpmd") == 0) {
     type = 32;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble trpmd should have 1 parameter.");
-    }
   } else if (strcmp(param[1], "pimd") == 0) {
     type = 33;
-    if (num_param != 6 && num_param != 9 && num_param != 13 && num_param != 19) {
-      PRINT_INPUT_ERROR("ensemble pimd should have 4 or 7 or 11 or 17 parameters.");
-    }
   } else if (strcmp(param[1], "msst") == 0) {
     type = -1;
     ensemble.reset(new Ensemble_MSST(param, num_param));
@@ -935,6 +948,43 @@ void Integrate::parse_ensemble(
   // 5. PIMD related
   if (type >= 31 && type <= 40) {
 
+    // Optional Eco frequencies are selected by appending
+    // "eco omega_max_cm1" to an existing PIMD, RPMD, or TRPMD command.
+    if (type == 31 || type == 32) {
+      if (num_param == 5) {
+        if (strcmp(param[3], "eco") != 0) {
+          PRINT_INPUT_ERROR("The optional RPMD/TRPMD frequency scheme should be eco.");
+        }
+        use_eco_pimd = true;
+        pimd_num_param = 3;
+        if (!is_valid_real(param[4], &eco_omega_max_cm1)) {
+          PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
+        }
+      } else if (num_param != 3) {
+        PRINT_INPUT_ERROR(
+          "ensemble rpmd/trpmd should have 1 parameter, optionally followed by "
+          "eco omega_max_cm1.");
+      }
+    } else {
+      if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
+        use_eco_pimd = true;
+        pimd_num_param = num_param - 2;
+        if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
+          PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
+        }
+      }
+      if (
+        pimd_num_param != 6 && pimd_num_param != 9 && pimd_num_param != 13 &&
+        pimd_num_param != 19) {
+        PRINT_INPUT_ERROR(
+          "ensemble pimd should have 4, 7, 11, or 17 parameters, optionally followed by "
+          "eco omega_max_cm1.");
+      }
+    }
+    if (use_eco_pimd && eco_omega_max_cm1 <= 0.0) {
+      PRINT_INPUT_ERROR("Eco-PIMD omega_max should > 0.");
+    }
+
     // number of beads for RPMD, TRPMD, or PIMD
     if (!is_valid_int(param[2], &number_of_beads)) {
       PRINT_INPUT_ERROR("number of beads should be an integer.");
@@ -979,8 +1029,8 @@ void Integrate::parse_ensemble(
       num_target_pressure_components = 0;
 
       // pressures:
-      if (num_param >= 9) {
-        if (num_param == 13) {
+      if (pimd_num_param >= 9) {
+        if (pimd_num_param == 13) {
           for (int i = 0; i < 3; i++) {
             if (!is_valid_real(param[6 + i], &target_pressure[i])) {
               PRINT_INPUT_ERROR("Pressure should be a number.");
@@ -1000,7 +1050,7 @@ void Integrate::parse_ensemble(
             box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
             PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
           }
-        } else if (num_param == 9) { // isotropic
+        } else if (pimd_num_param == 9) { // isotropic
           if (!is_valid_real(param[6], &target_pressure[0])) {
             PRINT_INPUT_ERROR("Pressure should be a number.");
           }
@@ -1310,7 +1360,7 @@ void Integrate::parse_ensemble(
       printf("    number of beads is %d.\n", number_of_beads);
       break;
     case 33:
-      if (num_param >= 9) {
+      if (pimd_num_param >= 9) {
         printf("Use NPT-PIMD for this run.\n");
       } else {
         printf("Use NVT-PIMD for this run.\n");
@@ -1319,7 +1369,7 @@ void Integrate::parse_ensemble(
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
-      if (num_param >= 9) {
+      if (pimd_num_param >= 9) {
         if (num_target_pressure_components == 1) {
           printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
           printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
@@ -1356,6 +1406,11 @@ void Integrate::parse_ensemble(
     default:
       PRINT_INPUT_ERROR("Invalid ensemble type.");
       break;
+  }
+
+  if (type >= 31 && type <= 33 && use_eco_pimd) {
+    printf("    use Eco-PIMD internal-mode frequencies.\n");
+    printf("    Eco-PIMD omega_max is %g cm^-1.\n", eco_omega_max_cm1);
   }
 }
 

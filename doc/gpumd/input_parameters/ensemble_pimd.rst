@@ -18,11 +18,17 @@ It can be used in the following ways::
 
     ensemble pimd <num_beads> <T_1> <T_2> <T_coup> 
     ensemble pimd <num_beads> <T_1> <T_2> <T_coup> {<pressure_control_parameters>}
+    ensemble pimd <num_beads> <T_1> <T_2> <T_coup> {<pressure_control_parameters>} eco <omega_max>
 
 In both cases, :attr:`num_beads` is the number of beads in the ring polymer, which should be a positive even integer no larger than 128.
 The first case is similar to the NVT ensemble with :attr:`nvt_lan` as the Langevin thermostat is used for both the internal and the centroid modes [Ceriotti2010]_. 
 The second case is similar to the NPT ensemble with :attr:`npt_ber`, where a Berendsen barostat is added compared to the first case.
 Note that :attr:`pimd` (that is, not :attr:`rpmd` or :attr:`trpmd` described below) must be the first run that requires to set :attr:`num_beads` and one cannot change :attr:`num_beads` from run to run.
+
+Appending ``eco <omega_max>`` selects the economised path-integral internal-mode frequencies [Zeng2026]_.
+Here :attr:`omega_max` is the highest physical vibrational wavenumber to be reproduced, in units of cm\ :sup:`-1`.
+The dimensionless fitting range is recalculated from the instantaneous target temperature as :math:`x_{\max}=hc\omega_{\max}/(k_{\rm B}T)`, so Eco frequencies also follow a temperature ramp from :attr:`T_1` to :attr:`T_2`.
+If the ``eco`` option is omitted, GPUMD uses the original Trotter internal-mode frequencies.
 
 :attr:`rpmd`
 ^^^^^^^^^^^^
@@ -31,6 +37,7 @@ If the first parameter is :attr:`rpmd`, it means that the current run will use r
 It can be used as follows::
 
     ensemble rpmd <num_beads> 
+    ensemble rpmd <num_beads> eco <omega_max>
 
 This can be understood as the NVE version of :term:`PIMD`, where no thermostat is applied.
 
@@ -41,5 +48,7 @@ If the first parameter is :attr:`trpmd`, it means that the current run will use 
 It can be used as follows::
 
     ensemble trpmd <num_beads> 
+    ensemble trpmd <num_beads> eco <omega_max>
 
 This is similar to :term:`RPMD`, but the Langevin thermosat is applied to the internal modes.
+For both :attr:`rpmd` and :attr:`trpmd`, the optional Eco parameters should be the same as in the preceding :attr:`pimd` run.
