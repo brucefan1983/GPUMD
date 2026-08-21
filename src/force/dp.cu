@@ -657,9 +657,22 @@ void DP::compute_gpu_edges(
   dp_neighbor.find_neighbor_global(rc, box, type, position_per_atom);
   dp_neighbor.find_local_neighbor_from_global(
     rc, box, position_per_atom, dp_NN_local, dp_NL_local);
-  dp_compact_duplicate_neighbors<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    N, N, dp_NN_local.data(), dp_NL_local.data());
-  GPU_CHECK_KERNEL
+
+  // find_neighbor_global uses cells of width (rc + skin) / 2 and a five-cell
+  // stencil.  Wrapped cells can alias only when a periodic direction has
+  // fewer than five cells; avoid the quadratic compaction cost for the common
+  // non-aliasing case.  The 1.0 A skin must match Neighbor::skin.
+  int num_bins[3];
+  box.get_num_bins(0.5 * (rc + 1.0), num_bins);
+  const bool wrapped_cells_alias =
+    (box.pbc_x && num_bins[0] < 5) ||
+    (box.pbc_y && num_bins[1] < 5) ||
+    (box.pbc_z && num_bins[2] < 5);
+  if (wrapped_cells_alias) {
+    dp_compact_duplicate_neighbors<<<grid_size, BLOCK_SIZE_FORCE>>>(
+      N, N, dp_NN_local.data(), dp_NL_local.data());
+    GPU_CHECK_KERNEL
+  }
 
   // Exclusive scan of the per-atom neighbor counts gives each atom's edge
   // offset; the total edge count is the reduction of the counts.
