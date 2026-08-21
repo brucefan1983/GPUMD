@@ -70,6 +70,7 @@ private:
   int precision_ = 1;          // 1 = single precision, 2 = double
   int compression_level_ = -1; // -1 = classic NetCDF, 0-9 = NetCDF4 deflate
   int number_of_atoms_to_dump_ = 0;
+  int number_of_atoms_ = 0;
   int number_of_grouping_methods_ = 0;
   DumpQuantities quantities_;
   std::string filename_;
@@ -77,18 +78,23 @@ private:
   // compared against when appending
   std::string quantity_list_;
 
-  // maps an atom of the output to its index in the full system, so that the grouped and the
-  // whole-system cases share one packing path
+  // maps an atom of the output to its index in the full system. Used for the quantities that are
+  // host-resident anyway, namely the types, the masses and the group labels, and uploaded to the
+  // device to drive the gather for everything else.
   std::vector<int> dump_indices_;
 
-  // host copies of the per-atom arrays that Atom does not already keep on the host
-  std::vector<double> cpu_force_per_atom_;
-  std::vector<double> cpu_potential_per_atom_;
-  std::vector<double> cpu_unwrapped_position_;
-  std::vector<double> cpu_virial_per_atom_;
-  std::vector<float> cpu_bec_;
   std::vector<int> cpu_type_to_dump_;
   std::vector<int> cpu_group_labels_;
+
+  // Staging for one quantity of one frame, holding only the atoms that are written. When a group
+  // is selected its values are gathered into the device buffer first, so that the copy across the
+  // bus is the size of the group rather than of the system. One buffer per element type is enough,
+  // since the quantities are staged and written one at a time.
+  GPU_Vector<int> gpu_dump_indices_;
+  GPU_Vector<double> gather_double_;
+  GPU_Vector<float> gather_float_;
+  std::vector<double> host_double_;
+  std::vector<float> host_float_;
 
   // scratch for one variable of one frame, in the element type the file uses; only the one
   // matching precision_ is allocated
@@ -137,7 +143,10 @@ private:
   void validate_file_definition();
   void append_mismatch(const char* what);
   void put_packed(const int var, const size_t* start, const size_t* count);
-  void write(const double global_time, const Box& box, const Atom& atom);
+  template <typename T>
+  void
+  stage(GPU_Vector<T>& source, const int components, GPU_Vector<T>& scratch, std::vector<T>& host);
+  void write(const double global_time, const Box& box, Atom& atom, Force& force);
 };
 
 #endif

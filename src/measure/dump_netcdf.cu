@@ -100,40 +100,38 @@ const int ROW_MAJOR_COMPONENT[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
 std::vector<std::string> DUMP_NETCDF::active_files_;
 
-// The three packing helpers below take one per-atom array laid out as src[atom + N * component],
-// select the atoms of the output through `indices`, apply the rotation into the restricted
-// NetCDF cell where the quantity calls for one, and write the result out atom-major in the
-// element type the file uses.
+// The three packing helpers below take one staged per-atom array laid out as
+// src[atom + number_to_dump * component], apply the rotation into the restricted NetCDF cell where
+// the quantity calls for one, and write the result out atom-major in the element type the file
+// uses. Whether the staging held the whole system or only the selected group is already settled by
+// then, which is why there is no index list here.
 
 template <typename T, typename S>
-static void
-pack_scalar(const std::vector<int>& indices, const std::vector<S>& src, std::vector<T>& dst)
+static void pack_scalar(const int number_to_dump, const std::vector<S>& src, std::vector<T>& dst)
 {
-  for (size_t n = 0; n < indices.size(); ++n) {
-    dst[n] = static_cast<T>(src[indices[n]]);
+  for (int n = 0; n < number_to_dump; ++n) {
+    dst[n] = static_cast<T>(src[n]);
   }
 }
 
 template <typename T, typename S>
 static void pack_vector(
-  const std::vector<int>& indices,
-  const int number_of_atoms,
+  const int number_to_dump,
   const bool rotate,
   const double transform[9],
   const double scale,
   const std::vector<S>& src,
   std::vector<T>& dst)
 {
-  for (size_t n = 0; n < indices.size(); ++n) {
-    const int m = indices[n];
+  for (int n = 0; n < number_to_dump; ++n) {
     for (int i = 0; i < 3; ++i) {
       double value = 0.0;
       if (rotate) {
         for (int j = 0; j < 3; ++j) {
-          value += transform[i * 3 + j] * src[m + number_of_atoms * j];
+          value += transform[i * 3 + j] * src[n + number_to_dump * j];
         }
       } else {
-        value = src[m + number_of_atoms * i];
+        value = src[n + number_to_dump * i];
       }
       dst[n * 3 + i] = static_cast<T>(value * scale);
     }
@@ -142,19 +140,17 @@ static void pack_vector(
 
 template <typename T, typename S>
 static void pack_tensor(
-  const std::vector<int>& indices,
-  const int number_of_atoms,
+  const int number_to_dump,
   const bool rotate,
   const double transform[9],
   const int component[9],
   const std::vector<S>& src,
   std::vector<T>& dst)
 {
-  for (size_t n = 0; n < indices.size(); ++n) {
-    const int m = indices[n];
+  for (int n = 0; n < number_to_dump; ++n) {
     double tensor[9];
     for (int c = 0; c < 9; ++c) {
-      tensor[c] = src[m + number_of_atoms * component[c]];
+      tensor[c] = src[n + number_to_dump * component[c]];
     }
     if (rotate) {
       // A rank-2 tensor follows the cell as R T R^T, which holds for any orthogonal R and so
@@ -185,29 +181,49 @@ static void pack_tensor(
   }
 }
 
+// Selecting a group on the device, so that only its values cross to the host. The source keeps the
+// whole-system layout src[atom + number_of_atoms * component] and the result is compact,
+// dst[n + number_to_dump * component], which is the layout the packing helpers expect.
+template <typename T>
+static __global__ void gather_dumped_atoms(
+  const int number_to_dump,
+  const int number_of_atoms,
+  const int components,
+  const int* indices,
+  const T* source,
+  T* destination)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_to_dump) {
+    const int m = indices[n];
+    for (int d = 0; d < components; ++d) {
+      destination[n + number_to_dump * d] = source[m + number_of_atoms * d];
+    }
+  }
+}
+
 // The file holds floats or doubles depending on the precision option, so every pack goes through
 // one of these, which pick the buffer and instantiate the helper for its element type.
 
 template <typename S>
 static void pack_scalar_by_precision(
   const int precision,
-  const std::vector<int>& indices,
+  const int number_to_dump,
   const std::vector<S>& src,
   std::vector<float>& pack_float,
   std::vector<double>& pack_double)
 {
   if (precision == 1) {
-    pack_scalar(indices, src, pack_float);
+    pack_scalar(number_to_dump, src, pack_float);
   } else {
-    pack_scalar(indices, src, pack_double);
+    pack_scalar(number_to_dump, src, pack_double);
   }
 }
 
 template <typename S>
 static void pack_vector_by_precision(
   const int precision,
-  const std::vector<int>& indices,
-  const int number_of_atoms,
+  const int number_to_dump,
   const bool rotate,
   const double transform[9],
   const double scale,
@@ -216,17 +232,16 @@ static void pack_vector_by_precision(
   std::vector<double>& pack_double)
 {
   if (precision == 1) {
-    pack_vector(indices, number_of_atoms, rotate, transform, scale, src, pack_float);
+    pack_vector(number_to_dump, rotate, transform, scale, src, pack_float);
   } else {
-    pack_vector(indices, number_of_atoms, rotate, transform, scale, src, pack_double);
+    pack_vector(number_to_dump, rotate, transform, scale, src, pack_double);
   }
 }
 
 template <typename S>
 static void pack_tensor_by_precision(
   const int precision,
-  const std::vector<int>& indices,
-  const int number_of_atoms,
+  const int number_to_dump,
   const bool rotate,
   const double transform[9],
   const int component[9],
@@ -235,9 +250,9 @@ static void pack_tensor_by_precision(
   std::vector<double>& pack_double)
 {
   if (precision == 1) {
-    pack_tensor(indices, number_of_atoms, rotate, transform, component, src, pack_float);
+    pack_tensor(number_to_dump, rotate, transform, component, src, pack_float);
   } else {
-    pack_tensor(indices, number_of_atoms, rotate, transform, component, src, pack_double);
+    pack_tensor(number_to_dump, rotate, transform, component, src, pack_double);
   }
 }
 
@@ -421,31 +436,40 @@ void DUMP_NETCDF::preprocess(
     }
   }
   cpu_type_to_dump_.resize(number_of_atoms_to_dump_);
+  number_of_atoms_ = atom.number_of_atoms;
 
-  // one variable of one frame at a time, so nine components per atom is the widest case
-  const size_t pack_values = size_t(number_of_atoms_to_dump_) * 9;
-  if (precision_ == 1) {
-    pack_float_.resize(pack_values);
-  } else {
-    pack_double_.resize(pack_values);
-  }
-
-  // host copies of the arrays Atom does not already keep on the host, sized for the whole
-  // system since that is what is copied back from the device
-  if (quantities_.has_force_) {
-    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-  }
-  if (quantities_.has_potential_) {
-    cpu_potential_per_atom_.resize(atom.number_of_atoms);
-  }
-  if (quantities_.has_unwrapped_position_) {
-    cpu_unwrapped_position_.resize(atom.number_of_atoms * 3);
-  }
-  if (quantities_.has_virial_) {
-    cpu_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  // One variable of one frame at a time, so the buffers are sized by the widest quantity that was
+  // actually asked for. Sizing them for nine components unconditionally would cost a large system
+  // hundreds of megabytes to write positions alone.
+  const int double_components = quantities_.has_virial_ ? 9 : 3; // positions are always written
+  int float_components = 0;
+  if (quantities_.has_charge_) {
+    float_components = 1;
   }
   if (quantities_.has_bec_) {
-    cpu_bec_.resize(atom.number_of_atoms * 9);
+    float_components = 9;
+  }
+  const size_t widest = size_t(std::max(double_components, float_components));
+  if (precision_ == 1) {
+    pack_float_.resize(size_t(number_of_atoms_to_dump_) * widest);
+  } else {
+    pack_double_.resize(size_t(number_of_atoms_to_dump_) * widest);
+  }
+
+  // Staging for one quantity of one frame, holding only the atoms that are written. When a group
+  // is selected the values are gathered into the matching device buffer first, so that the copy
+  // across the bus is the size of the group rather than of the system.
+  const size_t staged_doubles = size_t(number_of_atoms_to_dump_) * double_components;
+  const size_t staged_floats = size_t(number_of_atoms_to_dump_) * float_components;
+  host_double_.resize(staged_doubles);
+  host_float_.resize(staged_floats);
+  if (grouping_method_ >= 0) {
+    gather_double_.resize(staged_doubles);
+    if (staged_floats > 0) {
+      gather_float_.resize(staged_floats);
+    }
+    gpu_dump_indices_.resize(number_of_atoms_to_dump_);
+    gpu_dump_indices_.copy_from_host(dump_indices_.data());
   }
 
   // An existing file is extended rather than replaced, as dump_xyz does. Whether the file is
@@ -636,7 +660,11 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
 
   // The constant quantities, written once now rather than once per frame
   if (quantities_.has_mass_) {
-    pack_scalar_by_precision(precision_, dump_indices_, atom.cpu_mass, pack_float_, pack_double_);
+    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
+      host_double_[n] = atom.cpu_mass[dump_indices_[n]];
+    }
+    pack_scalar_by_precision(
+      precision_, number_of_atoms_to_dump_, host_double_, pack_float_, pack_double_);
     const size_t mass_start[1] = {0};
     const size_t mass_count[1] = {size_t(number_of_atoms_to_dump_)};
     put_packed(mass_var, mass_start, mass_count);
@@ -657,6 +685,29 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
   }
 
   lenp = 0;
+}
+
+// Brings one quantity to the host, holding only the atoms that are written. Without a group the
+// whole array is already exactly that, so it is copied as it stands; with one, the group is
+// gathered on the device first so that only its values cross the bus.
+template <typename T>
+void DUMP_NETCDF::stage(
+  GPU_Vector<T>& source, const int components, GPU_Vector<T>& scratch, std::vector<T>& host)
+{
+  const size_t values = size_t(number_of_atoms_to_dump_) * components;
+  if (grouping_method_ < 0) {
+    source.copy_to_host(host.data(), values);
+    return;
+  }
+  gather_dumped_atoms<<<(number_of_atoms_to_dump_ - 1) / 128 + 1, 128>>>(
+    number_of_atoms_to_dump_,
+    number_of_atoms_,
+    components,
+    gpu_dump_indices_.data(),
+    source.data(),
+    scratch.data());
+  GPU_CHECK_KERNEL
+  scratch.copy_to_host(host.data(), values);
 }
 
 void DUMP_NETCDF::put_packed(const int var, const size_t* start, const size_t* count)
@@ -837,9 +888,8 @@ static bool build_netcdf_transform(
   return transform_vectors;
 }
 
-void DUMP_NETCDF::write(const double global_time, const Box& box, const Atom& atom)
+void DUMP_NETCDF::write(const double global_time, const Box& box, Atom& atom, Force& force)
 {
-  const int number_of_atoms = atom.number_of_atoms;
   const int number_to_dump = number_of_atoms_to_dump_;
 
   double cell_lengths[3];
@@ -870,19 +920,22 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, const Atom& at
   size_t tensor_start[4] = {lenp, 0, 0, 0};
   size_t tensor_count[4] = {1, size_t(number_to_dump), 3, 3};
 
+  // The types live on the host already, so they are selected there.
   for (int n = 0; n < number_to_dump; ++n) {
     cpu_type_to_dump_[n] = atom.cpu_type[dump_indices_[n]];
   }
   NC_CHECK(nc_put_vara_int(ncid, type_var, atom_start, atom_count, cpu_type_to_dump_.data()));
 
+  // Each quantity is staged, packed and written before the next one starts, which is what lets a
+  // single staging buffer per element type serve all of them.
+  stage(atom.position_per_atom, 3, gather_double_, host_double_);
   pack_vector_by_precision(
     precision_,
-    dump_indices_,
-    number_of_atoms,
+    number_to_dump,
     rotate,
     cell_transform,
     1.0,
-    atom.cpu_position_per_atom,
+    host_double_,
     pack_float_,
     pack_double_);
   put_packed(coordinates_var, vector_start, vector_count);
@@ -890,75 +943,78 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, const Atom& at
   if (quantities_.has_velocity_) {
     const double natural_to_A_per_ps =
       1.0 / TIME_UNIT_CONVERSION * 1000.0; // * 1000 from A/fs to A/ps
+    stage(atom.velocity_per_atom, 3, gather_double_, host_double_);
     pack_vector_by_precision(
       precision_,
-      dump_indices_,
-      number_of_atoms,
+      number_to_dump,
       rotate,
       cell_transform,
       natural_to_A_per_ps,
-      atom.cpu_velocity_per_atom,
+      host_double_,
       pack_float_,
       pack_double_);
     put_packed(velocities_var, vector_start, vector_count);
   }
   if (quantities_.has_force_) {
+    stage(atom.force_per_atom, 3, gather_double_, host_double_);
     pack_vector_by_precision(
       precision_,
-      dump_indices_,
-      number_of_atoms,
+      number_to_dump,
       rotate,
       cell_transform,
       EV_TO_KCAL_PER_MOL,
-      cpu_force_per_atom_,
+      host_double_,
       pack_float_,
       pack_double_);
     put_packed(forces_var, vector_start, vector_count);
   }
   if (quantities_.has_unwrapped_position_) {
+    stage(atom.unwrapped_position, 3, gather_double_, host_double_);
     pack_vector_by_precision(
       precision_,
-      dump_indices_,
-      number_of_atoms,
+      number_to_dump,
       rotate,
       cell_transform,
       1.0,
-      cpu_unwrapped_position_,
+      host_double_,
       pack_float_,
       pack_double_);
     put_packed(unwrapped_coordinates_var, vector_start, vector_count);
   }
   if (quantities_.has_potential_) {
-    pack_scalar_by_precision(
-      precision_, dump_indices_, cpu_potential_per_atom_, pack_float_, pack_double_);
+    stage(atom.potential_per_atom, 1, gather_double_, host_double_);
+    pack_scalar_by_precision(precision_, number_to_dump, host_double_, pack_float_, pack_double_);
     put_packed(potential_var, atom_start, atom_count);
   }
   if (quantities_.has_charge_) {
-    pack_scalar_by_precision(precision_, dump_indices_, atom.cpu_charge, pack_float_, pack_double_);
+    GPU_Vector<float>& charge =
+      is_nep_charge_ ? force.potentials[0]->get_charge_reference() : atom.charge;
+    stage(charge, 1, gather_float_, host_float_);
+    pack_scalar_by_precision(precision_, number_to_dump, host_float_, pack_float_, pack_double_);
     put_packed(charge_var, atom_start, atom_count);
   }
   if (quantities_.has_bec_) {
+    stage(force.potentials[0]->get_bec_reference(), 9, gather_float_, host_float_);
     pack_tensor_by_precision(
       precision_,
-      dump_indices_,
-      number_of_atoms,
+      number_to_dump,
       rotate,
       cell_transform,
       ROW_MAJOR_COMPONENT,
-      cpu_bec_,
+      host_float_,
       pack_float_,
       pack_double_);
     put_packed(bec_var, tensor_start, tensor_count);
   }
   if (quantities_.has_virial_) {
+    stage(atom.virial_per_atom, 9, gather_double_, host_double_);
     pack_tensor_by_precision(
       precision_,
-      dump_indices_,
-      number_of_atoms,
+      number_to_dump,
       rotate,
       cell_transform,
       VIRIAL_COMPONENT,
-      cpu_virial_per_atom_,
+      host_double_,
       pack_float_,
       pack_double_);
     put_packed(virial_var, tensor_start, tensor_count);
@@ -1005,38 +1061,7 @@ void DUMP_NETCDF::process(
   if ((step + 1) % interval_ != 0)
     return;
 
-  // Copy back what was asked for, in full. Selecting the group happens on the host while
-  // packing, through dump_indices_, which is one path for the grouped and the whole-system case.
-  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-  if (quantities_.has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-  }
-  if (quantities_.has_force_) {
-    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-  if (quantities_.has_potential_) {
-    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
-  }
-  if (quantities_.has_unwrapped_position_) {
-    atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
-  }
-  if (quantities_.has_virial_) {
-    atom.virial_per_atom.copy_to_host(cpu_virial_per_atom_.data());
-  }
-  if (quantities_.has_charge_) {
-    if (is_nep_charge_) {
-      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
-      nep_charge.copy_to_host(atom.cpu_charge.data());
-    } else {
-      atom.charge.copy_to_host(atom.cpu_charge.data());
-    }
-  }
-  if (quantities_.has_bec_) {
-    GPU_Vector<float>& gpu_bec = force.potentials[0]->get_bec_reference();
-    gpu_bec.copy_to_host(cpu_bec_.data());
-  }
-
-  write(global_time, box, atom);
+  write(global_time, box, atom, force);
 }
 
 #endif

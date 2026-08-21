@@ -771,6 +771,49 @@ def test_dump_netcdf_multiple_groups_in_one_run(
         trajectories[0][intervals[1] - 1::intervals[1]], trajectories[1])
 
 
+def test_dump_netcdf_group_agrees_with_the_whole_system(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Grouped output is gathered on the device, so that only the group's values cross to the host,
+    while whole-system output is copied as it stands. That makes them two code paths through the
+    same packing, and this is what pins them together.
+
+    Both files come from one run, so they describe the same trajectory: the group file has to equal
+    the rows of the whole-system file belonging to that group, exactly rather than approximately,
+    since it is the same arithmetic on the same values. A gather that mis-indexes, or a stride
+    confusion between the system size and the group size, shows up here as wrong values while
+    every file still parses."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    half = len(structure) // 2
+    quantities = ['velocity', 'force', 'virial']
+    case = CommandIOCase(
+        name='dump_netcdf_group_vs_whole',
+        run_in_lines=[
+            # group 1, not group 0: group 0 holds the first half of the atoms, so a gather that
+            # ignored the index list entirely would still produce the right answer for it
+            ('dump_netcdf', [1, 'group.nc', 'group', 0, 1] + quantities
+             + ['precision', 'double']),
+            ('dump_netcdf', [1, 'whole.nc'] + quantities + ['precision', 'double']),
+        ],
+        expected_output_files=['group.nc', 'whole.nc'], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'group.nc') as group, \
+            netcdf4.Dataset(tmp_path / 'whole.nc') as whole:
+        # group 1 of the two-group model holds the atoms from `half` onwards
+        expected_size = len(structure) - half
+        assert len(group.dimensions['atom']) == expected_size
+        assert len(whole.dimensions['atom']) == len(structure)
+        for name in ('type', 'coordinates', 'velocities', 'forces', 'virial'):
+            gathered = np.array(group.variables[name][:])
+            complete = np.array(whole.variables[name][:])
+            assert gathered.shape[1] == expected_size, name
+            np.testing.assert_array_equal(
+                gathered, complete[:, half:],
+                err_msg=f'{name} gathered for the group differs from the whole-system rows')
+
+
 def test_dump_netcdf_rejects_duplicate_filename_in_one_run(
         tmp_path, structure, model_path, model_type, gpumd_command):
     pytest.importorskip('netCDF4')
