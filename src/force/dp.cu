@@ -521,6 +521,41 @@ static __global__ void create_ghost_map(
   }
 }
 
+// Periodic cell grids with fewer cells than the five-cell search stencil can
+// visit the same wrapped cell more than once.  The global-list sorter ranks
+// equal atom indices at the same position, so such duplicates are not
+// guaranteed to remain adjacent: colliding writes can leave older valid
+// neighbor entries in the intervening slots.  Compact the whole DP-local list
+// by atom index before turning it into graph edges.  The GPU-edge path is only
+// used when each periodic box thickness exceeds twice the neighbor cutoff, so
+// distinct periodic images of the same atom cannot be valid separate edges.
+static __global__ void dp_compact_duplicate_neighbors(
+  const int N,
+  const int nloc,
+  int* NN,
+  int* NL)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < nloc) {
+    const int count = NN[n1];
+    int count_unique = 0;
+    for (int c = 0; c < count; ++c) {
+      const int n2 = NL[static_cast<size_t>(c) * N + n1];
+      bool duplicate = false;
+      for (int u = 0; u < count_unique; ++u) {
+        if (NL[static_cast<size_t>(u) * N + n1] == n2) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (!duplicate) {
+        NL[static_cast<size_t>(count_unique++) * N + n1] = n2;
+      }
+    }
+    NN[n1] = count_unique;
+  }
+}
+
 // Materialize the compact edge schema from GPUMD's neighbor list (NN, NL).
 // For each local atom n1 and each of its NN[n1] neighbors n2 (a local index),
 // emit one edge (src = n2, dst = n1) with the minimum-image bond vector
@@ -622,6 +657,9 @@ void DP::compute_gpu_edges(
   dp_neighbor.find_neighbor_global(rc, box, type, position_per_atom);
   dp_neighbor.find_local_neighbor_from_global(
     rc, box, position_per_atom, dp_NN_local, dp_NL_local);
+  dp_compact_duplicate_neighbors<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    N, N, dp_NN_local.data(), dp_NL_local.data());
+  GPU_CHECK_KERNEL
 
   // Exclusive scan of the per-atom neighbor counts gives each atom's edge
   // offset; the total edge count is the reduction of the counts.
