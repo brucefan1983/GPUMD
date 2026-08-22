@@ -14,10 +14,10 @@ Syntax
 
 The complete syntax for the six combinations is::
 
-  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z>
-  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z>
-  add_spring ghost_atom <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z>
-  add_spring ghost_atom <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z>
+  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z> [continue <previous_call>]
+  add_spring ghost_com <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z> [continue <previous_call>]
+  add_spring ghost_atom <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> couple <k_couple> <R0> <offset_x> <offset_y> <offset_z> [continue <previous_call>]
+  add_spring ghost_atom <group_method> <group_id> <ghost_vx> <ghost_vy> <ghost_vz> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z> <offset_x> <offset_y> <offset_z> [continue <previous_call>]
   add_spring com_com <group_method> <group_id_1> <group_id_2> couple <k_couple> <R0>
   add_spring com_com <group_method> <group_id_1> <group_id_2> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z>
 
@@ -44,7 +44,7 @@ where :math:`(x_1, y_1, z_1)` and :math:`(x_2, y_2, z_2)` are the Cartesian coor
 * In :attr:`decouple` mode, :attr:`k_decouple_x`, :attr:`k_decouple_y`, and :attr:`k_decouple_z` must be non-negative.
 * In :attr:`com_com` mode, :attr:`group_id_1` and :attr:`group_id_2` must be different.
 * Force is in units of eV/Å, distance is in units of Å, velocity is in units of Å/step, and spring constant is in units of eV/Å².
-* Spring forces are written to the file :attr:`spring_force_*.out`, where the asterisk is replaced by a zero-based index that increments with each invocation of the command. The meaning of each column in the file is::
+* Spring forces are written to :attr:`spring_r<run_id>_c<call_id>.out`, where :attr:`run_id` is the zero-based index of the ``run`` command and :attr:`call_id` is the zero-based index of the ``add_spring`` command within that run. This avoids overwriting spring-force output when multiple ``run`` commands are used. The meaning of each column in the file is::
 
    # step  mode  Fx  Fy  Fz  Ftotal  energy
 
@@ -82,3 +82,15 @@ Note
 ----
 
 This keyword can be used multiple times during a run.
+
+For :attr:`ghost_com` and :attr:`ghost_atom`, the ghost state is automatically saved at the end of each run to :attr:`spring_r<run_id>_c<call_id>.restart`. To continue a ghost spring in the immediately following run, append ``continue <previous_call>`` to the command, where :attr:`previous_call` is the call index of that spring in the previous run. For example::
+
+   add_spring ghost_com 0 2 0.00005 0 0 decouple 10 0 0 0 0 0              # run 0 call 0
+   add_spring ghost_com 0 1 0.00005 0 0 decouple 10 0 0 0 0 0              # run 0 call 1
+   run 100000
+
+   add_spring ghost_com 0 1 0.00005 0 0 decouple 10 0 0 0 0 0 continue 1   # run 1 call 0, continues by run 0 call 1
+   add_spring ghost_com 0 2 0.00005 0 0 decouple 10 0 0 0 0 0 continue 0   # run 1 call 1, continues by run 0 call 0
+   run 100000
+
+The continued spring must use the same ghost mode, group method, group ID, and group size. Other loading parameters, such as velocity and spring constants, may be changed. The offset is not reapplied when ``continue`` is used. Each previous call can be continued at most once in the current run. :attr:`com_com` does not support ``continue``. Continuation applies only to the immediately previous run in the same GPUMD process.

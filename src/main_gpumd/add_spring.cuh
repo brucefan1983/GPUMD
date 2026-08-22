@@ -36,6 +36,16 @@ public:
 private:
   int num_calls_ = 0;
 
+  // run-local continuation bookkeeping
+  int run_id_ = 0;
+  int continue_from_call_[MAX_SPRING_CALLS];
+  bool previous_call_used_[MAX_SPRING_CALLS] = {false};
+  bool previous_restart_available_[MAX_SPRING_CALLS] = {false};
+  int restart_group_size_[MAX_SPRING_CALLS];
+
+  void save_restart(int call_id);
+  void load_restart(int call_id, int previous_call_id);
+
   // spring mode for each call
   enum SpringMode {
     MODE_GHOST_COM  = 0,

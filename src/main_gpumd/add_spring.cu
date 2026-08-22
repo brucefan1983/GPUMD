@@ -30,6 +30,9 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include <string>
 #include <algorithm>
 #include <limits>
+#include <fstream>
+#include <iomanip>
+#include <vector>
 
 static void __global__ gpu_sum_group_mass_pos_reduce(
   const int group_size,
@@ -325,6 +328,202 @@ static void __global__ gpu_add_spring_com_com_force(
   }
 }
 
+
+static int parse_continue_option(const char** param, int num_param, int base_num_param)
+{
+  if (num_param == base_num_param) {
+    return -1;
+  }
+
+  if (num_param != base_num_param + 2) {
+    PRINT_INPUT_ERROR("add_spring has an invalid number of parameters. Optional continuation syntax is: continue <previous_call>.\n");
+  }
+
+  if (strcmp(param[base_num_param], "continue") != 0) {
+    PRINT_INPUT_ERROR("The optional add_spring arguments should be: continue <previous_call>.\n");
+  }
+
+  int previous_call = -1;
+  if (!is_valid_int(param[base_num_param + 1], &previous_call)) {
+    PRINT_INPUT_ERROR("The previous add_spring call id after 'continue' should be an integer.\n");
+  }
+  if (previous_call < 0 || previous_call >= MAX_SPRING_CALLS) {
+    PRINT_INPUT_ERROR("The previous add_spring call id after 'continue' is out of range.\n");
+  }
+  return previous_call;
+}
+
+static std::string spring_run_call_stem(const int run_id, const int call_id)
+{
+  return "spring_r" + std::to_string(run_id) + "_c" + std::to_string(call_id);
+}
+
+static bool read_labeled_int(std::ifstream& input, const char* expected_label, int& value)
+{
+  std::string label;
+  if (!(input >> label >> value)) {
+    return false;
+  }
+  return label == expected_label;
+}
+
+void Add_Spring::save_restart(const int call_id)
+{
+  if (mode_[call_id] == MODE_COM_COM || init_origin_[call_id] == 0) {
+    return;
+  }
+
+  const std::string filename = spring_run_call_stem(run_id_, call_id) + ".restart";
+  const std::string tmp_filename = filename + ".tmp";
+  std::ofstream output(tmp_filename.c_str(), std::ios::out | std::ios::trunc);
+  if (!output) {
+    std::string error_msg = "Failed to open add_spring restart file for writing: " + tmp_filename + "\n";
+    PRINT_INPUT_ERROR(error_msg.c_str());
+  }
+
+  const int state_size = (mode_[call_id] == MODE_GHOST_COM) ? 3 : 3 * ghost_atom_group_size_[call_id];
+  output << "GPUMD_ADD_SPRING_RESTART_V1\n";
+  output << "run " << run_id_ << "\n";
+  output << "call " << call_id << "\n";
+  output << "mode " << static_cast<int>(mode_[call_id]) << "\n";
+  output << "grouping_method " << grouping_method_[call_id] << "\n";
+  output << "group_id " << group_id_[call_id] << "\n";
+  output << "group_size " << restart_group_size_[call_id] << "\n";
+  output << "state_size " << state_size << "\n";
+  output << "state\n";
+  output << std::setprecision(17);
+
+  if (mode_[call_id] == MODE_GHOST_COM) {
+    // origin_ is one velocity increment ahead of the ghost position used in
+    // the last force evaluation. Store the actual last-applied ghost position
+    // so a changed velocity in the next run starts from the same physical state.
+    output << origin_[call_id][0] - velocity_[call_id][0] << " "
+           << origin_[call_id][1] - velocity_[call_id][1] << " "
+           << origin_[call_id][2] - velocity_[call_id][2] << "\n";
+  } else {
+    std::vector<double> host_pos(state_size);
+    ghost_atom_pos_[call_id].copy_to_host(host_pos.data());
+    for (int n = 0; n < ghost_atom_group_size_[call_id]; ++n) {
+      output << host_pos[n * 3 + 0] << " "
+             << host_pos[n * 3 + 1] << " "
+             << host_pos[n * 3 + 2] << "\n";
+    }
+  }
+
+  output.close();
+  if (!output) {
+    std::remove(tmp_filename.c_str());
+    std::string error_msg = "Failed while writing add_spring restart file: " + tmp_filename + "\n";
+    PRINT_INPUT_ERROR(error_msg.c_str());
+  }
+
+  if (std::rename(tmp_filename.c_str(), filename.c_str()) != 0) {
+    std::remove(tmp_filename.c_str());
+    std::string error_msg = "Failed to finalize add_spring restart file: " + filename + "\n";
+    PRINT_INPUT_ERROR(error_msg.c_str());
+  }
+}
+
+void Add_Spring::load_restart(const int call_id, const int previous_call_id)
+{
+  if (mode_[call_id] == MODE_COM_COM) {
+    PRINT_INPUT_ERROR("continue is only available for ghost_com and ghost_atom.\n");
+  }
+  if (run_id_ <= 0) {
+    PRINT_INPUT_ERROR("add_spring cannot use 'continue' in the first run.\n");
+  }
+  if (previous_call_id < 0 || previous_call_id >= MAX_SPRING_CALLS) {
+    PRINT_INPUT_ERROR("The previous add_spring call id is out of range.\n");
+  }
+  if (!previous_restart_available_[previous_call_id]) {
+    PRINT_INPUT_ERROR("The selected add_spring call in the immediately previous run has no ghost restart state.\n");
+  }
+  if (previous_call_used_[previous_call_id]) {
+    PRINT_INPUT_ERROR("The selected previous add_spring call has already been continued in the current run.\n");
+  }
+
+  const int previous_run_id = run_id_ - 1;
+  const std::string filename = spring_run_call_stem(previous_run_id, previous_call_id) + ".restart";
+  std::ifstream input(filename.c_str());
+  if (!input) {
+    std::string error_msg = "Failed to open add_spring restart file: " + filename + "\n";
+    PRINT_INPUT_ERROR(error_msg.c_str());
+  }
+
+  std::string magic;
+  input >> magic;
+  if (!input || magic != "GPUMD_ADD_SPRING_RESTART_V1") {
+    PRINT_INPUT_ERROR("Invalid or unsupported add_spring restart file header.\n");
+  }
+
+  int saved_run = -1;
+  int saved_call = -1;
+  int saved_mode = -1;
+  int saved_grouping_method = -1;
+  int saved_group_id = -1;
+  int saved_group_size = -1;
+  int state_size = -1;
+  if (!read_labeled_int(input, "run", saved_run) ||
+      !read_labeled_int(input, "call", saved_call) ||
+      !read_labeled_int(input, "mode", saved_mode) ||
+      !read_labeled_int(input, "grouping_method", saved_grouping_method) ||
+      !read_labeled_int(input, "group_id", saved_group_id) ||
+      !read_labeled_int(input, "group_size", saved_group_size) ||
+      !read_labeled_int(input, "state_size", state_size)) {
+    PRINT_INPUT_ERROR("Malformed add_spring restart metadata.\n");
+  }
+
+  std::string state_label;
+  input >> state_label;
+  if (!input || state_label != "state") {
+    PRINT_INPUT_ERROR("Malformed add_spring restart state section.\n");
+  }
+
+  if (saved_run != previous_run_id || saved_call != previous_call_id) {
+    PRINT_INPUT_ERROR("add_spring restart run/call metadata does not match the requested previous call.\n");
+  }
+  if (saved_mode != static_cast<int>(mode_[call_id])) {
+    PRINT_INPUT_ERROR("add_spring continuation requires the same ghost mode (ghost_com or ghost_atom).\n");
+  }
+  if (saved_grouping_method != grouping_method_[call_id] || saved_group_id != group_id_[call_id]) {
+    PRINT_INPUT_ERROR("add_spring continuation requires the same grouping method and group id.\n");
+  }
+  if (saved_group_size != restart_group_size_[call_id]) {
+    PRINT_INPUT_ERROR("add_spring continuation requires the same group size.\n");
+  }
+
+  const int expected_state_size = (mode_[call_id] == MODE_GHOST_COM) ? 3 : 3 * ghost_atom_group_size_[call_id];
+  if (state_size != expected_state_size) {
+    PRINT_INPUT_ERROR("add_spring restart state size does not match the current spring.\n");
+  }
+
+  std::vector<double> state(state_size);
+  for (int n = 0; n < state_size; ++n) {
+    if (!(input >> state[n])) {
+      PRINT_INPUT_ERROR("add_spring restart state data are incomplete.\n");
+    }
+  }
+
+  if (mode_[call_id] == MODE_GHOST_COM) {
+    // The file stores the last-applied ghost position. The current compute()
+    // uses origin_ as the next ghost position, so advance it once using the
+    // velocity of the new run. With unchanged velocity this is exactly the
+    // unsplit trajectory; with changed velocity the new velocity takes effect
+    // immediately at the run boundary.
+    origin_[call_id][0] = state[0] + velocity_[call_id][0];
+    origin_[call_id][1] = state[1] + velocity_[call_id][1];
+    origin_[call_id][2] = state[2] + velocity_[call_id][2];
+  } else {
+    ghost_atom_pos_[call_id].copy_from_host(state.data());
+  }
+
+  init_origin_[call_id] = 1;
+  previous_call_used_[previous_call_id] = true;
+
+  printf("    Continue from previous run call %d using %s.\n", previous_call_id, filename.c_str());
+  printf("    Restored ghost state; the input offset is not reapplied.\n");
+}
+
 void Add_Spring::parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
 {
   printf("Add spring [%d call(s)].\n", num_calls_);
@@ -343,11 +542,12 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
 
   const char* mode_str = param[1];
   const int id = num_calls_;
+  continue_from_call_[id] = -1;
 
   if (strcmp(mode_str, "ghost_com") == 0) {
     // Syntax:
-    //   add_spring ghost_com gm gid vx vy vz couple   k  R0  x0 y0 z0
-    //   add_spring ghost_com gm gid vx vy vz decouple kx ky kz x0 y0 z0
+    //   add_spring ghost_com gm gid vx vy vz couple   k  R0  x0 y0 z0 [continue previous_call]
+    //   add_spring ghost_com gm gid vx vy vz decouple kx ky kz x0 y0 z0 [continue previous_call]
 
     mode_[id] = MODE_GHOST_COM;
 
@@ -368,6 +568,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     if (groups[grouping_method_[id]].cpu_size[group_id_[id]] <= 0) {
       PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
     }
+    restart_group_size_[id] = groups[grouping_method_[id]].cpu_size[group_id_[id]];
 
     // Parse velocity
     if (!is_valid_real(param[4], &velocity_[id][0]) ||
@@ -379,9 +580,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     const char* stiff_str = param[7];
 
     if (strcmp(stiff_str, "couple") == 0) {
-      if (num_param != 13) {
-        PRINT_INPUT_ERROR("add_spring ghost_com couple requires 13 parameters.\n");
-      }
+      continue_from_call_[id] = parse_continue_option(param, num_param, 13);
       stiffness_mode_[id] = STIFFNESS_COUPLE;
 
       if (!is_valid_real(param[8], &k_couple_[id]) || k_couple_[id] <= 0.0) {
@@ -396,8 +595,9 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
       
-      if (offset_[id][0] == 0.0 && offset_[id][1] == 0.0 && offset_[id][2] == 0.0
-          && R0_[id] > 1.0e-20) {
+      if (continue_from_call_[id] < 0 &&
+          offset_[id][0] == 0.0 && offset_[id][1] == 0.0 && offset_[id][2] == 0.0 &&
+          R0_[id] > 1.0e-20) {
         printf("    Warning: zero offset with positive R0 may lead to weird forces at the beginning of the simulation. So the forces are set to zero initially.\n");
       }
 
@@ -407,9 +607,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
       printf("    offset=(%g,%g,%g) Å\n", offset_[id][0], offset_[id][1], offset_[id][2]);
 
     } else if (strcmp(stiff_str, "decouple") == 0) {
-      if (num_param != 14) {
-        PRINT_INPUT_ERROR("add_spring ghost_com decouple requires 14 parameters.\n");
-      }
+      continue_from_call_[id] = parse_continue_option(param, num_param, 14);
       stiffness_mode_[id] = STIFFNESS_DECOUPLE;
 
       if (!is_valid_real(param[8], &k_decouple_[id][0]) || k_decouple_[id][0] < -1.0e-20 ||
@@ -435,11 +633,14 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     }
 
     init_origin_[id] = 0;
+    if (continue_from_call_[id] >= 0) {
+      load_restart(id, continue_from_call_[id]);
+    }
 
   } else if (strcmp(mode_str, "ghost_atom") == 0) {
     // Syntax:
-    //   add_spring ghost_atom gm gid vx vy vz couple   k  R0  x0 y0 z0
-    //   add_spring ghost_atom gm gid vx vy vz decouple kx ky kz x0 y0 z0
+    //   add_spring ghost_atom gm gid vx vy vz couple   k  R0  x0 y0 z0 [continue previous_call]
+    //   add_spring ghost_atom gm gid vx vy vz decouple kx ky kz x0 y0 z0 [continue previous_call]
 
     mode_[id] = MODE_GHOST_ATOM;
 
@@ -457,6 +658,10 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     if (group_id_[id] < 0 || group_id_[id] >= groups[grouping_method_[id]].number) {
       PRINT_INPUT_ERROR("group id is out of range.\n");
     }
+    restart_group_size_[id] = groups[grouping_method_[id]].cpu_size[group_id_[id]];
+    if (restart_group_size_[id] <= 0) {
+      PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
+    }
 
     // Parse velocity
     if (!is_valid_real(param[4], &velocity_[id][0]) ||
@@ -468,9 +673,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     const char* stiff_str = param[7];
 
     if (strcmp(stiff_str, "couple") == 0) {
-      if (num_param != 13) {
-        PRINT_INPUT_ERROR("add_spring ghost_atom couple requires 13 parameters.\n");
-      }
+      continue_from_call_[id] = parse_continue_option(param, num_param, 13);
       stiffness_mode_[id] = STIFFNESS_COUPLE;
 
       if (!is_valid_real(param[8], &k_couple_[id]) || k_couple_[id] <= 0.0) {
@@ -491,8 +694,9 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
 
-      if (offset_[id][0] == 0.0 && offset_[id][1] == 0.0 && offset_[id][2] == 0.0
-          && R0_[id] > 1.0e-20) {
+      if (continue_from_call_[id] < 0 &&
+          offset_[id][0] == 0.0 && offset_[id][1] == 0.0 && offset_[id][2] == 0.0 &&
+          R0_[id] > 1.0e-20) {
         printf("    Warning: zero offset with positive R0 may lead to weird forces at the beginning of the simulation. So the forces are set to zero initially.\n");
       }
 
@@ -502,9 +706,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
       printf("    offset=(%g,%g,%g) Å\n", offset_[id][0], offset_[id][1], offset_[id][2]);
 
     } else if (strcmp(stiff_str, "decouple") == 0) {
-      if (num_param != 14) {
-        PRINT_INPUT_ERROR("add_spring ghost_atom decouple requires 14 parameters.\n");
-      }
+      continue_from_call_[id] = parse_continue_option(param, num_param, 14);
       stiffness_mode_[id] = STIFFNESS_DECOUPLE;
 
       if (!is_valid_real(param[8], &k_decouple_[id][0]) ||
@@ -547,6 +749,9 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
     }
     ghost_atom_pos_[id].resize(3 * ghost_atom_group_size_[id]);
     init_origin_[id] = 0;
+    if (continue_from_call_[id] >= 0) {
+      load_restart(id, continue_from_call_[id]);
+    }
 
   } else if (strcmp(mode_str, "com_com") == 0) {
     // Syntax:
@@ -648,7 +853,7 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
   total_force_[id] = 0.0;
 
   if (output_stride_ > 0) {
-    std::string filename = "spring_force_" + std::to_string(id) + ".out";
+    std::string filename = spring_run_call_stem(run_id_, id) + ".out";
     fp_out_[id] = fopen(filename.c_str(), "w");
     if (fp_out_[id]) {
       fprintf(fp_out_[id], "# step  mode  Fx  Fy  Fz Ftotal (eV/Å) energy (eV)\n");
@@ -981,6 +1186,17 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
 
 void Add_Spring::finalize()
 {
+  bool next_restart_available[MAX_SPRING_CALLS] = {false};
+
+  // Save ghost state before freeing per-call memory. Every initialized
+  // ghost spring writes a restart automatically; com_com has no ghost state.
+  for (int c = 0; c < num_calls_; ++c) {
+    if ((mode_[c] == MODE_GHOST_COM || mode_[c] == MODE_GHOST_ATOM) && init_origin_[c] != 0) {
+      save_restart(c);
+      next_restart_available[c] = true;
+    }
+  }
+
   // GPU_Vector destructors will automatically free device memory
   d_tmp_vec3_.resize(0);
   d_tmp_scalar_.resize(0);
@@ -989,6 +1205,9 @@ void Add_Spring::finalize()
   for (int c = 0; c < MAX_SPRING_CALLS; ++c) {
     ghost_atom_pos_[c].resize(0);
     init_origin_[c] = 0;
+    continue_from_call_[c] = -1;
+    previous_call_used_[c] = false;
+    previous_restart_available_[c] = next_restart_available[c];
     if (fp_out_[c]) {
       fclose(fp_out_[c]);
       fp_out_[c] = nullptr;
@@ -996,4 +1215,5 @@ void Add_Spring::finalize()
   }
 
   num_calls_ = 0;
+  ++run_id_;
 }
