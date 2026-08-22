@@ -103,6 +103,8 @@ public:
 
   // PIMD
   int number_of_beads;
+  bool use_eco_pimd = false;
+  double eco_omega_max_cm1 = 0.0;
 
   // TTM parameters
   TTM_Parameters ttm_parameters;

@@ -381,3 +381,9 @@ Bibliography
    | *Modular hybrid machine learning and physics-based potentials for scalable modeling of Van der Waals heterostructures*
    | J. Mech. Phys. Solids **210**, 106540 (2026)
    | DOI: `10.1016/j.jmps.2026.106540 <https://doi.org/10.1016/j.jmps.2026.106540>`_
+
+.. [Zeng2026]
+   | Zezhu Zeng and David E. Manolopoulos
+   | *Economised path integrals*
+   | arXiv:2607.06414 (2026)
+   | DOI: `10.48550/arXiv.2607.06414 <https://doi.org/10.48550/arXiv.2607.06414>`_
