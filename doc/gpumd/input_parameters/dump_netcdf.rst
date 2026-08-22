@@ -87,6 +87,10 @@ Currently, the following optional arguments are accepted:
   written once, without a frame dimension.
   The mass is written every frame, because a :term:`MC` trial performed with the
   :ref:`mc keyword <kw_mc>` changes the species of a site and with it the mass.
+  Note that this also means that a lot of data is duplicated.
+  Since the mass can usually be attributed based on the atom type,
+  in most cases it is recommended *not* to write the mass but to rather assign it
+  after the fact based on the atom type in order to save storage space.
   The ``group_labels`` variable holds one label per grouping method, giving the group each atom
   belongs to.
   The rank-2 tensors are stored row-major, so ``virial[frame, atom, i, j]`` is the *ij*
