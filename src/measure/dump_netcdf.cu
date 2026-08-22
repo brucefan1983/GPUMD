@@ -492,7 +492,7 @@ void DUMP_NETCDF::preprocess(
     validate_file_definition();
     NC_CHECK(nc_inq_dimlen(ncid, frame_dim, &lenp));
   } else {
-    create_file(group, atom);
+    create_file(group);
   }
 }
 
@@ -523,7 +523,7 @@ void DUMP_NETCDF::define_per_frame_variable(
   }
 }
 
-void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom)
+void DUMP_NETCDF::create_file(const std::vector<Group>& groups)
 {
   const int creation_mode = compression_level_ >= 0 ? NC_NETCDF4 : NC_64BIT_OFFSET;
   const int create_status = nc_create(filename_.c_str(), creation_mode, &ncid);
@@ -586,9 +586,10 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
   NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "angstrom"));
   NC_CHECK(nc_put_att_text(ncid, cell_angles_var, UNITS_STR, 6, "degree"));
 
-  // Per-atom data variables. The type is written per frame, as it always has been; the
-  // quantities that cannot change during a run are defined further down without a frame
-  // dimension, so that they are stored once rather than repeated every frame.
+  // Per-atom data variables. The type and the mass are written per frame, because a Monte
+  // Carlo trial changes the species of a site and with it both of them. The group labels are
+  // fixed by the simulation model file and are defined further down without a frame dimension,
+  // so that they are stored once rather than repeated every frame.
   dimids[0] = frame_dim;
   dimids[1] = atom_dim;
   NC_CHECK(nc_def_var(ncid, TYPE_STR, NC_INT, 2, dimids, &type_var));
@@ -625,15 +626,12 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
   if (quantities_.has_virial_) {
     define_per_frame_variable(VIRIAL_STR, 4, 9, "eV", virial_var);
   }
-
-  // Quantities that are constant over the run. They are written once and left uncompressed,
-  // being one copy rather than one per frame.
-  const nc_type per_atom_type = precision_ == 1 ? NC_FLOAT : NC_DOUBLE;
   if (quantities_.has_mass_) {
-    dimids[0] = atom_dim;
-    NC_CHECK(nc_def_var(ncid, MASS_STR, per_atom_type, 1, dimids, &mass_var));
-    NC_CHECK(nc_put_att_text(ncid, mass_var, UNITS_STR, 3, "amu"));
+    define_per_frame_variable(MASS_STR, 2, 1, "amu", mass_var);
   }
+
+  // The group labels are constant over the run. They are written once and left uncompressed,
+  // being one copy rather than one per frame.
   if (quantities_.has_group_) {
     dimids[0] = atom_dim;
     dimids[1] = grouping_method_dim;
@@ -658,17 +656,7 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups, const Atom& atom
   countp[1] = 5;
   NC_CHECK(nc_put_vara_text(ncid, cell_angular_var, startp, countp, "gamma"));
 
-  // The constant quantities, written once now rather than once per frame
-  if (quantities_.has_mass_) {
-    for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
-      host_double_[n] = atom.cpu_mass[dump_indices_[n]];
-    }
-    pack_scalar_by_precision(
-      precision_, number_of_atoms_to_dump_, host_double_, pack_float_, pack_double_);
-    const size_t mass_start[1] = {0};
-    const size_t mass_count[1] = {size_t(number_of_atoms_to_dump_)};
-    put_packed(mass_var, mass_start, mass_count);
-  }
+  // The group labels, written once now rather than once per frame
   if (quantities_.has_group_) {
     cpu_group_labels_.resize(size_t(number_of_atoms_to_dump_) * number_of_grouping_methods_);
     for (int n = 0; n < number_of_atoms_to_dump_; ++n) {
@@ -826,6 +814,16 @@ void DUMP_NETCDF::validate_file_definition()
   }
   if (quantities_.has_virial_) {
     NC_CHECK(nc_inq_varid(ncid, VIRIAL_STR, &virial_var));
+  }
+  // The mass carries a frame dimension, so a file that stores it per atom alone has no room
+  // for the frames this run writes.
+  if (quantities_.has_mass_) {
+    NC_CHECK(nc_inq_varid(ncid, MASS_STR, &mass_var));
+    int number_of_mass_dimensions = 0;
+    NC_CHECK(nc_inq_varndims(ncid, mass_var, &number_of_mass_dimensions));
+    if (number_of_mass_dimensions != 2) {
+      append_mismatch("mass layout");
+    }
   }
 }
 
@@ -1018,6 +1016,11 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, Atom& atom, Fo
       pack_float_,
       pack_double_);
     put_packed(virial_var, tensor_start, tensor_count);
+  }
+  if (quantities_.has_mass_) {
+    stage(atom.mass, 1, gather_double_, host_double_);
+    pack_scalar_by_precision(precision_, number_to_dump, host_double_, pack_float_, pack_double_);
+    put_packed(mass_var, atom_start, atom_count);
   }
 
   ++lenp;

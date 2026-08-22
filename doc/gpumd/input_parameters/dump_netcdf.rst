@@ -76,15 +76,21 @@ Currently, the following optional arguments are accepted:
        - eV
      * - :attr:`mass`
        - ``mass``
-       - ``(atom)``
+       - ``(frame, atom)``
        - amu
      * - :attr:`group_labels`
        - ``group_labels``
        - ``(atom, grouping_method)``
        - --
 
-  The mass and the group labels cannot change during a run and are therefore written once,
-  without a frame dimension.
+  The group labels are fixed by the :ref:`simulation model file <model_xyz>` and are therefore
+  written once, without a frame dimension.
+  The mass is written every frame, because a :term:`MC` trial performed with the
+  :ref:`mc keyword <kw_mc>` changes the species of a site and with it the mass.
+  Note that this also means that a lot of data is duplicated.
+  Since the mass can usually be attributed based on the atom type,
+  in most cases it is recommended *not* to write the mass but to rather assign it
+  after the fact based on the atom type in order to save storage space.
   The ``group_labels`` variable holds one label per grouping method, giving the group each atom
   belongs to.
   The rank-2 tensors are stored row-major, so ``virial[frame, atom, i, j]`` is the *ij*
@@ -142,6 +148,9 @@ Requirements and specifications
   and is refused for any other model.
 * :attr:`group_labels` requires at least one grouping method to be defined in
   :ref:`model.xyz <model_xyz>`.
+* The ``type`` and ``mass`` variables both carry a frame dimension, so the species and the mass
+  of an atom always refer to the same frame. A trajectory sampled alongside :term:`MC` trials is
+  therefore self-consistent.
 
 Examples
 --------

@@ -136,7 +136,7 @@ private:
 
   size_t lenp; // frame number
 
-  void create_file(const std::vector<Group>& groups, const Atom& atom);
+  void create_file(const std::vector<Group>& groups);
   void define_per_frame_variable(
     const char* name, const int rank, const int values_per_atom, const char* units, int& var);
   void load_file_definition();

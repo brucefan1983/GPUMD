@@ -18,7 +18,7 @@ from ase.cell import Cell
 from ase.io import read
 from calorine.gpumd import read_xyz
 
-from conftest import MODELS_DIR
+from conftest import MODELS_DIR, make_bulk_perovskite
 from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check, run_command_io_case
 from test_parsing import read_thermo_out
 
@@ -686,6 +686,58 @@ def test_dump_netcdf_appending_to_a_file_without_recorded_quantities_is_rejected
     assert 'different number of atoms' in output, output
 
 
+def _rewrite_with_a_per_atom_mass(netcdf4, path):
+    """Copies a trajectory into a file whose mass variable is indexed by atom alone. NetCDF
+    cannot change the shape of a variable in place, so the whole file is rebuilt, keeping the
+    first frame of the mass. This is the one layout dump_netcdf cannot write itself, and so the
+    only way to present it with a file it has to refuse."""
+    scratch = path.with_suffix('.rewritten.nc')
+    with netcdf4.Dataset(path) as source, \
+            netcdf4.Dataset(scratch, 'w', format='NETCDF3_64BIT_OFFSET') as target:
+        target.setncatts({name: source.getncattr(name) for name in source.ncattrs()})
+        for name, dimension in source.dimensions.items():
+            target.createDimension(name, None if dimension.isunlimited() else len(dimension))
+        for name, variable in source.variables.items():
+            per_atom_mass = name == 'mass'
+            created = target.createVariable(
+                name, variable.dtype, ('atom',) if per_atom_mass else variable.dimensions)
+            created.setncatts({a: variable.getncattr(a) for a in variable.ncattrs()})
+            created[:] = variable[0] if per_atom_mass else variable[:]
+    scratch.replace(path)
+
+
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+def test_dump_netcdf_appending_to_a_file_with_a_per_atom_mass_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The mass carries a frame dimension, so a file that stores one mass per atom has no room
+    for the frames a run writes. Every other check passes on such a file -- the atom count, the
+    precision, the group and the recorded quantities all match -- so without an explicit check
+    the run would fail inside netcdf-c, naming neither the file nor the remedy."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    output_path = tmp_path / 'per_atom_mass.nc'
+    case = CommandIOCase(
+        name='dump_netcdf_per_atom_mass',
+        run_in_lines=[('dump_netcdf', [1, 'per_atom_mass.nc', 'mass'])],
+        expected_output_files=['per_atom_mass.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(output_path) as dataset:
+        assert dataset.variables['mass'].dimensions == ('frame', 'atom')
+
+    _rewrite_with_a_per_atom_mass(netcdf4, output_path)
+    with netcdf4.Dataset(output_path) as dataset:
+        assert dataset.variables['mass'].dimensions == ('atom',)
+
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a file storing one mass per atom should be refused'
+    assert 'per_atom_mass.nc' in output, output
+    assert 'different mass layout' in output, output
+
+
 def test_dump_netcdf_without_velocity(
         tmp_path, structure, model_path, model_type, gpumd_command):
     netcdf4 = pytest.importorskip('netCDF4')
@@ -734,6 +786,37 @@ def test_dump_netcdf_group_double_deflate(
         assert velocities.filters()['zlib']
         assert dataset.getncattr('gpumd_grouping_method') == 0
         assert dataset.getncattr('gpumd_group_id') == 1
+
+
+def test_dump_netcdf_group_mass_is_the_mass_of_the_selected_atoms(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """With a group selected the mass is gathered on the device, like every other per-frame
+    quantity, rather than picked out on the host. The values therefore have to be the masses of
+    exactly the atoms of that group, in the order the group lists them, which is what comparing
+    against a whole-system dump of the same run pins down."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    half = len(structure) // 2
+    case = CommandIOCase(
+        name='dump_netcdf_group_mass',
+        run_in_lines=[
+            ('dump_netcdf', [1, 'group_mass.nc', 'group', 0, 1, 'mass', 'precision', 'double']),
+            ('dump_netcdf', [1, 'all_mass.nc', 'mass', 'precision', 'double']),
+        ],
+        expected_output_files=['group_mass.nc', 'all_mass.nc'],
+        n_groups=2,
+    )
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'group_mass.nc') as dataset:
+        assert dataset.variables['mass'].dimensions == ('frame', 'atom')
+        group_mass = np.array(dataset.variables['mass'][:])
+    with netcdf4.Dataset(tmp_path / 'all_mass.nc') as dataset:
+        whole_mass = np.array(dataset.variables['mass'][:])
+
+    assert group_mass.shape == (BASE_N_STEPS, len(structure) - half)
+    np.testing.assert_array_equal(group_mass, whole_mass[:, half:])
 
 
 def test_dump_netcdf_multiple_groups_in_one_run(
@@ -919,15 +1002,15 @@ NETCDF_QUANTITY_LAYOUT = {
     'potential': ('potential_energy', ('frame', 'atom'), 'eV'),
     'charge': ('charge', ('frame', 'atom'), 'e'),
     'virial': ('virial', ('frame', 'atom', 'spatial', 'spatial'), 'eV'),
-    'mass': ('mass', ('atom',), 'amu'),
+    'mass': ('mass', ('frame', 'atom'), 'amu'),
     'group_labels': ('group_labels', ('atom', 'grouping_method'), None),
 }
 
 
 def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type, gpumd_command):
     """Each quantity has to land in the variable, with the dimensions and units, that the
-    documentation promises, since that layout is the whole interface to the file. The mass and
-    the group labels are constant over a run and carry no frame dimension."""
+    documentation promises, since that layout is the whole interface to the file. The group
+    labels are fixed by model.xyz and carry no frame dimension."""
     netcdf4 = pytest.importorskip('netCDF4')
     quantities = list(NETCDF_QUANTITY_LAYOUT)
     case = CommandIOCase(
@@ -961,6 +1044,56 @@ def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type
 
     with netcdf4.Dataset(tmp_path / 'reversed.nc') as dataset:
         assert dataset.getncattr('gpumd_quantities') == recorded
+
+
+def test_dump_netcdf_mass_follows_the_species_of_a_site(tmp_path, gpumd_command):
+    """A Monte Carlo trial changes the species of a site, and with it the mass, so the mass has
+    to be recorded per frame next to the type. Pinned to BaTiO3 with a plain NEP model rather
+    than swept over the structure/model matrix, since the mc keyword needs more than one species
+    and accepts only NEP models. The cell is repeated because mc refuses a box shorter than twice
+    the radial cutoff of the model, and the MC temperature is far above anything physical on
+    purpose, so that every trial is accepted and the masses are certain to move within the few
+    steps this suite runs."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    structure = make_bulk_perovskite().repeat((2, 2, 2))
+    case = CommandIOCase(
+        name='dump_netcdf_mc_mass',
+        run_in_lines=[
+            ('mc', ['canonical', 1, 20, 10000000, 10000000]),
+            ('dump_netcdf', [1, 'mc.nc', 'mass', 'precision', 'double']),
+        ],
+        expected_output_files=['mc.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, MODELS_DIR / 'nep_BaTiO3.txt', 'nep', gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'mc.nc') as dataset:
+        assert dataset.variables['mass'].dimensions == ('frame', 'atom')
+        mass = np.array(dataset.variables['mass'][:])
+        types = np.array(dataset.variables['type'][:])
+    assert mass.shape == (BASE_N_STEPS, len(structure))
+
+    assert not np.array_equal(types[0], types[-1]), (
+        'no trial was accepted, so this case would pass whatever the mass variable held')
+    assert not np.array_equal(mass[0], mass[-1]), (
+        'the types moved while the masses did not, so the mass is not written per frame')
+
+    # Every site of a given type carries the mass of that type in every frame, which is what
+    # makes a frame self-consistent. The map is read off the first frame, where the types and
+    # the masses both come straight from model.xyz.
+    mass_of_type = {int(t): mass[0][types[0] == t][0] for t in np.unique(types[0])}
+    for frame in range(mass.shape[0]):
+        expected = np.array([mass_of_type[int(t)] for t in types[frame]])
+        np.testing.assert_array_equal(
+            mass[frame], expected,
+            err_msg=f'frame {frame}: the mass and the type of a site disagree')
+
+    # A canonical trial permutes the species, so the composition, and with it the multiset of
+    # masses, is the same in every frame.
+    for frame in range(mass.shape[0]):
+        np.testing.assert_array_equal(
+            np.sort(mass[frame]), np.sort(mass[0]),
+            err_msg=f'frame {frame}: the canonical ensemble did not conserve the composition')
 
 
 def test_dump_netcdf_writes_only_the_requested_quantities(
