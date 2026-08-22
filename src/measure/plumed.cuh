@@ -29,6 +29,7 @@ public:
   int step = 0;
   int interval = 1;
   int use_plumed = 0;
+  bool dynamics_mode = false;
 
   PLUMED(const char** param, int num_param);
   
@@ -58,6 +59,11 @@ public:
       Atom& atom,
       Force& force);
 
+  virtual void process_dynamics(
+    const int md_step,
+    Box& box,
+    Atom& atom);
+
   virtual void postprocess(
     Atom& atom,
     Box& box,
@@ -75,15 +81,14 @@ protected:
   double total_energy;
   char input_file[1024];
   char output_file[1024];
-  GPU_Vector<double> gpu_v_vector;  // Total Virial (GPU)
-  GPU_Vector<double> gpu_v_factor;  // Scaling factor of the virial (GPU)
   std::vector<double> cpu_m_vector; // Mass
   std::vector<double> cpu_b_vector; // Box
   std::vector<double> cpu_f_vector; // Forces
   std::vector<double> cpu_q_vector; // Positions
-  std::vector<double> cpu_v_vector; // Total Virial (CPU)
-  std::vector<double> cpu_v_factor; // Scaling factor of the virial (CPU)
+  std::vector<double> cpu_v_vector; // PLUMED virial (CPU)
   plumed plumed_main;
+
+  void calculate(int plumed_step, Box& box, Atom& atom);
 };
 
 #endif
