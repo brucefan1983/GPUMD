@@ -27,10 +27,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -97,8 +98,15 @@ static std::vector<float> get_descriptor_parameters_type_pair(
   return descriptor_parameters;
 }
 
-NEP::NEP(const char* file_potential, const int num_atoms)
+NEP::NEP(
+  const char* file_potential,
+  const int num_atoms,
+  const bool allocate_default_workspace)
 {
+  num_atoms_ = num_atoms;
+  has_default_workspace_ = allocate_default_workspace;
+  CHECK(gpuGetDevice(&device_id_));
+
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
@@ -376,19 +384,8 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     zbl.num_types = paramb.num_types;
   }
 
-  nep_data.f12x.resize(num_atoms * paramb.MN_angular);
-  nep_data.f12y.resize(num_atoms * paramb.MN_angular);
-  nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
-  nep_data.NN_radial.resize(num_atoms);
-  nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
-  nep_data.NN_angular.resize(num_atoms);
-  nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
-  nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
-  nep_data.sum_fxyz.resize(
-    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
-  nep_data.cpu_NN_radial.resize(num_atoms);
-  nep_data.cpu_NN_angular.resize(num_atoms);
+  if (has_default_workspace_)
+    initialize_workspace(nep_data, neighbor, true);
 
   initialize_dftd3();
   B_projection_size = annmb.num_neurons1 * (annmb.dim + 2);
@@ -397,6 +394,112 @@ NEP::NEP(const char* file_potential, const int num_atoms)
 NEP::~NEP(void)
 {
   // nothing
+}
+
+void NEP::initialize_workspace(
+  NEP_Data& data,
+  Neighbor& neighbor_list,
+  const bool allocate_host_data) const
+{
+  data.f12x.resize(static_cast<size_t>(num_atoms_) * paramb.MN_angular);
+  data.f12y.resize(static_cast<size_t>(num_atoms_) * paramb.MN_angular);
+  data.f12z.resize(static_cast<size_t>(num_atoms_) * paramb.MN_angular);
+  neighbor_list.initialize(rc, num_atoms_, paramb.MN_radial);
+  data.NN_radial.resize(num_atoms_);
+  data.NL_radial.resize(static_cast<size_t>(num_atoms_) * paramb.MN_radial);
+  data.NN_angular.resize(num_atoms_);
+  data.NL_angular.resize(static_cast<size_t>(num_atoms_) * paramb.MN_angular);
+  data.Fp.resize(static_cast<size_t>(num_atoms_) * annmb.dim);
+  data.sum_fxyz.resize(
+    static_cast<size_t>(num_atoms_) * (paramb.n_max_angular + 1) *
+    ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+  if (allocate_host_data) {
+    data.cpu_NN_radial.resize(num_atoms_);
+    data.cpu_NN_angular.resize(num_atoms_);
+  }
+}
+
+void NEP::validate_default_workspace() const
+{
+  if (!has_default_workspace_)
+    PRINT_INPUT_ERROR("This NEP instance requires an explicit GPU stream.\n");
+}
+
+void NEP::validate_stream(const gpuStream_t stream) const
+{
+  if (stream == nullptr) {
+    PRINT_INPUT_ERROR("An explicit NEP stream must not be null.\n");
+  }
+  if (has_dftd3) {
+    PRINT_INPUT_ERROR("Explicit NEP streams do not yet support DFT-D3.\n");
+  }
+  if (need_B_projection) {
+    PRINT_INPUT_ERROR("Explicit NEP streams do not yet support B projection.\n");
+  }
+
+  int current_device = -1;
+  CHECK(gpuGetDevice(&current_device));
+  if (current_device != device_id_) {
+    PRINT_INPUT_ERROR("NEP must run on the device where it was constructed.\n");
+  }
+}
+
+NEP::Stream_Workspace& NEP::get_stream_workspace(const gpuStream_t stream)
+{
+  std::lock_guard<std::mutex> lock(stream_workspaces_mutex_);
+  auto iterator = stream_workspaces_.find(stream);
+  if (iterator == stream_workspaces_.end()) {
+    std::unique_ptr<Stream_Workspace> workspace(new Stream_Workspace);
+    initialize_workspace(workspace->data, workspace->neighbor, false);
+    workspace->cpu_NN_radial.resize(num_atoms_);
+    workspace->cpu_NN_angular.resize(num_atoms_);
+    iterator = stream_workspaces_.emplace(stream, std::move(workspace)).first;
+  }
+  return *iterator->second;
+}
+
+void NEP::report_neighbor_information(
+  GPU_Vector<int>& radial,
+  GPU_Vector<int>& angular,
+  const Host_Neighbor_Data host_data,
+  int& num_calls,
+  const gpuStream_t stream)
+{
+  const int call_index = num_calls++;
+  if (call_index % 1000 != 0)
+    return;
+
+  if (stream == nullptr) {
+    radial.copy_to_host(host_data.radial);
+    angular.copy_to_host(host_data.angular);
+  } else {
+    radial.copy_to_host_async(host_data.radial, stream);
+    angular.copy_to_host_async(host_data.angular, stream);
+    CHECK(gpuStreamSynchronize(stream));
+  }
+
+  int radial_actual = 0;
+  int angular_actual = 0;
+  for (int atom = 0; atom < num_atoms_; ++atom) {
+    radial_actual = std::max(radial_actual, host_data.radial[atom]);
+    angular_actual = std::max(angular_actual, host_data.angular[atom]);
+  }
+
+  std::lock_guard<std::mutex> lock(neighbor_log_mutex_);
+  std::ofstream output("neighbor.out", std::ios_base::app);
+  output << "Neighbor info at step " << call_index << ": "
+         << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+         << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual
+         << ")." << std::endl;
+}
+
+void NEP::prepare_stream(const gpuStream_t stream)
+{
+  if (stream == nullptr) {
+    return;
+  }
+  validate_stream(stream);
+  get_stream_workspace(stream);
 }
 
 void NEP::update_potential(float* parameters, ANN& ann)
@@ -981,19 +1084,24 @@ void NEP::compute_large_box(
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  NEP_Data& nep_data,
+  Neighbor& neighbor,
+  const Host_Neighbor_Data host_data,
+  int& num_calls,
+  const gpuStream_t stream)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  if (stream == nullptr) {
+    neighbor.find_neighbor_global(rc, box, type, position_per_atom);
+  } else {
+    neighbor.find_neighbor_global(rc, box, type, position_per_atom, stream);
+  }
 
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     N,
     N1,
@@ -1011,30 +1119,11 @@ void NEP::compute_large_box(
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
-    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < nep_data.cpu_NN_radial[n]) {
-        radial_actual = nep_data.cpu_NN_radial[n];
-      }
-      if (angular_actual < nep_data.cpu_NN_angular[n]) {
-        angular_actual = nep_data.cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
+  report_neighbor_information(
+    nep_data.NN_radial, nep_data.NN_angular, host_data, num_calls, stream);
 
   bool is_polarizability = paramb.model_type == 2;
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1060,7 +1149,7 @@ void NEP::compute_large_box(
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1081,7 +1170,7 @@ void NEP::compute_large_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1111,11 +1200,12 @@ void NEP::compute_large_box(
     is_dipole,
     position_per_atom,
     force_per_atom,
-    virial_per_atom);
+    virial_per_atom,
+    stream);
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream>>>(
       paramb,
       N,
       zbl,
@@ -1144,7 +1234,13 @@ void NEP::compute_small_box(
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  NEP_Data& nep_data,
+  Small_Box_Data& small_box_data,
+  const ExpandedBox& ebox,
+  const Host_Neighbor_Data host_data,
+  int& num_calls,
+  const gpuStream_t stream)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
@@ -1153,7 +1249,7 @@ void NEP::compute_small_box(
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
 
-  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     N,
     N1,
@@ -1176,32 +1272,15 @@ void NEP::compute_small_box(
     small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    std::vector<int> cpu_NN_radial(type.size());
-    std::vector<int> cpu_NN_angular(type.size());
-    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
-    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < cpu_NN_radial[n]) {
-        radial_actual = cpu_NN_radial[n];
-      }
-      if (angular_actual < cpu_NN_angular[n]) {
-        angular_actual = cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
+  report_neighbor_information(
+    small_box_data.NN_radial,
+    small_box_data.NN_angular,
+    host_data,
+    num_calls,
+    stream);
 
   const bool is_polarizability = paramb.model_type == 2;
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1229,7 +1308,7 @@ void NEP::compute_small_box(
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
-  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1249,7 +1328,7 @@ void NEP::compute_small_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1271,7 +1350,7 @@ void NEP::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
       paramb,
       N,
       zbl,
@@ -1361,30 +1440,127 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  validate_default_workspace();
   const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
     if (small_box_data.NN_radial.size() != current_num_atoms) {
-        const int big_neighbor_size = 2000;
-        const int size_x12 = current_num_atoms * big_neighbor_size;
+      const int big_neighbor_size = 2000;
+      const int size_x12 = current_num_atoms * big_neighbor_size;
 
-        small_box_data.NN_radial.resize(current_num_atoms);
-        small_box_data.NL_radial.resize(size_x12);
-        small_box_data.NN_angular.resize(current_num_atoms);
-        small_box_data.NL_angular.resize(size_x12);
-        small_box_data.r12.resize(size_x12 * 6);
+      small_box_data.NN_radial.resize(current_num_atoms);
+      small_box_data.NL_radial.resize(size_x12);
+      small_box_data.NN_angular.resize(current_num_atoms);
+      small_box_data.NL_angular.resize(size_x12);
+      small_box_data.r12.resize(size_x12 * 6);
     }
 
     compute_small_box(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      nep_data,
+      small_box_data,
+      ebox,
+      Host_Neighbor_Data{
+        nep_data.cpu_NN_radial.data(), nep_data.cpu_NN_angular.data()},
+      default_state_.small_box_calls,
+      nullptr);
   } else {
     compute_large_box(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      nep_data,
+      neighbor,
+      Host_Neighbor_Data{
+        nep_data.cpu_NN_radial.data(), nep_data.cpu_NN_angular.data()},
+      default_state_.large_box_calls,
+      nullptr);
   }
   if (has_dftd3) {
     dftd3.compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  }
+}
+
+void NEP::compute(
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  const gpuStream_t stream)
+{
+  if (stream == nullptr) {
+    compute(
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
+    return;
+  }
+
+  validate_stream(stream);
+  if (type.size() != num_atoms_) {
+    PRINT_INPUT_ERROR("The NEP stream workspace atom count cannot change.\n");
+  }
+
+  Stream_Workspace& workspace = get_stream_workspace(stream);
+  std::lock_guard<std::mutex> lock(workspace.submission_mutex);
+  Box stream_box = box;
+  stream_box.set_is_orthogonal();
+  const bool is_small_box =
+    get_expanded_box(paramb.rc_radial_max, stream_box, workspace.ebox);
+
+  if (is_small_box) {
+    if (workspace.small_box_data.NN_radial.size() != num_atoms_) {
+      const int big_neighbor_size = 2000;
+      const size_t size_x12 = static_cast<size_t>(num_atoms_) * big_neighbor_size;
+      workspace.small_box_data.NN_radial.resize(num_atoms_);
+      workspace.small_box_data.NL_radial.resize(size_x12);
+      workspace.small_box_data.NN_angular.resize(num_atoms_);
+      workspace.small_box_data.NL_angular.resize(size_x12);
+      workspace.small_box_data.r12.resize(size_x12 * 6);
+    }
+    compute_small_box(
+      stream_box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      workspace.data,
+      workspace.small_box_data,
+      workspace.ebox,
+      Host_Neighbor_Data{
+        workspace.cpu_NN_radial.data(), workspace.cpu_NN_angular.data()},
+      workspace.state.small_box_calls,
+      stream);
+  } else {
+    compute_large_box(
+      stream_box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      workspace.data,
+      workspace.neighbor,
+      Host_Neighbor_Data{
+        workspace.cpu_NN_radial.data(), workspace.cpu_NN_angular.data()},
+      workspace.state.large_box_calls,
+      stream);
   }
 }
 
@@ -1505,19 +1681,24 @@ void NEP::compute_large_box(
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  NEP_Data& nep_data,
+  Neighbor& neighbor,
+  const Host_Neighbor_Data host_data,
+  int& num_calls,
+  const gpuStream_t stream)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  if (stream == nullptr) {
+    neighbor.find_neighbor_global(rc, box, type, position_per_atom);
+  } else {
+    neighbor.find_neighbor_global(rc, box, type, position_per_atom, stream);
+  }
 
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     N,
     N1,
@@ -1535,29 +1716,10 @@ void NEP::compute_large_box(
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
-    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < nep_data.cpu_NN_radial[n]) {
-        radial_actual = nep_data.cpu_NN_radial[n];
-      }
-      if (angular_actual < nep_data.cpu_NN_angular[n]) {
-        angular_actual = nep_data.cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
+  report_neighbor_information(
+    nep_data.NN_radial, nep_data.NN_angular, host_data, num_calls, stream);
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     temperature,
     paramb,
     annmb,
@@ -1580,7 +1742,7 @@ void NEP::compute_large_box(
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1601,7 +1763,7 @@ void NEP::compute_large_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1631,11 +1793,12 @@ void NEP::compute_large_box(
     is_dipole,
     position_per_atom,
     force_per_atom,
-    virial_per_atom);
+    virial_per_atom,
+    stream);
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream>>>(
       paramb,
       N,
       zbl,
@@ -1665,7 +1828,13 @@ void NEP::compute_small_box(
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  NEP_Data& nep_data,
+  Small_Box_Data& small_box_data,
+  const ExpandedBox& ebox,
+  const Host_Neighbor_Data host_data,
+  int& num_calls,
+  const gpuStream_t stream)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
@@ -1674,7 +1843,7 @@ void NEP::compute_small_box(
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
 
-  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     N,
     N1,
@@ -1697,31 +1866,14 @@ void NEP::compute_small_box(
     small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    std::vector<int> cpu_NN_radial(type.size());
-    std::vector<int> cpu_NN_angular(type.size());
-    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
-    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < cpu_NN_radial[n]) {
-        radial_actual = cpu_NN_radial[n];
-      }
-      if (angular_actual < cpu_NN_angular[n]) {
-        angular_actual = cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
+  report_neighbor_information(
+    small_box_data.NN_radial,
+    small_box_data.NN_angular,
+    host_data,
+    num_calls,
+    stream);
 
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     temperature,
     paramb,
     annmb,
@@ -1746,7 +1898,7 @@ void NEP::compute_small_box(
   GPU_CHECK_KERNEL
 
   bool is_dipole = paramb.model_type == 1;
-  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1766,7 +1918,7 @@ void NEP::compute_small_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
@@ -1788,7 +1940,7 @@ void NEP::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
       paramb,
       N,
       zbl,
@@ -1818,6 +1970,7 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  validate_default_workspace();
   const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
 
   if (is_small_box) {
@@ -1841,7 +1994,14 @@ void NEP::compute(
       position_per_atom,
       potential_per_atom,
       force_per_atom,
-      virial_per_atom);
+      virial_per_atom,
+      nep_data,
+      small_box_data,
+      ebox,
+      Host_Neighbor_Data{
+        nep_data.cpu_NN_radial.data(), nep_data.cpu_NN_angular.data()},
+      default_state_.small_box_calls,
+      nullptr);
   } else {
     compute_large_box(
       temperature,
@@ -1850,7 +2010,13 @@ void NEP::compute(
       position_per_atom,
       potential_per_atom,
       force_per_atom,
-      virial_per_atom);
+      virial_per_atom,
+      nep_data,
+      neighbor,
+      Host_Neighbor_Data{
+        nep_data.cpu_NN_radial.data(), nep_data.cpu_NN_angular.data()},
+      default_state_.large_box_calls,
+      nullptr);
   }
 
   if (has_dftd3) {
@@ -1859,6 +2025,91 @@ void NEP::compute(
   }
 }
 
-const GPU_Vector<int>& NEP::get_NN_radial_ptr() { return nep_data.NN_radial; }
+void NEP::compute(
+  const float temperature,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  const gpuStream_t stream)
+{
+  if (stream == nullptr) {
+    compute(
+      temperature,
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
+    return;
+  }
 
-const GPU_Vector<int>& NEP::get_NL_radial_ptr() { return nep_data.NL_radial; }
+  validate_stream(stream);
+  if (type.size() != num_atoms_) {
+    PRINT_INPUT_ERROR("The NEP stream workspace atom count cannot change.\n");
+  }
+
+  Stream_Workspace& workspace = get_stream_workspace(stream);
+  std::lock_guard<std::mutex> lock(workspace.submission_mutex);
+  Box stream_box = box;
+  stream_box.set_is_orthogonal();
+  const bool is_small_box =
+    get_expanded_box(paramb.rc_radial_max, stream_box, workspace.ebox);
+
+  if (is_small_box) {
+    if (workspace.small_box_data.NN_radial.size() != num_atoms_) {
+      const int big_neighbor_size = 2000;
+      const size_t size_x12 = static_cast<size_t>(num_atoms_) * big_neighbor_size;
+      workspace.small_box_data.NN_radial.resize(num_atoms_);
+      workspace.small_box_data.NL_radial.resize(size_x12);
+      workspace.small_box_data.NN_angular.resize(num_atoms_);
+      workspace.small_box_data.NL_angular.resize(size_x12);
+      workspace.small_box_data.r12.resize(size_x12 * 6);
+    }
+    compute_small_box(
+      temperature,
+      stream_box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      workspace.data,
+      workspace.small_box_data,
+      workspace.ebox,
+      Host_Neighbor_Data{
+        workspace.cpu_NN_radial.data(), workspace.cpu_NN_angular.data()},
+      workspace.state.small_box_calls,
+      stream);
+  } else {
+    compute_large_box(
+      temperature,
+      stream_box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      workspace.data,
+      workspace.neighbor,
+      Host_Neighbor_Data{
+        workspace.cpu_NN_radial.data(), workspace.cpu_NN_angular.data()},
+      workspace.state.large_box_calls,
+      stream);
+  }
+}
+
+const GPU_Vector<int>& NEP::get_NN_radial_ptr()
+{
+  validate_default_workspace();
+  return nep_data.NN_radial;
+}
+
+const GPU_Vector<int>& NEP::get_NL_radial_ptr()
+{
+  validate_default_workspace();
+  return nep_data.NL_radial;
+}

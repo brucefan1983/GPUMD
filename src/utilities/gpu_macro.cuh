@@ -22,8 +22,14 @@
 // memory manipulation
 #define gpuMalloc hipMalloc
 #define gpuMallocManaged hipMallocManaged
+#define gpuHostAlloc hipHostMalloc
+#define gpuHostAllocDefault hipHostMallocDefault
 #define gpuFree hipFree
+#define gpuFreeHost hipHostFree
 #define gpuMemcpy hipMemcpy
+#define gpuMemcpyAsync hipMemcpyAsync
+#define gpuMemcpyPeer hipMemcpyPeer
+#define gpuMemcpyPeerAsync hipMemcpyPeerAsync
 #define gpuMemcpyFromSymbol hipMemcpyFromSymbol
 #define gpuMemcpyToSymbol hipMemcpyToSymbol
 #define gpuGetSymbolAddress hipGetSymbolAddress
@@ -32,15 +38,18 @@
 #define gpuMemcpyHostToHost hipMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 #define gpuMemset hipMemset
+#define gpuMemsetAsync hipMemsetAsync
 
 // error handling
 #define gpuError_t hipError_t
 #define gpuSuccess hipSuccess
+#define gpuErrorNotReady hipErrorNotReady
 #define gpuGetErrorString hipGetErrorString
 #define gpuGetLastError hipGetLastError
 
 // device manipulation
 #define gpuSetDevice hipSetDevice
+#define gpuGetDevice hipGetDevice
 #define gpuGetDeviceCount hipGetDeviceCount
 #define gpuDeviceProp hipDeviceProp_t
 #define gpuGetDeviceProperties hipGetDeviceProperties
@@ -51,7 +60,25 @@
 // stream
 #define gpuStream_t hipStream_t
 #define gpuStreamCreate hipStreamCreate
+#define gpuStreamCreateWithFlags hipStreamCreateWithFlags
 #define gpuStreamDestroy hipStreamDestroy
+#define gpuStreamSynchronize hipStreamSynchronize
+#define gpuStreamWaitEvent hipStreamWaitEvent
+#define gpuStreamQuery hipStreamQuery
+#define gpuStreamDefault hipStreamDefault
+#define gpuStreamNonBlocking hipStreamNonBlocking
+
+// event
+#define gpuEvent_t hipEvent_t
+#define gpuEventCreate hipEventCreate
+#define gpuEventCreateWithFlags hipEventCreateWithFlags
+#define gpuEventDestroy hipEventDestroy
+#define gpuEventRecord hipEventRecord
+#define gpuEventSynchronize hipEventSynchronize
+#define gpuEventQuery hipEventQuery
+#define gpuEventElapsedTime hipEventElapsedTime
+#define gpuEventDefault hipEventDefault
+#define gpuEventDisableTiming hipEventDisableTiming
 
 // random numbers
 #define gpurandState hiprandState
@@ -67,6 +94,7 @@
 #define gpublasDgemvBatched hipblasDgemvBatched
 #define gpublasDestroy hipblasDestroy
 #define gpublasCreate hipblasCreate
+#define gpublasSetStream hipblasSetStream
 #define GPUBLAS_SIDE_LEFT HIPBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N HIPBLAS_OP_N
 #define GPUBLAS_OP_T HIPBLAS_OP_T
@@ -76,6 +104,7 @@
 #define gpusolverDnHandle_t hipsolverDnHandle_t
 #define gpusolverDnCreate hipsolverDnCreate
 #define gpusolverDnDestroy hipsolverDnDestroy
+#define gpusolverDnSetStream hipsolverDnSetStream
 #define gpusolverEigMode_t hipsolverEigMode_t
 #define gpusolverFillMode_t hipsolverFillMode_t
 #define GPUSOLVER_EIG_MODE_NOVECTOR HIPSOLVER_EIG_MODE_NOVECTOR
@@ -100,6 +129,7 @@
 #define gpufftPlan3d hipfftPlan3d 
 #define gpufftPlanMany hipfftPlanMany
 #define gpufftDestroy hipfftDestroy
+#define gpufftSetStream hipfftSetStream
 #define GPUFFT_SUCCESS HIPFFT_SUCCESS
 #define GPUFFT_C2C HIPFFT_C2C
 #define GPUFFT_FORWARD HIPFFT_FORWARD
@@ -110,8 +140,14 @@
 // memory manipulation
 #define gpuMalloc cudaMalloc
 #define gpuMallocManaged cudaMallocManaged
+#define gpuHostAlloc cudaHostAlloc
+#define gpuHostAllocDefault cudaHostAllocDefault
 #define gpuFree cudaFree
+#define gpuFreeHost cudaFreeHost
 #define gpuMemcpy cudaMemcpy
+#define gpuMemcpyAsync cudaMemcpyAsync
+#define gpuMemcpyPeer cudaMemcpyPeer
+#define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
 #define gpuMemcpyFromSymbol cudaMemcpyFromSymbol
 #define gpuMemcpyToSymbol cudaMemcpyToSymbol
 #define gpuGetSymbolAddress cudaGetSymbolAddress
@@ -120,15 +156,18 @@
 #define gpuMemcpyHostToHost cudaMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 #define gpuMemset cudaMemset
+#define gpuMemsetAsync cudaMemsetAsync
 
 // error handling
 #define gpuError_t cudaError_t
 #define gpuSuccess cudaSuccess
+#define gpuErrorNotReady cudaErrorNotReady
 #define gpuGetErrorString cudaGetErrorString
 #define gpuGetLastError cudaGetLastError
 
 // device manipulation
 #define gpuSetDevice cudaSetDevice
+#define gpuGetDevice cudaGetDevice
 #define gpuGetDeviceCount cudaGetDeviceCount
 #define gpuDeviceProp cudaDeviceProp
 #define gpuGetDeviceProperties cudaGetDeviceProperties
@@ -139,7 +178,25 @@
 // stream
 #define gpuStream_t cudaStream_t
 #define gpuStreamCreate cudaStreamCreate
+#define gpuStreamCreateWithFlags cudaStreamCreateWithFlags
 #define gpuStreamDestroy cudaStreamDestroy
+#define gpuStreamSynchronize cudaStreamSynchronize
+#define gpuStreamWaitEvent cudaStreamWaitEvent
+#define gpuStreamQuery cudaStreamQuery
+#define gpuStreamDefault cudaStreamDefault
+#define gpuStreamNonBlocking cudaStreamNonBlocking
+
+// event
+#define gpuEvent_t cudaEvent_t
+#define gpuEventCreate cudaEventCreate
+#define gpuEventCreateWithFlags cudaEventCreateWithFlags
+#define gpuEventDestroy cudaEventDestroy
+#define gpuEventRecord cudaEventRecord
+#define gpuEventSynchronize cudaEventSynchronize
+#define gpuEventQuery cudaEventQuery
+#define gpuEventElapsedTime cudaEventElapsedTime
+#define gpuEventDefault cudaEventDefault
+#define gpuEventDisableTiming cudaEventDisableTiming
 
 // random numbers
 #define gpurandState curandState
@@ -158,6 +215,7 @@
 #endif
 #define gpublasDestroy cublasDestroy
 #define gpublasCreate cublasCreate
+#define gpublasSetStream cublasSetStream
 #define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N CUBLAS_OP_N
 #define GPUBLAS_OP_T CUBLAS_OP_T
@@ -167,6 +225,7 @@
 #define gpusolverDnHandle_t cusolverDnHandle_t
 #define gpusolverDnCreate cusolverDnCreate
 #define gpusolverDnDestroy cusolverDnDestroy
+#define gpusolverDnSetStream cusolverDnSetStream
 #define gpusolverEigMode_t cusolverEigMode_t
 #define gpusolverFillMode_t cublasFillMode_t // why cublas?
 #define GPUSOLVER_EIG_MODE_NOVECTOR CUSOLVER_EIG_MODE_NOVECTOR
@@ -191,6 +250,7 @@
 #define gpufftPlan3d cufftPlan3d 
 #define gpufftPlanMany cufftPlanMany
 #define gpufftDestroy cufftDestroy
+#define gpufftSetStream cufftSetStream
 #define GPUFFT_SUCCESS CUFFT_SUCCESS
 #define GPUFFT_C2C CUFFT_C2C
 #define GPUFFT_FORWARD CUFFT_FORWARD

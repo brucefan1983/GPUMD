@@ -97,7 +97,8 @@ protected:
     const double* f12z,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    GPU_Vector<double>& virial_per_atom,
+    const gpuStream_t stream = nullptr);
 
   void find_properties_many_body(
     Box& box,
@@ -109,5 +110,6 @@ protected:
     const bool is_dipole,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    GPU_Vector<double>& virial_per_atom,
+    const gpuStream_t stream = nullptr);
 };

@@ -18,7 +18,6 @@ The abstract base class (ABC) for the potential classes.
 ------------------------------------------------------------------------------*/
 
 #include "potential.cuh"
-#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #define BLOCK_SIZE_FORCE 64
 #include <thrust/execution_policy.h>
@@ -142,12 +141,13 @@ void Potential::find_properties_many_body(
   const double* f12z,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  const gpuStream_t stream)
 {
   const int number_of_atoms = position_per_atom.size() / 3;
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
+  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE, 0, stream>>>(
     number_of_atoms,
     N1,
     N2,
@@ -306,12 +306,13 @@ void Potential::find_properties_many_body(
   const bool is_dipole,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  const gpuStream_t stream)
 {
   const int number_of_atoms = position_per_atom.size() / 3;
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
+  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE, 0, stream>>>(
     is_dipole,
     number_of_atoms,
     N1,

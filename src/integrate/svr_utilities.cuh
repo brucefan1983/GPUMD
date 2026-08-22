@@ -23,30 +23,41 @@
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "svr_state.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <random>
 
-static double gasdev(std::mt19937& rng)
+static SVR_Gaussian_Cache& default_svr_gaussian_cache()
+{
+  static SVR_Gaussian_Cache cache;
+  return cache;
+}
+
+static double gasdev(std::mt19937& rng, SVR_Gaussian_Cache& cache)
 {
   std::uniform_real_distribution<double> rand1(0, 1);
 
-  static int iset = 0;
-  static double gset;
   double fac, rsq, v1, v2;
 
-  if (iset == 0) {
+  if (cache.iset == 0) {
     do {
       v1 = 2.0 * rand1(rng) - 1.0;
       v2 = 2.0 * rand1(rng) - 1.0;
       rsq = v1 * v1 + v2 * v2;
     } while (rsq >= 1.0 || rsq == 0.0);
     fac = sqrt(-2.0 * log(rsq) / rsq);
-    gset = v1 * fac;
-    iset = 1;
+    cache.gset = v1 * fac;
+    cache.iset = 1;
     return v2 * fac;
   } else {
-    iset = 0;
-    return gset;
+    cache.iset = 0;
+    return cache.gset;
   }
+}
+
+inline double gasdev(std::mt19937& rng)
+{
+  return gasdev(rng, default_svr_gaussian_cache());
 }
 
 static double gamdev(const int ia, std::mt19937& rng)
@@ -81,7 +92,8 @@ static double gamdev(const int ia, std::mt19937& rng)
   return x;
 }
 
-static double resamplekin_sumnoises(int nn, std::mt19937& rng)
+static double
+resamplekin_sumnoises(int nn, std::mt19937& rng, SVR_Gaussian_Cache& cache)
 {
   /*
     returns the sum of n independent gaussian noises squared
@@ -91,17 +103,37 @@ static double resamplekin_sumnoises(int nn, std::mt19937& rng)
   if (nn == 0) {
     return 0.0;
   } else if (nn == 1) {
-    rr = gasdev(rng);
+    rr = gasdev(rng, cache);
     return rr * rr;
   } else if (nn % 2 == 0) {
     return 2.0 * gamdev(nn / 2, rng);
   } else {
-    rr = gasdev(rng);
+    rr = gasdev(rng, cache);
     return 2.0 * gamdev((nn - 1) / 2, rng) + rr * rr;
   }
 }
 
-static double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
+struct SVR_Noise {
+  double gaussian;
+  double sum_of_squares;
+};
+
+static SVR_Noise
+draw_resamplekin_noise(int ndeg, std::mt19937& rng, SVR_Gaussian_Cache& cache)
+{
+  SVR_Noise noise;
+  noise.gaussian = gasdev(rng, cache);
+  noise.sum_of_squares = resamplekin_sumnoises(ndeg - 1, rng, cache);
+  return noise;
+}
+
+static double resamplekin(
+  double kk,
+  double sigma,
+  int ndeg,
+  double taut,
+  std::mt19937& rng,
+  SVR_Gaussian_Cache& cache)
 {
   /*
     kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
@@ -109,14 +141,20 @@ static double resamplekin(double kk, double sigma, int ndeg, double taut, std::m
     ndeg:  number of degrees of freedom of the atoms to be thermalized
     taut:  relaxation time of the thermostat, in units of 'how often this routine is called'
   */
-  double factor, rr;
+  double factor;
   if (taut > 0.1) {
     factor = exp(-1.0 / taut);
   } else {
     factor = 0.0;
   }
-  rr = gasdev(rng);
+  const SVR_Noise noise = draw_resamplekin_noise(ndeg, rng, cache);
   return kk +
-         (1.0 - factor) * (sigma * (resamplekin_sumnoises(ndeg - 1, rng) + rr * rr) / ndeg - kk) +
-         2.0 * rr * sqrt(kk * sigma / ndeg * (1.0 - factor) * factor);
+         (1.0 - factor) *
+           (sigma * (noise.sum_of_squares + noise.gaussian * noise.gaussian) / ndeg - kk) +
+         2.0 * noise.gaussian * sqrt(kk * sigma / ndeg * (1.0 - factor) * factor);
+}
+
+inline double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
+{
+  return resamplekin(kk, sigma, ndeg, taut, rng, default_svr_gaussian_cache());
 }

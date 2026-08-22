@@ -20,9 +20,14 @@ neighbor list.
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_scan.cuh"
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <cstring>
+
+Neighbor::Neighbor() : scan_workspace(new GPU_Exclusive_Scan) {}
+
+Neighbor::~Neighbor() = default;
 
 static __device__ void find_cell_id(
   const Box& box,
@@ -223,7 +228,7 @@ static void __global__ set_to_zero(int size, int* data)
 }
 
 void find_cell_list(
-  gpuStream_t& stream,
+  const gpuStream_t stream,
   const double rc,
   const int* num_bins,
   Box& box,
@@ -231,7 +236,8 @@ void find_cell_list(
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
-  GPU_Vector<int>& cell_contents)
+  GPU_Vector<int>& cell_contents,
+  GPU_Exclusive_Scan& scan_workspace)
 {
   const int offset = position_per_atom.size() / 3;
   const int block_size = 256;
@@ -244,6 +250,7 @@ void find_cell_list(
 
   // number of cells is allowed to be larger than the number of atoms
   if (N_cells > cell_count.size()) {
+    CHECK(gpuStreamSynchronize(stream));
     cell_count.resize(N_cells);
     cell_count_sum.resize(N_cells);
   }
@@ -264,15 +271,7 @@ void find_cell_list(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
   GPU_CHECK_KERNEL
 
-  thrust::exclusive_scan(
-#ifdef USE_HIP
-    thrust::hip::par.on(stream),
-#else
-    thrust::cuda::par.on(stream),
-#endif
-    cell_count.data(),
-    cell_count.data() + N_cells,
-    cell_count_sum.data());
+  scan_workspace.run(cell_count.data(), cell_count_sum.data(), N_cells, stream);
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
@@ -345,6 +344,70 @@ void find_neighbor(
 
   const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  GPU_CHECK_KERNEL
+}
+
+void find_neighbor(
+  const int N1,
+  const int N2,
+  double rc,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents,
+  GPU_Vector<int>& NN,
+  GPU_Vector<int>& NL,
+  GPU_Exclusive_Scan& scan_workspace,
+  const gpuStream_t stream)
+{
+  const int N = NN.size();
+  const int block_size = 256;
+  const int grid_size = (N2 - N1 - 1) / block_size + 1;
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + N;
+  const double* z = position_per_atom.data() + N * 2;
+  const double rc_cell_list = 0.5 * rc;
+  const double rc_inv_cell_list = 2.0 / rc;
+
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+  find_cell_list(
+    stream,
+    rc_cell_list,
+    num_bins,
+    box,
+    N,
+    position_per_atom,
+    cell_count,
+    cell_count_sum,
+    cell_contents,
+    scan_workspace);
+
+  gpu_find_neighbor_ON1<<<grid_size, block_size, 0, stream>>>(
+    box,
+    N,
+    N1,
+    N2,
+    type.data(),
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    NN.data(),
+    NL.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list,
+    rc * rc);
+  GPU_CHECK_KERNEL
+
+  const int MN = NL.size() / NN.size();
+  gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int), stream>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -683,8 +746,6 @@ __global__ void gpu_check_atom_distance(
   }
 }
 
-__device__ int static_s2[1];
-
 __global__ void
 gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double* x0, double* y0, double* z0)
 {
@@ -742,14 +803,12 @@ int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, co
 {
   const int N = NN.size();
   double d2 = skin * skin * 0.25;
-  int* gpu_s2;
-  CHECK(gpuGetSymbolAddress((void**)&gpu_s2, static_s2));
   int cpu_s2[1] = {0};
-  CHECK(gpuMemcpy(gpu_s2, cpu_s2, sizeof(int), gpuMemcpyHostToDevice));
+  atom_distance_flag.copy_from_host(cpu_s2);
   gpu_check_atom_distance<<<(N - 1) / 128 + 1, 128>>>(
-    box, N, d2, x0.data(), y0.data(), z0.data(), x, y, z, gpu_s2);
+    box, N, d2, x0.data(), y0.data(), z0.data(), x, y, z, atom_distance_flag.data());
   GPU_CHECK_KERNEL
-  CHECK(gpuMemcpy(cpu_s2, gpu_s2, sizeof(int), gpuMemcpyDeviceToHost));
+  atom_distance_flag.copy_to_host(cpu_s2);
   return cpu_s2[0];
 }
 
@@ -799,6 +858,30 @@ void Neighbor::find_neighbor_global(
   }
 }
 
+void Neighbor::find_neighbor_global(
+  const double rc,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  const gpuStream_t stream)
+{
+  const int N = type.size();
+  find_neighbor(
+    0,
+    N,
+    rc + skin,
+    box,
+    type,
+    position_per_atom,
+    cell_count,
+    cell_count_sum,
+    cell_contents,
+    NN,
+    NL,
+    *scan_workspace,
+    stream);
+}
+
 void Neighbor::find_local_neighbor_from_global(
   const double rc,
   Box& box, 
@@ -830,4 +913,5 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
+  atom_distance_flag.resize(1);
 }

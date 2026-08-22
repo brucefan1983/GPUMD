@@ -26,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
+#include "integrate/replica.cuh"
 #include "measure/active.cuh"
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
@@ -141,6 +142,32 @@ static void calculate_time_step(
   }
 }
 
+static std::vector<const char*> get_command_parameters(
+  const std::vector<std::string>& command)
+{
+  std::vector<const char*> parameters(command.size());
+  for (size_t i = 0; i < command.size(); ++i)
+    parameters[i] = command[i].c_str();
+  return parameters;
+}
+
+static bool read_command(
+  std::ifstream& input, std::vector<std::string>& command)
+{
+  while (input.peek() != EOF) {
+    const std::vector<std::string> tokens = get_tokens(input);
+    command.clear();
+    for (const auto& token : tokens) {
+      if (token[0] == '#')
+        break;
+      command.emplace_back(token);
+    }
+    if (!command.empty())
+      return true;
+  }
+  return false;
+}
+
 Run::Run()
 {
   print_line_1();
@@ -185,19 +212,22 @@ void Run::execute_run_in()
     exit(1);
   }
 
-  while (input.peek() != EOF) {
-    std::vector<std::string> tokens = get_tokens(input);
-    std::vector<std::string> tokens_without_comments;
-    for (const auto& t : tokens) {
-      if (t[0] != '#') {
-        tokens_without_comments.emplace_back(t);
-      } else {
-        break;
-      }
-    }
-    if (tokens_without_comments.size() > 0) {
-      parse_one_keyword(tokens_without_comments);
-    }
+  bool has_multi_replica = false;
+  std::vector<std::string> command;
+  while (read_command(input, command))
+    has_multi_replica = has_multi_replica || command[0] == "multi_replica";
+
+  input.clear();
+  input.seekg(0);
+
+  if (has_multi_replica) {
+    std::vector<std::vector<std::string>> commands;
+    while (read_command(input, command))
+      commands.emplace_back(command);
+    execute_replica_run(commands);
+  } else {
+    while (read_command(input, command))
+      parse_one_keyword(command);
   }
 
   print_line_1();
@@ -206,6 +236,66 @@ void Run::execute_run_in()
   print_line_2();
 
   input.close();
+}
+
+void Run::execute_replica_run(const std::vector<std::vector<std::string>>& commands)
+{
+  std::vector<std::vector<std::string>> potential_commands;
+  std::vector<std::string> ensemble_command;
+  std::vector<std::string> multi_replica_command;
+  std::vector<std::string> dump_xyz_command;
+  int replica_run_steps = -1;
+
+  for (size_t command_index = 0; command_index < commands.size(); ++command_index) {
+    const std::vector<std::string>& command = commands[command_index];
+    const std::string& keyword = command[0];
+    if (keyword == "potential") {
+      potential_commands.push_back(command);
+    } else if (keyword == "time_step") {
+      std::vector<const char*> param = get_command_parameters(command);
+      parse_time_step(param.data(), static_cast<int>(param.size()));
+      if (max_distance_per_step > 0.0)
+        PRINT_INPUT_ERROR("multi_replica does not support adaptive time_step.");
+    } else if (keyword == "multi_replica") {
+      if (!multi_replica_command.empty())
+        PRINT_INPUT_ERROR("Only one multi_replica command is allowed.");
+      multi_replica_command = command;
+    } else if (keyword == "ensemble") {
+      if (!ensemble_command.empty())
+        PRINT_INPUT_ERROR("Only one ensemble command is allowed in a multi_replica run.");
+      ensemble_command = command;
+    } else if (keyword == "dump_xyz") {
+      if (!dump_xyz_command.empty())
+        PRINT_INPUT_ERROR("Only one dump_xyz command is allowed in a multi_replica run.");
+      dump_xyz_command = command;
+    } else if (keyword == "run") {
+      if (replica_run_steps >= 0 || command.size() != 2 ||
+          !is_valid_int(command[1].c_str(), &replica_run_steps) || replica_run_steps <= 0 ||
+          command_index + 1 != commands.size())
+        PRINT_INPUT_ERROR(
+          "multi_replica requires one final run command with a positive number of steps.");
+    } else {
+      PRINT_INPUT_ERROR(
+        "multi_replica currently supports potential, time_step, multi_replica, ensemble, "
+        "dump_xyz, and run commands only.");
+    }
+  }
+
+  if (multi_replica_command.empty() || ensemble_command.empty() ||
+      potential_commands.empty() || replica_run_steps <= 0)
+    PRINT_INPUT_ERROR(
+      "multi_replica input is missing potential, multi_replica, ensemble, or run.");
+
+  run_replica_md(
+    potential_commands,
+    ensemble_command,
+    multi_replica_command,
+    dump_xyz_command,
+    atom,
+    box,
+    group,
+    time_step,
+    replica_run_steps);
 }
 
 void Run::perform_a_run()

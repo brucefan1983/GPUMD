@@ -14,12 +14,20 @@
 */
 
 #pragma once
+#include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Box;
 class Group;
 class Force;
 class Atom;
+
+struct Minimization_Result {
+  bool converged = false;
+  int steps = 0;
+  double total_potential = 0.0;
+  double force_max = 0.0;
+};
 
 class Minimizer
 {
@@ -37,7 +45,7 @@ public:
       force_tolerance_(force_tolerance)
   {
     position_per_atom_temp_.resize(number_of_atoms * 3);
-    potential_per_atom_temp_.resize(number_of_atoms);
+    potential_per_atom_temp_.resize(number_of_atoms, 0.0);
     force_per_atom_temp_.resize(number_of_atoms * 3);
 
     force_square_max_.resize(1);
@@ -58,8 +66,12 @@ public:
 
 protected:
   void calculate_total_potential(const GPU_Vector<double>& potential_per_atom);
+  void calculate_total_potential(
+    const GPU_Vector<double>& potential_per_atom, gpuStream_t stream);
 
   void calculate_force_square_max(const GPU_Vector<double>& force_per_atom);
+  void calculate_force_square_max(
+    const GPU_Vector<double>& force_per_atom, gpuStream_t stream);
 
   int fixed_group_ = -1;
   int fixed_grouping_method_ = 0;
@@ -72,6 +84,6 @@ protected:
   GPU_Vector<double> force_per_atom_temp_;
   GPU_Vector<double> force_square_max_;
   GPU_Vector<double> total_potential_;
-  std::vector<double> cpu_force_square_max_;
-  std::vector<double> cpu_total_potential_;
+  GPU_Pinned_Vector<double> cpu_force_square_max_;
+  GPU_Pinned_Vector<double> cpu_total_potential_;
 };

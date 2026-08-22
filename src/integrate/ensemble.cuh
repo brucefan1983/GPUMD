@@ -62,6 +62,17 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
+  void find_thermo(
+    const bool use_target_temperature,
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo,
+    const gpuStream_t stream);
+
   int* current_step;
   int* total_steps;
   double time_step;
@@ -120,6 +131,16 @@ protected:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
+  void velocity_verlet(
+    const bool is_step1,
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    const gpuStream_t stream);
+
 #ifdef USE_NEPCG
   void velocity_verlet_cg(
     const bool is_step1,
@@ -135,6 +156,11 @@ protected:
   void velocity_verlet_x();
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
+
+  void scale_velocity_global(
+    const double factor,
+    GPU_Vector<double>& velocity_per_atom,
+    const gpuStream_t stream);
 
   void find_vc_and_ke(
     const std::vector<Group>& group,

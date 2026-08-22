@@ -28,6 +28,9 @@ class Force
 public:
   Force(void);
 
+  // Call before parse_potential() when independent simulation slots share a device.
+  void enable_explicit_streams();
+
   void
   parse_potential(const char** param, int num_param, const Box& box, const int number_of_atoms);
 
@@ -39,6 +42,19 @@ public:
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
+
+  // Input and output vectors used concurrently must be distinct for each stream.
+  void prepare_stream(const gpuStream_t stream);
+
+  void compute(
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    const gpuStream_t stream);
 
   void compute(
     Box& box,
@@ -78,6 +94,7 @@ private:
   int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;
+  bool explicit_stream_mode_ = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
   std::string atom_types[NUM_ELEMENTS];
 

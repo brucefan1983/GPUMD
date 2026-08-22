@@ -30,14 +30,37 @@ private:
   const double dt_min = 0.02 * dt_0;
   const int N_min = 20;
   const double m = 5; // The mass of atoms. Doesn't matter in minimization.
-  double dt = dt_0;
-  double alpha = alpha_start;
-  int N_neg = 0;
-  double P;
+  GPU_Vector<double> velocity_;
+  GPU_Vector<double> temp1_;
+  GPU_Vector<double> temp2_;
+  GPU_Vector<double> pair_product_;
+  GPU_Vector<double> scalar_result_;
+  GPU_Pinned_Vector<double> host_scalar_;
+
+  double dot(
+    const GPU_Vector<double>& first,
+    const GPU_Vector<double>& second,
+    gpuStream_t stream);
+  void scalar_multiply(
+    double factor,
+    const GPU_Vector<double>& input,
+    GPU_Vector<double>& output,
+    gpuStream_t stream);
+  void vector_sum(
+    const GPU_Vector<double>& first,
+    const GPU_Vector<double>& second,
+    GPU_Vector<double>& output,
+    gpuStream_t stream);
 
 public:
   Minimizer_FIRE(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
     : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
+    , velocity_(static_cast<size_t>(number_of_atoms) * 3)
+    , temp1_(static_cast<size_t>(number_of_atoms) * 3)
+    , temp2_(static_cast<size_t>(number_of_atoms) * 3)
+    , pair_product_(static_cast<size_t>(number_of_atoms) * 3)
+    , scalar_result_(1)
+    , host_scalar_(1, 0.0)
   {
   }
 
@@ -47,4 +70,13 @@ public:
     Atom& atom,
     GPU_Vector<double>& position_per_atom,
     std::vector<Group>& group);
+
+  Minimization_Result compute(
+    Force& force,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<Group>& group,
+    gpuStream_t stream,
+    bool verbose);
 };

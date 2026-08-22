@@ -17,6 +17,9 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
+
+class GPU_Exclusive_Scan;
 
 void find_cell_list(
   const double rc,
@@ -26,6 +29,18 @@ void find_cell_list(
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents);
+
+void find_cell_list(
+  const gpuStream_t stream,
+  const double rc,
+  const int* num_bins,
+  Box& box,
+  const int N,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents,
+  GPU_Exclusive_Scan& scan_workspace);
 
 void find_neighbor(
   const int N1,
@@ -39,6 +54,21 @@ void find_neighbor(
   GPU_Vector<int>& cell_contents,
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL);
+
+void find_neighbor(
+  const int N1,
+  const int N2,
+  double rc,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents,
+  GPU_Vector<int>& NN,
+  GPU_Vector<int>& NL,
+  GPU_Exclusive_Scan& scan_workspace,
+  const gpuStream_t stream);
 
 // For ILP
 void find_neighbor_ilp(
@@ -194,6 +224,11 @@ static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, in
 class Neighbor
 {
 public:
+  Neighbor();
+  ~Neighbor();
+  Neighbor(const Neighbor&) = delete;
+  Neighbor& operator=(const Neighbor&) = delete;
+
   GPU_Vector<int> NN, NL; // global neighbor list
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
@@ -201,6 +236,12 @@ public:
     Box& box, 
     const GPU_Vector<int>& type, 
     const GPU_Vector<double>& position_per_atom);
+  void find_neighbor_global(
+    const double rc,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    const gpuStream_t stream);
   void find_local_neighbor_from_global(
     const double rc,
     Box& box, 
@@ -213,6 +254,8 @@ private:
   GPU_Vector<int> cell_count;     // for cell list
   GPU_Vector<int> cell_count_sum; // for cell list
   GPU_Vector<int> cell_contents;  // for cell list
+  std::unique_ptr<GPU_Exclusive_Scan> scan_workspace;
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
+  GPU_Vector<int> atom_distance_flag;
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };

@@ -43,6 +43,7 @@ public:
 
 private:
   void execute_run_in();
+  void execute_replica_run(const std::vector<std::vector<std::string>>& commands);
   void perform_a_run();
   void parse_one_keyword(std::vector<std::string>& tokens);
 
