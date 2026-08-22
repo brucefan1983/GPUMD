@@ -57,6 +57,13 @@ public:
       Atom& atom,
       Force& force) = 0;
 
+  virtual void process_dynamics(
+    const int md_step,
+    Box& box,
+    Atom& atom)
+  {
+  }
+
   virtual void postprocess(
     Atom& atom,
     Box& box,

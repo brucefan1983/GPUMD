@@ -241,6 +241,8 @@ void Run::perform_a_run()
       atom.mass);
   }
 
+  measure.process_dynamics(0, box, atom);
+
   double initial_time_step = time_step;
 
   const auto time_begin = std::chrono::high_resolution_clock::now();
@@ -287,6 +289,8 @@ void Run::perform_a_run()
     add_spring.compute(step, group, atom);
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom, force);
+
+    measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
 
