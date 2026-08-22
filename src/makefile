@@ -26,10 +26,10 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" -DDEBUG	-DUSE_PLUMED
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
-INC = -I$(HOME)/app/plumed-2.9.4-install/include -I./
-LDFLAGS = -L$(HOME)/app/plumed-2.9.4-install/lib -lplumed -lplumedKernel
+INC = -I./
+LDFLAGS =
 LIBS = -lcublas -lcusolver -lcufft
 
 
