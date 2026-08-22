@@ -24,6 +24,11 @@ from test_parsing import read_thermo_out
 
 pytestmark = pytest.mark.fast
 
+# The AMBER convention specifies forces in kcal/mol/A while GPUMD works in eV/A, so the file
+# carries them converted. Repeated here rather than imported, so that a change to the factor in
+# dump_netcdf.cu has to be made deliberately in both places.
+EV_TO_KCAL_PER_MOL = 23.06054783061903
+
 
 def _check_thermo_format(path):
     data = read_thermo_out(path)
@@ -437,6 +442,7 @@ INVALID_DUMP_XYZ_ARGUMENTS = [
     ([1, 'f.xyz', 'forcee'], 'Unrecognized argument'),
     ([1, 'f.xyz', 'group', 0, 0, 'group', 0, 0], 'more than once'),
     ([1, 'f.xyz', 'precision', 'double', 'precision', 'single'], 'more than once'),
+    ([1, 'f.xyz', 'force', 'force'], 'more than once'),
     ([1, 'f.xyz', 'precision', 'triple'], 'Invalid precision'),
     # a bare `group` is how the quantity now called `group_labels` used to be spelled
     ([1, 'f.xyz', 'velocity', 'group'], 'group_labels'),
@@ -503,26 +509,34 @@ def test_removed_commands_are_rejected(
         f'{keyword}: error message does not point at dump_xyz\nstdout:\n{result.stdout}')
 
 
-def _check_netcdf_result(result):
-    output = result.stdout + result.stderr
+def _skip_without_netcdf(output):
+    """Every dump_netcdf case has to tolerate a gpumd built without -DUSE_NETCDF, where the
+    keyword is refused in run.cu before DUMP_NETCDF::parse is ever reached. The rejection tests
+    need this as much as the passing ones, since without it they would pass for the wrong
+    reason -- a non-zero exit that says nothing about the arguments under test."""
     if 'dump_netcdf is available only when USE_NETCDF flag is set' in output:
         pytest.skip('gpumd binary was built without USE_NETCDF')
+
+
+def _check_netcdf_result(result):
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
     assert result.returncode == 0, (
         f'dump_netcdf: gpumd exited {result.returncode}\nstdout:\n{result.stdout}\n'
         f'stderr:\n{result.stderr}')
 
 
-def test_dump_netcdf_default_overwrite_and_append(
+def test_dump_netcdf_appends_across_run_commands(
         tmp_path, structure, model_path, model_type, gpumd_command):
+    """Two dump_netcdf commands writing the same file in one execution extend it, since the
+    keyword does not propagate and each run needs its own command."""
     netcdf4 = pytest.importorskip('netCDF4')
-    output_path = tmp_path / 'sed.nc'
-    output_path.write_bytes(b'an existing file that must be overwritten')
     case = CommandIOCase(
         name='dump_netcdf',
         run_in_lines=[
-            ('dump_netcdf', [-1, 0, 1, 1, 'sed.nc']),
+            ('dump_netcdf', [1, 'sed.nc', 'velocity']),
             ('run', BASE_N_STEPS),
-            ('dump_netcdf', [-1, 0, 1, 1, 'sed.nc']),
+            ('dump_netcdf', [1, 'sed.nc', 'velocity']),
         ],
         expected_output_files=['sed.nc'],
     )
@@ -530,7 +544,7 @@ def test_dump_netcdf_default_overwrite_and_append(
         tmp_path, structure, model_path, model_type, gpumd_command, case)
     _check_netcdf_result(result)
 
-    with netcdf4.Dataset(output_path) as dataset:
+    with netcdf4.Dataset(tmp_path / 'sed.nc') as dataset:
         assert dataset.data_model == 'NETCDF3_64BIT_OFFSET'
         assert len(dataset.dimensions['frame']) == 2 * BASE_N_STEPS
         assert len(dataset.dimensions['atom']) == len(structure)
@@ -541,12 +555,143 @@ def test_dump_netcdf_default_overwrite_and_append(
         assert dataset.getncattr('gpumd_compression_level') == -1
 
 
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+def test_dump_netcdf_appends_across_executions(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Rerunning gpumd in a directory that already holds the file extends it rather than replacing
+    it, as dump_xyz does. The frames written the first time have to survive untouched, which is
+    what separates appending from starting over."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_rerun',
+        run_in_lines=[('dump_netcdf', [1, 'rerun.nc', 'velocity', 'precision', 'double'])],
+        expected_output_files=['rerun.nc'])
+
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(tmp_path / 'rerun.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == BASE_N_STEPS
+        first_run = np.array(dataset.variables['coordinates'][:])
+
+    # the same case again in the same directory, which rewrites run.in and model.xyz and leaves
+    # the trajectory in place
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(tmp_path / 'rerun.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == 2 * BASE_N_STEPS, (
+            'the second execution did not append to the existing file')
+        both_runs = np.array(dataset.variables['coordinates'][:])
+    np.testing.assert_array_equal(
+        both_runs[:BASE_N_STEPS], first_run,
+        err_msg='appending disturbed the frames written by the first execution')
+
+
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+def test_dump_netcdf_appending_with_changed_quantities_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """A NetCDF layout is fixed when the file is created, so a rerun that asks for a different set
+    of quantities cannot be appended. It has to stop with a message naming the file, since silently
+    replacing the trajectory would lose the earlier one."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    first = CommandIOCase(
+        name='dump_netcdf_layout_first',
+        run_in_lines=[('dump_netcdf', [1, 'layout.nc', 'velocity'])],
+        expected_output_files=['layout.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, first)
+    _check_netcdf_result(result)
+
+    second = CommandIOCase(
+        name='dump_netcdf_layout_second',
+        run_in_lines=[('dump_netcdf', [1, 'layout.nc', 'velocity', 'force'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, second)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'appending with a different quantity set should be refused'
+    assert 'layout.nc' in output, output
+    assert 'set of quantities' in output, output
+
+    # the trajectory that was already there must still be intact
+    with netcdf4.Dataset(tmp_path / 'layout.nc') as dataset:
+        assert len(dataset.dimensions['frame']) == BASE_N_STEPS
+        assert 'forces' not in dataset.variables
+
+
+def test_dump_netcdf_existing_file_that_is_not_netcdf_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Appending means opening whatever is already there, so a file of that name that is not a
+    NetCDF file at all has to be reported clearly rather than through a bare NetCDF error."""
+    output_path = tmp_path / 'junk.nc'
+    case = CommandIOCase(
+        name='dump_netcdf_not_netcdf',
+        run_in_lines=[('dump_netcdf', [1, 'junk.nc', 'velocity'])],
+        expected_output_files=[])
+    # written after the case is built but before the run, since run_command_io_case only writes
+    # run.in and model.xyz
+    output_path.write_bytes(b'an existing file that is not a NetCDF file')
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a non-NetCDF file of that name should be refused'
+    assert 'junk.nc' in output, output
+    assert output_path.read_bytes() == b'an existing file that is not a NetCDF file', (
+        'the file that could not be opened was modified')
+
+
+def test_dump_netcdf_appending_to_a_file_without_recorded_quantities_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The quantities a file holds are compared through the gpumd_quantities attribute, and a
+    file that does not carry it cannot be compared against at all. Such a file still opens, and
+    still has every dimension and variable the append path looks up, so without an explicit check
+    the run dies on a bare "NetCDF: Attribute not found" naming neither the file nor the remedy.
+
+    The check has to sit at the comparison rather than where the file is opened, so that it does
+    not preempt the more specific checks before it. The second half of this test is what pins that
+    down: the same file with a different atom count must still report the atom count."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    output_path = tmp_path / 'unrecorded.nc'
+    case = CommandIOCase(
+        name='dump_netcdf_unrecorded_quantities',
+        run_in_lines=[('dump_netcdf', [1, 'unrecorded.nc', 'velocity'])],
+        expected_output_files=['unrecorded.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    # everything else about the file still matches, so the run reaches the quantity comparison
+    with netcdf4.Dataset(output_path, 'a') as dataset:
+        dataset.delncattr('gpumd_quantities')
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a file without recorded quantities should be refused'
+    assert 'unrecorded.nc' in output, output
+    assert 'does not record which quantities' in output, output
+
+    # the same file read by a run with a different number of atoms: the earlier, more specific
+    # check has to win, since claiming the quantities are unrecorded would describe the wrong
+    # difference
+    bigger = structure.repeat((2, 1, 1))
+    result = run_command_io_case(
+        tmp_path, bigger, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'a differing atom count should be refused'
+    assert 'different number of atoms' in output, output
+
+
 def test_dump_netcdf_without_velocity(
         tmp_path, structure, model_path, model_type, gpumd_command):
     netcdf4 = pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf_positions',
-        run_in_lines=[('dump_netcdf', [-1, 0, 1, 0, 'positions.nc'])],
+        run_in_lines=[('dump_netcdf', [1, 'positions.nc'])],
         expected_output_files=['positions.nc'],
     )
     result = run_command_io_case(
@@ -566,7 +711,7 @@ def test_dump_netcdf_group_double_deflate(
     case = CommandIOCase(
         name='dump_netcdf_group',
         run_in_lines=[('dump_netcdf', [
-            0, 1, 1, 1, 'group.nc',
+            1, 'group.nc', 'group', 0, 1, 'velocity',
             'precision', 'double', 'compression', 'deflate', 1,
         ])],
         expected_output_files=['group.nc'],
@@ -601,8 +746,8 @@ def test_dump_netcdf_multiple_groups_in_one_run(
     case = CommandIOCase(
         name='dump_netcdf_multiple_groups',
         run_in_lines=[
-            ('dump_netcdf', [0, 0, intervals[0], 1, filenames[0]]),
-            ('dump_netcdf', [0, 1, intervals[1], 1, filenames[1]]),
+            ('dump_netcdf', [intervals[0], filenames[0], 'group', 0, 0, 'velocity']),
+            ('dump_netcdf', [intervals[1], filenames[1], 'group', 0, 1, 'velocity']),
         ],
         expected_output_files=list(filenames),
         n_groups=2,
@@ -626,41 +771,94 @@ def test_dump_netcdf_multiple_groups_in_one_run(
         trajectories[0][intervals[1] - 1::intervals[1]], trajectories[1])
 
 
+def test_dump_netcdf_group_agrees_with_the_whole_system(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Grouped output is gathered on the device, so that only the group's values cross to the host,
+    while whole-system output is copied as it stands. That makes them two code paths through the
+    same packing, and this is what pins them together.
+
+    Both files come from one run, so they describe the same trajectory: the group file has to equal
+    the rows of the whole-system file belonging to that group, exactly rather than approximately,
+    since it is the same arithmetic on the same values. A gather that mis-indexes, or a stride
+    confusion between the system size and the group size, shows up here as wrong values while
+    every file still parses."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    half = len(structure) // 2
+    quantities = ['velocity', 'force', 'virial']
+    case = CommandIOCase(
+        name='dump_netcdf_group_vs_whole',
+        run_in_lines=[
+            # group 1, not group 0: group 0 holds the first half of the atoms, so a gather that
+            # ignored the index list entirely would still produce the right answer for it
+            ('dump_netcdf', [1, 'group.nc', 'group', 0, 1] + quantities
+             + ['precision', 'double']),
+            ('dump_netcdf', [1, 'whole.nc'] + quantities + ['precision', 'double']),
+        ],
+        expected_output_files=['group.nc', 'whole.nc'], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'group.nc') as group, \
+            netcdf4.Dataset(tmp_path / 'whole.nc') as whole:
+        # group 1 of the two-group model holds the atoms from `half` onwards
+        expected_size = len(structure) - half
+        assert len(group.dimensions['atom']) == expected_size
+        assert len(whole.dimensions['atom']) == len(structure)
+        for name in ('type', 'coordinates', 'velocities', 'forces', 'virial'):
+            gathered = np.array(group.variables[name][:])
+            complete = np.array(whole.variables[name][:])
+            assert gathered.shape[1] == expected_size, name
+            np.testing.assert_array_equal(
+                gathered, complete[:, half:],
+                err_msg=f'{name} gathered for the group differs from the whole-system rows')
+
+
 def test_dump_netcdf_rejects_duplicate_filename_in_one_run(
         tmp_path, structure, model_path, model_type, gpumd_command):
     pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf_duplicate_filename',
         run_in_lines=[
-            ('dump_netcdf', [0, 0, 1, 1, 'duplicate.nc']),
-            ('dump_netcdf', [0, 1, 1, 1, 'duplicate.nc']),
+            ('dump_netcdf', [1, 'duplicate.nc', 'group', 0, 0, 'velocity']),
+            ('dump_netcdf', [1, 'duplicate.nc', 'group', 0, 1, 'velocity']),
         ],
         n_groups=2,
     )
     result = run_command_io_case(
         tmp_path, structure, model_path, model_type, gpumd_command, case)
     output = result.stdout + result.stderr
-    if 'dump_netcdf is available only when USE_NETCDF flag is set' in output:
-        pytest.skip('gpumd binary was built without USE_NETCDF')
+    _skip_without_netcdf(output)
     assert result.returncode != 0
     assert 'dump_netcdf filenames must be unique within one run.' in output
 
 
 def test_dump_netcdf_rotates_general_cell(
         tmp_path, structure, model_path, model_type, gpumd_command):
+    """AMBER NetCDF stores only cell lengths and angles, so a general GPUMD cell is written in a
+    restricted orientation and everything directional has to be rotated with it. Positions,
+    velocities, forces and unwrapped positions follow as vectors, the per-atom virial and the BEC
+    as rank-2 tensors.
+
+    The dump_xyz file written by the same run is the reference, so the two describe the same
+    trajectory and the rotation is the only thing between them. Getting the tensor rule wrong --
+    rotating one-sidedly, or transposing -- is silent otherwise, since the values stay the same
+    size and the file still reads back."""
     netcdf4 = pytest.importorskip('netCDF4')
     rotated_structure = structure.copy()
     general_cell = rotated_structure.cell.array.copy()
     general_cell[0] += 0.05 * general_cell[2]
     rotated_structure.set_cell(general_cell, scale_atoms=True)
     rotated_structure.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
+
+    quantities = ['velocity', 'force', 'unwrapped_position', 'virial']
+    if model_type != 'nep':
+        quantities.append('bec')
     case = CommandIOCase(
         name='dump_netcdf_general_cell',
         run_in_lines=[
-            ('dump_xyz', [1, 'reference.xyz', 'velocity']),
-            ('dump_netcdf', [
-                -1, 0, 1, 1, 'general-cell.nc', 'precision', 'double',
-            ]),
+            ('dump_xyz', [1, 'reference.xyz'] + quantities + ['precision', 'double']),
+            ('dump_netcdf', [1, 'general-cell.nc'] + quantities + ['precision', 'double']),
         ],
         expected_output_files=['reference.xyz', 'general-cell.nc'],
     )
@@ -669,23 +867,340 @@ def test_dump_netcdf_rotates_general_cell(
     _check_netcdf_result(result)
 
     reference = read(tmp_path / 'reference.xyz', index=0)
+    netcdf_values = {}
     with netcdf4.Dataset(tmp_path / 'general-cell.nc') as dataset:
         lengths = dataset.variables['cell_lengths'][0]
         angles = dataset.variables['cell_angles'][0]
         netcdf_cell = Cell.fromcellpar(np.concatenate((lengths, angles))).array
-        netcdf_positions = dataset.variables['coordinates'][0]
-        netcdf_velocities = dataset.variables['velocities'][0]
+        for name in ('coordinates', 'velocities', 'forces', 'unwrapped_coordinates', 'virial'):
+            netcdf_values[name] = np.array(dataset.variables[name][0])
+        if 'bec' in quantities:
+            netcdf_values['bec'] = np.array(dataset.variables['bec'][0])
 
     reference_cell = reference.cell.array
+    # v_netcdf = v_reference @ rotation_transpose, so the rotation itself is its transpose
     rotation_transpose = np.linalg.solve(reference_cell, netcdf_cell)
+    rotation = rotation_transpose.T
     assert not np.allclose(reference_cell, netcdf_cell)
     assert not np.allclose(angles, (90.0, 90.0, 90.0))
-    np.testing.assert_allclose(
-        netcdf_positions, reference.positions @ rotation_transpose, atol=1.0e-6)
-    np.testing.assert_allclose(
-        netcdf_velocities,
-        reference.arrays['vel'] @ rotation_transpose * 1000.0,
-        atol=1.0e-5)
+    np.testing.assert_allclose(rotation @ rotation.T, np.eye(3), atol=1.0e-10)
+
+    vectors = [
+        ('coordinates', reference.positions, 1.0, 1.0e-6),
+        # dump_xyz writes velocities in A/fs and NetCDF in A/ps
+        ('velocities', reference.arrays['vel'], 1000.0, 1.0e-5),
+        # dump_xyz writes forces in eV/A, the AMBER convention specifies kcal/mol/A
+        ('forces', reference.get_forces(), EV_TO_KCAL_PER_MOL, 1.0e-6),
+        ('unwrapped_coordinates', reference.arrays['unwrapped_position'], 1.0, 1.0e-6),
+    ]
+    for name, reference_value, scale, tolerance in vectors:
+        np.testing.assert_allclose(
+            netcdf_values[name], reference_value @ rotation_transpose * scale, atol=tolerance,
+            err_msg=f'{name} is not the reference rotated into the NetCDF cell')
+
+    for name in ('virial', 'bec'):
+        if name not in netcdf_values:
+            continue
+        reference_tensor = reference.arrays[name].reshape(-1, 3, 3)
+        expected = np.einsum('ij,ajk,lk->ail', rotation, reference_tensor, rotation)
+        assert not np.allclose(netcdf_values[name], reference_tensor, atol=1.0e-6), (
+            f'{name} is unchanged by the rotation, so this comparison proves nothing')
+        np.testing.assert_allclose(
+            netcdf_values[name], expected, atol=1.0e-6,
+            err_msg=f'{name} does not follow the cell as R T R^T')
+
+
+# quantity keyword -> (variable, dimensions, units), as the documentation tabulates them. `bec`
+# is left out because it needs a charge model, and is covered on its own below.
+NETCDF_QUANTITY_LAYOUT = {
+    'velocity': ('velocities', ('frame', 'atom', 'spatial'), 'angstrom/picosecond'),
+    'force': ('forces', ('frame', 'atom', 'spatial'), 'kilocalorie/mole/angstrom'),
+    'unwrapped_position': ('unwrapped_coordinates', ('frame', 'atom', 'spatial'), 'angstrom'),
+    'potential': ('potential_energy', ('frame', 'atom'), 'eV'),
+    'charge': ('charge', ('frame', 'atom'), 'e'),
+    'virial': ('virial', ('frame', 'atom', 'spatial', 'spatial'), 'eV'),
+    'mass': ('mass', ('atom',), 'amu'),
+    'group_labels': ('group_labels', ('atom', 'grouping_method'), None),
+}
+
+
+def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type, gpumd_command):
+    """Each quantity has to land in the variable, with the dimensions and units, that the
+    documentation promises, since that layout is the whole interface to the file. The mass and
+    the group labels are constant over a run and carry no frame dimension."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    quantities = list(NETCDF_QUANTITY_LAYOUT)
+    case = CommandIOCase(
+        name='dump_netcdf_quantities',
+        run_in_lines=[
+            ('dump_netcdf', [1, 'all.nc'] + quantities + ['precision', 'double']),
+            # the same set in the opposite order, to pin down that neither the file layout nor
+            # the recorded quantity list follows the order the arguments came in
+            ('dump_netcdf', [1, 'reversed.nc'] + quantities[::-1] + ['precision', 'double']),
+        ],
+        expected_output_files=['all.nc', 'reversed.nc'], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'all.nc') as dataset:
+        for quantity, (name, dimensions, units) in NETCDF_QUANTITY_LAYOUT.items():
+            assert name in dataset.variables, f'{quantity} did not produce a {name} variable'
+            variable = dataset.variables[name]
+            assert variable.dimensions == dimensions, quantity
+            expected_dtype = np.dtype('int32') if units is None else np.dtype('float64')
+            assert variable.dtype == expected_dtype, quantity
+            if units is None:
+                assert not hasattr(variable, 'units'), quantity
+            else:
+                assert variable.units == units, quantity
+        assert len(dataset.dimensions['grouping_method']) == 1
+        assert len(dataset.dimensions['atom']) == len(structure)
+        recorded = dataset.getncattr('gpumd_quantities')
+        assert sorted(recorded.split()) == sorted(quantities)
+
+    with netcdf4.Dataset(tmp_path / 'reversed.nc') as dataset:
+        assert dataset.getncattr('gpumd_quantities') == recorded
+
+
+def test_dump_netcdf_writes_only_the_requested_quantities(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """A quantity that was not asked for must not be in the file at all."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_one_quantity',
+        run_in_lines=[('dump_netcdf', [1, 'force.nc', 'force'])],
+        expected_output_files=['force.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'force.nc') as dataset:
+        assert 'forces' in dataset.variables
+        # the positions and types are unconditional, everything else follows the arguments
+        assert set(dataset.variables) == {
+            'spatial', 'cell_spatial', 'cell_angular', 'time', 'cell_lengths', 'cell_angles',
+            'type', 'coordinates', 'forces'}
+        assert 'grouping_method' not in dataset.dimensions
+        assert dataset.getncattr('gpumd_quantities') == 'force'
+
+
+def test_dump_netcdf_is_readable_by_mdanalysis(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The file declares Conventions=AMBER, so readers that believe it are entitled to AMBER units
+    for the variables AMBER defines. MDAnalysis enforces that in NCDFReader.__init__ and raises
+    rather than converting, so a single mislabelled variable makes the whole trajectory
+    unopenable, positions included -- not merely the quantity in question unreadable.
+
+    `force` is the variable that has to be converted, since GPUMD works in eV/A and the convention
+    specifies kcal/mol/A. This asks for the AMBER-defined quantities together, so relabelling any
+    of them is caught here."""
+    mda = pytest.importorskip('MDAnalysis')
+    pytest.importorskip('netCDF4')
+    case = CommandIOCase(
+        name='dump_netcdf_mdanalysis',
+        run_in_lines=[('dump_netcdf', [1, 'amber.nc', 'velocity', 'force'])],
+        expected_output_files=['amber.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    universe = mda.Universe(str(tmp_path / 'amber.nc'), format='NCDF')
+    assert len(universe.atoms) == len(structure)
+    assert len(universe.trajectory) == BASE_N_STEPS
+    frame = universe.trajectory[0]
+    assert frame.has_forces, 'MDAnalysis did not expose the forces'
+    assert np.all(np.isfinite(frame.forces))
+    assert np.all(np.isfinite(frame.positions))
+    # kcal/(mol*Angstrom) is MDAnalysis's own base force unit, so it passes the values through
+    # unchanged; the numeric value of the conversion is pinned by the general-cell test above
+    assert universe.trajectory.units['force'] == 'kcal/(mol*Angstrom)'
+    assert np.max(np.abs(frame.forces)) > 0
+
+
+def test_dump_netcdf_bec(tmp_path, structure, model_path, model_type, gpumd_command):
+    """BEC is a rank-2 tensor per atom and needs a charge model, so it is checked apart from the
+    other quantities."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    if model_type == 'nep':
+        pytest.skip('BEC requires a qNEP charge model')
+    case = CommandIOCase(
+        name='dump_netcdf_bec',
+        run_in_lines=[('dump_netcdf', [1, 'bec.nc', 'bec', 'precision', 'double'])],
+        expected_output_files=['bec.nc'])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+
+    with netcdf4.Dataset(tmp_path / 'bec.nc') as dataset:
+        variable = dataset.variables['bec']
+        assert variable.dimensions == ('frame', 'atom', 'spatial', 'spatial')
+        assert variable.units == 'e'
+        assert variable.shape == (BASE_N_STEPS, len(structure), 3, 3)
+        assert np.all(np.isfinite(np.array(variable[0])))
+
+
+def test_dump_netcdf_bec_without_a_charge_model_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """BEC is only defined for a qNEP model trained against it, so asking for it otherwise has to
+    be refused rather than writing zeros."""
+    if model_type != 'nep':
+        pytest.skip('this is about the models that cannot produce BEC')
+    case = CommandIOCase(
+        name='dump_netcdf_bec_no_charge_model',
+        run_in_lines=[('dump_netcdf', [1, 'bec.nc', 'bec'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'bec without a charge model should be refused'
+    assert 'BEC' in output, output
+
+
+def test_dump_netcdf_group_labels_without_a_grouping_method_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """With no grouping method the grouping_method dimension would have length zero, which
+    NC_UNLIMITED makes indistinguishable from an unlimited dimension, the same trap the
+    empty-group check guards against."""
+    case = CommandIOCase(
+        name='dump_netcdf_group_labels_no_groups',
+        run_in_lines=[('dump_netcdf', [1, 'labels.nc', 'group_labels'])],
+        expected_output_files=[], n_groups=0)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'group_labels without a grouping method should be refused'
+    assert 'grouping method' in output, output
+
+
+def _netcdf_per_atom_virial(directory, structure, model_path, model_type, gpumd_command, kspace):
+    """Runs one qNEP single point with the given reciprocal-space method and returns the per-atom
+    virial from the NetCDF file as an (natoms, 9) array."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    directory.mkdir()
+    case = CommandIOCase(
+        name=f'dump_netcdf_virial_{kspace}',
+        prelude_lines=[('kspace', kspace)],
+        run_in_lines=[('dump_netcdf', [1, 'virial.nc', 'virial', 'precision', 'double'])],
+        expected_output_files=['virial.nc'])
+    result = run_command_io_case(
+        directory, structure, model_path, model_type, gpumd_command, case)
+    _check_netcdf_result(result)
+    with netcdf4.Dataset(directory / 'virial.nc') as dataset:
+        return np.array(dataset.variables['virial'][0]).reshape(len(structure), 9)
+
+
+def test_dump_netcdf_per_atom_virial_agrees_between_pppm_and_ewald(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The dump_netcdf counterpart of the dump_xyz test above, guarding the same scan in
+    check_need_peratom_virial in utilities/read_file.cu, which now has to recognize dump_netcdf
+    lines as well as dump_xyz ones.
+
+    The flag it sets gates only the PPPM reciprocal-space contribution, so the two methods have to
+    be compared against each other: with dump_netcdf missing from the scan, the PPPM virial
+    silently loses its k-space part while Ewald keeps it, and the file still looks perfectly
+    well-formed."""
+    if model_type == 'nep':
+        pytest.skip('a charge model is needed for there to be a reciprocal-space contribution')
+
+    pppm = _netcdf_per_atom_virial(
+        tmp_path / 'pppm', structure, model_path, model_type, gpumd_command, 'pppm')
+    ewald = _netcdf_per_atom_virial(
+        tmp_path / 'ewald', structure, model_path, model_type, gpumd_command, 'ewald')
+
+    assert pppm.shape == ewald.shape == (len(structure), 9)
+    assert np.max(np.abs(ewald)) > 0, 'the reference virial is identically zero, nothing to compare'
+    np.testing.assert_allclose(pppm, ewald, rtol=1e-2, atol=5e-3)
+
+
+INVALID_DUMP_NETCDF_ARGUMENTS = [
+    ([1, 'f.nc', 'velocities'], 'Unrecognized argument'),
+    ([1, 'f.nc', 'force', 'force'], 'more than once'),
+    ([1, 'f.nc', 'group', 0, 0, 'group', 0, 0], 'more than once'),
+    ([1, 'f.nc', 'velocity', 'velocity'], 'more than once'),
+    ([1, 'f.nc', 'precision', 'double', 'precision', 'single'], 'more than once'),
+    ([1, 'f.nc', 'compression', 'none', 'compression', 'none'], 'more than once'),
+    ([1, 'f.nc', 'precision', 'triple'], 'Invalid precision'),
+    # the old syntax used -1 to mean the whole system, which is now spelled by omitting the option
+    ([1, 'f.nc', 'group', -1, 0], 'Grouping method'),
+    ([1, 'f.nc', 'group', 0], 'Not enough arguments'),
+    ([1, 'f.nc', 'compression', 'deflate'], 'deflate level is required'),
+    ([1, 'f.nc', 'compression', 'deflate', 10], 'between 0 and 9'),
+    ([1, 'f.nc', 'compression', 'gzip'], "'none' or 'deflate"),
+    ([1], 'at least 2 parameters'),
+    ([0, 'f.nc'], 'dump interval'),
+]
+
+
+@pytest.mark.parametrize('args, expected_message', INVALID_DUMP_NETCDF_ARGUMENTS)
+def test_invalid_dump_netcdf_arguments_are_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, args, expected_message):
+    """The dump_xyz rejection table applied to dump_netcdf. As there, the asserted substring
+    matters as much as the exit code, since a test that passes because gpumd died for an unrelated
+    reason is worse than no test."""
+    case = CommandIOCase(
+        name='dump_netcdf_invalid', run_in_lines=[('dump_netcdf', args)],
+        expected_output_files=[], n_groups=1)
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, f'dump_netcdf {args} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'dump_netcdf {args} did not report {expected_message!r}\nstdout:\n{result.stdout}')
+
+
+def test_dump_netcdf_old_positional_form_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """An input file written for the old positional form must be told what to write instead.
+
+    Without the check this is not silent, but it is misleading: removing it and rerunning this
+    case reports "dump interval should > 0", because the old grouping method is read as the
+    interval. A positive grouping method fares no better, as the old group id then becomes the
+    file name and the old interval an unrecognized argument. The point of the check is the
+    message, so the message is what is asserted."""
+    case = CommandIOCase(
+        name='dump_netcdf_old_form',
+        run_in_lines=[('dump_netcdf', [-1, 0, 1, 1, 'movie.nc'])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'the old positional form should be refused'
+    assert 'no longer takes' in output, output
+    assert 'dump_netcdf <interval> <filename>' in output, output
+
+
+def test_dump_netcdf_rejects_an_empty_group(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """An empty group must be refused rather than written, and this is the case where leaving the
+    check out would be silent rather than loud. NC_UNLIMITED is 0, so defining the atom dimension
+    with a length of zero does not fail. Removing the check and rerunning this case confirms both
+    halves of that: with `compression deflate 1` gpumd exits 0 and writes a NETCDF4 file whose
+    `atom` dimension is a second unlimited dimension of length zero and whose coordinates have
+    shape (frames, 0, 3), and without compression the run gets as far as the first frame before
+    dying with "NC_UNLIMITED size already in use", because the classic format allows only one
+    unlimited dimension. parse_group checks the bounds but not the size, so dump_netcdf checks
+    after calling it.
+
+    The grouping puts every atom in group 1, which leaves group 0 of the same grouping method
+    empty while keeping it in bounds -- GPUMD takes the number of groups from the largest label
+    it sees."""
+    case = CommandIOCase(
+        name='dump_netcdf_empty_group',
+        run_in_lines=[('dump_netcdf', [1, 'empty.nc', 'group', 0, 0])],
+        expected_output_files=[],
+        groupings=[[[], list(range(len(structure)))]])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    _skip_without_netcdf(output)
+    assert result.returncode != 0, 'an empty group should be refused'
+    assert 'cannot output an empty group' in output, output
+    assert not (tmp_path / 'empty.nc').exists(), 'a file was written for an empty group'
 
 
 def test_dump_observer(tmp_path, structure, model_path, model_type, gpumd_command):

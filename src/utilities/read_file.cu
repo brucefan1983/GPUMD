@@ -137,7 +137,7 @@ bool check_need_peratom_virial()
           break;
         }
       }
-      if (tokens[0] == "dump_xyz") {
+      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
         for (const auto& token : tokens) {
           if (token == "virial") {
             need_peratom_virial = true;

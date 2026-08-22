@@ -396,7 +396,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
     std::unique_ptr<Property> property;
-    property.reset(new DUMP_NETCDF(param, num_param, group));
+    property.reset(new DUMP_NETCDF(param, num_param, group, atom));
     measure.properties.emplace_back(std::move(property));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
