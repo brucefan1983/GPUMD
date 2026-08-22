@@ -46,20 +46,13 @@ void Ensemble_PIMD::initialize_rng()
 };
 
 Ensemble_PIMD::Ensemble_PIMD(
-  int number_of_atoms_input,
-  int number_of_beads_input,
-  bool thermostat_internal_input,
-  Atom& atom,
-  bool use_eco_pimd_input,
-  double eco_omega_max_cm1_input)
+  int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal_input, Atom& atom)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
   num_target_pressure_components = 0;
   thermostat_internal = thermostat_internal_input;
   thermostat_centroid = false;
-  use_eco_pimd = use_eco_pimd_input;
-  eco_omega_max_cm1 = eco_omega_max_cm1_input;
   initialize(atom);
 }
 

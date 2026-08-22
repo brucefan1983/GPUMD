@@ -28,12 +28,7 @@ class Ensemble_PIMD : public Ensemble
 {
 public:
   Ensemble_PIMD(
-    int number_of_atoms_input,
-    int number_of_beads_input,
-    bool thermostat_internal,
-    Atom& atom,
-    bool use_eco_pimd_input,
-    double eco_omega_max_cm1_input);
+    int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal, Atom& atom);
 
   Ensemble_PIMD(
     int number_of_atoms_input,
