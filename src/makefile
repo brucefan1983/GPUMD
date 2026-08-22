@@ -29,7 +29,7 @@ else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
 INC = -I./
-LDFLAGS =
+LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
 
 
