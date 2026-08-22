@@ -57,8 +57,6 @@ public:
       Atom& atom,
       Force& force) = 0;
 
-  // Optional hook for force modifiers that must be applied after the physical
-  // force is evaluated and before the second integration half-step.
   virtual void process_dynamics(
     const int md_step,
     Box& box,

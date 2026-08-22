@@ -241,9 +241,6 @@ void Run::perform_a_run()
       atom.mass);
   }
 
-  // PLUMED bias force/virial must be present before the first integration
-  // half-step. This hook is a no-op for all non-PLUMED properties and for
-  // PLUMED analysis runs with interval > 1.
   measure.process_dynamics(0, box, atom);
 
   double initial_time_step = time_step;
@@ -293,9 +290,6 @@ void Run::perform_a_run()
     add_random_force.compute(step, atom);
     add_efield.compute(step, group, atom, force);
 
-    // Apply PLUMED bias after evaluating the physical force and before the
-    // second integration half-step, so both force and virial enter the MD
-    // dynamics at the correct time.
     measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
