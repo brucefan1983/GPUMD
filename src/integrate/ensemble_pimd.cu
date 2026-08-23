@@ -23,13 +23,18 @@ References for implementation:
     Roman Korol et al., J. Chem Phys. 151, 124103 (2019).
 ------------------------------------------------------------------------------*/
 
+#include "eco_pimd.cuh"
 #include "ensemble_pimd.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 void Ensemble_PIMD::initialize_rng()
 {
@@ -55,7 +60,9 @@ Ensemble_PIMD::Ensemble_PIMD(
   int number_of_atoms_input,
   int number_of_beads_input,
   double temperature_coupling_input,
-  Atom& atom)
+  Atom& atom,
+  bool use_eco_pimd_input,
+  double eco_omega_max_cm1_input)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
@@ -63,6 +70,8 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature_coupling = temperature_coupling_input;
   thermostat_internal = true;
   thermostat_centroid = true;
+  use_eco_pimd = use_eco_pimd_input;
+  eco_omega_max_cm1 = eco_omega_max_cm1_input;
   initialize(atom);
 }
 
@@ -73,11 +82,15 @@ Ensemble_PIMD::Ensemble_PIMD(
   int num_target_pressure_components_input,
   double target_pressure_input[6],
   double pressure_coupling_input[6],
-  Atom& atom)
+  Atom& atom,
+  bool use_eco_pimd_input,
+  double eco_omega_max_cm1_input)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
   temperature_coupling = temperature_coupling_input;
+  use_eco_pimd = use_eco_pimd_input;
+  eco_omega_max_cm1 = eco_omega_max_cm1_input;
   num_target_pressure_components = num_target_pressure_components_input;
   for (int i = 0; i < 6; i++) {
     target_pressure[i] = target_pressure_input[i];
@@ -171,10 +184,52 @@ void Ensemble_PIMD::initialize(Atom& atom)
   }
   transformation_matrix.copy_from_host(transformation_matrix_cpu.data());
 
+  if (use_eco_pimd) {
+    eco_mode_factors.resize(number_of_beads);
+  }
+
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
   GPU_CHECK_KERNEL
+}
+
+void Ensemble_PIMD::update_eco_modes()
+{
+  if (!use_eco_pimd) {
+    return;
+  }
+  if (!(temperature > 0.0) || !std::isfinite(temperature)) {
+    PRINT_INPUT_ERROR("Eco-PIMD requires a positive finite temperature.");
+  }
+
+  const double temperature_tolerance =
+    1.0e-12 * std::max(1.0, std::fabs(temperature));
+  if (std::fabs(temperature - eco_last_temperature) <= temperature_tolerance) {
+    return;
+  }
+
+  // h*c/k_B in K cm; omega_max is supplied as a wavenumber in cm^-1.
+  const double cm_to_kelvin = 1.4387768775039338;
+  const double x_max = cm_to_kelvin * eco_omega_max_cm1 / temperature;
+  Eco_PIMD_Result result =
+    find_eco_pimd_frequencies(number_of_beads, x_max, eco_independent_frequencies);
+
+  eco_mode_factors.copy_from_host(result.mode_factors.data());
+  eco_independent_frequencies = std::move(result.independent_frequencies);
+  eco_last_temperature = temperature;
+
+  if (!eco_frequencies_reported) {
+    printf(
+      "    Eco-PIMD frequencies: T=%g K, x_max=%g, RMSE(Trotter)=%g, "
+      "RMSE(Eco)=%g, Newton iterations=%d.\n",
+      temperature,
+      x_max,
+      result.rmse_trotter,
+      result.rmse_eco,
+      result.number_of_iterations);
+    eco_frequencies_reported = true;
+  }
 }
 
 Ensemble_PIMD::~Ensemble_PIMD(void)
@@ -186,6 +241,8 @@ static __global__ void gpu_nve_1(
   const int number_of_atoms,
   const int number_of_beads,
   const double omega_n,
+  const bool use_eco_pimd,
+  const double* eco_mode_factors,
   const double time_step,
   const double* transformation_matrix,
   const double* g_mass,
@@ -227,7 +284,8 @@ static __global__ void gpu_nve_1(
     }
 
     for (int k = 1; k < number_of_beads; ++k) {
-      double omega_k = 2.0 * omega_n * sin(k * PI / number_of_beads);
+      double omega_k = use_eco_pimd ? omega_n * eco_mode_factors[k]
+                                     : 2.0 * omega_n * sin(k * PI / number_of_beads);
       // The exact solution is actaully not very stable:
       // double cos_factor = cos(omega_k * time_step);
       // double sin_factor = sin(omega_k * time_step);
@@ -293,6 +351,8 @@ static __global__ void gpu_langevin(
   const double temperature,
   const double temperature_coupling,
   const double omega_n,
+  const bool use_eco_pimd,
+  const double* eco_mode_factors,
   const double time_step,
   const double* transformation_matrix,
   const double* g_mass,
@@ -321,8 +381,14 @@ static __global__ void gpu_langevin(
       if (k == 0 && !thermostat_centroid) {
         continue;
       }
-      double c1 = (k == 0) ? exp(-0.5 / temperature_coupling)
-                           : exp(-time_step * omega_n * sin(k * PI / number_of_beads));
+      double c1;
+      if (k == 0) {
+        c1 = exp(-0.5 / temperature_coupling);
+      } else if (use_eco_pimd) {
+        c1 = exp(-0.5 * time_step * omega_n * eco_mode_factors[k]);
+      } else {
+        c1 = exp(-time_step * omega_n * sin(k * PI / number_of_beads));
+      }
       double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
       for (int d = 0; d < 3; ++d) {
         int index_kd = k * 3 + d;
@@ -775,6 +841,8 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
       temperature,
       temperature_coupling,
       omega_n,
+      use_eco_pimd,
+      use_eco_pimd ? eco_mode_factors.data() : nullptr,
       time_step,
       transformation_matrix.data(),
       atom.mass.data(),
@@ -799,6 +867,7 @@ void Ensemble_PIMD::compute1(
   GPU_Vector<double>& thermo)
 {
   omega_n = number_of_beads * K_B * temperature / HBAR;
+  update_eco_modes();
 
   langevin(time_step, atom);
 
@@ -810,6 +879,8 @@ void Ensemble_PIMD::compute1(
     number_of_atoms,
     number_of_beads,
     omega_n,
+    use_eco_pimd,
+    use_eco_pimd ? eco_mode_factors.data() : nullptr,
     time_step,
     transformation_matrix.data(),
     atom.mass.data(),
