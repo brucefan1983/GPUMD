@@ -898,7 +898,6 @@ void Ensemble_PIMD::compute2(
   GPU_Vector<double>& thermo)
 {
   omega_n = number_of_beads * K_B * temperature / HBAR;
-  update_eco_modes();
 
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
