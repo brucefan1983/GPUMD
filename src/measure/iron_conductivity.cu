@@ -261,13 +261,7 @@ void IC::postprocess(
 IC::IC(const char** param, const int num_param, Atom& atom)
 {
   parse(param, num_param);
-  if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
-    atom.unwrapped_position.resize(atom.number_of_atoms * 3);
-    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
-  }
-  if (atom.position_temp.size() < atom.number_of_atoms * 3) {
-    atom.position_temp.resize(atom.number_of_atoms * 3);
-  }
+  atom.enable_unwrapped_position();
   property_name = "compute_ic";
 }
 

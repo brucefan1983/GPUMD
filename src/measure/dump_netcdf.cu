@@ -263,17 +263,8 @@ DUMP_NETCDF::DUMP_NETCDF(
 
   parse(param, num_param, groups);
 
-  // The integrator only maintains the unwrapped positions while this array is non-empty, so
-  // asking for them has to allocate it. Unlike dump_xyz this is done only when the quantity was
-  // requested, so that a run that does not ask for it does not pay for the unwrapping.
   if (quantities_.has_unwrapped_position_) {
-    if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
-      atom.unwrapped_position.resize(atom.number_of_atoms * 3);
-      atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
-    }
-    if (atom.position_temp.size() < atom.number_of_atoms * 3) {
-      atom.position_temp.resize(atom.number_of_atoms * 3);
-    }
+    atom.enable_unwrapped_position();
   }
 
   property_name = "dump_netcdf";

@@ -49,7 +49,8 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& velocity_per_atom,
-    GPU_Vector<double>& mass_per_atom);
+    GPU_Vector<double>& mass_per_atom,
+    int* position_image = nullptr);
 
   void finalize();
 

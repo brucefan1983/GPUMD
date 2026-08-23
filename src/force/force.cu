@@ -421,7 +421,8 @@ void Force::set_hnemdec_parameters(
   hnemd_fe_[2] = hnemd_fe_z;
 }
 
-static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, double* g_z)
+static __global__ void gpu_apply_pbc(
+  int N, Box box, double* g_x, double* g_y, double* g_z, int* g_position_image)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -434,22 +435,34 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
     if (box.pbc_x == 1) {
       if (sx < 0.0) {
         sx += 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n]--;
       } else if (sx > 1.0) {
         sx -= 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n]++;
       }
     }
     if (box.pbc_y == 1) {
       if (sy < 0.0) {
         sy += 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n + N]--;
       } else if (sy > 1.0) {
         sy -= 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n + N]++;
       }
     }
     if (box.pbc_z == 1) {
       if (sz < 0.0) {
         sz += 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n + N * 2]--;
       } else if (sz > 1.0) {
         sz -= 1.0;
+        if (g_position_image != nullptr)
+          g_position_image[n + N * 2]++;
       }
     }
     g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
@@ -499,7 +512,8 @@ void Force::compute(
       box,
       position_per_atom.data(),
       position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2);
+      position_per_atom.data() + number_of_atoms * 2,
+      nullptr);
   }
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -777,7 +791,8 @@ void Force::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& velocity_per_atom,
-  GPU_Vector<double>& mass_per_atom)
+  GPU_Vector<double>& mass_per_atom,
+  int* position_image)
 {
   box.set_is_orthogonal();
 
@@ -788,7 +803,8 @@ void Force::compute(
       box,
       position_per_atom.data(),
       position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2);
+      position_per_atom.data() + number_of_atoms * 2,
+      position_image);
   }
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(

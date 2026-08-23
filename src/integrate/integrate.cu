@@ -299,43 +299,6 @@ void Integrate::finalize()
   deform_z = 0;
 }
 
-static __global__ void gpu_copy_position(
-  const int number_of_particles,
-  const double* g_xi,
-  const double* g_yi,
-  const double* g_zi,
-  double* g_xo,
-  double* g_yo,
-  double* g_zo)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_particles) {
-    g_xo[i] = g_xi[i];
-    g_yo[i] = g_yi[i];
-    g_zo[i] = g_zi[i];
-  }
-}
-
-static __global__ void gpu_update_unwrapped_position(
-  const int number_of_particles,
-  const double* g_xnew,
-  const double* g_ynew,
-  const double* g_znew,
-  const double* g_xold,
-  const double* g_yold,
-  const double* g_zold,
-  double* g_xo,
-  double* g_yo,
-  double* g_zo)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_particles) {
-    g_xo[i] += g_xnew[i] - g_xold[i];
-    g_yo[i] += g_ynew[i] - g_yold[i];
-    g_zo[i] += g_znew[i] - g_zold[i];
-  }
-}
-
 void Integrate::compute1(
   const double time_step,
   const double step_over_number_of_steps,
@@ -351,34 +314,7 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (atom.unwrapped_position.size() > 0) {
-    gpu_copy_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
-      atom.number_of_atoms,
-      atom.position_per_atom.data(),
-      atom.position_per_atom.data() + atom.number_of_atoms,
-      atom.position_per_atom.data() + atom.number_of_atoms * 2,
-      atom.position_temp.data(),
-      atom.position_temp.data() + atom.number_of_atoms,
-      atom.position_temp.data() + atom.number_of_atoms * 2);
-    GPU_CHECK_KERNEL
-  }
-
   ensemble->compute1(time_step, group, box, atom, thermo);
-
-  if (atom.unwrapped_position.size() > 0) {
-    gpu_update_unwrapped_position<<<(atom.number_of_atoms - 1) / 128 + 1, 128>>>(
-      atom.number_of_atoms,
-      atom.position_per_atom.data(),
-      atom.position_per_atom.data() + atom.number_of_atoms,
-      atom.position_per_atom.data() + atom.number_of_atoms * 2,
-      atom.position_temp.data(),
-      atom.position_temp.data() + atom.number_of_atoms,
-      atom.position_temp.data() + atom.number_of_atoms * 2,
-      atom.unwrapped_position.data(),
-      atom.unwrapped_position.data() + atom.number_of_atoms,
-      atom.unwrapped_position.data() + atom.number_of_atoms * 2);
-    GPU_CHECK_KERNEL
-  }
 }
 
 void Integrate::compute2(
