@@ -66,7 +66,7 @@ protected:
   //  this is the actual pressure, which may cause problems due to its fluctuation
   double pressure, avg_pressure = 0, V;
   // so I use the input pressure.
-  double target_pressure;
+  double target_pressure = 0;
   double E_diff = 0, E_ref = 0;
   bool auto_switch = true;
   GPU_Vector<double> gpu_eUF;
