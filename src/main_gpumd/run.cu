@@ -238,9 +238,11 @@ void Run::perform_a_run()
       atom.force_per_atom,
       atom.virial_per_atom,
       atom.velocity_per_atom,
-      atom.mass);
+      atom.mass,
+      atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
   }
 
+  atom.update_unwrapped_position(box);
   measure.process_dynamics(0, box, atom);
 
   double initial_time_step = time_step;
@@ -281,9 +283,11 @@ void Run::perform_a_run()
         atom.force_per_atom,
         atom.virial_per_atom,
         atom.velocity_per_atom,
-        atom.mass);
+        atom.mass,
+        atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
     }
 
+    atom.update_unwrapped_position(box);
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_spring.compute(step, group, atom);
@@ -293,6 +297,7 @@ void Run::perform_a_run()
     measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    atom.update_unwrapped_position(box);
 
     mc.compute(step, number_of_steps, atom, box, group);
 

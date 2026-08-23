@@ -527,13 +527,7 @@ void Add_Spring::load_restart(const int call_id, const int previous_call_id)
 void Add_Spring::parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
 {
   printf("Add spring [%d call(s)].\n", num_calls_);
-  if (atom.unwrapped_position.size() < atom.position_per_atom.size()) {
-    atom.unwrapped_position.resize(atom.position_per_atom.size());
-    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
-  }
-  if (atom.position_temp.size() < atom.position_per_atom.size()) {
-    atom.position_temp.resize(atom.position_per_atom.size());
-  }
+  atom.enable_unwrapped_position();
 
   if (num_calls_ >= MAX_SPRING_CALLS) {
     std::string error_msg = "add_spring cannot be used more than " + std::to_string(MAX_SPRING_CALLS) + " times.\n";

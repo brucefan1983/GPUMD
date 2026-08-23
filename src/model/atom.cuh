@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+class Box;
+
 class Atom
 {
 public:
@@ -33,7 +35,7 @@ public:
   GPU_Vector<double> mass;               // per-atom mass (1 component)
   GPU_Vector<float> charge;              // per-atom charge (1 component)
   GPU_Vector<double> position_per_atom;  // per-atom position (3 components)
-  GPU_Vector<double> position_temp;      // used to calculated unwrapped_position
+  GPU_Vector<int> position_image;        // per-atom periodic image (3 components)
   GPU_Vector<double> unwrapped_position; // unwrapped per-atom position (3 components)
   GPU_Vector<double> velocity_per_atom;  // per-atom velocity (3 components)
   GPU_Vector<double> force_per_atom;     // per-atom force (3 components)
@@ -49,4 +51,6 @@ public:
   std::vector<GPU_Vector<double>> virial_beads;
 
   int number_of_type(std::string& symbol);
+  void enable_unwrapped_position();
+  void update_unwrapped_position(const Box& box);
 };
