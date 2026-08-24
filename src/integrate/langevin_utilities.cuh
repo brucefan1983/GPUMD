@@ -18,6 +18,7 @@ Some CUDA kernels for Langevin thermostats.
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "model/box.cuh"
 #include "utilities/gpu_macro.cuh"
 
 #define CURAND_NORMAL(a) gpurand_normal_double(a)
@@ -148,6 +149,125 @@ static __global__ void gpu_langevin(
   }
 }
 
+static __device__ void get_fractional_position(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  double& sa,
+  double& sb,
+  double& sc)
+{
+  sa = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+  sb = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+  sc = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+
+  if (box.pbc_x == 1) {
+    if (sa < 0.0) {
+      sa += 1.0;
+    } else if (sa >= 1.0) {
+      sa -= 1.0;
+    }
+  }
+  if (box.pbc_y == 1) {
+    if (sb < 0.0) {
+      sb += 1.0;
+    } else if (sb >= 1.0) {
+      sb -= 1.0;
+    }
+  }
+  if (box.pbc_z == 1) {
+    if (sc < 0.0) {
+      sc += 1.0;
+    } else if (sc >= 1.0) {
+      sc -= 1.0;
+    }
+  }
+}
+
+static __device__ bool is_in_region(
+  const double sa,
+  const double sb,
+  const double sc,
+  const double amin,
+  const double amax,
+  const double bmin,
+  const double bmax,
+  const double cmin,
+  const double cmax)
+{
+  return sa >= amin && sa < amax && sb >= bmin && sb < bmax && sc >= cmin && sc < cmax;
+}
+
+// local Langevin thermostatting based on fractional-coordinate regions
+static __global__ void gpu_langevin_region(
+  gpurandState* g_state,
+  const int N,
+  const Box box,
+  const double source_amin,
+  const double source_amax,
+  const double source_bmin,
+  const double source_bmax,
+  const double source_cmin,
+  const double source_cmax,
+  const double sink_amin,
+  const double sink_amax,
+  const double sink_bmin,
+  const double sink_bmax,
+  const double sink_cmin,
+  const double sink_cmax,
+  const double c1,
+  const double c2_source,
+  const double c2_sink,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const double* g_mass,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    double sa, sb, sc;
+    get_fractional_position(box, g_x[n], g_y[n], g_z[n], sa, sb, sc);
+
+    double c2 = 0.0;
+    if (is_in_region(
+          sa,
+          sb,
+          sc,
+          source_amin,
+          source_amax,
+          source_bmin,
+          source_bmax,
+          source_cmin,
+          source_cmax)) {
+      c2 = c2_source;
+    } else if (is_in_region(
+                 sa,
+                 sb,
+                 sc,
+                 sink_amin,
+                 sink_amax,
+                 sink_bmin,
+                 sink_bmax,
+                 sink_cmin,
+                 sink_cmax)) {
+      c2 = c2_sink;
+    } else {
+      return;
+    }
+
+    gpurandState state = g_state[n];
+    double c2m = c2 * sqrt(1.0 / g_mass[n]);
+    g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
+    g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
+    g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
+    g_state[n] = state;
+  }
+}
+
 // group kinetic energy
 static __global__ void find_ke(
   const int* g_group_size,
@@ -191,3 +311,88 @@ static __global__ void find_ke(
     g_ke[bid] = s_ke[0];
   } // kinetic energy times 2
 }
+
+// kinetic energy in the source and sink regions
+static __global__ void find_ke_region(
+  const int N,
+  const Box box,
+  const double source_amin,
+  const double source_amax,
+  const double source_bmin,
+  const double source_bmax,
+  const double source_cmin,
+  const double source_cmax,
+  const double sink_amin,
+  const double sink_amax,
+  const double sink_bmin,
+  const double sink_bmax,
+  const double sink_cmin,
+  const double sink_cmax,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const double* g_mass,
+  const double* g_vx,
+  const double* g_vy,
+  const double* g_vz,
+  double* g_ke)
+{
+  //<<<2, 512>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_patches = (N - 1) / 512 + 1;
+  __shared__ double s_ke[512];
+  s_ke[tid] = 0.0;
+
+  for (int patch = 0; patch < number_of_patches; ++patch) {
+    int n = tid + patch * 512;
+    if (n < N) {
+      double sa, sb, sc;
+      get_fractional_position(box, g_x[n], g_y[n], g_z[n], sa, sb, sc);
+      bool in_region;
+      if (bid == 0) {
+        in_region = is_in_region(
+          sa,
+          sb,
+          sc,
+          source_amin,
+          source_amax,
+          source_bmin,
+          source_bmax,
+          source_cmin,
+          source_cmax);
+      } else {
+        in_region = is_in_region(
+          sa,
+          sb,
+          sc,
+          sink_amin,
+          sink_amax,
+          sink_bmin,
+          sink_bmax,
+          sink_cmin,
+          sink_cmax);
+      }
+      if (in_region) {
+        double mass = g_mass[n];
+        double vx = g_vx[n];
+        double vy = g_vy[n];
+        double vz = g_vz[n];
+        s_ke[tid] += (vx * vx + vy * vy + vz * vz) * mass;
+      }
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_ke[tid] += s_ke[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_ke[bid] = s_ke[0];
+  } // kinetic energy times 2
+}
+

@@ -28,6 +28,7 @@ public:
   Ensemble_LAN();
   Ensemble_LAN(int, int, double, double);
   Ensemble_LAN(int, int, double*, int, int, int, int, int, int, double, double, double);
+  Ensemble_LAN(int, int, double*, int, double*, double*, double, double, double);
   virtual ~Ensemble_LAN(void);
 
   virtual void compute1(
@@ -46,6 +47,9 @@ public:
 
 protected:
   int N_source, N_sink, offset_source, offset_sink;
+  bool use_region = false;
+  double source_region[6];
+  double sink_region[6];
   double c1, c2, c2_source, c2_sink;
   GPU_Vector<gpurandState> curand_states;
   GPU_Vector<gpurandState> curand_states_source;
@@ -56,6 +60,12 @@ protected:
 
   void integrate_heat_lan_half(
     const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    GPU_Vector<double>& velocity_per_atom);
+
+  void integrate_heat_lan_region_half(
+    const Box& box,
+    const GPU_Vector<double>& position_per_atom,
     const GPU_Vector<double>& mass,
     GPU_Vector<double>& velocity_per_atom);
 };

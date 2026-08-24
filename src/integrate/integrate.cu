@@ -180,19 +180,32 @@ void Integrate::initialize(
         time_step));
       break;
     case 22: // heat-Langevin
-      ensemble.reset(new Ensemble_LAN(
-        type,
-        move_group,
-        move_velocity,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].cpu_size_sum[source],
-        group[0].cpu_size_sum[sink],
-        temperature,
-        temperature_coupling,
-        delta_temperature));
+      if (use_heat_lan_region) {
+        ensemble.reset(new Ensemble_LAN(
+          type,
+          move_group,
+          move_velocity,
+          number_of_atoms,
+          heat_source_region,
+          heat_sink_region,
+          temperature,
+          temperature_coupling,
+          delta_temperature));
+      } else {
+        ensemble.reset(new Ensemble_LAN(
+          type,
+          move_group,
+          move_velocity,
+          source,
+          sink,
+          group[0].cpu_size[source],
+          group[0].cpu_size[sink],
+          group[0].cpu_size_sum[source],
+          group[0].cpu_size_sum[sink],
+          temperature,
+          temperature_coupling,
+          delta_temperature));
+      }
       break;
     case 23: // heat-BDP
       ensemble.reset(
@@ -359,6 +372,7 @@ void Integrate::parse_ensemble(
   qtb_n_f = 100;
   use_eco_pimd = false;
   eco_omega_max_cm1 = 0.0;
+  use_heat_lan_region = false;
   int pimd_num_param = num_param;
 
   // 1. Determine the integration method
@@ -429,9 +443,10 @@ void Integrate::parse_ensemble(
     }
   } else if (strcmp(param[1], "heat_lan") == 0) {
     type = 22;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_lan should have 5 parameters.");
+    if (num_param != 7 && num_param != 17) {
+      PRINT_INPUT_ERROR("ensemble heat_lan should have 5 or 15 parameters.");
     }
+    use_heat_lan_region = num_param == 17;
   } else if (strcmp(param[1], "heat_bdp") == 0) {
     type = 23;
     if (num_param != 7) {
@@ -683,30 +698,67 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR("|Temperature difference| is too large.");
     }
 
-    // group labels of heat source and sink
-    if (!is_valid_int(param[5], &source)) {
-      PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
-    }
-    if (!is_valid_int(param[6], &sink)) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
-    }
-    if (group.size() < 1) {
-      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-    }
-    if (source == sink) {
-      PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
-    }
-    if (source < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
-    }
-    if (source >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
-    }
-    if (sink < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
-    }
-    if (sink >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+    if (type == 22 && use_heat_lan_region) {
+      for (int i = 0; i < 6; ++i) {
+        if (!is_valid_real(param[5 + i], &heat_source_region[i])) {
+          PRINT_INPUT_ERROR("Heat source region bounds should be numbers.");
+        }
+        if (!is_valid_real(param[11 + i], &heat_sink_region[i])) {
+          PRINT_INPUT_ERROR("Heat sink region bounds should be numbers.");
+        }
+      }
+      for (int d = 0; d < 3; ++d) {
+        int i = 2 * d;
+        if (!(heat_source_region[i] >= 0.0 && heat_source_region[i] <= 1.0 &&
+              heat_source_region[i + 1] >= 0.0 && heat_source_region[i + 1] <= 1.0)) {
+          PRINT_INPUT_ERROR("Heat source region bounds should be in [0, 1].");
+        }
+        if (!(heat_sink_region[i] >= 0.0 && heat_sink_region[i] <= 1.0 &&
+              heat_sink_region[i + 1] >= 0.0 && heat_sink_region[i + 1] <= 1.0)) {
+          PRINT_INPUT_ERROR("Heat sink region bounds should be in [0, 1].");
+        }
+        if (heat_source_region[i] >= heat_source_region[i + 1]) {
+          PRINT_INPUT_ERROR("Heat source region minimum should be smaller than maximum.");
+        }
+        if (heat_sink_region[i] >= heat_sink_region[i + 1]) {
+          PRINT_INPUT_ERROR("Heat sink region minimum should be smaller than maximum.");
+        }
+      }
+      if (
+        heat_source_region[0] < heat_sink_region[1] &&
+        heat_sink_region[0] < heat_source_region[1] &&
+        heat_source_region[2] < heat_sink_region[3] &&
+        heat_sink_region[2] < heat_source_region[3] &&
+        heat_source_region[4] < heat_sink_region[5] &&
+        heat_sink_region[4] < heat_source_region[5]) {
+        PRINT_INPUT_ERROR("Heat source and sink regions cannot overlap.");
+      }
+    } else {
+      // group labels of heat source and sink
+      if (!is_valid_int(param[5], &source)) {
+        PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
+      }
+      if (!is_valid_int(param[6], &sink)) {
+        PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+      }
+      if (group.size() < 1) {
+        PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+      }
+      if (source == sink) {
+        PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+      }
+      if (source < 0) {
+        PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+      }
+      if (source >= group[0].number) {
+        PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+      }
+      if (sink < 0) {
+        PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+      }
+      if (sink >= group[0].number) {
+        PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+      }
     }
   }
 
@@ -1210,8 +1262,27 @@ void Integrate::parse_ensemble(
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
+      if (use_heat_lan_region) {
+        printf(
+          "    heat source fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
+          heat_source_region[0],
+          heat_source_region[1],
+          heat_source_region[2],
+          heat_source_region[3],
+          heat_source_region[4],
+          heat_source_region[5]);
+        printf(
+          "    heat sink fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
+          heat_sink_region[0],
+          heat_sink_region[1],
+          heat_sink_region[2],
+          heat_sink_region[3],
+          heat_sink_region[4],
+          heat_sink_region[5]);
+      } else {
+        printf("    heat source is group %d in grouping method 0.\n", source);
+        printf("    heat sink is group %d in grouping method 0.\n", sink);
+      }
       break;
     case 23:
       printf("Integrate with heating and cooling for this run.\n");
