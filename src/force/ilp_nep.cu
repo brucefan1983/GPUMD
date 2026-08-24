@@ -849,7 +849,7 @@ void find_neighbor_ilp_nep(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -2696,11 +2696,11 @@ void ILP_NEP::compute_ilp(
       nep_data.NN_angular,
       nep_data.NL_angular);
     
-  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_radial, max_MN_radial * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_radial), max_MN_radial * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_radial.data(), nep_data.NL_radial.data());
   GPU_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_angular, max_MN_angular * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_angular), max_MN_angular * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
