@@ -816,7 +816,6 @@ void Force::compute(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  temperature += delta_T;
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
     if (3 == potentials[0]->nep_model_type) {
