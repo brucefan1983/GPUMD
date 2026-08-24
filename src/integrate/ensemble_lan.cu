@@ -84,6 +84,41 @@ Ensemble_LAN::Ensemble_LAN(
   energy_transferred[1] = 0.0;
 }
 
+Ensemble_LAN::Ensemble_LAN(
+  int t,
+  int mg,
+  double* mv,
+  int N,
+  double* source_region_input,
+  double* sink_region_input,
+  double T,
+  double Tc,
+  double dT)
+{
+  type = t;
+  move_group = mg;
+  move_velocity[0] = mv[0];
+  move_velocity[1] = mv[1];
+  move_velocity[2] = mv[2];
+  temperature = T;
+  temperature_coupling = Tc;
+  delta_temperature = dT;
+  use_region = true;
+  for (int i = 0; i < 6; ++i) {
+    source_region[i] = source_region_input[i];
+    sink_region[i] = sink_region_input[i];
+  }
+  c1 = exp(-0.5 / temperature_coupling);
+  c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
+  c2_sink = sqrt((1 - c1 * c1) * K_B * (T - dT));
+  curand_states.resize(N);
+  int grid_size = (N - 1) / 128 + 1;
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
+  GPU_CHECK_KERNEL
+  energy_transferred[0] = 0.0;
+  energy_transferred[1] = 0.0;
+}
+
 Ensemble_LAN::~Ensemble_LAN(void)
 {
   // nothing
@@ -194,6 +229,103 @@ void Ensemble_LAN::integrate_heat_lan_half(
   energy_transferred[1] -= ek2[sink] * 0.5;
 }
 
+void Ensemble_LAN::integrate_heat_lan_region_half(
+  const Box& box,
+  const GPU_Vector<double>& position_per_atom,
+  const GPU_Vector<double>& mass,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms = mass.size();
+  double ek2[2];
+  GPU_Vector<double> ke(2);
+
+  find_ke_region<<<2, 512>>>(
+    number_of_atoms,
+    box,
+    source_region[0],
+    source_region[1],
+    source_region[2],
+    source_region[3],
+    source_region[4],
+    source_region[5],
+    sink_region[0],
+    sink_region[1],
+    sink_region[2],
+    sink_region[3],
+    sink_region[4],
+    sink_region[5],
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + 2 * number_of_atoms,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
+  GPU_CHECK_KERNEL
+
+  ke.copy_to_host(ek2);
+  energy_transferred[0] += ek2[0] * 0.5;
+  energy_transferred[1] += ek2[1] * 0.5;
+
+  gpu_langevin_region<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    curand_states.data(),
+    number_of_atoms,
+    box,
+    source_region[0],
+    source_region[1],
+    source_region[2],
+    source_region[3],
+    source_region[4],
+    source_region[5],
+    sink_region[0],
+    sink_region[1],
+    sink_region[2],
+    sink_region[3],
+    sink_region[4],
+    sink_region[5],
+    c1,
+    c2_source,
+    c2_sink,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + 2 * number_of_atoms,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
+  GPU_CHECK_KERNEL
+
+  find_ke_region<<<2, 512>>>(
+    number_of_atoms,
+    box,
+    source_region[0],
+    source_region[1],
+    source_region[2],
+    source_region[3],
+    source_region[4],
+    source_region[5],
+    sink_region[0],
+    sink_region[1],
+    sink_region[2],
+    sink_region[3],
+    sink_region[4],
+    sink_region[5],
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + 2 * number_of_atoms,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
+  GPU_CHECK_KERNEL
+
+  ke.copy_to_host(ek2);
+  energy_transferred[0] -= ek2[0] * 0.5;
+  energy_transferred[1] -= ek2[1] * 0.5;
+}
+
 void Ensemble_LAN::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -213,7 +345,12 @@ void Ensemble_LAN::compute1(
       atom.position_per_atom,
       atom.velocity_per_atom);
   } else {
-    integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
+    if (use_region) {
+      integrate_heat_lan_region_half(
+        box, atom.position_per_atom, atom.mass, atom.velocity_per_atom);
+    } else {
+      integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
+    }
 
     velocity_verlet(
       true,
@@ -264,6 +401,11 @@ void Ensemble_LAN::compute2(
       atom.position_per_atom,
       atom.velocity_per_atom);
 
-    integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
+    if (use_region) {
+      integrate_heat_lan_region_half(
+        box, atom.position_per_atom, atom.mass, atom.velocity_per_atom);
+    } else {
+      integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
+    }
   }
 }

@@ -83,6 +83,9 @@ public:
   double temperature1; // target initial temperature for a run
   double temperature2; // target final temperature for a run
   double delta_temperature;
+  bool use_heat_lan_region = false;
+  double heat_source_region[6];
+  double heat_sink_region[6];
   double target_pressure[6];
   int num_target_pressure_components;
   double temperature_coupling;
