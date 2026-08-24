@@ -769,10 +769,11 @@ static __global__ void gpu_pressure_orthogonal(
     double scale_factor[3] = {scale_factor_x, scale_factor_y, scale_factor_z};
     for (int d = 0; d < 3; ++d) {
       const int index = i + d * number_of_particles;
-      g_average_position[index] *= scale_factor[d];
+      const double displacement = (scale_factor[d] - 1.0) * g_average_position[index];
       for (int k = 0; k < number_of_beads; ++k) {
-        g_beads_position[k][index] *= scale_factor[d];
+        g_beads_position[k][index] += displacement;
       }
+      g_average_position[index] *= scale_factor[d];
     }
   }
 }
@@ -788,10 +789,11 @@ static __global__ void gpu_pressure_isotropic(
   if (i < number_of_particles) {
     for (int d = 0; d < 3; ++d) {
       const int index = i + d * number_of_particles;
-      g_average_position[index] *= scale_factor;
+      const double displacement = (scale_factor - 1.0) * g_average_position[index];
       for (int k = 0; k < number_of_beads; ++k) {
-        g_beads_position[k][index] *= scale_factor;
+        g_beads_position[k][index] += displacement;
       }
+      g_average_position[index] *= scale_factor;
     }
   }
 }
@@ -813,20 +815,23 @@ static __global__ void gpu_pressure_triclinic(
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
-    double x_old = g_average_position[i];
-    double y_old = g_average_position[i + number_of_particles];
-    double z_old = g_average_position[i + number_of_particles * 2];
-    g_average_position[i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
-    g_average_position[i + number_of_particles] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
-    g_average_position[i + number_of_particles * 2] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+    const double x_old = g_average_position[i];
+    const double y_old = g_average_position[i + number_of_particles];
+    const double z_old = g_average_position[i + number_of_particles * 2];
+    const double x_new = mu0 * x_old + mu1 * y_old + mu2 * z_old;
+    const double y_new = mu3 * x_old + mu4 * y_old + mu5 * z_old;
+    const double z_new = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+    const double displacement_x = x_new - x_old;
+    const double displacement_y = y_new - y_old;
+    const double displacement_z = z_new - z_old;
     for (int k = 0; k < number_of_beads; ++k) {
-      double x_old = g_beads_position[k][i];
-      double y_old = g_beads_position[k][i + number_of_particles];
-      double z_old = g_beads_position[k][i + number_of_particles * 2];
-      g_beads_position[k][i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
-      g_beads_position[k][i + number_of_particles] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
-      g_beads_position[k][i + number_of_particles * 2] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+      g_beads_position[k][i] += displacement_x;
+      g_beads_position[k][i + number_of_particles] += displacement_y;
+      g_beads_position[k][i + number_of_particles * 2] += displacement_z;
     }
+    g_average_position[i] = x_new;
+    g_average_position[i + number_of_particles] = y_new;
+    g_average_position[i + number_of_particles * 2] = z_new;
   }
 }
 
