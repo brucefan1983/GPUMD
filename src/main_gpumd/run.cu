@@ -260,6 +260,8 @@ void Run::perform_a_run()
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
+    force.temperature += force.delta_T;
+
     if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
         force.compute(
