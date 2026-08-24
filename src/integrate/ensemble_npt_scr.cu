@@ -74,7 +74,7 @@ Ensemble_NPT_SCR::~Ensemble_NPT_SCR(void)
 }
 
 static void cpu_pressure_orthogonal(
-  std::mt19937 rng,
+  std::mt19937& rng,
   int deform_x,
   int deform_y,
   int deform_z,
@@ -135,7 +135,7 @@ static void cpu_pressure_orthogonal(
 }
 
 static void cpu_pressure_isotropic(
-  std::mt19937 rng,
+  std::mt19937& rng,
   Box& box,
   double target_temperature,
   double* target_pressure,
@@ -160,7 +160,7 @@ static void cpu_pressure_isotropic(
 }
 
 static void cpu_pressure_triclinic(
-  std::mt19937 rng,
+  std::mt19937& rng,
   Box& box,
   double target_temperature,
   double* p0,
