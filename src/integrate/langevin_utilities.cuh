@@ -161,28 +161,6 @@ static __device__ void get_fractional_position(
   sa = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
   sb = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
   sc = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-
-  if (box.pbc_x == 1) {
-    if (sa < 0.0) {
-      sa += 1.0;
-    } else if (sa >= 1.0) {
-      sa -= 1.0;
-    }
-  }
-  if (box.pbc_y == 1) {
-    if (sb < 0.0) {
-      sb += 1.0;
-    } else if (sb >= 1.0) {
-      sb -= 1.0;
-    }
-  }
-  if (box.pbc_z == 1) {
-    if (sc < 0.0) {
-      sc += 1.0;
-    } else if (sc >= 1.0) {
-      sc -= 1.0;
-    }
-  }
 }
 
 static __device__ bool is_in_region(
