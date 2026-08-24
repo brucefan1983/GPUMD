@@ -114,80 +114,22 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
   int bid = blockIdx.x;
   int tid = threadIdx.x;
   int neighbor_number = NN[bid];
-  int atom_index;
   extern __shared__ int atom_index_copy[];
 
-  if (tid < neighbor_number) {
-    atom_index = NL[static_cast<size_t>(N) * tid + bid];
-    atom_index_copy[tid] = atom_index;
+  for (int i = tid; i < neighbor_number; i += blockDim.x) {
+    atom_index_copy[i] = NL[static_cast<size_t>(N) * i + bid];
   }
-  int count = 0;
   __syncthreads();
 
-  for (int j = 0; j < neighbor_number; ++j) {
-    if (atom_index > atom_index_copy[j]) {
-      count++;
-    }
-  }
-
-  if (tid < neighbor_number) {
-    NL[static_cast<size_t>(N) * count + bid] = atom_index;
-  }
-}
-
-static __global__ void gpu_sort_neighbor_list_ilp(const int N, const int* NN, int* NL)
-{
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-  int neighbor_number = NN[bid];
-  int atom_index;
-  int atom_index_hold[10] = {0};
-  extern __shared__ int atom_index_copy[];
-
-  if (neighbor_number <= 1024) {
-    if (tid < neighbor_number) {
-      atom_index = NL[bid + tid * N];
-      atom_index_copy[tid] = atom_index;
-    }
-  } else {
-    int tid_plus = tid;
-    for (int i = 0; tid_plus < neighbor_number; ++i) {
-      atom_index = NL[bid + tid_plus * N];
-      atom_index_copy[tid_plus] = atom_index;
-      atom_index_hold[i] = atom_index;
-      tid_plus += 1024;
-    }
-  }
-  int count = 0;
-  __syncthreads();
-
-  if (neighbor_number <= 1024) {
+  for (int i = tid; i < neighbor_number; i += blockDim.x) {
+    int atom_index = atom_index_copy[i];
+    int count = 0;
     for (int j = 0; j < neighbor_number; ++j) {
       if (atom_index > atom_index_copy[j]) {
         count++;
       }
     }
-
-    if (tid < neighbor_number) {
-      NL[bid + count * N] = atom_index;
-    }
-  } else {
-    int tid_plus = tid;
-    for (int i = 0; tid_plus < neighbor_number; ++i)
-    {
-      count = 0;
-      atom_index = atom_index_hold[i];
-      for (int j = 0; j < neighbor_number; ++j) {
-        if (atom_index > atom_index_copy[j]) {
-          ++count;
-        }
-      }
-
-      if (tid_plus < neighbor_number) {
-        NL[bid + count * N] = atom_index;
-      }
-      tid_plus += 1024;
-    }
+    NL[static_cast<size_t>(N) * count + bid] = atom_index;
   }
 }
 
