@@ -26,6 +26,7 @@ References for implementation:
 #include "eco_pimd.cuh"
 #include "ensemble_pimd.cuh"
 #include "langevin_utilities.cuh"
+#include "svr_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
@@ -84,13 +85,15 @@ Ensemble_PIMD::Ensemble_PIMD(
   double pressure_coupling_input[6],
   Atom& atom,
   bool use_eco_pimd_input,
-  double eco_omega_max_cm1_input)
+  double eco_omega_max_cm1_input,
+  bool use_scr_barostat_input)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
   temperature_coupling = temperature_coupling_input;
   use_eco_pimd = use_eco_pimd_input;
   eco_omega_max_cm1 = eco_omega_max_cm1_input;
+  use_scr_barostat = use_scr_barostat_input;
   num_target_pressure_components = num_target_pressure_components_input;
   for (int i = 0; i < 6; i++) {
     target_pressure[i] = target_pressure_input[i];
@@ -688,7 +691,8 @@ static void cpu_pressure_orthogonal(
 }
 
 static void cpu_pressure_isotropic(
-  std::mt19937 rng,
+  std::mt19937& rng,
+  bool use_scr_barostat,
   Box& box,
   double target_temperature,
   double* target_pressure,
@@ -702,6 +706,12 @@ static void cpu_pressure_isotropic(
   const double scale_factor_Berendsen =
     1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
   scale_factor = scale_factor_Berendsen;
+  if (use_scr_barostat) {
+    const double scale_factor_stochastic =
+      sqrt(0.666666666666667 * p_coupling[0] * K_B * target_temperature / box.get_volume()) *
+      gasdev(rng);
+    scale_factor += scale_factor_stochastic;
+  }
   box.cpu_h[0] *= scale_factor;
   box.cpu_h[4] *= scale_factor;
   box.cpu_h[8] *= scale_factor;
@@ -960,7 +970,14 @@ void Ensemble_PIMD::compute2(
   if (num_target_pressure_components == 1) {
     double scale_factor;
     cpu_pressure_isotropic(
-      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
+      rng,
+      use_scr_barostat,
+      box,
+      temperature,
+      target_pressure,
+      pressure_coupling,
+      thermo.data(),
+      scale_factor);
     gpu_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       number_of_beads,
