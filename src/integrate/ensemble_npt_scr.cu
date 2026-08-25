@@ -88,6 +88,7 @@ static void cpu_pressure_orthogonal(
 {
   double p[3];
   CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
+  const double volume = box.get_volume();
 
   if (deform_x) {
     scale_factor[0] = box.cpu_h[0];
@@ -96,7 +97,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[0] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      sqrt(2.0 * p_coupling[0] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[0] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[0] *= scale_factor[0];
   } else {
@@ -110,7 +111,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_y == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[1] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      sqrt(2.0 * p_coupling[1] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[1] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[4] *= scale_factor[1];
   } else {
@@ -124,7 +125,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_z == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling[2] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      sqrt(2.0 * p_coupling[2] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[2] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[8] *= scale_factor[2];
   } else {
@@ -177,17 +178,22 @@ static void cpu_pressure_triclinic(
   mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]); // xy
   mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
   mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
-  double p_coupling_3by3[3][3] = {
-    {p_coupling[0], p_coupling[5], p_coupling[4]},
-    {p_coupling[5], p_coupling[1], p_coupling[3]},
-    {p_coupling[4], p_coupling[3], p_coupling[2]}};
   const double volume = box.get_volume();
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      mu[r * 3 + c] +=
-        sqrt(2.0 * p_coupling_3by3[r][c] * K_B * target_temperature / volume) * gasdev(rng);
-    }
-  }
+  mu[0] += sqrt(2.0 * p_coupling[0] * K_B * target_temperature / volume) * gasdev(rng);
+  mu[4] += sqrt(2.0 * p_coupling[1] * K_B * target_temperature / volume) * gasdev(rng);
+  mu[8] += sqrt(2.0 * p_coupling[2] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_yz =
+    sqrt(p_coupling[3] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_xz =
+    sqrt(p_coupling[4] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_xy =
+    sqrt(p_coupling[5] * K_B * target_temperature / volume) * gasdev(rng);
+  mu[5] += noise_yz;
+  mu[7] += noise_yz;
+  mu[2] += noise_xz;
+  mu[6] += noise_xz;
+  mu[1] += noise_xy;
+  mu[3] += noise_xy;
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
