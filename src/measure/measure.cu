@@ -128,3 +128,45 @@ void Measure::process_dynamics(
     prop->process_dynamics(md_step, box, atom);
   }
 }
+
+void Measure::post_integrate1(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->post_integrate1(step, time_step, integrate, group, atom, box, force);
+  }
+}
+
+void Measure::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->post_force(step, time_step, integrate, group, atom, box, force);
+  }
+}
+
+void Measure::post_integrate2(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->post_integrate2(step, time_step, integrate, group, atom, box, force);
+  }
+}

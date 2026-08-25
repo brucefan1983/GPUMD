@@ -260,6 +260,8 @@ void Run::perform_a_run()
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
+    measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
+
     force.temperature += force.delta_T;
 
     if (integrate.type >= 31) { // PIMD
@@ -290,6 +292,7 @@ void Run::perform_a_run()
     }
 
     atom.update_unwrapped_position(box);
+    measure.post_force(step, time_step, integrate, group, atom, box, force);
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_spring.compute(step, group, atom);
@@ -299,6 +302,7 @@ void Run::perform_a_run()
     measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    measure.post_integrate2(step, time_step, integrate, group, atom, box, force);
     atom.update_unwrapped_position(box);
 
     mc.compute(step, number_of_steps, atom, box, group);
