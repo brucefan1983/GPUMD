@@ -47,7 +47,8 @@ public:
     double pressure_coupling[6],
     Atom& atom,
     bool use_eco_pimd_input,
-    double eco_omega_max_cm1_input);
+    double eco_omega_max_cm1_input,
+    bool use_scr_barostat_input);
 
   virtual ~Ensemble_PIMD(void);
 
@@ -72,6 +73,7 @@ protected:
   bool thermostat_centroid = false;
   double omega_n;
   bool use_eco_pimd = false;
+  bool use_scr_barostat = false;
   bool eco_frequencies_reported = false;
   double eco_omega_max_cm1 = 0.0;
   double eco_last_temperature = -1.0;
