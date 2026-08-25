@@ -939,8 +939,8 @@ void Integrate::parse_ensemble(
     // "eco omega_max_cm1" to an existing PIMD command.
     if (type == 33) {
       if (use_scr_barostat) {
-        if (pimd_num_param != 9) {
-          PRINT_INPUT_ERROR("ensemble pimd_scr should have 7 parameters.");
+        if (pimd_num_param != 9 && pimd_num_param != 13 && pimd_num_param != 19) {
+          PRINT_INPUT_ERROR("ensemble pimd_scr should have 7, 11, or 17 parameters.");
         }
       } else {
         if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {

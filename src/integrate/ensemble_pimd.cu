@@ -653,7 +653,8 @@ gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024
 }
 
 static void cpu_pressure_orthogonal(
-  std::mt19937 rng,
+  std::mt19937& rng,
+  bool use_scr_barostat,
   Box& box,
   double target_temperature,
   double* p0,
@@ -667,6 +668,11 @@ static void cpu_pressure_orthogonal(
   if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     scale_factor[0] = scale_factor_Berendsen;
+    if (use_scr_barostat) {
+      const double scale_factor_stochastic =
+        sqrt(2.0 * p_coupling[0] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      scale_factor[0] += scale_factor_stochastic;
+    }
     box.cpu_h[0] *= scale_factor[0];
   } else {
     scale_factor[0] = 1.0;
@@ -675,6 +681,11 @@ static void cpu_pressure_orthogonal(
   if (box.pbc_y == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     scale_factor[1] = scale_factor_Berendsen;
+    if (use_scr_barostat) {
+      const double scale_factor_stochastic =
+        sqrt(2.0 * p_coupling[1] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      scale_factor[1] += scale_factor_stochastic;
+    }
     box.cpu_h[4] *= scale_factor[1];
   } else {
     scale_factor[1] = 1.0;
@@ -683,6 +694,11 @@ static void cpu_pressure_orthogonal(
   if (box.pbc_z == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     scale_factor[2] = scale_factor_Berendsen;
+    if (use_scr_barostat) {
+      const double scale_factor_stochastic =
+        sqrt(2.0 * p_coupling[2] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+      scale_factor[2] += scale_factor_stochastic;
+    }
     box.cpu_h[8] *= scale_factor[2];
   } else {
     scale_factor[2] = 1.0;
@@ -719,7 +735,8 @@ static void cpu_pressure_isotropic(
 }
 
 static void cpu_pressure_triclinic(
-  std::mt19937 rng,
+  std::mt19937& rng,
+  bool use_scr_barostat,
   Box& box,
   double target_temperature,
   double* p0,
@@ -736,19 +753,19 @@ static void cpu_pressure_triclinic(
   mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]); // xy
   mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
   mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
-  /*
-  double p_coupling_3by3[3][3] = {
-    {p_coupling[0], p_coupling[3], p_coupling[4]},
-    {p_coupling[3], p_coupling[1], p_coupling[5]},
-    {p_coupling[4], p_coupling[5], p_coupling[2]}};
-  const double volume = box.get_volume();
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      mu[r * 3 + c] +=
-        sqrt(2.0 * p_coupling_3by3[r][c] * K_B * target_temperature / volume) * gasdev(rng);
+  if (use_scr_barostat) {
+    double p_coupling_3by3[3][3] = {
+      {p_coupling[0], p_coupling[5], p_coupling[4]},
+      {p_coupling[5], p_coupling[1], p_coupling[3]},
+      {p_coupling[4], p_coupling[3], p_coupling[2]}};
+    const double volume = box.get_volume();
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        mu[r * 3 + c] +=
+          sqrt(2.0 * p_coupling_3by3[r][c] * K_B * target_temperature / volume) * gasdev(rng);
+      }
     }
   }
-  */
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
@@ -987,7 +1004,14 @@ void Ensemble_PIMD::compute2(
   } else if (num_target_pressure_components == 3) {
     double scale_factor[3];
     cpu_pressure_orthogonal(
-      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
+      rng,
+      use_scr_barostat,
+      box,
+      temperature,
+      target_pressure,
+      pressure_coupling,
+      thermo.data(),
+      scale_factor);
     gpu_pressure_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       number_of_beads,
@@ -1000,7 +1024,14 @@ void Ensemble_PIMD::compute2(
   } else if (num_target_pressure_components == 6) {
     double mu[9];
     cpu_pressure_triclinic(
-      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), mu);
+      rng,
+      use_scr_barostat,
+      box,
+      temperature,
+      target_pressure,
+      pressure_coupling,
+      thermo.data(),
+      mu);
     gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       number_of_beads,

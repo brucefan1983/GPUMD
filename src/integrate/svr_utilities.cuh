@@ -101,7 +101,7 @@ static double resamplekin_sumnoises(int nn, std::mt19937& rng)
   }
 }
 
-static double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
+static inline double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
 {
   /*
     kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
