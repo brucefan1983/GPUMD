@@ -938,18 +938,20 @@ void Integrate::parse_ensemble(
     // Optional Eco frequencies are selected by appending
     // "eco omega_max_cm1" to an existing PIMD command.
     if (type == 33) {
+      if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
+        use_eco_pimd = true;
+        pimd_num_param = num_param - 2;
+        if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
+          PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
+        }
+      }
       if (use_scr_barostat) {
         if (pimd_num_param != 9 && pimd_num_param != 13 && pimd_num_param != 19) {
-          PRINT_INPUT_ERROR("ensemble pimd_scr should have 7, 11, or 17 parameters.");
+          PRINT_INPUT_ERROR(
+            "ensemble pimd_scr should have 7, 11, or 17 parameters, optionally followed by "
+            "eco omega_max_cm1.");
         }
       } else {
-        if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
-          use_eco_pimd = true;
-          pimd_num_param = num_param - 2;
-          if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
-            PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
-          }
-        }
         if (
           pimd_num_param != 6 && pimd_num_param != 9 && pimd_num_param != 13 &&
           pimd_num_param != 19) {
@@ -957,9 +959,9 @@ void Integrate::parse_ensemble(
             "ensemble pimd should have 4, 7, 11, or 17 parameters, optionally followed by "
             "eco omega_max_cm1.");
         }
-        if (use_eco_pimd && eco_omega_max_cm1 <= 0.0) {
-          PRINT_INPUT_ERROR("Eco-PIMD omega_max should > 0.");
-        }
+      }
+      if (use_eco_pimd && eco_omega_max_cm1 <= 0.0) {
+        PRINT_INPUT_ERROR("Eco-PIMD omega_max should > 0.");
       }
     }
 
