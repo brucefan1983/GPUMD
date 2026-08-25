@@ -65,7 +65,6 @@ public:
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo);
-  void parse_deform(const char**, int);
   void parse_fix(const char**, int, std::vector<Group>& group);
   void parse_move(const char**, int, std::vector<Group>& group);
 
@@ -97,7 +96,6 @@ public:
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;
-  double deform_rate[3];
   
   // Dynamic arrays for multiple thermostats
   std::vector<int> heat_thermostat;  // Thermostat types (0=NHC, 1=Langevin)

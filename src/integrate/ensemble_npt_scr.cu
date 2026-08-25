@@ -46,8 +46,7 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   double pressure_coupling_input[6],
   int deform_x_input,
   int deform_y_input,
-  int deform_z_input,
-  double deform_rate_input[3])
+  int deform_z_input)
 {
   type = type_input;
   temperature = temperature_input;
@@ -61,9 +60,6 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   deform_x = deform_x_input;
   deform_y = deform_y_input;
   deform_z = deform_z_input;
-  deform_rate[0] = deform_rate_input[0];
-  deform_rate[1] = deform_rate_input[1];
-  deform_rate[2] = deform_rate_input[2];
 
   initialize_rng();
 }
@@ -78,7 +74,6 @@ static void cpu_pressure_orthogonal(
   int deform_x,
   int deform_y,
   int deform_z,
-  double deform_rate[3],
   Box& box,
   double target_temperature,
   double* p0,
@@ -91,9 +86,7 @@ static void cpu_pressure_orthogonal(
   const double volume = box.get_volume();
 
   if (deform_x) {
-    scale_factor[0] = box.cpu_h[0];
-    scale_factor[0] = (scale_factor[0] + deform_rate[0]) / scale_factor[0];
-    box.cpu_h[0] *= scale_factor[0];
+    scale_factor[0] = 1.0;
   } else if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     const double scale_factor_stochastic =
@@ -105,9 +98,7 @@ static void cpu_pressure_orthogonal(
   }
 
   if (deform_y) {
-    scale_factor[1] = box.cpu_h[4];
-    scale_factor[1] = (scale_factor[1] + deform_rate[1]) / scale_factor[1];
-    box.cpu_h[4] *= scale_factor[1];
+    scale_factor[1] = 1.0;
   } else if (box.pbc_y == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     const double scale_factor_stochastic =
@@ -119,9 +110,7 @@ static void cpu_pressure_orthogonal(
   }
 
   if (deform_z) {
-    scale_factor[2] = box.cpu_h[8];
-    scale_factor[2] = (scale_factor[2] + deform_rate[2]) / scale_factor[2];
-    box.cpu_h[8] *= scale_factor[2];
+    scale_factor[2] = 1.0;
   } else if (box.pbc_z == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     const double scale_factor_stochastic =
@@ -282,7 +271,6 @@ void Ensemble_NPT_SCR::compute2(
       deform_x,
       deform_y,
       deform_z,
-      deform_rate,
       box,
       temperature,
       target_pressure,

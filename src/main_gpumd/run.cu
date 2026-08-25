@@ -34,6 +34,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/compute_dpdt.cuh"
 #include "measure/compute_es.cuh"
 #include "measure/dos.cuh"
+#include "measure/deform.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
 #include "measure/dump_netcdf.cuh"
@@ -545,7 +546,13 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "deform") == 0) {
-    integrate.parse_deform(param, num_param);
+    Deform* deform = new Deform(param, num_param);
+    integrate.deform_x = deform->get_deform_x();
+    integrate.deform_y = deform->get_deform_y();
+    integrate.deform_z = deform->get_deform_z();
+    std::unique_ptr<Property> property;
+    property.reset(deform);
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_chunk") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new ComputeChunk(param, num_param, box));

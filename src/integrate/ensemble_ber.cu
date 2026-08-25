@@ -43,8 +43,7 @@ Ensemble_BER::Ensemble_BER(
   double pc[6],
   int dx,
   int dy,
-  int dz,
-  double rate[3])
+  int dz)
 {
   type = t;
   temperature = T;
@@ -57,9 +56,6 @@ Ensemble_BER::Ensemble_BER(
   deform_x = dx;
   deform_y = dy;
   deform_z = dz;
-  deform_rate[0] = rate[0];
-  deform_rate[1] = rate[1];
-  deform_rate[2] = rate[2];
 }
 
 Ensemble_BER::~Ensemble_BER(void)
@@ -89,7 +85,6 @@ static void cpu_pressure_orthogonal(
   int deform_x,
   int deform_y,
   int deform_z,
-  double deform_rate[3],
   Box& box,
   double* p0,
   double* p_coupling,
@@ -100,9 +95,7 @@ static void cpu_pressure_orthogonal(
   CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
 
   if (deform_x) {
-    scale_factor[0] = box.cpu_h[0];
-    scale_factor[0] = (scale_factor[0] + deform_rate[0]) / scale_factor[0];
-    box.cpu_h[0] *= scale_factor[0];
+    scale_factor[0] = 1.0;
   } else if (box.pbc_x == 1) {
     scale_factor[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     box.cpu_h[0] *= scale_factor[0];
@@ -111,9 +104,7 @@ static void cpu_pressure_orthogonal(
   }
 
   if (deform_y) {
-    scale_factor[1] = box.cpu_h[4];
-    scale_factor[1] = (scale_factor[1] + deform_rate[1]) / scale_factor[1];
-    box.cpu_h[4] *= scale_factor[1];
+    scale_factor[1] = 1.0;
   } else if (box.pbc_y == 1) {
     scale_factor[1] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     box.cpu_h[4] *= scale_factor[1];
@@ -122,9 +113,7 @@ static void cpu_pressure_orthogonal(
   }
 
   if (deform_z) {
-    scale_factor[2] = box.cpu_h[8];
-    scale_factor[2] = (scale_factor[2] + deform_rate[2]) / scale_factor[2];
-    box.cpu_h[8] *= scale_factor[2];
+    scale_factor[2] = 1.0;
   } else if (box.pbc_z == 1) {
     scale_factor[2] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     box.cpu_h[8] *= scale_factor[2];
@@ -248,7 +237,6 @@ void Ensemble_BER::compute2(
         deform_x,
         deform_y,
         deform_z,
-        deform_rate,
         box,
         target_pressure,
         pressure_coupling,
