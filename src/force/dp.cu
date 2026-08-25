@@ -760,7 +760,8 @@ void DP::compute(
     const bool mic_valid = (box.pbc_x == 0 || thickness_x > 2.0 * neighbor_rc) &&
                            (box.pbc_y == 0 || thickness_y > 2.0 * neighbor_rc) &&
                            (box.pbc_z == 0 || thickness_z > 2.0 * neighbor_rc);
-    if (mic_valid && deep_pot.supports_device_edge_inference()) {
+    if (mic_valid && deep_pot.supports_device_edge_inference() &&
+        !deep_pot.uses_canonical_graph_inference()) {
       compute_gpu_edges(
         box, type, position_per_atom, potential_per_atom, force_per_atom,
         virial_per_atom);
