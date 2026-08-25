@@ -178,9 +178,9 @@ static void cpu_pressure_triclinic(
   mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
   mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
   double p_coupling_3by3[3][3] = {
-    {p_coupling[0], p_coupling[3], p_coupling[4]},
-    {p_coupling[3], p_coupling[1], p_coupling[5]},
-    {p_coupling[4], p_coupling[5], p_coupling[2]}};
+    {p_coupling[0], p_coupling[5], p_coupling[4]},
+    {p_coupling[5], p_coupling[1], p_coupling[3]},
+    {p_coupling[4], p_coupling[3], p_coupling[2]}};
   const double volume = box.get_volume();
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
