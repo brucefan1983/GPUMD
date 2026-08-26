@@ -41,7 +41,9 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force) = 0;
+    Force& force)
+  {
+  }
 
   virtual void process(
       const int number_of_steps,
@@ -55,7 +57,9 @@ public:
       std::vector<Group>& group,
       GPU_Vector<double>& thermo,
       Atom& atom,
-      Force& force) = 0;
+      Force& force)
+  {
+  }
 
   virtual void process_dynamics(
     const int md_step,
@@ -103,5 +107,7 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature) = 0;
+    const double temperature)
+  {
+  }
 };
