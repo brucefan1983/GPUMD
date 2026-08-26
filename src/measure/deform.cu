@@ -354,29 +354,3 @@ void Deform::post_integrate1(
     atom.position_per_atom.data() + number_of_atoms * 2);
   GPU_CHECK_KERNEL
 }
-
-void Deform::process(
-  const int number_of_steps,
-  int step,
-  const int fixed_group,
-  const int move_group,
-  const double global_time,
-  const double temperature,
-  Integrate& integrate,
-  Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo,
-  Atom& atom,
-  Force& force)
-{
-}
-
-void Deform::postprocess(
-  Atom& atom,
-  Box& box,
-  Integrate& integrate,
-  const int number_of_steps,
-  const double time_step,
-  const double temperature)
-{
-}
