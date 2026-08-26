@@ -22,6 +22,7 @@ Deform the simulation box during a run.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 
 static __global__ void gpu_deform_atom(
   int N,
@@ -59,6 +60,17 @@ void Deform::parse(const char** param, int num_param)
 {
   printf("Deform the box.\n");
 
+  double value;
+  if (num_param > 1 && is_valid_real(param[1], &value)) {
+    use_legacy_format_ = true;
+    parse_legacy(param, num_param);
+  } else {
+    parse_general(param, num_param);
+  }
+}
+
+void Deform::parse_legacy(const char** param, int num_param)
+{
   if (num_param != 5 && num_param != 7) {
     PRINT_INPUT_ERROR("Keyword 'deform' should have 4 or 6 parameters.");
   }
@@ -87,40 +99,74 @@ void Deform::parse(const char** param, int num_param)
       deform_rate_[2]);
   }
 
-  if (!is_valid_int(param[2 + offset], &deform_x_)) {
+  if (!is_valid_int(param[2 + offset], &deform_component_[0])) {
     PRINT_INPUT_ERROR("deform_x should be integer.\n");
   }
-  if (!is_valid_int(param[3 + offset], &deform_y_)) {
+  if (!is_valid_int(param[3 + offset], &deform_component_[1])) {
     PRINT_INPUT_ERROR("deform_y should be integer.\n");
   }
-  if (!is_valid_int(param[4 + offset], &deform_z_)) {
+  if (!is_valid_int(param[4 + offset], &deform_component_[2])) {
     PRINT_INPUT_ERROR("deform_z should be integer.\n");
   }
 
-  if (deform_x_) {
+  if (deform_component_[0]) {
     printf("    apply strain in x direction.\n");
   }
-  if (deform_y_) {
+  if (deform_component_[1]) {
     printf("    apply strain in y direction.\n");
   }
-  if (deform_z_) {
+  if (deform_component_[2]) {
     printf("    apply strain in z direction.\n");
+  }
+}
+
+void Deform::parse_general(const char** param, int num_param)
+{
+  if (num_param < 3 || num_param > 13 || num_param % 2 == 0) {
+    PRINT_INPUT_ERROR(
+      "The general form of keyword 'deform' should contain component-rate pairs.");
+  }
+
+  const char* component_name[6] = {"xx", "yy", "zz", "xy", "xz", "yz"};
+
+  for (int n = 1; n < num_param; n += 2) {
+    int component = -1;
+    for (int d = 0; d < 6; ++d) {
+      if (strcmp(param[n], component_name[d]) == 0) {
+        component = d;
+        break;
+      }
+    }
+
+    if (component < 0) {
+      PRINT_INPUT_ERROR("Deform component should be xx, yy, zz, xy, xz, or yz.");
+    }
+    if (deform_component_[component]) {
+      PRINT_INPUT_ERROR("The same deform component cannot be specified more than once.");
+    }
+    if (!is_valid_real(param[n + 1], &deform_rate_[component])) {
+      PRINT_INPUT_ERROR("Deform rate should be a number.");
+    }
+
+    deform_component_[component] = 1;
+    printf(
+      "    deform %s at %g A / step.\n", component_name[component], deform_rate_[component]);
   }
 }
 
 int Deform::get_deform_x() const
 {
-  return deform_x_;
+  return deform_component_[0];
 }
 
 int Deform::get_deform_y() const
 {
-  return deform_y_;
+  return deform_component_[1];
 }
 
 int Deform::get_deform_z() const
 {
-  return deform_z_;
+  return deform_component_[2];
 }
 
 void Deform::preprocess(
@@ -133,9 +179,6 @@ void Deform::preprocess(
   Force& force)
 {
   box.set_is_orthogonal();
-  if (!box.is_orthogonal) {
-    PRINT_INPUT_ERROR("The current deform implementation only supports orthogonal boxes.");
-  }
 
   if (
     !(integrate.type >= 0 && integrate.type <= 6) && integrate.type != 11 &&
@@ -144,9 +187,40 @@ void Deform::preprocess(
       "The current deform implementation only supports NVE, standard NVT, NPT-Berendsen, and NPT-SCR ensembles.");
   }
 
-  if ((integrate.type == 11 || integrate.type == 12) && integrate.num_target_pressure_components != 3) {
-    PRINT_INPUT_ERROR(
-      "The current deform implementation can only be combined with orthogonal NPT pressure control.");
+  if (deform_component_[0] && box.pbc_x != 1) {
+    PRINT_INPUT_ERROR("The x direction must be periodic for xx deformation.");
+  }
+  if (deform_component_[1] && box.pbc_y != 1) {
+    PRINT_INPUT_ERROR("The y direction must be periodic for yy deformation.");
+  }
+  if (deform_component_[2] && box.pbc_z != 1) {
+    PRINT_INPUT_ERROR("The z direction must be periodic for zz deformation.");
+  }
+  if (deform_component_[3] && (box.pbc_x != 1 || box.pbc_y != 1)) {
+    PRINT_INPUT_ERROR("The x and y directions must be periodic for xy deformation.");
+  }
+  if (deform_component_[4] && (box.pbc_x != 1 || box.pbc_z != 1)) {
+    PRINT_INPUT_ERROR("The x and z directions must be periodic for xz deformation.");
+  }
+  if (deform_component_[5] && (box.pbc_y != 1 || box.pbc_z != 1)) {
+    PRINT_INPUT_ERROR("The y and z directions must be periodic for yz deformation.");
+  }
+
+  if (use_legacy_format_ && !box.is_orthogonal) {
+    PRINT_INPUT_ERROR("The legacy deform format only supports orthogonal boxes.");
+  }
+
+  if (integrate.type == 11 || integrate.type == 12) {
+    if (deform_component_[3] || deform_component_[4] || deform_component_[5]) {
+      PRINT_INPUT_ERROR("Shear deformation cannot currently be combined with NPT ensembles.");
+    }
+    if (!box.is_orthogonal) {
+      PRINT_INPUT_ERROR("Deformation with NPT currently requires an orthogonal box.");
+    }
+    if (integrate.num_target_pressure_components != 3) {
+      PRINT_INPUT_ERROR(
+        "The current deform implementation can only be combined with orthogonal NPT pressure control.");
+    }
   }
 }
 
@@ -159,36 +233,89 @@ void Deform::post_integrate1(
   Box& box,
   Force& force)
 {
-  double deformation_matrix[3][3] = {0.0};
-  deformation_matrix[0][0] = 1.0;
-  deformation_matrix[1][1] = 1.0;
-  deformation_matrix[2][2] = 1.0;
+  const bool has_shear = deform_component_[3] || deform_component_[4] || deform_component_[5];
 
-  if (deform_x_) {
-    deformation_matrix[0][0] = (box.cpu_h[0] + deform_rate_[0]) / box.cpu_h[0];
-  }
-  if (deform_y_) {
-    deformation_matrix[1][1] = (box.cpu_h[4] + deform_rate_[1]) / box.cpu_h[4];
-  }
-  if (deform_z_) {
-    deformation_matrix[2][2] = (box.cpu_h[8] + deform_rate_[2]) / box.cpu_h[8];
-  }
+  if (box.is_orthogonal && !has_shear) {
+    double deformation_matrix[3][3] = {0.0};
+    deformation_matrix[0][0] = 1.0;
+    deformation_matrix[1][1] = 1.0;
+    deformation_matrix[2][2] = 1.0;
 
-  double h_old[9];
-  for (int i = 0; i < 9; ++i) {
-    h_old[i] = box.cpu_h[i];
-  }
+    if (deform_component_[0]) {
+      deformation_matrix[0][0] = (box.cpu_h[0] + deform_rate_[0]) / box.cpu_h[0];
+    }
+    if (deform_component_[1]) {
+      deformation_matrix[1][1] = (box.cpu_h[4] + deform_rate_[1]) / box.cpu_h[4];
+    }
+    if (deform_component_[2]) {
+      deformation_matrix[2][2] = (box.cpu_h[8] + deform_rate_[2]) / box.cpu_h[8];
+    }
 
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      double tmp = 0.0;
-      for (int k = 0; k < 3; ++k) {
-        tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+    double h_old[9];
+    for (int i = 0; i < 9; ++i) {
+      h_old[i] = box.cpu_h[i];
+    }
+
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        double tmp = 0.0;
+        for (int k = 0; k < 3; ++k) {
+          tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+        }
+        box.cpu_h[r * 3 + c] = tmp;
       }
-      box.cpu_h[r * 3 + c] = tmp;
+    }
+    box.get_inverse();
+
+    const int number_of_atoms = atom.number_of_atoms;
+    gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms,
+      deformation_matrix[0][0],
+      deformation_matrix[0][1],
+      deformation_matrix[0][2],
+      deformation_matrix[1][0],
+      deformation_matrix[1][1],
+      deformation_matrix[1][2],
+      deformation_matrix[2][0],
+      deformation_matrix[2][1],
+      deformation_matrix[2][2],
+      atom.position_per_atom.data(),
+      atom.position_per_atom.data() + number_of_atoms,
+      atom.position_per_atom.data() + number_of_atoms * 2);
+    GPU_CHECK_KERNEL
+    return;
+  }
+
+  box.get_inverse();
+
+  double h_old_inverse[9];
+  double h_new[9];
+  for (int i = 0; i < 9; ++i) {
+    h_old_inverse[i] = box.cpu_h[i + 9];
+    h_new[i] = box.cpu_h[i];
+  }
+
+  const int h_index[6] = {0, 4, 8, 1, 2, 5};
+  for (int d = 0; d < 6; ++d) {
+    if (deform_component_[d]) {
+      h_new[h_index[d]] += deform_rate_[d];
     }
   }
+
+  double deformation_matrix[3][3] = {0.0};
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      for (int k = 0; k < 3; ++k) {
+        deformation_matrix[r][c] += h_new[r * 3 + k] * h_old_inverse[k * 3 + c];
+      }
+    }
+  }
+
+  for (int i = 0; i < 9; ++i) {
+    box.cpu_h[i] = h_new[i];
+  }
   box.get_inverse();
+  box.set_is_orthogonal();
 
   const int number_of_atoms = atom.number_of_atoms;
   gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(

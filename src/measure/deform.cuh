@@ -67,9 +67,10 @@ public:
 
 private:
   void parse(const char** param, int num_param);
+  void parse_legacy(const char** param, int num_param);
+  void parse_general(const char** param, int num_param);
 
-  int deform_x_ = 0;
-  int deform_y_ = 0;
-  int deform_z_ = 0;
-  double deform_rate_[3] = {0.0, 0.0, 0.0};
+  bool use_legacy_format_ = false;
+  int deform_component_[6] = {0, 0, 0, 0, 0, 0};
+  double deform_rate_[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 };
