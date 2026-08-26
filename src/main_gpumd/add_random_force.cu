@@ -115,6 +115,29 @@ gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* 
   }
 }
 
+void Add_Random_Force::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>&,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  compute(step, atom);
+}
+
+void Add_Random_Force::postprocess(
+  Atom&,
+  Box&,
+  Integrate&,
+  const int,
+  const double,
+  const double)
+{
+  finalize();
+}
+
 void Add_Random_Force::compute(const int step, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {

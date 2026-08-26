@@ -170,6 +170,12 @@ Run::Run()
   fflush(stdout);
   print_line_2();
 
+  actions.add_persistent_action(&electron_stop);
+  actions.add_persistent_action(&add_force);
+  actions.add_persistent_action(&add_spring);
+  actions.add_persistent_action(&add_random_force);
+  actions.add_persistent_action(&add_efield);
+
   execute_run_in();
 }
 
@@ -294,11 +300,6 @@ void Run::perform_a_run()
 
     atom.update_unwrapped_position(box);
     actions.post_force(step, time_step, integrate, group, atom, box, force);
-    electron_stop.compute(time_step, atom);
-    add_force.compute(step, group, atom);
-    add_spring.compute(step, group, atom);
-    add_random_force.compute(step, atom);
-    add_efield.compute(step, group, atom, force);
 
     actions.process_dynamics(step + 1, box, atom);
 
@@ -340,11 +341,6 @@ void Run::perform_a_run()
 
   actions.finalize(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
-  electron_stop.finalize();
-  add_force.finalize();
-  add_spring.finalize();
-  add_random_force.finalize();
-  add_efield.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -570,14 +566,19 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
+    actions.add_post_force_action(&electron_stop);
   } else if (strcmp(param[0], "add_random_force") == 0) {
     add_random_force.parse(param, num_param, atom.number_of_atoms);
+    actions.add_post_force_action(&add_random_force);
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
+    actions.add_post_force_action(&add_force);
   } else if (strcmp(param[0], "add_spring") == 0) {
     add_spring.parse(param, num_param, group, atom);
+    actions.add_post_force_action(&add_spring);
   } else if (strcmp(param[0], "add_efield") == 0) {
     add_efield.parse(param, num_param, group);
+    actions.add_post_force_action(&add_efield);
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "kspace") == 0) {

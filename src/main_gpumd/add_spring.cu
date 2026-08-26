@@ -858,6 +858,29 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
   ++num_calls_;
 }
 
+void Add_Spring::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  compute(step, group, atom);
+}
+
+void Add_Spring::postprocess(
+  Atom&,
+  Box&,
+  Integrate&,
+  const int,
+  const double,
+  const double)
+{
+  finalize();
+}
+
 void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom& atom)
 {
   for (int c = 0; c < num_calls_; ++c) {

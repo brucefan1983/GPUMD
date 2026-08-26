@@ -15,14 +15,33 @@
 
 #pragma once
 
+#include "measure/property.cuh"
+
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
 class Atom;
 
-class Electron_Stop
+class Electron_Stop : public Action
 {
 public:
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature) override;
+
   bool do_electron_stop = false;
   double stopping_power_loss = 0.0;
   void parse(const char** param, int num_param, const int num_atoms, const int num_types);

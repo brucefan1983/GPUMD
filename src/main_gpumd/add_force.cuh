@@ -15,14 +15,33 @@
 
 #pragma once
 
+#include "measure/property.cuh"
+
 #include <vector>
 
 class Atom;
 class Group;
 
-class Add_Force
+class Add_Force : public Action
 {
 public:
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature) override;
+
   void parse(const char** param, int num_param, const std::vector<Group>& group);
   void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();

@@ -14,6 +14,8 @@
 */
 
 #pragma once
+
+#include "measure/property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
@@ -24,9 +26,26 @@
 
 class Atom;
 
-class Add_Random_Force
+class Add_Random_Force : public Action
 {
 public:
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
+  virtual void postprocess(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature) override;
+
   void parse(const char** param, int num_param, int number_of_atoms);
   void compute(const int step, Atom& atom);
   void finalize();

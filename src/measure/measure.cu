@@ -23,6 +23,21 @@ The driver class dealing with measurement.
 #include <string>
 #include <vector>
 
+void Actions::add_persistent_action(Action* action)
+{
+  persistent_actions.emplace_back(action);
+}
+
+void Actions::add_post_force_action(Action* action)
+{
+  for (Action* post_force_action : post_force_actions) {
+    if (post_force_action == action) {
+      return;
+    }
+  }
+  post_force_actions.emplace_back(action);
+}
+
 void Actions::initialize(
   const int number_of_steps,
   const double time_step,
@@ -85,7 +100,18 @@ void Actions::finalize(
       temperature);
   }
 
+  for (Action* action : persistent_actions) {
+    action->postprocess(
+      atom,
+      box,
+      integrate,
+      number_of_steps,
+      time_step,
+      temperature);
+  }
+
   properties.clear();
+  post_force_actions.clear();
 }
 
 void Actions::process(
@@ -154,6 +180,9 @@ void Actions::post_force(
 {
   for (auto& prop : properties) {
     prop->post_force(step, time_step, integrate, group, atom, box, force);
+  }
+  for (Action* action : post_force_actions) {
+    action->post_force(step, time_step, integrate, group, atom, box, force);
   }
 }
 

@@ -83,6 +83,29 @@ static void __global__ add_efield_bec(
   }
 }
 
+void Add_Efield::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force& force)
+{
+  compute(step, group, atom, force);
+}
+
+void Add_Efield::postprocess(
+  Atom&,
+  Box&,
+  Integrate&,
+  const int,
+  const double,
+  const double)
+{
+  finalize();
+}
+
 void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom& atom, Force& force)
 {
   for (int call = 0; call < num_calls_; ++call) {

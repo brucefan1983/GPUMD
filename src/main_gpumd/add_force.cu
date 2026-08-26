@@ -46,6 +46,29 @@ static void __global__ add_force(
   }
 }
 
+void Add_Force::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  compute(step, group, atom);
+}
+
+void Add_Force::postprocess(
+  Atom&,
+  Box&,
+  Integrate&,
+  const int,
+  const double,
+  const double)
+{
+  finalize();
+}
+
 void Add_Force::compute(const int step, const std::vector<Group>& groups, Atom& atom)
 {
   for (int call = 0; call < num_calls_; ++call) {

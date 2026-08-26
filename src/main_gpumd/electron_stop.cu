@@ -154,6 +154,29 @@ static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
   }
 }
 
+void Electron_Stop::post_force(
+  const int,
+  const double time_step,
+  Integrate&,
+  std::vector<Group>&,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  compute(time_step, atom);
+}
+
+void Electron_Stop::postprocess(
+  Atom&,
+  Box&,
+  Integrate&,
+  const int,
+  const double,
+  const double)
+{
+  finalize();
+}
+
 void Electron_Stop::compute(double time_step, Atom& atom)
 {
   if (!do_electron_stop) {

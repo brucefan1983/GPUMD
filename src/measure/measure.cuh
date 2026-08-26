@@ -28,6 +28,9 @@ class Ensemble;
 class Actions
 {
 public:
+  void add_persistent_action(Action* action);
+  void add_post_force_action(Action* action);
+
   void initialize(
     const int number_of_steps,
     const double time_step,
@@ -92,4 +95,8 @@ public:
     Force& force);
 
   std::vector<std::unique_ptr<Action>> properties;
+
+private:
+  std::vector<Action*> persistent_actions;
+  std::vector<Action*> post_force_actions;
 };
