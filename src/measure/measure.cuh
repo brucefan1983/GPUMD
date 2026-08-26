@@ -25,7 +25,7 @@ class Force;
 class Group;
 class Integrate;
 class Ensemble;
-class Measure
+class Actions
 {
 public:
   void initialize(
@@ -91,5 +91,5 @@ public:
     Box& box,
     Force& force);
 
-  std::vector<std::unique_ptr<Property>> properties;
+  std::vector<std::unique_ptr<Action>> properties;
 };

@@ -19,7 +19,7 @@
 #include "force/ewald.cuh"
 #include "force/pppm.cuh"
 
-class Compute_es : public Property
+class Compute_es : public Action
 {
 public:
   Compute_es(const char**, int);

@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <vector>
 
-class PLUMED : public Property
+class PLUMED : public Action
 {
 public:
   int step = 0;

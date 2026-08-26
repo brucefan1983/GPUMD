@@ -23,7 +23,7 @@ class Box;
 class Atom;
 class Group;
 
-class Dump_XYZ : public Property
+class Dump_XYZ : public Action
 {
 public:
   Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);

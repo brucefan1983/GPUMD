@@ -25,7 +25,7 @@ class Atom;
 class Box;
 class Group;
 
-class DUMP_NETCDF : public Property
+class DUMP_NETCDF : public Action
 {
 public:
   DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);

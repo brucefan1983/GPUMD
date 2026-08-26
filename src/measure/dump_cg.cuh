@@ -21,7 +21,7 @@
 class Box;
 class Atom;
 
-class Dump_CG : public Property
+class Dump_CG : public Action
 {
 public:
   Dump_CG(const char** param, int num_param, std::vector<Group>& group);

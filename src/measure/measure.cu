@@ -23,7 +23,7 @@ The driver class dealing with measurement.
 #include <string>
 #include <vector>
 
-void Measure::initialize(
+void Actions::initialize(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -66,7 +66,7 @@ void Measure::initialize(
   }
 }
 
-void Measure::finalize(
+void Actions::finalize(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -88,7 +88,7 @@ void Measure::finalize(
   properties.clear();
 }
 
-void Measure::process(
+void Actions::process(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -119,7 +119,7 @@ void Measure::process(
   }
 }
 
-void Measure::process_dynamics(
+void Actions::process_dynamics(
   const int md_step,
   Box& box,
   Atom& atom)
@@ -129,7 +129,7 @@ void Measure::process_dynamics(
   }
 }
 
-void Measure::post_integrate1(
+void Actions::post_integrate1(
   const int step,
   const double time_step,
   Integrate& integrate,
@@ -143,7 +143,7 @@ void Measure::post_integrate1(
   }
 }
 
-void Measure::post_force(
+void Actions::post_force(
   const int step,
   const double time_step,
   Integrate& integrate,
@@ -157,7 +157,7 @@ void Measure::post_force(
   }
 }
 
-void Measure::post_integrate2(
+void Actions::post_integrate2(
   const int step,
   const double time_step,
   Integrate& integrate,

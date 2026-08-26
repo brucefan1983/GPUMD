@@ -17,7 +17,7 @@
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HNEMD : public Property
+class HNEMD : public Action
 {
 public:
   int compute = 0;

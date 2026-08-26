@@ -24,7 +24,7 @@
 class Group;
 class Atom;
 
-class AngularRDF : public Property
+class AngularRDF : public Action
 {
 public:
   bool compute_ = false;

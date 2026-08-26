@@ -17,7 +17,7 @@
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class Viscosity : public Property
+class Viscosity : public Action
 {
 public:
   int compute = 0;

@@ -17,12 +17,12 @@
 #include <cstring>
 
 
-Property::Property(void)
+Action::Action(void)
 {
   // nothing now
 }
   
-Property::~Property(void)
+Action::~Action(void)
 {
   // nothing now
 }

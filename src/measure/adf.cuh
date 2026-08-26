@@ -22,7 +22,7 @@
 class Group;
 class Atom;
 
-class ADF : public Property
+class ADF : public Action
 {
 
 public:

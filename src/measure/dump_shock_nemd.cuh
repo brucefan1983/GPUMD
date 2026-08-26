@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-class Dump_Shock_NEMD : public Property
+class Dump_Shock_NEMD : public Action
 {
 public:
   Dump_Shock_NEMD(const char** param, int num_param);

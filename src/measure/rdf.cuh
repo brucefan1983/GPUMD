@@ -21,7 +21,7 @@
 class Group;
 class Atom;
 
-class RDF : public Property
+class RDF : public Action
 {
 
 public:

@@ -17,7 +17,7 @@
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HAC : public Property
+class HAC : public Action
 {
 public:
   HAC(const char**, int);

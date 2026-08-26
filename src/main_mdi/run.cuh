@@ -17,7 +17,7 @@
 
 class Force;
 class Integrate;
-class Measure;
+class Actions;
 
 #include "add_efield.cuh"
 #include "add_force.cuh"
@@ -97,7 +97,7 @@ private:
   Force force;
   Integrate integrate;
   MC mc;
-  Measure measure;
+  Actions actions;
   Electron_Stop electron_stop;
   Add_Force add_force;
   Add_Spring add_spring;

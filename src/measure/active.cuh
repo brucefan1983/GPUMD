@@ -23,7 +23,7 @@ class Atom;
 class Group;
 class Force;
 
-class Active : public Property
+class Active : public Action
 {
 public:
   Active(const char** param, int num_param);

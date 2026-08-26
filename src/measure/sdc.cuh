@@ -19,7 +19,7 @@
 #include <vector>
 class Group;
 
-class SDC : public Property
+class SDC : public Action
 {
 public:
   bool compute_ = false;

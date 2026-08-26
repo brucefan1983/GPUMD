@@ -21,7 +21,7 @@
 class Box;
 class Atom;
 
-class Dump_Beads : public Property
+class Dump_Beads : public Action
 {
 public:
   Dump_Beads(const char** param, int num_param);

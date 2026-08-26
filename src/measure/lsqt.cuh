@@ -26,7 +26,7 @@ class Box;
 #define number_of_orbitals_per_atom 4
 #endif
 
-class LSQT : public Property
+class LSQT : public Action
 {
 public:
 #ifndef USE_GRAPHENE_TB

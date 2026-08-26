@@ -20,7 +20,7 @@
 class Group;
 class Atom;
 
-class IC : public Property
+class IC : public Action
 {
 public:
   bool compute_ = false;

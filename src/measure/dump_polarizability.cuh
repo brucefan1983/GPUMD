@@ -27,7 +27,7 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Polarizability : public Property
+class Dump_Polarizability : public Action
 {
 public:
   Dump_Polarizability(const char** param, int num_param);

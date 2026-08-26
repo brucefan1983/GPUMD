@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-class ComputeChunk : public Property
+class ComputeChunk : public Action
 {
 public:
   ComputeChunk(const char** param, int num_param, Box& box);

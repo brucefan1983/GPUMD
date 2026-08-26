@@ -27,7 +27,7 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Observer : public Property
+class Dump_Observer : public Action
 {
 public:
   Dump_Observer(const char** param, int num_param);

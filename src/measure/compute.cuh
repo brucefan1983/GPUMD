@@ -19,7 +19,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Compute : public Property
+class Compute : public Action
 {
 public:
   int compute_temperature = 0;

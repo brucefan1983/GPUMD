@@ -25,12 +25,12 @@ class Integrate;
 class Atom;
 class Force;
 
-class Property
+class Action
 {
 public:
 
-  Property(void);
-  virtual ~Property(void);
+  Action(void);
+  virtual ~Action(void);
 
   std::string property_name = "";
 

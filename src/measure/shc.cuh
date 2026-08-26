@@ -18,7 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 class Group;
 
-class SHC : public Property
+class SHC : public Action
 {
 public:
   int group_num;         // number of groups

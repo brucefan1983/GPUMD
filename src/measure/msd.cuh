@@ -20,7 +20,7 @@
 class Group;
 class Atom;
 
-class MSD : public Property
+class MSD : public Action
 {
 public:
   bool compute_ = false;

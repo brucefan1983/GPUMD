@@ -36,7 +36,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #define GKMA_METHOD 0
 #define HNEMA_METHOD 1
 
-class MODAL_ANALYSIS : public Property
+class MODAL_ANALYSIS : public Action
 {
 public:
   // Bookkeeping variables

@@ -17,7 +17,7 @@
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class Compute_dpdt : public Property
+class Compute_dpdt : public Action
 {
 public:
   Compute_dpdt(const char**, int);

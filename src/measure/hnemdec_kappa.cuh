@@ -17,7 +17,7 @@
 #include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HNEMDEC : public Property
+class HNEMDEC : public Action
 {
 public:
   int compute = -1; // 0 for heat flow algorithm, i(0<i<number_of_types+1) means producing (i-1)th

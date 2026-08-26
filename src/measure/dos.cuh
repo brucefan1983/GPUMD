@@ -19,7 +19,7 @@
 #include <vector>
 class Group;
 
-class DOS : public Property
+class DOS : public Action
 {
 public:
   bool compute_ = false;

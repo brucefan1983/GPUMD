@@ -16,7 +16,7 @@
 #pragma once
 #include "property.cuh"
 
-class Deform : public Property
+class Deform : public Action
 {
 public:
   Deform(const char** param, int num_param);

@@ -21,7 +21,7 @@
 class Box;
 class Group;
 
-class Dump_Restart : public Property
+class Dump_Restart : public Action
 {
 public:
   Dump_Restart(const char** param, int num_param);

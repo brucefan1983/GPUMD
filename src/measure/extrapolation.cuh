@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-class Extrapolation : public Property
+class Extrapolation : public Action
 {
 public:
   Extrapolation(const char** params, int num_params);

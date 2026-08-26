@@ -27,7 +27,7 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Dipole : public Property
+class Dump_Dipole : public Action
 {
 public:
   Dump_Dipole(const char** param, int num_param);

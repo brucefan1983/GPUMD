@@ -22,7 +22,7 @@
 class Group;
 class Atom;
 
-class OrientOrder : public Property
+class OrientOrder : public Action
 {
 
 public:

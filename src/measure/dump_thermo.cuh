@@ -18,7 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 class Box;
 
-class Dump_Thermo : public Property
+class Dump_Thermo : public Action
 {
 public:
   void parse(const char** param, int num_param);
