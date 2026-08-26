@@ -32,7 +32,7 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force);
+    Force& force) override;
 
   virtual void process(
     const int number_of_steps,
@@ -46,7 +46,7 @@ public:
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
     Atom& atom,
-    Force& force);
+    Force& force) override;
 
   virtual void post_integrate1(
     const int step,
@@ -55,7 +55,7 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force);
+    Force& force) override;
 
   virtual void postprocess(
     Atom& atom,
@@ -63,7 +63,7 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature);
+    const double temperature) override;
 
 private:
   void parse(const char** param, int num_param);

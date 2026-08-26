@@ -23,20 +23,29 @@ Deform the simulation box during a run.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 
-static __global__ void gpu_deform_orthogonal(
-  const int number_of_atoms,
-  const double scale_factor_x,
-  const double scale_factor_y,
-  const double scale_factor_z,
-  double* x,
-  double* y,
-  double* z)
+static __global__ void gpu_deform_atom(
+  int N,
+  double mu0,
+  double mu1,
+  double mu2,
+  double mu3,
+  double mu4,
+  double mu5,
+  double mu6,
+  double mu7,
+  double mu8,
+  double* g_x,
+  double* g_y,
+  double* g_z)
 {
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_atoms) {
-    x[i] *= scale_factor_x;
-    y[i] *= scale_factor_y;
-    z[i] *= scale_factor_z;
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    double x_old = g_x[i];
+    double y_old = g_y[i];
+    double z_old = g_z[i];
+    g_x[i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
+    g_y[i] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
+    g_z[i] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
   }
 }
 
@@ -55,7 +64,7 @@ void Deform::parse(const char** param, int num_param)
   }
 
   if (!is_valid_real(param[1], &deform_rate_[0])) {
-    PRINT_INPUT_ERROR("Defrom rate should be a number.");
+    PRINT_INPUT_ERROR("Deform rate should be a number.");
   }
 
   int offset = 0;
@@ -66,10 +75,10 @@ void Deform::parse(const char** param, int num_param)
   } else {
     offset = 2;
     if (!is_valid_real(param[2], &deform_rate_[1])) {
-      PRINT_INPUT_ERROR("Defrom rate should be a number.");
+      PRINT_INPUT_ERROR("Deform rate should be a number.");
     }
     if (!is_valid_real(param[3], &deform_rate_[2])) {
-      PRINT_INPUT_ERROR("Defrom rate should be a number.");
+      PRINT_INPUT_ERROR("Deform rate should be a number.");
     }
     printf(
       "    strain rates are (%g, %g, %g) A / step.\n",
@@ -128,7 +137,9 @@ void Deform::preprocess(
     PRINT_INPUT_ERROR("The current deform implementation only supports orthogonal boxes.");
   }
 
-  if (!(integrate.type >= 0 && integrate.type <= 6) && integrate.type != 11 && integrate.type != 12) {
+  if (
+    !(integrate.type >= 0 && integrate.type <= 6) && integrate.type != 11 &&
+    integrate.type != 12) {
     PRINT_INPUT_ERROR(
       "The current deform implementation only supports NVE, standard NVT, NPT-Berendsen, and NPT-SCR ensembles.");
   }
@@ -148,29 +159,49 @@ void Deform::post_integrate1(
   Box& box,
   Force& force)
 {
-  double scale_factor[3] = {1.0, 1.0, 1.0};
+  double deformation_matrix[3][3] = {0.0};
+  deformation_matrix[0][0] = 1.0;
+  deformation_matrix[1][1] = 1.0;
+  deformation_matrix[2][2] = 1.0;
 
   if (deform_x_) {
-    scale_factor[0] = (box.cpu_h[0] + deform_rate_[0]) / box.cpu_h[0];
-    box.cpu_h[0] *= scale_factor[0];
+    deformation_matrix[0][0] = (box.cpu_h[0] + deform_rate_[0]) / box.cpu_h[0];
   }
   if (deform_y_) {
-    scale_factor[1] = (box.cpu_h[4] + deform_rate_[1]) / box.cpu_h[4];
-    box.cpu_h[4] *= scale_factor[1];
+    deformation_matrix[1][1] = (box.cpu_h[4] + deform_rate_[1]) / box.cpu_h[4];
   }
   if (deform_z_) {
-    scale_factor[2] = (box.cpu_h[8] + deform_rate_[2]) / box.cpu_h[8];
-    box.cpu_h[8] *= scale_factor[2];
+    deformation_matrix[2][2] = (box.cpu_h[8] + deform_rate_[2]) / box.cpu_h[8];
   }
 
+  double h_old[9];
+  for (int i = 0; i < 9; ++i) {
+    h_old[i] = box.cpu_h[i];
+  }
+
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      double tmp = 0.0;
+      for (int k = 0; k < 3; ++k) {
+        tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+      }
+      box.cpu_h[r * 3 + c] = tmp;
+    }
+  }
   box.get_inverse();
 
   const int number_of_atoms = atom.number_of_atoms;
-  gpu_deform_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
-    scale_factor[0],
-    scale_factor[1],
-    scale_factor[2],
+    deformation_matrix[0][0],
+    deformation_matrix[0][1],
+    deformation_matrix[0][2],
+    deformation_matrix[1][0],
+    deformation_matrix[1][1],
+    deformation_matrix[1][2],
+    deformation_matrix[2][0],
+    deformation_matrix[2][1],
+    deformation_matrix[2][2],
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
