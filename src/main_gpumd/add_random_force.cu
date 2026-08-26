@@ -115,37 +115,43 @@ gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* 
   }
 }
 
-void Add_Random_Force::compute(const int step, Atom& atom)
+void Add_Random_Force::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
-  for (int call = 0; call < num_calls_; ++call) {
-    add_random_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-      atom.number_of_atoms,
-      force_variance_,
-      curand_states_.data(),
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + atom.number_of_atoms,
-      atom.force_per_atom.data() + atom.number_of_atoms * 2);
-    GPU_CHECK_KERNEL
+  add_random_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    atom.number_of_atoms,
+    force_variance_,
+    curand_states_.data(),
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + atom.number_of_atoms,
+    atom.force_per_atom.data() + atom.number_of_atoms * 2);
+  GPU_CHECK_KERNEL
 
-    gpu_sum_force<<<3, 1024>>>(
-      atom.number_of_atoms,
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + atom.number_of_atoms,
-      atom.force_per_atom.data() + 2 * atom.number_of_atoms);
-    GPU_CHECK_KERNEL
+  gpu_sum_force<<<3, 1024>>>(
+    atom.number_of_atoms,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + atom.number_of_atoms,
+    atom.force_per_atom.data() + 2 * atom.number_of_atoms);
+  GPU_CHECK_KERNEL
 
-    gpu_correct_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-      atom.number_of_atoms,
-      1.0 / atom.number_of_atoms,
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + atom.number_of_atoms,
-      atom.force_per_atom.data() + 2 * atom.number_of_atoms);
-    GPU_CHECK_KERNEL
-  }
+  gpu_correct_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    atom.number_of_atoms,
+    1.0 / atom.number_of_atoms,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + atom.number_of_atoms,
+    atom.force_per_atom.data() + 2 * atom.number_of_atoms);
+  GPU_CHECK_KERNEL
 }
 
-void Add_Random_Force::parse(const char** param, int num_param, int number_of_atoms)
+Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)
 {
+  property_name = "add_random_force";
   printf("Add force.\n");
 
   // check the number of parameters
@@ -161,16 +167,8 @@ void Add_Random_Force::parse(const char** param, int num_param, int number_of_at
     PRINT_INPUT_ERROR("force variance should >= 0.\n");
   }
 
-  ++num_calls_;
-
-  if (num_calls_ > 1) {
-    PRINT_INPUT_ERROR("add_random_force cannot be used more than 1 time in one run.");
-  }
-
   curand_states_.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states_.data(), number_of_atoms, rand());
   GPU_CHECK_KERNEL
 }
-
-void Add_Random_Force::finalize() { num_calls_ = 0; }

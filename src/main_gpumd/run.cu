@@ -293,11 +293,10 @@ void Run::perform_a_run()
     }
 
     atom.update_unwrapped_position(box);
-    measure.post_force(step, time_step, integrate, group, atom, box, force);
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_spring.compute(step, group, atom);
-    add_random_force.compute(step, atom);
+    measure.post_force(step, time_step, integrate, group, atom, box, force);
     add_efield.compute(step, group, atom, force);
 
     measure.process_dynamics(step + 1, box, atom);
@@ -343,7 +342,6 @@ void Run::perform_a_run()
   electron_stop.finalize();
   add_force.finalize();
   add_spring.finalize();
-  add_random_force.finalize();
   add_efield.finalize();
   integrate.finalize();
   mc.finalize();
@@ -571,7 +569,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
   } else if (strcmp(param[0], "add_random_force") == 0) {
-    add_random_force.parse(param, num_param, atom.number_of_atoms);
+    std::unique_ptr<Property> property;
+    property.reset(new Add_Random_Force(param, num_param, atom.number_of_atoms));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "add_force") == 0) {
     add_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "add_spring") == 0) {
