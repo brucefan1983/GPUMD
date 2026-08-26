@@ -87,8 +87,10 @@ public:
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;
-  double deform_rate[3];
-  
+  int deform_xy = 0;
+  int deform_xz = 0;
+  int deform_yz = 0;
+
   double energy_transferred[2]; // energy transferred from system to heat baths
 
   std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths

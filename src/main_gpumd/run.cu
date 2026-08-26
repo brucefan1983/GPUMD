@@ -34,6 +34,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/compute_dpdt.cuh"
 #include "measure/compute_es.cuh"
 #include "measure/dos.cuh"
+#include "measure/deform.cuh"
 #include "measure/dump_beads.cuh"
 #include "measure/dump_dipole.cuh"
 #include "measure/dump_netcdf.cuh"
@@ -260,6 +261,8 @@ void Run::perform_a_run()
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
+    measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
+
     force.temperature += force.delta_T;
 
     if (integrate.type >= 31) { // PIMD
@@ -290,6 +293,7 @@ void Run::perform_a_run()
     }
 
     atom.update_unwrapped_position(box);
+    measure.post_force(step, time_step, integrate, group, atom, box, force);
     electron_stop.compute(time_step, atom);
     add_force.compute(step, group, atom);
     add_spring.compute(step, group, atom);
@@ -299,6 +303,7 @@ void Run::perform_a_run()
     measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    measure.post_integrate2(step, time_step, integrate, group, atom, box, force);
     atom.update_unwrapped_position(box);
 
     mc.compute(step, number_of_steps, atom, box, group);
@@ -541,7 +546,16 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "deform") == 0) {
-    integrate.parse_deform(param, num_param);
+    Deform* deform = new Deform(param, num_param);
+    integrate.deform_x = deform->get_deform_x();
+    integrate.deform_y = deform->get_deform_y();
+    integrate.deform_z = deform->get_deform_z();
+    integrate.deform_xy = deform->get_deform_xy();
+    integrate.deform_xz = deform->get_deform_xz();
+    integrate.deform_yz = deform->get_deform_yz();
+    std::unique_ptr<Property> property;
+    property.reset(deform);
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "compute_chunk") == 0) {
     std::unique_ptr<Property> property;
     property.reset(new ComputeChunk(param, num_param, box));

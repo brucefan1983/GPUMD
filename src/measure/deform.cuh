@@ -14,25 +14,19 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
-#include "model/atom.cuh"
-#include "model/box.cuh"
-#include "model/group.cuh"
-#include <string>
-#include <vector>
+#include "property.cuh"
 
-class Integrate;
-class Atom;
-class Force;
-
-class Property
+class Deform : public Property
 {
 public:
+  Deform(const char** param, int num_param);
 
-  Property(void);
-  virtual ~Property(void);
-
-  std::string property_name = "";
+  int get_deform_x() const;
+  int get_deform_y() const;
+  int get_deform_z() const;
+  int get_deform_xy() const;
+  int get_deform_xz() const;
+  int get_deform_yz() const;
 
   virtual void preprocess(
     const int number_of_steps,
@@ -41,28 +35,21 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force) = 0;
+    Force& force) override;
 
   virtual void process(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force) = 0;
-
-  virtual void process_dynamics(
-    const int md_step,
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
     Box& box,
-    Atom& atom)
-  {
-  }
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force) override;
 
   virtual void post_integrate1(
     const int step,
@@ -71,31 +58,7 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force)
-  {
-  }
-
-  virtual void post_force(
-    const int step,
-    const double time_step,
-    Integrate& integrate,
-    std::vector<Group>& group,
-    Atom& atom,
-    Box& box,
-    Force& force)
-  {
-  }
-
-  virtual void post_integrate2(
-    const int step,
-    const double time_step,
-    Integrate& integrate,
-    std::vector<Group>& group,
-    Atom& atom,
-    Box& box,
-    Force& force)
-  {
-  }
+    Force& force) override;
 
   virtual void postprocess(
     Atom& atom,
@@ -103,5 +66,14 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature) = 0;
+    const double temperature) override;
+
+private:
+  void parse(const char** param, int num_param);
+  void parse_legacy(const char** param, int num_param);
+  void parse_general(const char** param, int num_param);
+
+  bool use_legacy_format_ = false;
+  int deform_component_[6] = {0, 0, 0, 0, 0, 0};
+  double deform_rate_[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 };
