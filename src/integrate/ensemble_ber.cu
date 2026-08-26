@@ -186,8 +186,10 @@ static void cpu_pressure_triclinic(
   }
 
   double h_old[9];
+  double h_old_inverse[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
+    h_old_inverse[i] = box.cpu_h[i + 9];
   }
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
@@ -198,6 +200,45 @@ static void cpu_pressure_triclinic(
       box.cpu_h[r * 3 + c] = tmp;
     }
   }
+
+  bool need_remap = false;
+  if (deform_x && box.cpu_h[0] != h_old[0]) {
+    box.cpu_h[0] = h_old[0];
+    need_remap = true;
+  }
+  if (deform_y && box.cpu_h[4] != h_old[4]) {
+    box.cpu_h[4] = h_old[4];
+    need_remap = true;
+  }
+  if (deform_z && box.cpu_h[8] != h_old[8]) {
+    box.cpu_h[8] = h_old[8];
+    need_remap = true;
+  }
+  if (deform_xy && box.cpu_h[1] != h_old[1]) {
+    box.cpu_h[1] = h_old[1];
+    need_remap = true;
+  }
+  if (deform_xz && box.cpu_h[2] != h_old[2]) {
+    box.cpu_h[2] = h_old[2];
+    need_remap = true;
+  }
+  if (deform_yz && box.cpu_h[5] != h_old[5]) {
+    box.cpu_h[5] = h_old[5];
+    need_remap = true;
+  }
+
+  if (need_remap) {
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        double tmp = 0.0;
+        for (int k = 0; k < 3; ++k) {
+          tmp += box.cpu_h[r * 3 + k] * h_old_inverse[k * 3 + c];
+        }
+        mu[r * 3 + c] = tmp;
+      }
+    }
+  }
+
   box.get_inverse();
 }
 
