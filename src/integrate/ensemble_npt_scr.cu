@@ -46,7 +46,10 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   double pressure_coupling_input[6],
   int deform_x_input,
   int deform_y_input,
-  int deform_z_input)
+  int deform_z_input,
+  int deform_xy_input,
+  int deform_xz_input,
+  int deform_yz_input)
 {
   type = type_input;
   temperature = temperature_input;
@@ -60,6 +63,9 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   deform_x = deform_x_input;
   deform_y = deform_y_input;
   deform_z = deform_z_input;
+  deform_xy = deform_xy_input;
+  deform_xz = deform_xz_input;
+  deform_yz = deform_yz_input;
 
   initialize_rng();
 }
@@ -85,6 +91,7 @@ static void cpu_pressure_orthogonal(
   CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
   const double volume = box.get_volume();
 
+  // Disable the barostat components controlled by deform.
   if (deform_x) {
     scale_factor[0] = 1.0;
   } else if (box.pbc_x == 1) {
@@ -151,6 +158,12 @@ static void cpu_pressure_isotropic(
 
 static void cpu_pressure_triclinic(
   std::mt19937& rng,
+  int deform_x,
+  int deform_y,
+  int deform_z,
+  int deform_xy,
+  int deform_xz,
+  int deform_yz,
   Box& box,
   double target_temperature,
   double* p0,
@@ -183,6 +196,26 @@ static void cpu_pressure_triclinic(
   mu[6] += noise_xz;
   mu[1] += noise_xy;
   mu[3] += noise_xy;
+
+  if (deform_x) {
+    mu[0] = 1.0;
+  }
+  if (deform_y) {
+    mu[4] = 1.0;
+  }
+  if (deform_z) {
+    mu[8] = 1.0;
+  }
+  if (deform_xy) {
+    mu[1] = mu[3] = 0.0;
+  }
+  if (deform_xz) {
+    mu[2] = mu[6] = 0.0;
+  }
+  if (deform_yz) {
+    mu[5] = mu[7] = 0.0;
+  }
+
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
@@ -289,7 +322,19 @@ void Ensemble_NPT_SCR::compute2(
   } else {
     double mu[9];
     cpu_pressure_triclinic(
-      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), mu);
+      rng,
+      deform_x,
+      deform_y,
+      deform_z,
+      deform_xy,
+      deform_xz,
+      deform_yz,
+      box,
+      temperature,
+      target_pressure,
+      pressure_coupling,
+      thermo.data(),
+      mu);
     gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       mu[0],

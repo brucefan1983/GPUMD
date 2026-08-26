@@ -96,6 +96,9 @@ public:
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;
+  int deform_xy = 0;
+  int deform_xz = 0;
+  int deform_yz = 0;
   
   // Dynamic arrays for multiple thermostats
   std::vector<int> heat_thermostat;  // Thermostat types (0=NHC, 1=Langevin)

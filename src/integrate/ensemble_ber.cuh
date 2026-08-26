@@ -20,7 +20,7 @@ class Ensemble_BER : public Ensemble
 {
 public:
   Ensemble_BER(int, int, double*, double, double);
-  Ensemble_BER(int, double, double, double*, int, double*, int, int, int);
+  Ensemble_BER(int, double, double, double*, int, double*, int, int, int, int, int, int);
   virtual ~Ensemble_BER(void);
 
   virtual void compute1(

@@ -115,7 +115,10 @@ void Integrate::initialize(
         pressure_coupling,
         deform_x,
         deform_y,
-        deform_z));
+        deform_z,
+        deform_xy,
+        deform_xz,
+        deform_yz));
       break;
     case 12: // NPT-SCR
       ensemble.reset(new Ensemble_NPT_SCR(
@@ -127,7 +130,10 @@ void Integrate::initialize(
         pressure_coupling,
         deform_x,
         deform_y,
-        deform_z));
+        deform_z,
+        deform_xy,
+        deform_xz,
+        deform_yz));
       break;
     case -1: // msst
       break;
@@ -309,6 +315,9 @@ void Integrate::finalize()
   deform_x = 0;
   deform_y = 0;
   deform_z = 0;
+  deform_xy = 0;
+  deform_xz = 0;
+  deform_yz = 0;
 }
 
 void Integrate::compute1(

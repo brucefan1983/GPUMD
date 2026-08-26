@@ -24,6 +24,9 @@ public:
   int get_deform_x() const;
   int get_deform_y() const;
   int get_deform_z() const;
+  int get_deform_xy() const;
+  int get_deform_xz() const;
+  int get_deform_yz() const;
 
   virtual void preprocess(
     const int number_of_steps,

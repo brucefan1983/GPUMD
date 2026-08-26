@@ -43,7 +43,10 @@ Ensemble_BER::Ensemble_BER(
   double pc[6],
   int dx,
   int dy,
-  int dz)
+  int dz,
+  int dxy,
+  int dxz,
+  int dyz)
 {
   type = t;
   temperature = T;
@@ -56,6 +59,9 @@ Ensemble_BER::Ensemble_BER(
   deform_x = dx;
   deform_y = dy;
   deform_z = dz;
+  deform_xy = dxy;
+  deform_xz = dxz;
+  deform_yz = dyz;
 }
 
 Ensemble_BER::~Ensemble_BER(void)
@@ -94,6 +100,7 @@ static void cpu_pressure_orthogonal(
   double p[3];
   CHECK(gpuMemcpy(p, thermo + 2, sizeof(double) * 3, gpuMemcpyDeviceToHost));
 
+  // Disable the barostat components controlled by deform.
   if (deform_x) {
     scale_factor[0] = 1.0;
   } else if (box.pbc_x == 1) {
@@ -136,8 +143,18 @@ static void cpu_pressure_isotropic(
   box.get_inverse();
 }
 
-static void
-cpu_pressure_triclinic(Box& box, double* p0, double* p_coupling, double* thermo, double* mu)
+static void cpu_pressure_triclinic(
+  int deform_x,
+  int deform_y,
+  int deform_z,
+  int deform_xy,
+  int deform_xz,
+  int deform_yz,
+  Box& box,
+  double* p0,
+  double* p_coupling,
+  double* thermo,
+  double* mu)
 {
   // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
   double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
@@ -148,6 +165,26 @@ cpu_pressure_triclinic(Box& box, double* p0, double* p_coupling, double* thermo,
   mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]); // xy
   mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
   mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
+
+  if (deform_x) {
+    mu[0] = 1.0;
+  }
+  if (deform_y) {
+    mu[4] = 1.0;
+  }
+  if (deform_z) {
+    mu[8] = 1.0;
+  }
+  if (deform_xy) {
+    mu[1] = mu[3] = 0.0;
+  }
+  if (deform_xz) {
+    mu[2] = mu[6] = 0.0;
+  }
+  if (deform_yz) {
+    mu[5] = mu[7] = 0.0;
+  }
+
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
@@ -253,7 +290,18 @@ void Ensemble_BER::compute2(
       GPU_CHECK_KERNEL
     } else {
       double mu[9];
-      cpu_pressure_triclinic(box, target_pressure, pressure_coupling, thermo.data(), mu);
+      cpu_pressure_triclinic(
+        deform_x,
+        deform_y,
+        deform_z,
+        deform_xy,
+        deform_xz,
+        deform_yz,
+        box,
+        target_pressure,
+        pressure_coupling,
+        thermo.data(),
+        mu);
       gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,
         mu[0],
