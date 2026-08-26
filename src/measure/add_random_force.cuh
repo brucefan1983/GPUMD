@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "property.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
@@ -22,17 +23,21 @@
   #include <curand_kernel.h>
 #endif
 
-class Atom;
-
-class Add_Random_Force
+class Add_Random_Force : public Property
 {
 public:
-  void parse(const char** param, int num_param, int number_of_atoms);
-  void compute(const int step, Atom& atom);
-  void finalize();
+  Add_Random_Force(const char** param, int num_param, int number_of_atoms);
+
+  void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
 
 private:
   GPU_Vector<gpurandState> curand_states_;
-  int num_calls_ = 0;
   double force_variance_ = 0.0;
 };
