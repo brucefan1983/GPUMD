@@ -27,7 +27,7 @@ class Actions;
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
-#include "measure/measure.cuh"
+#include "action/actions.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"

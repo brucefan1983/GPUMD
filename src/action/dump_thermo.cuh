@@ -14,25 +14,39 @@
 */
 
 #pragma once
-
-#include "action/action.cuh"
-
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <vector>
+class Box;
 
-class Atom;
-
-class Electron_Stop : public Action
+class Dump_Thermo : public Action
 {
 public:
-  virtual void post_force(
-    const int step,
+  void parse(const char** param, int num_param);
+
+  Dump_Thermo(const char** param, int num_param);
+
+  virtual void preprocess(
+    const int number_of_steps,
     const double time_step,
     Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force) override;
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 
   virtual void postprocess(
     Atom& atom,
@@ -40,21 +54,10 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature) override;
-
-  bool do_electron_stop = false;
-  double stopping_power_loss = 0.0;
-  void parse(const char** param, int num_param, const int num_atoms, const int num_types);
-  void compute(double time_step, Atom& atom);
-  void finalize();
+    const double temperature);
 
 private:
-  int num_points = 0;
-  double energy_min;
-  double energy_max;
-  double energy_interval;
-  std::vector<double> stopping_power_cpu;
-  GPU_Vector<double> stopping_power_gpu;
-  GPU_Vector<double> stopping_force;
-  GPU_Vector<double> stopping_loss;
+  int dump_interval_ = 1;
+  FILE* fid_;
+  char filename_[200];
 };

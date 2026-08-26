@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "measure/property.cuh"
+#include "action/action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP

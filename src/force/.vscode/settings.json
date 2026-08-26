@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.cu": "cpp",
-        "*.cuh": "cpp",
-        "vector": "cpp",
-        "xutility": "cpp",
-        "memory": "cpp"
-    }
-}

@@ -14,25 +14,41 @@
 */
 
 #pragma once
-
-#include "action/action.cuh"
-
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
-
+class Group;
 class Atom;
 
-class Electron_Stop : public Action
+class IC : public Action
 {
 public:
-  virtual void post_force(
-    const int step,
+  bool compute_ = false;
+  int sample_interval_ = 1;
+  int num_correlation_steps_ = 100;
+
+  virtual void preprocess(
+    const int number_of_steps,
     const double time_step,
     Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force) override;
+    Force& force);
+
+  virtual void process(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
 
   virtual void postprocess(
     Atom& atom,
@@ -40,21 +56,23 @@ public:
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
-    const double temperature) override;
+    const double temperature);
 
-  bool do_electron_stop = false;
-  double stopping_power_loss = 0.0;
-  void parse(const char** param, int num_param, const int num_atoms, const int num_types);
-  void compute(double time_step, Atom& atom);
-  void finalize();
+  virtual void write(const char* filename);
+
+  IC(const char** param, const int num_param, Atom& atom);
+  void parse(const char** param, const int num_param);
 
 private:
-  int num_points = 0;
-  double energy_min;
-  double energy_max;
-  double energy_interval;
-  std::vector<double> stopping_power_cpu;
-  GPU_Vector<double> stopping_power_gpu;
-  GPU_Vector<double> stopping_force;
-  GPU_Vector<double> stopping_loss;
+  int num_atoms_;
+  int num_time_origins_;
+  double dt_in_natural_units_;
+  double dt_in_ps_;
+  int target_type_ = -1; 
+  GPU_Vector<int> type_atom_list_; 
+  GPU_Vector<double> x_, y_, z_;
+  GPU_Vector<double> msdx_, msdy_, msdz_;
+  double charge_ = 0.0;
+  double volume_ = 0.0;
+  double temperature_ = 0.0;
 };

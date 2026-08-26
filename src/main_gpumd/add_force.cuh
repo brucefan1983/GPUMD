@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "measure/property.cuh"
+#include "action/action.cuh"
 
 #include <vector>
 
