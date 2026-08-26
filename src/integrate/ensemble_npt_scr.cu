@@ -232,6 +232,9 @@ static void cpu_pressure_triclinic(
     }
   }
 
+  // Other barostat components can also change a box component controlled
+  // by deform. Restore such components and recompute the actual affine
+  // transformation when needed.
   bool need_remap = false;
   if (deform_x && box.cpu_h[0] != h_old[0]) {
     box.cpu_h[0] = h_old[0];

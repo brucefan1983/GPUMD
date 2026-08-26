@@ -1532,5 +1532,3 @@ void Integrate::parse_move(const char** param, int num_param, std::vector<Group>
     move_velocity[d] *= TIME_UNIT_CONVERSION; // natural to A/fs
   }
 }
-
-
