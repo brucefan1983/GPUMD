@@ -30,6 +30,7 @@ class Add_Spring
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
+  void setup_force(const std::vector<Group>& groups, Atom& atom);
   void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();
 
@@ -45,6 +46,9 @@ private:
 
   void save_restart(int call_id);
   void load_restart(int call_id, int previous_call_id);
+  void advance_ghost();
+  void apply_force(const std::vector<Group>& groups, Atom& atom);
+  void write_output(const int step);
 
   // spring mode for each call
   enum SpringMode {

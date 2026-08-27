@@ -248,6 +248,7 @@ void Run::perform_a_run()
   // setup force for the first integrate step
   compute_force();
   atom.update_unwrapped_position(box);
+  add_spring.setup_force(group, atom);
   measure.setup_force(time_step, integrate, group, atom, box, force);
   measure.process_dynamics(0, box, atom);
 

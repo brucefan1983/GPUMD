@@ -154,14 +154,7 @@ static __global__ void find_power_loss(int num_atoms, double* g_power_loss)
   }
 }
 
-void Electron_Stop::post_force(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force& force)
+void Electron_Stop::apply_stopping_force(const double time_step, Atom& atom)
 {
   find_stopping_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms,
@@ -185,7 +178,10 @@ void Electron_Stop::post_force(
   apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
   GPU_CHECK_KERNEL
+}
 
+void Electron_Stop::accumulate_stopping_loss(Atom& atom)
+{
   find_power_loss<<<1, 1024>>>(atom.number_of_atoms, stopping_loss.data());
   GPU_CHECK_KERNEL
 
@@ -193,6 +189,30 @@ void Electron_Stop::post_force(
   CHECK(gpuMemcpyFromSymbol(
     &power_loss_host, device_power_loss, sizeof(double), 0, gpuMemcpyDeviceToHost));
   stopping_power_loss += power_loss_host;
+}
+
+void Electron_Stop::setup_force(
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  apply_stopping_force(time_step, atom);
+}
+
+void Electron_Stop::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  apply_stopping_force(time_step, atom);
+  accumulate_stopping_loss(atom);
 }
 
 Electron_Stop::Electron_Stop(
