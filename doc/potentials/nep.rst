@@ -161,3 +161,6 @@ That is, the loss terms for energies, forces, and virials are defined as the res
 The last two terms represent :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` regularization terms of the parameter vector.
 The weights :math:`\lambda_\mathrm{e}`, :math:`\lambda_\mathrm{f}`, :math:`\lambda_\mathrm{v}`, :math:`\lambda_1`, and :math:`\lambda_2` are tunable hyper-parameters (see the eponymous keywords in the :ref:`nep.in input file <nep_in>`).
 When calculating the loss function, we use eV/atom for energies and virials and eV/Å for force components.
+
+Alternatively, setting :ref:`loss_mode <kw_loss_mode>` to ``1`` selects a normalized MSE loss function, where each RMSE term above is replaced by the corresponding mean squared error divided by a squared standard deviation (:ref:`sigma_e <kw_sigma_e>`, :ref:`sigma_f <kw_sigma_f>`, and :ref:`sigma_s <kw_sigma_s>` for the energy, force, and virial terms, respectively), and the :math:`\mathcal{L}_1`/:math:`\mathcal{L}_2` regularization terms are similarly normalized by :ref:`sigma_L1 <kw_sigma_L1>` and :ref:`sigma_L2 <kw_sigma_L2>`.
+This allows the relative weighting of the loss terms to be expressed in terms of the expected error scale of each quantity rather than tuned indirectly through the :math:`\lambda` weights alone.

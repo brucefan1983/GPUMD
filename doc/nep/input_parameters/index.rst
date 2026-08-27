@@ -30,6 +30,12 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    lambda_v
    lambda_q
    lambda_z
+   loss_mode
+   sigma_e
+   sigma_f
+   sigma_s
+   sigma_L1
+   sigma_L2
    atomic_v
    lambda_shear
    force_delta
