@@ -145,6 +145,20 @@ void Measure::post_integrate1(
   }
 }
 
+void Measure::pre_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->pre_force(step, time_step, integrate, group, atom, box, force);
+  }
+}
+
 void Measure::post_force(
   const int step,
   const double time_step,
