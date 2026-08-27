@@ -37,6 +37,14 @@ public:
     Box& box,
     Force& force);
 
+  void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
   void finalize(
     Atom& atom,
     Box& box,

@@ -68,6 +68,19 @@ void Measure::initialize(
   }
 }
 
+void Measure::setup_force(
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->setup_force(time_step, integrate, group, atom, box, force);
+  }
+}
+
 void Measure::finalize(
   Atom& atom,
   Box& box,

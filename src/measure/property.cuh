@@ -45,6 +45,16 @@ public:
   {
   }
 
+  virtual void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force)
+  {
+  }
+
   virtual void process(
       const int number_of_steps,
       int step,
