@@ -40,6 +40,7 @@ public:
 private:
   void execute_run_in();
   void perform_a_run();
+  void compute_force();
   void parse_one_keyword(std::vector<std::string>& tokens);
 
   // keyword parsing functions

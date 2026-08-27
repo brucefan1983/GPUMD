@@ -209,13 +209,8 @@ void Run::execute_run_in()
   input.close();
 }
 
-void Run::perform_a_run()
+void Run::compute_force()
 {
-  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
-  mc.initialize();
-  measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
-
-  // compute force for the first integrate step
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
       force.compute(
@@ -242,6 +237,16 @@ void Run::perform_a_run()
       atom.mass,
       atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
   }
+}
+
+void Run::perform_a_run()
+{
+  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
+  mc.initialize();
+  measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
+
+  // compute force for the first integrate step
+  compute_force();
 
   atom.update_unwrapped_position(box);
   measure.process_dynamics(0, box, atom);
@@ -265,32 +270,7 @@ void Run::perform_a_run()
 
     force.temperature += force.delta_T;
 
-    if (integrate.type >= 31) { // PIMD
-      for (int k = 0; k < integrate.number_of_beads; ++k) {
-        force.compute(
-          box,
-          atom.position_beads[k],
-          atom.type,
-          group,
-          atom.potential_beads[k],
-          atom.force_beads[k],
-          atom.virial_beads[k],
-          atom.velocity_beads[k],
-          atom.mass);
-      }
-    } else {
-      force.compute(
-        box,
-        atom.position_per_atom,
-        atom.type,
-        group,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        atom.velocity_per_atom,
-        atom.mass,
-        atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
-    }
+    compute_force();
 
     atom.update_unwrapped_position(box);
     add_spring.compute(step, group, atom);
