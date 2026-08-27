@@ -79,6 +79,17 @@ public:
   {
   }
 
+  virtual void pre_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force)
+  {
+  }
+
   virtual void post_force(
     const int step,
     const double time_step,

@@ -209,8 +209,10 @@ void Run::execute_run_in()
   input.close();
 }
 
-void Run::compute_force()
+void Run::compute_force(const int step)
 {
+  measure.pre_force(step, time_step, integrate, group, atom, box, force);
+
   if (integrate.type >= 31) { // PIMD
     for (int k = 0; k < integrate.number_of_beads; ++k) {
       force.compute(
@@ -246,7 +248,7 @@ void Run::perform_a_run()
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // compute force for the first integrate step
-  compute_force();
+  compute_force(0);
 
   atom.update_unwrapped_position(box);
   measure.process_dynamics(0, box, atom);
@@ -270,7 +272,7 @@ void Run::perform_a_run()
 
     force.temperature += force.delta_T;
 
-    compute_force();
+    compute_force(step);
 
     atom.update_unwrapped_position(box);
     add_spring.compute(step, group, atom);
