@@ -17,7 +17,6 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
-#include "add_efield.cuh"
 #include "add_spring.cuh"
 #include "measure/add_random_force.cuh"
 #include "cohesive.cuh"
@@ -26,6 +25,7 @@ Run simulation according to the inputs in the run.in file.
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/active.cuh"
+#include "measure/add_efield.cuh"
 #include "measure/add_force.cuh"
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
@@ -296,7 +296,6 @@ void Run::perform_a_run()
     electron_stop.compute(time_step, atom);
     add_spring.compute(step, group, atom);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
-    add_efield.compute(step, group, atom, force);
 
     measure.process_dynamics(step + 1, box, atom);
 
@@ -340,7 +339,6 @@ void Run::perform_a_run()
 
   electron_stop.finalize();
   add_spring.finalize();
-  add_efield.finalize();
   integrate.finalize();
   mc.finalize();
   velocity.finalize();
@@ -577,7 +575,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "add_spring") == 0) {
     add_spring.parse(param, num_param, group, atom);
   } else if (strcmp(param[0], "add_efield") == 0) {
-    add_efield.parse(param, num_param, group);
+    std::unique_ptr<Property> property;
+    property.reset(new Add_Efield(param, num_param, group));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "mc") == 0) {
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "kspace") == 0) {

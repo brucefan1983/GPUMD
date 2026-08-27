@@ -24,9 +24,9 @@ Add electric field to a group of atoms.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static void __global__ add_efield(
   const int group_size,
@@ -83,68 +83,74 @@ static void __global__ add_efield_bec(
   }
 }
 
-void Add_Efield::compute(const int step, const std::vector<Group>& groups, Atom& atom, Force& force)
+void Add_Efield::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
-  for (int call = 0; call < num_calls_; ++call) {
-    const int step_mod_table_length = step % table_length_[call];
-    const double Ex = efield_table_[call][0 * table_length_[call] + step_mod_table_length];
-    const double Ey = efield_table_[call][1 * table_length_[call] + step_mod_table_length];
-    const double Ez = efield_table_[call][2 * table_length_[call] + step_mod_table_length];
-    const int num_atoms_total = atom.force_per_atom.size() / 3;
-    const int group_size = groups[grouping_method_[call]].cpu_size[group_id_[call]];
-    const int group_size_sum = groups[grouping_method_[call]].cpu_size_sum[group_id_[call]];
+  const int step_mod_table_length = step % table_length_;
+  const double Ex = efield_table_[0 * table_length_ + step_mod_table_length];
+  const double Ey = efield_table_[1 * table_length_ + step_mod_table_length];
+  const double Ez = efield_table_[2 * table_length_ + step_mod_table_length];
+  const int num_atoms_total = atom.force_per_atom.size() / 3;
+  const int group_size = group[grouping_method_].cpu_size[group_id_];
+  const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];
 
-    if (use_bec_[call]) {
-      GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
-      add_efield_bec<<<(group_size - 1) / 64 + 1, 64>>>(
-        num_atoms_total,
-        group_size,
-        group_size_sum,
-        groups[grouping_method_[call]].contents.data(),
-        Ex,
-        Ey,
-        Ez,
-        bec.data(),
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + num_atoms_total,
-        atom.force_per_atom.data() + num_atoms_total * 2);
-    } else if (is_nep_charge) {
-      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
-      add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
-        group_size,
-        group_size_sum,
-        groups[grouping_method_[call]].contents.data(),
-        Ex,
-        Ey,
-        Ez,
-        nep_charge.data(),
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + num_atoms_total,
-        atom.force_per_atom.data() + num_atoms_total * 2);
-    } else {
-      add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
-        group_size,
-        group_size_sum,
-        groups[grouping_method_[call]].contents.data(),
-        Ex,
-        Ey,
-        Ez,
-        atom.charge.data(),
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + num_atoms_total,
-        atom.force_per_atom.data() + num_atoms_total * 2);
-    }
-    GPU_CHECK_KERNEL
+  if (use_bec_) {
+    GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+    add_efield_bec<<<(group_size - 1) / 64 + 1, 64>>>(
+      num_atoms_total,
+      group_size,
+      group_size_sum,
+      group[grouping_method_].contents.data(),
+      Ex,
+      Ey,
+      Ez,
+      bec.data(),
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + num_atoms_total,
+      atom.force_per_atom.data() + num_atoms_total * 2);
+  } else if (is_nep_charge_) {
+    GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+    add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
+      group_size,
+      group_size_sum,
+      group[grouping_method_].contents.data(),
+      Ex,
+      Ey,
+      Ez,
+      nep_charge.data(),
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + num_atoms_total,
+      atom.force_per_atom.data() + num_atoms_total * 2);
+  } else {
+    add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
+      group_size,
+      group_size_sum,
+      group[grouping_method_].contents.data(),
+      Ex,
+      Ey,
+      Ez,
+      atom.charge.data(),
+      atom.force_per_atom.data(),
+      atom.force_per_atom.data() + num_atoms_total,
+      atom.force_per_atom.data() + num_atoms_total * 2);
   }
+  GPU_CHECK_KERNEL
 }
 
-void Add_Efield::parse(const char** param, int num_param, const std::vector<Group>& group)
+Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Group>& group)
 {
+  property_name = "add_efield";
   printf("Add electric field.\n");
 
   bool use_file_input = false;
-  is_nep_charge = check_is_nep_charge();
-  std::string mode_str = is_nep_charge ? "bec" : "charge";
+  is_nep_charge_ = check_is_nep_charge();
+  std::string mode_str = is_nep_charge_ ? "bec" : "charge";
 
   if (num_param == 7) {
     mode_str = param[6];
@@ -164,12 +170,12 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
     PRINT_INPUT_ERROR("Mode can only be charge or bec.\n");
   }
 
-  if (is_nep_charge) {
+  if (is_nep_charge_) {
     if (mode_str == "bec") {
-      use_bec_[num_calls_] = true;
+      use_bec_ = true;
       printf("    using the BEC values predicted by the NEP-Charge model.\n");
     } else {
-      use_bec_[num_calls_] = false;
+      use_bec_ = false;
       printf("    using the charge values predicted by the NEP-Charge model.\n");
     }
   } else {
@@ -177,52 +183,52 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
       PRINT_INPUT_ERROR("Cannot use bec for non-qNEP models.\n");
       printf("    using the charge values specified in model.xyz.\n");
     } else {
-      use_bec_[num_calls_] = false;
+      use_bec_ = false;
     }
   }
 
   // parse grouping method
-  if (!is_valid_int(param[1], &grouping_method_[num_calls_])) {
+  if (!is_valid_int(param[1], &grouping_method_)) {
     PRINT_INPUT_ERROR("grouping method should be an integer.\n");
   }
-  if (grouping_method_[num_calls_] < 0) {
+  if (grouping_method_ < 0) {
     PRINT_INPUT_ERROR("grouping method should >= 0.\n");
   }
-  if (grouping_method_[num_calls_] >= group.size()) {
+  if (grouping_method_ >= group.size()) {
     PRINT_INPUT_ERROR("grouping method should < maximum number of grouping methods.\n");
   }
 
   // parse group id
-  if (!is_valid_int(param[2], &group_id_[num_calls_])) {
+  if (!is_valid_int(param[2], &group_id_)) {
     PRINT_INPUT_ERROR("group id should be an integer.\n");
   }
-  if (group_id_[num_calls_] < 0) {
+  if (group_id_ < 0) {
     PRINT_INPUT_ERROR("group id should >= 0.\n");
   }
-  if (group_id_[num_calls_] >= group[grouping_method_[num_calls_]].number) {
+  if (group_id_ >= group[grouping_method_].number) {
     PRINT_INPUT_ERROR("group id should < maximum number of groups in the grouping method.\n");
   }
 
   printf(
     "    for atoms in group %d of grouping method %d.\n",
-    group_id_[num_calls_],
-    grouping_method_[num_calls_]);
+    group_id_,
+    grouping_method_);
 
   if (!use_file_input) {
-    table_length_[num_calls_] = 1;
-    efield_table_[num_calls_].resize(table_length_[num_calls_] * 3);
-    if (!is_valid_real(param[3], &efield_table_[num_calls_][0])) {
+    table_length_ = 1;
+    efield_table_.resize(table_length_ * 3);
+    if (!is_valid_real(param[3], &efield_table_[0])) {
       PRINT_INPUT_ERROR("Ex should be a number.\n");
     }
-    if (!is_valid_real(param[4], &efield_table_[num_calls_][1])) {
+    if (!is_valid_real(param[4], &efield_table_[1])) {
       PRINT_INPUT_ERROR("Ey should be a number.\n");
     }
-    if (!is_valid_real(param[5], &efield_table_[num_calls_][2])) {
+    if (!is_valid_real(param[5], &efield_table_[2])) {
       PRINT_INPUT_ERROR("Ez should be a number.\n");
     }
-    printf("    Ex = %g V/A.\n", efield_table_[num_calls_][0]);
-    printf("    Ey = %g V/A.\n", efield_table_[num_calls_][1]);
-    printf("    Ez = %g V/A.\n", efield_table_[num_calls_][2]);
+    printf("    Ex = %g V/A.\n", efield_table_[0]);
+    printf("    Ey = %g V/A.\n", efield_table_[1]);
+    printf("    Ez = %g V/A.\n", efield_table_[2]);
   } else {
     std::ifstream input(param[3]);
     if (!input.is_open()) {
@@ -234,32 +240,23 @@ void Add_Efield::parse(const char** param, int num_param, const std::vector<Grou
     if (tokens.size() != 1) {
       PRINT_INPUT_ERROR("The first line of the add_efield file should have 1 value.");
     }
-    table_length_[num_calls_] = get_int_from_token(tokens[0], __FILE__, __LINE__);
-    if (table_length_[num_calls_] < 2) {
+    table_length_ = get_int_from_token(tokens[0], __FILE__, __LINE__);
+    if (table_length_ < 2) {
       PRINT_INPUT_ERROR("Number of steps in the add_efield file should >= 2.\n");
     } else {
-      printf("    number of values in the add_efield file = %d.\n", table_length_[num_calls_]);
+      printf("    number of values in the add_efield file = %d.\n", table_length_);
     }
 
-    efield_table_[num_calls_].resize(table_length_[num_calls_] * 3);
-    for (int n = 0; n < table_length_[num_calls_]; ++n) {
+    efield_table_.resize(table_length_ * 3);
+    for (int n = 0; n < table_length_; ++n) {
       std::vector<std::string> tokens = get_tokens(input);
       if (tokens.size() != 3) {
         PRINT_INPUT_ERROR("Number of electric field components at each step should be 3.");
       }
       for (int t = 0; t < 3; ++t) {
-        efield_table_[num_calls_][t * table_length_[num_calls_] + n] =
+        efield_table_[t * table_length_ + n] =
           get_double_from_token(tokens[t], __FILE__, __LINE__);
       }
     }
   }
-
-  ++num_calls_;
-
-  if (num_calls_ > 10) {
-    PRINT_INPUT_ERROR("add_efield cannot be used more than 10 times in one run.");
-  }
-
 }
-
-void Add_Efield::finalize() { num_calls_ = 0; }

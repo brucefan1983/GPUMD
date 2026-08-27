@@ -15,25 +15,28 @@
 
 #pragma once
 
+#include "property.cuh"
 #include <vector>
 
-class Atom;
-class Group;
-class Force;
-
-class Add_Efield
+class Add_Efield : public Property
 {
 public:
-  void parse(const char** param, int num_param, const std::vector<Group>& group);
-  void compute(const int step, const std::vector<Group>& groups, Atom& atom, Force& force);
-  void finalize();
+  Add_Efield(const char** param, int num_param, const std::vector<Group>& group);
+
+  void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
 
 private:
-  int num_calls_ = 0;
-  int table_length_[10];
-  std::vector<double> efield_table_[10];
-  int grouping_method_[10];
-  int group_id_[10];
-  bool is_nep_charge = false;
-  bool use_bec_[10];
+  int table_length_ = 0;
+  std::vector<double> efield_table_;
+  int grouping_method_ = 0;
+  int group_id_ = 0;
+  bool is_nep_charge_ = false;
+  bool use_bec_ = false;
 };
