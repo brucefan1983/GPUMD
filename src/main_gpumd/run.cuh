@@ -20,7 +20,6 @@ class Integrate;
 class Measure;
 
 #include "add_spring.cuh"
-#include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
@@ -68,6 +67,5 @@ private:
   Integrate integrate;
   MC mc;
   Measure measure;
-  Electron_Stop electron_stop;
   Add_Spring add_spring;
 };
