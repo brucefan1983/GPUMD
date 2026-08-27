@@ -83,19 +83,39 @@ static void __global__ add_efield_bec(
   }
 }
 
-void Add_Efield::post_force(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
+void Add_Efield::setup_force(
+  const double,
+  Integrate&,
   std::vector<Group>& group,
   Atom& atom,
-  Box& box,
+  Box&,
   Force& force)
 {
-  const int step_mod_table_length = step % table_length_;
-  const double Ex = efield_table_[0 * table_length_ + step_mod_table_length];
-  const double Ey = efield_table_[1 * table_length_ + step_mod_table_length];
-  const double Ez = efield_table_[2 * table_length_ + step_mod_table_length];
+  apply_field(0, group, atom, force);
+}
+
+void Add_Efield::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force& force)
+{
+  apply_field(step + 1, group, atom, force);
+}
+
+void Add_Efield::apply_field(
+  const int md_step,
+  std::vector<Group>& group,
+  Atom& atom,
+  Force& force)
+{
+  const int table_index = md_step % table_length_;
+  const double Ex = efield_table_[0 * table_length_ + table_index];
+  const double Ey = efield_table_[1 * table_length_ + table_index];
+  const double Ez = efield_table_[2 * table_length_ + table_index];
   const int num_atoms_total = atom.force_per_atom.size() / 3;
   const int group_size = group[grouping_method_].cpu_size[group_id_];
   const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];

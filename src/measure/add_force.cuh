@@ -23,6 +23,14 @@ class Add_Force : public Property
 public:
   Add_Force(const char** param, int num_param, const std::vector<Group>& group);
 
+  void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
   void post_force(
     const int step,
     const double time_step,
@@ -33,6 +41,8 @@ public:
     Force& force) override;
 
 private:
+  void apply_force(const int md_step, std::vector<Group>& group, Atom& atom);
+
   int table_length_ = 0;
   std::vector<double> force_table_;
   int grouping_method_ = 0;
