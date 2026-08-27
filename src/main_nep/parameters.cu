@@ -66,6 +66,11 @@ void Parameters::set_default_parameters()
   is_lambda_e_set = false;
   is_lambda_f_set = false;
   is_lambda_v_set = false;
+  is_sigma_e_set = false;
+  is_sigma_f_set = false;
+  is_sigma_s_set = false;
+  is_sigma_L1_set = false;
+  is_sigma_L2_set = false;
   is_atomic_v_set = false;
   is_lambda_shear_set = false;
   is_batch_set = false;
@@ -120,6 +125,17 @@ void Parameters::set_default_parameters()
   charge_mode = 0;
   vdw = 0;
   charge_vdw = 0;
+  loss_mode_format = 0;
+  sigma_e = 0.001f;
+  sigma_f = 0.01f;
+  sigma_s = 0.1f;
+  sigma_L1 = 0.001f;
+  sigma_L2 = 1.0f;
+  one_over_variance_e = 1 / sigma_e / sigma_e;
+  one_over_variance_f = 1 / sigma_f / sigma_f;
+  one_over_variance_s = 1 / sigma_s / sigma_s * 160.2176621 * 160.2176621;
+  one_over_sigma_L1 = 1 / sigma_L1;
+  one_over_variance_L2 = 1 / sigma_L2 / sigma_L2;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -208,6 +224,12 @@ void Parameters::calculate_parameters()
     }
   }
 
+  if (loss_mode_format == 1) {
+    if (!is_lambda_e_set) lambda_e = 1.0f;
+    if (!is_lambda_f_set) lambda_f = 1.0f;
+    if (!is_lambda_v_set) lambda_v = 1.0f;
+  }
+
   if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -288,6 +310,11 @@ void Parameters::calculate_parameters()
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
+  }
+
+  if (loss_mode_format == 1) {
+    if (!is_lambda_1_set) lambda_1 = 1.0f;
+    if (!is_lambda_2_set) lambda_2 = 1.0f;
   }
 
   // check nep.in against any model files that are already present before reading from them
@@ -1000,6 +1027,46 @@ void Parameters::report_inputs()
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
   }
 
+  if (is_loss_mode_set) {
+    printf("    (input)   loss mode is set to = %d.\n", loss_mode_format);
+    if (loss_mode_format) {
+      printf("        use mse as loss.\n");
+    }
+    else{
+      printf("        use rmse as loss.\n");
+    }
+  }
+
+  if (is_sigma_e_set) {
+    printf("    (input)   sigma_e = %g.\n", sigma_e);
+  } else {
+    printf("    (default) sigma_e = %g.\n", sigma_e);
+  }
+
+  if (is_sigma_f_set) {
+    printf("    (input)   sigma_f = %g.\n", sigma_f);
+  } else {
+    printf("    (default) sigma_f = %g.\n", sigma_f);
+  }
+
+  if (is_sigma_s_set) {
+    printf("    (input)   sigma_s = %g.\n", sigma_s);
+  } else {
+    printf("    (default) sigma_s = %g.\n", sigma_s);
+  }
+
+  if (is_sigma_L1_set) {
+    printf("    (input)   sigma_L1 = %g.\n", sigma_L1);
+  } else {
+    printf("    (default) sigma_L1 = %g.\n", sigma_L1);
+  }
+
+  if (is_sigma_L2_set) {
+    printf("    (input)   sigma_L2 = %g.\n", sigma_L2);
+  } else {
+    printf("    (default) sigma_L2 = %g.\n", sigma_L2);
+  }
+
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
@@ -1059,6 +1126,16 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "sigma_e") == 0) {
+    parse_sigma_e(param, num_param);
+  } else if (strcmp(param[0], "sigma_f") == 0) {
+    parse_sigma_f(param, num_param);
+  } else if (strcmp(param[0], "sigma_s") == 0) {
+    parse_sigma_s(param, num_param);
+  } else if (strcmp(param[0], "sigma_L1") == 0) {
+    parse_sigma_L1(param, num_param);
+  } else if (strcmp(param[0], "sigma_L2") == 0) {
+    parse_sigma_L2(param, num_param);
   } else if (strcmp(param[0], "lambda_q") == 0) {
     parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_z") == 0) {
@@ -1095,6 +1172,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_interval(param, num_param);
   } else if (strcmp(param[0], "import_q_scaler") == 0) {
     parse_import_q_scaler(param, num_param);
+  } else if (strcmp(param[0], "loss_mode") == 0) {
+    parse_loss_mode(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -1553,6 +1632,127 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
   }
 }
 
+
+void Parameters::parse_sigma_e(const char** param, int num_param)
+{
+  is_sigma_e_set = true;
+
+  if (loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode must be set to 1 to set sigma_e\n");
+  }
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma_e should have 1 parameter.\n");
+  }
+
+  double sigma_e_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma_e_tmp)) {
+    PRINT_INPUT_ERROR("Standard deviataion of energy should be a number.\n");
+  }
+  sigma_e = sigma_e_tmp;
+  one_over_variance_e = 1 / (sigma_e_tmp * sigma_e_tmp);
+
+  if (sigma_e < 0.0f) {
+    PRINT_INPUT_ERROR("Standard deviataion of energy should >= 0.");
+  }
+}
+
+void Parameters::parse_sigma_f(const char** param, int num_param)
+{
+  is_sigma_f_set = true;
+
+  if (loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode must be set to 1 to set sigma_f\n");
+  }
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma_f should have 1 parameter.\n");
+  }
+
+  double sigma_f_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma_f_tmp)) {
+    PRINT_INPUT_ERROR("Standard deviataion of force should be a number.\n");
+  }
+  sigma_f = sigma_f_tmp;
+  one_over_variance_f = 1 / (sigma_f_tmp * sigma_f_tmp);
+
+  if (sigma_f < 0.0f) {
+    PRINT_INPUT_ERROR("Standard deviataion of force should >= 0.");
+  }
+}
+
+void Parameters::parse_sigma_s(const char** param, int num_param)
+{
+  is_sigma_s_set = true;
+
+  if (loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode must be set to 1 to set sigma_s\n");
+  }
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma_s should have 1 parameter.\n");
+  }
+
+  double sigma_s_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma_s_tmp)) {
+    PRINT_INPUT_ERROR("Standard deviataion of virial should be a number.\n");
+  }
+  sigma_s = sigma_s_tmp;
+  one_over_variance_s = 1 / (sigma_s_tmp * sigma_s_tmp) * 160.2176621 * 160.2176621; // last two factors to convert to (eV/Å^3)^2;
+
+  if (sigma_s < 0.0f) {
+    PRINT_INPUT_ERROR("Standard deviataion of virial should >= 0.");
+  }
+}
+
+void Parameters::parse_sigma_L1(const char** param, int num_param)
+{
+  is_sigma_L1_set = true;
+
+  if (loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode must be set to 1 to set sigma_L1\n");
+  }
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma_L1 should have 1 parameter.\n");
+  }
+
+  double sigma_L1_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma_L1_tmp)) {
+    PRINT_INPUT_ERROR("sigma_L1 should be a number.\n");
+  }
+  sigma_L1 = sigma_L1_tmp;
+  one_over_sigma_L1 = 1 / sigma_L1_tmp;
+
+  if (sigma_L1 < 0.0f) {
+    PRINT_INPUT_ERROR("sigma_L1 should be >= 0.");
+  }
+}
+
+void Parameters::parse_sigma_L2(const char** param, int num_param)
+{
+  is_sigma_L2_set = true;
+
+  if (loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode must be set to 1 to set sigma_L2\n");
+  }
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("sigma_L2 should have 1 parameter.\n");
+  }
+
+  double sigma_L2_tmp = 0.0;
+  if (!is_valid_real(param[1], &sigma_L2_tmp)) {
+    PRINT_INPUT_ERROR("sigma_L2 should be a number.\n");
+  }
+  sigma_L2 = sigma_L2_tmp;
+  one_over_variance_L2 = 1 / sigma_L2_tmp / sigma_L2_tmp;
+
+  if (sigma_L2 < 0.0f) {
+    PRINT_INPUT_ERROR("sigma_L2 should be >= 0.");
+  }
+}
+
 void Parameters::parse_lambda_q(const char** param, int num_param)
 {
   if (num_param != 2) {
@@ -1896,4 +2096,19 @@ void Parameters::parse_import_q_scaler(const char** param, int num_param)
     PRINT_INPUT_ERROR("import_q_scaler should be 0 or 1.");
   }
   import_q_scaler = (flag == 1);
+}
+
+void Parameters::parse_loss_mode(const char** param, int num_param)
+{
+  is_loss_mode_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("loss_mode should have 2 parameters.\n");
+  }
+  if (!is_valid_int(param[1], &loss_mode_format)) {
+    PRINT_INPUT_ERROR("loss_mode should be an integer.\n");
+  }
+  if (loss_mode_format != 0 && loss_mode_format != 1) {
+    PRINT_INPUT_ERROR("loss_mode format should be 0 or 1.");
+  }
 }

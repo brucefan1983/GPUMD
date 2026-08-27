@@ -378,18 +378,33 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
     if (para.train_mode == 0 || para.train_mode == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
-        printf(
-          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
-          "Step",
-          "Total-Loss",
-          "L1Reg-Loss",
-          "L2Reg-Loss",
-          "RMSE-E-Train",
-          "RMSE-F-Train",
-          "RMSE-V-Train",
-          "RMSE-E-Test",
-          "RMSE-F-Test",
-          "RMSE-V-Test");
+        if (para.loss_mode_format == 1) {
+          printf(
+            "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
+            "Step",
+            "Total-Loss",
+            "L1Reg-Loss",
+            "L2Reg-Loss",
+            "MSE-E-Train",
+            "MSE-F-Train",
+            "MSE-S-Train",
+            "MSE-E-Test",
+            "MSE-F-Test",
+            "MSE-S-Test");
+        } else {
+          printf(
+            "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
+            "Step",
+            "Total-Loss",
+            "L1Reg-Loss",
+            "L2Reg-Loss",
+            "RMSE-E-Train",
+            "RMSE-F-Train",
+            "RMSE-V-Train",
+            "RMSE-E-Test",
+            "RMSE-F-Test",
+            "RMSE-V-Test");
+        }
       } else {
         printf(
           "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s\n",
@@ -585,8 +600,18 @@ void SNES::regularize_NEP4(Parameters& para)
     gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
 
     for (int p = 0; p < population_size; ++p) {
-      float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
-      float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
+      float cost_L1;
+      if (para.loss_mode_format) {
+        cost_L1 = para.one_over_sigma_L1 * para.lambda_1 * cost_L1reg[p] / num_variables;
+      } else {
+        cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
+      }
+      float cost_L2;
+      if (para.loss_mode_format) {
+        cost_L2 = para.one_over_variance_L2 * para.lambda_2 * cost_L2reg[p] / num_variables;
+      } else {
+        cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
+      }
       fitness_total[p + t * population_size] =
         cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
         fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
