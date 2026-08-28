@@ -85,11 +85,6 @@ Examples
 ========
 
 You can find several examples for how to use both the ``gpumd`` and ``nep`` executables in `the examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ of the :program:`GPUMD` repository.
-
-
-.. _netcdf_setup:
-.. index::
-   single: NetCDF setup
    
 GNEP setup
 ==========
@@ -130,6 +125,10 @@ Below we use an explicit example with default parameters (except for the ``type`
   weight_decay 0.0          # new keyword to set the weight decay parameter, which should be a non-negative floating-point number
   batch        2            # same usage as in nep.in but favors small values
   epoch        50           # one epoch equals #structures/#batchsize training steps
+
+.. _netcdf_setup:
+.. index::
+   single: NetCDF setup
 
 NetCDF setup
 ============
