@@ -50,8 +50,3 @@ This keyword should occur after all the :attr:`potential` keywords.
 For two-body potentials, the cutoff distance for force constants can be the same as that for force evaluations.
 However, for many-body potentials, the cutoff distance for force constants usually needs to be twice of the potential cutoff distance.
 Also make sure that the box size in any direction is at least twice of this force constant cutoff distance.
-
-Related tutorial
-----------------
-
-The use of the :attr:`compute_phonon` keyword is illustrated in `this tutorial <https://github.com/brucefan1983/GPUMD/blob/master/examples/empirical_potentials/phonon_dispersion/Phonon%20Dispersion.ipynb>`_.
