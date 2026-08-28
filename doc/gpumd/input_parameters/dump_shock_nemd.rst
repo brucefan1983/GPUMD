@@ -9,17 +9,29 @@ In shock wave piston simulations, it's often crucial to compute thermo informati
 
 Piston simulations commonly involve millions of atoms. Dumping all the virial and velocity data for each atom can lead to excessively large output files, making data processing cumbersome. The `dump_shock_nemd` command addresses this by calculating spatial thermo information during the simulation.
 
-This feature calculates the spatial distribution of partical velocity (km/h), stress (GPa), temperature and density (g/cm3) in *x*-direction.
+This feature calculates the spatial distributions of particle velocity, normal stress, temperature, and density along the *x* direction.
 
 Syntax
 ------
 
 .. code::
 
-   dump_shock_nemd interval <time_interval> bin_size <size of each bin>
+   dump_shock_nemd interval <time_interval> bin_size <bin_size>
 
 - The :attr:`interval` parameter sets the output interval (number of steps).
-- The :attr:`bin_size` parameter, optional with a default value of 10, defines the thickness of each histogram bin, measured in Angstroms.
+- The :attr:`bin_size` parameter, optional with a default value of 10, defines the thickness of each histogram bin in Å.
+
+Output files
+------------
+
+The following files are created. Each line corresponds to one output time, and the values on that line correspond to consecutive bins along the *x* direction.
+
+* ``temperature_hist.txt``: temperature in K.
+* ``pxx_hist.txt``: :math:`P_{xx}` in GPa.
+* ``pyy_hist.txt``: :math:`P_{yy}` in GPa.
+* ``pzz_hist.txt``: :math:`P_{zz}` in GPa.
+* ``density_hist.txt``: mass density in g/cm\ :math:`^3`.
+* ``vp_hist.txt``: mass-weighted mean particle velocity in the *x* direction in km/s.
 
 Examples
 --------

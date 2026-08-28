@@ -109,6 +109,7 @@ void Parameters::set_default_parameters()
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
+  save_potential_restart = 0;  // do not write checkpoint restart files by default
   output_interval = 100;       // write loss.out, nep.txt, nep.restart (and related output) every N generations
   initial_para = 1.0f;
   sigma0 = 0.1f;
@@ -1849,8 +1850,8 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   if (!is_valid_int(param[1], &save_potential)) {
     PRINT_INPUT_ERROR("save_potential interval should be an integer.\n");
   }
-  if (save_potential < 0) {
-    PRINT_INPUT_ERROR("save_potential interval should be >= 0.");
+  if (save_potential <= 0) {
+    PRINT_INPUT_ERROR("save_potential interval should be > 0.");
   }
   if (!is_valid_int(param[2], &save_potential_format)) {
     PRINT_INPUT_ERROR("save_potential format should be an integer.\n");
