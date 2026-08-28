@@ -30,6 +30,7 @@ class Add_Spring
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
+  void setup_force(const std::vector<Group>& groups, Atom& atom);
   void compute(const int step, const std::vector<Group>& groups, Atom& atom);
   void finalize();
 
@@ -45,6 +46,9 @@ private:
 
   void save_restart(int call_id);
   void load_restart(int call_id, int previous_call_id);
+  void advance_ghost();
+  void apply_force(const std::vector<Group>& groups, Atom& atom);
+  void write_output(const int step);
 
   // spring mode for each call
   enum SpringMode {
@@ -73,10 +77,10 @@ private:
   double k_decouple_[MAX_SPRING_CALLS][3]; // spring constants (kx, ky, kz) for decouple mode
 
   // ghost motion parameters
-  double velocity_[MAX_SPRING_CALLS][3];   // (vx, vy, vz) in Å/step
-  double origin_[MAX_SPRING_CALLS][3];     // absolute initial position R_g(0), set at first compute
-  double offset_[MAX_SPRING_CALLS][3];     // (x0, y0, z0) offset relative to initial COM
-  int init_origin_[MAX_SPRING_CALLS];      // flag: 0 = not set, 1 = set
+  double velocity_[MAX_SPRING_CALLS][3];    // (vx, vy, vz) in Å/step
+  double origin_[MAX_SPRING_CALLS][3];      // absolute initial position R_g(0), set at first compute
+  double offset_[MAX_SPRING_CALLS][3];      // (x0, y0, z0) offset relative to initial COM
+  int init_origin_[MAX_SPRING_CALLS] = {0}; // flag: 0 = not set, 1 = set
 
   // ghost_atom mode: per-atom anchor positions (allocated during parse)
   GPU_Vector<double> ghost_atom_pos_[MAX_SPRING_CALLS]; // device memory, size = 3 * group_size

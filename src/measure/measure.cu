@@ -68,6 +68,19 @@ void Measure::initialize(
   }
 }
 
+void Measure::setup_force(
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  for (auto& prop : properties) {
+    prop->setup_force(time_step, integrate, group, atom, box, force);
+  }
+}
+
 void Measure::finalize(
   Atom& atom,
   Box& box,
@@ -118,16 +131,6 @@ void Measure::process(
       thermo,
       atom,
       force);
-  }
-}
-
-void Measure::process_dynamics(
-  const int md_step,
-  Box& box,
-  Atom& atom)
-{
-  for (auto& prop : properties) {
-    prop->process_dynamics(md_step, box, atom);
   }
 }
 

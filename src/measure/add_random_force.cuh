@@ -28,6 +28,14 @@ class Add_Random_Force : public Property
 public:
   Add_Random_Force(const char** param, int num_param, int number_of_atoms);
 
+  void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
   void post_force(
     const int step,
     const double time_step,
@@ -40,4 +48,6 @@ public:
 private:
   GPU_Vector<gpurandState> curand_states_;
   double force_variance_ = 0.0;
+
+  void apply_random_force(Atom& atom);
 };

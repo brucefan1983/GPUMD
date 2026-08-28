@@ -115,14 +115,7 @@ gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* 
   }
 }
 
-void Add_Random_Force::post_force(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force& force)
+void Add_Random_Force::apply_random_force(Atom& atom)
 {
   add_random_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms,
@@ -147,6 +140,29 @@ void Add_Random_Force::post_force(
     atom.force_per_atom.data() + atom.number_of_atoms,
     atom.force_per_atom.data() + 2 * atom.number_of_atoms);
   GPU_CHECK_KERNEL
+}
+
+void Add_Random_Force::setup_force(
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  apply_random_force(atom);
+}
+
+void Add_Random_Force::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  apply_random_force(atom);
 }
 
 Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)

@@ -394,12 +394,10 @@ void Add_Spring::save_restart(const int call_id)
   output << std::setprecision(17);
 
   if (mode_[call_id] == MODE_GHOST_COM) {
-    // origin_ is one velocity increment ahead of the ghost position used in
-    // the last force evaluation. Store the actual last-applied ghost position
-    // so a changed velocity in the next run starts from the same physical state.
-    output << origin_[call_id][0] - velocity_[call_id][0] << " "
-           << origin_[call_id][1] - velocity_[call_id][1] << " "
-           << origin_[call_id][2] - velocity_[call_id][2] << "\n";
+    // origin_ stores the ghost position used in the last force evaluation.
+    output << origin_[call_id][0] << " "
+           << origin_[call_id][1] << " "
+           << origin_[call_id][2] << "\n";
   } else {
     std::vector<double> host_pos(state_size);
     ghost_atom_pos_[call_id].copy_to_host(host_pos.data());
@@ -505,14 +503,11 @@ void Add_Spring::load_restart(const int call_id, const int previous_call_id)
   }
 
   if (mode_[call_id] == MODE_GHOST_COM) {
-    // The file stores the last-applied ghost position. The current compute()
-    // uses origin_ as the next ghost position, so advance it once using the
-    // velocity of the new run. With unchanged velocity this is exactly the
-    // unsplit trajectory; with changed velocity the new velocity takes effect
-    // immediately at the run boundary.
-    origin_[call_id][0] = state[0] + velocity_[call_id][0];
-    origin_[call_id][1] = state[1] + velocity_[call_id][1];
-    origin_[call_id][2] = state[2] + velocity_[call_id][2];
+    // The file stores the last-applied ghost position. The setup force at the
+    // beginning of the new run must use the same physical ghost position.
+    origin_[call_id][0] = state[0];
+    origin_[call_id][1] = state[1];
+    origin_[call_id][2] = state[2];
   } else {
     ghost_atom_pos_[call_id].copy_from_host(state.data());
   }
@@ -858,7 +853,64 @@ void Add_Spring::parse(const char** param, int num_param, const std::vector<Grou
   ++num_calls_;
 }
 
+void Add_Spring::advance_ghost()
+{
+  const int block_size = 64;
+  for (int c = 0; c < num_calls_; ++c) {
+    if (init_origin_[c] == 0) {
+      continue;
+    }
+
+    if (mode_[c] == MODE_GHOST_COM) {
+      origin_[c][0] += velocity_[c][0];
+      origin_[c][1] += velocity_[c][1];
+      origin_[c][2] += velocity_[c][2];
+    } else if (mode_[c] == MODE_GHOST_ATOM) {
+      const int group_size = ghost_atom_group_size_[c];
+      const int grid_size = (group_size - 1) / block_size + 1;
+      gpu_update_ghost_atom_pos<<<grid_size, block_size>>>(
+        group_size,
+        ghost_atom_pos_[c].data(),
+        velocity_[c][0],
+        velocity_[c][1],
+        velocity_[c][2]);
+      GPU_CHECK_KERNEL
+    }
+  }
+}
+
+void Add_Spring::setup_force(const std::vector<Group>& groups, Atom& atom)
+{
+  apply_force(groups, atom);
+}
+
 void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom& atom)
+{
+  advance_ghost();
+  apply_force(groups, atom);
+  write_output(step);
+}
+
+void Add_Spring::write_output(const int step)
+{
+  for (int c = 0; c < num_calls_; ++c) {
+    if (fp_out_[c] && output_stride_ > 0 && step % output_stride_ == 0) {
+      fprintf(
+        fp_out_[c],
+        "%d  %d  %g  %g  %g  %g  %g\n",
+        step,
+        mode_[c],
+        force_[c][0],
+        force_[c][1],
+        force_[c][2],
+        total_force_[c],
+        energy_[c]);
+      fflush(fp_out_[c]);
+    }
+  }
+}
+
+void Add_Spring::apply_force(const std::vector<Group>& groups, Atom& atom)
 {
   for (int c = 0; c < num_calls_; ++c) {
     // Allocate temp buffers on first call
@@ -917,13 +969,10 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
         init_origin_[c] = 1;
       }
 
-      // Update ghost position
+      // Current ghost position
       double ghost_x = origin_[c][0];
       double ghost_y = origin_[c][1];
       double ghost_z = origin_[c][2];
-      origin_[c][0] += velocity_[c][0];
-      origin_[c][1] += velocity_[c][1];
-      origin_[c][2] += velocity_[c][2];
 
       // Compute spring force
       double dx = ghost_x - com_x;
@@ -989,15 +1038,6 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
           ghost_atom_pos_[c].data());
         GPU_CHECK_KERNEL
         init_origin_[c] = 1;
-      } else {
-        // Update ghost atom positions by adding velocity * 1 step
-        gpu_update_ghost_atom_pos<<<grid_size, block_size>>>(
-          group_size,
-          ghost_atom_pos_[c].data(),
-          velocity_[c][0],
-          velocity_[c][1],
-          velocity_[c][2]);
-        GPU_CHECK_KERNEL
       }
 
       // Apply spring forces
@@ -1169,12 +1209,6 @@ void Add_Spring::compute(const int step, const std::vector<Group>& groups, Atom&
       total_force_[c] = sqrt(fx * fx + fy * fy + fz * fz);
     }
 
-    // Write output if needed
-    if (fp_out_[c] && output_stride_ > 0 && step % output_stride_ == 0) {
-      fprintf(fp_out_[c], "%d  %d  %g  %g  %g  %g  %g\n",
-              step, mode_[c], force_[c][0], force_[c][1], force_[c][2], total_force_[c], energy_[c]);
-      fflush(fp_out_[c]);
-    }
   }
 }
 

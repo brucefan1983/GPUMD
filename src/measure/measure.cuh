@@ -37,6 +37,14 @@ public:
     Box& box,
     Force& force);
 
+  void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
   void finalize(
     Atom& atom,
     Box& box,
@@ -58,11 +66,6 @@ public:
     GPU_Vector<double>& thermo,
     Atom& atom,
     Force& force);
-
-  void process_dynamics(
-    const int md_step,
-    Box& box,
-    Atom& atom);
 
   void post_integrate1(
     const int step,

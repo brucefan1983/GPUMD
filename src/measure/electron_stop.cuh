@@ -28,6 +28,14 @@ public:
     const int num_atoms,
     const int num_types);
 
+  void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
   void post_force(
     const int step,
     const double time_step,
@@ -55,4 +63,7 @@ private:
   GPU_Vector<double> stopping_power_gpu;
   GPU_Vector<double> stopping_force;
   GPU_Vector<double> stopping_loss;
+
+  void apply_stopping_force(const double time_step, Atom& atom);
+  void accumulate_stopping_loss(Atom& atom);
 };

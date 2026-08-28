@@ -45,19 +45,38 @@ static void __global__ add_force(
   }
 }
 
-void Add_Force::post_force(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
+void Add_Force::setup_force(
+  const double,
+  Integrate&,
   std::vector<Group>& group,
   Atom& atom,
-  Box& box,
-  Force& force)
+  Box&,
+  Force&)
 {
-  const int step_mod_table_length = step % table_length_;
-  const double added_fx = force_table_[0 * table_length_ + step_mod_table_length];
-  const double added_fy = force_table_[1 * table_length_ + step_mod_table_length];
-  const double added_fz = force_table_[2 * table_length_ + step_mod_table_length];
+  apply_force(0, group, atom);
+}
+
+void Add_Force::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  apply_force(step + 1, group, atom);
+}
+
+void Add_Force::apply_force(
+  const int md_step,
+  std::vector<Group>& group,
+  Atom& atom)
+{
+  const int table_index = md_step % table_length_;
+  const double added_fx = force_table_[0 * table_length_ + table_index];
+  const double added_fy = force_table_[1 * table_length_ + table_index];
+  const double added_fz = force_table_[2 * table_length_ + table_index];
   const int num_atoms_total = atom.force_per_atom.size() / 3;
   const int group_size = group[grouping_method_].cpu_size[group_id_];
   const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];

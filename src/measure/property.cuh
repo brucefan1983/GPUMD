@@ -45,6 +45,16 @@ public:
   {
   }
 
+  virtual void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force)
+  {
+  }
+
   virtual void process(
       const int number_of_steps,
       int step,
@@ -58,13 +68,6 @@ public:
       GPU_Vector<double>& thermo,
       Atom& atom,
       Force& force)
-  {
-  }
-
-  virtual void process_dynamics(
-    const int md_step,
-    Box& box,
-    Atom& atom)
   {
   }
 
