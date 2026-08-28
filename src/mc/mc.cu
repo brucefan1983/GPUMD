@@ -28,12 +28,12 @@ The driver class for the various MC ensembles.
 
 MC::MC(void)
 {
-  property_name = "mc";
+  action_name = "mc";
 }
 
 MC::MC(const char** param, int num_param, std::vector<Group>& group, Atom& atom)
 {
-  property_name = "mc";
+  action_name = "mc";
   parse_mc(param, num_param, group, atom);
 }
 
@@ -55,7 +55,7 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Grou
   }
 }
 
-void MC::preprocess(
+void MC::pre_run(
   const int number_of_steps,
   const double,
   Integrate&,

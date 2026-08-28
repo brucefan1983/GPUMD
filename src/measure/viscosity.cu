@@ -26,7 +26,7 @@ Calculate the stress autocorrelation function and viscosity.
 
 #define NUM_OF_COMPONENTS 9
 
-void Viscosity::preprocess(
+void Viscosity::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -83,7 +83,7 @@ static __global__ void gpu_sum_stress(
   }
 }
 
-void Viscosity::process(
+void Viscosity::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -195,7 +195,7 @@ find_viscosity(const int Nc, const double factor, const double* correlation, dou
   }
 }
 
-void Viscosity::postprocess(
+void Viscosity::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -265,7 +265,7 @@ void Viscosity::postprocess(
 Viscosity::Viscosity(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_viscosity";
+  action_name = "compute_viscosity";
 }
 
 void Viscosity::parse(const char** param, int num_param)

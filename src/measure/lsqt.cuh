@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 class Atom;
 class Box;
 
@@ -26,7 +26,7 @@ class Box;
 #define number_of_orbitals_per_atom 4
 #endif
 
-class LSQT : public Property
+class LSQT : public Action
 {
 public:
 #ifndef USE_GRAPHENE_TB
@@ -44,7 +44,7 @@ public:
 
   LSQT(const char** param, const int num_param);
   void parse(const char** param, const int num_param);
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -53,7 +53,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -67,7 +67,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

@@ -56,7 +56,7 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
 Dump_CG::Dump_CG(const char** param, int num_param, std::vector<Group>& group) 
 {
   parse(param, num_param, group);
-  property_name = "dump_cg";
+  action_name = "dump_cg";
 }
 
 void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group)
@@ -89,7 +89,7 @@ void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group
   printf("    using grouping method %d to define beads.\n", grouping_method_);
 }
 
-void Dump_CG::preprocess(
+void Dump_CG::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -284,7 +284,7 @@ void Dump_CG::output_line2(FILE* fid, const Box& box, double relative_step, doub
   fprintf(fid, " Properties=species:S:1:pos:R:3:forces:R:3\n");
 }
 
-void Dump_CG::process(
+void Dump_CG::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -374,7 +374,7 @@ void Dump_CG::process(
 #endif
 }
 
-void Dump_CG::postprocess(
+void Dump_CG::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

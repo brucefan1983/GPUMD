@@ -30,7 +30,7 @@ Dump bead data in PIMD-related run
 Dump_Beads::Dump_Beads(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "dump_beads";
+  action_name = "dump_beads";
 }
 
 void Dump_Beads::parse(const char** param, int num_param)
@@ -70,7 +70,7 @@ void Dump_Beads::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Beads::preprocess(
+void Dump_Beads::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -136,7 +136,7 @@ void Dump_Beads::output_line2(FILE* fid, const double time, const Box& box)
   fprintf(fid, "\n");
 }
 
-void Dump_Beads::process(
+void Dump_Beads::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -197,7 +197,7 @@ void Dump_Beads::process(
   }
 }
 
-void Dump_Beads::postprocess(
+void Dump_Beads::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

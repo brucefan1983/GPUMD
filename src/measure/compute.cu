@@ -28,7 +28,7 @@ Compute block (space) averages of various per-atom quantities.
 
 #define DIM 3
 
-void Compute::preprocess(
+void Compute::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -67,7 +67,7 @@ void Compute::preprocess(
   fid = my_fopen("compute.out", "a");
 }
 
-void Compute::postprocess(
+void Compute::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -347,7 +347,7 @@ static __global__ void find_group_sum_9(
   }
 }
 
-void Compute::process(
+void Compute::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -589,7 +589,7 @@ void Compute::output_results_n(
 Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
 {
   parse(param, num_param, group);
-  property_name = "compute";
+  action_name = "compute";
 }
 
 void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)

@@ -82,7 +82,7 @@ void __global__ gpu_sum_dpdt(const int N, const float* g_dpdt_per_atom, float* g
 
 }
 
-void Compute_dpdt::preprocess(
+void Compute_dpdt::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -113,7 +113,7 @@ void Compute_dpdt::preprocess(
   p_integral_dt = time_step * sample_interval;
 }
 
-void Compute_dpdt::process(
+void Compute_dpdt::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -163,7 +163,7 @@ void Compute_dpdt::process(
   fflush(fid);
 }
 
-void Compute_dpdt::postprocess(
+void Compute_dpdt::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -198,5 +198,5 @@ void Compute_dpdt::parse(const char** param, int num_param)
 Compute_dpdt::Compute_dpdt(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_dpdt";
+  action_name = "compute_dpdt";
 }

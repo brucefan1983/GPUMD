@@ -267,7 +267,7 @@ DUMP_NETCDF::DUMP_NETCDF(
     atom.enable_unwrapped_position();
   }
 
-  property_name = "dump_netcdf";
+  action_name = "dump_netcdf";
 }
 
 void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Group>& groups)
@@ -391,7 +391,7 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
   }
 }
 
-void DUMP_NETCDF::preprocess(
+void DUMP_NETCDF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -1017,7 +1017,7 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, Atom& atom, Fo
   ++lenp;
 }
 
-void DUMP_NETCDF::postprocess(
+void DUMP_NETCDF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -1036,7 +1036,7 @@ void DUMP_NETCDF::postprocess(
   }
 }
 
-void DUMP_NETCDF::process(
+void DUMP_NETCDF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,

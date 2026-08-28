@@ -53,7 +53,7 @@ static __global__ void gpu_deform_atom(
 Deform::Deform(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "deform";
+  action_name = "deform";
 }
 
 void Deform::parse(const char** param, int num_param)
@@ -184,7 +184,7 @@ int Deform::get_deform_yz() const
   return deform_component_[5];
 }
 
-void Deform::preprocess(
+void Deform::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,

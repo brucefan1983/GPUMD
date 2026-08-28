@@ -14,9 +14,9 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 
-class Deform : public Property
+class Deform : public Action
 {
 public:
   Deform(const char** param, int num_param);
@@ -28,7 +28,7 @@ public:
   int get_deform_xz() const;
   int get_deform_yz() const;
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,

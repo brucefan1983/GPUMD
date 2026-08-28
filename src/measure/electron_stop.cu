@@ -214,14 +214,19 @@ void Electron_Stop::post_force(
   apply_stopping_force(time_step, atom);
 }
 
-void Electron_Stop::post_integrate2(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
+void Electron_Stop::end_of_step(
+  const int,
+  int,
+  const int,
+  const int,
+  const double,
+  const double,
+  Integrate&,
+  Box&,
+  std::vector<Group>&,
+  GPU_Vector<double>&,
   Atom& atom,
-  Box& box,
-  Force& force)
+  Force&)
 {
   accumulate_stopping_loss(atom);
 }
@@ -229,7 +234,7 @@ void Electron_Stop::post_integrate2(
 Electron_Stop::Electron_Stop(
   const char** param, int num_param, const int num_atoms, const int num_types)
 {
-  property_name = "electron_stop";
+  action_name = "electron_stop";
   printf("Apply electron stopping.\n");
   if (num_param != 2) {
     PRINT_INPUT_ERROR("electron_stop should have 1 parameter.\n");
@@ -287,7 +292,7 @@ Electron_Stop::Electron_Stop(
   stopping_loss.resize(num_atoms);
 }
 
-void Electron_Stop::postprocess(
+void Electron_Stop::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

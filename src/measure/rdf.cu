@@ -160,7 +160,7 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   GPU_CHECK_KERNEL
 }
 
-void RDF::preprocess(
+void RDF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -175,7 +175,7 @@ void RDF::preprocess(
   cell_contents.resize(atom.number_of_atoms);
 }
 
-void RDF::process(
+void RDF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -201,7 +201,7 @@ void RDF::process(
   find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
 }
 
-void RDF::postprocess(
+void RDF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -258,7 +258,7 @@ RDF::RDF(
   const int number_of_steps)
 {
   parse(param, num_param, box, cpu_type_size, number_of_steps);
-  property_name = "compute_rdf";
+  action_name = "compute_rdf";
 }
 
 void RDF::parse(

@@ -167,7 +167,7 @@ void Add_Random_Force::post_force(
 
 Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)
 {
-  property_name = "add_random_force";
+  action_name = "add_random_force";
   printf("Add force.\n");
 
   // check the number of parameters

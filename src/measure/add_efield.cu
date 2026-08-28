@@ -165,7 +165,7 @@ void Add_Efield::apply_field(
 
 Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Group>& group)
 {
-  property_name = "add_efield";
+  action_name = "add_efield";
   printf("Add electric field.\n");
 
   bool use_file_input = false;

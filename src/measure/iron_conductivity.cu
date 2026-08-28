@@ -111,7 +111,7 @@ __global__ void gpu_find_msd(
 }
 } //namespace
 
-void IC::preprocess(
+void IC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -157,7 +157,7 @@ void IC::preprocess(
   num_time_origins_ = 0;
 }
 
-void IC::process(
+void IC::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -244,7 +244,7 @@ void IC::write(const char* filename)
   fclose(fid);
 }
 
-void IC::postprocess(
+void IC::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -262,7 +262,7 @@ IC::IC(const char** param, const int num_param, Atom& atom)
 {
   parse(param, num_param);
   atom.enable_unwrapped_position();
-  property_name = "compute_ic";
+  action_name = "compute_ic";
 }
 
 void IC::parse(const char** param, const int num_param)

@@ -15,14 +15,14 @@
 
 #pragma once
 #include "model/box.cuh"
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
 class Group;
 class Atom;
 
-class OrientOrder : public Property
+class OrientOrder : public Action
 {
 
 public:
@@ -31,7 +31,7 @@ public:
 
   OrientOrder(const char** param, const int num_param);
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -40,7 +40,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
     const int number_of_steps,
     int step,
     const int fixed_group,
@@ -54,7 +54,7 @@ public:
     Atom& atom,
     Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

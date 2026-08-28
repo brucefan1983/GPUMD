@@ -23,7 +23,7 @@ The driver class dealing with measurement.
 #include <string>
 #include <vector>
 
-void Measure::initialize(
+void Measure::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -32,32 +32,32 @@ void Measure::initialize(
   Box& box,
   Force& force)
 {
-  std::vector<std::string> property_names;
-  for (auto& prop : properties) {
-    if (prop->property_name == "") {
+  std::vector<std::string> action_names;
+  for (auto& action : actions) {
+    if (action->action_name == "") {
       printf("Dear developer:\n");
-      printf("    Please set the property name you developed.\n");
+      printf("    Please set the action name you developed.\n");
       exit(1);
     }
 
     // dump_xyz, dump_netcdf, add_force, and add_efield are allowed to be called multiple times;
     // others are not
     if (
-      prop->property_name != "dump_xyz" && prop->property_name != "dump_netcdf" &&
-      prop->property_name != "add_force" && prop->property_name != "add_efield") {
-      for (auto& property_name : property_names) {
-        if (property_name == prop->property_name) {
-          std::cout << "There are multiple " << prop->property_name << " keywords within one run.\n";
+      action->action_name != "dump_xyz" && action->action_name != "dump_netcdf" &&
+      action->action_name != "add_force" && action->action_name != "add_efield") {
+      for (auto& action_name : action_names) {
+        if (action_name == action->action_name) {
+          std::cout << "There are multiple " << action->action_name << " keywords within one run.\n";
           exit(1);
         }
       }
     }
-    property_names.emplace_back(prop->property_name);
+    action_names.emplace_back(action->action_name);
   }
 
 
-  for (auto& prop : properties) {
-    prop->preprocess(
+  for (auto& action : actions) {
+    action->pre_run(
       number_of_steps,
       time_step,
       integrate,
@@ -76,12 +76,12 @@ void Measure::setup_force(
   Box& box,
   Force& force)
 {
-  for (auto& prop : properties) {
-    prop->setup_force(time_step, integrate, group, atom, box, force);
+  for (auto& action : actions) {
+    action->setup_force(time_step, integrate, group, atom, box, force);
   }
 }
 
-void Measure::finalize(
+void Measure::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -90,8 +90,8 @@ void Measure::finalize(
   const double temperature)
 {
 
-  for (auto& prop : properties) {
-    prop->postprocess(
+  for (auto& action : actions) {
+    action->post_run(
       atom,
       box,
       integrate,
@@ -100,10 +100,10 @@ void Measure::finalize(
       temperature);
   }
 
-  properties.clear();
+  actions.clear();
 }
 
-void Measure::process(
+void Measure::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -117,8 +117,8 @@ void Measure::process(
   Atom& atom,
   Force& force)
 {
-  for (auto& prop : properties) {
-    prop->process(
+  for (auto& action : actions) {
+    action->end_of_step(
       number_of_steps,
       step,
       fixed_group,
@@ -143,8 +143,8 @@ void Measure::post_integrate1(
   Box& box,
   Force& force)
 {
-  for (auto& prop : properties) {
-    prop->post_integrate1(step, time_step, integrate, group, atom, box, force);
+  for (auto& action : actions) {
+    action->post_integrate1(step, time_step, integrate, group, atom, box, force);
   }
 }
 
@@ -157,8 +157,8 @@ void Measure::pre_force(
   Box& box,
   Force& force)
 {
-  for (auto& prop : properties) {
-    prop->pre_force(step, time_step, integrate, group, atom, box, force);
+  for (auto& action : actions) {
+    action->pre_force(step, time_step, integrate, group, atom, box, force);
   }
 }
 
@@ -171,21 +171,8 @@ void Measure::post_force(
   Box& box,
   Force& force)
 {
-  for (auto& prop : properties) {
-    prop->post_force(step, time_step, integrate, group, atom, box, force);
+  for (auto& action : actions) {
+    action->post_force(step, time_step, integrate, group, atom, box, force);
   }
 }
 
-void Measure::post_integrate2(
-  const int step,
-  const double time_step,
-  Integrate& integrate,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force& force)
-{
-  for (auto& prop : properties) {
-    prop->post_integrate2(step, time_step, integrate, group, atom, box, force);
-  }
-}

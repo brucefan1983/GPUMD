@@ -16,7 +16,7 @@
 #pragma once
 
 #include "mc_ensemble.cuh"
-#include "measure/property.cuh"
+#include "measure/action.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -24,7 +24,7 @@
 
 class Atom;
 
-class MC : public Property
+class MC : public Action
 {
 public:
   MC(void);
@@ -38,7 +38,7 @@ public:
 
   void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
 
-  void preprocess(
+  void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,

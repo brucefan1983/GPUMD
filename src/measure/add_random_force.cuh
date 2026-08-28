@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
@@ -23,7 +23,7 @@
   #include <curand_kernel.h>
 #endif
 
-class Add_Random_Force : public Property
+class Add_Random_Force : public Action
 {
 public:
   Add_Random_Force(const char** param, int num_param, int number_of_atoms);

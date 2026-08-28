@@ -144,7 +144,7 @@ void write_to_file(FILE* file, double* array, int n)
 Dump_Shock_NEMD::Dump_Shock_NEMD(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "dump_shock_nemd";
+  action_name = "dump_shock_nemd";
 }
 
 void Dump_Shock_NEMD::parse(const char** param, int num_param)
@@ -168,7 +168,7 @@ void Dump_Shock_NEMD::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Shock_NEMD::preprocess(
+void Dump_Shock_NEMD::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -197,7 +197,7 @@ void Dump_Shock_NEMD::preprocess(
   com_vx_file = my_fopen("vp_hist.txt", "w");
 }
 
-void Dump_Shock_NEMD::process(
+void Dump_Shock_NEMD::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -302,7 +302,7 @@ void Dump_Shock_NEMD::process(
   write_to_file(com_vx_file, cpu_com_vx.data(), bins);
 }
 
-void Dump_Shock_NEMD::postprocess(
+void Dump_Shock_NEMD::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

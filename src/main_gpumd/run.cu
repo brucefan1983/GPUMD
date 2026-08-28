@@ -56,7 +56,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/msd.cuh"
 #include "measure/orientorder.cuh"
 #include "measure/plumed.cuh"
-#include "measure/property.cuh"
+#include "measure/action.cuh"
 #include "measure/rdf.cuh"
 #include "measure/sdc.cuh"
 #include "measure/shc.cuh"
@@ -243,7 +243,7 @@ void Run::compute_force()
 void Run::perform_a_run()
 {
   integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
-  measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
+  measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
   compute_force();
@@ -278,10 +278,9 @@ void Run::perform_a_run()
     measure.post_force(step, time_step, integrate, group, atom, box, force);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
-    measure.post_integrate2(step, time_step, integrate, group, atom, box, force);
     atom.update_unwrapped_position(box);
 
-    measure.process(
+    measure.end_of_step(
       number_of_steps,
       step,
       integrate.fixed_group,
@@ -311,7 +310,7 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
+  measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
   add_spring.finalize();
   integrate.finalize();
@@ -370,33 +369,33 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(param, num_param, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Thermo(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Thermo(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_position") == 0) {
     PRINT_INPUT_ERROR(
       "dump_position has been removed. "
       "Use dump_xyz <interval> <filename> instead.");
   } else if (strcmp(param[0], "dump_netcdf") == 0) {
 #ifdef USE_NETCDF
-    std::unique_ptr<Property> property;
-    property.reset(new DUMP_NETCDF(param, num_param, group, atom));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new DUMP_NETCDF(param, num_param, group, atom));
+    measure.actions.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
 #endif
   } else if (strcmp(param[0], "plumed") == 0) {
 #ifdef USE_PLUMED
-    std::unique_ptr<Property> property;
-    property.reset(new PLUMED(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new PLUMED(param, num_param));
+    measure.actions.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
   } else if (strcmp(param[0], "dump_restart") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Restart(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Restart(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_velocity") == 0) {
     PRINT_INPUT_ERROR(
       "dump_velocity has been removed. "
@@ -410,109 +409,109 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
       "dump_exyz has been removed. "
       "Use dump_xyz <interval> <filename> velocity force potential instead.");
   } else if (strcmp(param[0], "dump_xyz") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_XYZ(param, num_param, group, atom));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_XYZ(param, num_param, group, atom));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_cg") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_CG(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_CG(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_beads") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Beads(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Beads(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_observer") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Observer(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Observer(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_shock_nemd") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Shock_NEMD(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Shock_NEMD(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_dipole") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Dipole(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Dipole(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_polarizability") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Dump_Polarizability(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Dump_Polarizability(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "active") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Active(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Active(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_extrapolation") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Extrapolation(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Extrapolation(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_dos") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new DOS(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new DOS(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_sdc") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new SDC(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new SDC(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_msd") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new MSD(param, num_param, group, atom));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new MSD(param, num_param, group, atom));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_ic") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new IC(param, num_param, atom));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new IC(param, num_param, atom));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_rdf") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new RDF(param, num_param, box, atom.cpu_type_size, number_of_steps));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new RDF(param, num_param, box, atom.cpu_type_size, number_of_steps));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_adf") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new ADF(param, num_param, box, number_of_types));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new ADF(param, num_param, box, number_of_types));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_orientorder") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new OrientOrder(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new OrientOrder(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new AngularRDF(param, num_param, box, number_of_types, number_of_steps));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new AngularRDF(param, num_param, box, number_of_types, number_of_steps));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_dpdt") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Compute_dpdt(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Compute_dpdt(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_es") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Compute_es(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Compute_es(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_hac") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new HAC(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new HAC(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Viscosity(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Viscosity(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new HNEMD(param, num_param, force));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new HNEMD(param, num_param, force));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new HNEMDEC(param, num_param, force, atom, integrate.temperature1));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new HNEMDEC(param, num_param, force, atom, integrate.temperature1));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_shc") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new SHC(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new SHC(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_gkma") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 0, force));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 0, force));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_hnema") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "deform") == 0) {
     Deform* deform = new Deform(param, num_param);
     integrate.deform_x = deform->get_deform_x();
@@ -521,51 +520,51 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.deform_xy = deform->get_deform_xy();
     integrate.deform_xz = deform->get_deform_xz();
     integrate.deform_yz = deform->get_deform_yz();
-    std::unique_ptr<Property> property;
-    property.reset(deform);
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(deform);
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_chunk") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new ComputeChunk(param, num_param, box));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new ComputeChunk(param, num_param, box));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Compute(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Compute(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "fix") == 0) {
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "move") == 0) {
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Electron_Stop(param, num_param, atom.number_of_atoms, number_of_types));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Electron_Stop(param, num_param, atom.number_of_atoms, number_of_types));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "add_random_force") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Add_Random_Force(param, num_param, atom.number_of_atoms));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Add_Random_Force(param, num_param, atom.number_of_atoms));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "add_force") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Add_Force(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Add_Force(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "add_spring") == 0) {
     add_spring.parse(param, num_param, group, atom);
   } else if (strcmp(param[0], "add_efield") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new Add_Efield(param, num_param, group));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new Add_Efield(param, num_param, group));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "mc") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new MC(param, num_param, group, atom));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new MC(param, num_param, group, atom));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "kspace") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
-    std::unique_ptr<Property> property;
-    property.reset(new LSQT(param, num_param));
-    measure.properties.emplace_back(std::move(property));
+    std::unique_ptr<Action> action;
+    action.reset(new LSQT(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {

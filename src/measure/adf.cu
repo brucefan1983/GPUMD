@@ -177,10 +177,10 @@ static __global__ void gpu_find_adf_local(
 ADF::ADF(const char** param, const int num_param, Box& box, const int number_of_types)
 {
   parse(param, num_param, box, number_of_types);
-  property_name = "compute_adf";
+  action_name = "compute_adf";
 }
 
-void ADF::preprocess(
+void ADF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -234,7 +234,7 @@ void ADF::preprocess(
   fid = fopen("adf.out", "a");
 };
 
-void ADF::process(
+void ADF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -350,7 +350,7 @@ void ADF::process(
   fflush(fid);
 };
 
-void ADF::postprocess(
+void ADF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

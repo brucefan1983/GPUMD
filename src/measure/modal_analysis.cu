@@ -440,7 +440,7 @@ void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream& eigfile, GPU_Vector<fl
   }
 }
 
-void MODAL_ANALYSIS::preprocess(
+void MODAL_ANALYSIS::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -557,7 +557,7 @@ void MODAL_ANALYSIS::preprocess(
   gpublasCreate(&ma_handle);
 }
 
-void MODAL_ANALYSIS::process(
+void MODAL_ANALYSIS::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -616,7 +616,7 @@ void MODAL_ANALYSIS::process(
   }
 }
 
-void MODAL_ANALYSIS::postprocess(
+void MODAL_ANALYSIS::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -644,7 +644,7 @@ MODAL_ANALYSIS::MODAL_ANALYSIS(
     parse_compute_hnema(param, num_param, number_of_types);
     force.set_hnemd_parameters(fe_x, fe_y, fe_z);
   }
-  property_name = "modal_analysis";
+  action_name = "modal_analysis";
 }
 
 void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const int number_of_types)

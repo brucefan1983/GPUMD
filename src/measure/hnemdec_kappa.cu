@@ -34,7 +34,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #define NUM_OF_HEAT_COMPONENTS 3
 #define FILE_NAME_LENGTH 200
 
-void HNEMDEC::preprocess(
+void HNEMDEC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -147,7 +147,7 @@ static __global__ void gpu_sum_heat_and_diffusion(
   }
 }
 
-void HNEMDEC::process(
+void HNEMDEC::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -239,7 +239,7 @@ void HNEMDEC::process(
   }
 }
 
-void HNEMDEC::postprocess(
+void HNEMDEC::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -250,7 +250,7 @@ void HNEMDEC::postprocess(
 HNEMDEC::HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature)
 {
   parse(param, num_param);
-  property_name = "compute_hnemdec";
+  action_name = "compute_hnemdec";
   force.set_hnemdec_parameters(
     compute,
     fe_x,

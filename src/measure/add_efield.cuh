@@ -15,10 +15,10 @@
 
 #pragma once
 
-#include "property.cuh"
+#include "action.cuh"
 #include <vector>
 
-class Add_Efield : public Property
+class Add_Efield : public Action
 {
 public:
   Add_Efield(const char** param, int num_param, const std::vector<Group>& group);

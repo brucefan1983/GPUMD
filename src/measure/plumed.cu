@@ -68,7 +68,7 @@ static __global__ void gpu_add_plumed_virial(
   }
 }
 
-void PLUMED::preprocess(
+void PLUMED::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -91,7 +91,7 @@ void PLUMED::preprocess(
 PLUMED::PLUMED(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "plumed";
+  action_name = "plumed";
 }
 
 void PLUMED::parse(const char** param, int num_param)
@@ -244,7 +244,7 @@ void PLUMED::post_force(
   }
 }
 
-void PLUMED::process(
+void PLUMED::end_of_step(
   const int number_of_steps,
   int step_input,
   const int fixed_group,
@@ -270,7 +270,7 @@ void PLUMED::process(
   calculate(step, box, atom);
 }
 
-void PLUMED::postprocess(
+void PLUMED::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

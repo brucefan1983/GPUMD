@@ -434,10 +434,10 @@ AngularRDF::AngularRDF(
   const int number_of_steps)
 {
   parse(param, num_param, box, number_of_types, number_of_steps);
-  property_name = "compute_angular_rdf";
+  action_name = "compute_angular_rdf";
 }
 
-void AngularRDF::preprocess(
+void AngularRDF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -503,7 +503,7 @@ void AngularRDF::preprocess(
   cell_contents.resize(atom.number_of_atoms);
 }
 
-void AngularRDF::process(
+void AngularRDF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -582,7 +582,7 @@ void AngularRDF::process(
   }
 }
 
-void AngularRDF::postprocess(
+void AngularRDF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

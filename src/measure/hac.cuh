@@ -14,10 +14,10 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HAC : public Property
+class HAC : public Action
 {
 public:
   HAC(const char**, int);
@@ -27,7 +27,7 @@ public:
   int Nc;              // number of correlation points
   int output_interval; // only output Nc/output_interval data
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -36,7 +36,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -50,7 +50,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

@@ -112,7 +112,7 @@ static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, d
 Active::Active(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "active";
+  action_name = "active";
 }
 
 void Active::parse(const char** param, int num_param)
@@ -168,7 +168,7 @@ void Active::parse(const char** param, int num_param)
     check_interval_);
 }
 
-void Active::preprocess(
+void Active::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -197,7 +197,7 @@ void Active::preprocess(
   }
 }
 
-void Active::process(
+void Active::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -444,7 +444,7 @@ void Active::write_exyz(
   fflush(fid_);
 }
 
-void Active::postprocess(
+void Active::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
