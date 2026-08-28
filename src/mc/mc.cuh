@@ -16,6 +16,7 @@
 #pragma once
 
 #include "mc_ensemble.cuh"
+#include "measure/property.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -23,9 +24,12 @@
 
 class Atom;
 
-class MC
+class MC : public Property
 {
 public:
+  MC(void);
+  MC(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
+
   std::unique_ptr<MC_Ensemble> mc_ensemble;
 
   void initialize(void);
@@ -34,8 +38,27 @@ public:
 
   void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
 
+  void preprocess(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
+  void pre_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
 private:
   bool do_mcmd = false;
+  int number_of_steps_run = 0;
   int num_steps_md = 0;
   int num_steps_mc = 0;
   int num_types_mc = 0;

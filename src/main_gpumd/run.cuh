@@ -22,7 +22,6 @@ class Measure;
 #include "add_spring.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
-#include "mc/mc.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -66,7 +65,6 @@ private:
 
   Force force;
   Integrate integrate;
-  MC mc;
   Measure measure;
   Add_Spring add_spring;
 };

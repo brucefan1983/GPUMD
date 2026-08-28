@@ -26,6 +26,17 @@ The driver class for the various MC ensembles.
 #include "utilities/read_file.cuh"
 #include <cstring>
 
+MC::MC(void)
+{
+  property_name = "mc";
+}
+
+MC::MC(const char** param, int num_param, std::vector<Group>& group, Atom& atom)
+{
+  property_name = "mc";
+  parse_mc(param, num_param, group, atom);
+}
+
 void MC::initialize(void)
 {
   // todo
@@ -42,6 +53,30 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Grou
       mc_ensemble->compute(step + 1, temperature, atom, box, group, grouping_method, group_id);
     }
   }
+}
+
+void MC::preprocess(
+  const int number_of_steps,
+  const double,
+  Integrate&,
+  std::vector<Group>&,
+  Atom&,
+  Box&,
+  Force&)
+{
+  number_of_steps_run = number_of_steps;
+}
+
+void MC::pre_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force&)
+{
+  compute(step, number_of_steps_run, atom, box, group);
 }
 
 void MC::parse_group(
