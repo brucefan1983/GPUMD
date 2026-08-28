@@ -212,6 +212,17 @@ void Electron_Stop::post_force(
   Force& force)
 {
   apply_stopping_force(time_step, atom);
+}
+
+void Electron_Stop::post_integrate2(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
   accumulate_stopping_loss(atom);
 }
 

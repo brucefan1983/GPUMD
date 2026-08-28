@@ -45,6 +45,15 @@ public:
     Box& box,
     Force& force) override;
 
+  void post_integrate2(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+
   void postprocess(
     Atom& atom,
     Box& box,

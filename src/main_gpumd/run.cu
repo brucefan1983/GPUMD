@@ -61,6 +61,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/sdc.cuh"
 #include "measure/shc.cuh"
 #include "measure/viscosity.cuh"
+#include "mc/mc.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
@@ -242,7 +243,6 @@ void Run::compute_force()
 void Run::perform_a_run()
 {
   integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
-  mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
@@ -281,8 +281,6 @@ void Run::perform_a_run()
     measure.post_integrate2(step, time_step, integrate, group, atom, box, force);
     atom.update_unwrapped_position(box);
 
-    mc.compute(step, number_of_steps, atom, box, group);
-
     measure.process(
       number_of_steps,
       step,
@@ -317,7 +315,6 @@ void Run::perform_a_run()
 
   add_spring.finalize();
   integrate.finalize();
-  mc.finalize();
   velocity.finalize();
   force.finalize();
   max_distance_per_step = 0.0;
@@ -558,7 +555,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     property.reset(new Add_Efield(param, num_param, group));
     measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "mc") == 0) {
-    mc.parse_mc(param, num_param, group, atom);
+    std::unique_ptr<Property> property;
+    property.reset(new MC(param, num_param, group, atom));
+    measure.properties.emplace_back(std::move(property));
   } else if (strcmp(param[0], "kspace") == 0) {
     // nothing here; will be handled elsewhere
   } else if (strcmp(param[0], "dftd3") == 0) {
