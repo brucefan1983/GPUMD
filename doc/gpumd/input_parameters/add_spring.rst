@@ -38,14 +38,14 @@ The decoupled spring potential is:
 where :math:`(x_1, y_1, z_1)` and :math:`(x_2, y_2, z_2)` are the Cartesian coordinates of the two points connected by the spring.
 
 * In :attr:`ghost_com` mode, force is added to atoms in group :attr:`group_id` of group method :attr:`group_method` with mass-weighted distribution. The ghost is initially placed at the COM + (:attr:`offset_x`, :attr:`offset_y`, :attr:`offset_z`) and is displaced by (:attr:`ghost_vx`, :attr:`ghost_vy`, :attr:`ghost_vz`) at each step.
-* In :attr:`ghost_atom` mode, each atom in group :attr:`group_id` is attached to its own ghost anchor. The anchor is initially placed at the atom position + (:attr:`offset_x`, :attr:`offset_y`, :attr:`offset_z`) and is displaced by (:attr:`ghost_vx`, :attr:`ghost_vy`, :attr:`ghost_vz`) at each step.
-The input spring constant(s) (:attr:`k_couple` or :attr:`k_decouple_x`, :attr:`k_decouple_y`, :attr:`k_decouple_z`) represent the total stiffness of the entire group and are divided internally by the number of atoms in the group. Thus, each atom experiences a spring with an effective stiffness of :attr:`k / N_atoms`.
+* In :attr:`ghost_atom` mode, each atom in group :attr:`group_id` is attached to its own ghost anchor. The anchor is initially placed at the atom position + (:attr:`offset_x`, :attr:`offset_y`, :attr:`offset_z`) and is displaced by (:attr:`ghost_vx`, :attr:`ghost_vy`, :attr:`ghost_vz`) at each step. The input spring constant(s) (:attr:`k_couple` or :attr:`k_decouple_x`, :attr:`k_decouple_y`, :attr:`k_decouple_z`) represent the total stiffness of the entire group and are divided internally by the number of atoms in the group. Thus, each atom experiences a spring with an effective stiffness of :attr:`k / N_atoms`.
 * In :attr:`com_com` mode, a spring interaction is applied between the COM of group :attr:`group_id_1` and the COM of group :attr:`group_id_2` under the same :attr:`group_method`. Equal and opposite forces are applied to the two groups with mass-weighted distribution within each group.
 * In :attr:`couple` mode, :attr:`k_couple` must be positive and :attr:`R0` must be non-negative.
 * In :attr:`decouple` mode, :attr:`k_decouple_x`, :attr:`k_decouple_y`, and :attr:`k_decouple_z` must be non-negative.
 * In :attr:`com_com` mode, :attr:`group_id_1` and :attr:`group_id_2` must be different.
 * Force is in units of eV/Å, distance is in units of Å, velocity is in units of Å/step, and spring constant is in units of eV/Å².
 * Spring forces are written to :attr:`spring_gm<group_method>_g<group_id>_s<spring_id>.out`. The :attr:`spring_id` is assigned independently for each (:attr:`group_method`, :attr:`group_id`) pair. A new spring uses the lowest unused non-negative ID that does not already have a spring output or restart file. A continued spring keeps the ID specified by ``continue <spring_id>``. The meaning of each column in the file is::
+   
    # step  mode  Fx  Fy  Fz  Ftotal  energy
 
 where :attr:`mode` is an integer flag: 0 = ghost_com, 1 = ghost_atom, 2 = com_com. In :attr:`com_com` mode, the reported :attr:`Fx`, :attr:`Fy`, and :attr:`Fz` correspond to the net spring force applied to :attr:`group_id_1`.
