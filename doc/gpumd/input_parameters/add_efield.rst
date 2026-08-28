@@ -24,7 +24,16 @@ This keyword is used in one of the following ways::
 
 * Electric field is applied to atoms in group :attr:`group_id` of group method :attr:`group_method`.
 * In usage 1, the constant electric field with components :attr:`Ex`, :attr:`Ey`, and :attr:`Ez` is applied to each selected atom.
-* In usage 2, a series of electric fields specified in the file :attr:`add_efield_file` will be periodically applied to each selected atom.
+* In usages 2 and 4, a series of electric fields specified in the file :attr:`add_efield_file` will be periodically applied to each selected atom. The file format is::
+
+    N
+    Ex(0) Ey(0) Ez(0)
+    Ex(1) Ey(1) Ez(1)
+    ...
+    Ex(N-1) Ey(N-1) Ez(N-1)
+
+  The first line contains the number of electric-field vectors :math:`N`, which must be at least 2. It is followed by :math:`N` lines, each containing the three Cartesian components of one electric-field vector.
+  At the initial force evaluation (:math:`t=0`), vector 0 is used. At :math:`t=n\Delta t`, vector :math:`n \bmod N` is used, so the sequence is repeated periodically.
 * In usages 1 and 2, if the potential model is qNEP, the added electric force equals to the dot product of the electric field and the :term:`BEC`; otherwise it equals to the product of the electric field and the charge of the atom as specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 * In usages 3 and 4, :attr:`mode` can be charge or bec.
   * When :attr:`mode` is charge, the electric force will be calculated via 
@@ -45,9 +54,16 @@ Add a constant electric field of 0.1 V/Å in the x direction on atoms in group 1
 Example 2
 ---------
 
-Add electric field on atoms in group 2 of group method 0, where the file :attr:`add_efield.txt` contains a number of rows of 3 values specifying a sequence of electric field vectors to be periodically applied during the run::
+Add electric field on atoms in group 2 of group method 0 using a sequence of electric-field vectors from :attr:`add_efield.txt`::
 
    add_efield 0 2 add_efield.txt
+
+For example, the following file applies three electric-field vectors periodically::
+
+   3
+   0.10 0.00 0.00
+   0.00 0.10 0.00
+   0.00 0.00 0.10
 
 Note
 ----
