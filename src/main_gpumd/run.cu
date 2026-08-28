@@ -17,7 +17,6 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
-#include "add_spring.cuh"
 #include "measure/add_random_force.cuh"
 #include "cohesive.cuh"
 #include "measure/electron_stop.cuh"
@@ -27,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/active.cuh"
 #include "measure/add_efield.cuh"
 #include "measure/add_force.cuh"
+#include "measure/add_spring.cuh"
 #include "measure/adf.cuh"
 #include "measure/angular_rdf.cuh"
 #include "measure/compute.cuh"
@@ -248,7 +248,6 @@ void Run::perform_a_run()
   // setup force for the first integrate step
   compute_force();
   atom.update_unwrapped_position(box);
-  add_spring.setup_force(group, atom);
   measure.setup_force(time_step, integrate, group, atom, box, force);
 
   double initial_time_step = time_step;
@@ -274,7 +273,6 @@ void Run::perform_a_run()
     compute_force();
 
     atom.update_unwrapped_position(box);
-    add_spring.compute(step, group, atom);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
@@ -312,7 +310,6 @@ void Run::perform_a_run()
 
   measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
-  add_spring.finalize();
   integrate.finalize();
   velocity.finalize();
   force.finalize();
@@ -548,7 +545,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     action.reset(new Add_Force(param, num_param, group));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "add_spring") == 0) {
-    add_spring.parse(param, num_param, group, atom);
+    std::unique_ptr<Action> action;
+    action.reset(new Add_Spring(param, num_param, group, atom));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "add_efield") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Add_Efield(param, num_param, group));

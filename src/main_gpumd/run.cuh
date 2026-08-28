@@ -19,7 +19,6 @@ class Force;
 class Integrate;
 class Measure;
 
-#include "add_spring.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
@@ -66,5 +65,4 @@ private:
   Force force;
   Integrate integrate;
   Measure measure;
-  Add_Spring add_spring;
 };

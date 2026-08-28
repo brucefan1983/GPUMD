@@ -39,12 +39,12 @@ void Measure::pre_run(
       printf("    Please set the action name you developed.\n");
       exit(1);
     }
-
-    // dump_xyz, dump_netcdf, add_force, and add_efield are allowed to be called multiple times;
+    // dump_xyz, dump_netcdf, add_force, add_spring, and add_efield are allowed to be called multiple times;
     // others are not
     if (
       action->action_name != "dump_xyz" && action->action_name != "dump_netcdf" &&
-      action->action_name != "add_force" && action->action_name != "add_efield") {
+      action->action_name != "add_force" && action->action_name != "add_spring" &&
+      action->action_name != "add_efield") {
       for (auto& action_name : action_names) {
         if (action_name == action->action_name) {
           std::cout << "There are multiple " << action->action_name << " keywords within one run.\n";
