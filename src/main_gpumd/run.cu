@@ -268,6 +268,10 @@ void Run::perform_a_run()
 
     measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
 
+    // MC changes atom types/masses/velocities. Do it before the force evaluation
+    // so the force at the new MD state is consistent with the accepted MC state.
+    mc.compute(step, number_of_steps, atom, box, group);
+
     force.temperature += force.delta_T;
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
@@ -280,8 +284,6 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
     measure.post_integrate2(step, time_step, integrate, group, atom, box, force);
     atom.update_unwrapped_position(box);
-
-    mc.compute(step, number_of_steps, atom, box, group);
 
     measure.process(
       number_of_steps,
