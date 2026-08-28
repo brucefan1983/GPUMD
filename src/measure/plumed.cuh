@@ -19,7 +19,7 @@
 #include "property.cuh"
 #include "integrate/integrate.cuh"
 #include "force/potential.cuh"
-#include <Plumed.h>
+#include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <vector>
 
