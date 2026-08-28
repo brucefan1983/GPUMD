@@ -5,7 +5,7 @@
 :attr:`compute_ic`
 ===================
 
-This keyword computes the iron conductivity (:term:`IC`) from the mean-square displacement (:term:`MSD`) function.
+This keyword computes the ionic conductivity (:term:`IC`) from the mean-square displacement (:term:`MSD`) function.
 If this keyword appears in a run, the :term:`IC` function will be calculated as a time derivative of it.
 The results will be written to :ref:`ic.out output file <ic_out>`.
 
@@ -32,8 +32,7 @@ An example of this function is::
 
 This means that you
 
-* want to calculate the iron conductivity from the mean-square displacement function
+* want to calculate the ionic conductivity from the mean-square displacement function
 * the position data will be recorded every 5 steps
 * the maximum number of correlation steps is 200
 * you would like to compute only for the atom with type 0 in nep.txt and charge 1.
-

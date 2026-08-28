@@ -3,7 +3,7 @@
 :attr:`ensemble` (TI)
 =====================
 
-This keyword is used to set up a equilibrium thermodynamic integration integrator. It is for testing purpose and its only differece from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
+This keyword is used to set up an equilibrium thermodynamic integration integrator. It is for testing purpose and its only difference from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
 
 Syntax
 ------

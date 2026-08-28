@@ -35,7 +35,7 @@ The overall structure of a ``run.in`` file is as follows:
 
 The following tables provide an overview of the different keywords.
 A complete list can also be found :ref:`here <gpumd_input_parameters>`.
-The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagted from one ``run`` command to the next (*Prop.*).
+The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagated from one ``run`` command to the next (*Prop.*).
 
 Simulation setup
 ================

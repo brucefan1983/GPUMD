@@ -32,14 +32,14 @@ The :attr:`<direction>` parameter can assume one or more of the following values
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
 ``aniso`` updates the dimensions of the simulation cell along :math:`x`, :math:`y`, and :math:`z` independently.
-``tri`` updatess all six degrees of freedom of the simulation cell.
+``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz`` allows one to specify each stress component independently.
 
 The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final pressure, respectively.
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` timesteps.
 
-The :attr:`nph_mttk` keyword can be used in analoguous fashion to run simulations in the isenthalpic (NPH) ensemble::
+The :attr:`nph_mttk` keyword can be used in analogous fashion to run simulations in the isenthalpic (NPH) ensemble::
 
     ensemble nph_mttk <direction> <p_1> <p_2> pperiod <tau_press>
 
@@ -61,7 +61,7 @@ NPT Ensemble
     ensemble npt_mttk temp 300 300 iso 10 10
 
 This command sets the target temperature to 300 K and the target pressure to 10 GPa.
-The cell shape will not change during the simlation but only the volume.
+The cell shape will not change during the simulation but only the volume.
 These conditions are suitable for simulating liquids.
 If not constrained, the cell shape may undergo extreme changes since liquids have a vanishing shear modulus (in the long-time limit).
 

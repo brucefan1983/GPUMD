@@ -8,7 +8,7 @@
 This keyword can be used to compute the phonon dispersions using the finite-displacement method.
 The results are written to the :ref:`D.out output file <D_out>` and the :ref:`omega2.out output file <omega2_out>`.
 
-To use this keyword, please make sure the following files have been preprared in the input directory:
+To use this keyword, please make sure the following files have been prepared in the input directory:
 
 .. list-table::
    :header-rows: 1
@@ -54,4 +54,4 @@ Also make sure that the box size in any direction is at least twice of this forc
 Related tutorial
 ----------------
 
-The use of the :attr:`calculate_phonon` keyword is illustrated in `this tutorial <https://github.com/brucefan1983/GPUMD/blob/master/examples/empirical_potentials/phonon_dispersion/Phonon%20Dispersion.ipynb>`_.
+The use of the :attr:`compute_phonon` keyword is illustrated in `this tutorial <https://github.com/brucefan1983/GPUMD/blob/master/examples/empirical_potentials/phonon_dispersion/Phonon%20Dispersion.ipynb>`_.

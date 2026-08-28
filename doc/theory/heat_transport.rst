@@ -248,7 +248,7 @@ The Green-Kubo Modal Analysis (:term:`GKMA`) calculates the modal contributions 
    
    \kappa_{xx,n}(t) = \frac{1}{k_BT^2V} \int_0^{t} dt' \langle J_{x,n}(t')J_{x}(0)\rangle.
 
-Here, :math:`k_{\rm B}` is Boltzmann's constant, :math:`V` is the volume of the simulated system, :math:`T` is the absolute temperature, and :math:`t` is the correlation time. :math:`J_{x}(0)` is the total heat current and and:math:`J_{x,n}(t')` is the mode-specific heat current of the system at two time points separated by an interval of :math:`t'`.
+Here, :math:`k_{\rm B}` is Boltzmann's constant, :math:`V` is the volume of the simulated system, :math:`T` is the absolute temperature, and :math:`t` is the correlation time. :math:`J_{x}(0)` is the total heat current and :math:`J_{x,n}(t')` is the mode-specific heat current of the system at two time points separated by an interval of :math:`t'`.
 The symbol :math:`\langle \rangle` means that the quantity inside will be averaged over different time origins.
 
 * Related input file: :ref:`eigenvector.in <eigenvector_in>`
@@ -294,7 +294,7 @@ HNEMDEC method
 
 A system with :math:`M` components has :math:`M` independent fluxes: the heat flux and any :math:`M-1` momentum fluxes of the :math:`M` component.
 The central idea of Evans-Cummings algorithm is designing such a driving force that produce a dissipative flux that is equivalent to heat flux or momentum flux.
-By measuring the heat current and momentum current, we obtain onsager coefficents that can be used to derive the thermal conductivity. 
+By measuring the heat current and momentum current, we obtain onsager coefficients that can be used to derive the thermal conductivity.
 
 In the case of heat flux :math:`\boldsymbol{J}_{q}` as dissipative flux, for the :math:`i` atom belonging to :math:`\alpha` component:
 
@@ -305,7 +305,7 @@ In the case of heat flux :math:`\boldsymbol{J}_{q}` as dissipative flux, for the
    -\frac{m_{\alpha}}{M}\mathbf{S}
    +k_BT\frac{M_{tot}-Nm_{\alpha}}{M_{tot}N}\mathbf{I})\cdot \boldsymbol{F}_{\rm e} 
 
-where :math:`\mathbf{S}_{i}^{\alpha}=E_{i}^{\alpha}\mathbf{I}+\mathbf{W}_{i}^{\alpha}`, :math:`\mathbf{S}=\sum_{\beta=1}^{M}\sum_{i=1}^{N_{\beta}}\mathbf{S}_{i}^{\beta}`, :math:`M_{tot}` is the total mass of the system, :math:`N` is the atom number of the system. Any physical quantity :math:`A(t)` is related to driving force by correlation funtion:
+where :math:`\mathbf{S}_{i}^{\alpha}=E_{i}^{\alpha}\mathbf{I}+\mathbf{W}_{i}^{\alpha}`, :math:`\mathbf{S}=\sum_{\beta=1}^{M}\sum_{i=1}^{N_{\beta}}\mathbf{S}_{i}^{\beta}`, :math:`M_{tot}` is the total mass of the system, :math:`N` is the atom number of the system. Any physical quantity :math:`A(t)` is related to driving force by correlation function:
 
 .. math::
 
@@ -369,4 +369,3 @@ The thermal conductivity could be derived from onsager matrix:
 
 * The :ref:`compute_hnemdec <kw_compute_hnemdec>` keyword should be used to add the driving force and calculate the thermal conductivity.
 * The computed results are saved to the :ref:`onsager.out <onsager_out>` file.
-

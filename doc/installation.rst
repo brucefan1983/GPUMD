@@ -112,7 +112,7 @@ See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for
         cmake --build build --target gnep
 
 The usage of the ``gnep`` executable is similar to that of the ``nep`` executable.
-The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``'
+The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``
 Below we use an explicit example with default parameters (except for the ``type`` keyword) to illustrate the inputs in ``gnep.in``::
 
   type         2 Ge Se      # same usage as in nep.in
@@ -690,4 +690,3 @@ References
 * jse: https://github.com/liqa1024/jse
 * jse-skill: https://github.com/liqa1024/jse-skill
 * jsex-NNAP: https://github.com/liqa1024/jsex-NNAP
-

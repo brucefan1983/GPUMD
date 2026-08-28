@@ -61,7 +61,7 @@ File format
 
 This hybrid potential requires 3 kinds of files: one for :term:`ILP` potential, 
 one for :term:`NEP` potential and the other for mapping :term:`NEP` potential to groups in model file.
-We have adopted the :term:`ILP` file format that similar but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
+We have adopted the :term:`ILP` file format that is similar but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
 The :term:`NEP` potential file is not required to modify, while to make the :term:`ILP` and :term:`NEP` potentials identify the layers, it's required to set some groups
 in ``model.xyz`` file.
 

@@ -5,7 +5,7 @@
 ``hac.out``
 ===========
 
-This file contains the heat current auto-correlation (:term:`HAC`) function and the running thermal conductivity (:term:`RTC`) from the the :ref:`EMD method for heat transport <green_kubo_method>` method.
+This file contains the heat current auto-correlation (:term:`HAC`) function and the running thermal conductivity (:term:`RTC`) from the :ref:`EMD method for heat transport <green_kubo_method>`.
 It is produced when invoking the :ref:`compute_hac keyword <kw_compute_hac>` in the :ref:`run.in input file <run_in>`.
 
 File format

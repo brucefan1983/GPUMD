@@ -19,8 +19,8 @@ This keyword is used as follows::
 Here,
 :attr:`method` can be :attr:`sd` (the steepest descent method) or :attr:`fire` (the FIRE method).
 :attr:`force_tolerance` is in units of eV/Å.
-When the largest absolute force component among the :math:`3N` force components in the system is smaller than :attr:`force_tolerance`, the energy minimization process will stop even though the number of steps (interations) performed is smaller than :attr:`maximal_number_of_steps`.
-:attr:`maximal_number_of_steps` is the maximal number of steps (interations) to be performed for the energy minimization process.
+When the largest absolute force component among the :math:`3N` force components in the system is smaller than :attr:`force_tolerance`, the energy minimization process will stop even though the number of steps (iterations) performed is smaller than :attr:`maximal_number_of_steps`.
+:attr:`maximal_number_of_steps` is the maximal number of steps (iterations) to be performed for the energy minimization process.
 :attr:`box_change` specifies whether to optimize the box during minimization. It only supports the FIRE method now.
 :attr:`hydrostatic_strain` indicates whether hydrostatic strain should be applied to change the box.
 
@@ -37,7 +37,7 @@ means that one wants to do an energy minimization using the steepest descent met
 
 Example 2
 ^^^^^^^^^
-If you have no idea how small :attr:`force_tolerance` should be, you can simply asign a negative number to it::
+If you have no idea how small :attr:`force_tolerance` should be, you can simply assign a negative number to it::
 
   minimize sd -1 10000
 
@@ -67,7 +67,7 @@ means that one wants to optimize box using hydrostatic strain during the energy 
 
 Example 5
 ^^^^^^^^^
-If you want to ouput the optimized structure, use `dump_xyz` in the `nve` ensemble like the following command::
+If you want to output the optimized structure, use `dump_xyz` in the `nve` ensemble like the following command::
 
   minimize fire 1.0e-5 1000 1
 
