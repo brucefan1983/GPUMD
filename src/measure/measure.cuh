@@ -67,11 +67,6 @@ public:
     Atom& atom,
     Force& force);
 
-  void process_dynamics(
-    const int md_step,
-    Box& box,
-    Atom& atom);
-
   void post_integrate1(
     const int step,
     const double time_step,

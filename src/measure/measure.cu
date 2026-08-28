@@ -134,16 +134,6 @@ void Measure::process(
   }
 }
 
-void Measure::process_dynamics(
-  const int md_step,
-  Box& box,
-  Atom& atom)
-{
-  for (auto& prop : properties) {
-    prop->process_dynamics(md_step, box, atom);
-  }
-}
-
 void Measure::post_integrate1(
   const int step,
   const double time_step,

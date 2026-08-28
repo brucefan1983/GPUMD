@@ -19,7 +19,7 @@
 #include "property.cuh"
 #include "integrate/integrate.cuh"
 #include "force/potential.cuh"
-#include <plumed/wrapper/Plumed.h>
+#include <Plumed.h>
 #include <stdio.h>
 #include <vector>
 
@@ -29,7 +29,6 @@ public:
   int step = 0;
   int interval = 1;
   int use_plumed = 0;
-  bool dynamics_mode = false;
 
   PLUMED(const char** param, int num_param);
   
@@ -38,6 +37,23 @@ public:
 
   virtual void preprocess(
     const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void setup_force(
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void post_force(
+    const int step,
     const double time_step,
     Integrate& integrate,
     std::vector<Group>& group,
@@ -58,11 +74,6 @@ public:
       GPU_Vector<double>& thermo,
       Atom& atom,
       Force& force);
-
-  virtual void process_dynamics(
-    const int md_step,
-    Box& box,
-    Atom& atom);
 
   virtual void postprocess(
     Atom& atom,

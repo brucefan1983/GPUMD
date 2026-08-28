@@ -250,7 +250,6 @@ void Run::perform_a_run()
   atom.update_unwrapped_position(box);
   add_spring.setup_force(group, atom);
   measure.setup_force(time_step, integrate, group, atom, box, force);
-  measure.process_dynamics(0, box, atom);
 
   double initial_time_step = time_step;
 
@@ -277,8 +276,6 @@ void Run::perform_a_run()
     atom.update_unwrapped_position(box);
     add_spring.compute(step, group, atom);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
-
-    measure.process_dynamics(step + 1, box, atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
     measure.post_integrate2(step, time_step, integrate, group, atom, box, force);

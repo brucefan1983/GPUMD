@@ -71,13 +71,6 @@ public:
   {
   }
 
-  virtual void process_dynamics(
-    const int md_step,
-    Box& box,
-    Atom& atom)
-  {
-  }
-
   virtual void post_integrate1(
     const int step,
     const double time_step,
