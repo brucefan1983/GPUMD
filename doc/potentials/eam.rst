@@ -5,7 +5,7 @@
 Embedded atom method
 ====================
 
-:program:`GPUMD` suppports two different analytical forms of embedded atom method (:term:`EAM`) potentials.
+:program:`GPUMD` supports two different analytical forms of embedded atom method (:term:`EAM`) potentials.
 Using the form by Zhou *et al.* can simulate alloys with up to 10 atom types [Zhou2004]_, while using the form of Dai *et al.* the implementation only applies to systems with a single atom type [Dai2006]_.
 
 Potential form
@@ -144,4 +144,3 @@ For the ``eam/alloy`` form, the :ref:`potential <kw_potential>` keyword accepts 
 
    potential <potential_file>          # default: max_neighbor = 400
    potential <potential_file> 150      # smaller value to save GPU memory
-

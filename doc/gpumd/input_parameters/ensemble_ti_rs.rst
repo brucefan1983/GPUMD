@@ -13,7 +13,7 @@ The parameters can be specified as follows::
     ensemble ti_rs temp <tmin> <tmax> tperiod <tau_temperature> <pressure_control> <pressure> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
 - :attr:`<tmin>` and :attr:`<tmax>`: The temperature range of the RS simulation.
-- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure of RS simualtion. Please refer to MTTK ensemble for more information.
+- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure of RS simulation. Please refer to MTTK ensemble for more information.
 - :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. Please refer to MTTK ensemble for more information.
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary lambda.

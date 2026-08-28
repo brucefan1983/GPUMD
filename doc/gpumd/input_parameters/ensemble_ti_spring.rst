@@ -17,7 +17,7 @@ The parameters can be specified as follows::
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1.
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
-- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simlation process.
+- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
 
 Please note that the spring constants should be placed at the end of the command. If there are no ``spring`` keyword, the spring constants will be computed automatically through the MSD of atoms.
 If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.

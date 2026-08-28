@@ -31,7 +31,7 @@ There are many ensembles used in MD simulations, but we only consider the follow
 NVE ensemble
 ------------
 
-The NVE ensmeble is also called the micro-canonical ensemble.
+The NVE ensemble is also called the micro-canonical ensemble.
 We use the velocity-Verlet integration method with the following equations:
 
 .. math::

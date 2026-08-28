@@ -16,7 +16,7 @@ Syntax
    compute_hnemdec <driving_force> <output_interval> <Fe_x> <Fe_y> <Fe_z>
 
 :attr:`driving_force` determines which type of driving force to use. It could be zero or non zero positive integer, which means thermal driving force or diffusive driving force.
-In the case of zero, heat flux is equilvalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
+In the case of zero, heat flux is equivalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
 For a non zero positive integer such as :math:`i`, a momentum flux of the :math:`ith` element in the order of the first line of nep.txt is produced as dissipative flux, with driving force :math:`F_e` in the units of eV/Å.
 
 :attr:`output_interval` is the interval to output the onsager coefficients.

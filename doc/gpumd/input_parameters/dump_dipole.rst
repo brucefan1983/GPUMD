@@ -29,7 +29,7 @@ To use one NEP potential to propagate the MD (`nep0`), and another (`nep1`) to c
   ...
   dump_dipole 100
 
-before the :ref:`run keyword <kw_run>`. This will generate a `dipole.out` output files containing the time step and predicted dipole at that time step.
+before the :ref:`run keyword <kw_run>`. This will generate a `dipole.out` output file containing the time step and predicted dipole at that time step.
 
 
 Caveats

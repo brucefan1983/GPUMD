@@ -29,7 +29,7 @@ To use one NEP potential to propagate the MD (`nep0`), and another (`nep1`) to c
   ...
   dump_polarizability 100
 
-before the :ref:`run keyword <kw_run>`. This will generate a `polarizability.out` output files containing the time step and predicted polarizability at that time step.
+before the :ref:`run keyword <kw_run>`. This will generate a `polarizability.out` output file containing the time step and predicted polarizability at that time step.
 
 
 Caveats

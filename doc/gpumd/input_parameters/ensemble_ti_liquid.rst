@@ -17,7 +17,7 @@ The parameters can be specified as follows::
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
 - :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1.
 - :attr:`<sigmasqrd>` and :attr:`<p>`: Specify the TI settings. Implemented values for :attr:`<p>` are ``1``, ``25``, ``50``, ``75``, ``100``.
-- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simlation process.
+- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
 
 If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
 

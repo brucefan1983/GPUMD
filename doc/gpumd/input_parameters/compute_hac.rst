@@ -32,7 +32,7 @@ Example 1
 
 This means that
 
-* You want to calculate the thermal conductivity using the :ref:`Green-Kubo method <green_kubo_method>` (the :term:`EMD` method) in this run, which contains 10 milillion steps with a time step of 1 fs.
+* You want to calculate the thermal conductivity using the :ref:`Green-Kubo method <green_kubo_method>` (the :term:`EMD` method) in this run, which contains 10 million steps with a time step of 1 fs.
 * The heat current data will be recorded every 10 steps.
   Therefore, there will be 1 million heat current data in each direction.
 * The maximum number of correlation steps is :math:`10^5`, which is one tenth of the number of heat current data.
@@ -47,5 +47,5 @@ Example 2
 
    compute_hac 10 100000 10
 
-This is similar to the above example but with one expection:
-The :term:`HAC`/:term:`RTC` data will be averaged for every 10 data before outputing, generating :math:`10^4` rows of data in the output file.
+This is similar to the above example but with one exception:
+The :term:`HAC`/:term:`RTC` data will be averaged for every 10 data before outputting, generating :math:`10^4` rows of data in the output file.

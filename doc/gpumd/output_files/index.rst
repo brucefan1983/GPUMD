@@ -95,7 +95,7 @@ Output files
      - Append
    * - :ref:`ic.out <ic_out>`
      - :ref:`compute_ic <kw_compute_ic>`
-     - Iron conductivity (:term:`IC`) data
+     - Ionic conductivity (:term:`IC`) data
      - Append
    * - :ref:`cohesive.out <cohesive_out>`
      - :ref:`compute_cohesive <kw_compute_cohesive>`

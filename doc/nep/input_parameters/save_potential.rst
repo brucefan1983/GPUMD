@@ -5,7 +5,7 @@
 :attr:`save_potential`
 ======================
 
-This keyword sets the number of of generations between writing a ``nep.txt`` checkpoint file.
+This keyword sets the number of generations between writing a ``nep.txt`` checkpoint file.
 If ``<format>`` is set to ``0`` the output file name is formatted as ``nep_gen[generation].txt``.
 If ``<format>`` is set to ``1`` the output file name is formatted as ``nep_y[year]_m[month]_d[day]_h[hour]_m[minute]_s[second]_generation[generation].txt``.
 These model files can be used to monitor the training progress of your model.

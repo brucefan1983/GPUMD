@@ -5,7 +5,7 @@
 :attr:`kspace`
 ==============
 
-This keyword is used to set the computation method for the reciprocal space contribution to the electristatic energy.
+This keyword is used to set the computation method for the reciprocal space contribution to the electrostatic energy.
 
 Syntax
 ------

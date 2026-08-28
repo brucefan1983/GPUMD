@@ -85,11 +85,6 @@ Examples
 ========
 
 You can find several examples for how to use both the ``gpumd`` and ``nep`` executables in `the examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ of the :program:`GPUMD` repository.
-
-
-.. _netcdf_setup:
-.. index::
-   single: NetCDF setup
    
 GNEP setup
 ==========
@@ -112,7 +107,7 @@ See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for
         cmake --build build --target gnep
 
 The usage of the ``gnep`` executable is similar to that of the ``nep`` executable.
-The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``'
+The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``
 Below we use an explicit example with default parameters (except for the ``type`` keyword) to illustrate the inputs in ``gnep.in``::
 
   type         2 Ge Se      # same usage as in nep.in
@@ -130,6 +125,10 @@ Below we use an explicit example with default parameters (except for the ``type`
   weight_decay 0.0          # new keyword to set the weight decay parameter, which should be a non-negative floating-point number
   batch        2            # same usage as in nep.in but favors small values
   epoch        50           # one epoch equals #structures/#batchsize training steps
+
+.. _netcdf_setup:
+.. index::
+   single: NetCDF setup
 
 NetCDF setup
 ============
@@ -690,4 +689,3 @@ References
 * jse: https://github.com/liqa1024/jse
 * jse-skill: https://github.com/liqa1024/jse-skill
 * jsex-NNAP: https://github.com/liqa1024/jsex-NNAP
-
