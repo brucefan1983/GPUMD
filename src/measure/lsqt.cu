@@ -682,7 +682,7 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 }
 } // namespace
 
-void LSQT::preprocess(
+void LSQT::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -727,7 +727,7 @@ void LSQT::preprocess(
   sci.resize(number_of_orbitals);
 }
 
-void LSQT::process(
+void LSQT::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -945,7 +945,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
   fclose(os_sigma);
 }
 
-void LSQT::postprocess(
+void LSQT::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -956,7 +956,7 @@ void LSQT::postprocess(
 LSQT::LSQT(const char** param, const int num_param)
 {
   parse(param, num_param);
-  property_name = "lsqt";
+  action_name = "lsqt";
 }
 
 void LSQT::parse(const char** param, const int num_param)

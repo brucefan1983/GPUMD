@@ -18,7 +18,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_HIP
@@ -36,7 +36,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #define GKMA_METHOD 0
 #define HNEMA_METHOD 1
 
-class MODAL_ANALYSIS : public Property
+class MODAL_ANALYSIS : public Action
 {
 public:
   // Bookkeeping variables
@@ -81,7 +81,7 @@ public:
   char eig_file_position[200];
   char output_file_position[200];
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -90,7 +90,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -104,7 +104,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

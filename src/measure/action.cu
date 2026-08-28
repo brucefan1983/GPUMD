@@ -13,16 +13,16 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "property.cuh"
+#include "action.cuh"
 #include <cstring>
 
 
-Property::Property(void)
+Action::Action(void)
 {
   // nothing now
 }
   
-Property::~Property(void)
+Action::~Action(void)
 {
   // nothing now
 }

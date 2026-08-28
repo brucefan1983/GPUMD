@@ -136,7 +136,7 @@ static __global__ void gpu_sum_ke_per_chunk(
 
 ComputeChunk::ComputeChunk(const char** param, int num_param, Box& box)
 {
-  property_name = "compute_chunk";
+  action_name = "compute_chunk";
   for (int i = 0; i < 3; i++) {
     axis_[i] = 0; origin_[i] = 0.0;
     delta_[i] = 1.0; invdelta_[i] = 1.0; nlayers_[i] = 1;
@@ -306,7 +306,7 @@ int ComputeChunk::parse_bin_params(
   }
 }
 
-void ComputeChunk::preprocess(
+void ComputeChunk::pre_run(
   const int number_of_steps, const double time_step,
   Integrate& integrate, std::vector<Group>& group,
   Atom& atom, Box& box, Force& force)
@@ -326,7 +326,7 @@ void ComputeChunk::preprocess(
   fid_ = my_fopen("compute_chunk.out", "a");
 }
 
-void ComputeChunk::process(
+void ComputeChunk::end_of_step(
   const int number_of_steps, int step,
   const int fixed_group, const int move_group,
   const double global_time, const double temperature,
@@ -349,7 +349,7 @@ void ComputeChunk::process(
   }
 }
 
-void ComputeChunk::postprocess(
+void ComputeChunk::post_run(
   Atom& atom, Box& box, Integrate& integrate,
   const int number_of_steps, const double time_step, const double temperature)
 {

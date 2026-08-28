@@ -31,7 +31,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 const int BLOCK_SIZE_SHC = 128;
 
-void SHC::preprocess(
+void SHC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -159,7 +159,7 @@ static __global__ void gpu_copy_data(
   }
 }
 
-void SHC::process(
+void SHC::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -395,7 +395,7 @@ void SHC::find_shc(const double dt_in_ps, const double d_omega)
   }
 }
 
-void SHC::postprocess(
+void SHC::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -544,5 +544,5 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
 SHC::SHC(const char** param, int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = "compute_shc";
+  action_name = "compute_shc";
 }

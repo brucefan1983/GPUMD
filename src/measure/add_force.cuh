@@ -15,10 +15,10 @@
 
 #pragma once
 
-#include "property.cuh"
+#include "action.cuh"
 #include <vector>
 
-class Add_Force : public Property
+class Add_Force : public Action
 {
 public:
   Add_Force(const char** param, int num_param, const std::vector<Group>& group);

@@ -95,7 +95,7 @@ void Add_Force::apply_force(
 
 Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>& group)
 {
-  property_name = "add_force";
+  action_name = "add_force";
   printf("Add force.\n");
 
   // check the number of parameters

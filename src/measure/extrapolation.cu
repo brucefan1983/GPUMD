@@ -44,7 +44,7 @@ __global__ void gpu_calculate_max_gamma(
 
 Extrapolation::Extrapolation(const char** params, int num_params)
 {
-  property_name = "compute_extrapolation";
+  action_name = "compute_extrapolation";
   int i = 1;
   while (i < num_params) {
     if (strcmp(params[i], "asi_file") == 0) {
@@ -76,7 +76,7 @@ Extrapolation::Extrapolation(const char** params, int num_params)
   }
 }
 
-void Extrapolation::preprocess(
+void Extrapolation::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -119,7 +119,7 @@ void Extrapolation::preprocess(
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
-void Extrapolation::postprocess(
+void Extrapolation::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -179,7 +179,7 @@ void Extrapolation::load_asi()
   }
 }
 
-void Extrapolation::process(
+void Extrapolation::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,

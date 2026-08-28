@@ -23,7 +23,7 @@
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -36,12 +36,12 @@
 #include <string>
 #include <vector>
 
-class Extrapolation : public Property
+class Extrapolation : public Action
 {
 public:
   Extrapolation(const char** params, int num_params);
 
-  void preprocess(
+  void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -50,7 +50,7 @@ public:
     Box& box,
     Force& force) override;
 
-  void postprocess(
+  void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -58,7 +58,7 @@ public:
     const double time_step,
     const double temperature) override;
 
-  void process(
+  void end_of_step(
     const int number_of_steps,
     int step,
     const int fixed_group,

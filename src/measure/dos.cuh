@@ -14,12 +14,12 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Group;
 
-class DOS : public Property
+class DOS : public Action
 {
 public:
   bool compute_ = false;
@@ -34,7 +34,7 @@ public:
 
   DOS(const char** param, const int num_param, const std::vector<Group>& groups);
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -43,7 +43,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -57,7 +57,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

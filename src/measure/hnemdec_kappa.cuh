@@ -14,10 +14,10 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HNEMDEC : public Property
+class HNEMDEC : public Action
 {
 public:
   int compute = -1; // 0 for heat flow algorithm, i(0<i<number_of_types+1) means producing (i-1)th
@@ -39,7 +39,7 @@ public:
   GPU_Vector<double> heat_all;
   GPU_Vector<double> diffusion_all;
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -48,7 +48,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -62,7 +62,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

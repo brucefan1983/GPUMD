@@ -16,14 +16,14 @@
 #ifdef USE_PLUMED
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "integrate/integrate.cuh"
 #include "force/potential.cuh"
 #include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <vector>
 
-class PLUMED : public Property
+class PLUMED : public Action
 {
 public:
   int step = 0;
@@ -35,7 +35,7 @@ public:
   void parse(const char** param, int num_param);
   void init(const double ts, const double T);
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -61,7 +61,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -75,7 +75,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

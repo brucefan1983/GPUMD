@@ -75,7 +75,7 @@ static __global__ void initialize_properties(
 Dump_Observer::Dump_Observer(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "dump_observer";
+  action_name = "dump_observer";
 }
 
 void Dump_Observer::parse(const char** param, int num_param)
@@ -138,7 +138,7 @@ void Dump_Observer::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Observer::preprocess(
+void Dump_Observer::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -165,7 +165,7 @@ void Dump_Observer::preprocess(
   }
 }
 
-void Dump_Observer::process(
+void Dump_Observer::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -447,7 +447,7 @@ void Dump_Observer::write_thermo(
   fflush(fid_);
 }
 
-void Dump_Observer::postprocess(
+void Dump_Observer::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

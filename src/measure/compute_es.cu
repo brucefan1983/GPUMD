@@ -402,7 +402,7 @@ void Compute_es::find_force(
   GPU_CHECK_KERNEL
 }
 
-void Compute_es::preprocess(
+void Compute_es::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -414,7 +414,7 @@ void Compute_es::preprocess(
   // nothing
 }
 
-void Compute_es::process(
+void Compute_es::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -460,7 +460,7 @@ void Compute_es::process(
   fclose(fid_energy);
 }
 
-void Compute_es::postprocess(
+void Compute_es::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -491,5 +491,5 @@ void Compute_es::parse(const char** param, int num_param)
 Compute_es::Compute_es(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_es";
+  action_name = "compute_es";
 }

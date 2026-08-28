@@ -569,10 +569,10 @@ static __global__ void sort_neighbors(
 OrientOrder::OrientOrder(const char** param, const int num_param)
 {
   parse(param, num_param);
-  property_name = "compute_orientorder";
+  action_name = "compute_orientorder";
 }
 
-void OrientOrder::preprocess(
+void OrientOrder::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -634,7 +634,7 @@ void OrientOrder::preprocess(
   fid = fopen("orientorder.out", "a");
 };
 
-void OrientOrder::process(
+void OrientOrder::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -777,7 +777,7 @@ void OrientOrder::process(
   fflush(fid);
 };
 
-void OrientOrder::postprocess(
+void OrientOrder::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

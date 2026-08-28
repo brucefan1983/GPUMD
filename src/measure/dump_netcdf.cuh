@@ -17,7 +17,7 @@
 
 #pragma once
 #include "parse_utilities.cuh"
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -25,12 +25,12 @@ class Atom;
 class Box;
 class Group;
 
-class DUMP_NETCDF : public Property
+class DUMP_NETCDF : public Action
 {
 public:
   DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -39,7 +39,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
     const int number_of_steps,
     int step,
     const int fixed_group,
@@ -53,7 +53,7 @@ public:
     Atom& atom,
     Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

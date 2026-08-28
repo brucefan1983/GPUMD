@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "model/atom.cuh"
@@ -27,12 +27,12 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Observer : public Property
+class Dump_Observer : public Action
 {
 public:
   Dump_Observer(const char** param, int num_param);
   void parse(const char** param, int num_param);
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -41,7 +41,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -55,7 +55,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

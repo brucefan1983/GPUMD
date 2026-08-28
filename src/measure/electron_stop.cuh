@@ -15,11 +15,11 @@
 
 #pragma once
 
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Electron_Stop : public Property
+class Electron_Stop : public Action
 {
 public:
   Electron_Stop(
@@ -45,16 +45,22 @@ public:
     Box& box,
     Force& force) override;
 
-  void post_integrate2(
-    const int step,
-    const double time_step,
+
+  void end_of_step(
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
     Integrate& integrate,
-    std::vector<Group>& group,
-    Atom& atom,
     Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
     Force& force) override;
 
-  void postprocess(
+  void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

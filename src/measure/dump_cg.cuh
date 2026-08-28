@@ -14,19 +14,19 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
 class Box;
 class Atom;
 
-class Dump_CG : public Property
+class Dump_CG : public Action
 {
 public:
   Dump_CG(const char** param, int num_param, std::vector<Group>& group);
   void parse(const char** param, int num_param, std::vector<Group>& group);
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -35,7 +35,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -49,7 +49,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,

@@ -58,7 +58,7 @@ Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& 
 
   parse(param, num_param, groups);
   atom.enable_unwrapped_position();
-  property_name = "dump_xyz";
+  action_name = "dump_xyz";
 }
 
 void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>& groups)
@@ -140,7 +140,7 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   }
 }
 
-void Dump_XYZ::preprocess(
+void Dump_XYZ::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -286,7 +286,7 @@ void Dump_XYZ::output_line2(
   fprintf(fid_, "\n");
 }
 
-void Dump_XYZ::process(
+void Dump_XYZ::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -417,7 +417,7 @@ void Dump_XYZ::process(
   }
 }
 
-void Dump_XYZ::postprocess(
+void Dump_XYZ::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

@@ -103,7 +103,7 @@ static __global__ void initialize_properties(
 Dump_Dipole::Dump_Dipole(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "dump_dipole";
+  action_name = "dump_dipole";
 }
 
 void Dump_Dipole::parse(const char** param, int num_param)
@@ -120,7 +120,7 @@ void Dump_Dipole::parse(const char** param, int num_param)
   printf("   every %d steps.\n", dump_interval_);
 }
 
-void Dump_Dipole::preprocess(
+void Dump_Dipole::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -167,7 +167,7 @@ void Dump_Dipole::preprocess(
   }
 }
 
-void Dump_Dipole::process(
+void Dump_Dipole::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -235,7 +235,7 @@ void Dump_Dipole::write_dipole(const int step)
   fflush(file_);
 }
 
-void Dump_Dipole::postprocess(
+void Dump_Dipole::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

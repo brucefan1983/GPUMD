@@ -147,7 +147,7 @@ __global__ void gpu_find_vac(
 DOS::DOS(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   parse(param, num_param, groups);
-  property_name = "compute_dos";
+  action_name = "compute_dos";
 }
 
 void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)
@@ -201,7 +201,7 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
   }
 }
 
-void DOS::preprocess(
+void DOS::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -217,7 +217,7 @@ void DOS::preprocess(
   copy_mass(atom.mass);
 }
 
-void DOS::process(
+void DOS::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -244,7 +244,7 @@ void DOS::process(
   }
 }
 
-void DOS::postprocess(
+void DOS::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

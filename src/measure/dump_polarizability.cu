@@ -104,7 +104,7 @@ static __global__ void initialize_properties(
 Dump_Polarizability::Dump_Polarizability(const char** param, int num_param)
 {
   parse(param, num_param);
-  property_name = "dump_polarizability";
+  action_name = "dump_polarizability";
 }
 
 void Dump_Polarizability::parse(const char** param, int num_param)
@@ -121,7 +121,7 @@ void Dump_Polarizability::parse(const char** param, int num_param)
   printf("   every %d steps.\n", dump_interval_);
 }
 
-void Dump_Polarizability::preprocess(
+void Dump_Polarizability::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -168,7 +168,7 @@ void Dump_Polarizability::preprocess(
   }
 }
 
-void Dump_Polarizability::process(
+void Dump_Polarizability::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -244,7 +244,7 @@ void Dump_Polarizability::write_polarizability(const int step)
   fflush(file_);
 }
 
-void Dump_Polarizability::postprocess(
+void Dump_Polarizability::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

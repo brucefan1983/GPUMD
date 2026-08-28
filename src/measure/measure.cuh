@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
 #include <vector>
@@ -28,7 +28,7 @@ class Ensemble;
 class Measure
 {
 public:
-  void initialize(
+  void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -45,7 +45,7 @@ public:
     Box& box,
     Force& force);
 
-  void finalize(
+  void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -53,7 +53,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void process(
+  void end_of_step(
     const int number_of_steps,
     int step,
     const int fixed_group,
@@ -94,14 +94,6 @@ public:
     Box& box,
     Force& force);
 
-  void post_integrate2(
-    const int step,
-    const double time_step,
-    Integrate& integrate,
-    std::vector<Group>& group,
-    Atom& atom,
-    Box& box,
-    Force& force);
 
-  std::vector<std::unique_ptr<Property>> properties;
+  std::vector<std::unique_ptr<Action>> actions;
 };
