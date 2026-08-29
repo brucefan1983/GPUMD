@@ -28,6 +28,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/nep_model.cuh"
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -118,12 +119,18 @@ NEP_MULTIGPU::NEP_MULTIGPU(
               << std::endl;
     exit(1);
   }
-  paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (tokens.size() != 2 + paramb.num_types) {
-    std::cout << "The first line of nep.txt should have " << paramb.num_types << " atom symbols."
+  int num_types_full = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (tokens.size() != 2 + num_types_full) {
+    std::cout << "The first line of nep.txt should have " << num_types_full << " atom symbols."
               << std::endl;
     exit(1);
   }
+  std::vector<std::string> atom_symbols_full(num_types_full);
+  for (int n = 0; n < num_types_full; ++n) {
+    atom_symbols_full[n] = tokens[2 + n];
+  }
+  std::vector<int> active_to_full = get_nep_active_to_full(atom_symbols_full);
+  paramb.num_types = active_to_full.size();
 
   if (paramb.num_types == 1) {
     printf("Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
@@ -134,13 +141,17 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (tokens[2 + n] == ELEMENTS[m]) {
+      if (atom_symbols_full[active_to_full[n]] == ELEMENTS[m]) {
         atomic_number = m + 1;
         break;
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    printf(
+      "    type %d (%s with Z = %d).\n",
+      n,
+      atom_symbols_full[active_to_full[n]].c_str(),
+      zbl.atomic_numbers[n]);
   }
 
   // zbl
@@ -172,7 +183,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
 
   // cutoff
   tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != paramb.num_types * 2 + 3) {
+  if (tokens.size() != 5 && tokens.size() != num_types_full * 2 + 3) {
     std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
     exit(1);
   }
@@ -187,9 +198,18 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
   } else {
     printf("    cutoff = \n");
+    for (int n = 0; n < num_types_full; ++n) {
+      float rc_radial = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
+      if (rc_radial > paramb.rc_radial_max) {
+        paramb.rc_radial_max = rc_radial;
+      }
+    }
     for (int n = 0; n < paramb.num_types; ++n) {
-      paramb.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-      paramb.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
+      int type_full = active_to_full[n];
+      paramb.rc_radial[n] =
+        get_double_from_token(tokens[1 + type_full * 2], __FILE__, __LINE__);
+      paramb.rc_angular[n] =
+        get_double_from_token(tokens[2 + type_full * 2], __FILE__, __LINE__);
       printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
     }
   }
@@ -307,40 +327,85 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
+  int ann_type_size = 0;
   if (paramb.version == 4) {
-    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
+    ann_type_size = (annmb[0].dim + 2) * annmb[0].num_neurons1;
+    annmb[0].num_para_ann = ann_type_size * paramb.num_types + 1;
   } else if (paramb.version == 5) {
-    annmb[0].num_para_ann = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
+    ann_type_size = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
+    annmb[0].num_para_ann = ann_type_size * paramb.num_types + 1;
   }
 
+  int ann_blocks = 1;
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
+    ann_blocks = 2;
     annmb[0].num_para_ann *= 2;
   }
   printf("    number of neural network parameters = %d.\n", annmb[0].num_para_ann);
+#ifdef USE_CJ
+  int num_para_descriptor =
+    paramb.num_types * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
+                        (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+#else
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+#endif
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb[0].num_para = annmb[0].num_para_ann + num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb[0].num_para);
 
+#ifdef USE_CJ
+  paramb.num_c_radial =
+    paramb.num_types * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
+#else
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
+#endif
 
   // NN and descriptor parameters
-  std::vector<float> parameters(annmb[0].num_para + annmb[0].dim);
-  for (int n = 0; n < annmb[0].num_para + annmb[0].dim; ++n) {
+  int ann_size_full = ann_blocks * (ann_type_size * num_types_full + 1);
+#ifdef USE_CJ
+  int num_para_descriptor_full =
+    num_types_full * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
+                      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+#else
+  int num_para_descriptor_full =
+    num_types_full * num_types_full *
+    ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
+     (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+#endif
+  std::vector<float> parameters_full(ann_size_full + num_para_descriptor_full + annmb[0].dim);
+  for (int n = 0; n < parameters_full.size(); ++n) {
     tokens = get_tokens(input);
-    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    parameters_full[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
+  std::vector<float> parameters = compact_nep_parameters(
+    parameters_full,
+    num_types_full,
+    active_to_full,
+    ann_type_size,
+    1,
+    ann_blocks,
+    paramb.n_max_radial,
+    paramb.basis_size_radial,
+    paramb.n_max_angular,
+    paramb.basis_size_angular,
+    annmb[0].dim);
 
   // flexible zbl potential parameters
   if (zbl.flexibled) {
-    int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
-    for (int d = 0; d < 10 * num_type_zbl; ++d) {
+    int num_type_zbl_full = (num_types_full * (num_types_full + 1)) / 2;
+    std::vector<float> zbl_parameters_full(10 * num_type_zbl_full);
+    for (int d = 0; d < zbl_parameters_full.size(); ++d) {
       tokens = get_tokens(input);
-      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+      zbl_parameters_full[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    std::vector<float> zbl_parameters =
+      compact_nep_zbl_parameters(zbl_parameters_full, num_types_full, active_to_full);
+    for (int d = 0; d < zbl_parameters.size(); ++d) {
+      zbl.para[d] = zbl_parameters[d];
     }
     zbl.num_types = paramb.num_types;
   }
@@ -841,8 +906,12 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+#ifdef USE_CJ
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types + t2;
+#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
+#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -869,8 +938,14 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+#ifdef USE_CJ
+          int c_index =
+            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
+            paramb.num_c_radial;
+#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -1005,9 +1080,15 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+#ifdef USE_CJ
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types;
+          gnp12 += fnp12[k] * annmb.c[c_index + t2];
+          gnp21 += fnp12[k] * annmb.c[c_index + t1];
+#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
           gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
+#endif
         }
         float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
         float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
@@ -1117,8 +1198,14 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+#ifdef USE_CJ
+          int c_index =
+            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
+            paramb.num_c_radial;
+#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+#endif
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
@@ -1850,8 +1937,12 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+#ifdef USE_CJ
+          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types + t2;
+#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
+#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -1878,8 +1969,14 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+#ifdef USE_CJ
+          int c_index =
+            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
+            paramb.num_c_radial;
+#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);

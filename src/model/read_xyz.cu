@@ -24,6 +24,7 @@ The class defining the simulation model.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_model.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -520,6 +521,15 @@ void initialize_position(
     group);
 
   input.close();
+
+  if (is_compactable_nep_model(filename_potential)) {
+    initialize_nep_active_species(filename_potential, atom.cpu_atom_symbol);
+    atom_symbols = get_nep_active_species();
+    number_of_types = atom_symbols.size();
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      atom.cpu_type[n] = get_nep_active_type(atom.cpu_atom_symbol[n]);
+    }
+  }
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].find_size(atom.number_of_atoms, m);

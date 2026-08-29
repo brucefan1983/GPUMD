@@ -33,6 +33,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_model.cuh"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -434,28 +435,11 @@ std::string get_potential_file_name()
 
 void find_atomic_number(std::string& potential_file_name, int* atomic_number)
 {
-  std::ifstream input_potential(potential_file_name);
-  if (!input_potential.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open potential file.");
-  }
-  std::string line;
-  std::getline(input_potential, line);
-  std::vector<std::string> tokens = get_tokens(line);
-  if (tokens[0].substr(0, 3) != "nep") {
-    PRINT_INPUT_ERROR("DFTD3 only supports NEP models.");
-  }
-
-  int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-
-  if (tokens.size() != 2 + num_types) {
-    std::cout << "The first line of the NEP model file should have " << num_types
-              << " atom symbols." << std::endl;
-    exit(1);
-  }
-
-  for (int n = 0; n < num_types; ++n) {
+  std::vector<std::string> atom_symbols_full = get_potential_atom_symbols(potential_file_name);
+  std::vector<int> active_to_full = get_nep_active_to_full(atom_symbols_full);
+  for (int n = 0; n < active_to_full.size(); ++n) {
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (tokens[2 + n] == ELEMENTS[m]) {
+      if (atom_symbols_full[active_to_full[n]] == ELEMENTS[m]) {
         atomic_number[n] = m;
         break;
       }
@@ -465,8 +449,6 @@ void find_atomic_number(std::string& potential_file_name, int* atomic_number)
       exit(1);
     }
   }
-
-  input_potential.close();
 }
 
 __device__ int find_neighbor_cell(
