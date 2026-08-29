@@ -404,6 +404,12 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
     return;
   }
 
+  printf("Active atom types for this simulation:\n");
+  for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
+    printf("    type %d = %s.\n", n, compact_species[n].c_str());
+  }
+  printf("    Atom type indices in run.in refer to the active atom types above.\n");
+
   for (int n = 0; n < static_cast<int>(potential_files.size()); ++n) {
     std::vector<std::string> tokens = get_first_line(potential_files[n]);
     if (!is_compactable_nep(tokens)) {

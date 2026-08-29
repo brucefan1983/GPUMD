@@ -19,7 +19,7 @@ with parameters defined as
 
 * :attr:`sample_interval`: Sampling interval of the position data
 * :attr:`Nc`: Maximum number of correlation steps
-* :attr:`type_iex`: Type index of atom to be calculated which in potential
+* :attr:`type_iex`: Type index of the atom to be calculated. The indices 0, 1, 2, ... refer to the active species for the current simulation. The active species follow their order in the potential file and are re-indexed from 0. GPUMD prints the active type mapping during initialization.
 * :attr:`charge`: Charge of the ion to compute the conductivity.
 
 
@@ -35,4 +35,4 @@ This means that you
 * want to calculate the ionic conductivity from the mean-square displacement function
 * the position data will be recorded every 5 steps
 * the maximum number of correlation steps is 200
-* you would like to compute only for the atom with type 0 in nep.txt and charge 1.
+* you would like to compute only for the atom with active type 0 and charge 1.
