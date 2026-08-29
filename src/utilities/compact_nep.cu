@@ -17,7 +17,11 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#ifdef _WIN32
+#include <process.h>
+#else
 #include <unistd.h>
+#endif
 #include <vector>
 
 struct CompactPotentialFile
@@ -262,8 +266,13 @@ static std::string make_compact_file(
     PRINT_INPUT_ERROR("Unexpected number of NEP parameters while creating the compact potential.");
   }
 
+#ifdef _WIN32
+  const int process_id = _getpid();
+#else
+  const int process_id = getpid();
+#endif
   std::string compact_filename =
-    ".gpumd_nep_" + std::to_string(static_cast<long long>(getpid())) + "_" +
+    ".gpumd_nep_" + std::to_string(static_cast<long long>(process_id)) + "_" +
     std::to_string(file_index) + ".tmp";
   std::ofstream output(compact_filename);
   if (!output.is_open()) {
