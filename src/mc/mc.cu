@@ -22,6 +22,7 @@ The driver class for the various MC ensembles.
 #include "mc_ensemble_sgc.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
@@ -160,7 +161,7 @@ static std::string get_potential_file_name()
   }
 
   input_run.close();
-  return potential_file_name;
+  return get_compact_nep_filename(potential_file_name);
 }
 
 static std::vector<std::string> get_atom_symbols_in_nep()

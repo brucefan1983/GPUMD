@@ -21,6 +21,7 @@ keyword and perform deposition between consecutive sub-runs.
 #include "deposition.cuh"
 #include "model/read_xyz.cuh"
 #include "utilities/error.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <chrono>
@@ -43,6 +44,25 @@ void Deposition::copy_file(const std::string& in_file, const std::string& out_fi
     exit(1);
   }
   out << in.rdbuf();
+}
+
+static int get_deposit_atom_type(
+  const std::string& token, const std::vector<std::string>& atom_symbols)
+{
+  int atom_type = 0;
+  if (is_valid_int(token.c_str(), &atom_type)) {
+    PRINT_INPUT_ERROR("deposit atom species should be specified using an element symbol.\n");
+  }
+
+  for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
+    if (atom_symbols[n] == token) {
+      return n;
+    }
+  }
+
+  std::string error = "deposit atom species " + token + " is not supported by the potential file.";
+  PRINT_INPUT_ERROR(error.c_str());
+  return -1;
 }
 
 void Deposition::parse_deposition(const char** param, int num_param)
@@ -110,16 +130,11 @@ void Deposition::parse_deposition(const char** param, int num_param)
     velocities.clear();
     while (idx < num_param) {
       if (idx + 3 > num_param) {
-        PRINT_INPUT_ERROR("deposit atom species requires type, number, and velocity.\n");
+        PRINT_INPUT_ERROR("deposit atom species requires element, number, and velocity.\n");
       }
 
-      int atom_type = 0;
-      if (!is_valid_int(param[idx], &atom_type)) {
-        PRINT_INPUT_ERROR("deposit atom_type should be an integer.\n");
-      }
-      if (atom_type < 0) {
-        PRINT_INPUT_ERROR("deposit atom_type should >= 0.\n");
-      }
+      int atom_type = get_deposit_atom_type(param[idx], atom_symbols);
+      register_compact_nep_required_species(atom_symbols[atom_type]);
       ++idx;
 
       int number = 0;
@@ -292,16 +307,12 @@ void Deposition::read_file_atoms()
     }
 
     if (tokens.size() != 7) {
-      PRINT_INPUT_ERROR("deposit file should have 7 columns: type x y z vx vy vz.\n");
+      PRINT_INPUT_ERROR("deposit file should have 7 columns: element x y z vx vy vz.\n");
     }
 
     FileAtom fa;
-    if (!is_valid_int(tokens[0].c_str(), &fa.type)) {
-      PRINT_INPUT_ERROR("deposit file atom_type should be an integer.\n");
-    }
-    if (fa.type < 0) {
-      PRINT_INPUT_ERROR("deposit file atom_type should >= 0.\n");
-    }
+    fa.type = get_deposit_atom_type(tokens[0], atom_symbols);
+    register_compact_nep_required_species(atom_symbols[fa.type]);
     for (int d = 0; d < 3; ++d) {
       if (!is_valid_real(tokens[1 + d].c_str(), &fa.pos[d])) {
         PRINT_INPUT_ERROR("deposit file position should be a real number.\n");
@@ -477,6 +488,9 @@ void Deposition::initialize()
   copy_file("model.xyz", "model.xyz.original");
 
   initialize_rng();
+
+  std::string potential_filename = get_filename_potential();
+  atom_symbols = get_atom_symbols(potential_filename);
 
   std::ifstream model_input("model.xyz");
   if (model_input.is_open()) {

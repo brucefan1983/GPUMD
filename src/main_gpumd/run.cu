@@ -69,6 +69,7 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
@@ -318,6 +319,9 @@ void Run::perform_a_run()
 
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
+  if (tokens.size() >= 2 && tokens[0] == "potential") {
+    tokens[1] = get_compact_nep_filename(tokens[1]);
+  }
   int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)

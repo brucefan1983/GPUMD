@@ -17,7 +17,7 @@ Syntax
 
 :attr:`driving_force` determines which type of driving force to use. It could be zero or non zero positive integer, which means thermal driving force or diffusive driving force.
 In the case of zero, heat flux is equivalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
-For a non zero positive integer such as :math:`i`, a momentum flux of the :math:`ith` element in the order of the first line of nep.txt is produced as dissipative flux, with driving force :math:`F_e` in the units of eV/Å.
+For a non zero positive integer such as :math:`i`, a momentum flux of the :math:`ith` element is produced as dissipative flux, with driving force :math:`F_e` in the units of eV/Å. For a compacted multi-element NEP potential, the element order is the active atom type list printed at initialization; otherwise, it is the order in the first line of nep.txt.
 
 :attr:`output_interval` is the interval to output the onsager coefficients.
 

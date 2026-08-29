@@ -22,6 +22,7 @@ The class defining the simulation model.
 #include "group.cuh"
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
@@ -520,6 +521,16 @@ void initialize_position(
     group);
 
   input.close();
+
+  prepare_compact_nep_files(atom.cpu_atom_symbol);
+  const std::vector<std::string>& compact_species = get_compact_nep_species();
+  if (compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
+    atom_symbols = compact_species;
+    number_of_types = atom_symbols.size();
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      atom.cpu_type[n] = get_compact_nep_type(atom.cpu_atom_symbol[n]);
+    }
+  }
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].find_size(atom.number_of_atoms, m);

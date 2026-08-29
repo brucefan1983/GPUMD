@@ -21,9 +21,9 @@ The first line of the file should have 3 values:
 * the third is the maximum of the energy range :math:`E_{\rm max}`.
 
 The stopping power data listed after this line should have :math:`N` lines, each corresponding to one energy, which increases linearly from :math:`E_{\rm min}` to :math:`E_{\rm max}` with a spacing of :math:`(E_{\rm max} - E_{\rm min})/(N-1)`.
-For these :math:`N` lines, the number of columns is the number of species for the potential energy model used.
-That is, there should be one column with the stopping power for each species.
-The order of the species should follow that as defined in the potential file.
+For these :math:`N` lines, the number of columns is the number of species used by the potential energy model.
+For a compacted multi-element NEP potential, there should be one column with the stopping power for each active species, in the active atom type order printed at initialization.
+For other potential models, there should be one column for each species in the order defined in the potential file.
 
 Example
 -------

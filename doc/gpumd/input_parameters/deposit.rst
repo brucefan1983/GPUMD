@@ -12,7 +12,7 @@ Syntax
 
 This keyword is used in one of the following two ways::
 
-  deposit <interval> <direction> <height_min> [height_max] atom <type_1> <num_1> <velocity_1> [<type_2> <num_2> <velocity_2> ...] # usage 1
+  deposit <interval> <direction> <height_min> [height_max] atom <element_1> <num_1> <velocity_1> [<element_2> <num_2> <velocity_2> ...] # usage 1
   deposit <interval> <direction> <height_min> [height_max] file <add_atom_file> [velocity]                                        # usage 2
 
 * :attr:`interval` is the deposition interval (number of steps) and must be a positive integer.
@@ -23,13 +23,14 @@ This keyword is used in one of the following two ways::
 * :attr:`height_min` and the optional :attr:`height_max` define the deposition height (in units of Ångstrom) along the deposition direction.
   If :attr:`height_max` is given, the height of each deposited atom is uniformly sampled between :attr:`height_min` and :attr:`height_max`; otherwise, all the atoms are deposited at :attr:`height_min`.
   When :attr:`direction` is :attr:`-1`, the height value(s) are not used.
-* In the first usage, one or more triplets :attr:`<type> <num> <velocity>` are given.
-  For each triplet, :attr:`num` atoms of type :attr:`type` are added at each deposition, at random lateral positions in the simulation box, with an initial velocity :attr:`velocity` along the deposition direction.
-  The atom types refer to those defined in the potential file, and the velocity is in units of Å/fs.
+* In the first usage, one or more triplets :attr:`<element> <num> <velocity>` are given.
+  For each triplet, :attr:`num` atoms of element :attr:`element` are added at each deposition, at random lateral positions in the simulation box, with an initial velocity :attr:`velocity` along the deposition direction.
+  The deposited species must be specified by its element symbol, and the velocity is in units of Å/fs.
 * In the second usage, the atoms to be added at each deposition are read from the file :attr:`add_atom_file`, which contains one atom per row with 7 columns::
 
-    type x y z vx vy vz
+    element x y z vx vy vz
 
+  The first column must contain the element symbol of the deposited atom.
   The positions are in units of Ångstrom and the velocities are in units of Å/fs.
   With a non-negative :attr:`direction`, the coordinate along the deposition direction is replaced by the sampled height, and the optional :attr:`velocity` (in units of Å/fs) after the file name sets the velocity component along the deposition direction.
   With :attr:`direction` set to :attr:`-1`, no :attr:`velocity` is allowed after the file name and the file is used as it is.
@@ -41,16 +42,16 @@ If the :ref:`simulation model file <model_xyz>` contains no velocity data, one e
 Example 1
 ---------
 
-Deposit 10 atoms of type 0 every 10000 steps, at a height of 30 Å in the z direction, with an initial velocity of -0.1 Å/fs (towards decreasing z)::
+Deposit 10 H atoms every 10000 steps, at a height of 30 Å in the z direction, with an initial velocity of -0.1 Å/fs (towards decreasing z)::
 
-   deposit 10000 2 30 atom 0 10 -0.1
+   deposit 10000 2 30 atom H 10 -0.1
 
 Example 2
 ---------
 
-Deposit 5 atoms of type 0 and 5 atoms of type 1 every 5000 steps, at heights uniformly sampled between 30 Å and 40 Å in the z direction::
+Deposit 5 H atoms and 5 C atoms every 5000 steps, at heights uniformly sampled between 30 Å and 40 Å in the z direction::
 
-   deposit 5000 2 30 40 atom 0 5 -0.1 1 5 -0.1
+   deposit 5000 2 30 40 atom H 5 -0.1 C 5 -0.1
 
 Example 3
 ---------

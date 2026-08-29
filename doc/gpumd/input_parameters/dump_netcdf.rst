@@ -150,7 +150,9 @@ Requirements and specifications
   :ref:`model.xyz <model_xyz>`.
 * The ``type`` and ``mass`` variables both carry a frame dimension, so the species and the mass
   of an atom always refer to the same frame. A trajectory sampled alongside :term:`MC` trials is
-  therefore self-consistent.
+  therefore self-consistent. For a compacted multi-element NEP potential, the ``type`` variable
+  uses the active atom type mapping printed at initialization; for other potential models, the
+  type numbering is unchanged.
 
 Examples
 --------

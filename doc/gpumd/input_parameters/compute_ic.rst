@@ -19,7 +19,7 @@ with parameters defined as
 
 * :attr:`sample_interval`: Sampling interval of the position data
 * :attr:`Nc`: Maximum number of correlation steps
-* :attr:`type_iex`: Type index of atom to be calculated which in potential
+* :attr:`type_iex`: Type index of the atoms to be calculated. For a compacted multi-element NEP potential, this refers to the active atom types printed at initialization; otherwise, it refers to the type index in the potential file.
 * :attr:`charge`: Charge of the ion to compute the conductivity.
 
 
@@ -35,4 +35,4 @@ This means that you
 * want to calculate the ionic conductivity from the mean-square displacement function
 * the position data will be recorded every 5 steps
 * the maximum number of correlation steps is 200
-* you would like to compute only for the atom with type 0 in nep.txt and charge 1.
+* you would like to compute only for the atom with type 0 according to the applicable type mapping and charge 1.
