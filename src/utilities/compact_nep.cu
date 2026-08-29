@@ -15,6 +15,7 @@
 #include "error.cuh"
 #include "read_file.cuh"
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #ifdef _WIN32
@@ -32,6 +33,7 @@ struct CompactPotentialFile
 
 static std::vector<CompactPotentialFile> compact_files;
 static std::vector<std::string> compact_species;
+static bool cleanup_registered = false;
 
 static int find_species(const std::vector<std::string>& species, const std::string& symbol)
 {
@@ -354,6 +356,8 @@ static std::string make_compact_file(
     int num_pairs_full = num_types_full * (num_types_full + 1) / 2;
     int zbl_count_full = num_pairs_full * 10;
     if (line_index + zbl_count_full > static_cast<int>(lines.size())) {
+      output.close();
+      std::remove(compact_filename.c_str());
       PRINT_INPUT_ERROR("Unexpected number of flexible ZBL parameters.");
     }
     for (int t1 = 0; t1 < num_types; ++t1) {
@@ -376,6 +380,10 @@ static std::string make_compact_file(
 
 void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
 {
+  if (!cleanup_registered) {
+    std::atexit(remove_compact_nep_files);
+    cleanup_registered = true;
+  }
   remove_compact_nep_files();
   compact_species.clear();
 

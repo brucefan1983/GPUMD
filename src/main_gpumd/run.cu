@@ -173,7 +173,6 @@ Run::Run()
   print_line_2();
 
   execute_run_in();
-  remove_compact_nep_files();
 }
 
 void Run::execute_run_in()
