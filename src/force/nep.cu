@@ -235,12 +235,6 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
   } else {
     printf("    cutoff = \n");
-    for (int n = 0; n < num_types_full; ++n) {
-      float rc_radial = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-      if (rc_radial > paramb.rc_radial_max) {
-        paramb.rc_radial_max = rc_radial;
-      }
-    }
     for (int n = 0; n < paramb.num_types; ++n) {
       int type_full = active_to_full[n];
       paramb.rc_radial[n] =
