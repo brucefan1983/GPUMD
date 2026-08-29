@@ -32,7 +32,8 @@ The angle formed by the central atom I and neighboring atoms J and K is included
 - The type of atom K matches `ktypeN`.
 - Atoms I, J, and K are distinct.
 
-The type indices 0, 1, 2, ... refer to the active species for the current simulation. The active species follow their order in the potential file and are re-indexed from 0. GPUMD prints the active type mapping during initialization.
+When a multi-element NEP potential is compacted to the species required by the current simulation, `itypeN`, `jtypeN`, and `ktypeN` refer to the active atom types printed at initialization. For other potential models, the usual type numbering is unchanged.
+
 The :term:`ADF` value for a bin is computed by dividing the histogram count by the total number of triples that satisfy the criteria, ensuring that the integral of the :term:`ADF` with respect to the angle is 1. In other words, the :term:`ADF` is a probability density function.
 
 Example

@@ -25,11 +25,12 @@ This keyword is used in one of the following two ways::
   When :attr:`direction` is :attr:`-1`, the height value(s) are not used.
 * In the first usage, one or more triplets :attr:`<type> <num> <velocity>` are given.
   For each triplet, :attr:`num` atoms of type :attr:`type` are added at each deposition, at random lateral positions in the simulation box, with an initial velocity :attr:`velocity` along the deposition direction.
-  The atom types refer to those defined in the potential file, and the velocity is in units of Å/fs.
+  The deposited species can be specified either by its element symbol (recommended) or by its type index in the original potential file, and the velocity is in units of Å/fs.
 * In the second usage, the atoms to be added at each deposition are read from the file :attr:`add_atom_file`, which contains one atom per row with 7 columns::
 
     type x y z vx vy vz
 
+  The first column can contain either an element symbol (recommended) or the corresponding type index in the original potential file.
   The positions are in units of Ångstrom and the velocities are in units of Å/fs.
   With a non-negative :attr:`direction`, the coordinate along the deposition direction is replaced by the sampled height, and the optional :attr:`velocity` (in units of Å/fs) after the file name sets the velocity component along the deposition direction.
   With :attr:`direction` set to :attr:`-1`, no :attr:`velocity` is allowed after the file name and the file is used as it is.

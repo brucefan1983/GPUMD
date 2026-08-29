@@ -32,7 +32,7 @@ This means that the ARDF calculations will be performed every :attr:`interval` s
 Without the optional parameters, only the total :term:`ARDF` will be calculated.
 
 To additionally calculate the partial :term:`ARDF` for a pair of species, one can specify the types of the two species after the word "atom". 
-The types 0, 1, 2, ... correspond to the active species for the current simulation. The active species follow their order in the potential file and are re-indexed from 0. GPUMD prints the active type mapping during initialization. 
+For a compacted multi-element NEP potential, the types 0, 1, 2, ... refer to the active atom types printed at initialization, which preserve the species order in the original potential file. For other potential models, they correspond to the species in the potential file in order.
 Currently, one can specify at most 6 pairs. 
 
 Example
