@@ -51,10 +51,7 @@ static int get_deposit_atom_type(
 {
   int atom_type = 0;
   if (is_valid_int(token.c_str(), &atom_type)) {
-    if (atom_type < 0 || atom_type >= static_cast<int>(atom_symbols.size())) {
-      PRINT_INPUT_ERROR("deposit atom_type is outside the range defined by the potential file.\n");
-    }
-    return atom_type;
+    PRINT_INPUT_ERROR("deposit atom species should be specified using an element symbol.\n");
   }
 
   for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
@@ -133,7 +130,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
     velocities.clear();
     while (idx < num_param) {
       if (idx + 3 > num_param) {
-        PRINT_INPUT_ERROR("deposit atom species requires type, number, and velocity.\n");
+        PRINT_INPUT_ERROR("deposit atom species requires element, number, and velocity.\n");
       }
 
       int atom_type = get_deposit_atom_type(param[idx], atom_symbols);
@@ -310,7 +307,7 @@ void Deposition::read_file_atoms()
     }
 
     if (tokens.size() != 7) {
-      PRINT_INPUT_ERROR("deposit file should have 7 columns: type x y z vx vy vz.\n");
+      PRINT_INPUT_ERROR("deposit file should have 7 columns: element x y z vx vy vz.\n");
     }
 
     FileAtom fa;
