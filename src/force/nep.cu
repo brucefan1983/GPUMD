@@ -83,19 +83,6 @@ static std::vector<float> get_descriptor_parameters_type_pair(
 
   int num_radial_basis = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
   int num_angular_basis = (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1);
-#ifdef USE_CJ
-  for (int type = 0; type < paramb.num_types; ++type) {
-    for (int basis = 0; basis < num_radial_basis; ++basis) {
-      descriptor_parameters[type * num_radial_basis + basis] =
-        parameters[annmb.num_para_ann + basis * paramb.num_types + type];
-    }
-    for (int basis = 0; basis < num_angular_basis; ++basis) {
-      descriptor_parameters[paramb.num_c_radial + type * num_angular_basis + basis] =
-        parameters
-          [annmb.num_para_ann + paramb.num_c_radial + basis * paramb.num_types + type];
-    }
-  }
-#else
   for (int type_pair = 0; type_pair < paramb.num_types_sq; ++type_pair) {
     for (int basis = 0; basis < num_radial_basis; ++basis) {
       descriptor_parameters[type_pair * num_radial_basis + basis] =
@@ -107,7 +94,6 @@ static std::vector<float> get_descriptor_parameters_type_pair(
           [annmb.num_para_ann + paramb.num_c_radial + basis * paramb.num_types_sq + type_pair];
     }
   }
-#endif
 
   return descriptor_parameters;
 }
@@ -372,39 +358,22 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     annmb.num_para_ann *= 2;
   }
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
-#ifdef USE_CJ
-  int num_para_descriptor =
-    paramb.num_types * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                        (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para = annmb.num_para_ann + num_para_descriptor;
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
-#ifdef USE_CJ
-  paramb.num_c_radial =
-    paramb.num_types * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#else
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#endif
 
   // NN and descriptor parameters
   int ann_size_full = ann_blocks * (ann_type_size * num_types_full + 1);
-#ifdef USE_CJ
-  int num_para_descriptor_full =
-    num_types_full * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor_full =
     num_types_full * num_types_full *
     ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   std::vector<float> parameters_full(ann_size_full + num_para_descriptor_full + annmb.dim);
   for (int n = 0; n < parameters_full.size(); ++n) {
     tokens = get_tokens(input);
@@ -609,12 +578,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = t2 * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-#else
           int c_index = (t1 * paramb.num_types + t2) *
                         ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-#endif
           c_index += n * (paramb.basis_size_radial + 1) + k;
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
@@ -642,12 +607,8 @@ static __global__ void find_descriptor(
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = paramb.num_c_radial;
-#ifdef USE_CJ
-          c_index += t2 * ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
           c_index += (t1 * paramb.num_types + t2) *
                      ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
           c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
@@ -802,13 +763,8 @@ static __global__ void find_force_radial(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int basis_count = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
           int basis = n * (paramb.basis_size_radial + 1) + k;
-#ifdef USE_CJ
-          gnp12 += fnp12[k] * annmb.c_type_pair[t2 * basis_count + basis];
-          gnp21 += fnp12[k] * annmb.c_type_pair[t1 * basis_count + basis];
-#else
           gnp12 += fnp12[k] * annmb.c_type_pair[(t1 * paramb.num_types + t2) * basis_count + basis];
           gnp21 += fnp12[k] * annmb.c_type_pair[(t2 * paramb.num_types + t1) * basis_count + basis];
-#endif
         }
         float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
         float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
@@ -919,12 +875,8 @@ static __global__ void find_partial_force_angular(
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = paramb.num_c_radial;
-#ifdef USE_CJ
-          c_index += t2 * ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
           c_index += (t1 * paramb.num_types + t2) *
                      ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
           c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
@@ -1525,12 +1477,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = t2 * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-#else
           int c_index = (t1 * paramb.num_types + t2) *
                         ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-#endif
           c_index += n * (paramb.basis_size_radial + 1) + k;
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
@@ -1558,12 +1506,8 @@ static __global__ void find_descriptor(
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = paramb.num_c_radial;
-#ifdef USE_CJ
-          c_index += t2 * ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
           c_index += (t1 * paramb.num_types + t2) *
                      ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
           c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }

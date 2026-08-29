@@ -282,38 +282,21 @@ void NEP_Energy::initialize(const char* file_potential)
   }
 
   printf("        number of neural network parameters = %d.\n", annmb.num_para);
-#ifdef USE_CJ
-  int num_para_descriptor =
-    paramb.num_types * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                        (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   printf("        number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
   printf("        total number of parameters = %d.\n", annmb.num_para);
 
-#ifdef USE_CJ
-  paramb.num_c_radial =
-    paramb.num_types * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#else
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#endif
 
   // NN and descriptor parameters
-#ifdef USE_CJ
-  int num_para_descriptor_full =
-    num_types_full * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor_full =
     num_types_full * num_types_full *
     ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   int num_para_ann_full = ann_type_size * num_types_full + 1;
   std::vector<float> parameters_full(num_para_ann_full + num_para_descriptor_full);
   for (int n = 0; n < parameters_full.size(); ++n) {
@@ -423,12 +406,8 @@ static __global__ void find_energy_nep(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types + t2;
-#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -452,14 +431,8 @@ static __global__ void find_energy_nep(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-#ifdef USE_CJ
-          int c_index =
-            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
-            paramb.num_c_radial;
-#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);

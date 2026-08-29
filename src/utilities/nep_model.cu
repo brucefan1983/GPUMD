@@ -181,19 +181,12 @@ std::vector<float> compact_nep_parameters(
   int num_angular_basis = (n_max_angular + 1) * (basis_size_angular + 1);
   int ann_block_size_full = num_types_full * ann_type_size + ann_global_size;
   int ann_size_full = ann_blocks * ann_block_size_full;
-#ifdef USE_CJ
-  int num_c_radial_full = num_types_full * num_radial_basis;
-  int num_c_angular_full = num_types_full * num_angular_basis;
-  int num_c_radial = num_types * num_radial_basis;
-  int num_c_angular = num_types * num_angular_basis;
-#else
   int num_types_sq_full = num_types_full * num_types_full;
   int num_types_sq = num_types * num_types;
   int num_c_radial_full = num_types_sq_full * num_radial_basis;
   int num_c_angular_full = num_types_sq_full * num_angular_basis;
   int num_c_radial = num_types_sq * num_radial_basis;
   int num_c_angular = num_types_sq * num_angular_basis;
-#endif
   int expected_size = ann_size_full + num_c_radial_full + num_c_angular_full + tail_size;
   if (parameters_full.size() != expected_size) {
     PRINT_INPUT_ERROR("Unexpected number of NEP parameters while compacting the model.");
@@ -220,12 +213,6 @@ std::vector<float> compact_nep_parameters(
 
   int offset_radial = ann_size_full;
   for (int basis = 0; basis < num_radial_basis; ++basis) {
-#ifdef USE_CJ
-    for (int t2 = 0; t2 < num_types; ++t2) {
-      parameters.push_back(
-        parameters_full[offset_radial + basis * num_types_full + active_to_full[t2]]);
-    }
-#else
     for (int t1 = 0; t1 < num_types; ++t1) {
       for (int t2 = 0; t2 < num_types; ++t2) {
         int type_pair = active_to_full[t1] * num_types_full + active_to_full[t2];
@@ -233,17 +220,10 @@ std::vector<float> compact_nep_parameters(
           parameters_full[offset_radial + basis * num_types_sq_full + type_pair]);
       }
     }
-#endif
   }
 
   int offset_angular = offset_radial + num_c_radial_full;
   for (int basis = 0; basis < num_angular_basis; ++basis) {
-#ifdef USE_CJ
-    for (int t2 = 0; t2 < num_types; ++t2) {
-      parameters.push_back(
-        parameters_full[offset_angular + basis * num_types_full + active_to_full[t2]]);
-    }
-#else
     for (int t1 = 0; t1 < num_types; ++t1) {
       for (int t2 = 0; t2 < num_types; ++t2) {
         int type_pair = active_to_full[t1] * num_types_full + active_to_full[t2];
@@ -251,7 +231,6 @@ std::vector<float> compact_nep_parameters(
           parameters_full[offset_angular + basis * num_types_sq_full + type_pair]);
       }
     }
-#endif
   }
 
   int offset_tail = offset_angular + num_c_angular_full;

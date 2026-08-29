@@ -321,38 +321,21 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   annmb.num_para_ann = ann_type_size * paramb.num_types + 2;
 
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
-#ifdef USE_CJ
-  int num_para_descriptor =
-    paramb.num_types * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                        (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para = annmb.num_para_ann + num_para_descriptor;
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
-#ifdef USE_CJ
-  paramb.num_c_radial =
-    paramb.num_types * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#else
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-#endif
 
   // NN and descriptor parameters
-#ifdef USE_CJ
-  int num_para_descriptor_full =
-    num_types_full * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#else
   int num_para_descriptor_full =
     num_types_full * num_types_full *
     ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
      (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-#endif
   int num_para_ann_full = ann_type_size * num_types_full + 2;
   std::vector<float> parameters_full(num_para_ann_full + num_para_descriptor_full + annmb.dim);
   for (int n = 0; n < parameters_full.size(); ++n) {
@@ -550,12 +533,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types + t2;
-#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -581,14 +560,8 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-#ifdef USE_CJ
-          int c_index =
-            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
-            paramb.num_c_radial;
-#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -758,12 +731,8 @@ static __global__ void find_bec_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types + t2;
-#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2;
-#endif
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
@@ -862,14 +831,8 @@ static __global__ void find_bec_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-#ifdef USE_CJ
-          int c_index =
-            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
-            paramb.num_c_radial;
-#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
@@ -993,15 +956,9 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-#ifdef USE_CJ
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types;
-          gnp12 += fnp12[k] * annmb.c[c_index + t2];
-          gnp21 += fnp12[k] * annmb.c[c_index + t1];
-#else
           int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
           gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
           gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
-#endif
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
         float tmp21 = g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2];
@@ -1109,14 +1066,8 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-#ifdef USE_CJ
-          int c_index =
-            (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types + t2 +
-            paramb.num_c_radial;
-#else
           int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-#endif
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
