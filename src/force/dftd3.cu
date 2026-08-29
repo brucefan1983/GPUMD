@@ -32,6 +32,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "model/box.cuh"
 #include "neighbor.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -429,7 +430,7 @@ std::string get_potential_file_name()
   }
 
   input_run.close();
-  return potential_file_name;
+  return get_compact_nep_filename(potential_file_name);
 }
 
 void find_atomic_number(std::string& potential_file_name, int* atomic_number)

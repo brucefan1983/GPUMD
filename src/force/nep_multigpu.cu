@@ -1754,10 +1754,14 @@ void NEP_MULTIGPU::compute(
     }
   }
 
+#ifdef ZHEYONG
+  CHECK(gpuDeviceSynchronize());
+#else
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     CHECK(gpuSetDevice(gpu));
     CHECK(gpuDeviceSynchronize());
   }
+#endif
 
   CHECK(gpuSetDevice(0));
 
@@ -2251,10 +2255,14 @@ void NEP_MULTIGPU::compute(
     }
   }
 
+#ifdef ZHEYONG
+  CHECK(gpuDeviceSynchronize());
+#else
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     CHECK(gpuSetDevice(gpu));
     CHECK(gpuDeviceSynchronize());
   }
+#endif
 
   CHECK(gpuSetDevice(0));
 
