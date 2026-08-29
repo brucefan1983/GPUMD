@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+void register_compact_nep_required_species(const std::string& atom_symbol);
 void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols);
 std::string get_compact_nep_filename(const std::string& filename);
 const std::vector<std::string>& get_compact_nep_species();

@@ -33,6 +33,7 @@ struct CompactPotentialFile
 
 static std::vector<CompactPotentialFile> compact_files;
 static std::vector<std::string> compact_species;
+static std::vector<std::string> registered_required_species;
 static bool cleanup_registered = false;
 
 static int find_species(const std::vector<std::string>& species, const std::string& symbol)
@@ -43,6 +44,13 @@ static int find_species(const std::vector<std::string>& species, const std::stri
     }
   }
   return -1;
+}
+
+void register_compact_nep_required_species(const std::string& atom_symbol)
+{
+  if (find_species(registered_required_species, atom_symbol) < 0) {
+    registered_required_species.push_back(atom_symbol);
+  }
 }
 
 static bool is_compactable_nep(const std::vector<std::string>& tokens)
@@ -402,6 +410,9 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
     add_required_species(species_full, atom_symbols[n], required);
   }
   add_mc_species(species_full, required);
+  for (int n = 0; n < static_cast<int>(registered_required_species.size()); ++n) {
+    add_required_species(species_full, registered_required_species[n], required);
+  }
   for (int n = 0; n < static_cast<int>(species_full.size()); ++n) {
     if (required[n]) {
       compact_species.push_back(species_full[n]);
@@ -416,7 +427,8 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
   for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
     printf("    type %d = %s.\n", n, compact_species[n].c_str());
   }
-  printf("    Atom type indices in run.in refer to the active atom types above.\n");
+  printf("    Atom type indices in run.in refer to the active atom types above, except deposit.\n");
+  printf("    deposit accepts element symbols or original potential type indices.\n");
 
   for (int n = 0; n < static_cast<int>(potential_files.size()); ++n) {
     std::vector<std::string> tokens = get_first_line(potential_files[n]);

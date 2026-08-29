@@ -34,6 +34,7 @@ public:
   double height_max = 0.0;
   bool has_height_range = false;
   std::vector<int> atom_types;
+  std::vector<std::string> atom_symbols;
   std::vector<int> num_atoms;
   std::vector<double> velocities;
   bool has_file = false;
