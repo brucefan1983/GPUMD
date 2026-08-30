@@ -67,6 +67,11 @@ public:
     const float* q_scaler;
   };
 
+  struct ExpandedBox {
+    int num_cells[3];
+    float h[18];
+  };
+
   NEP_Response(const char* file_potential, const Atom& atom);
   bool is_dipole() const;
   bool is_polarizability() const;
@@ -88,8 +93,17 @@ private:
     GPU_Vector<float> parameters;
   } data_;
 
+  struct Small_Box_Data {
+    GPU_Vector<int> NN_radial;
+    GPU_Vector<int> NL_radial;
+    GPU_Vector<int> NN_angular;
+    GPU_Vector<int> NL_angular;
+    GPU_Vector<float> r12;
+  } small_box_data_;
+
   ParaMB paramb_;
   ANN annmb_;
+  ExpandedBox ebox_;
   Neighbor neighbor_;
   GPU_Vector<int> type_;
   GPU_Vector<double> potential_per_atom_;
@@ -100,4 +114,6 @@ private:
   std::string atom_types_[NUM_ELEMENTS];
 
   void update_potential(float* parameters);
+  void compute_large_box(Box& box, const GPU_Vector<double>& position);
+  void compute_small_box(Box& box, const GPU_Vector<double>& position);
 };

@@ -28,6 +28,8 @@ NEP4 response models used by dipole and polarizability measurements.
 #include <iostream>
 #include <vector>
 
+#include "nep_response_small_box.cuh"
+
 static std::vector<float> get_descriptor_parameters_type_pair(
   const std::vector<float>& parameters,
   const int num_para_descriptor,
@@ -847,42 +849,74 @@ static __global__ void find_properties_many_body_response(
   }
 }
 
-static bool has_small_periodic_box(const double rc, const Box& box)
+static bool get_expanded_box(const double rc, const Box& box, NEP_Response::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);
   double thickness_y = volume / box.get_area(1);
   double thickness_z = volume / box.get_area(2);
-  return (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) ||
-         (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) ||
-         (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0));
+  ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
+  ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
+  ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
+
+  bool is_small_box = false;
+  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
+    is_small_box = true;
+  }
+  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
+    is_small_box = true;
+  }
+  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
+    is_small_box = true;
+  }
+
+  if (is_small_box) {
+    if (thickness_x > 10 * rc || thickness_y > 10 * rc || thickness_z > 10 * rc) {
+      std::cout << "Error:\n"
+                << "    The box has\n"
+                << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
+                << "        and a thickness > 10 radial cutoffs in another direction.\n"
+                << "    Please increase the periodic direction(s).\n";
+      exit(1);
+    }
+
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+
+    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+    for (int n = 9; n < 18; n++) {
+      ebox.h[n] /= det;
+    }
+  }
+
+  return is_small_box;
 }
 
-const GPU_Vector<double>& NEP_Response::compute(Box& box, const GPU_Vector<double>& position)
+void NEP_Response::compute_large_box(Box& box, const GPU_Vector<double>& position)
 {
   const int N = type_.size();
-  if (position.size() != N * 3) {
-    PRINT_INPUT_ERROR("The number of atoms changed after initializing the dipole/polarizability NEP.");
-  }
-  if (has_small_periodic_box(paramb_.rc_radial_max, box)) {
-    PRINT_INPUT_ERROR(
-      "Dipole and polarizability NEP models do not support small periodic boxes. "
-      "Please increase the periodic box size.");
-  }
-
   const int BLOCK_SIZE = 64;
   const int N1 = 0;
   const int N2 = N;
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-
-  initialize_properties<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    force_per_atom_.data(),
-    force_per_atom_.data() + N,
-    force_per_atom_.data() + N * 2,
-    potential_per_atom_.data(),
-    virial_per_atom_.data());
-  GPU_CHECK_KERNEL
 
   neighbor_.find_neighbor_global(paramb_.rc_radial_max, box, type_, position);
 
@@ -988,6 +1022,144 @@ const GPU_Vector<double>& NEP_Response::compute(Box& box, const GPU_Vector<doubl
     force_per_atom_.data() + N * 2,
     virial_per_atom_.data());
   GPU_CHECK_KERNEL
+}
+
+void NEP_Response::compute_small_box(Box& box, const GPU_Vector<double>& position)
+{
+  const int BLOCK_SIZE = 64;
+  const int N = type_.size();
+  const int N1 = 0;
+  const int N2 = N;
+  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  const int big_neighbor_size = 2000;
+  const int size_x12 = type_.size() * big_neighbor_size;
+
+  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb_,
+    N,
+    N1,
+    N2,
+    box,
+    ebox_,
+    type_.data(),
+    position.data(),
+    position.data() + N,
+    position.data() + N * 2,
+    small_box_data_.NN_radial.data(),
+    small_box_data_.NL_radial.data(),
+    small_box_data_.NN_angular.data(),
+    small_box_data_.NL_angular.data(),
+    small_box_data_.r12.data(),
+    small_box_data_.r12.data() + size_x12,
+    small_box_data_.r12.data() + size_x12 * 2,
+    small_box_data_.r12.data() + size_x12 * 3,
+    small_box_data_.r12.data() + size_x12 * 4,
+    small_box_data_.r12.data() + size_x12 * 5);
+  GPU_CHECK_KERNEL
+
+  const bool is_polarizability_model = is_polarizability();
+  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb_,
+    annmb_,
+    N,
+    N1,
+    N2,
+    small_box_data_.NN_radial.data(),
+    small_box_data_.NL_radial.data(),
+    small_box_data_.NN_angular.data(),
+    small_box_data_.NL_angular.data(),
+    type_.data(),
+    small_box_data_.r12.data(),
+    small_box_data_.r12.data() + size_x12,
+    small_box_data_.r12.data() + size_x12 * 2,
+    small_box_data_.r12.data() + size_x12 * 3,
+    small_box_data_.r12.data() + size_x12 * 4,
+    small_box_data_.r12.data() + size_x12 * 5,
+    is_polarizability_model,
+    potential_per_atom_.data(),
+    data_.Fp.data(),
+    virial_per_atom_.data(),
+    data_.sum_fxyz.data());
+  GPU_CHECK_KERNEL
+
+  const bool is_dipole_model = is_dipole();
+  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb_,
+    annmb_,
+    N,
+    N1,
+    N2,
+    small_box_data_.NN_radial.data(),
+    small_box_data_.NL_radial.data(),
+    type_.data(),
+    small_box_data_.r12.data(),
+    small_box_data_.r12.data() + size_x12,
+    small_box_data_.r12.data() + size_x12 * 2,
+    data_.Fp.data(),
+    is_dipole_model,
+    force_per_atom_.data(),
+    force_per_atom_.data() + N,
+    force_per_atom_.data() + N * 2,
+    virial_per_atom_.data());
+  GPU_CHECK_KERNEL
+
+  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb_,
+    annmb_,
+    N,
+    N1,
+    N2,
+    small_box_data_.NN_angular.data(),
+    small_box_data_.NL_angular.data(),
+    type_.data(),
+    small_box_data_.r12.data() + size_x12 * 3,
+    small_box_data_.r12.data() + size_x12 * 4,
+    small_box_data_.r12.data() + size_x12 * 5,
+    data_.Fp.data(),
+    data_.sum_fxyz.data(),
+    is_dipole_model,
+    force_per_atom_.data(),
+    force_per_atom_.data() + N,
+    force_per_atom_.data() + N * 2,
+    virial_per_atom_.data());
+  GPU_CHECK_KERNEL
+}
+
+const GPU_Vector<double>& NEP_Response::compute(Box& box, const GPU_Vector<double>& position)
+{
+  const int N = type_.size();
+  if (position.size() != N * 3) {
+    PRINT_INPUT_ERROR("The number of atoms changed after initializing the dipole/polarizability NEP.");
+  }
+
+  initialize_properties<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    force_per_atom_.data(),
+    force_per_atom_.data() + N,
+    force_per_atom_.data() + N * 2,
+    potential_per_atom_.data(),
+    virial_per_atom_.data());
+  GPU_CHECK_KERNEL
+
+  const bool is_small_box = get_expanded_box(paramb_.rc_radial_max, box, ebox_);
+  if (is_small_box) {
+    const int current_num_atoms = type_.size();
+    if (small_box_data_.NN_radial.size() != current_num_atoms) {
+      const int big_neighbor_size = 2000;
+      const int size_x12 = current_num_atoms * big_neighbor_size;
+
+      small_box_data_.NN_radial.resize(current_num_atoms);
+      small_box_data_.NL_radial.resize(size_x12);
+      small_box_data_.NN_angular.resize(current_num_atoms);
+      small_box_data_.NL_angular.resize(size_x12);
+      small_box_data_.r12.resize(size_x12 * 6);
+    }
+
+    compute_small_box(box, position);
+  } else {
+    compute_large_box(box, position);
+  }
 
   return virial_per_atom_;
 }
