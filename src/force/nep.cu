@@ -111,29 +111,17 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     exit(1);
   }
   if (tokens[0] == "nep4") {
-    paramb.version = 4;
     zbl.enabled = false;
   } else if (tokens[0] == "nep4_zbl") {
-    paramb.version = 4;
     zbl.enabled = true;
-  } else if (tokens[0] == "nep5") {
-    paramb.version = 5;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep5_zbl") {
-    paramb.version = 5;
-    zbl.enabled = true;
-  }  else if (tokens[0] == "nep4_temperature") {
-    paramb.version = 4;
+  } else if (tokens[0] == "nep4_temperature") {
     paramb.model_type = 3;
   } else if (tokens[0] == "nep4_zbl_temperature") {
-    paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
   } else if (tokens[0] == "nep4_dipole") {
-    paramb.version = 4;
     paramb.model_type = 1;
   } else if (tokens[0] == "nep4_polarizability") {
-    paramb.version = 4;
     paramb.model_type = 2;
   } else {
     std::cout << tokens[0]
@@ -149,9 +137,9 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
+    printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
   } else {
-    printf("Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
+    printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -329,11 +317,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 4) {
-    annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  } else if (paramb.version == 5) {
-    annmb.num_para_ann = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
-  }
+  annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
     annmb.num_para_ann *= 2;
@@ -409,9 +393,6 @@ void NEP::update_potential(float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
-    if (paramb.version == 5) {
-      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
-    }
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -614,8 +595,8 @@ static __global__ void find_descriptor(
       }
     }
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
+    if (!need_B_projection)
+      apply_ann_one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[t1],
@@ -625,31 +606,18 @@ static __global__ void find_descriptor(
         q,
         F,
         Fp);
-    } else {
-      if (!need_B_projection)
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp);
-      else
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp,
-          B_projection + n1 * B_projection_size);
-    }
+    else
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        B_projection + n1 * B_projection_size);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {

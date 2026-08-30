@@ -248,8 +248,8 @@ static __global__ void find_descriptor_small_box(
       }
     }
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
+    if (!need_B_projection)
+      apply_ann_one_layer(
         annmb.dim,
         annmb.num_neurons1,
         annmb.w0[t1],
@@ -259,31 +259,18 @@ static __global__ void find_descriptor_small_box(
         q,
         F,
         Fp);
-    } else {
-      if (!need_B_projection)
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp);
-      else
-        apply_ann_one_layer(
-          annmb.dim,
-          annmb.num_neurons1,
-          annmb.w0[t1],
-          annmb.b0[t1],
-          annmb.w1[t1],
-          annmb.b1,
-          q,
-          F,
-          Fp,
-          B_projection + n1 * B_projection_size);
-    }
+    else
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        B_projection + n1 * B_projection_size);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
