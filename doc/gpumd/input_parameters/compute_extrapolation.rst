@@ -44,7 +44,3 @@ Example
     compute_extrapolation nep_file nep.txt asi_file active_set.asi gamma_low 5 gamma_high 10 check_interval 10 dump_interval 10
 
 This means that the structures with max gamma between 5-10 will be dumped. The gamma value will be checked every 10 steps.
-
-Caveats
--------
-* This keyword only supports single-GPU simulations.

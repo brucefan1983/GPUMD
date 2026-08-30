@@ -346,15 +346,6 @@ static bool get_expanded_box(const double rc, const Box& box, NEP_Extrapolation:
 NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& atom)
   : num_atoms_(atom.number_of_atoms)
 {
-  int num_gpus;
-  CHECK(gpuGetDeviceCount(&num_gpus));
-#ifdef ZHEYONG
-  num_gpus = 3;
-#endif
-  if (num_gpus != 1) {
-    PRINT_INPUT_ERROR("compute_extrapolation is only supported with one GPU.");
-  }
-
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
