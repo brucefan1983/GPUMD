@@ -88,29 +88,17 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     exit(1);
   }
   if (tokens[0] == "nep4") {
-    paramb.version = 4;
     zbl.enabled = false;
   } else if (tokens[0] == "nep4_zbl") {
-    paramb.version = 4;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep5") {
-    paramb.version = 5;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep5_zbl") {
-    paramb.version = 5;
     zbl.enabled = true;
   } else if (tokens[0] == "nep4_temperature") {
-    paramb.version = 4;
     paramb.model_type = 3;
   } else if (tokens[0] == "nep4_zbl_temperature") {
-    paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
   } else if (tokens[0] == "nep4_dipole") {
-    paramb.version = 4;
     paramb.model_type = 1;
   } else if (tokens[0] == "nep4_polarizability") {
-    paramb.version = 4;
     paramb.model_type = 2;
   } else {
     std::cout << tokens[0]
@@ -126,9 +114,9 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
+    printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
   } else {
-    printf("Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
+    printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -307,11 +295,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   rc = paramb.rc_radial_max; // largest cutoff
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 4) {
-    annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
-  } else if (paramb.version == 5) {
-    annmb[0].num_para_ann = ((annmb[0].dim + 2) * annmb[0].num_neurons1 + 1) * paramb.num_types + 1;
-  }
+  annmb[0].num_para_ann = (annmb[0].dim + 2) * annmb[0].num_neurons1 * paramb.num_types + 1;
 
   if (paramb.model_type == 2) {
     // Polarizability models have twice as many parameters
@@ -436,9 +420,6 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
-    if (paramb.version == 5) {
-      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
-    }
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -912,29 +893,16 @@ static __global__ void find_descriptor(
       }
     }
 
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
-    } else {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp);
-    }
+    apply_ann_one_layer(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp);
 
     g_pe[n1] = F;
 
