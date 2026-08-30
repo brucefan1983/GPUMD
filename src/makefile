@@ -31,6 +31,9 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+ifndef OS
+LIBS += -ldl
+endif
 
 
 ###########################################################

@@ -117,6 +117,7 @@ public:
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
+  bool nep_compile = false; // runtime-specialize ordinary NEP4 training kernels
 
   // check if a parameter has been set:
   bool is_train_mode_set;
@@ -147,6 +148,7 @@ public:
   bool is_charge_mode_set;
   bool is_vdw_set;
   bool is_charge_vdw_set;
+  bool is_nep_compile_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -223,4 +225,5 @@ private:
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
   void parse_import_q_scaler(const char** param, int num_param);
+  void parse_nep_compile(const char** param, int num_param);
 };

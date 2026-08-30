@@ -80,6 +80,7 @@ void Parameters::set_default_parameters()
   is_charge_vdw_set = false;
   is_save_potential_set = false;
   is_output_interval_set = false;
+  is_nep_compile_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -96,6 +97,8 @@ void Parameters::set_default_parameters()
   has_q_233 = 0;               // default is not to include q_233
   has_q_134 = 0;               // default is not to include q_134
   num_neurons1 = 30;           // a relatively small value to achieve high speed
+  num_neurons2 = 0;            // no second hidden layer by default
+  num_hidden_layers = 1;       // one hidden layer by default
   lambda_1 = lambda_2 = -1.0f; // automatic regularization
   lambda_e = lambda_f = 1.0f;  // energy and force are more important
   lambda_v = 0.1f;             // virial is less important
@@ -120,6 +123,7 @@ void Parameters::set_default_parameters()
   charge_mode = 0;
   vdw = 0;
   charge_vdw = 0;
+  nep_compile = false;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -189,6 +193,13 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
+  if (nep_compile && train_mode != 0) {
+    PRINT_INPUT_ERROR("nep_compile currently supports ordinary potential training only.");
+  }
+  if (nep_compile && (charge_mode || vdw || charge_vdw)) {
+    PRINT_INPUT_ERROR("nep_compile currently supports ordinary NEP4 only, without charge/vdW modes.");
+  }
+
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
@@ -971,6 +982,12 @@ void Parameters::report_inputs()
     printf("    (default) batch size = %d.\n", batch_size);
   }
 
+  if (is_nep_compile_set) {
+    printf("    (input)   nep_compile = %s.\n", nep_compile ? "on" : "off");
+  } else {
+    printf("    (default) nep_compile = off.\n");
+  }
+
   if (is_population_set) {
     printf("    (input)   population size = %d.\n", population_size);
   } else {
@@ -1047,6 +1064,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_batch(param, num_param);
   } else if (strcmp(param[0], "population") == 0) {
     parse_population(param, num_param);
+  } else if (strcmp(param[0], "nep_compile") == 0) {
+    parse_nep_compile(param, num_param);
   } else if (strcmp(param[0], "generation") == 0) {
     parse_generation(param, num_param);
   } else if (strcmp(param[0], "lambda_1") == 0) {
@@ -1097,6 +1116,21 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_import_q_scaler(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+void Parameters::parse_nep_compile(const char** param, int num_param)
+{
+  is_nep_compile_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("nep_compile should have 1 parameter: on or off.\n");
+  }
+  if (strcmp(param[1], "on") == 0 || strcmp(param[1], "1") == 0) {
+    nep_compile = true;
+  } else if (strcmp(param[1], "off") == 0 || strcmp(param[1], "0") == 0) {
+    nep_compile = false;
+  } else {
+    PRINT_INPUT_ERROR("nep_compile should be on/off (or 1/0).\n");
   }
 }
 
