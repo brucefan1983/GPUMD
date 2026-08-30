@@ -141,8 +141,7 @@ void Dump_Dipole::end_of_step(
   if (((step + 1) % dump_interval_ != 0))
     return;
   const int number_of_atoms = atom.number_of_atoms;
-  const GPU_Vector<double>& response =
-    nep_response_->compute(box, atom.type, atom.position_per_atom);
+  const GPU_Vector<double>& response = nep_response_->compute(box, atom.position_per_atom);
 
   const int number_of_threads = 1024;
   const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;

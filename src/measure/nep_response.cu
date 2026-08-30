@@ -93,13 +93,22 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   for (int t = 0; t < paramb_.num_types; ++t) {
     atom_types_[t] = tokens[2 + t];
   }
-  for (int n = 0; n < atom.number_of_atoms; ++n) {
-    int type = atom.cpu_type[n];
-    if (type < 0 || type >= paramb_.num_types || atom.cpu_atom_symbol[n] != atom_types_[type]) {
-      PRINT_INPUT_ERROR(
-        "The atomic species and/or their order in the response NEP are inconsistent with model.xyz.");
+
+  std::vector<int> mapped_type(num_atoms_);
+  for (int n = 0; n < num_atoms_; ++n) {
+    mapped_type[n] = -1;
+    for (int t = 0; t < paramb_.num_types; ++t) {
+      if (atom.cpu_atom_symbol[n] == atom_types_[t]) {
+        mapped_type[n] = t;
+        break;
+      }
+    }
+    if (mapped_type[n] < 0) {
+      PRINT_INPUT_ERROR("There is atom in model.xyz that is not allowed in the response NEP.");
     }
   }
+  type_.resize(num_atoms_);
+  type_.copy_from_host(mapped_type.data());
 
   // cutoff
   tokens = get_tokens(input);
@@ -849,13 +858,10 @@ static bool has_small_periodic_box(const double rc, const Box& box)
          (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0));
 }
 
-const GPU_Vector<double>& NEP_Response::compute(
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position)
+const GPU_Vector<double>& NEP_Response::compute(Box& box, const GPU_Vector<double>& position)
 {
-  const int N = type.size();
-  if (N != num_atoms_) {
+  const int N = type_.size();
+  if (position.size() != N * 3) {
     PRINT_INPUT_ERROR("The number of atoms changed after initializing the dipole/polarizability NEP.");
   }
   if (has_small_periodic_box(paramb_.rc_radial_max, box)) {
@@ -878,7 +884,7 @@ const GPU_Vector<double>& NEP_Response::compute(
     virial_per_atom_.data());
   GPU_CHECK_KERNEL
 
-  neighbor_.find_neighbor_global(paramb_.rc_radial_max, box, type, position);
+  neighbor_.find_neighbor_global(paramb_.rc_radial_max, box, type_, position);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb_,
@@ -886,7 +892,7 @@ const GPU_Vector<double>& NEP_Response::compute(
     N1,
     N2,
     box,
-    type.data(),
+    type_.data(),
     position.data(),
     position.data() + N,
     position.data() + N * 2,
@@ -910,7 +916,7 @@ const GPU_Vector<double>& NEP_Response::compute(
     data_.NL_radial.data(),
     data_.NN_angular.data(),
     data_.NL_angular.data(),
-    type.data(),
+    type_.data(),
     position.data(),
     position.data() + N,
     position.data() + N * 2,
@@ -931,7 +937,7 @@ const GPU_Vector<double>& NEP_Response::compute(
     box,
     data_.NN_radial.data(),
     data_.NL_radial.data(),
-    type.data(),
+    type_.data(),
     position.data(),
     position.data() + N,
     position.data() + N * 2,
@@ -952,7 +958,7 @@ const GPU_Vector<double>& NEP_Response::compute(
     box,
     data_.NN_angular.data(),
     data_.NL_angular.data(),
-    type.data(),
+    type_.data(),
     position.data(),
     position.data() + N,
     position.data() + N * 2,

@@ -71,10 +71,7 @@ public:
   bool is_dipole() const;
   bool is_polarizability() const;
 
-  const GPU_Vector<double>& compute(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position);
+  const GPU_Vector<double>& compute(Box& box, const GPU_Vector<double>& position);
 
 private:
   struct Data {
@@ -94,6 +91,7 @@ private:
   ParaMB paramb_;
   ANN annmb_;
   Neighbor neighbor_;
+  GPU_Vector<int> type_;
   GPU_Vector<double> potential_per_atom_;
   GPU_Vector<double> force_per_atom_;
   GPU_Vector<double> virial_per_atom_;
