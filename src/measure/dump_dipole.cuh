@@ -15,11 +15,12 @@
 
 #pragma once
 #include "action.cuh"
-#include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "nep_response.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
 #include <string>
 #include <vector>
 class Box;
@@ -66,9 +67,10 @@ public:
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
+  std::string file_potential_;
   FILE* file_;
   GPU_Vector<double> gpu_dipole_;
   std::vector<double> cpu_dipole_;
   void write_dipole(const int step);
-  Atom atom_copy;
+  std::unique_ptr<NEP_Response> nep_response_;
 };

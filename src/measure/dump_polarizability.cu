@@ -71,36 +71,6 @@ static __global__ void sum_polarizability(
   }
 }
 
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial, double* g_pol)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
-  }
-  if (n1 == 0) {
-    // Only need to set g_pol to zero once
-    g_pol[0] = 0.0;
-    g_pol[1] = 0.0;
-    g_pol[2] = 0.0;
-    g_pol[3] = 0.0;
-    g_pol[4] = 0.0;
-    g_pol[5] = 0.0;
-  }
-}
-
 Dump_Polarizability::Dump_Polarizability(const char** param, int num_param)
 {
   parse(param, num_param);
@@ -112,13 +82,15 @@ void Dump_Polarizability::parse(const char** param, int num_param)
   dump_ = true;
   printf("Dump polarizability\n");
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_dipole should have 1 parameters.");
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("dump_polarizability should have 2 parameters.");
   }
   if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
+  file_potential_ = param[2];
   printf("   every %d steps.\n", dump_interval_);
+  printf("   response potential: %s.\n", file_potential_.c_str());
 }
 
 void Dump_Polarizability::pre_run(
@@ -147,23 +119,9 @@ void Dump_Polarizability::pre_run(
     gpu_pol_.resize(6);
     cpu_pol_.resize(6);
 
-    // Set up a local copy of the Atoms, on which to compute the dipole
-    // Typically in GPUMD we are limited by computational speed, not memory,
-    // so we can sacrifice a bit of memory to skip having to recompute the forces
-    // & virials with the original potential
-    atom_copy.number_of_atoms = atom.number_of_atoms;
-    atom_copy.force_per_atom.resize(atom.number_of_atoms * 3);
-    atom_copy.virial_per_atom.resize(atom.number_of_atoms * 9);
-    atom_copy.potential_per_atom.resize(atom.number_of_atoms);
-    // make sure that the second potential is actually a polarizability model.
-    if (force.potentials.size() != 2) {
-      PRINT_INPUT_ERROR("dump_polarizability requires two potentials to be specified.");
-    }
-    // Multiple potentials may only be used with NEPs, so we know that
-    // the second potential must be an NEP
-    if (force.potentials[1]->nep_model_type != 2) {
-      PRINT_INPUT_ERROR(
-        "dump_polarizability requires the second NEP potential to be a dipole model.");
+    nep_response_.reset(new NEP_Response(file_potential_.c_str(), atom));
+    if (!nep_response_->is_polarizability()) {
+      PRINT_INPUT_ERROR("dump_polarizability requires a nep4_polarizability model.");
     }
   }
 }
@@ -182,40 +140,19 @@ void Dump_Polarizability::end_of_step(
   Atom& atom,
   Force& force)
 {
-  // Only run if should dump, since forces have to be recomputed with each potential.
+  // Only evaluate the response at requested output steps.
   if (!dump_)
     return;
   if (((step + 1) % dump_interval_ != 0))
     return;
-  const int number_of_atoms = atom_copy.number_of_atoms;
+  const int number_of_atoms = atom.number_of_atoms;
+  const GPU_Vector<double>& response =
+    nep_response_->compute(box, atom.type, atom.position_per_atom);
 
-  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    atom_copy.force_per_atom.data(),
-    atom_copy.force_per_atom.data() + number_of_atoms,
-    atom_copy.force_per_atom.data() + number_of_atoms * 2,
-    atom_copy.potential_per_atom.data(),
-    atom_copy.virial_per_atom.data(),
-    gpu_pol_.data());
-  GPU_CHECK_KERNEL
-
-  // Compute the dipole
-  // Use the positions and types from the existing atoms object,
-  // but store the results in the local copy.
-  // TODO make sure that the second potential is actually a dipole model.
-  force.potentials[1]->compute(
-    box,
-    atom.type,
-    atom.position_per_atom,
-    atom_copy.potential_per_atom,
-    atom_copy.force_per_atom,
-    atom_copy.virial_per_atom);
-
-  // Aggregate virial_per_atom into dipole
   const int number_of_threads = 1024;
   const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
   sum_polarizability<<<6, number_of_threads>>>(
-    number_of_atoms, number_of_atoms_per_thread, atom_copy.virial_per_atom.data(), gpu_pol_.data());
+    number_of_atoms, number_of_atoms_per_thread, response.data(), gpu_pol_.data());
   GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
