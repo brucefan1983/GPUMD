@@ -125,7 +125,6 @@ void Force::parse_potential(
     is_nep = true;
     check_types(param[1]);
   } else if (
-    strcmp(potential_name, "nep5") == 0 || strcmp(potential_name, "nep5_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
     strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
     strcmp(potential_name, "nep3_dipole") == 0 ||
