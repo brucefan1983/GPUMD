@@ -13,7 +13,7 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump energy/force/virial with all loaded potentials at a given interval.
+Dump dipole at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
