@@ -58,7 +58,7 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   if (tokens.size() < 3) {
     return false;
   }
-  return tokens[0].substr(0, 4) == "nep4" || tokens[0].substr(0, 4) == "nep5";
+  return tokens[0].substr(0, 4) == "nep4";
 }
 
 static std::vector<std::string> get_potential_files()
@@ -212,7 +212,6 @@ static std::string make_compact_file(
 
   bool has_zbl = first[0].find("zbl") != std::string::npos;
   bool is_charge = first[0].find("charge") != std::string::npos;
-  bool is_nep5 = first[0].substr(0, 4) == "nep5";
   bool is_polarizability = first[0].find("polarizability") != std::string::npos;
   bool is_temperature = first[0].find("temperature") != std::string::npos;
 
@@ -256,9 +255,6 @@ static std::string make_compact_file(
   if (is_charge) {
     ann_type_size = (dim + 3) * num_neurons;
     ann_global_size = 2;
-  } else if (is_nep5) {
-    ann_type_size = (dim + 2) * num_neurons + 1;
-    ann_global_size = 1;
   } else {
     ann_type_size = (dim + 2) * num_neurons;
     ann_global_size = 1;

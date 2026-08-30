@@ -6,10 +6,10 @@ conftest.py's module docstring) -- CPUNEP has no role here. Reuses test_invarian
 _rotation_matrix (Rodrigues' formula) and the same (positions - center_of_mass) @ rot.T + center
 / cell @ rot.T + wrap() convention as test_rotation_invariance, applied to the fixed (structure,
 PES model, TNEP model) triples from test_io_tnep_commands.py's TNEP_CASES -- a new file rather
-than new cases in test_invariances.py, since TNEP needs two explicit `potential` lines and (see
-below) explicit velocity control that don't fit that file's swept structure/calculator/model_type
-fixture matrix, the same reasoning that already justifies test_io_tnep_commands.py being separate
-from test_io_dump_commands.py.
+than new cases in test_invariances.py, since TNEP needs a separate PES `potential`, a response
+model argument on the dump command, and (see below) explicit velocity control that don't fit that
+file's swept structure/calculator/model_type fixture matrix, the same reasoning that already
+justifies test_io_tnep_commands.py being separate from test_io_dump_commands.py.
 
 Rank-2 tensor rotation: polarizability.out's 6 columns (p_xx, p_yy, p_zz, p_xy, p_yz, p_zx,
 confirmed against doc/gpumd/output_files/polarizability_out.rst) reconstruct to a symmetric 3x3
@@ -18,7 +18,8 @@ tensor under an orthogonal rotation is the congruence transform M_after = rot @ 
 (re-derived from p_i = alpha_ij E_j transforming consistently under p' = R p, E' = R E, which
 forces alpha' = R alpha R^T; cross-validated against tests/gpumd/dump_polarizability/
 test_dump_polarizability.py's existing, calorine-confirmed column<->matrix mapping -- both
-agree). Checked that GPUMD's dipole/polarizability sum (src/force/nep.cu) is built from
+agree). Checked that GPUMD's dipole/polarizability response calculation
+(src/measure/nep_response.cu and nep_response_small_box.cuh) is built from
 minimum-image-convention pairwise displacement vectors, not a raw absolute-position sum, so it is
 not vulnerable to the periodic "polarization quantum" discontinuity -- rotating+wrapping a
 periodic cell is safe here, same as for ordinary forces/virial.
@@ -86,8 +87,7 @@ def _run_and_read_row0(tmp_path, atoms, pes_path, tnep_path, dump_command, expec
         name='tnep_rotation',
         run_in_lines=[
             ('potential', str(pes_path)),
-            ('potential', str(tnep_path)),
-            (dump_command, 1),
+            (dump_command, [1, str(tnep_path)]),
         ],
         expected_output_files=[expected_output_file],
     )

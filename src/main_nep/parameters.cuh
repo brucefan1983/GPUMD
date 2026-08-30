@@ -62,7 +62,7 @@ public:
   Parameters();
 
   // parameters to be read in
-  int version;            // nep version, can be 3 or 4 or 5
+  int version;            // NEP version; only NEP4 is supported
   int batch_size;         // number of configurations in one batch
   int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
@@ -75,8 +75,8 @@ public:
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
   int num_hidden_layers;  // number of hidden layers
-  int basis_size_radial;  // for nep3
-  int basis_size_angular; // for nep3
+  int basis_size_radial;
+  int basis_size_angular;
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the 3body spherical harmonics

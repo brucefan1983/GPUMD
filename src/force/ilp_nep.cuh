@@ -126,7 +126,7 @@ public:
     bool use_typewise_cutoff = false;
     float typewise_cutoff_radial_factor = 0.0f;
     float typewise_cutoff_angular_factor = 0.0f;
-    int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
+    int version = 4; // NEP version
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
     float rc_radial = 0.0f;     // radial cutoff
@@ -140,10 +140,10 @@ public:
     int L_max = 0;         // l = 0, 1, 2, ..., L_max
     int dim_angular;
     int num_L;
-    int basis_size_radial = 8;  // for nep3
-    int basis_size_angular = 8; // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[140];
     int atomic_numbers[NUM_ELEMENTS];

@@ -48,23 +48,15 @@ void NEP_Energy::initialize(const char* file_potential)
     exit(1);
   }
 
-  // nep3 1 C
+  // nep4 1 C
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
   }
   if (tokens[0] == "nep4") {
-    paramb.version = 4;
     zbl.enabled = false;
   } else if (tokens[0] == "nep4_zbl") {
-    paramb.version = 4;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep5") {
-    paramb.version = 5;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep5_zbl") {
-    paramb.version = 5;
     zbl.enabled = true;
   } else {
     std::cout << tokens[0]
@@ -80,9 +72,9 @@ void NEP_Energy::initialize(const char* file_potential)
   }
 
   if (paramb.num_types == 1) {
-    printf("    Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
+    printf("    Use the NEP4 potential with %d atom type.\n", paramb.num_types);
   } else {
-    printf("    Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
+    printf("    Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -258,11 +250,7 @@ void NEP_Energy::initialize(const char* file_potential)
   // calculated parameters:
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  if (paramb.version == 4) {
-    annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  } else if (paramb.version == 5) {
-    annmb.num_para = ((annmb.dim + 2) * annmb.num_neurons1 + 1) * paramb.num_types + 1;
-  }
+  annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
 
   printf("        number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor =
@@ -320,9 +308,6 @@ void NEP_Energy::update_potential(float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
     pointer += ann.num_neurons1;
-    if (paramb.version == 5) {
-      pointer += 1; // one extra bias for NEP5 stored in ann.w1[t]
-    }
   }
   ann.b1 = pointer;
   ann.c = ann.b1 + 1;
@@ -408,13 +393,8 @@ static __global__ void find_energy_nep(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    if (paramb.version == 5) {
-      apply_ann_one_layer_nep5(
-        annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
-    } else {
-      apply_ann_one_layer(
-        annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
-    }
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] = F;
   }
 }

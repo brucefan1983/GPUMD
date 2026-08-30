@@ -45,11 +45,10 @@ def md(tmp_path, request):
     dipole_model = f"{test_folder}/nep4_dipole.txt"
     params = [
         ("potential", f"{test_folder}/nep.txt"),
-        ("potential", dipole_model),
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("dump_dipole", 1),
+        ("dump_dipole", [1, dipole_model]),
         ("dump_xyz", [1, "dump.xyz", "force", "velocity", "precision", "double"]),
         ("dump_thermo", 1),
         ("run", 10),
@@ -102,26 +101,25 @@ def test_dump_dipole_does_not_change_forces_and_virials(md, md_without_dip):
 
 def test_dump_dipole_invalid_potential(tmp_path):
     """
-    Should raise an error when the second specified potential
+    Should raise an error when the response potential
     is not a dipole model.
     """
     params = [
         ("potential", f"{test_folder}/nep.txt"),
-        ("potential", f"{test_folder}/nep.txt"),
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("dump_dipole", 1),
+        ("dump_dipole", [1, f"{test_folder}/nep.txt"]),
         ("run", 10),
     ]
     process = run_md(params, tmp_path)
-    assert 'dump_dipole requires the second NEP potential to be a dipole model' in str(
+    assert 'dump_dipole requires a nep4_dipole model.' in str(
         process.stderr
     )
 
 
 def test_dump_dipole_missing_potential(tmp_path):
-    """Should raise an error when only a single NEP potential is specified."""
+    """Should raise an error when the response potential is omitted."""
     params = [
         ("potential", f"{test_folder}/nep.txt"),
         ("time_step", 1),
@@ -131,4 +129,4 @@ def test_dump_dipole_missing_potential(tmp_path):
         ("run", 10),
     ]
     process = run_md(params, tmp_path)
-    assert 'dump_dipole requires two potentials to be specified.' in str(process.stderr)
+    assert 'dump_dipole should have 2 parameters.' in str(process.stderr)

@@ -21,17 +21,11 @@
 class Potential
 {
 public:
-  // size of the B vector (for each atom) in extrapolation grade calculation
-  int B_projection_size = 0;
-  // this points to GPU
-  double* B_projection = nullptr;
-  bool need_B_projection = false;
 
   int N1;
   int N2;
   double rc; // maximum cutoff distance
-  int nep_model_type =
-    -1; // -1 for non_nep, 0 for potential, 1 for dipole, 2 for polarizability, 3 for temperature
+  int nep_model_type = -1; // -1 for non-NEP, 0 for potential, 3 for temperature
   int ilp_flag = 0; // 0 for non_ilp, 1 for ilp
   Potential(void);
   virtual ~Potential(void);
@@ -106,7 +100,6 @@ protected:
     const float* f12x,
     const float* f12y,
     const float* f12z,
-    const bool is_dipole,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
