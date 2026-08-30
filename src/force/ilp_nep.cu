@@ -151,21 +151,15 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       exit(1);
     }
 
-    // nep3 1 C
+    // nep4 1 C
     std::vector<std::string> tokens = get_tokens(input);
     if (tokens.size() < 3) {
       std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
       exit(1);
     }
-    if (tokens[0] == "nep3") {
-      parambs[i].version = 3;
-    } else if (tokens[0] == "nep4") {
-      parambs[i].version = 4;
-    } else if (tokens[0] == "nep5") {
-      parambs[i].version = 5;
-    } else {
+    if (tokens[0] != "nep4") {
       std::cout << tokens[0]
-                << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+                << " is an unsupported NEP model. We only support NEP4 models now."
                 << std::endl;
       exit(1);
     }
@@ -308,13 +302,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     parambs[i].rcinv_angular = 1.0f / parambs[i].rc_angular;
     parambs[i].num_types_sq = parambs[i].num_types * parambs[i].num_types;
 
-    if (parambs[i].version == 3) {
-      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-    } else if (parambs[i].version == 4) {
-      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
-    } else {
-      annmbs[i].num_para_ann = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types + 1;
-    }
+    annmbs[i].num_para_ann =
+      (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
     printf("    number of neural network parameters = %d.\n", annmbs[i].num_para_ann);
     int num_para_descriptor =
       parambs[i].num_types_sq * ((parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1) +
@@ -472,14 +461,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   for (int i = 0; i < num_nep; ++i) {
     memcpy(para_buf_w + ANNDIM , &(annmbs[i].dim), SIZEOF_INT);
     memcpy(para_buf_w + NNEUR  , &(annmbs[i].num_neurons1), SIZEOF_INT);
-    int b1_pos = 0;
-    if (parambs[i].version == 3) {
-      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-    } else if (parambs[i].version == 4) {
-      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types;
-    } else if (parambs[i].version == 5) {
-      b1_pos = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types;
-    }
+    int b1_pos =
+      (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types;
     memcpy(para_buf_w + OUTB1  , &(all_ann_para[i][b1_pos]), SIZEOF_INT);
     para_buf_w += H_ANN_OFFSET;  // skip 4 pointers: PTRC PTRW0 PTRB0 PTRW1 and an empty
   }
@@ -518,25 +501,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w0_offset = annmbs[i].num_neurons1 * annmbs[i].dim;
-    if (parambs[i].version == 3) {
-      memcpy(para_buf_w, &(all_ann_para[i][0]), w0_offset * SIZEOF_INT);
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
       para_buf_w += w0_offset;
-      para_buffer_gpu += w0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
-        para_buf_w += w0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
-        para_buf_w += w0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
 
   }
 
@@ -546,28 +516,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRB0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int b0_offset = annmbs[i].num_neurons1;
-    if (parambs[i].version == 3) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      memcpy(para_buf_w, &(all_ann_para[i][b0_base]), b0_offset * SIZEOF_INT);
+    int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
       para_buf_w += b0_offset;
-      para_buffer_gpu += b0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
-        para_buf_w += b0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
-        para_buf_w += b0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
 
   }
 
@@ -577,29 +532,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW1, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w1_offset = annmbs[i].num_neurons1;
-    if (parambs[i].version == 3) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      memcpy(para_buf_w, &(all_ann_para[i][w1_base]), w1_offset * SIZEOF_INT);
+    int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
       para_buf_w += w1_offset;
-      para_buffer_gpu += w1_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
-        para_buf_w += w1_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      ++w1_offset;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
-        para_buf_w += w1_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
 
   }
 
@@ -2175,40 +2114,16 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     int ann_num_neurons1 = *((int*)annmb + NNEUR);
-    if (paramb_int[VERSION] == 3){
-      apply_ann_one_layer(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0),
-        FLT_PTR(annmb + PTRB0),
-        FLT_PTR(annmb + PTRW1),
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    } else if (paramb_int[VERSION] == 4) {
-      apply_ann_one_layer(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
-        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
-        FLT_PTR(annmb + PTRW1) + t1 * ann_num_neurons1,
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    } else if (paramb_int[VERSION] == 5) {
-      apply_ann_one_layer_nep5(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
-        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
-        FLT_PTR(annmb + PTRW1) + t1 * (ann_num_neurons1 + 1),
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    }
+    apply_ann_one_layer(
+      ann_dim,
+      ann_num_neurons1,
+      FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
+      FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
+      FLT_PTR(annmb + PTRW1) + t1 * ann_num_neurons1,
+      &annmb[OUTB1],
+      q,
+      F,
+      Fp);
     g_pe[n1] += F;
 
     // for (int d = 0; d < annmb.dim; ++d) {
