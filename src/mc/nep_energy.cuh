@@ -24,7 +24,6 @@ public:
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    int version = 4;            // NEP version, 3 for NEP3 and 4 for NEP4
     float rc_radial_max = 0.0f; 
     float rc_angular_max = 0.0f;
     float rc_radial[NUM_ELEMENTS];     // radial cutoff
