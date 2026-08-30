@@ -21,11 +21,6 @@
 class Potential
 {
 public:
-  // size of the B vector (for each atom) in extrapolation grade calculation
-  int B_projection_size = 0;
-  // this points to GPU
-  double* B_projection = nullptr;
-  bool need_B_projection = false;
 
   int N1;
   int N2;
