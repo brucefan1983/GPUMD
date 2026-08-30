@@ -37,4 +37,3 @@ Caveats
 -------
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
-* This keyword only supports single-GPU simulations.

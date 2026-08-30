@@ -58,14 +58,6 @@ static std::vector<float> get_descriptor_parameters_type_pair(
 NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   : num_atoms_(atom.number_of_atoms)
 {
-  int num_gpus;
-  CHECK(gpuGetDeviceCount(&num_gpus));
-#ifdef ZHEYONG
-  num_gpus = 3;
-#endif
-  if (num_gpus != 1) {
-    PRINT_INPUT_ERROR("Dipole and polarizability measurements are only supported with one GPU.");
-  }
 
   std::ifstream input(file_potential);
   if (!input.is_open()) {
