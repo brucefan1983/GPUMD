@@ -5,9 +5,9 @@ the expected shape -- not physical correctness. See io_helpers.py's module docst
 
 dump_dipole (and its rank-2 counterpart dump_polarizability) are covered in
 test_io_tnep_commands.py, not here -- both strictly require a genuine TNEP model (not a qNEP
-charge model, contrary to this suite's original Tier 1 scope) as the second `potential`, which
-doesn't fit this file's calculator/model_type fixture pattern the way the rest of these dump_*
-commands do.
+charge model, contrary to this suite's original Tier 1 scope) passed directly to the dump keyword,
+which doesn't fit this file's calculator/model_type fixture pattern the way the rest of these
+dump_* commands do.
 """
 import re
 

@@ -46,11 +46,10 @@ def md(tmp_path, request):
     pol_model = f"{test_folder}/nep_pol.txt"
     params = [
         ("potential", f"{test_folder}/nep.txt"),
-        ("potential", pol_model),
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("dump_polarizability", 1),
+        ("dump_polarizability", [1, pol_model]),
         ("dump_xyz", [1, "dump.xyz", "force", "velocity", "precision", "double"]),
         ("dump_thermo", 1),
         ("run", 10),
@@ -135,25 +134,24 @@ def test_dump_polarizability_does_not_change_forces_and_virials(md, md_without_p
 
 
 def test_dump_polarizability_invalid_potential(tmp_path):
-    """Should raise an error when the second specified potential is not a pol model."""
+    """Should raise an error when the response potential is not a polarizability model."""
     params = [
-        ("potential", f"{test_folder}/nep.txt"),
         ("potential", f"{test_folder}/nep.txt"),
         ("time_step", 1),
         ("velocity", 300),
         ("ensemble", "nve"),
-        ("dump_polarizability", 1),
+        ("dump_polarizability", [1, f"{test_folder}/nep.txt"]),
         ("run", 10),
     ]
     process = run_md(params, tmp_path)
     assert (
-        'dump_polarizability requires the second NEP potential to be a dipole model'
+        'dump_polarizability requires a nep4_polarizability model.'
         in str(process.stderr)
     )
 
 
 def test_dump_polarizability_missing_potential(tmp_path):
-    """Should raise an error when only a single NEP potential is specified."""
+    """Should raise an error when the response potential is omitted."""
     params = [
         ("potential", f"{test_folder}/nep.txt"),
         ("time_step", 1),
@@ -163,6 +161,6 @@ def test_dump_polarizability_missing_potential(tmp_path):
         ("run", 10),
     ]
     process = run_md(params, tmp_path)
-    assert 'dump_polarizability requires two potentials to be specified.' in str(
+    assert 'dump_polarizability should have 2 parameters.' in str(
         process.stderr
     )

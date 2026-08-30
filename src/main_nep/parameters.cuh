@@ -75,8 +75,8 @@ public:
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
   int num_hidden_layers;  // number of hidden layers
-  int basis_size_radial;  // for nep3
-  int basis_size_angular; // for nep3
+  int basis_size_radial;
+  int basis_size_angular;
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the 3body spherical harmonics
