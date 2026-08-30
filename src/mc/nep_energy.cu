@@ -48,7 +48,7 @@ void NEP_Energy::initialize(const char* file_potential)
     exit(1);
   }
 
-  // nep3 1 C
+  // nep4 1 C
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
