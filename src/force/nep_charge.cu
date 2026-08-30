@@ -1503,7 +1503,6 @@ void NEP_Charge::compute_large_box(
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data(),
-    false,
     position_per_atom,
     force_per_atom,
     virial_per_atom);

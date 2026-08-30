@@ -127,10 +127,6 @@ void Force::parse_potential(
   } else if (
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
     strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
-    strcmp(potential_name, "nep3_dipole") == 0 ||
-    strcmp(potential_name, "nep3_polarizability") == 0 ||
-    strcmp(potential_name, "nep4_dipole") == 0 ||
-    strcmp(potential_name, "nep4_polarizability") == 0 ||
     strcmp(potential_name, "nep3_temperature") == 0 ||
     strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||

@@ -43,8 +43,7 @@ public:
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    int model_type =
-      0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
+    int model_type = 0; // 0=potential, 3=temperature-dependent free energy
     float rc_radial_max = 0.0f;
     float rc_radial_max_inv = 0.0f; 
     float rc_radial[NUM_ELEMENTS];     // radial cutoff
@@ -80,11 +79,6 @@ public:
     const float* b1;               // bias for the output layer
     const float* c;
     const float* c_type_pair;
-    // for the scalar part of polarizability
-    const float* w0_pol[10];
-    const float* b0_pol[10];
-    const float* w1_pol[10];
-    const float* b1_pol;
     const float* q_scaler;
   };
 
