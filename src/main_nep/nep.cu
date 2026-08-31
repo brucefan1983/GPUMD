@@ -59,9 +59,6 @@ static __global__ void find_descriptors_radial(
       float fc12;
       int t2 = g_type[n2];
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -120,9 +117,6 @@ static __global__ void find_descriptors_angular(
         float fc12;
         int t2 = g_type[n2];
         float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
-#endif
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -261,10 +255,6 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   ann.b = pointer;
   pointer += 1;
   ann.c = pointer;
-#ifdef TRAIN_CUTOFF
-  pointer += para.number_of_variables_descriptor;
-  ann.rc = pointer;
-#endif
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_scaler_max, float* g_q_scaler_min)
@@ -461,9 +451,6 @@ static __global__ void find_force_radial(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -561,9 +548,6 @@ static __global__ void find_force_angular(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
