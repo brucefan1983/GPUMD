@@ -28,6 +28,7 @@ Get the fitness
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -421,8 +422,23 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
   }
 
+  std::vector<float> parameters_file(elite, elite + para.number_of_variables);
+  const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_basis_major(
+    parameters_file.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
   for (int m = 0; m < para.number_of_variables; ++m) {
-    fprintf(fid_nep, "%15.7e\n", elite[m]);
+    fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
   }
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());

@@ -68,8 +68,9 @@ static __global__ void find_descriptors_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
+          int c_index = (t1 * paramb.num_types + t2) *
+                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -119,8 +120,10 @@ static __global__ void find_descriptors_angular(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -451,8 +454,9 @@ static __global__ void find_force_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
+          int c_index = (t1 * paramb.num_types + t2) *
+                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
@@ -550,8 +554,10 @@ static __global__ void find_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
@@ -619,8 +625,9 @@ static __global__ void find_bec_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
+          int c_index = (t1 * paramb.num_types + t2) *
+                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
@@ -708,8 +715,10 @@ static __global__ void find_bec_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
