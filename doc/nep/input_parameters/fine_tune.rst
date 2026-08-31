@@ -15,7 +15,7 @@ where :attr:`<nep_model_file>` is the potential file for the foundation model an
 Currently, we provide one foundation model in GPUMD/potentials/nep/nep89_20250409.
 
 The hyperparameters that define the architecture of the foundation model cannot be changed and must be repeated in :attr:`nep.in`, as shown below.
-:program:`nep` compares the whole header of :attr:`<nep_model_file>` against :attr:`nep.in`, including the model type and the list of species, and reports an error naming the keyword if any of them differs; see :ref:`the nep.in page <nep_in>` for the details.
+
 Note that the comparison uses the defaults for keywords that are left out, so omitting one of them is a mismatch unless its default happens to agree with the foundation model.
 
 For more details, see the following exemplary :attr:`nep.in` file::

@@ -105,7 +105,7 @@ Each mismatch is reported on its own line, naming the keyword, the value used by
       basis_size_radial: nep.in gives 6 (default), nep.txt gives 8.
       basis_size_angular: nep.in gives 6 (default), nep.txt gives 8.
 
-The same comparison is applied to the foundation model named by the :ref:`fine_tune keyword <kw_fine_tune>` and to the :ref:`nep.txt <nep_txt>` read by the :ref:`import_q_scaler keyword <kw_import_q_scaler>`, where a mismatch is always an error.
+The same comparison is applied to the :ref:`nep.txt <nep_txt>` read by the :ref:`import_q_scaler keyword <kw_import_q_scaler>`, where a mismatch is always an error.
 
 Example
 -------
