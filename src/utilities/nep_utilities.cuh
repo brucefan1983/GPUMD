@@ -15,6 +15,18 @@
 
 #pragma once
 
+static __device__ __forceinline__ int get_c_index(
+  const int type_index,
+  const int n,
+  const int k,
+  const int n_max,
+  const int basis_size,
+  const int offset = 0)
+{
+  return offset + type_index * ((n_max + 1) * (basis_size + 1)) +
+         n * (basis_size + 1) + k;
+}
+
 const int NUM_OF_ABC = 80; // 3 + 5 + 7 + 9 + 11 + 13 + 15 + 17 for L_max = 8
 __constant__ float C3B[NUM_OF_ABC] = {
   0.238732414637843f, 0.119366207318922f, 0.119366207318922f, 0.099471839432435f,
