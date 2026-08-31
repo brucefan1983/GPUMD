@@ -204,61 +204,6 @@ void Fitness::compute(
         }
       }
     }
-
-    if (para.use_full_batch) {
-      int count_batch = 0;
-      for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-        if (batch_id == generation % num_batches) {
-          continue; // skip the batch that has already been calculated
-        }
-        ++count_batch;
-        for (int n = 0; n < population_iter; ++n) {
-          const float* individual = population + deviceCount * n * para.number_of_variables;
-          potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
-          for (int m = 0; m < deviceCount; ++m) {
-            float energy_shift_per_structure_not_used;
-            auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
-              para, energy_shift_per_structure_not_used, true, true, m);
-            auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-            auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
-            auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
-            auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
-            for (int t = 0; t <= para.num_types; ++t) {
-              // energy
-              float old_value = fitness_energy[deviceCount * n + m + t * para.population_size];
-              float new_value = para.lambda_e * rmse_energy_array[t];
-              new_value = old_value * old_value * count_batch + new_value * new_value;
-              new_value = sqrt(new_value / (count_batch + 1));
-              fitness_energy[deviceCount * n + m + t * para.population_size] = new_value;
-              // force
-              old_value = fitness_force[deviceCount * n + m + t * para.population_size];
-              new_value = para.lambda_f * rmse_force_array[t];
-              new_value = old_value * old_value * count_batch + new_value * new_value;
-              new_value = sqrt(new_value / (count_batch + 1));
-              fitness_force[deviceCount * n + m + t * para.population_size] = new_value;
-              // virial
-              old_value = fitness_virial[deviceCount * n + m + t * para.population_size];
-              new_value = para.lambda_v * rmse_virial_array[t];
-              new_value = old_value * old_value * count_batch + new_value * new_value;
-              new_value = sqrt(new_value / (count_batch + 1));
-              fitness_virial[deviceCount * n + m + t * para.population_size] = new_value;
-              // charge
-              old_value = fitness_charge[deviceCount * n + m + t * para.population_size];
-              new_value = para.lambda_q * rmse_charge_array[t];
-              new_value = old_value * old_value * count_batch + new_value * new_value;
-              new_value = sqrt(new_value / (count_batch + 1));
-              fitness_charge[deviceCount * n + m + t * para.population_size] = new_value;
-              // BEC
-              old_value = fitness_bec[deviceCount * n + m + t * para.population_size];
-              new_value = para.lambda_z * rmse_bec_array[t];
-              new_value = old_value * old_value * count_batch + new_value * new_value;
-              new_value = sqrt(new_value / (count_batch + 1));
-              fitness_bec[deviceCount * n + m + t * para.population_size] = new_value;
-            }
-          }
-        }
-      }
-    }
   }
 }
 
