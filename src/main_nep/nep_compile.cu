@@ -256,11 +256,14 @@ __global__ void descriptor_radial_jit(
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
 #ifdef USE_CJ
-        const int c_index = (n * (BASIS_SIZE_RADIAL_JIT + 1) + k) * NUM_TYPES_JIT + t2;
+        int c_index =
+          t2 * ((N_MAX_RADIAL_JIT + 1) * (BASIS_SIZE_RADIAL_JIT + 1));
 #else
-        int c_index = (n * (BASIS_SIZE_RADIAL_JIT + 1) + k) * NUM_TYPES_SQ_JIT;
-        c_index += t1 * NUM_TYPES_JIT + t2;
+        int c_index =
+          (t1 * NUM_TYPES_JIT + t2) *
+          ((N_MAX_RADIAL_JIT + 1) * (BASIS_SIZE_RADIAL_JIT + 1));
 #endif
+        c_index += n * (BASIS_SIZE_RADIAL_JIT + 1) + k;
         gn12 += fn12[k] * c[c_index];
       }
       q[n] += gn12;
@@ -320,14 +323,16 @@ __global__ void descriptor_angular_jit(
       float gn12 = 0.0f;
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_ANGULAR_JIT; ++k) {
+        int c_index = NUM_C_RADIAL_JIT;
 #ifdef USE_CJ
-        const int c_index = NUM_C_RADIAL_JIT +
-          (n * (BASIS_SIZE_ANGULAR_JIT + 1) + k) * NUM_TYPES_JIT + t2;
+        c_index +=
+          t2 * ((N_MAX_ANGULAR_JIT + 1) * (BASIS_SIZE_ANGULAR_JIT + 1));
 #else
-        int c_index = NUM_C_RADIAL_JIT +
-          (n * (BASIS_SIZE_ANGULAR_JIT + 1) + k) * NUM_TYPES_SQ_JIT;
-        c_index += t1 * NUM_TYPES_JIT + t2;
+        c_index +=
+          (t1 * NUM_TYPES_JIT + t2) *
+          ((N_MAX_ANGULAR_JIT + 1) * (BASIS_SIZE_ANGULAR_JIT + 1));
 #endif
+        c_index += n * (BASIS_SIZE_ANGULAR_JIT + 1) + k;
         gn12 += fn12[k] * c[c_index];
       }
       accumulate_s(L_MAX_JIT, d12, x12, y12, z12, gn12, s);
@@ -471,11 +476,14 @@ __global__ void force_radial_jit(
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
 #ifdef USE_CJ
-        const int c_index = (n * (BASIS_SIZE_RADIAL_JIT + 1) + k) * NUM_TYPES_JIT + t2;
+        int c_index =
+          t2 * ((N_MAX_RADIAL_JIT + 1) * (BASIS_SIZE_RADIAL_JIT + 1));
 #else
-        int c_index = (n * (BASIS_SIZE_RADIAL_JIT + 1) + k) * NUM_TYPES_SQ_JIT;
-        c_index += t1 * NUM_TYPES_JIT + t2;
+        int c_index =
+          (t1 * NUM_TYPES_JIT + t2) *
+          ((N_MAX_RADIAL_JIT + 1) * (BASIS_SIZE_RADIAL_JIT + 1));
 #endif
+        c_index += n * (BASIS_SIZE_RADIAL_JIT + 1) + k;
         gnp12 += fnp12[k] * c[c_index];
       }
       const float tmp12 = Fp[n1 + n * N] * gnp12 * d12inv;
@@ -574,14 +582,16 @@ __global__ void force_angular_jit(
       float gnp12 = 0.0f;
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_ANGULAR_JIT; ++k) {
+        int c_index = NUM_C_RADIAL_JIT;
 #ifdef USE_CJ
-        const int c_index = NUM_C_RADIAL_JIT +
-          (n * (BASIS_SIZE_ANGULAR_JIT + 1) + k) * NUM_TYPES_JIT + t2;
+        c_index +=
+          t2 * ((N_MAX_ANGULAR_JIT + 1) * (BASIS_SIZE_ANGULAR_JIT + 1));
 #else
-        int c_index = NUM_C_RADIAL_JIT +
-          (n * (BASIS_SIZE_ANGULAR_JIT + 1) + k) * NUM_TYPES_SQ_JIT;
-        c_index += t1 * NUM_TYPES_JIT + t2;
+        c_index +=
+          (t1 * NUM_TYPES_JIT + t2) *
+          ((N_MAX_ANGULAR_JIT + 1) * (BASIS_SIZE_ANGULAR_JIT + 1));
 #endif
+        c_index += n * (BASIS_SIZE_ANGULAR_JIT + 1) + k;
         const float c_value = c[c_index];
         gn12 += fn12[k] * c_value;
         gnp12 += fnp12[k] * c_value;
