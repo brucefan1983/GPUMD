@@ -71,7 +71,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.resize(number_of_variables);
   gpu_index.resize(population_size * (para.num_types + 1));
-  gpu_utility.resize(number_of_variables);
+  gpu_utility.resize(population_size);
   gpu_sigma.resize(number_of_variables);
   gpu_mu.resize(number_of_variables);
   gpu_cost_L1reg.resize(population_size);
