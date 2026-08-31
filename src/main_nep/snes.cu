@@ -71,7 +71,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.resize(number_of_variables);
   gpu_index.resize(population_size * (para.num_types + 1));
-  gpu_utility.resize(number_of_variables);
+  gpu_utility.resize(population_size);
   gpu_sigma.resize(number_of_variables);
   gpu_mu.resize(number_of_variables);
   gpu_cost_L1reg.resize(population_size);
@@ -89,7 +89,10 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   }
   
   calculate_utility();
+  gpu_utility.copy_from_host(utility.data());
   find_type_of_variable(para);
+  gpu_type_of_variable.copy_from_host(type_of_variable.data());
+  
   compute(para, fitness_function);
 }
 
@@ -684,9 +687,7 @@ static __global__ void gpu_update_mu_and_sigma(
 void SNES::update_mu_and_sigma()
 {
   gpuSetDevice(0); // normally use GPU-0
-  gpu_type_of_variable.copy_from_host(type_of_variable.data());
   gpu_index.copy_from_host(index.data());
-  gpu_utility.copy_from_host(utility.data());
   gpu_update_mu_and_sigma<<<(number_of_variables - 1) / 128 + 1, 128>>>(
     population_size,
     number_of_variables,
