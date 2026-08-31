@@ -59,9 +59,6 @@ static __global__ void find_descriptors_radial(
       float fc12;
       int t2 = g_type[n2];
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
 
@@ -71,12 +68,12 @@ static __global__ void find_descriptors_radial(
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
 #ifdef USE_CJ
-          int c_index = t2 * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          int type_index = t2;
 #else
-          int c_index = (t1 * paramb.num_types + t2) *
-                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          int type_index = t1 * paramb.num_types + t2;
 #endif
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -120,23 +117,24 @@ static __global__ void find_descriptors_angular(
         float fc12;
         int t2 = g_type[n2];
         float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
-#endif
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
 #ifdef USE_CJ
-          c_index += t2 * ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          int type_index = t2;
 #else
-          c_index += (t1 * paramb.num_types + t2) *
-                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          int type_index = t1 * paramb.num_types + t2;
 #endif
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            type_index,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -257,10 +255,6 @@ void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   ann.b = pointer;
   pointer += 1;
   ann.c = pointer;
-#ifdef TRAIN_CUTOFF
-  pointer += para.number_of_variables_descriptor;
-  ann.rc = pointer;
-#endif
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_scaler_max, float* g_q_scaler_min)
@@ -457,9 +451,6 @@ static __global__ void find_force_radial(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[t1])) + (1.0f + tanh(annmb.rc[t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -471,12 +462,12 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
 #ifdef USE_CJ
-          int c_index = t2 * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          int type_index = t2;
 #else
-          int c_index = (t1 * paramb.num_types + t2) *
-                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          int type_index = t1 * paramb.num_types + t2;
 #endif
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
@@ -557,9 +548,6 @@ static __global__ void find_force_angular(
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-#ifdef TRAIN_CUTOFF
-      rc -= ( (1.0f + tanh(annmb.rc[paramb.num_types + t1])) + (1.0f + tanh(annmb.rc[paramb.num_types + t2])) ) * 0.25f;
-#endif
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float f12[3] = {0.0f};
@@ -571,14 +559,18 @@ static __global__ void find_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
 #ifdef USE_CJ
-          c_index += t2 * ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          int type_index = t2;
 #else
-          c_index += (t1 * paramb.num_types + t2) *
-                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          int type_index = t1 * paramb.num_types + t2;
 #endif
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            type_index,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }

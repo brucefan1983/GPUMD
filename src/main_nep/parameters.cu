@@ -279,10 +279,6 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
-#ifdef TRAIN_CUTOFF
-    number_of_variables += num_types * 2;
-#endif
-
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
