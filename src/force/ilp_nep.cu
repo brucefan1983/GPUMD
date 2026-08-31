@@ -2065,9 +2065,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          c_index += n * (paramb_int[BSR] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
           gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
@@ -2103,10 +2102,13 @@ static __global__ void find_descriptor(
         find_fn(paramb_int[BSA], rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = paramb_int[NCR];
-          c_index += (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
-          c_index += n * (paramb_int[BSA] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
@@ -2236,12 +2238,10 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index_12 = (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          int c_index_21 = (t2 * paramb_int[NT] + t1) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          c_index_12 += n * (paramb_int[BSR] + 1) + k;
-          c_index_21 += n * (paramb_int[BSR] + 1) + k;
+          int c_index_12 = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
+          int c_index_21 = get_c_index(
+            t2 * paramb_int[NT] + t1, n, k, paramb_int[NMAXR], paramb_int[BSR]);
           gnp12 += fnp12[k] * c[c_index_12];
           gnp21 += fnp12[k] * c[c_index_21];
         }
@@ -2368,10 +2368,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = paramb_int[NCR];
-          c_index += (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
-          c_index += n * (paramb_int[BSA] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
