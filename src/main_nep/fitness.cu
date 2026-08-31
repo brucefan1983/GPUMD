@@ -28,6 +28,7 @@ Get the fitness
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -433,8 +434,23 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
   }
 
+  std::vector<float> parameters_file(elite, elite + para.number_of_variables);
+  const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_basis_major(
+    parameters_file.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
   for (int m = 0; m < para.number_of_variables; ++m) {
-    fprintf(fid_nep, "%15.7e\n", elite[m]);
+    fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
   }
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
@@ -530,7 +546,7 @@ void Fitness::report_error(
       if (!(para.charge_mode || para.charge_vdw)) {
         // NEP models
         printf(
-          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
@@ -543,7 +559,7 @@ void Fitness::report_error(
           rmse_virial_test);
         fprintf(
           fid_loss_out,
-          "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
@@ -557,7 +573,7 @@ void Fitness::report_error(
       } else {
         // qNEP models:
         printf(
-          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
+          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
@@ -574,7 +590,7 @@ void Fitness::report_error(
           rmse_bec_test);
         fprintf(
           fid_loss_out,
-          "%-8d%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f%-9.5f\n",
+          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f\n",
           generation + 1,
           loss_total,
           loss_L1,
@@ -593,7 +609,7 @@ void Fitness::report_error(
     } else {
       // TNEP models:
       printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
+        "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
         generation + 1,
         loss_total,
         loss_L1,
@@ -602,7 +618,7 @@ void Fitness::report_error(
         rmse_virial_test);
       fprintf(
         fid_loss_out,
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
+        "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
         generation + 1,
         loss_total,
         loss_L1,

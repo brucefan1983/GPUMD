@@ -26,6 +26,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <chrono>
 #include <cmath>
@@ -325,9 +326,20 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
+  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    parameters,
+    annmb.num_para_ann,
+    paramb.num_types,
+    paramb.n_max_radial,
+    paramb.n_max_angular,
+    paramb.basis_size_radial,
+    paramb.basis_size_angular);
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
+  nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);
+  nep_data.descriptor_parameters_type_pair.copy_from_host(descriptor_parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
+  annmb.c_type_pair = nep_data.descriptor_parameters_type_pair.data();
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
 
   // flexible zbl potential parameters
@@ -498,9 +510,10 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gn12 += fn12[k] * annmb.c[c_index];
+          int c_index = (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
+          gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
       }
@@ -525,9 +538,11 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
+          gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
@@ -696,9 +711,10 @@ static __global__ void find_bec_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gnp12 += fnp12[k] * annmb.c[c_index];
+          int c_index = (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
         const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -796,10 +812,12 @@ static __global__ void find_bec_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
-          gnp12 += fnp12[k] * annmb.c[c_index];
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
+          gn12 += fn12[k] * annmb.c_type_pair[c_index];
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_f12(
           paramb.L_max,
@@ -921,9 +939,14 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
-          gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
+          int c_index_12 = (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          int c_index_21 = (t2 * paramb.num_types + t1) *
+            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index_12 += n * (paramb.basis_size_radial + 1) + k;
+          c_index_21 += n * (paramb.basis_size_radial + 1) + k;
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
+          gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
         float tmp21 = g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2];
@@ -1031,10 +1054,12 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
-          gnp12 += fnp12[k] * annmb.c[c_index];
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
+          gn12 += fn12[k] * annmb.c_type_pair[c_index];
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_f12(
           paramb.L_max,

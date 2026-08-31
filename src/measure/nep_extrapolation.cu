@@ -23,37 +23,13 @@ implementation. This class is independent of force/NEP.
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <vector>
-
-static std::vector<float> get_descriptor_parameters_type_pair(
-  const std::vector<float>& parameters,
-  const int num_para_descriptor,
-  const NEP_Extrapolation::ParaMB& paramb,
-  const NEP_Extrapolation::ANN& annmb)
-{
-  std::vector<float> descriptor_parameters(num_para_descriptor);
-
-  int num_radial_basis = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-  int num_angular_basis = (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1);
-  for (int type_pair = 0; type_pair < paramb.num_types_sq; ++type_pair) {
-    for (int basis = 0; basis < num_radial_basis; ++basis) {
-      descriptor_parameters[type_pair * num_radial_basis + basis] =
-        parameters[annmb.num_para_ann + basis * paramb.num_types_sq + type_pair];
-    }
-    for (int basis = 0; basis < num_angular_basis; ++basis) {
-      descriptor_parameters[paramb.num_c_radial + type_pair * num_angular_basis + basis] =
-        parameters
-          [annmb.num_para_ann + paramb.num_c_radial + basis * paramb.num_types_sq + type_pair];
-    }
-  }
-
-  return descriptor_parameters;
-}
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
@@ -528,8 +504,14 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
 
-  std::vector<float> descriptor_parameters =
-    get_descriptor_parameters_type_pair(parameters, num_para_descriptor, paramb_, annmb_);
+  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    parameters,
+    annmb_.num_para_ann,
+    paramb_.num_types,
+    paramb_.n_max_radial,
+    paramb_.n_max_angular,
+    paramb_.basis_size_radial,
+    paramb_.basis_size_angular);
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
   data_.parameters.copy_from_host(parameters.data());
   data_.descriptor_parameters_type_pair.resize(num_para_descriptor);
