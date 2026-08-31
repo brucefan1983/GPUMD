@@ -26,6 +26,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cstring>
 #include <fstream>
@@ -70,31 +71,6 @@ void NEP::initialize_dftd3()
   }
 
   input_run.close();
-}
-
-static std::vector<float> get_descriptor_parameters_type_pair(
-  const std::vector<float>& parameters,
-  const int num_para_descriptor,
-  const NEP::ParaMB& paramb,
-  const NEP::ANN& annmb)
-{
-  std::vector<float> descriptor_parameters(num_para_descriptor);
-
-  int num_radial_basis = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-  int num_angular_basis = (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1);
-  for (int type_pair = 0; type_pair < paramb.num_types_sq; ++type_pair) {
-    for (int basis = 0; basis < num_radial_basis; ++basis) {
-      descriptor_parameters[type_pair * num_radial_basis + basis] =
-        parameters[annmb.num_para_ann + basis * paramb.num_types_sq + type_pair];
-    }
-    for (int basis = 0; basis < num_angular_basis; ++basis) {
-      descriptor_parameters[paramb.num_c_radial + type_pair * num_angular_basis + basis] =
-        parameters
-          [annmb.num_para_ann + paramb.num_c_radial + basis * paramb.num_types_sq + type_pair];
-    }
-  }
-
-  return descriptor_parameters;
 }
 
 NEP::NEP(const char* file_potential, const int num_atoms)
@@ -332,8 +308,14 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   // refactor descriptor parameters memory
-  std::vector<float> descriptor_parameters = 
-    get_descriptor_parameters_type_pair(parameters, num_para_descriptor, paramb, annmb);
+  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    parameters,
+    annmb.num_para_ann,
+    paramb.num_types,
+    paramb.n_max_radial,
+    paramb.n_max_angular,
+    paramb.basis_size_radial,
+    paramb.basis_size_angular);
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
   nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);

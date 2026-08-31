@@ -30,6 +30,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <fstream>
@@ -320,6 +321,17 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     for (int n = 0; n < annmbs[i].num_para; ++n) {
       tokens = get_tokens(input);
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+      parameters,
+      annmbs[i].num_para_ann,
+      parambs[i].num_types,
+      parambs[i].n_max_radial,
+      parambs[i].n_max_angular,
+      parambs[i].basis_size_radial,
+      parambs[i].basis_size_angular);
+    for (int n = 0; n < num_para_descriptor; ++n) {
+      parameters[annmbs[i].num_para_ann + n] = descriptor_parameters[n];
     }
     all_ann_para.push_back(parameters);
     for (int d = 0; d < annmbs[i].dim; ++d) {
@@ -2053,8 +2065,9 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2;
+          int c_index = (t1 * paramb_int[NT] + t2) *
+            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
+          c_index += n * (paramb_int[BSR] + 1) + k;
           gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
@@ -2090,8 +2103,10 @@ static __global__ void find_descriptor(
         find_fn(paramb_int[BSA], rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          int c_index = paramb_int[NCR];
+          c_index += (t1 * paramb_int[NT] + t2) *
+            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
+          c_index += n * (paramb_int[BSA] + 1) + k;
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
@@ -2221,9 +2236,14 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
-          gnp12 += fnp12[k] * c[c_index + t1 * paramb_int[NT] + t2];
-          gnp21 += fnp12[k] * c[c_index + t2 * paramb_int[NT] + t1];
+          int c_index_12 = (t1 * paramb_int[NT] + t2) *
+            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
+          int c_index_21 = (t2 * paramb_int[NT] + t1) *
+            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
+          c_index_12 += n * (paramb_int[BSR] + 1) + k;
+          c_index_21 += n * (paramb_int[BSR] + 1) + k;
+          gnp12 += fnp12[k] * c[c_index_12];
+          gnp21 += fnp12[k] * c[c_index_21];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
@@ -2348,8 +2368,10 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          int c_index = paramb_int[NCR];
+          c_index += (t1 * paramb_int[NT] + t2) *
+            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
+          c_index += n * (paramb_int[BSA] + 1) + k;
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }

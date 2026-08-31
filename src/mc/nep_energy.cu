@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <fstream>
 #include <iostream>
@@ -251,6 +252,7 @@ void NEP_Energy::initialize(const char* file_potential)
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
+  const int num_para_ann = annmb.num_para;
 
   printf("        number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor =
@@ -268,6 +270,17 @@ void NEP_Energy::initialize(const char* file_potential)
   for (int n = 0; n < annmb.num_para; ++n) {
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+  }
+  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    parameters,
+    num_para_ann,
+    paramb.num_types,
+    paramb.n_max_radial,
+    paramb.n_max_angular,
+    paramb.basis_size_radial,
+    paramb.basis_size_angular);
+  for (int n = 0; n < num_para_descriptor; ++n) {
+    parameters[num_para_ann + n] = descriptor_parameters[n];
   }
   nep_parameters.resize(annmb.num_para);
   nep_parameters.copy_from_host(parameters.data());
@@ -351,8 +364,9 @@ static __global__ void find_energy_nep(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
+          int c_index = (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
+          c_index += n * (paramb.basis_size_radial + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -376,8 +390,10 @@ static __global__ void find_energy_nep(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          int c_index = paramb.num_c_radial;
+          c_index += (t1 * paramb.num_types + t2) *
+            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+          c_index += n * (paramb.basis_size_angular + 1) + k;
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
