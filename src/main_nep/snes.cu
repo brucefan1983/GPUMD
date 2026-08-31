@@ -379,7 +379,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     if (para.train_mode == 0 || para.train_mode == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         printf(
-          "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
           "Step",
           "Total-Loss",
           "L1Reg-Loss",
@@ -392,7 +392,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "RMSE-V-Test");
       } else {
         printf(
-          "%-8s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s%-9s\n",
+          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s\n",
           "Step",
           "Total",
           "L1Reg",
@@ -410,7 +410,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       }
     } else {
       printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s\n",
+        "%-8s %-11s %-11s %-11s %-13s %-13s\n",
         "Step",
         "Total-Loss",
         "L1Reg-Loss",
