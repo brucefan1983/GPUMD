@@ -91,6 +91,16 @@ public:
   float lambda_e;         // weight parameter for energy RMSE loss
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
+  float sigma_e;          // standard deviation for energy MSE loss
+  float sigma_f;          // standard deviation for force MSE loss
+  float sigma_s;          // standard deviation for virial MSE loss
+  float sigma_L1;          // standard deviation for L1
+  float sigma_L2;          // standard deviation for L2
+  float one_over_variance_e; // one over variance for energy MSE loss
+  float one_over_variance_f; // one over variance for force MSE loss
+  float one_over_variance_s; // one over variance for virial MSE loss
+  float one_over_sigma_L1; // one over standard deviation for L1 MSE loss
+  float one_over_variance_L2; // one over variance for L2 MSE loss
   float lambda_shear;     // extra weight parameter for shear virial
   float lambda_q;         // weight for global charge
   float lambda_z;         // weight for BEC
@@ -114,6 +124,7 @@ public:
   int flip_charge = 0; // 1 for flipping charges upon restarting
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
+  int loss_mode_format = 0; // 0 = RMSE loss (default), 1 = normalized MSE loss
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
@@ -133,6 +144,11 @@ public:
   bool is_lambda_e_set;
   bool is_lambda_f_set;
   bool is_lambda_v_set;
+  bool is_sigma_e_set;
+  bool is_sigma_f_set;
+  bool is_sigma_s_set;
+  bool is_sigma_L1_set;
+  bool is_sigma_L2_set;
   bool is_atomic_v_set;
   bool is_lambda_shear_set;
   bool is_batch_set;
@@ -147,6 +163,7 @@ public:
   bool is_charge_mode_set;
   bool is_vdw_set;
   bool is_charge_vdw_set;
+  bool is_loss_mode_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -223,4 +240,10 @@ private:
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
   void parse_import_q_scaler(const char** param, int num_param);
+  void parse_loss_mode(const char** param, int num_param);
+  void parse_sigma_e(const char** param, int num_param);
+  void parse_sigma_f(const char** param, int num_param);
+  void parse_sigma_s(const char** param, int num_param);
+  void parse_sigma_L1(const char** param, int num_param);
+  void parse_sigma_L2(const char** param, int num_param);
 };

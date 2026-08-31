@@ -74,6 +74,7 @@ public:
   GPU_Vector<float> bec_ref_gpu;          // reference BEC in GPU
   GPU_Vector<float> avirial_ref_gpu;     // reference atomic virial in GPU
   GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
+  GPU_Vector<float> volume_gpu;           // volume in GPU
   std::vector<float> energy_weight_cpu;   // energy weight in CPU
   std::vector<float> charge_ref_cpu;      // reference charge in CPU
   std::vector<float> energy_ref_cpu;      // reference energy in CPU
@@ -83,6 +84,7 @@ public:
   std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
   std::vector<float> weight_cpu;          // configuration weight in CPU
   std::vector<float> temperature_ref_cpu; // reference temeprature in CPU
+  std::vector<float> volume_cpu;          // volume in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
@@ -95,22 +97,31 @@ public:
 
   void
   construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_energy(
+  std::vector<float> get_error_force(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_error_energy(
     Parameters& para,
     float& energy_shift_per_structure,
     const bool use_weight,
     const bool do_shift,
     int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_error_virial(Parameters& para, const bool use_weight, int device_id);
+
   std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_charge(Parameters& para, int device_id);
   std::vector<float> get_rmse_bec(Parameters& para, int device_id);
 
 private:
+  const bool use_normalized = false;
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
   void find_has_type(Parameters& para);
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
   void find_neighbor(Parameters& para);
+  void get_mse_force(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+  void get_rmse_force(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+  void get_mse_energy(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+  void get_rmse_energy(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+  void get_rmse_virial(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+  void get_mse_stress(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array);
+
 };

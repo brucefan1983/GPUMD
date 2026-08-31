@@ -43,6 +43,8 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].has_temperature = structures_input[n_input].has_temperature;
     structures[n].temperature = structures_input[n_input].temperature;
     structures[n].volume = structures_input[n_input].volume;
+
+
     for (int k = 0; k < 6; ++k) {
       structures[n].virial[k] = structures_input[n_input].virial[k];
     }
@@ -186,6 +188,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
+
   if (structures[0].has_atomic_virial) {
     avirial_ref_cpu.resize(N * (structures[0].atomic_virial_diag_only ? 3 : 6));
   }
@@ -196,6 +199,11 @@ void Dataset::initialize_gpu_data(Parameters& para)
     if ((para.charge_mode || para.charge_vdw)) {
       charge_ref_cpu[n] = structures[n].charge;
     }
+    if (para.loss_mode_format == 1) {
+      volume_cpu.resize(Nc);
+      volume_cpu[n] = structures[n].volume;
+    }
+
     energy_ref_cpu[n] = structures[n].energy;
     energy_weight_cpu[n] = structures[n].energy_weight;
     for (int k = 0; k < 6; ++k) {
@@ -252,6 +260,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
     charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
     bec_ref_gpu.copy_from_host(bec_ref_cpu.data());
   }
+
+  if (para.loss_mode_format == 1) {
+    volume_gpu.resize(Nc);
+    volume_gpu.copy_from_host(volume_cpu.data());
+  }
+
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
@@ -570,8 +584,10 @@ void Dataset::construct(
 
   find_Na(para);
   initialize_gpu_data(para);
+
   find_neighbor(para);
 }
+
 
 static __global__ void gpu_sum_force_error(
   bool use_weight,
@@ -627,11 +643,13 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_error_force(Parameters& para, const bool use_weight, int device_id)
 {
+
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
-  gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+
+    gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     use_weight,
     para.force_delta,
     Na.data(),
@@ -645,27 +663,50 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
     force_ref_gpu.data() + N,
     force_ref_gpu.data() + N * 2,
     error_gpu.data());
+  
   int mem = sizeof(float) * Nc;
   CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> error_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
   for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
+    float error_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
     for (int t = 0; t < para.num_types + 1; ++t) {
       if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
+        error_array[t] += error_temp;
         count_array[t] += Na_cpu[n];
       }
     }
   }
 
+  if (para.loss_mode_format == 1){
+    Dataset::get_mse_force(para, error_array, count_array);
+  }
+  else{
+    Dataset::get_rmse_force(para, error_array, count_array);
+  }
+  return error_array;
+}
+
+
+
+
+void Dataset::get_rmse_force(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 3));
+      error_array[t] = sqrt(error_array[t] / (count_array[t] * 3));
     }
   }
-  return rmse_array;
+}
+
+void Dataset::get_mse_force(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      error_array[t] = error_array[t] / (count_array[t] * 3) * para.one_over_variance_f;
+    }
+  }
 }
 
 static __global__ void gpu_sum_avirial_diag_only_error(
@@ -889,13 +930,13 @@ static __global__ void gpu_sum_pe_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_energy(
-  Parameters& para,
+std::vector<float> Dataset::get_error_energy(Parameters& para,
   float& energy_shift_per_structure,
   const bool use_weight,
   const bool do_shift,
   int device_id)
 {
+
   CHECK(gpuSetDevice(device_id));
   energy_shift_per_structure = 0.0f;
 
@@ -921,6 +962,7 @@ std::vector<float> Dataset::get_rmse_energy(
     }
   }
 
+
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure,
     Na.data(),
@@ -929,34 +971,60 @@ std::vector<float> Dataset::get_rmse_energy(
     energy_ref_gpu.data(),
     energy_weight_gpu.data(), 
     error_gpu.data());
+
   CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> error_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
   for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
+    float error_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
     for (int t = 0; t < para.num_types + 1; ++t) {
       if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
+        error_array[t] += error_temp;
         ++count_array[t];
       }
     }
   }
+
+  if (para.loss_mode_format == 1){
+    Dataset::get_mse_energy(para, error_array, count_array);
+  }
+  else{
+    Dataset::get_rmse_energy(para, error_array, count_array);
+  }
+  return error_array;
+}
+
+
+void Dataset::get_rmse_energy(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
+  
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      error_array[t] = sqrt(error_array[t] / count_array[t]);
     }
   }
-  return rmse_array;
+}
+
+void Dataset::get_mse_energy(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
+  
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      error_array[t] = error_array[t] / count_array[t] * para.one_over_variance_e;
+    }
+  }
 }
 
 static __global__ void gpu_sum_virial_error(
   const int N,
   const float shear_weight,
+  const int loss_mode_format,
   int* g_Na,
   int* g_Na_sum,
   float* g_virial,
   float* g_virial_ref,
+  float* g_volume,
   float* error_gpu)
 {
   int tid = threadIdx.x;
@@ -988,21 +1056,28 @@ static __global__ void gpu_sum_virial_error(
   if (tid == 0) {
     float error_sum = 0.0f;
     for (int d = 0; d < 6; ++d) {
-      float diff = s_virial[d * blockDim.x + 0] / Na - g_virial_ref[d * gridDim.x + bid];
+      float diff;
+      if (loss_mode_format == 1){
+        diff = s_virial[d * blockDim.x + 0] - g_virial_ref[d * gridDim.x + bid] * Na;
+        diff /= g_volume[bid]; // convert to stress
+      }
+      else{
+        diff = s_virial[d * blockDim.x + 0] / Na - g_virial_ref[d * gridDim.x + bid];
+      }
       error_sum += (d >= 3) ? (shear_weight * diff * diff) : (diff * diff);
     }
     error_gpu[bid] = error_sum;
   }
 }
 
-std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_error_virial(Parameters& para, const bool use_weight, int device_id)
 {
   if (para.atomic_v) {
     return get_rmse_avirial(para, use_weight, device_id);
   }
   CHECK(gpuSetDevice(device_id));
 
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
+  std::vector<float> error_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
 
   int mem = sizeof(float) * Nc;
@@ -1010,33 +1085,56 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
 
   float shear_weight =
     (para.train_mode != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
+
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
     N,
     shear_weight,
+    para.loss_mode_format,
     Na.data(),
     Na_sum.data(),
     virial.data(),
     virial_ref_gpu.data(),
+    volume_gpu.data(),
     error_gpu.data());
+  
   CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
+      float error_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
-          rmse_array[t] += rmse_temp;
+          error_array[t] += error_temp;
           count_array[t] += (para.train_mode != 1) ? 6 : 3;
         }
       }
     }
   }
 
+  if (para.loss_mode_format == 1){
+    Dataset::get_mse_stress(para, error_array, count_array); // for the mse-loss we train on stresses instead of virials
+  }
+  else{
+    Dataset::get_rmse_virial(para, error_array, count_array);
+  }
+  return error_array;
+}
+
+void Dataset::get_rmse_virial(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
+      error_array[t] = sqrt(error_array[t] / count_array[t]);
     }
   }
-  return rmse_array;
+}
+
+void Dataset::get_mse_stress(Parameters& para, std::vector<float>& error_array, std::vector<int>& count_array)
+{
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count_array[t] > 0) {
+      error_array[t] = error_array[t] / count_array[t] * para.one_over_variance_s;
+    }
+  }
 }
 
 static __global__ void gpu_sum_charge_error(

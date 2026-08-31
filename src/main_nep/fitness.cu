@@ -182,10 +182,10 @@ void Fitness::compute(
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
-        auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
+        auto rmse_energy_array = train_set[batch_id][m].get_error_energy(
           para, energy_shift_per_structure_not_used, true, true, m);
-        auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-        auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
+        auto rmse_force_array = train_set[batch_id][m].get_error_force(para, true, m);
+        auto rmse_virial_array = train_set[batch_id][m].get_error_virial(para, true, m);
         auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
         auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
 
@@ -216,10 +216,11 @@ void Fitness::compute(
           potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
           for (int m = 0; m < deviceCount; ++m) {
             float energy_shift_per_structure_not_used;
-            auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
+            auto rmse_energy_array = train_set[batch_id][m].get_error_energy(
               para, energy_shift_per_structure_not_used, true, true, m);
-            auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-            auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
+            auto rmse_force_array = train_set[batch_id][m].get_error_force(para, true, m);
+            auto rmse_virial_array = train_set[batch_id][m].get_error_virial(para, true, m);
+
             auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
             auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
             for (int t = 0; t <= para.num_types; ++t) {
@@ -462,9 +463,9 @@ void Fitness::report_error(
     potential->find_force(para, elite, train_set[batch_id], false, 1);
     float energy_shift_per_structure;
     auto rmse_energy_train_array =
-      train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
-    auto rmse_force_train_array = train_set[batch_id][0].get_rmse_force(para, false, 0);
-    auto rmse_virial_train_array = train_set[batch_id][0].get_rmse_virial(para, false, 0);
+      train_set[batch_id][0].get_error_energy(para, energy_shift_per_structure, false, true, 0);
+    auto rmse_force_train_array = train_set[batch_id][0].get_error_force(para, false, 0);
+    auto rmse_virial_train_array = train_set[batch_id][0].get_error_virial(para, false, 0);
     auto rmse_charge_train_array = train_set[batch_id][0].get_rmse_charge(para, 0);
     auto rmse_bec_train_array = train_set[batch_id][0].get_rmse_bec(para, 0);
 
@@ -488,9 +489,9 @@ void Fitness::report_error(
       potential->find_force(para, elite, test_set, false, 1);
       float energy_shift_per_structure_not_used;
       auto rmse_energy_test_array =
-        test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
-      auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, 0);
-      auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, 0);
+        test_set[0].get_error_energy(para, energy_shift_per_structure_not_used, false, false, 0);
+      auto rmse_force_test_array = test_set[0].get_error_force(para, false, 0);
+      auto rmse_virial_test_array = test_set[0].get_error_virial(para, false, 0);
       auto rmse_charge_test_array = test_set[0].get_rmse_charge(para, 0);
       auto rmse_bec_test_array = test_set[0].get_rmse_bec(para, 0);
       rmse_energy_test = rmse_energy_test_array.back();
