@@ -181,13 +181,19 @@ void Fitness::compute(
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
-        float energy_shift_per_structure_not_used;
-        auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
-          para, energy_shift_per_structure_not_used, true, true, m);
-        auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-        auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
-        auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
-        auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
+        std::vector<float> rmse_energy_array;
+        std::vector<float> rmse_force_array;
+        std::vector<float> rmse_virial_array;
+        std::vector<float> rmse_charge_array;
+        std::vector<float> rmse_bec_array;
+        train_set[batch_id][m].get_rmse_training(
+          para,
+          rmse_energy_array,
+          rmse_force_array,
+          rmse_virial_array,
+          rmse_charge_array,
+          rmse_bec_array,
+          m);
 
         for (int t = 0; t <= para.num_types; ++t) {
           fitness_energy[deviceCount * n + m + t * para.population_size] =
@@ -215,13 +221,19 @@ void Fitness::compute(
           const float* individual = population + deviceCount * n * para.number_of_variables;
           potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
           for (int m = 0; m < deviceCount; ++m) {
-            float energy_shift_per_structure_not_used;
-            auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
-              para, energy_shift_per_structure_not_used, true, true, m);
-            auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-            auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
-            auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
-            auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
+            std::vector<float> rmse_energy_array;
+            std::vector<float> rmse_force_array;
+            std::vector<float> rmse_virial_array;
+            std::vector<float> rmse_charge_array;
+            std::vector<float> rmse_bec_array;
+            train_set[batch_id][m].get_rmse_training(
+              para,
+              rmse_energy_array,
+              rmse_force_array,
+              rmse_virial_array,
+              rmse_charge_array,
+              rmse_bec_array,
+              m);
             for (int t = 0; t <= para.num_types; ++t) {
               // energy
               float old_value = fitness_energy[deviceCount * n + m + t * para.population_size];
