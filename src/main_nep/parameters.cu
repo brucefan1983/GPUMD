@@ -745,8 +745,7 @@ void Parameters::check_existing_model()
   }
 
   if (fine_tune) {
-    check_nep_txt(fine_tune_nep_txt, true, "Correct nep.in to match the foundation model.");
-    return; // the restart file to fine-tune from is named by the fine_tune keyword
+    return; // Users are responsible for the consistency (we have provided template)
   }
 
   if (import_q_scaler) {
