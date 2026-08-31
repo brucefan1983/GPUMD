@@ -64,7 +64,6 @@ public:
   // parameters to be read in
   int version;            // NEP version; only NEP4 is supported
   int batch_size;         // number of configurations in one batch
-  int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
