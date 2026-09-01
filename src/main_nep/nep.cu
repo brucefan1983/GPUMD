@@ -161,7 +161,7 @@ NEP::NEP(
   int deviceCount)
 {
   if (para.nep_compile && deviceCount != 1) {
-    PRINT_INPUT_ERROR("nep_compile currently supports single-GPU NEP training only.");
+    PRINT_INPUT_ERROR("nep_compile supports single-GPU training only.");
   }
 
   paramb.version = version;
@@ -247,34 +247,10 @@ NEP::NEP(
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
-
   if (para.nep_compile) {
     CHECK(gpuSetDevice(0));
-    NEP_Compile_Config config;
-    config.num_types = paramb.num_types;
-    config.ann_dim = annmb[0].dim;
-    config.num_neurons1 = annmb[0].num_neurons1;
-    config.num_neurons2 = annmb[0].num_neurons2;
-    config.num_hidden_layers = annmb[0].num_hidden_layers;
-    config.one_ann_no_bias = annmb[0].one_ann_no_bias;
-    config.n_max_radial = paramb.n_max_radial;
-    config.n_max_angular = paramb.n_max_angular;
-    config.basis_size_radial = paramb.basis_size_radial;
-    config.basis_size_angular = paramb.basis_size_angular;
-    config.L_max = paramb.L_max;
-    config.dim_angular = paramb.dim_angular;
-    config.has_q_222 = paramb.has_q_222;
-    config.has_q_1111 = paramb.has_q_1111;
-    config.has_q_112 = paramb.has_q_112;
-    config.has_q_123 = paramb.has_q_123;
-    config.has_q_233 = paramb.has_q_233;
-    config.has_q_134 = paramb.has_q_134;
-    config.num_L = paramb.num_L;
-    config.num_c_radial = paramb.num_c_radial;
-    config.number_of_variables_descriptor = para.number_of_variables_descriptor;
-    config.rc_radial.assign(paramb.rc_radial, paramb.rc_radial + paramb.num_types);
-    config.rc_angular.assign(paramb.rc_angular, paramb.rc_angular + paramb.num_types);
-    compiled_kernel_.reset(new NEP_Compile(config));
+    compiled_kernel_.reset(new NEP_Compile(
+      make_nep_compile_config(para, NEP_Compile_Mode::NEP)));
   }
 }
 
@@ -861,17 +837,30 @@ void NEP::find_force(
     GPU_CHECK_KERNEL
 
     if (para.train_mode == 3) {
-      apply_ann_temperature<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].temperature_ref_gpu.data(),
-        dataset[device_id].energy.data(),
-        nep_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
+      if (compiled_kernel_) {
+        compiled_kernel_->launch_ann_temperature(
+          dataset[device_id].N,
+          dataset[device_id].type.data(),
+          nep_data[device_id].descriptors.data(),
+          para.q_scaler_gpu[device_id].data(),
+          dataset[device_id].temperature_ref_gpu.data(),
+          nep_data[device_id].parameters.data(),
+          dataset[device_id].energy.data(),
+          nep_data[device_id].Fp.data());
+        GPU_CHECK_KERNEL
+      } else {
+        apply_ann_temperature<<<grid_size, block_size>>>(
+          dataset[device_id].N,
+          paramb,
+          annmb[device_id],
+          dataset[device_id].type.data(),
+          nep_data[device_id].descriptors.data(),
+          para.q_scaler_gpu[device_id].data(),
+          dataset[device_id].temperature_ref_gpu.data(),
+          dataset[device_id].energy.data(),
+          nep_data[device_id].Fp.data());
+        GPU_CHECK_KERNEL
+          }
     } else if (compiled_kernel_) {
       compiled_kernel_->launch_ann(
         dataset[device_id].N,

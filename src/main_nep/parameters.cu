@@ -193,13 +193,6 @@ void Parameters::read_zbl_in()
 
 void Parameters::calculate_parameters()
 {
-  if (nep_compile && train_mode != 0) {
-    PRINT_INPUT_ERROR("nep_compile currently supports ordinary potential training only.");
-  }
-  if (nep_compile && (charge_mode || vdw || charge_vdw)) {
-    PRINT_INPUT_ERROR("nep_compile currently supports ordinary NEP4 only, without charge/vdW modes.");
-  }
-
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
