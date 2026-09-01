@@ -19,13 +19,6 @@
 #include <vector>
 class Parameters;
 
-struct RMSE_Result
-{
-  float sum;
-  int count;
-  float extra;
-};
-
 class Dataset
 {
 public:
@@ -93,17 +86,8 @@ public:
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
-  GPU_Vector<float> error_gpu;  // per-configuration error
-
-  GPU_Vector<float> weight_gpu;
-  GPU_Vector<int> has_type_gpu;
-  GPU_Vector<int> has_virial_gpu;
-  GPU_Vector<int> has_bec_gpu;
-  GPU_Vector<float> energy_shift_gpu;
-  GPU_Vector<RMSE_Result> rmse_result_gpu;
-  GPU_Vector<RMSE_Result> rmse_batch_gpu;
-  std::vector<RMSE_Result> rmse_result_cpu;
-  std::vector<RMSE_Result> rmse_batch_cpu;
+  std::vector<float> error_cpu; // error in energy, virial, or force
+  GPU_Vector<float> error_gpu;  // error in energy, virial, or force
 
   std::vector<bool> has_type;
 
@@ -122,22 +106,8 @@ public:
   std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_charge(Parameters& para, int device_id);
   std::vector<float> get_rmse_bec(Parameters& para, int device_id);
-  void get_rmse_training(
-    Parameters& para,
-    std::vector<float>& rmse_energy,
-    std::vector<float>& rmse_force,
-    std::vector<float>& rmse_virial,
-    std::vector<float>& rmse_charge,
-    std::vector<float>& rmse_bec,
-    int device_id);
 
 private:
-  void launch_rmse_force(Parameters& para, const bool use_weight, RMSE_Result* result);
-  void launch_rmse_energy(Parameters& para, const bool use_weight, const bool do_shift, RMSE_Result* result);
-  void launch_rmse_virial(Parameters& para, const bool use_weight, RMSE_Result* result);
-  void launch_rmse_avirial(Parameters& para, const bool use_weight, RMSE_Result* result);
-  void launch_rmse_charge(Parameters& para, RMSE_Result* result);
-  void launch_rmse_bec(Parameters& para, RMSE_Result* result);
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
   void find_has_type(Parameters& para);
   void find_Na(Parameters& para);
