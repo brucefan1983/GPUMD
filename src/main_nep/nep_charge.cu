@@ -238,7 +238,7 @@ NEP_Charge::NEP_Charge(
     nep_data[device_id].D_real.resize(N);
     nep_data[device_id].num_kpoints.resize(Nc);
   }
-  if (para.nep_compile) {
+  if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
       make_nep_compile_config(para, NEP_Compile_Mode::CHARGE)));
