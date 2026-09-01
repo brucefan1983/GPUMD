@@ -270,6 +270,9 @@ NEP_VDW::NEP_VDW(
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
       make_nep_compile_config(para, NEP_Compile_Mode::VDW, paramb.c6_ref_sqrt)));
+    if (!compiled_kernel_->is_valid()) {
+      compiled_kernel_.reset();
+    }
   }
 }
 

@@ -243,6 +243,9 @@ NEP_Charge::NEP_Charge(
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
       make_nep_compile_config(para, NEP_Compile_Mode::CHARGE)));
+    if (!compiled_kernel_->is_valid()) {
+      compiled_kernel_.reset();
+    }
   }
 }
 

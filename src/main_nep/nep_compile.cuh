@@ -78,6 +78,8 @@ public:
   NEP_Compile(const NEP_Compile&) = delete;
   NEP_Compile& operator=(const NEP_Compile&) = delete;
 
+  bool is_valid() const { return valid_; }
+
   void launch_descriptor_radial(
     int N,
     const int* NN_sum,
@@ -241,6 +243,7 @@ public:
     float* fx, float* fy, float* fz, float* virial);
 
 private:
+  bool valid_ = false;
   using DescriptorRadialFunction = int (*)(
     int, const int*, const int*, const int*, const int*,
     const float*, const float*, const float*, const float*, float*);
@@ -297,7 +300,7 @@ private:
   std::string library_file_;
   std::string log_file_;
 
-  void compile(const NEP_Compile_Config& config);
+  bool compile(const NEP_Compile_Config& config);
   void cleanup_files();
   void check_launch(int error_code, const char* kernel_name);
 };

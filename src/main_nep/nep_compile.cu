@@ -29,11 +29,10 @@
 
 namespace
 {
-void fail_compile(const std::string& message)
+void warning_compile(const std::string& message)
 {
-  std::cerr << "NEP training runtime compilation error:\n    "
+  std::cerr << "Warning: NEP training specialization disabled: "
             << message << std::endl;
-  std::exit(1);
 }
 
 const char* mode_name(const NEP_Compile_Mode mode)
@@ -80,7 +79,7 @@ std::string read_text_file(const std::string& filename)
 {
   std::ifstream input(filename.c_str(), std::ios::binary);
   if (!input.is_open()) {
-    fail_compile("Cannot read file: " + filename);
+    return std::string();
   }
   std::ostringstream output;
   output << input.rdbuf();
@@ -97,31 +96,34 @@ std::string get_gpumd_source_dir()
       file_exists(source_dir + "/main_nep/nep_specialized.cu")) {
       return source_dir;
     }
-    fail_compile(
-      "GPUMD_SRC must point to the GPUMD src directory containing "
-      "utilities/nep_utilities.cuh and main_nep/nep_specialized.cu.");
+    warning_compile(
+      "GPUMD_SRC does not point to a valid GPUMD src directory.");
+    return std::string();
   }
 
   char path[PATH_MAX];
   const ssize_t size = readlink("/proc/self/exe", path, sizeof(path) - 1);
   if (size <= 0) {
-    fail_compile("Cannot determine the location of the nep executable.");
+    warning_compile("Cannot determine the location of the nep executable.");
+    return std::string();
   }
   path[size] = '\0';
 
   const std::string executable(path);
   const size_t pos = executable.find_last_of('/');
   if (pos == std::string::npos) {
-    fail_compile("Cannot determine the GPUMD source directory.");
+    warning_compile("Cannot determine the GPUMD source directory.");
+    return std::string();
   }
 
   const std::string source_dir = executable.substr(0, pos);
   if (
     !file_exists(source_dir + "/utilities/nep_utilities.cuh") ||
     !file_exists(source_dir + "/main_nep/nep_specialized.cu")) {
-    fail_compile(
+    warning_compile(
       "Cannot find runtime-specialization sources next to the nep executable. "
       "Run nep from the compiled src tree or set GPUMD_SRC.");
+    return std::string();
   }
   return source_dir;
 }
@@ -156,42 +158,47 @@ bool all_equal(const std::vector<float>& values)
   return true;
 }
 
-void validate_config(const NEP_Compile_Config& c)
+bool validate_config(const NEP_Compile_Config& c)
 {
   if (c.num_types <= 0 || c.ann_dim <= 0 || c.num_neurons1 <= 0) {
-    fail_compile("Invalid NEP model dimensions for runtime specialization.");
+    warning_compile("Invalid NEP model dimensions.");
+    return false;
   }
   if (
     static_cast<int>(c.rc_radial.size()) != c.num_types ||
     static_cast<int>(c.rc_angular.size()) != c.num_types) {
-    fail_compile("Invalid cutoff data for runtime specialization.");
+    warning_compile("Invalid cutoff data.");
+    return false;
   }
   if (c.num_hidden_layers != 1 && c.num_hidden_layers != 2) {
-    fail_compile("Runtime specialization supports one or two hidden ANN layers.");
+    warning_compile("Only one or two hidden ANN layers are supported.");
+    return false;
   }
   if (
     (c.mode == NEP_Compile_Mode::CHARGE ||
      c.mode == NEP_Compile_Mode::VDW ||
      c.mode == NEP_Compile_Mode::CHARGE_VDW) &&
     c.num_hidden_layers != 1) {
-    fail_compile(
-      "qNEP/vdW/charge-vdW runtime specialization requires one hidden ANN layer.");
+    warning_compile(
+      "qNEP/vdW/charge-vdW specialization requires one hidden ANN layer.");
+    return false;
   }
   if (
     (c.mode == NEP_Compile_Mode::VDW ||
      c.mode == NEP_Compile_Mode::CHARGE_VDW) &&
     static_cast<int>(c.c6_ref_sqrt.size()) != c.num_types) {
-    fail_compile("vdW runtime specialization requires C6 reference values.");
+    warning_compile("vdW specialization requires C6 reference values.");
+    return false;
   }
   if (c.mode == NEP_Compile_Mode::TNEP && c.train_mode != 1 && c.train_mode != 2) {
-    fail_compile("TNEP runtime specialization requires train_mode 1 or 2.");
+    warning_compile("TNEP specialization requires train_mode 1 or 2.");
+    return false;
   }
+  return true;
 }
 
 std::string make_config_text(const NEP_Compile_Config& c)
 {
-  validate_config(c);
-
   const int num_abc = (c.L_max + 1) * (c.L_max + 1) - 1;
   const int dim_radial = c.n_max_radial + 1;
   const bool common_radial = all_equal(c.rc_radial);
@@ -252,17 +259,19 @@ std::string make_config_text(const NEP_Compile_Config& c)
 }
 
 template <typename T>
-T load_symbol(void* library, const char* name)
+bool load_symbol(void* library, const char* name, T& function)
 {
   dlerror();
-  T function = reinterpret_cast<T>(dlsym(library, name));
+  function = reinterpret_cast<T>(dlsym(library, name));
   const char* error = dlerror();
   if (error != nullptr || function == nullptr) {
-    fail_compile(
+    warning_compile(
       std::string("Cannot find symbol ") + name +
       " in the specialized NEP library.");
+    function = nullptr;
+    return false;
   }
-  return function;
+  return true;
 }
 #endif
 } // namespace
@@ -279,10 +288,10 @@ NEP_Compile_Config make_nep_compile_config(
     mode == NEP_Compile_Mode::CHARGE ||
     mode == NEP_Compile_Mode::CHARGE_VDW ||
     mode == NEP_Compile_Mode::TNEP) {
-    fail_compile(
-      "qNEP, charge-vdW, and TNEP runtime specialization is disabled in "
-      "USE_CJ builds until their generic training paths use the same "
-      "descriptor-channel layout.");
+    warning_compile(
+      "qNEP, charge-vdW, and TNEP specialization is not available in "
+      "this USE_CJ configuration.");
+    return NEP_Compile_Config();
   }
 #endif
 
@@ -351,7 +360,8 @@ NEP_Compile_Config make_nep_compile_config(
     mode == NEP_Compile_Mode::VDW ||
     mode == NEP_Compile_Mode::CHARGE_VDW) {
     if (c6_ref_sqrt == nullptr) {
-      fail_compile("vdW runtime specialization requires C6 reference values.");
+      warning_compile("vdW specialization requires C6 reference values.");
+      return NEP_Compile_Config();
     }
     c.c6_ref_sqrt.assign(c6_ref_sqrt, c6_ref_sqrt + para.num_types);
   }
@@ -363,12 +373,12 @@ NEP_Compile::NEP_Compile(const NEP_Compile_Config& config)
 {
 #if defined(USE_HIP)
   (void)config;
-  fail_compile("nep_compile on is not supported by the HIP build.");
+  warning_compile("nep_compile on is not supported by the HIP build.");
 #elif defined(_WIN32)
   (void)config;
-  fail_compile("nep_compile on is supported on Linux only.");
+  warning_compile("nep_compile on is supported on Linux only.");
 #else
-  compile(config);
+  valid_ = compile(config);
 #endif
 }
 
@@ -383,12 +393,17 @@ NEP_Compile::~NEP_Compile()
   cleanup_files();
 }
 
-void NEP_Compile::compile(const NEP_Compile_Config& config)
+bool NEP_Compile::compile(const NEP_Compile_Config& config)
 {
 #if !defined(USE_HIP) && !defined(_WIN32)
-  validate_config(config);
+  if (!validate_config(config)) {
+    return false;
+  }
 
   const std::string source_dir = get_gpumd_source_dir();
+  if (source_dir.empty()) {
+    return false;
+  }
   const std::string specialized_file =
     source_dir + "/main_nep/nep_specialized.cu";
   const std::string config_text = make_config_text(config);
@@ -396,13 +411,15 @@ void NEP_Compile::compile(const NEP_Compile_Config& config)
   int device = 0;
   cudaError_t error = cudaGetDevice(&device);
   if (error != cudaSuccess) {
-    fail_compile(cudaGetErrorString(error));
+    warning_compile(cudaGetErrorString(error));
+    return false;
   }
 
   cudaDeviceProp properties;
   error = cudaGetDeviceProperties(&properties, device);
   if (error != cudaSuccess) {
-    fail_compile(cudaGetErrorString(error));
+    warning_compile(cudaGetErrorString(error));
+    return false;
   }
 
   // Runtime specialization is intentionally non-persistent.
@@ -422,9 +439,10 @@ void NEP_Compile::compile(const NEP_Compile_Config& config)
 
   char* temp_dir = mkdtemp(temp_buffer.data());
   if (temp_dir == nullptr) {
-    fail_compile(
+    warning_compile(
       "Cannot create the runtime-specialization temporary directory under " +
       tmp_base + ".");
+    return false;
   }
 
   temp_dir_ = temp_dir;
@@ -436,7 +454,8 @@ void NEP_Compile::compile(const NEP_Compile_Config& config)
     std::ofstream output(config_file_.c_str());
     if (!output.is_open()) {
       cleanup_files();
-      fail_compile("Cannot create nep_special_config.cuh.");
+      warning_compile("Cannot create nep_special_config.cuh.");
+      return false;
     }
     output << config_text;
   }
@@ -482,10 +501,13 @@ void NEP_Compile::compile(const NEP_Compile_Config& config)
   const int status = std::system(command.str().c_str());
   if (status != 0) {
     const std::string log = read_text_file(log_file_);
-    std::cerr << log;
+    if (!log.empty()) {
+      std::cerr << log;
+    }
     cleanup_files();
-    fail_compile(
+    warning_compile(
       "nvcc failed while compiling specialized NEP training kernels.");
+    return false;
   }
 
   library_ = dlopen(library_file_.c_str(), RTLD_NOW | RTLD_LOCAL);
@@ -494,34 +516,44 @@ void NEP_Compile::compile(const NEP_Compile_Config& config)
     const std::string message =
       (error_message == nullptr) ? "unknown dlopen error" : error_message;
     cleanup_files();
-    fail_compile(
+    warning_compile(
       "Cannot load the specialized NEP training library: " + message);
+    return false;
   }
 
-  descriptor_radial_ = load_symbol<DescriptorRadialFunction>(
-    library_, "nep_train_launch_descriptor_radial");
-  descriptor_angular_ = load_symbol<DescriptorAngularFunction>(
-    library_, "nep_train_launch_descriptor_angular");
+  bool symbols_ok = true;
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_descriptor_radial", descriptor_radial_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_descriptor_angular", descriptor_angular_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_nep", ann_nep_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_temperature", ann_temperature_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_charge", ann_charge_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_vdw", ann_vdw_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_charge_vdw", ann_charge_vdw_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_ann_tnep_pol", ann_tnep_pol_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_force_radial", force_radial_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_force_angular", force_angular_);
 
-  ann_nep_ = load_symbol<AnnNepFunction>(
-    library_, "nep_train_launch_ann_nep");
-  ann_temperature_ = load_symbol<AnnTemperatureFunction>(
-    library_, "nep_train_launch_ann_temperature");
-  ann_charge_ = load_symbol<AnnChargeFunction>(
-    library_, "nep_train_launch_ann_charge");
-  ann_vdw_ = load_symbol<AnnChargeFunction>(
-    library_, "nep_train_launch_ann_vdw");
-  ann_charge_vdw_ = load_symbol<AnnChargeVdwFunction>(
-    library_, "nep_train_launch_ann_charge_vdw");
-  ann_tnep_pol_ = load_symbol<AnnTnepPolFunction>(
-    library_, "nep_train_launch_ann_tnep_pol");
+  if (!symbols_ok) {
+    dlclose(library_);
+    library_ = nullptr;
+    cleanup_files();
+    return false;
+  }
 
-  force_radial_ = load_symbol<ForceRadialFunction>(
-    library_, "nep_train_launch_force_radial");
-  force_angular_ = load_symbol<ForceAngularFunction>(
-    library_, "nep_train_launch_force_angular");
+  return true;
 #else
   (void)config;
+  return false;
 #endif
 }
 
@@ -553,16 +585,18 @@ void NEP_Compile::check_launch(
 {
 #if !defined(USE_HIP) && !defined(_WIN32)
   if (error_code != static_cast<int>(cudaSuccess)) {
-    fail_compile(
-      std::string("Specialized kernel launch failed in ") +
-      kernel_name + ": " +
-      cudaGetErrorString(static_cast<cudaError_t>(error_code)));
+    std::cerr << "Specialized kernel launch failed in "
+              << kernel_name << ": "
+              << cudaGetErrorString(static_cast<cudaError_t>(error_code))
+              << std::endl;
+    std::exit(1);
   }
 #else
   (void)error_code;
   (void)kernel_name;
 #endif
 }
+
 
 
 void NEP_Compile::launch_descriptor_radial(

@@ -220,6 +220,9 @@ TNEP::TNEP(
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
       make_nep_compile_config(para, NEP_Compile_Mode::TNEP)));
+    if (!compiled_kernel_->is_valid()) {
+      compiled_kernel_.reset();
+    }
   }
 }
 
