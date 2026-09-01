@@ -160,7 +160,6 @@ NEP::NEP(
   int version,
   int deviceCount)
 {
-
   paramb.version = version;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
@@ -737,7 +736,6 @@ void NEP::find_force(
         dataset[device_id].z12_radial.data(),
         nep_data[device_id].parameters.data(),
         nep_data[device_id].descriptors.data());
-      GPU_CHECK_KERNEL
     } else {
       find_descriptors_radial<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -767,7 +765,6 @@ void NEP::find_force(
         nep_data[device_id].parameters.data(),
         nep_data[device_id].descriptors.data(),
         nep_data[device_id].sum_fxyz.data());
-      GPU_CHECK_KERNEL
     } else {
       find_descriptors_angular<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -847,7 +844,6 @@ void NEP::find_force(
           nep_data[device_id].parameters.data(),
           dataset[device_id].energy.data(),
           nep_data[device_id].Fp.data());
-        GPU_CHECK_KERNEL
       } else {
         apply_ann_temperature<<<grid_size, block_size>>>(
           dataset[device_id].N,
@@ -900,7 +896,6 @@ void NEP::find_force(
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data());
-      GPU_CHECK_KERNEL
     } else {
       find_force_radial<<<grid_size, block_size>>>(
         dataset[device_id].N,
@@ -938,7 +933,6 @@ void NEP::find_force(
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data());
-      GPU_CHECK_KERNEL
     } else {
       find_force_angular<<<grid_size, block_size>>>(
         dataset[device_id].N,

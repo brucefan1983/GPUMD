@@ -20,7 +20,13 @@
  * Generic NEP-family kernels remain the reference implementation.
  */
 
-#include "nep_special_config.cuh"
+#include <nep_special_config.cuh>
+#define NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION 1
+#if !defined(NEP_SPECIAL_CONFIG_INTERFACE_VERSION)
+#error "Missing NEP specialization interface version."
+#elif NEP_SPECIAL_CONFIG_INTERFACE_VERSION != NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION
+#error "Incompatible NEP specialization interface version."
+#endif
 #include "utilities/nep_utilities.cuh"
 #include <cuda_runtime.h>
 #include <cmath>
@@ -869,6 +875,11 @@ __global__ void force_angular_jit(
   virial[n1 + 3 * N] += sxy;
   virial[n1 + 4 * N] += syz;
   virial[n1 + 5 * N] += szx;
+}
+
+extern "C" int nep_train_specialized_interface_version()
+{
+  return NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION;
 }
 
 extern "C" int nep_train_launch_descriptor_radial(

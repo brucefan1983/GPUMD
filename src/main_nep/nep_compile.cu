@@ -29,6 +29,8 @@
 
 namespace
 {
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 1;
+
 void warning_compile(const std::string& message)
 {
   std::cerr << "Warning: NEP training specialization disabled: "
@@ -209,6 +211,7 @@ std::string make_config_text(const NEP_Compile_Config& c)
 
   std::ostringstream output;
   output << "#pragma once\n";
+  output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION 1\n";
   output << "#define NEP_MODEL_NEP 0\n";
   output << "#define NEP_MODEL_CHARGE 1\n";
   output << "#define NEP_MODEL_VDW 2\n";
@@ -543,6 +546,20 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
     return false;
   }
 
+  typedef int (*InterfaceVersionFunction)();
+  InterfaceVersionFunction interface_version = nullptr;
+  if (!load_symbol(
+        library_,
+        "nep_train_specialized_interface_version",
+        interface_version) ||
+      interface_version() != NEP_SPECIALIZED_INTERFACE_VERSION) {
+    warning_compile("Incompatible NEP specialization interface version.");
+    dlclose(library_);
+    library_ = nullptr;
+    cleanup_files();
+    return false;
+  }
+
   bool symbols_ok = true;
   symbols_ok &= load_symbol(
     library_, "nep_train_launch_descriptor_radial", descriptor_radial_);
@@ -613,6 +630,16 @@ void NEP_Compile::check_launch(
               << std::endl;
     std::exit(1);
   }
+#ifdef STRONG_DEBUG
+  const cudaError_t sync_error = cudaDeviceSynchronize();
+  if (sync_error != cudaSuccess) {
+    std::cerr << "Specialized kernel execution failed in "
+              << kernel_name << ": "
+              << cudaGetErrorString(sync_error)
+              << std::endl;
+    std::exit(1);
+  }
+#endif
 #else
   (void)error_code;
   (void)kernel_name;
@@ -759,10 +786,6 @@ void NEP_Compile::launch_ann_tnep_pol(
     ann_tnep_pol_(
       N, type, descriptors, q_scaler, parameters, virial, Fp),
     "ann_tnep_pol_jit");
-}
-
-namespace
-{
 }
 
 void NEP_Compile::launch_force_radial(
