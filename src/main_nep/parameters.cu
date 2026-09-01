@@ -81,7 +81,6 @@ void Parameters::set_default_parameters()
   is_charge_vdw_set = false;
   is_save_potential_set = false;
   is_output_interval_set = false;
-  is_nep_compile_set = false;
 
   train_mode = 0;              // potential
   prediction = 0;              // not prediction mode
@@ -123,7 +122,7 @@ void Parameters::set_default_parameters()
   charge_mode = 0;
   vdw = 0;
   charge_vdw = 0;
-  nep_compile = false;
+  nep_compile = true;
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -1187,12 +1186,6 @@ void Parameters::report_inputs()
     printf("    (default) batch size = %d.\n", batch_size);
   }
 
-  if (is_nep_compile_set) {
-    printf("    (input)   nep_compile = %s.\n", nep_compile ? "on" : "off");
-  } else {
-    printf("    (default) nep_compile = off.\n");
-  }
-
   if (is_population_set) {
     printf("    (input)   population size = %d.\n", population_size);
   } else {
@@ -1326,7 +1319,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Parameters::parse_nep_compile(const char** param, int num_param)
 {
-  is_nep_compile_set = true;
   if (num_param != 2) {
     PRINT_INPUT_ERROR("nep_compile should have 1 parameter: on or off.\n");
   }
