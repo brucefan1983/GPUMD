@@ -35,7 +35,7 @@
 
 namespace
 {
-const int NEP_SPECIALIZED_INTERFACE_VERSION = 1;
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 2;
 
 void warning_compile(const std::string& message)
 {
@@ -585,6 +585,10 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
   symbols_ok &= load_symbol(
     library_, "nep_train_launch_ann_tnep_pol", ann_tnep_pol_);
   symbols_ok &= load_symbol(
+    library_, "nep_train_launch_bec_radial", bec_radial_);
+  symbols_ok &= load_symbol(
+    library_, "nep_train_launch_bec_angular", bec_angular_);
+  symbols_ok &= load_symbol(
     library_, "nep_train_launch_force_radial", force_radial_);
   symbols_ok &= load_symbol(
     library_, "nep_train_launch_force_angular", force_angular_);
@@ -793,6 +797,30 @@ void NEP_Compile::launch_ann_tnep_pol(
     ann_tnep_pol_(
       N, type, descriptors, q_scaler, parameters, virial, Fp),
     "ann_tnep_pol_jit");
+}
+
+void NEP_Compile::launch_bec_radial(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* charge_derivative, float* bec)
+{
+  check_launch(
+    bec_radial_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, charge_derivative, bec),
+    "bec_radial_jit");
+}
+void NEP_Compile::launch_bec_angular(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* charge_derivative,
+  const float* sum_fxyz, float* bec)
+{
+  check_launch(
+    bec_angular_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, charge_derivative, sum_fxyz, bec),
+    "bec_angular_jit");
 }
 
 void NEP_Compile::launch_force_radial(

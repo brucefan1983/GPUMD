@@ -171,6 +171,16 @@ public:
     float* virial,
     float* Fp);
 
+  void launch_bec_radial(
+    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+    const float* x12, const float* y12, const float* z12,
+    const float* parameters, const float* charge_derivative, float* bec);
+  void launch_bec_angular(
+    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+    const float* x12, const float* y12, const float* z12,
+    const float* parameters, const float* charge_derivative,
+    const float* sum_fxyz, float* bec);
+
   // Model-specific public interfaces keep the original training code readable.
   void launch_force_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
@@ -272,6 +282,15 @@ private:
   using AnnTnepPolFunction =
     int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
 
+  using BecRadialFunction = int (*)(
+    int, const int*, const int*, const int*, const int*,
+    const float*, const float*, const float*,
+    const float*, const float*, float*);
+  using BecAngularFunction = int (*)(
+    int, const int*, const int*, const int*, const int*,
+    const float*, const float*, const float*,
+    const float*, const float*, const float*, float*);
+
   using ForceRadialFunction = int (*)(
     int, const int*, const int*, const int*, const int*,
     const float*, const float*, const float*,
@@ -295,6 +314,8 @@ private:
   AnnChargeFunction ann_vdw_ = nullptr;
   AnnChargeVdwFunction ann_charge_vdw_ = nullptr;
   AnnTnepPolFunction ann_tnep_pol_ = nullptr;
+  BecRadialFunction bec_radial_ = nullptr;
+  BecAngularFunction bec_angular_ = nullptr;
   ForceRadialFunction force_radial_ = nullptr;
   ForceAngularFunction force_angular_ = nullptr;
 

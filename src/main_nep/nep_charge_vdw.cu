@@ -1416,37 +1416,68 @@ void NEP_Charge_VDW::find_force(
       GPU_CHECK_KERNEL
 
       // get BEC (radial descriptor part)
-      find_bec_radial<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].NN_radial_sum.data(),
-        dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
-        nep_data[device_id].charge_derivative.data(),
-        dataset[device_id].bec.data());
-      GPU_CHECK_KERNEL
+      if (compiled_kernel_) {
+        compiled_kernel_->launch_bec_radial(
+          dataset[device_id].N,
+          dataset[device_id].NN_radial_sum.data(),
+          dataset[device_id].NN_radial.data(),
+          dataset[device_id].NL_radial.data(),
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_radial.data(),
+          dataset[device_id].y12_radial.data(),
+          dataset[device_id].z12_radial.data(),
+          nep_data[device_id].parameters.data(),
+          nep_data[device_id].charge_derivative.data(),
+          dataset[device_id].bec.data());
+      } else {
+        find_bec_radial<<<grid_size, block_size>>>(
+          dataset[device_id].N,
+          dataset[device_id].NN_radial_sum.data(),
+          dataset[device_id].NN_radial.data(),
+          dataset[device_id].NL_radial.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_radial.data(),
+          dataset[device_id].y12_radial.data(),
+          dataset[device_id].z12_radial.data(),
+          nep_data[device_id].charge_derivative.data(),
+          dataset[device_id].bec.data());
+        GPU_CHECK_KERNEL
+      }
 
       // get BEC (angular descriptor part)
-      find_bec_angular<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].NN_angular_sum.data(),
-        dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
-        nep_data[device_id].charge_derivative.data(),
-        nep_data[device_id].sum_fxyz.data(),
-        dataset[device_id].bec.data());
-      GPU_CHECK_KERNEL
+      if (compiled_kernel_) {
+        compiled_kernel_->launch_bec_angular(
+          dataset[device_id].N,
+          dataset[device_id].NN_angular_sum.data(),
+          dataset[device_id].NN_angular.data(),
+          dataset[device_id].NL_angular.data(),
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_angular.data(),
+          dataset[device_id].y12_angular.data(),
+          dataset[device_id].z12_angular.data(),
+          nep_data[device_id].parameters.data(),
+          nep_data[device_id].charge_derivative.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          dataset[device_id].bec.data());
+      } else {
+        find_bec_angular<<<grid_size, block_size>>>(
+          dataset[device_id].N,
+          dataset[device_id].NN_angular_sum.data(),
+          dataset[device_id].NN_angular.data(),
+          dataset[device_id].NL_angular.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_angular.data(),
+          dataset[device_id].y12_angular.data(),
+          dataset[device_id].z12_angular.data(),
+          nep_data[device_id].charge_derivative.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          dataset[device_id].bec.data());
+        GPU_CHECK_KERNEL
+      }
 
       // scale q to q * sqrt(epsilon_inf)
       scale_bec<<<grid_size, block_size>>>(
