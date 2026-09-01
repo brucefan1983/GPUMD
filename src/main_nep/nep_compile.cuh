@@ -5,6 +5,12 @@
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -14,8 +20,7 @@
 
 class Parameters;
 
-enum class NEP_Compile_Mode
-{
+enum class NEP_Compile_Mode {
   NEP = 0,
   CHARGE = 1,
   VDW = 2,
@@ -23,8 +28,7 @@ enum class NEP_Compile_Mode
   TNEP = 4
 };
 
-struct NEP_Compile_Config
-{
+struct NEP_Compile_Config {
   NEP_Compile_Mode mode = NEP_Compile_Mode::NEP;
   int train_mode = 0;
 
@@ -54,7 +58,7 @@ struct NEP_Compile_Config
   int num_L = 0;
   int num_c_radial = 0;
 
-  // ordinary NEP/NEP-vdW follow USE_CJ when that build option is enabled.
+  // Ordinary NEP/NEP-vdW follow USE_CJ when that build option is enabled.
   // qNEP/charge-vdW/TNEP remain pair-dependent, matching their generic paths.
   bool descriptor_use_cj = false;
 
