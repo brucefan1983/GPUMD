@@ -856,7 +856,7 @@ void NEP::find_force(
           dataset[device_id].energy.data(),
           nep_data[device_id].Fp.data());
         GPU_CHECK_KERNEL
-          }
+      }
     } else if (compiled_kernel_) {
       compiled_kernel_->launch_ann(
         dataset[device_id].N,
@@ -866,7 +866,6 @@ void NEP::find_force(
         nep_data[device_id].parameters.data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());
-      GPU_CHECK_KERNEL
     } else {
       apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,

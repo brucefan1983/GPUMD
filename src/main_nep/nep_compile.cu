@@ -211,7 +211,8 @@ std::string make_config_text(const NEP_Compile_Config& c)
 
   std::ostringstream output;
   output << "#pragma once\n";
-  output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION 1\n";
+  output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION "
+         << NEP_SPECIALIZED_INTERFACE_VERSION << "\\n";
   output << "#define NEP_MODEL_NEP 0\n";
   output << "#define NEP_MODEL_CHARGE 1\n";
   output << "#define NEP_MODEL_VDW 2\n";
