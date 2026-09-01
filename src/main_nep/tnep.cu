@@ -152,9 +152,6 @@ TNEP::TNEP(
   int version,
   int deviceCount)
 {
-  if (para.nep_compile && deviceCount != 1) {
-    PRINT_INPUT_ERROR("nep_compile supports single-GPU training only.");
-  }
   paramb.version = version;
   paramb.num_types = para.num_types;
   for (int t = 0; t < paramb.num_types; ++t) {

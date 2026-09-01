@@ -151,9 +151,6 @@ NEP_Charge::NEP_Charge(
   int version,
   int deviceCount)
 {
-  if (para.nep_compile && deviceCount != 1) {
-    PRINT_INPUT_ERROR("nep_compile supports single-GPU training only.");
-  }
   paramb.charge_mode = para.charge_mode;
   paramb.version = version;
   paramb.rc_radial = para.rc_radial[0];

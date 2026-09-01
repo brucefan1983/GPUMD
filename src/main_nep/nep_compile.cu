@@ -408,18 +408,34 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
     source_dir + "/main_nep/nep_specialized.cu";
   const std::string config_text = make_config_text(config);
 
-  int device = 0;
-  cudaError_t error = cudaGetDevice(&device);
-  if (error != cudaSuccess) {
-    warning_compile(cudaGetErrorString(error));
+  int device_count = 0;
+  cudaError_t error = cudaGetDeviceCount(&device_count);
+  if (error != cudaSuccess || device_count < 1) {
+    warning_compile(
+      error == cudaSuccess ? "No CUDA device is visible." : cudaGetErrorString(error));
     return false;
   }
 
-  cudaDeviceProp properties;
-  error = cudaGetDeviceProperties(&properties, device);
-  if (error != cudaSuccess) {
-    warning_compile(cudaGetErrorString(error));
-    return false;
+  std::vector<int> architectures;
+  for (int device = 0; device < device_count; ++device) {
+    cudaDeviceProp properties;
+    error = cudaGetDeviceProperties(&properties, device);
+    if (error != cudaSuccess) {
+      warning_compile(cudaGetErrorString(error));
+      return false;
+    }
+
+    const int architecture = properties.major * 10 + properties.minor;
+    bool found = false;
+    for (size_t i = 0; i < architectures.size(); ++i) {
+      if (architectures[i] == architecture) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      architectures.push_back(architecture);
+    }
   }
 
   // Runtime specialization is intentionally non-persistent.
@@ -469,8 +485,13 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
   std::ostringstream command;
   command
     << shell_quote(compiler)
-    << " -std=c++14 -O3"
-    << " -arch=sm_" << properties.major << properties.minor
+    << " -std=c++14 -O3";
+  for (size_t i = 0; i < architectures.size(); ++i) {
+    command
+      << " -gencode=arch=compute_" << architectures[i]
+      << ",code=sm_" << architectures[i];
+  }
+  command
     << " -shared -Xcompiler=-fPIC"
     << " -DNEP_SPECIALIZED_RUNTIME_BUILD"
     << " -I" << shell_quote(temp_dir_)
@@ -479,11 +500,14 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
     << " -o " << shell_quote(library_file_)
     << " > " << shell_quote(log_file_) << " 2>&1";
 
-  printf(
-    "Compile specialized %s training kernels (sm_%d%d).\n",
-    mode_name(config.mode),
-    properties.major,
-    properties.minor);
+  printf("Compile specialized %s training kernels (", mode_name(config.mode));
+  for (size_t i = 0; i < architectures.size(); ++i) {
+    if (i != 0) {
+      printf(", ");
+    }
+    printf("sm_%d", architectures[i]);
+  }
+  printf(").\n");
   printf(
     "    types=%d, dim=%d, neurons=(%d,%d), n_max=(%d,%d), "
     "basis=(%d,%d), l_max=%d.\n",

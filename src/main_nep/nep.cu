@@ -160,9 +160,6 @@ NEP::NEP(
   int version,
   int deviceCount)
 {
-  if (para.nep_compile && deviceCount != 1) {
-    PRINT_INPUT_ERROR("nep_compile supports single-GPU training only.");
-  }
 
   paramb.version = version;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
