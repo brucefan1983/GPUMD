@@ -116,7 +116,7 @@ public:
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
-  bool nep_compile = false; // runtime-specialize ordinary NEP4 training kernels
+  bool nep_compile = false; // runtime-specialize NEP-family training kernels
 
   // check if a parameter has been set:
   bool is_train_mode_set;

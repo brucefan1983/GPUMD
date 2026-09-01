@@ -242,7 +242,6 @@ __device__ __forceinline__ void apply_scalar_ann_jit(
   }
 }
 
-
 __global__ void ann_nep_jit(
   const int N,
   const int* type,
@@ -536,7 +535,6 @@ __global__ void ann_tnep_pol_jit(
     Fp_out[n1 + d * N] = Fp[d] * q_scaler[d];
   }
 }
-
 
 __device__ __forceinline__ float effective_fp_jit(
   const int index,
@@ -872,7 +870,6 @@ __global__ void force_angular_jit(
   virial[n1 + 4 * N] += syz;
   virial[n1 + 5 * N] += szx;
 }
-
 
 extern "C" int nep_train_launch_descriptor_radial(
   int N,

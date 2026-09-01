@@ -31,8 +31,9 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+NEP_LIBS =
 ifndef OS
-LIBS += -ldl
+NEP_LIBS += -ldl
 endif
 
 
@@ -98,7 +99,7 @@ gpumd: $(OBJ_GPUMD)
 	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
 nep: $(OBJ_NEP)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(NEP_LIBS)
 	@echo =================================================
 	@echo The nep executable is successfully compiled!
 	@echo =================================================

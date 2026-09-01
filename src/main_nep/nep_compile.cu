@@ -276,8 +276,6 @@ bool load_symbol(void* library, const char* name, T& function)
 #endif
 } // namespace
 
-
-
 NEP_Compile_Config make_nep_compile_config(
   const Parameters& para,
   const NEP_Compile_Mode mode,
@@ -621,8 +619,6 @@ void NEP_Compile::check_launch(
 #endif
 }
 
-
-
 void NEP_Compile::launch_descriptor_radial(
   int N,
   const int* NN_sum,
@@ -767,10 +763,6 @@ void NEP_Compile::launch_ann_tnep_pol(
 
 namespace
 {
-const float* null_float()
-{
-  return nullptr;
-}
 }
 
 void NEP_Compile::launch_force_radial(
@@ -783,7 +775,7 @@ void NEP_Compile::launch_force_radial(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), null_float(), null_float(),
+      nullptr, nullptr, nullptr, nullptr,
       0, fx, fy, fz, virial),
     "force_radial_jit");
 }
@@ -798,7 +790,7 @@ void NEP_Compile::launch_force_angular(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), null_float(), null_float(),
+      nullptr, nullptr, nullptr, nullptr,
       sum_fxyz, 0, fx, fy, fz, virial),
     "force_angular_jit");
 }
@@ -814,7 +806,7 @@ void NEP_Compile::launch_force_charge_radial(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      charge_derivative, D_real, null_float(), null_float(),
+      charge_derivative, D_real, nullptr, nullptr,
       0, fx, fy, fz, virial),
     "force_charge_radial_jit");
 }
@@ -831,7 +823,7 @@ void NEP_Compile::launch_force_charge_angular(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      charge_derivative, D_real, null_float(), null_float(),
+      charge_derivative, D_real, nullptr, nullptr,
       sum_fxyz, 0, fx, fy, fz, virial),
     "force_charge_angular_jit");
 }
@@ -847,7 +839,7 @@ void NEP_Compile::launch_force_vdw_radial(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), C6_derivative, D_C6,
+      nullptr, nullptr, C6_derivative, D_C6,
       0, fx, fy, fz, virial),
     "force_vdw_radial_jit");
 }
@@ -864,7 +856,7 @@ void NEP_Compile::launch_force_vdw_angular(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), C6_derivative, D_C6,
+      nullptr, nullptr, C6_derivative, D_C6,
       sum_fxyz, 0, fx, fy, fz, virial),
     "force_vdw_angular_jit");
 }
@@ -915,7 +907,7 @@ void NEP_Compile::launch_force_tnep_radial(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), null_float(), null_float(),
+      nullptr, nullptr, nullptr, nullptr,
       is_dipole ? 1 : 0, fx, fy, fz, virial),
     "force_tnep_radial_jit");
 }
@@ -931,7 +923,7 @@ void NEP_Compile::launch_force_tnep_angular(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
-      null_float(), null_float(), null_float(), null_float(),
+      nullptr, nullptr, nullptr, nullptr,
       sum_fxyz, is_dipole ? 1 : 0, fx, fy, fz, virial),
     "force_tnep_angular_jit");
 }

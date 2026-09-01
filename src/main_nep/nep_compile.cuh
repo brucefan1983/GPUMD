@@ -63,7 +63,6 @@ struct NEP_Compile_Config
   std::vector<float> c6_ref_sqrt;
 };
 
-
 NEP_Compile_Config make_nep_compile_config(
   const Parameters& para,
   NEP_Compile_Mode mode,
