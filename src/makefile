@@ -28,12 +28,20 @@ CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
+ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
+CFLAGS += -DGNEP_TEST_DIAGNOSTICS
+endif
+ifeq ($(GNEP_TEST_FIXED_SCALER),1)
+CFLAGS += -DUSE_FIXED_SCALER
+endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
 NEP_LIBS =
+GNEP_LIBS =
 ifndef OS
 NEP_LIBS += -ldl
+GNEP_LIBS += -lpthread
 endif
 
 
@@ -104,7 +112,7 @@ nep: $(OBJ_NEP)
 	@echo The nep executable is successfully compiled!
 	@echo =================================================
 gnep: $(OBJ_GNEP)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(GNEP_LIBS)
 	@echo =================================================
 	@echo The gnep executable is successfully compiled!
 	@echo =================================================
@@ -171,4 +179,3 @@ ifdef OS
 else
 	rm -f */*.o gpumd nep gnep
 endif
-

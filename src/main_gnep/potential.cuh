@@ -31,6 +31,10 @@ public:
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     bool calculate_neighbor,
-    int DeviceCount) = 0;
-  virtual Gradients& getGradients() = 0;
+    int device_begin,
+    int device_count,
+    int global_num_configurations,
+    int global_num_atoms,
+    int global_virial_components) = 0;
+  virtual Gradients& getGradients(int device_id) = 0;
 };
