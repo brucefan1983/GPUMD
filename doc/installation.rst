@@ -123,8 +123,64 @@ Below we use an explicit example with default parameters (except for the ``type`
   start_lr     1e-3         # new keyword to set the starting learning rate, which should be a non-negative floating-point number
   stop_lr      1e-7         # new keyword to set the stopping learning rate, which should be a non-negative floating-point number
   weight_decay 0.0          # new keyword to set the weight decay parameter, which should be a non-negative floating-point number
-  batch        2            # same usage as in nep.in but favors small values
+  batch        2            # global batch size; it does not grow with the number of visible GPUs
   epoch        50           # one epoch equals #structures/#batchsize training steps
+  seed         20260831     # optional non-negative seed for parameter initialization and batch shuffling
+
+GNEP uses every GPU made visible through ``CUDA_VISIBLE_DEVICES`` on one node.
+Each complete configuration belongs to exactly one GPU shard; configurations
+are never split across devices. A training step still performs one global Adam
+update, so ``batch`` has the same meaning for one, two, or more GPUs. For
+example, the following commands run an otherwise identical deterministic job
+on one, two, and four GPUs::
+
+  CUDA_VISIBLE_DEVICES=0 ./gnep
+  CUDA_VISIBLE_DEVICES=0,1 ./gnep
+  CUDA_VISIBLE_DEVICES=0,1,2,3 ./gnep
+
+Global batch size and multi-GPU efficiency
+------------------------------------------
+
+The ``batch`` keyword is the number of complete configurations used by one
+global Adam update across all visible GPUs. It is a global batch size, not a
+per-GPU batch size, and it must be kept unchanged when comparing otherwise
+identical one-, two-, and four-GPU runs. Changing ``batch`` changes the
+optimization problem seen by each Adam step and can therefore change the
+training trajectory.
+
+GNEP distributes complete configurations and never splits the atoms or
+neighbor graph of one configuration across GPUs. Consequently, the number of
+active GPUs in a step is::
+
+  min(number of visible GPUs, number of configurations in the current batch)
+
+``batch 1`` is valid and follows the same training algorithm, but only one GPU
+can perform useful work in each step. To allow every visible GPU to participate,
+use a global batch of at least 2 for two GPUs or at least 4 for four GPUs. The
+last incomplete batch of an epoch can use fewer GPUs when it contains fewer
+configurations. For example, a global batch of 4 is analogous to assigning one
+configuration to each of four GPUs before one synchronized Adam update; it is
+not equivalent to four independent ``batch 1`` updates.
+
+Multi-GPU efficiency depends on the amount of work in each global batch. Very
+small configurations or a small global batch can be slower on multiple GPUs
+because host worker startup, gradient reduction, and synchronization dominate
+the GPU computation. Increase ``batch`` only as permitted by GPU memory and the
+desired optimization behavior. Benchmark with the same global batch, dataset,
+seed, and number of epochs on every GPU count, and exclude the first warm-up
+step when reporting step time.
+
+As a reference rather than a hardware-independent guarantee, a validation run
+with 3810 training configurations, 100 test configurations, global ``batch 80``,
+and RTX 4090 GPUs measured median step times of 0.462856, 0.263450, and 0.151553
+seconds on one, two, and four GPUs, respectively. These correspond to 1.76x and
+3.05x speedups, while the serialized loss and RMSE trajectories were identical
+for all three runs.
+
+When ``seed`` is omitted, GNEP retains the historical behavior: parameter
+initialization uses its existing default seed and epoch batch shuffling obtains
+entropy from ``std::random_device``. Model, restart, prediction, and training
+output formats are unchanged.
 
 .. _netcdf_setup:
 .. index::

@@ -26,12 +26,16 @@ class Adam
 {
 public:
   Adam(Parameters&);
+  ~Adam();
 
   // void zero_gradients();
-  void update(float lr, float* gradients); // Update moments and parameters
+  void update(float lr, const std::vector<float>& gradients); // Update moments and parameters
   float* get_parameters(); // get current parameters pointer
   void output_parameters(Parameters& para); // Output parameters
   void initialize_parameters(Parameters& para); // Initialize optimizer parameters
+#ifdef GNEP_TEST_DIAGNOSTICS
+  void copy_moments_to_host(std::vector<float>& first, std::vector<float>& second);
+#endif
 
 protected:
   // random number generator
@@ -56,5 +60,7 @@ protected:
   GPU_Vector<float> gpu_parameters; // Parameters to be optimized θ
   GPU_Vector<float> gpu_m; // First moment m
   GPU_Vector<float> gpu_v; // Second moment v
+  GPU_Vector<float> gpu_gradient; // Host-reduced global gradient
+  GPU_Vector<float> gpu_gradient_norm; // Clipping workspace
 
 };

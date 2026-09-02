@@ -22,6 +22,10 @@ class Parameters;
 class Dataset
 {
 public:
+  Dataset() = default;
+  ~Dataset();
+
+  int device_id = -1;
   int Nc;             // number of configurations
   int N;              // total number of atoms (sum of Na[])
   int max_Na;         // number of atoms in the largest configuration
