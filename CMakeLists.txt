@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 find_package(CUDAToolkit REQUIRED)
+find_package(Threads REQUIRED)
 
 # MSVC host compiler flags: /utf-8 for Unicode source, /Zc:preprocessor for standards-conforming preprocessor.
 if(MSVC)
@@ -44,7 +45,15 @@ file(GLOB GNEP_SOURCES
     src/utilities/*.cu)
 add_executable(gnep EXCLUDE_FROM_ALL ${GNEP_SOURCES})
 target_include_directories(gnep PRIVATE src)
-target_link_libraries(gnep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
+target_link_libraries(gnep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Threads::Threads)
+option(GNEP_TEST_DIAGNOSTICS "Export deterministic GNEP training diagnostics" OFF)
+if(GNEP_TEST_DIAGNOSTICS)
+    target_compile_definitions(gnep PRIVATE GNEP_TEST_DIAGNOSTICS)
+endif()
+option(GNEP_TEST_FIXED_SCALER "Keep the GNEP descriptor scaler fixed for gradient tests" OFF)
+if(GNEP_TEST_FIXED_SCALER)
+    target_compile_definitions(gnep PRIVATE USE_FIXED_SCALER)
+endif()
 
 
 # --- NNAP support (enable with -D PKG_NNAP=yes) ---

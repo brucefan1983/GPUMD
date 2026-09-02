@@ -21,6 +21,13 @@
 #include "utilities/gnep_utilities.cuh"
 #include <algorithm> 
 
+Dataset::~Dataset()
+{
+  if (device_id >= 0) {
+    cudaSetDevice(device_id);
+  }
+}
+
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
   Nc = n2 - n1;
@@ -348,6 +355,7 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(
   Parameters& para, std::vector<Structure>& structures_input, bool require_grad, int n1, int n2, int device_id)
 {
+  this->device_id = device_id;
   CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);

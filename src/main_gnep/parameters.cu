@@ -14,12 +14,15 @@
 */
 
 #include "parameters.cuh"
+#include "device_guard.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -48,6 +51,11 @@ Parameters::Parameters()
   print_line_2();
 }
 
+Parameters::~Parameters()
+{
+  cudaSetDevice(0);
+}
+
 void Parameters::set_default_parameters()
 {
   is_prediction_set = false;
@@ -69,6 +77,7 @@ void Parameters::set_default_parameters()
   is_use_typewise_cutoff_zbl_set = false;
   is_energy_shift_set = false;
   is_lr_cos_restart_set = false;
+  is_seed_set = false;
 
   prediction = 0;              // not prediction mode
   basis_size_radial = 8;       // large enough in most cases
@@ -93,6 +102,7 @@ void Parameters::set_default_parameters()
   typewise_cutoff_zbl_factor = -1.0f;
   energy_shift = 0;
   output_descriptor = false;
+  seed = 1234567;
 
   // default for lr cosine restart scheduler
   lr_restart_enable = 0;
@@ -178,15 +188,72 @@ void Parameters::calculate_parameters()
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
-  int deviceCount;
-  CHECK(cudaGetDeviceCount(&deviceCount));
-  for (int device_id = 0; device_id < deviceCount; device_id++) {
-    CHECK(cudaSetDevice(device_id));
-    q_scaler_gpu[device_id].resize(dim);
-    s_max[device_id].resize(dim, -1000000.0f);
-    s_min[device_id].resize(dim, +1000000.0f);
-    q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
-    energy_shift_gpu.resize(num_types, 0.0f);
+  int device_count;
+  CHECK(cudaGetDeviceCount(&device_count));
+  device_scalers.reserve(device_count);
+  for (int device_id = 0; device_id < device_count; ++device_id) {
+    DeviceGuard guard(device_id);
+    std::unique_ptr<GNEPDeviceScaler> state(new GNEPDeviceScaler(device_id));
+    state->q_scaler.resize(dim);
+    state->s_max.resize(dim, -1000000.0f);
+    state->s_min.resize(dim, +1000000.0f);
+    state->q_scaler.copy_from_host(q_scaler_cpu.data());
+    device_scalers.emplace_back(std::move(state));
+  }
+  DeviceGuard guard(0);
+  energy_shift_gpu.resize(num_types, 0.0f);
+}
+
+GPU_Vector<float>& Parameters::q_scaler_gpu(const int device_id)
+{
+  return device_scalers.at(device_id)->q_scaler;
+}
+
+GPU_Vector<float>& Parameters::s_max_gpu(const int device_id)
+{
+  return device_scalers.at(device_id)->s_max;
+}
+
+GPU_Vector<float>& Parameters::s_min_gpu(const int device_id)
+{
+  return device_scalers.at(device_id)->s_min;
+}
+
+int Parameters::num_devices() const
+{
+  return static_cast<int>(device_scalers.size());
+}
+
+void Parameters::reduce_and_broadcast_scaler()
+{
+#ifndef USE_FIXED_SCALER
+  std::vector<float> global_max(dim, -std::numeric_limits<float>::infinity());
+  std::vector<float> global_min(dim, +std::numeric_limits<float>::infinity());
+  std::vector<float> local_max(dim);
+  std::vector<float> local_min(dim);
+
+  for (int device_id = 0; device_id < num_devices(); ++device_id) {
+    DeviceGuard guard(device_id);
+    s_max_gpu(device_id).copy_to_host(local_max.data());
+    s_min_gpu(device_id).copy_to_host(local_min.data());
+    for (int d = 0; d < dim; ++d) {
+      global_max[d] = std::max(global_max[d], local_max[d]);
+      global_min[d] = std::min(global_min[d], local_min[d]);
+    }
+  }
+
+  for (int d = 0; d < dim; ++d) {
+    q_scaler_cpu[d] = 1.0f / (global_max[d] - global_min[d]);
+  }
+#endif
+
+  for (int device_id = 0; device_id < num_devices(); ++device_id) {
+    DeviceGuard guard(device_id);
+    q_scaler_gpu(device_id).copy_from_host(q_scaler_cpu.data());
+#ifndef USE_FIXED_SCALER
+    s_max_gpu(device_id).copy_from_host(global_max.data());
+    s_min_gpu(device_id).copy_from_host(global_min.data());
+#endif
   }
 }
 
@@ -330,6 +397,12 @@ void Parameters::report_inputs()
     printf("    (default) maximum number of epochs = %d.\n", epoch);
   }
 
+  if (is_seed_set) {
+    printf("    (input)   deterministic random seed = %d.\n", seed);
+  } else {
+    printf("    (default) parameter seed = %d; batch shuffle is non-deterministic.\n", seed);
+  }
+
   // report lr cosine restart settings
   if (lr_restart_enable) {
     printf("    (input)   lr_cos_restart enabled.\n");
@@ -406,6 +479,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_output_descriptor(param, num_param);
   } else if (strcmp(param[0], "lr_cos_restart") == 0) {
     parse_lr_cos_restart(param, num_param);
+  } else if (strcmp(param[0], "seed") == 0) {
+    parse_seed(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -856,6 +931,20 @@ void Parameters::parse_epoch(const char** param, int num_param)
     PRINT_INPUT_ERROR("maximum number of epochs should >= 0.");
   } else if (epoch > 10000) {
     PRINT_INPUT_ERROR("maximum number of epochs should <= 10000.");
+  }
+}
+
+void Parameters::parse_seed(const char** param, int num_param)
+{
+  is_seed_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("seed should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &seed)) {
+    PRINT_INPUT_ERROR("seed should be an integer.\n");
+  }
+  if (seed < 0) {
+    PRINT_INPUT_ERROR("seed should be non-negative.");
   }
 }
 
