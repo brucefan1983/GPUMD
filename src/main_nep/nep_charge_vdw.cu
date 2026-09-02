@@ -131,8 +131,9 @@ static __global__ void find_descriptors_angular(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n, s, q);
-      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+      int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
+      for (int abc = 0; abc < num_abc; ++abc) {
+        g_sum_fxyz[(n * num_abc + abc) * N + n1] = s[abc];
       }
     }
 
@@ -231,7 +232,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     nep_data[device_id].C6_derivative.resize(N * annmb[device_id].dim);
     nep_data[device_id].D_C6.resize(N);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+    nep_data[device_id].sum_fxyz.resize(
+      N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
     nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints_max);
@@ -243,6 +245,14 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
     nep_data[device_id].num_kpoints.resize(Nc);
+  }
+  if (para.nep_compile && para.prediction == 0) {
+    CHECK(gpuSetDevice(0));
+    compiled_kernel_.reset(new NEP_Compile(
+      make_nep_compile_config(para, NEP_Compile_Mode::CHARGE_VDW, paramb.c6_ref_sqrt)));
+    if (!compiled_kernel_->is_valid()) {
+      compiled_kernel_.reset();
+    }
   }
 }
 
@@ -531,8 +541,12 @@ static __global__ void find_force_angular(
       tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       Fp[d] = tmp;
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
+    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      for (int abc = 0; abc < num_abc; ++abc) {
+        sum_fxyz[n * NUM_OF_ABC + abc] =
+          g_sum_fxyz[(n * num_abc + abc) * N + n1];
+      }
     }
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
@@ -694,8 +708,12 @@ static __global__ void find_bec_angular(
     for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
+    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      for (int abc = 0; abc < num_abc; ++abc) {
+        sum_fxyz[n * NUM_OF_ABC + abc] =
+          g_sum_fxyz[(n * num_abc + abc) * N + n1];
+      }
     }
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
@@ -1243,34 +1261,63 @@ void NEP_Charge_VDW::find_force(
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
-    find_descriptors_radial<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      dataset[device_id].NN_radial_sum.data(),
-      dataset[device_id].NN_radial.data(),
-      dataset[device_id].NL_radial.data(),
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      dataset[device_id].x12_radial.data(),
-      dataset[device_id].y12_radial.data(),
-      dataset[device_id].z12_radial.data(),
-      nep_data[device_id].descriptors.data());
-    GPU_CHECK_KERNEL
+    if (compiled_kernel_) {
+      compiled_kernel_->launch_descriptor_radial(
+        dataset[device_id].N,
+        dataset[device_id].NN_radial_sum.data(),
+        dataset[device_id].NN_radial.data(),
+        dataset[device_id].NL_radial.data(),
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_radial.data(),
+        dataset[device_id].y12_radial.data(),
+        dataset[device_id].z12_radial.data(),
+        nep_data[device_id].parameters.data(),
+        nep_data[device_id].descriptors.data());
+    } else {
+      find_descriptors_radial<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        dataset[device_id].NN_radial_sum.data(),
+        dataset[device_id].NN_radial.data(),
+        dataset[device_id].NL_radial.data(),
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_radial.data(),
+        dataset[device_id].y12_radial.data(),
+        dataset[device_id].z12_radial.data(),
+        nep_data[device_id].descriptors.data());
+      GPU_CHECK_KERNEL
+    }
 
-    find_descriptors_angular<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      dataset[device_id].NN_angular_sum.data(),
-      dataset[device_id].NN_angular.data(),
-      dataset[device_id].NL_angular.data(),
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      dataset[device_id].x12_angular.data(),
-      dataset[device_id].y12_angular.data(),
-      dataset[device_id].z12_angular.data(),
-      nep_data[device_id].descriptors.data(),
-      nep_data[device_id].sum_fxyz.data());
-    GPU_CHECK_KERNEL
+    if (compiled_kernel_) {
+      compiled_kernel_->launch_descriptor_angular(
+        dataset[device_id].N,
+        dataset[device_id].NN_angular_sum.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data(),
+        nep_data[device_id].parameters.data(),
+        nep_data[device_id].descriptors.data(),
+        nep_data[device_id].sum_fxyz.data());
+    } else {
+      find_descriptors_angular<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        dataset[device_id].NN_angular_sum.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data(),
+        nep_data[device_id].descriptors.data(),
+        nep_data[device_id].sum_fxyz.data());
+      GPU_CHECK_KERNEL
+    }
 
     if (para.prediction == 1 && para.output_descriptor >= 1) {
       FILE* fid_descriptor = my_fopen("descriptor.out", "a");
@@ -1321,20 +1368,35 @@ void NEP_Charge_VDW::find_force(
       dataset[device_id].virial.data());
     GPU_CHECK_KERNEL
 
-    apply_ann<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      nep_data[device_id].descriptors.data(),
-      para.q_scaler_gpu[device_id].data(),
-      dataset[device_id].energy.data(),
-      nep_data[device_id].Fp.data(),
-      dataset[device_id].charge.data(),
-      nep_data[device_id].charge_derivative.data(),
-      nep_data[device_id].C6.data(),
-      nep_data[device_id].C6_derivative.data());
-    GPU_CHECK_KERNEL
+    if (compiled_kernel_) {
+      compiled_kernel_->launch_ann_charge_vdw(
+        dataset[device_id].N,
+        dataset[device_id].type.data(),
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        nep_data[device_id].parameters.data(),
+        dataset[device_id].energy.data(),
+        nep_data[device_id].Fp.data(),
+        dataset[device_id].charge.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].C6.data(),
+        nep_data[device_id].C6_derivative.data());
+    } else {
+      apply_ann<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        dataset[device_id].energy.data(),
+        nep_data[device_id].Fp.data(),
+        dataset[device_id].charge.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].C6.data(),
+        nep_data[device_id].C6_derivative.data());
+      GPU_CHECK_KERNEL
+    }
 
     // enforce total charge is the target
     zero_total_charge<<<dataset[device_id].Nc, 1024>>>(
@@ -1354,37 +1416,68 @@ void NEP_Charge_VDW::find_force(
       GPU_CHECK_KERNEL
 
       // get BEC (radial descriptor part)
-      find_bec_radial<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].NN_radial_sum.data(),
-        dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
-        nep_data[device_id].charge_derivative.data(),
-        dataset[device_id].bec.data());
-      GPU_CHECK_KERNEL
+      if (compiled_kernel_) {
+        compiled_kernel_->launch_bec_radial(
+          dataset[device_id].N,
+          dataset[device_id].NN_radial_sum.data(),
+          dataset[device_id].NN_radial.data(),
+          dataset[device_id].NL_radial.data(),
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_radial.data(),
+          dataset[device_id].y12_radial.data(),
+          dataset[device_id].z12_radial.data(),
+          nep_data[device_id].parameters.data(),
+          nep_data[device_id].charge_derivative.data(),
+          dataset[device_id].bec.data());
+      } else {
+        find_bec_radial<<<grid_size, block_size>>>(
+          dataset[device_id].N,
+          dataset[device_id].NN_radial_sum.data(),
+          dataset[device_id].NN_radial.data(),
+          dataset[device_id].NL_radial.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_radial.data(),
+          dataset[device_id].y12_radial.data(),
+          dataset[device_id].z12_radial.data(),
+          nep_data[device_id].charge_derivative.data(),
+          dataset[device_id].bec.data());
+        GPU_CHECK_KERNEL
+      }
 
       // get BEC (angular descriptor part)
-      find_bec_angular<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        dataset[device_id].NN_angular_sum.data(),
-        dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
-        paramb,
-        annmb[device_id],
-        dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
-        nep_data[device_id].charge_derivative.data(),
-        nep_data[device_id].sum_fxyz.data(),
-        dataset[device_id].bec.data());
-      GPU_CHECK_KERNEL
+      if (compiled_kernel_) {
+        compiled_kernel_->launch_bec_angular(
+          dataset[device_id].N,
+          dataset[device_id].NN_angular_sum.data(),
+          dataset[device_id].NN_angular.data(),
+          dataset[device_id].NL_angular.data(),
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_angular.data(),
+          dataset[device_id].y12_angular.data(),
+          dataset[device_id].z12_angular.data(),
+          nep_data[device_id].parameters.data(),
+          nep_data[device_id].charge_derivative.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          dataset[device_id].bec.data());
+      } else {
+        find_bec_angular<<<grid_size, block_size>>>(
+          dataset[device_id].N,
+          dataset[device_id].NN_angular_sum.data(),
+          dataset[device_id].NN_angular.data(),
+          dataset[device_id].NL_angular.data(),
+          paramb,
+          annmb[device_id],
+          dataset[device_id].type.data(),
+          dataset[device_id].x12_angular.data(),
+          dataset[device_id].y12_angular.data(),
+          dataset[device_id].z12_angular.data(),
+          nep_data[device_id].charge_derivative.data(),
+          nep_data[device_id].sum_fxyz.data(),
+          dataset[device_id].bec.data());
+        GPU_CHECK_KERNEL
+      }
 
       // scale q to q * sqrt(epsilon_inf)
       scale_bec<<<grid_size, block_size>>>(
@@ -1500,50 +1593,95 @@ void NEP_Charge_VDW::find_force(
       dataset[device_id].energy.data());
     GPU_CHECK_KERNEL
 
-    find_force_radial<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      dataset[device_id].NN_radial_sum.data(),
-      dataset[device_id].NN_radial.data(),
-      dataset[device_id].NL_radial.data(),
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      dataset[device_id].x12_radial.data(),
-      dataset[device_id].y12_radial.data(),
-      dataset[device_id].z12_radial.data(),
-      nep_data[device_id].Fp.data(),
-      nep_data[device_id].charge_derivative.data(),
-      nep_data[device_id].D_real.data(),
-      nep_data[device_id].C6_derivative.data(),
-      nep_data[device_id].D_C6.data(),
-      dataset[device_id].force.data(),
-      dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data());
-    GPU_CHECK_KERNEL
+    if (compiled_kernel_) {
+      compiled_kernel_->launch_force_charge_vdw_radial(
+        dataset[device_id].N,
+        dataset[device_id].NN_radial_sum.data(),
+        dataset[device_id].NN_radial.data(),
+        dataset[device_id].NL_radial.data(),
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_radial.data(),
+        dataset[device_id].y12_radial.data(),
+        dataset[device_id].z12_radial.data(),
+        nep_data[device_id].parameters.data(),
+        nep_data[device_id].Fp.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].D_real.data(),
+        nep_data[device_id].C6_derivative.data(),
+        nep_data[device_id].D_C6.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data());
+    } else {
+      find_force_radial<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        dataset[device_id].NN_radial_sum.data(),
+        dataset[device_id].NN_radial.data(),
+        dataset[device_id].NL_radial.data(),
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_radial.data(),
+        dataset[device_id].y12_radial.data(),
+        dataset[device_id].z12_radial.data(),
+        nep_data[device_id].Fp.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].D_real.data(),
+        nep_data[device_id].C6_derivative.data(),
+        nep_data[device_id].D_C6.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data());
+      GPU_CHECK_KERNEL
+    }
 
-    find_force_angular<<<grid_size, block_size>>>(
-      dataset[device_id].N,
-      dataset[device_id].NN_angular_sum.data(),
-      dataset[device_id].NN_angular.data(),
-      dataset[device_id].NL_angular.data(),
-      paramb,
-      annmb[device_id],
-      dataset[device_id].type.data(),
-      dataset[device_id].x12_angular.data(),
-      dataset[device_id].y12_angular.data(),
-      dataset[device_id].z12_angular.data(),
-      nep_data[device_id].Fp.data(),
-      nep_data[device_id].charge_derivative.data(),
-      nep_data[device_id].D_real.data(),
-      nep_data[device_id].C6_derivative.data(),
-      nep_data[device_id].D_C6.data(),
-      nep_data[device_id].sum_fxyz.data(),
-      dataset[device_id].force.data(),
-      dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2,
-      dataset[device_id].virial.data());
-    GPU_CHECK_KERNEL
+    if (compiled_kernel_) {
+      compiled_kernel_->launch_force_charge_vdw_angular(
+        dataset[device_id].N,
+        dataset[device_id].NN_angular_sum.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data(),
+        nep_data[device_id].parameters.data(),
+        nep_data[device_id].Fp.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].D_real.data(),
+        nep_data[device_id].C6_derivative.data(),
+        nep_data[device_id].D_C6.data(),
+        nep_data[device_id].sum_fxyz.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data());
+    } else {
+      find_force_angular<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        dataset[device_id].NN_angular_sum.data(),
+        dataset[device_id].NN_angular.data(),
+        dataset[device_id].NL_angular.data(),
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        dataset[device_id].x12_angular.data(),
+        dataset[device_id].y12_angular.data(),
+        dataset[device_id].z12_angular.data(),
+        nep_data[device_id].Fp.data(),
+        nep_data[device_id].charge_derivative.data(),
+        nep_data[device_id].D_real.data(),
+        nep_data[device_id].C6_derivative.data(),
+        nep_data[device_id].D_C6.data(),
+        nep_data[device_id].sum_fxyz.data(),
+        dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data());
+      GPU_CHECK_KERNEL
+    }
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
