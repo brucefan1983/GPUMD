@@ -15,12 +15,41 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from io_helpers import CommandIOCase, run_and_check
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check
 
 pytestmark = pytest.mark.fast
 
 _POTENTIAL_SENTINEL = '__MODEL_PATH__'
 _NPT_BER_PARAMS_SENTINEL = '__NPT_BER_AUTO__'
+
+# add_spring writes one row every `output_stride_` steps (src/measure/add_spring.cuh), counting
+# from step 0, so a BASE_N_STEPS run writes the multiples of the stride below BASE_N_STEPS.
+_SPRING_OUTPUT_STRIDE = 100
+_SPRING_COLUMNS = ('step', 'mode', 'Fx', 'Fy', 'Fz', 'Ftotal', 'energy')
+
+
+def _check_spring_output(path):
+    """Checks the spring force file: a comment header naming the seven columns, then one row of
+    seven fields per output stride. The companion `.restart` file, which ghost_com saves at the
+    end of a run, is covered by the existence check in run_and_check and not parsed here."""
+    if path.suffix == '.restart':
+        return
+
+    lines = [line for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+    assert lines, f'{path.name} is empty'
+
+    header = lines[0]
+    assert header.startswith('#'), f'{path.name} lacks a comment header: {header!r}'
+    for column in _SPRING_COLUMNS:
+        assert column in header, f'{path.name} header lacks the {column!r} column: {header!r}'
+
+    rows = [line.split() for line in lines[1:]]
+    assert [int(row[0]) for row in rows] == list(range(0, BASE_N_STEPS, _SPRING_OUTPUT_STRIDE)), \
+        f'{path.name} does not hold one row per output stride: {rows}'
+    for row in rows:
+        assert len(row) == len(_SPRING_COLUMNS), f'{path.name} row has {len(row)} fields: {row}'
+        for field in row:
+            float(field)  # raises ValueError if the run wrote a field that is not a number
 
 
 def _npt_ber_params(cell):
@@ -54,7 +83,11 @@ BASIC_SETUP_CASES = [
     CommandIOCase(
         name='add_spring', n_groups=1,
         run_in_lines=[('add_spring', ['ghost_com', 0, 0, 0, 0, 0, 'couple', 1.0, 0, 0, 0, 0])],
-        expected_output_files=['spring_force_0.out']),
+        # The file names carry the group method, the group ID, and the spring ID, all 0 here:
+        # method 0 group 0 is the single group n_groups=1 writes, and spring ID 0 is the lowest
+        # unused ID in a fresh run directory. See doc/gpumd/input_parameters/add_spring.rst.
+        expected_output_files=['spring_gm0_g0_s0.out', 'spring_gm0_g0_s0.restart'],
+        parse_check=_check_spring_output),
     CommandIOCase(name='change_box', run_in_lines=[('change_box', 0.01)]),
     CommandIOCase(
         name='deform', ensemble='npt_ber', ensemble_params=_NPT_BER_PARAMS_SENTINEL,
