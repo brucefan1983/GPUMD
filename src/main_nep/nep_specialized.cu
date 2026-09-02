@@ -665,9 +665,20 @@ __global__ void bec_angular_jit(
 
   const float* c = get_c_jit(parameters);
   float Fp[DIM_ANGULAR_JIT] = {0.0f};
+  float sum_fxyz[(N_MAX_ANGULAR_JIT + 1) * NUM_ABC_JIT];
+
 #pragma unroll
   for (int d = 0; d < DIM_ANGULAR_JIT; ++d) {
     Fp[d] = charge_derivative[(DIM_RADIAL_JIT + d) * N + n1];
+  }
+
+#pragma unroll
+  for (int n = 0; n <= N_MAX_ANGULAR_JIT; ++n) {
+#pragma unroll
+    for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
+      sum_fxyz[n * NUM_ABC_JIT + abc] =
+        sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
+    }
   }
 
   const int t1 = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
@@ -720,13 +731,6 @@ __global__ void bec_angular_jit(
         gnp12 += fnp12[k] * c_value;
       }
 
-      float sum_one[NUM_ABC_JIT];
-#pragma unroll
-      for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
-        sum_one[abc] =
-          sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
-      }
-
       accumulate_f12<NUM_ABC_JIT>(
         L_MAX_JIT,
         HAS_Q_222_JIT,
@@ -736,14 +740,14 @@ __global__ void bec_angular_jit(
         HAS_Q_233_JIT,
         HAS_Q_134_JIT,
         NUM_L_JIT,
-        0,
+        n,
         N_MAX_ANGULAR_JIT + 1,
         d12,
         r12,
         gn12,
         gnp12,
-        Fp + n,
-        sum_one,
+        Fp,
+        sum_fxyz,
         f12);
     }
 
