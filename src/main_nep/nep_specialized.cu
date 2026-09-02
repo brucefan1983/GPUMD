@@ -727,7 +727,7 @@ __global__ void bec_angular_jit(
           sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
       }
 
-      accumulate_f12(
+      accumulate_f12<NUM_ABC_JIT>(
         L_MAX_JIT,
         HAS_Q_222_JIT,
         HAS_Q_1111_JIT,
@@ -975,7 +975,7 @@ __global__ void force_angular_jit(
 
   const float* c = get_c_jit(parameters);
   float Fp[DIM_ANGULAR_JIT] = {0.0f};
-  float sum_fxyz[(N_MAX_ANGULAR_JIT + 1) * NUM_OF_ABC];
+  float sum_fxyz[(N_MAX_ANGULAR_JIT + 1) * NUM_ABC_JIT];
 
 #pragma unroll
   for (int d = 0; d < DIM_ANGULAR_JIT; ++d) {
@@ -994,7 +994,7 @@ __global__ void force_angular_jit(
   for (int n = 0; n <= N_MAX_ANGULAR_JIT; ++n) {
 #pragma unroll
     for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
-      sum_fxyz[n * NUM_OF_ABC + abc] =
+      sum_fxyz[n * NUM_ABC_JIT + abc] =
         sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
     }
   }
@@ -1056,7 +1056,7 @@ __global__ void force_angular_jit(
         gnp12 += fnp12[k] * c_value;
       }
 
-      accumulate_f12(
+      accumulate_f12<NUM_ABC_JIT>(
         L_MAX_JIT,
         HAS_Q_222_JIT,
         HAS_Q_1111_JIT,
