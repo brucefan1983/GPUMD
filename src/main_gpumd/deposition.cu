@@ -30,10 +30,116 @@ keyword and perform deposition between consecutive sub-runs.
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <random>
 #include <sstream>
 #include <string>
 #include <vector>
+
+const std::map<std::string, double> MASS_TABLE{
+  {"H", 1.0080000000},
+  {"He", 4.0026020000},
+  {"Li", 6.9400000000},
+  {"Be", 9.0121831000},
+  {"B", 10.8100000000},
+  {"C", 12.0110000000},
+  {"N", 14.0070000000},
+  {"O", 15.9990000000},
+  {"F", 18.9984031630},
+  {"Ne", 20.1797000000},
+  {"Na", 22.9897692800},
+  {"Mg", 24.3050000000},
+  {"Al", 26.9815385000},
+  {"Si", 28.0850000000},
+  {"P", 30.9737619980},
+  {"S", 32.0600000000},
+  {"Cl", 35.4500000000},
+  {"Ar", 39.9480000000},
+  {"K", 39.0983000000},
+  {"Ca", 40.0780000000},
+  {"Sc", 44.9559080000},
+  {"Ti", 47.8670000000},
+  {"V", 50.9415000000},
+  {"Cr", 51.9961000000},
+  {"Mn", 54.9380440000},
+  {"Fe", 55.8450000000},
+  {"Co", 58.9331940000},
+  {"Ni", 58.6934000000},
+  {"Cu", 63.5460000000},
+  {"Zn", 65.3800000000},
+  {"Ga", 69.7230000000},
+  {"Ge", 72.6300000000},
+  {"As", 74.9215950000},
+  {"Se", 78.9710000000},
+  {"Br", 79.9040000000},
+  {"Kr", 83.7980000000},
+  {"Rb", 85.4678000000},
+  {"Sr", 87.6200000000},
+  {"Y", 88.9058400000},
+  {"Zr", 91.2240000000},
+  {"Nb", 92.9063700000},
+  {"Mo", 95.9500000000},
+  {"Tc", 98},
+  {"Ru", 101.0700000000},
+  {"Rh", 102.9055000000},
+  {"Pd", 106.4200000000},
+  {"Ag", 107.8682000000},
+  {"Cd", 112.4140000000},
+  {"In", 114.8180000000},
+  {"Sn", 118.7100000000},
+  {"Sb", 121.7600000000},
+  {"Te", 127.6000000000},
+  {"I", 126.9044700000},
+  {"Xe", 131.2930000000},
+  {"Cs", 132.9054519600},
+  {"Ba", 137.3270000000},
+  {"La", 138.9054700000},
+  {"Ce", 140.1160000000},
+  {"Pr", 140.9076600000},
+  {"Nd", 144.2420000000},
+  {"Pm", 145},
+  {"Sm", 150.3600000000},
+  {"Eu", 151.9640000000},
+  {"Gd", 157.2500000000},
+  {"Tb", 158.9253500000},
+  {"Dy", 162.5000000000},
+  {"Ho", 164.9303300000},
+  {"Er", 167.2590000000},
+  {"Tm", 168.9342200000},
+  {"Yb", 173.0450000000},
+  {"Lu", 174.9668000000},
+  {"Hf", 178.4900000000},
+  {"Ta", 180.9478800000},
+  {"W", 183.8400000000},
+  {"Re", 186.2070000000},
+  {"Os", 190.2300000000},
+  {"Ir", 192.2170000000},
+  {"Pt", 195.0840000000},
+  {"Au", 196.9665690000},
+  {"Hg", 200.5920000000},
+  {"Tl", 204.3800000000},
+  {"Pb", 207.2000000000},
+  {"Bi", 208.9804000000},
+  {"Po", 210},
+  {"At", 210},
+  {"Rn", 222},
+  {"Fr", 223},
+  {"Ra", 226},
+  {"Ac", 227},
+  {"Th", 232.0377000000},
+  {"Pa", 231.0358800000},
+  {"U", 238.0289100000},
+  {"Np", 237},
+  {"Pu", 244},
+  {"Am", 243},
+  {"Cm", 247},
+  {"Bk", 247},
+  {"Cf", 251},
+  {"Es", 252},
+  {"Fm", 257},
+  {"Md", 258},
+  {"No", 259},
+  {"Lr", 262}};
 
 void Deposition::copy_file(const std::string& in_file, const std::string& out_file)
 {
@@ -128,6 +234,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
     atom_types.clear();
     num_atoms.clear();
     velocities.clear();
+    masses.clear();
     while (idx < num_param) {
       if (idx + 3 > num_param) {
         PRINT_INPUT_ERROR("deposit atom species requires element, number, and velocity.\n");
@@ -152,9 +259,18 @@ void Deposition::parse_deposition(const char** param, int num_param)
       }
       ++idx;
 
+      double mass = 0.0;
+      if (idx < num_param && is_valid_real(param[idx], &mass)) {
+        if (mass <= 0) {
+          PRINT_INPUT_ERROR("deposit mass should be positive.\n");
+        }
+        ++idx;
+      }
+
       atom_types.emplace_back(atom_type);
       num_atoms.emplace_back(number);
       velocities.emplace_back(velocity);
+      masses.emplace_back(mass);
     }
 
     if (atom_types.empty()) {
@@ -191,21 +307,41 @@ void Deposition::parse_deposition(const char** param, int num_param)
   }
 }
 
-static bool has_group_property(const std::string& comment_line, int& num_group_methods)
+static std::vector<std::pair<std::string, int>> get_property_list(const std::string& comment_line)
 {
-  const std::string group_marker = "group:I:";
-  const size_t pos = comment_line.find(group_marker);
-  if (pos == std::string::npos) {
-    return false;
+  std::vector<std::pair<std::string, int>> properties;
+
+  const std::string properties_marker = "Properties=";
+  size_t value_start = comment_line.find(properties_marker);
+  if (value_start == std::string::npos) {
+    return properties;
   }
-  num_group_methods = std::stoi(comment_line.substr(pos + group_marker.length()));
-  return num_group_methods > 0;
+  value_start += properties_marker.length();
+
+  const size_t value_end = comment_line.find_first_of(" \t", value_start);
+  std::string value = comment_line.substr(
+    value_start, value_end == std::string::npos ? value_end : value_end - value_start);
+
+  for (auto& letter : value) {
+    letter = (letter == ':') ? ' ' : std::tolower(letter);
+  }
+
+  const std::vector<std::string> tokens = get_tokens(value);
+  for (size_t k = 0; k + 2 < tokens.size(); k += 3) {
+    properties.emplace_back(tokens[k], get_int_from_token(tokens[k + 2], __FILE__, __LINE__));
+  }
+  return properties;
 }
 
-static bool has_velocity_property(const std::string& comment_line)
+static int find_property(
+  const std::vector<std::pair<std::string, int>>& properties, const std::string& name)
 {
-  const std::string velocity_marker = "vel:R:3";
-  return comment_line.find(velocity_marker) != std::string::npos;
+  for (const auto& property : properties) {
+    if (property.first == name) {
+      return property.second;
+    }
+  }
+  return 0;
 }
 
 void Deposition::analyze_run(const std::string& filename)
@@ -270,7 +406,7 @@ void Deposition::analyze_run(const std::string& filename)
     std::vector<std::string> lines;
     const int dump_index = has_vel ? (i + 1) : i;
 
-    for (size_t n = 0; n < raw_lines.size(); ++n) {
+    for (size_t n = 0; n < raw_lines.size(); ++n) {      
       if (int(n) == deposition_line) {
         continue;
       }
@@ -278,7 +414,7 @@ void Deposition::analyze_run(const std::string& filename)
       if (int(n) == run_line) {
         lines.emplace_back(
           "dump_xyz " + std::to_string(interval) + " deposited_" + std::to_string(dump_index) +
-          ".xyz velocity" + (has_group ? " group_labels" : ""));
+          ".xyz" + (has_mass ? " mass" : "") + " velocity" + (has_group ? " group_labels" : ""));
         lines.emplace_back("run " + std::to_string(interval));
       } else {
         lines.emplace_back(raw_lines[n]);
@@ -306,8 +442,10 @@ void Deposition::read_file_atoms()
       continue;
     }
 
-    if (tokens.size() != 7) {
-      PRINT_INPUT_ERROR("deposit file should have 7 columns: element x y z vx vy vz.\n");
+    if (tokens.size() != 7 && tokens.size() != 8) {
+      PRINT_INPUT_ERROR(
+        "deposit file should have 7 columns: element x y z vx vy vz (plus an optional mass "
+        "column).\n");
     }
 
     FileAtom fa;
@@ -321,6 +459,15 @@ void Deposition::read_file_atoms()
     for (int d = 0; d < 3; ++d) {
       if (!is_valid_real(tokens[4 + d].c_str(), &fa.vel[d])) {
         PRINT_INPUT_ERROR("deposit file velocity should be a real number.\n");
+      }
+    }
+    fa.mass = 0.0;
+    if (tokens.size() == 8) {
+      if (!is_valid_real(tokens[7].c_str(), &fa.mass)) {
+        PRINT_INPUT_ERROR("deposit file mass should be a real number.\n");
+      }
+      if (fa.mass <= 0) {
+        PRINT_INPUT_ERROR("deposit file mass should be positive.\n");
       }
     }
 
@@ -348,8 +495,21 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
   std::getline(input, line);
   std::string comment_line = line;
 
-  int num_group_methods = 0;
-  const bool has_group = has_group_property(comment_line, num_group_methods);
+  const std::vector<std::pair<std::string, int>> properties = get_property_list(comment_line);
+  if (properties.empty()) {
+    PRINT_INPUT_ERROR("deposit requires the Properties field in the second line of the xyz file.\n");
+  }
+  const int num_group_methods = find_property(properties, "group");
+  const bool has_group = num_group_methods > 0;
+  int group_offset = -1;
+  int column_offset = 0;
+  for (const auto& property : properties) {
+    if (property.first == "group") {
+      group_offset = column_offset;
+      break;
+    }
+    column_offset += property.second;
+  }
 
   int total_new_atoms = 0;
   if (has_file) {
@@ -405,8 +565,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     if (has_group) {
       std::vector<std::string> tokens = get_tokens(line);
       for (int g = 0; g < num_group_methods; ++g) {
-        const int col = int(tokens.size()) - num_group_methods + g;
-        const int group_label = get_int_from_token(tokens[col], __FILE__, __LINE__);
+        const int group_label = get_int_from_token(tokens[group_offset + g], __FILE__, __LINE__);
         max_group[g] = std::max(max_group[g], group_label);
       }
     }
@@ -427,7 +586,8 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     return has_height_range ? height_min + dist01(rng) * (height_max - height_min) : height_min;
   };
 
-  auto add_atom_line = [&](int atom_type, const double pos[3], const double vel[3]) {
+  auto add_atom_line = [&](int atom_type, const double pos[3], const double vel[3],
+                           const double mass) {
     if (atom_type >= int(atom_symbols.size())) {
       PRINT_INPUT_ERROR("deposit atom_type exceeds the number of atom types in the potential file.\n");
     }
@@ -435,11 +595,31 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
 
     std::ostringstream atom_line;
     atom_line << std::setprecision(10);
-    atom_line << symbol << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " << vel[0]
-              << " " << vel[1] << " " << vel[2];
-    if (has_group) {
-      for (int g = 0; g < num_group_methods; ++g) {
-        atom_line << " " << deposited_groups[g];
+
+    for (size_t p = 0; p < properties.size(); ++p) {
+      const std::string& name = properties[p].first;
+      const int length = properties[p].second;
+      const char* sep = (p == 0) ? "" : " ";
+      if (name == "species") {
+        atom_line << sep << symbol;
+      } else if (name == "pos") {
+        for (int d = 0; d < 3; ++d) {
+          atom_line << ((p == 0 && d == 0) ? "" : " ") << pos[d];
+        }
+      } else if (name == "mass") {
+        atom_line << sep << ((mass > 0.0) ? mass : MASS_TABLE.at(symbol));
+      } else if (name == "vel") {
+        for (int d = 0; d < 3; ++d) {
+          atom_line << ((p == 0 && d == 0) ? "" : " ") << vel[d];
+        }
+      } else if (name == "group") {
+        for (int g = 0; g < length; ++g) {
+          atom_line << ((p == 0 && g == 0) ? "" : " ") << deposited_groups[g];
+        }
+      } else {
+        const std::string error =
+          "deposit does not support the '" + name + "' property in the xyz file.";
+        PRINT_INPUT_ERROR(error.c_str());
       }
     }
     out << atom_line.str() << "\n";
@@ -457,7 +637,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
         vel[direction] = file_velocity;
       }
 
-      add_atom_line(fa.type, pos, vel);
+      add_atom_line(fa.type, pos, vel, fa.mass);
     }
   } else {
     for (size_t s = 0; s < atom_types.size(); ++s) {
@@ -469,7 +649,7 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
         double vel[3] = {0.0, 0.0, 0.0};
         vel[direction] = velocity;
 
-        add_atom_line(atom_types[s], pos, vel);
+        add_atom_line(atom_types[s], pos, vel, masses[s]);
       }
     }
   }
@@ -497,9 +677,10 @@ void Deposition::initialize()
     std::string line;
     std::getline(model_input, line);
     std::getline(model_input, line);
-    int num_group_methods = 0;
-    has_group = has_group_property(line, num_group_methods);
-    has_vel = has_velocity_property(line);
+    const std::vector<std::pair<std::string, int>> properties = get_property_list(line);
+    has_group = find_property(properties, "group") > 0;
+    has_vel = find_property(properties, "vel") > 0;
+    has_mass = find_property(properties, "mass") > 0;
     model_input.close();
   }
 
