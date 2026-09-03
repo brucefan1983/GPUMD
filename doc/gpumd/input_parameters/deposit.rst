@@ -28,9 +28,9 @@ This keyword is used in one of the following two ways::
   The deposited species must be specified by its element symbol, and the velocity is in units of Å/fs.
   The optional :attr:`mass` (in unified atomic mass units) is only meaningful when the :ref:`simulation model file <model_xyz>` has a mass property; if omitted, the standard mass of the element is used.
   It is ignored when the model file has no mass property.
-* In the second usage, the atoms to be added at each deposition are read from the file :attr:`add_atom_file`, which contains one atom per row with 7 columns::
+* In the second usage, the atoms to be added at each deposition are read from the file :attr:`add_atom_file`, which contains one atom per row with 7 columns plus optional mass column::
 
-    element x y z vx vy vz
+    element x y z vx vy vz [mass]
 
   The first column must contain the element symbol of the deposited atom.
   The positions are in units of Ångstrom and the velocities are in units of Å/fs.

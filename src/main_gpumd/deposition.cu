@@ -444,8 +444,7 @@ void Deposition::read_file_atoms()
 
     if (tokens.size() != 7 && tokens.size() != 8) {
       PRINT_INPUT_ERROR(
-        "deposit file should have 7 columns: element x y z vx vy vz (plus an optional mass "
-        "column).\n");
+        "deposit file should have 7 columns: element x y z vx vy vz (plus an optional mass column).\n");
     }
 
     FileAtom fa;
