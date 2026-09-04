@@ -37,6 +37,7 @@ public:
   std::vector<std::string> atom_symbols;
   std::vector<int> num_atoms;
   std::vector<double> velocities;
+  std::vector<double> masses;
   bool has_file = false;
   std::string add_atom_file;
   double file_velocity = 0.0;
@@ -45,6 +46,7 @@ public:
     int type;
     double pos[3];
     double vel[3];
+    double mass;
   };
   std::vector<FileAtom> file_atoms;
 
@@ -65,4 +67,5 @@ private:
   int deposition_count = 0;
   bool has_group = false;
   bool has_vel = false;
+  bool has_mass = false;
 };
