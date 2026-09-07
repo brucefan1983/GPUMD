@@ -49,45 +49,13 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP_Charge::check_ewald_pppm()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
-  use_pppm = true;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "kspace") {
-        if (tokens.size() != 2) {
-          std::cout << "kspace must have 1 parameter\n";
-          exit(1);
-        }
-        std::string kspace_method = tokens[1];
-        if (kspace_method == "ewald") {
-          use_pppm = false;
-        } else if (kspace_method == "pppm") {
-          use_pppm = true;
-        } else {
-          std::cout << "kspace method can only be ewald or pppm\n";
-          exit(1);
-        }
-      }
-    }
-  }
-
-  input_run.close();
-}
-
 NEP_Charge::NEP_Charge(
   const char* file_potential,
   const int num_atoms,
   const gpuStream_t stream,
+  const bool use_pppm_input,
   const bool verbose)
-  : stream_(stream), verbose_(verbose)
+  : use_pppm(use_pppm_input), stream_(stream), verbose_(verbose)
 {
   if (stream_ == nullptr)
     PRINT_INPUT_ERROR("qNEP replica force evaluation requires an explicit GPU stream.\n");
@@ -366,7 +334,6 @@ NEP_Charge::NEP_Charge(
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  check_ewald_pppm();
   if (use_pppm) {
     pppm.initialize(charge_para.alpha, stream_);
   } else {

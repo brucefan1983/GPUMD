@@ -60,7 +60,7 @@ using replica::values_match;
 
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
-constexpr int restart_format_version = 3;
+constexpr int restart_format_version = 4;
 
 void validate_append_event_file(const std::string& filename)
 {
@@ -391,6 +391,7 @@ public:
     const std::vector<std::string>& ensemble_command,
     const std::vector<std::string>& multi_replica_command,
     const std::vector<std::string>& dump_xyz_command,
+    const std::string& kspace_method,
     Atom& source_atom,
     Box& source_box,
     std::vector<Group>& source_group,
@@ -404,6 +405,7 @@ private:
   PRD_Config config_;
   const std::vector<std::vector<std::string>>& potential_commands_;
   const std::vector<std::string>& ensemble_command_;
+  std::string kspace_method_;
   Atom& source_atom_;
   Box& source_box_;
   std::vector<Group>& source_group_;
@@ -428,7 +430,6 @@ private:
   std::vector<std::string> restart_bdp_states_;
   GPU_Pinned_Vector<double> basin_position_;
   GPU_Pinned_Vector<double> hot_position_;
-  std::mt19937 selection_rng_;
   std::mt19937 dephase_rng_;
 
   void validate_input();
@@ -471,6 +472,7 @@ PRD_Driver::PRD_Driver(
   const std::vector<std::string>& ensemble_command,
   const std::vector<std::string>& multi_replica_command,
   const std::vector<std::string>& dump_xyz_command,
+  const std::string& kspace_method,
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group,
@@ -478,6 +480,7 @@ PRD_Driver::PRD_Driver(
   const int number_of_steps)
   : potential_commands_(potential_commands)
   , ensemble_command_(ensemble_command)
+  , kspace_method_(kspace_method)
   , source_atom_(source_atom)
   , source_box_(source_box)
   , source_group_(source_group)
@@ -485,6 +488,7 @@ PRD_Driver::PRD_Driver(
   , number_of_steps_(number_of_steps)
   , runtime_(
       potential_commands,
+      kspace_method,
       source_atom,
       source_box,
       source_group,
@@ -554,6 +558,8 @@ void PRD_Driver::validate_input()
   if (is_supported_charge_nep_name(potential_name) &&
       (!source_box_.pbc_x || !source_box_.pbc_y || !source_box_.pbc_z))
     PRINT_INPUT_ERROR("qNEP PRD requires periodic boundaries in all directions.");
+  if (!is_supported_charge_nep_name(potential_name))
+    kspace_method_ = "none";
   potential_hash_ = hash_file(potential_commands_[0][1]);
 
   double final_temperature = 0.0;
@@ -600,8 +606,13 @@ void PRD_Driver::validate_input()
         config_.dump_prefix, source_atom_.number_of_atoms);
     }
   } else {
-    selection_rng_.seed(config_.internal_seed + 1009U);
     dephase_rng_.seed(config_.internal_seed + 2003U);
+    // A fresh reference trajectory must decorrelate before its first
+    // accelerated exit, just as it does after every subsequent exit.
+    if (config_.correlation_steps > 0) {
+      phase_ = PRD_Phase::correlation;
+      correlation_winner_ = 0;
+    }
   }
 
   printf("Parallel replica dynamics.\n");
@@ -1030,10 +1041,10 @@ Search_Result PRD_Driver::search_block(
     quench(replica_ids);
     const std::vector<int> events = detect_events(replica_ids);
     if (!events.empty()) {
-      std::uniform_int_distribution<size_t> choose(
-        0, events.size() - 1);
       result.event = true;
-      result.winner = events[choose(selection_rng_)];
+      // Discrete-time ParRep serializes each MD step in replica-ID order.
+      // The winner and accelerated clock must use the same ordering.
+      result.winner = *std::min_element(events.begin(), events.end());
       result.steps = step + 1;
       result.coincident = static_cast<int>(events.size());
       result.maximum_displacement =
@@ -1286,6 +1297,7 @@ void PRD_Driver::write_restart_metadata() const
     "temperature_coupling %.17g\n",
     temperature_coupling_);
   fprintf(file, "potential_hash %llu\n", potential_hash_);
+  fprintf(file, "kspace %s\n", kspace_method_.c_str());
   fprintf(file, "event_interval %d\n", config_.event_interval);
   fprintf(file, "dephase_iterations %d\n", config_.dephase_iterations);
   fprintf(file, "dephase_steps %d\n", config_.dephase_steps);
@@ -1300,9 +1312,6 @@ void PRD_Driver::write_restart_metadata() const
     file,
     "max_dephase_retries %d\n",
     config_.maximum_dephase_retries);
-  std::ostringstream selection_state;
-  selection_state << selection_rng_;
-  fprintf(file, "selection_rng %s\n", selection_state.str().c_str());
   std::ostringstream dephase_state;
   dephase_state << dephase_rng_;
   fprintf(file, "dephase_rng %s\n", dephase_state.str().c_str());
@@ -1506,6 +1515,10 @@ void PRD_Driver::read_restart_metadata()
   read_restart_value(input, "potential_hash", stored_hash);
   if (stored_hash != potential_hash_)
     PRINT_INPUT_ERROR("PRD restart potential file does not match the input.");
+  std::string stored_kspace;
+  read_restart_value(input, "kspace", stored_kspace);
+  if (stored_kspace != kspace_method_)
+    PRINT_INPUT_ERROR("PRD restart kspace does not match the input.");
 
   int integer_value = 0;
   read_restart_value(input, "event_interval", integer_value);
@@ -1537,11 +1550,7 @@ void PRD_Driver::read_restart_metadata()
     PRINT_INPUT_ERROR(
       "PRD restart max_dephase_retries does not match the input.");
 
-  std::istringstream selection_state(
-    read_restart_line(input, "selection_rng"));
   std::string trailing;
-  if (!(selection_state >> selection_rng_) || selection_state >> trailing)
-    PRINT_INPUT_ERROR("PRD restart selection_rng is invalid.");
   std::istringstream dephase_state(
     read_restart_line(input, "dephase_rng"));
   if (!(dephase_state >> dephase_rng_) || dephase_state >> trailing)
@@ -1603,6 +1612,11 @@ void PRD_Driver::run()
         static_cast<long long>(result.steps) * config_.replicas;
       if (!result.event)
         continue;
+
+      // Count complete rounds plus the successful replica's position in the
+      // last round: N * (tau - 1) + K, with K numbered from 1.
+      // See Aristoff, Lelievre, Simpson (2014), arXiv:1401.4500.
+      clock_ -= config_.replicas - (result.winner + 1);
 
       accept_event(result, false);
       phase_ = PRD_Phase::correlation;
@@ -1670,6 +1684,7 @@ void run_prd(
   const std::vector<std::string>& ensemble_command,
   const std::vector<std::string>& multi_replica_command,
   const std::vector<std::string>& dump_xyz_command,
+  const std::string& kspace_method,
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group,
@@ -1681,6 +1696,7 @@ void run_prd(
     ensemble_command,
     multi_replica_command,
     dump_xyz_command,
+    kspace_method,
     source_atom,
     source_box,
     source_group,

@@ -171,6 +171,7 @@ int main()
     input.ensemble_command,
     input.multi_replica_command,
     input.dump_xyz_command,
+    input.kspace_command.empty() ? "pppm" : input.kspace_command[1],
     atom,
     box,
     group,

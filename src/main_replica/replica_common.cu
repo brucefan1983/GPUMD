@@ -277,11 +277,13 @@ Device_Context::~Device_Context()
 
 Replica_Runtime::Replica_Runtime(
   const std::vector<std::vector<std::string>>& potential_commands,
+  const std::string& kspace_method,
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group,
   const double time_step)
   : potential_commands_(potential_commands)
+  , kspace_method_(kspace_method)
   , source_atom_(source_atom)
   , source_box_(source_box)
   , source_group_(source_group)
@@ -324,7 +326,8 @@ void Replica_Runtime::initialize_device_force(Device_Context& device)
     parameters.data(),
     static_cast<int>(parameters.size()),
     source_box_,
-    source_atom_.number_of_atoms);
+    source_atom_.number_of_atoms,
+    kspace_method_ == "pppm");
   if (!device.force.has_potential())
     PRINT_INPUT_ERROR(
       "The selected potential is not an explicit-stream NEP energy model.");

@@ -272,6 +272,7 @@ public:
     const std::vector<std::string>& ensemble_command,
     const std::vector<std::string>& multi_replica_command,
     const std::vector<std::string>& dump_xyz_command,
+    const std::string& kspace_method,
     Atom& source_atom,
     Box& source_box,
     std::vector<Group>& source_group,
@@ -285,6 +286,7 @@ private:
   REMD_Config config_;
   const std::vector<std::vector<std::string>>& potential_commands_;
   const std::vector<std::string>& ensemble_command_;
+  std::string kspace_method_;
   Atom& source_atom_;
   Box& source_box_;
   std::vector<Group>& source_group_;
@@ -334,6 +336,7 @@ REMD_Driver::REMD_Driver(
   const std::vector<std::string>& ensemble_command,
   const std::vector<std::string>& multi_replica_command,
   const std::vector<std::string>& dump_xyz_command,
+  const std::string& kspace_method,
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group,
@@ -341,12 +344,13 @@ REMD_Driver::REMD_Driver(
   const int number_of_steps)
   : potential_commands_(potential_commands)
   , ensemble_command_(ensemble_command)
+  , kspace_method_(kspace_method)
   , source_atom_(source_atom)
   , source_box_(source_box)
   , source_group_(source_group)
   , time_step_(time_step)
   , number_of_steps_(number_of_steps)
-  , runtime_(potential_commands, source_atom, source_box, source_group, time_step)
+  , runtime_(potential_commands, kspace_method, source_atom, source_box, source_group, time_step)
 {
   config_.parse(multi_replica_command, dump_xyz_command);
 }
@@ -372,6 +376,8 @@ void REMD_Driver::validate_input()
   if (is_supported_charge_nep_name(potential_name) &&
       (!source_box_.pbc_x || !source_box_.pbc_y || !source_box_.pbc_z))
     PRINT_INPUT_ERROR("qNEP REMD requires periodic boundaries in all directions.");
+  if (!is_supported_charge_nep_name(potential_name))
+    kspace_method_ = "none";
   potential_hash_ = hash_file(potential_commands_[0][1]);
 
   if (ensemble_command_.size() != 5 || ensemble_command_[0] != "ensemble" ||
@@ -847,7 +853,7 @@ void REMD_Driver::write_restart_metadata() const
 {
   FILE* file = my_fopen("remd_restart.meta", "w");
   fprintf(file, "# GPUMD REMD restart metadata\n");
-  fprintf(file, "format_version 3\n");
+  fprintf(file, "format_version 4\n");
   fprintf(file, "mode remd\n");
   fprintf(file, "replicas %d\n", config_.replicas);
   fprintf(file, "completed_steps %lld\n", completed_steps_ + number_of_steps_);
@@ -856,6 +862,7 @@ void REMD_Driver::write_restart_metadata() const
   fprintf(file, "time_step %.17g\n", time_step_);
   fprintf(file, "temperature_coupling %.17g\n", temperature_coupling_);
   fprintf(file, "potential_hash %llu\n", potential_hash_);
+  fprintf(file, "kspace %s\n", kspace_method_.c_str());
   fprintf(file, "temperatures");
   for (const double temperature : config_.temperatures)
     fprintf(file, " %.17g", temperature);
@@ -930,6 +937,7 @@ void REMD_Driver::read_restart_metadata()
   bool has_time_step = false;
   bool has_coupling = false;
   bool has_hash = false;
+  bool has_kspace = false;
   bool has_temperatures = false;
   bool has_replica_mapping = false;
   bool has_temperature_mapping = false;
@@ -944,7 +952,7 @@ void REMD_Driver::read_restart_metadata()
       input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     } else if (key == "format_version") {
       int version = 0;
-      if (has_version || !(input >> version) || version != 3)
+      if (has_version || !(input >> version) || version != 4)
         PRINT_INPUT_ERROR("Unsupported REMD restart format_version.");
       has_version = true;
     } else if (key == "mode") {
@@ -986,6 +994,11 @@ void REMD_Driver::read_restart_metadata()
       if (has_hash || !(input >> value) || value != potential_hash_)
         PRINT_INPUT_ERROR("REMD restart potential file does not match the input.");
       has_hash = true;
+    } else if (key == "kspace") {
+      std::string value;
+      if (has_kspace || !(input >> value) || value != kspace_method_)
+        PRINT_INPUT_ERROR("REMD restart kspace does not match the input.");
+      has_kspace = true;
     } else if (key == "temperatures") {
       if (has_temperatures)
         PRINT_INPUT_ERROR("REMD restart repeats temperatures.");
@@ -1061,7 +1074,7 @@ void REMD_Driver::read_restart_metadata()
 
   if (!has_version || !has_mode || !has_replicas || !has_completed_steps ||
       !has_exchange_count || !has_exchange_interval || !has_time_step ||
-      !has_coupling || !has_hash || !has_temperatures || !has_replica_mapping ||
+      !has_coupling || !has_hash || !has_kspace || !has_temperatures || !has_replica_mapping ||
       !has_temperature_mapping || !has_attempts || !has_accepts ||
       !has_probability || !has_exchange_rng ||
       std::find(has_bdp.begin(), has_bdp.end(), false) != has_bdp.end())
@@ -1271,6 +1284,7 @@ void replica::run_remd(
   const std::vector<std::string>& ensemble_command,
   const std::vector<std::string>& multi_replica_command,
   const std::vector<std::string>& dump_xyz_command,
+  const std::string& kspace_method,
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group,
@@ -1282,6 +1296,7 @@ void replica::run_remd(
     ensemble_command,
     multi_replica_command,
     dump_xyz_command,
+    kspace_method,
     source_atom,
     source_box,
     source_group,

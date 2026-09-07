@@ -133,6 +133,7 @@ public:
 
   Replica_Runtime(
     const std::vector<std::vector<std::string>>& potential_commands,
+    const std::string& kspace_method,
     Atom& source_atom,
     Box& source_box,
     std::vector<Group>& source_group,
@@ -157,6 +158,7 @@ public:
 
 private:
   const std::vector<std::vector<std::string>>& potential_commands_;
+  std::string kspace_method_;
   Atom& source_atom_;
   Box& source_box_;
   std::vector<Group>& source_group_;

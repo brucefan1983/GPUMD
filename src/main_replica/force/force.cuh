@@ -32,8 +32,9 @@ public:
   Force();
   ~Force();
 
-  void
-  parse_potential(const char** param, int num_param, const Box& box, const int number_of_atoms);
+  void parse_potential(
+    const char** param, int num_param, const Box& box,
+    int number_of_atoms, bool use_pppm);
 
   void clear();
   bool has_potential() const;
@@ -67,4 +68,5 @@ private:
   std::map<gpuStream_t, std::unique_ptr<NEP_Charge>> charge_potentials_;
   std::string potential_file_;
   int number_of_atoms_ = 0;
+  bool use_pppm_ = true;
 };

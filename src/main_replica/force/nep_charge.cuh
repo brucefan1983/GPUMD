@@ -124,6 +124,7 @@ public:
     const char* file_potential,
     const int num_atoms,
     const gpuStream_t stream,
+    const bool use_pppm,
     const bool verbose);
   virtual ~NEP_Charge(void);
   virtual void compute(
@@ -171,7 +172,6 @@ private:
     GPU_Vector<double>& virial);
 
   bool use_pppm = true; // use PPPM by default
-  void check_ewald_pppm();
   gpuStream_t stream_ = nullptr;
   bool verbose_ = true;
   int large_box_calls_ = 0;

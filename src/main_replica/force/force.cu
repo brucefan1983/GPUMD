@@ -115,7 +115,8 @@ Force::Force() = default;
 Force::~Force() = default;
 
 void Force::parse_potential(
-  const char** param, const int num_param, const Box& box, const int number_of_atoms)
+  const char** param, const int num_param, const Box& box,
+  const int number_of_atoms, const bool use_pppm)
 {
   (void)box;
   if (num_param != 2)
@@ -126,6 +127,7 @@ void Force::parse_potential(
   const std::string potential_name = read_potential_name(param[1]);
   potential_file_ = param[1];
   number_of_atoms_ = number_of_atoms;
+  use_pppm_ = use_pppm;
   if (is_energy_nep(potential_name.c_str())) {
     model_type_ = Model_Type::energy_nep;
     potential_.reset(new NEP(param[1], number_of_atoms, false));
@@ -165,6 +167,7 @@ void Force::prepare_stream(const gpuStream_t stream)
       potential_file_.c_str(),
       number_of_atoms_,
       stream,
+      use_pppm_,
       charge_potentials_.empty()));
     potential->N1 = 0;
     potential->N2 = number_of_atoms_;
