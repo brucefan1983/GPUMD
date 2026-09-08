@@ -158,17 +158,9 @@ void Parameters::read_nep_in()
   }
 
   while (input.peek() != EOF) {
-    std::vector<std::string> tokens = get_tokens(input);
-    std::vector<std::string> tokens_without_comments;
-    for (const auto& t : tokens) {
-      if (t[0] != '#') {
-        tokens_without_comments.emplace_back(t);
-      } else {
-        break;
-      }
-    }
-    if (tokens_without_comments.size() > 0) {
-      parse_one_keyword(tokens_without_comments);
+    std::vector<std::string> tokens = get_tokens_without_comments(input);
+    if (tokens.size() > 0) {
+      parse_one_keyword(tokens);
     }
   }
 
