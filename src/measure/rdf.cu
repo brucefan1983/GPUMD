@@ -132,6 +132,14 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   const double rc_inv_cell_list = 2.0 / rdf_para.rc;
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
+  // The RDF kernel visits five cells in each periodic direction.
+  if (
+    (box.pbc_x && num_bins[0] < 5) || (box.pbc_y && num_bins[1] < 5) ||
+    (box.pbc_z && num_bins[2] < 5)) {
+    PRINT_INPUT_ERROR(
+      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
+      "Please increase the box size or reduce the RDF cutoff.");
+  }
   find_cell_list(
     rc_cell_list,
     num_bins,
@@ -279,16 +287,6 @@ void RDF::parse(
   }
   if (rdf_para.rc <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
-  }
-  double thickness_half[3] = {
-    box.get_volume() / box.get_area(0) / 2.5,
-    box.get_volume() / box.get_area(1) / 2.5,
-    box.get_volume() / box.get_area(2) / 2.5};
-  if (rdf_para.rc > thickness_half[0] || rdf_para.rc > thickness_half[1] || rdf_para.rc > thickness_half[2]) {
-    std::string message =
-      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
-      "                Please increase the periodic direction(s).\n";
-    PRINT_INPUT_ERROR(message.c_str());
   }
   printf("    radial cutoff %g.\n", rdf_para.rc);
 
