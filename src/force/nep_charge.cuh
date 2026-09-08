@@ -178,6 +178,8 @@ private:
 
   void find_k_and_G(const double* box);
 
+  bool need_bec = false;
+  bool check_need_bec();
   bool use_pppm = true; // use PPPM by default
   void check_ewald_pppm();
   bool has_dftd3 = false;

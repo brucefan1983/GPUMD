@@ -77,6 +77,50 @@ void NEP_Charge::check_ewald_pppm()
   input_run.close();
 }
 
+bool NEP_Charge::check_need_bec()
+{
+  bool need_bec = false;
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "compute_dpdt") {
+        need_bec = true;
+        break;
+      }
+
+      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
+        for (int n = 3; n < tokens.size(); ++n) {
+          if (tokens[n] == "bec") {
+            need_bec = true;
+            break;
+          }
+        }
+        if (need_bec) {
+          break;
+        }
+      }
+
+      if (tokens[0] == "add_efield") {
+        if (
+          tokens.size() == 4 || tokens.size() == 6 ||
+          ((tokens.size() == 5 || tokens.size() == 7) && tokens.back() == "bec")) {
+          need_bec = true;
+          break;
+        }
+      }
+    }
+  }
+
+  input_run.close();
+  return need_bec;
+}
+
 void NEP_Charge::initialize_dftd3()
 {
   std::ifstream input_run("run.in");
@@ -355,6 +399,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   check_ewald_pppm();
+  need_bec = check_need_bec();
   if (use_pppm) {
     pppm.initialize(charge_para.alpha);
   } else {
@@ -367,7 +412,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
-  nep_data.bec.resize(num_atoms * 9);
+  if (need_bec) {
+    nep_data.bec.resize(num_atoms * 9);
+  }
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
@@ -1377,7 +1424,7 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
+  if (need_bec) {
     // get BEC (the diagonal part)
     find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
       N,
@@ -1653,7 +1700,7 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
+  if (need_bec) {
     // get BEC (the diagonal part)
     find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
       N,
