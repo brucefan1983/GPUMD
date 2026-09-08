@@ -77,9 +77,9 @@ void NEP_Charge::check_ewald_pppm()
   input_run.close();
 }
 
-bool NEP_Charge::check_need_bec()
+void NEP_Charge::check_need_bec()
 {
-  bool need_bec = false;
+  need_bec = false;
   std::ifstream input_run("run.in");
   if (!input_run.is_open()) {
     PRINT_INPUT_ERROR("Cannot open run.in.");
@@ -130,7 +130,6 @@ bool NEP_Charge::check_need_bec()
   }
 
   input_run.close();
-  return need_bec;
 }
 
 void NEP_Charge::initialize_dftd3()
@@ -411,7 +410,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   check_ewald_pppm();
-  need_bec = check_need_bec();
+  check_need_bec();
   if (use_pppm) {
     pppm.initialize(charge_para.alpha);
   } else {
