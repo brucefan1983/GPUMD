@@ -53,7 +53,7 @@ void NEP::initialize_dftd3()
   has_dftd3 = false;
   std::string line;
   while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
+    std::vector<std::string> tokens = get_tokens_without_comments(line);
     if (tokens.size() != 0) {
       if (tokens[0] == "dftd3") {
         has_dftd3 = true;
