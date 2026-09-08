@@ -88,15 +88,26 @@ bool NEP_Charge::check_need_bec()
   std::string line;
   while (std::getline(input_run, line)) {
     std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "compute_dpdt") {
+    std::vector<std::string> tokens_without_comments;
+    for (const auto& t : tokens) {
+      if (t[0] != '#') {
+        tokens_without_comments.emplace_back(t);
+      } else {
+        break;
+      }
+    }
+
+    if (tokens_without_comments.size() != 0) {
+      if (tokens_without_comments[0] == "compute_dpdt") {
         need_bec = true;
         break;
       }
 
-      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
-        for (int n = 3; n < tokens.size(); ++n) {
-          if (tokens[n] == "bec") {
+      if (
+        tokens_without_comments[0] == "dump_xyz" ||
+        tokens_without_comments[0] == "dump_netcdf") {
+        for (int n = 3; n < tokens_without_comments.size(); ++n) {
+          if (tokens_without_comments[n] == "bec") {
             need_bec = true;
             break;
           }
@@ -106,10 +117,11 @@ bool NEP_Charge::check_need_bec()
         }
       }
 
-      if (tokens[0] == "add_efield") {
+      if (tokens_without_comments[0] == "add_efield") {
         if (
-          tokens.size() == 4 || tokens.size() == 6 ||
-          ((tokens.size() == 5 || tokens.size() == 7) && tokens.back() == "bec")) {
+          tokens_without_comments.size() == 4 || tokens_without_comments.size() == 6 ||
+          ((tokens_without_comments.size() == 5 || tokens_without_comments.size() == 7) &&
+           tokens_without_comments.back() == "bec")) {
           need_bec = true;
           break;
         }
