@@ -37,6 +37,10 @@ void Viscosity::pre_run(
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
+    if (Nc > number_of_frames) {
+      PRINT_INPUT_ERROR(
+        "The number of viscosity correlation steps should not exceed the number of sampled frames.\n");
+    }
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
   }
 }
@@ -281,10 +285,16 @@ void Viscosity::parse(const char** param, int num_param)
   if (!is_valid_int(param[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for viscosity should be an integer number.\n");
   }
+  if (sample_interval <= 0) {
+    PRINT_INPUT_ERROR("sample interval for viscosity should be positive.\n");
+  }
   printf("    sample interval is %d.\n", sample_interval);
 
   if (!is_valid_int(param[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for viscosity should be an integer number.\n");
+  }
+  if (Nc <= 0) {
+    PRINT_INPUT_ERROR("Nc for viscosity should be positive.\n");
   }
   printf("    Nc is %d\n", Nc);
 }

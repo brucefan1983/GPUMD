@@ -41,6 +41,10 @@ void HAC::pre_run(
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
+    if (Nc > number_of_frames) {
+      PRINT_INPUT_ERROR(
+        "The number of HAC correlation steps should not exceed the number of sampled frames.\n");
+    }
     heat_all.resize(NUM_OF_HEAT_COMPONENTS * number_of_frames);
     atom.heat_per_atom.resize(atom.number_of_atoms * 5);
   }
@@ -260,15 +264,24 @@ void HAC::parse(const char** param, int num_param)
   if (!is_valid_int(param[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for HAC should be an integer number.\n");
   }
+  if (sample_interval <= 0) {
+    PRINT_INPUT_ERROR("sample interval for HAC should be positive.\n");
+  }
   printf("    sample interval is %d.\n", sample_interval);
 
   if (!is_valid_int(param[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for HAC should be an integer number.\n");
   }
+  if (Nc <= 0) {
+    PRINT_INPUT_ERROR("Nc for HAC should be positive.\n");
+  }
   printf("    Nc is %d\n", Nc);
 
   if (!is_valid_int(param[3], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HAC should be an integer number.\n");
+  }
+  if (output_interval <= 0) {
+    PRINT_INPUT_ERROR("output_interval for HAC should be positive.\n");
   }
   printf("    output_interval is %d\n", output_interval);
 }

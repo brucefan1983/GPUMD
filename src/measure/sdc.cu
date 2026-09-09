@@ -141,6 +141,11 @@ void SDC::pre_run(
   if (!compute_)
     return;
 
+  if (num_correlation_steps_ > number_of_steps / sample_interval_) {
+    PRINT_INPUT_ERROR(
+      "The number of SDC correlation steps should not exceed the number of sampled frames.\n");
+  }
+
   num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
