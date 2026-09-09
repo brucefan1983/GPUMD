@@ -141,7 +141,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
   // re-scale the velocities
   double ek[1];
   thermo.copy_to_host(ek, 1);
-  int ndeg = 3 * (number_of_atoms - N_fixed);
+  int ndeg = 3 * (number_of_atoms - N_fixed) - removed_degrees_of_freedom;
   ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
   double sigma = ndeg * K_B * temperature * 0.5;
   double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling, rng);
@@ -211,7 +211,8 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
     fixed_group == -1 ? 0 : group[fixed_grouping_method].cpu_size[fixed_group];
   number_of_fixed_atoms +=
     move_group == -1 ? 0 : group[move_grouping_method].cpu_size[move_group];
-  const int ndeg = 3 * (number_of_atoms - number_of_fixed_atoms);
+  const int ndeg =
+    3 * (number_of_atoms - number_of_fixed_atoms) - removed_degrees_of_freedom;
   find_thermo(
     true,
     volume,

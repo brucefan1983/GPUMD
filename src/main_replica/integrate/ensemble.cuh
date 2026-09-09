@@ -89,6 +89,7 @@ public:
   int fixed_grouping_method = 0;
   int move_grouping_method = 0;
   double move_velocity[3];
+  int removed_degrees_of_freedom = 0; // e.g. three for PRD's zero COM momentum
   double temperature; // target temperature at a specific time
   double delta_temperature;
   double target_pressure[6];

@@ -29,6 +29,8 @@ If DEBUG is off, the velocities are different in different runs.
 #include "velocity.cuh"
 #include <vector>
 #include <cstring>
+#include <cmath>
+#include <random>
 
 void Velocity::scale(
   const double initial_temperature,
@@ -92,6 +94,35 @@ static void zero_linear_momentum(const int N, const double* m, double* vx, doubl
     vy[n] -= center_of_mass_velocity[1];
     vz[n] -= center_of_mass_velocity[2];
   }
+}
+
+void Velocity::generate_canonical(
+  const double temperature,
+  const std::vector<double>& mass,
+  std::vector<double>& velocity,
+  const unsigned int seed)
+{
+  if (mass.size() < 2 || !std::isfinite(temperature) || temperature <= 0.0)
+    PRINT_INPUT_ERROR("Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
+  for (const double m : mass) {
+    if (!std::isfinite(m) || m <= 0.0)
+      PRINT_INPUT_ERROR("Canonical velocity sampling requires positive finite masses.");
+  }
+
+  const int N = mass.size();
+  velocity.resize(3 * N);
+  // Keep the distribution local so no cached Gaussian survives a sampling call.
+  std::mt19937 rng(seed);
+  std::normal_distribution<double> gaussian(0.0, 1.0);
+  for (int n = 0; n < N; ++n) {
+    const double sigma = std::sqrt(K_B * temperature / mass[n]);
+    for (int d = 0; d < 3; ++d)
+      velocity[n + d * N] = sigma * gaussian(rng);
+  }
+  zero_linear_momentum(
+    N, mass.data(), velocity.data(), velocity.data() + N, velocity.data() + 2 * N);
+  // Do not remove angular momentum or rescale to a fixed kinetic energy:
+  // the constrained canonical distribution must retain its kinetic fluctuations.
 }
 
 static void get_center(

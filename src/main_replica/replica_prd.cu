@@ -60,7 +60,8 @@ using replica::values_match;
 
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
-constexpr int restart_format_version = 4;
+// Version 5 uses canonical velocities and excludes the three COM degrees of freedom.
+constexpr int restart_format_version = 5;
 
 void validate_append_event_file(const std::string& filename)
 {
@@ -130,13 +131,6 @@ void validate_append_trajectory_file(
       value != "prd_event")
     PRINT_INPUT_ERROR(
       "PRD cannot append to an incompatible event trajectory.");
-}
-
-int make_positive_seed(const unsigned int seed)
-{
-  const unsigned int limit =
-    static_cast<unsigned int>(std::numeric_limits<int>::max() - 1);
-  return static_cast<int>(seed % limit) + 1;
 }
 
 struct PRD_Config {
@@ -522,8 +516,8 @@ void PRD_Driver::validate_input()
 {
   if (number_of_steps_ <= 0)
     PRINT_INPUT_ERROR("PRD run steps should be positive.");
-  if (source_atom_.number_of_atoms <= 0)
-    PRINT_INPUT_ERROR("PRD requires a non-empty model.");
+  if (source_atom_.number_of_atoms < 2)
+    PRINT_INPUT_ERROR("PRD requires at least two atoms after removing center-of-mass motion.");
   double minimum_periodic_thickness =
     std::numeric_limits<double>::infinity();
   if (source_box_.pbc_x)
@@ -677,20 +671,20 @@ void PRD_Driver::initialize_slot(Replica_Slot& slot)
     slot.atom.velocity_per_atom.copy_from_host(
       slot.atom.cpu_velocity_per_atom.data());
   } else {
-    Velocity velocity;
-    velocity.initialize(
-      false,
+    Velocity::generate_canonical(
       temperature_,
-      slot.atom,
-      true,
-      make_positive_seed(
-        config_.internal_seed + 104729U * (slot.replica_id + 1U)));
+      slot.atom.cpu_mass,
+      slot.atom.cpu_velocity_per_atom,
+      config_.internal_seed + 104729U * (slot.replica_id + 1U));
+    slot.atom.velocity_per_atom.copy_from_host(
+      slot.atom.cpu_velocity_per_atom.data());
   }
 
   slot.target_temperature = temperature_;
   double move_velocity[3] = {0.0, 0.0, 0.0};
   slot.thermostat.reset(new Ensemble_BDP(
     4, -1, move_velocity, temperature_, temperature_coupling_));
+  slot.thermostat->removed_degrees_of_freedom = 3;
   if (config_.resume) {
     if (!slot.thermostat->import_rng_state(
           restart_bdp_states_[slot.replica_id]))
@@ -939,15 +933,13 @@ void PRD_Driver::randomize_velocities(
   for (const int replica_id : replica_ids) {
     Replica_Slot& slot = *runtime_.slots()[replica_id];
     CHECK(gpuSetDevice(slot.device_id));
-    slot.atom.position_per_atom.copy_to_host(
-      slot.atom.cpu_position_per_atom.data());
-    Velocity velocity;
-    velocity.initialize(
-      false,
+    Velocity::generate_canonical(
       temperature_,
-      slot.atom,
-      true,
+      slot.atom.cpu_mass,
+      slot.atom.cpu_velocity_per_atom,
       seed_distribution(dephase_rng_));
+    slot.atom.velocity_per_atom.copy_from_host(
+      slot.atom.cpu_velocity_per_atom.data());
   }
 }
 

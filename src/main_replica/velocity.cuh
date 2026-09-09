@@ -18,6 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
+class Atom;
 class Group;
 
 class Velocity
@@ -26,6 +27,13 @@ public:
   bool do_velocity_correction = false;
   int velocity_correction_interval = 1000;
   int velocity_correction_group_method = -1;
+
+  // Canonical velocities conditioned on zero total linear momentum (3N - 3 DOF).
+  static void generate_canonical(
+    double temperature,
+    const std::vector<double>& mass,
+    std::vector<double>& velocity,
+    unsigned int seed);
 
   void initialize(
     const bool has_velocity_in_xyz,

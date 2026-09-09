@@ -454,7 +454,7 @@ void Ensemble::velocity_verlet_cg(
 // g_thermo[0-7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 static __global__ void gpu_find_thermo_instant_temperature(
   const int N,
-  const int N_temperature,
+  const int degrees_of_freedom,
   const double T,
   const double volume,
   const double* g_mass,
@@ -500,7 +500,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
         __syncthreads();
       }
       if (tid == 0) {
-        g_thermo[0] = s_data[0] / (DIM * N_temperature * K_B);
+        g_thermo[0] = s_data[0] / (degrees_of_freedom * K_B);
       }
       break;
       // potential energy
@@ -696,9 +696,14 @@ void Ensemble::find_thermo(
     num_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
   }
 
+  const int degrees_of_freedom =
+    DIM * num_atoms_for_temperature - removed_degrees_of_freedom;
+  if (degrees_of_freedom <= 0)
+    PRINT_INPUT_ERROR("Temperature calculation requires positive degrees of freedom.");
+
   gpu_find_thermo_instant_temperature<<<8, 1024, 0, stream>>>(
     number_of_atoms,
-    num_atoms_for_temperature,
+    degrees_of_freedom,
     temperature,
     volume,
     mass.data(),
