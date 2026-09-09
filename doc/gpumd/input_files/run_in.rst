@@ -49,10 +49,18 @@ Simulation setup
      - Brief description
      - Exec.
      - Prop.
+   * - :ref:`replicate <kw_replicate>`
+     - Replicate the simulation model
+     - Yes
+     - N/A
    * - :ref:`velocity <kw_velocity>`
      - Set the initial velocities
      - Yes
      - N/A
+   * - :ref:`correct_velocity <kw_correct_velocity>`
+     - Remove linear and angular momenta at regular intervals
+     - No
+     - No
    * - :ref:`potential <kw_potential>`
      - Set up the interaction model
      - Yes
@@ -61,6 +69,14 @@ Simulation setup
      - Add the DFT-D3 dispersion correction to the NEP model
      - Yes
      - N/A
+   * - :ref:`kspace <kw_kspace>`
+     - Specify the reciprocal-space method used by the interaction model
+     - Yes
+     - N/A
+   * - :ref:`compute_extrapolation <kw_compute_extrapolation>`
+     - Monitor the NEP extrapolation grade during an :term:`MD` run
+     - No
+     - No
    * - :ref:`change_box <kw_change_box>`
      - Change the box
      - Yes
@@ -69,18 +85,50 @@ Simulation setup
      - Deform the simulation box
      - No
      - No
+   * - :ref:`time_step <kw_time_step>`
+     - Specify the integration time step
+     - No
+     - Yes
    * - :ref:`ensemble <kw_ensemble>`
      - Specify the integrator for a :term:`MD` run
+     - No
+     - No
+   * - :ref:`add_force <kw_add_force>`
+     - Add external forces to selected atoms
+     - No
+     - No
+   * - :ref:`add_efield <kw_add_efield>`
+     - Apply an electric field to selected atoms
+     - No
+     - No
+   * - :ref:`add_spring <kw_add_spring>`
+     - Add spring interactions to selected atom groups
+     - No
+     - No
+   * - :ref:`deposit <kw_deposit>`
+     - Add atoms periodically during a deposition run
+     - No
+     - No
+   * - :ref:`electron_stop <kw_electron_stop>`
+     - Apply electronic stopping forces to high-energy atoms
      - No
      - No
    * - :ref:`fix <kw_fix>`
      - Fix (freeze) atoms
      - No
      - No
-   * - :ref:`time_step <kw_time_step>`
-     - Specify the integration time step
+   * - :ref:`move <kw_move>`
+     - Move selected atoms with a constant velocity
      - No
-     - Yes
+     - No
+   * - :ref:`mc <kw_mc>`
+     - Carry out Monte Carlo trial steps during an :term:`MD` run
+     - No
+     - No
+   * - :ref:`plumed <kw_plumed>`
+     - Invoke the PLUMED plugin during an :term:`MD` run
+     - No
+     - No
 
 Actions
 ^^^^^^^

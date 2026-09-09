@@ -1,3 +1,4 @@
+.. _kw_correct_velocity:
 .. index::
    single: correct_velocity (keyword in run.in)
 
