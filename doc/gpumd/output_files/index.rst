@@ -168,11 +168,11 @@ Output files
    * - :ref:`shock-wave histogram files <shock_nemd_hist_out>`
      - :ref:`dump_shock_nemd <kw_dump_shock_nemd>`
      - ``temperature_hist.txt``, stress, density, and particle-velocity profiles
-     - Append
+     - Overwrite
    * - ``spring_gm*_g*_s*.out`` (:ref:`details <kw_add_spring>`)
      - :ref:`add_spring <kw_add_spring>`
      - Spring force and energy data
-     - Append
+     - New file; append with ``continue``
    * - ``spring_gm*_g*_s*.restart`` (:ref:`details <kw_add_spring>`)
      - :ref:`add_spring <kw_add_spring>`
      - Ghost-spring restart state

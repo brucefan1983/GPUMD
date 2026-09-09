@@ -100,7 +100,7 @@ Keywords
 Consistency with model files already present
 --------------------------------------------
 
-A training run writes :ref:`nep.txt <nep_txt>` every :ref:`output_interval <kw_output_interval>` generations, and :ref:`nep.restart <nep_restart>` every 100 generations, which is a fixed interval and not affected by :ref:`output_interval <kw_output_interval>`.
+A training run writes both :ref:`nep.txt <nep_txt>` and :ref:`nep.restart <nep_restart>` every :ref:`output_interval <kw_output_interval>` generations.
 A later run started in the same directory therefore finds these files, and :program:`nep` checks that the model they describe is the one that :attr:`nep.in` asks for.
 Both the values given explicitly in :attr:`nep.in` and the defaults filled in for the keywords that are omitted take part in this comparison.
 
