@@ -104,6 +104,18 @@ Actions
      - Compute some time and space-averaged quantities
      - No
      - No
+   * - :ref:`compute_chunk <kw_compute_chunk>`
+     - Compute time-averaged quantities in dynamic spatial bins
+     - No
+     - No
+   * - :ref:`compute_adf <kw_compute_adf>`
+     - Compute the angular distribution function (:term:`ADF`)
+     - No
+     - No
+   * - :ref:`compute_angular_rdf <kw_compute_angular_rdf>`
+     - Compute the angular-dependent radial distribution function (:term:`ARDF`)
+     - No
+     - No
    * - :ref:`compute_cohesive <kw_compute_cohesive>`
      - Compute the cohesive energy curve
      - Yes
@@ -116,12 +128,20 @@ Actions
      - Compute the phonon density of states (:term:`PDOS`)
      - No
      - No
+   * - :ref:`compute_dpdt <kw_compute_dpdt>`
+     - Compute the time derivative of the polarization
+     - No
+     - No
    * - :ref:`compute_gkma <kw_compute_gkma>`
      - Compute the modal heat current using the :term:`GKMA` method
      - No
      - No
    * - :ref:`compute_hac <kw_compute_hac>`
      - Compute the thermal conductivity using the :term:`EMD` method
+     - No
+     - No
+   * - :ref:`compute_ic <kw_compute_ic>`
+     - Compute the ionic conductivity (:term:`IC`)
      - No
      - No
    * - :ref:`compute_hnema <kw_compute_hnema>`
@@ -136,6 +156,10 @@ Actions
      - Compute the multicomponent system thermal conductivity using the :term:`HNEMDEC` method
      - No
      - No
+   * - :ref:`compute_orientorder <kw_compute_orientorder>`
+     - Compute Steinhardt bond-orientational order parameters
+     - No
+     - No
    * - :ref:`compute_phonon <kw_compute_phonon>`
      - Compute the phonon dispersion
      - Yes
@@ -148,8 +172,20 @@ Actions
      - Compute the mean-square displacement (:term:`MSD`)
      - No
      - No
+   * - :ref:`compute_rdf <kw_compute_rdf>`
+     - Compute the radial distribution function (:term:`RDF`)
+     - No
+     - No
    * - :ref:`compute_shc <kw_compute_shc>`
      - Compute the spectral heat current (:term:`SHC`)
+     - No
+     - No
+   * - :ref:`compute_viscosity <kw_compute_viscosity>`
+     - Compute the stress autocorrelation function and viscosity
+     - No
+     - No
+   * - :ref:`compute_lsqt <kw_compute_lsqt>`
+     - Compute electronic transport properties using the :term:`LSQT` method
      - No
      - No
 
@@ -167,8 +203,20 @@ Output
      - Run on-the-fly active learning, saving structures that exceeds a set threshold maximum force uncertainty over all specified NEP potentials.
      - No
      - No
+   * - :ref:`dump_beads <kw_dump_beads>`
+     - Write bead-resolved positions and optional velocities and forces for :term:`PIMD`-related runs
+     - No
+     - No
+   * - :ref:`dump_dipole <kw_dump_dipole>`
+     - Write dipoles predicted by a separate tensorial NEP model
+     - No
+     - No
    * - :ref:`dump_observer <kw_dump_observer>`
      - Write positions and other quantities for each of the observing NEP potentials, or the average of them, in the extended XYZ format.
+     - No
+     - No
+   * - :ref:`dump_polarizability <kw_dump_polarizability>`
+     - Write polarizabilities predicted by a separate tensorial NEP model
      - No
      - No
    * - :ref:`dump_netcdf <kw_dump_netcdf>`
@@ -177,6 +225,10 @@ Output
      - No
    * - :ref:`dump_restart <kw_dump_restart>`
      - Write a restart file
+     - No
+     - No
+   * - :ref:`dump_shock_nemd <kw_dump_shock_nemd>`
+     - Write spatial thermodynamic profiles for shock-wave NEMD simulations
      - No
      - No
    * - :ref:`dump_thermo <kw_dump_thermo>`

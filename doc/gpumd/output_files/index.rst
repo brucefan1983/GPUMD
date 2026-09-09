@@ -53,6 +53,10 @@ Output files
      - :ref:`compute <kw_compute>`
      - Time and space (group) averaged quantities
      - Append
+   * - :ref:`compute_chunk.out <compute_chunk_out>`
+     - :ref:`compute_chunk <kw_compute_chunk>`
+     - Time-averaged quantities in dynamic spatial bins
+     - Append
    * - :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`
      - :ref:`ensemble <kw_ensemble>` with :attr:`ttm` or :attr:`heat_ttm`
      - Electron temperature snapshots on the TTM grid
