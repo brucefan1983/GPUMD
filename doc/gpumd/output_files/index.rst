@@ -49,9 +49,25 @@ Output files
      - :ref:`dump_polarizability <kw_dump_polarizability>`
      - Predicted polarizability
      - Append
+   * - ``beads_dump_<k>.xyz`` (:ref:`details <kw_dump_beads>`)
+     - :ref:`dump_beads <kw_dump_beads>`
+     - Per-bead trajectories for PIMD-related runs
+     - Append
    * - :ref:`compute.out <compute_out>`
      - :ref:`compute <kw_compute>`
      - Time and space (group) averaged quantities
+     - Append
+   * - :ref:`compute_chunk.out <compute_chunk_out>`
+     - :ref:`compute_chunk <kw_compute_chunk>`
+     - Time-averaged quantities in dynamic spatial bins
+     - Append
+   * - :ref:`elastic.out <elastic_out>`
+     - :ref:`compute_elastic <kw_compute_elastic>`
+     - Elastic constants
+     - Overwrite
+   * - :ref:`extrapolation_dump.xyz <extrapolation_dump_xyz>`
+     - :ref:`compute_extrapolation <kw_compute_extrapolation>`
+     - Structures selected by the NEP extrapolation grade
      - Append
    * - :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`
      - :ref:`ensemble <kw_ensemble>` with :attr:`ttm` or :attr:`heat_ttm`
@@ -149,6 +165,22 @@ Output files
      - :ref:`compute_orientorder <kw_compute_orientorder>`
      - Steinhardt bond-orientational order parameters
      - Append
+   * - :ref:`shock-wave histogram files <shock_nemd_hist_out>`
+     - :ref:`dump_shock_nemd <kw_dump_shock_nemd>`
+     - ``temperature_hist.txt``, stress, density, and particle-velocity profiles
+     - Overwrite
+   * - ``spring_gm*_g*_s*.out`` (:ref:`details <kw_add_spring>`)
+     - :ref:`add_spring <kw_add_spring>`
+     - Spring force and energy data
+     - New file; append with ``continue``
+   * - ``spring_gm*_g*_s*.restart`` (:ref:`details <kw_add_spring>`)
+     - :ref:`add_spring <kw_add_spring>`
+     - Ghost-spring restart state
+     - Overwrite
+   * - ``deposited_N.xyz`` (:ref:`details <kw_deposit>`)
+     - :ref:`deposit <kw_deposit>`
+     - Structure after each deposition sub-run
+     - One file per sub-run
 
 .. toctree::
    :maxdepth: 0
