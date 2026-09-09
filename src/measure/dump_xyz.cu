@@ -57,7 +57,11 @@ Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& 
   is_nep_charge = check_is_nep_charge();
 
   parse(param, num_param, groups);
-  atom.enable_unwrapped_position();
+
+  if (quantities.has_unwrapped_position_) {
+    atom.enable_unwrapped_position();
+  }
+
   action_name = "dump_xyz";
 }
 
