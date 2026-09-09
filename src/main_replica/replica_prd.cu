@@ -667,18 +667,18 @@ void PRD_Driver::initialize_slot(Replica_Slot& slot)
   if (config_.resume)
     read_restart_xyz(slot);
   allocate_memory_gpu(slot.group, slot.atom, slot.thermo);
-  if (config_.resume) {
-    slot.atom.velocity_per_atom.copy_from_host(
-      slot.atom.cpu_velocity_per_atom.data());
-  } else {
+  if (!config_.resume) {
     Velocity::generate_canonical(
       temperature_,
       slot.atom.cpu_mass,
       slot.atom.cpu_velocity_per_atom,
       config_.internal_seed + 104729U * (slot.replica_id + 1U));
-    slot.atom.velocity_per_atom.copy_from_host(
-      slot.atom.cpu_velocity_per_atom.data());
   }
+  slot.atom.velocity_per_atom.copy_from_host_async(
+    slot.atom.cpu_velocity_per_atom.data(), slot.stream.get());
+  // Finish reading the host buffer before initialization returns, for both
+  // freshly sampled velocities and velocities restored from a restart.
+  slot.stream.synchronize();
 
   slot.target_temperature = temperature_;
   double move_velocity[3] = {0.0, 0.0, 0.0};
@@ -938,9 +938,13 @@ void PRD_Driver::randomize_velocities(
       slot.atom.cpu_mass,
       slot.atom.cpu_velocity_per_atom,
       seed_distribution(dephase_rng_));
-    slot.atom.velocity_per_atom.copy_from_host(
-      slot.atom.cpu_velocity_per_atom.data());
+    slot.atom.velocity_per_atom.copy_from_host_async(
+      slot.atom.cpu_velocity_per_atom.data(), slot.stream.get());
   }
+  // Each slot owns its host buffer. Complete all uploads before returning so
+  // later sampling or restart output can safely overwrite those buffers.
+  for (const int replica_id : replica_ids)
+    runtime_.slots()[replica_id]->stream.synchronize();
 }
 
 void PRD_Driver::dephase()
