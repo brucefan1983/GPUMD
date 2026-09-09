@@ -96,7 +96,7 @@ void Dump_Restart::end_of_step(
 
   fprintf(
     fid,
-    "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
+    "Lattice=\"%.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\" ",
     box.cpu_h[0],
     box.cpu_h[3],
     box.cpu_h[6],
@@ -117,7 +117,7 @@ void Dump_Restart::end_of_step(
     const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
     fprintf(
       fid,
-      "%s %g %g %g %g %g %g %g ",
+      "%s %.17g %.17g %.17g %.17g %.17g %.17g %.17g ",
       atom.cpu_atom_symbol[n].c_str(),
       atom.cpu_position_per_atom[n],
       atom.cpu_position_per_atom[n + number_of_atoms],
