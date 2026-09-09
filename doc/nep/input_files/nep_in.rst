@@ -5,9 +5,9 @@
 ``nep.in``
 ==========
 
-This file specifies hyperparameters used for training neuroevolution potential (:term:`NEP`) models, the functional form of which is outline :ref:`here <nep_formalism>`.
+This file specifies hyperparameters used for training neuroevolution potential (:term:`NEP`) models, the functional form of which is outlined :ref:`here <nep_formalism>`.
 The :term:`NEP` approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4).
-Currently, we support NEP3 and NEP4, which can be chosen by the :ref:`version keyword <kw_version>`.
+Currently, only NEP4 is supported; the :ref:`version keyword <kw_version>` therefore only accepts ``4``.
 
 File format
 -----------
@@ -35,7 +35,7 @@ Keywords
    * - Keyword
      - Brief description
    * - :ref:`version <kw_version>`
-     - select the NEP version
+     - select the NEP version (currently only NEP4)
    * - :ref:`type <kw_type>`
      - number of atom types and list of chemical species
    * - :ref:`type_weight <kw_type_weight>`
@@ -48,6 +48,8 @@ Keywords
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
+   * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
+     - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
      - radial (:math:`r_\mathrm{c}^\mathrm{R}`) and angular (:math:`r_\mathrm{c}^\mathrm{A}`) cutoffs
    * - :ref:`n_max <kw_n_max>`
@@ -60,7 +62,7 @@ Keywords
      - number of neurons in the hidden layer (:math:`N_\mathrm{neu}`)
    * - :ref:`lambda_1 <kw_lambda_1>`
      - weight of :math:`\mathcal{L}_1`-norm regularization term
-   * - :ref:`lambda_2 <kw_lambda_1>`
+   * - :ref:`lambda_2 <kw_lambda_2>`
      - weight of :math:`\mathcal{L}_2`-norm regularization term
    * - :ref:`lambda_e <kw_lambda_e>`
      - weight of energy loss term
@@ -68,8 +70,14 @@ Keywords
      - weight of force loss term
    * - :ref:`lambda_v <kw_lambda_v>`
      - weight of virial loss term
+   * - :ref:`lambda_q <kw_lambda_q>`
+     - weight of total-charge loss term for qNEP models
+   * - :ref:`lambda_z <kw_lambda_z>`
+     - weight of Born-effective-charge loss term for qNEP models
    * - :ref:`atomic_v <kw_atomic_v>`
      - fit atomic or global virial
+   * - :ref:`lambda_shear <kw_lambda_shear>`
+     - extra weight of shear-virial loss terms
    * - :ref:`force_delta <kw_force_delta>`
      - bias term that can be used to make smaller forces more accurate
    * - :ref:`batch <kw_batch>`
@@ -78,6 +86,16 @@ Keywords
      - population size used in the :term:`SNES` algorithm [Schaul2011]_
    * - :ref:`generation <kw_generation>`
      - number of generations used by the :term:`SNES` algorithm [Schaul2011]_
+   * - :ref:`save_potential <kw_save_potential>`
+     - periodically save model checkpoints and, optionally, restart checkpoints
+   * - :ref:`output_interval <kw_output_interval>`
+     - interval between regular training-status and model/test-set outputs
+   * - :ref:`output_descriptor <kw_output_descriptor>`
+     - output normalized descriptors in prediction mode
+   * - :ref:`fine_tune <kw_fine_tune>`
+     - fine tune a model starting from a foundation model
+   * - :ref:`import_q_scaler <kw_import_q_scaler>`
+     - import descriptor normalization factors from an existing ``nep.txt``
 
 Consistency with model files already present
 --------------------------------------------
