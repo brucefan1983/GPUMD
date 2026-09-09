@@ -27,6 +27,8 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
   for (int i = 0; i < 3; i++) {
     if (!is_valid_int(param[i + 1], r + i))
       PRINT_INPUT_ERROR("Number of replications should be an integer.");
+    if (r[i] <= 0)
+      PRINT_INPUT_ERROR("Number of replications should be positive.");
   }
   // repeat atom and group
   Atom new_atoms;

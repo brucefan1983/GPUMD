@@ -36,7 +36,7 @@ static __device__ __inline__ double atomicAdd(double* address, double val)
 
 static __global__ void gpu_com(
   int N,
-  int avg_window,
+  double bin_size,
   double* g_mass,
   double* g_x,
   double* g_vx,
@@ -50,15 +50,15 @@ static __global__ void gpu_com(
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   double mass, vx, vy, vz;
   if (i < N) {
-    int l = (int)(g_x[i] / avg_window);
+    const int bin = static_cast<int>(g_x[i] / bin_size);
     mass = g_mass[i];
     vx = g_vx[i];
     vy = g_vy[i];
     vz = g_vz[i];
-    atomicAdd(&com_vx_data[l], vx * mass);
-    atomicAdd(&com_vy_data[l], vy * mass);
-    atomicAdd(&com_vz_data[l], vz * mass);
-    atomicAdd(&density_data[l], mass);
+    atomicAdd(&com_vx_data[bin], vx * mass);
+    atomicAdd(&com_vy_data[bin], vy * mass);
+    atomicAdd(&com_vz_data[bin], vz * mass);
+    atomicAdd(&density_data[bin], mass);
   }
 }
 
@@ -75,7 +75,7 @@ static __global__ void gpu_calc1(
 
 static __global__ void gpu_thermo(
   int N,
-  double avg_window,
+  double bin_size,
   double* g_x,
   double* g_mass,
   double* g_vx,
@@ -96,16 +96,16 @@ static __global__ void gpu_thermo(
   double mass, vx, vy, vz;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    int l = (int)(g_x[i] / avg_window);
+    const int bin = static_cast<int>(g_x[i] / bin_size);
     mass = g_mass[i];
-    vx = g_vx[i] - com_vx_data[l];
-    vy = g_vy[i] - com_vy_data[l];
-    vz = g_vz[i] - com_vz_data[l];
-    atomicAdd(&temp_data[l], (vx * vx + vy * vy + vz * vz) * mass);
-    atomicAdd(&pxx_data[l], g_pxx[i] + vx * vx * mass);
-    atomicAdd(&pyy_data[l], g_pyy[i] + vy * vy * mass);
-    atomicAdd(&pzz_data[l], g_pzz[i] + vz * vz * mass);
-    atomicAdd(&number_data[l], 1);
+    vx = g_vx[i] - com_vx_data[bin];
+    vy = g_vy[i] - com_vy_data[bin];
+    vz = g_vz[i] - com_vz_data[bin];
+    atomicAdd(&temp_data[bin], (vx * vx + vy * vy + vz * vz) * mass);
+    atomicAdd(&pxx_data[bin], g_pxx[i] + vx * vx * mass);
+    atomicAdd(&pyy_data[bin], g_pyy[i] + vy * vy * mass);
+    atomicAdd(&pzz_data[bin], g_pzz[i] + vz * vz * mass);
+    atomicAdd(&number_data[bin], 1);
   }
 }
 
@@ -131,12 +131,12 @@ static __global__ void gpu_calc2(
   }
 }
 
-void write_to_file(FILE* file, double* array, int n)
+void write_to_file(FILE* file, const double* array, int n)
 {
   for (int i = 0; i < n; i++)
     fprintf(file, "%f ", array[i]);
   fprintf(file, "\n");
-  fflush(stdout);
+  fflush(file);
 }
 
 } // namespace
@@ -152,20 +152,48 @@ void Dump_Shock_NEMD::parse(const char** param, int num_param)
   dump_ = true;
 
   printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
+  bool interval_seen = false;
+  bool bin_size_seen = false;
   int i = 1;
   while (i < num_param) {
     if (strcmp(param[i], "interval") == 0) {
-      if (!is_valid_int(param[i + 1], &dump_interval_))
-        PRINT_INPUT_ERROR("Dump interval should be an integer.");
+      if (interval_seen) {
+        PRINT_INPUT_ERROR("Option 'interval' is specified more than once in dump_shock_nemd.\n");
+      }
+      if (i + 1 >= num_param) {
+        PRINT_INPUT_ERROR("A value is required for option 'interval' in dump_shock_nemd.\n");
+      }
+      if (!is_valid_int(param[i + 1], &dump_interval_)) {
+        PRINT_INPUT_ERROR("Dump interval should be an integer.\n");
+      }
+      if (dump_interval_ <= 0) {
+        PRINT_INPUT_ERROR("Dump interval should be positive.\n");
+      }
+      interval_seen = true;
       i += 2;
     } else if (strcmp(param[i], "bin_size") == 0) {
-      if (!is_valid_real(param[i + 1], &avg_window))
-        PRINT_INPUT_ERROR("Wrong inputs for bin_size.");
+      if (bin_size_seen) {
+        PRINT_INPUT_ERROR("Option 'bin_size' is specified more than once in dump_shock_nemd.\n");
+      }
+      if (i + 1 >= num_param) {
+        PRINT_INPUT_ERROR("A value is required for option 'bin_size' in dump_shock_nemd.\n");
+      }
+      if (!is_valid_real(param[i + 1], &bin_size_)) {
+        PRINT_INPUT_ERROR("Bin size should be a real number.\n");
+      }
+      if (bin_size_ <= 0.0) {
+        PRINT_INPUT_ERROR("Bin size should be positive.\n");
+      }
+      bin_size_seen = true;
       i += 2;
     } else {
-      PRINT_INPUT_ERROR("Unknown keyword.");
+      PRINT_INPUT_ERROR("Unknown keyword in dump_shock_nemd.\n");
     }
   }
+  if (!interval_seen) {
+    PRINT_INPUT_ERROR("dump_shock_nemd requires option 'interval'.\n");
+  }
+  printf("every %d steps with a bin size of %g A.\n", dump_interval_, bin_size_);
 }
 
 void Dump_Shock_NEMD::pre_run(
@@ -181,13 +209,13 @@ void Dump_Shock_NEMD::pre_run(
     return;
 
   n = atom.number_of_atoms;
-  bins = (int)box.cpu_h[direction * 4] / avg_window + 1;
+  bins = static_cast<int>(box.cpu_h[direction * 4] / bin_size_) + 1;
   if (n < bins)
     PRINT_INPUT_ERROR("Too few atoms!");
   for (int i = 0; i < 3; i++)
     if (i != direction)
       slice_vol *= box.cpu_h[i * 4]; // create vectors to store hist
-  slice_vol *= avg_window;
+  slice_vol *= bin_size_;
 
   temp_file = my_fopen("temperature_hist.txt", "w");
   pxx_file = my_fopen("pxx_hist.txt", "w");
@@ -211,7 +239,7 @@ void Dump_Shock_NEMD::end_of_step(
   Atom& atom,
   Force& force)
 {
-  if (!dump_ || step % dump_interval_ != 0)
+  if (!dump_ || (step + 1) % dump_interval_ != 0)
     return;
 
   gpu_temp.resize(bins, 0);
@@ -229,12 +257,10 @@ void Dump_Shock_NEMD::end_of_step(
   cpu_pzz.resize(bins, 0);
   cpu_density.resize(bins, 0);
   cpu_com_vx.resize(bins, 0);
-  cpu_com_vy.resize(bins, 0);
-  cpu_com_vz.resize(bins, 0);
   // calculate COM velocity first
   gpu_com<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    avg_window,
+    bin_size_,
     atom.mass.data(),
     atom.position_per_atom.data() + direction * n,
     atom.velocity_per_atom.data(),
@@ -244,12 +270,14 @@ void Dump_Shock_NEMD::end_of_step(
     gpu_com_vy.data(),
     gpu_com_vz.data(),
     gpu_density.data());
+  GPU_CHECK_KERNEL
   gpu_calc1<<<(bins - 1) / 128 + 1, 128>>>(
     bins, gpu_com_vx.data(), gpu_com_vy.data(), gpu_com_vz.data(), gpu_density.data());
+  GPU_CHECK_KERNEL
   // get spatial thermo info
   gpu_thermo<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    avg_window,
+    bin_size_,
     atom.position_per_atom.data() + direction * n,
     atom.mass.data(),
     atom.velocity_per_atom.data(),
@@ -266,6 +294,7 @@ void Dump_Shock_NEMD::end_of_step(
     gpu_pyy.data(),
     gpu_pzz.data(),
     gpu_number.data());
+  GPU_CHECK_KERNEL
   gpu_calc2<<<(bins - 1) / 128 + 1, 128>>>(
     bins,
     slice_vol,
@@ -275,6 +304,7 @@ void Dump_Shock_NEMD::end_of_step(
     gpu_pzz.data(),
     gpu_density.data(),
     gpu_number.data());
+  GPU_CHECK_KERNEL
   // copy from gpu to cpu
   gpu_temp.copy_to_host(cpu_temp.data());
   gpu_pxx.copy_to_host(cpu_pxx.data());
@@ -282,16 +312,9 @@ void Dump_Shock_NEMD::end_of_step(
   gpu_pzz.copy_to_host(cpu_pzz.data());
   gpu_density.copy_to_host(cpu_density.data());
   gpu_com_vx.copy_to_host(cpu_com_vx.data());
-  gpu_com_vy.copy_to_host(cpu_com_vy.data());
-  gpu_com_vz.copy_to_host(cpu_com_vz.data());
-  gpu_com_vx.copy_to_host(cpu_com_vx.data());
-  gpu_com_vy.copy_to_host(cpu_com_vy.data());
-  gpu_com_vz.copy_to_host(cpu_com_vz.data());
   // write to file
   for (int i = 0; i < bins; i++) {
     cpu_com_vx[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
-    cpu_com_vy[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
-    cpu_com_vz[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
     cpu_density[i] *= 1.660538921;                // to g/cm3
   }
   write_to_file(temp_file, cpu_temp.data(), bins);

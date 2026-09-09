@@ -839,7 +839,8 @@ void OrientOrder::parse(const char** param, const int num_param)
     PRINT_INPUT_ERROR("ndegrees should be an positive integer.\n");
   }
 
-  if (num_param < 5 + ndegrees_) {
+  const int num_required_params = 5 + ndegrees_;
+  if (num_param < num_required_params) {
     std::string message = "Must include " + std::to_string(ndegrees_) + " degrees.\n";
     PRINT_INPUT_ERROR(message.c_str());
   }
@@ -859,39 +860,38 @@ void OrientOrder::parse(const char** param, const int num_param)
     llist[i - 1] = degree;
   }
 
-  if ((num_param > 5 + ndegrees_) & (num_param < 5 + ndegrees_ + 5)) {
-    if (num_param > 5 + ndegrees_) {
-      int ave = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 1], &ave)) {
-        PRINT_INPUT_ERROR("average should be 1 or 0.\n");
-      }
-      if (ave != 0) {
-        average_ = true;
-      }
-    }
-    if (num_param > 5 + ndegrees_ + 1) {
-      int wl = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 2], &wl)) {
-        PRINT_INPUT_ERROR("wl should be 1 or 0.\n");
-      }
-      if (wl != 0) {
-        wl_ = true;
-      }
-    }
+  if (num_param > num_required_params + 3) {
+    PRINT_INPUT_ERROR("compute_orientorder should have at most 3 optional parameters.\n");
+  }
 
-    if (num_param > 5 + ndegrees_ + 2) {
-      int wlhat = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 3], &wlhat)) {
-        PRINT_INPUT_ERROR("wlhat should be 1 or 0.\n");
-      }
-      if (wlhat != 0) {
-        wlhat_ = true;
-      }
+  if (num_param > num_required_params) {
+    int ave = 0;
+    if (!is_valid_int(param[num_required_params], &ave)) {
+      PRINT_INPUT_ERROR("average should be 1 or 0.\n");
     }
-  } else {
-    std::string message =
-      "Number of paramaters exceeds " + std::to_string(5 + ndegrees_ + 4) + ".\n";
-    PRINT_INPUT_ERROR(message.c_str());
+    if (ave != 0) {
+      average_ = true;
+    }
+  }
+
+  if (num_param > num_required_params + 1) {
+    int wl = 0;
+    if (!is_valid_int(param[num_required_params + 1], &wl)) {
+      PRINT_INPUT_ERROR("wl should be 1 or 0.\n");
+    }
+    if (wl != 0) {
+      wl_ = true;
+    }
+  }
+
+  if (num_param > num_required_params + 2) {
+    int wlhat = 0;
+    if (!is_valid_int(param[num_required_params + 2], &wlhat)) {
+      PRINT_INPUT_ERROR("wlhat should be 1 or 0.\n");
+    }
+    if (wlhat != 0) {
+      wlhat_ = true;
+    }
   }
 
   printf("    every %d steps, \n", num_interval_);

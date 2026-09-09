@@ -212,6 +212,10 @@ void DOS::pre_run(
 {
   if (!compute_)
     return;
+  if (num_correlation_steps_ > number_of_steps / sample_interval_) {
+    PRINT_INPUT_ERROR(
+      "The number of DOS correlation steps should not exceed the number of sampled frames.\n");
+  }
   initialize_parameters(time_step, group, atom.mass);
   allocate_memory();
   copy_mass(atom.mass);

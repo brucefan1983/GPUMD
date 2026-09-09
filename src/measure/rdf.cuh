@@ -75,15 +75,13 @@ public:
     const char** param,
     const int num_param,
     Box& box,
-    const std::vector<int>& cpu_type_size,
-    const int number_of_steps);
+    const std::vector<int>& cpu_type_size);
 
   RDF(
     const char** param,
     const int num_param,
     Box& box,
-    const std::vector<int>& cpu_type_size,
-    const int number_of_steps);
+    const std::vector<int>& cpu_type_size);
 
 private:
   int sampling_interval_ = 100;
