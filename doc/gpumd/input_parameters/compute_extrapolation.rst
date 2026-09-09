@@ -36,6 +36,13 @@ This keyword is used as follows::
 
 :attr:`dump_interval`: You can set the minimum interval between dumps to `dump_interval` steps. The default value is `1`.
 
+Output file
+-----------
+
+.. _extrapolation_dump_xyz:
+
+Structures selected according to :attr:`gamma_low` and :attr:`dump_interval` are written to ``extrapolation_dump.xyz`` in extended XYZ format.
+
 Example
 -------
 
