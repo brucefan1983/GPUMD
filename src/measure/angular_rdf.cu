@@ -455,6 +455,11 @@ void AngularRDF::pre_run(
     return;
   }
 
+  if (num_interval_ > number_of_steps) {
+    PRINT_INPUT_ERROR(
+      "Angular RDF sampling interval should not exceed the number of MD steps.\n");
+  }
+
   // calculate radial step size
   r_step_ = r_cut_ / rdf_r_bins_;
 
@@ -675,6 +680,10 @@ void AngularRDF::parse(
   if (num_param > 23) {
     PRINT_INPUT_ERROR("compute_angular_rdf has too many parameters.\n");
   }
+  if ((num_param - 5) % 3 != 0) {
+    PRINT_INPUT_ERROR(
+      "Optional arguments for compute_angular_rdf should be specified as atom type1 type2.\n");
+  }
 
   // radial cutoff
   if (!is_valid_real(param[1], &r_cut_)) {
@@ -738,7 +747,7 @@ void AngularRDF::parse(
       if (atom_id1_[k_a] < 0) {
         PRINT_INPUT_ERROR("atom type index1 should be non-negative.\n");
       }
-      if (atom_id1_[k_a] > number_of_types) {
+      if (atom_id1_[k_a] >= number_of_types) {
         PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
       }
       if (!is_valid_int(param[k + 2], &atom_id2_[k_a])) {
@@ -747,8 +756,8 @@ void AngularRDF::parse(
       if (atom_id2_[k_a] < 0) {
         PRINT_INPUT_ERROR("atom type index2 should be non-negative.\n");
       }
-      if (atom_id2_[k_a] > number_of_types) {
-        PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
+      if (atom_id2_[k_a] >= number_of_types) {
+        PRINT_INPUT_ERROR("atom type index2 should be less than number of atomic types.\n");
       }
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_angular_rdf.\n");
