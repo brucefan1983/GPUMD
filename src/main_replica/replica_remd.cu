@@ -56,6 +56,8 @@ using replica::validate_xyz_box;
 using replica::values_match;
 
 constexpr double target_acceptance = 0.2;
+// Version 5 attempts two-replica exchanges at every exchange interval.
+constexpr int restart_format_version = 5;
 constexpr const char* exchange_output_marker =
   "# GPUMD REMD exchange output format 1";
 constexpr const char* status_output_marker =
@@ -541,7 +543,7 @@ void REMD_Driver::scale_velocity(Replica_Slot& slot, const double factor)
 
 void REMD_Driver::attempt_exchanges(const long long global_step, FILE* exchange_file)
 {
-  const int parity = exchange_count_ % 2;
+  const int parity = config_.replicas == 2 ? 0 : exchange_count_ % 2;
   std::uniform_real_distribution<double> uniform(0.0, 1.0);
   for (int low_label = parity; low_label + 1 < config_.replicas; low_label += 2) {
     const int high_label = low_label + 1;
@@ -853,7 +855,7 @@ void REMD_Driver::write_restart_metadata() const
 {
   FILE* file = my_fopen("remd_restart.meta", "w");
   fprintf(file, "# GPUMD REMD restart metadata\n");
-  fprintf(file, "format_version 4\n");
+  fprintf(file, "format_version %d\n", restart_format_version);
   fprintf(file, "mode remd\n");
   fprintf(file, "replicas %d\n", config_.replicas);
   fprintf(file, "completed_steps %lld\n", completed_steps_ + number_of_steps_);
@@ -952,7 +954,7 @@ void REMD_Driver::read_restart_metadata()
       input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     } else if (key == "format_version") {
       int version = 0;
-      if (has_version || !(input >> version) || version != 4)
+      if (has_version || !(input >> version) || version != restart_format_version)
         PRINT_INPUT_ERROR("Unsupported REMD restart format_version.");
       has_version = true;
     } else if (key == "mode") {
@@ -1083,7 +1085,9 @@ void REMD_Driver::read_restart_metadata()
     PRINT_INPUT_ERROR("REMD restart exchange_count is inconsistent with completed_steps.");
   for (size_t i = 0; i < exchange_attempts_.size(); ++i) {
     const int expected_attempts =
-      i % 2 == 0 ? exchange_count_ / 2 + exchange_count_ % 2 : exchange_count_ / 2;
+      config_.replicas == 2
+        ? exchange_count_
+        : (i % 2 == 0 ? exchange_count_ / 2 + exchange_count_ % 2 : exchange_count_ / 2);
     if (exchange_attempts_[i] != expected_attempts ||
         exchange_accepts_[i] > exchange_attempts_[i] ||
         exchange_probability_sum_[i] > exchange_attempts_[i] + 1.0e-12)
