@@ -430,10 +430,9 @@ AngularRDF::AngularRDF(
   const char** param,
   const int num_param,
   Box& box,
-  const int number_of_types,
-  const int number_of_steps)
+  const int number_of_types)
 {
-  parse(param, num_param, box, number_of_types, number_of_steps);
+  parse(param, num_param, box, number_of_types);
   action_name = "compute_angular_rdf";
 }
 
@@ -668,8 +667,7 @@ void AngularRDF::parse(
   const char** param,
   const int num_param,
   Box& box,
-  const int number_of_types,
-  const int number_of_steps)
+  const int number_of_types)
 {
   printf("Compute Angular RDF.\n");
   compute_ = true;

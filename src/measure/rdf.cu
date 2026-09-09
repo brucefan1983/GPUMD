@@ -177,6 +177,10 @@ void RDF::pre_run(
   Box& box,
   Force& force)
 {
+  if (sampling_interval_ > number_of_steps) {
+    PRINT_INPUT_ERROR("RDF sampling interval should not exceed the number of MD steps.\n");
+  }
+
   rdf_g_.resize(rdf_para.num_RDFs * rdf_para.num_bins, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
@@ -262,10 +266,9 @@ RDF::RDF(
   const char** param,
   const int num_param,
   Box& box,
-  const std::vector<int>& cpu_type_size,
-  const int number_of_steps)
+  const std::vector<int>& cpu_type_size)
 {
-  parse(param, num_param, box, cpu_type_size, number_of_steps);
+  parse(param, num_param, box, cpu_type_size);
   action_name = "compute_rdf";
 }
 
@@ -273,8 +276,7 @@ void RDF::parse(
   const char** param,
   const int num_param,
   Box& box,
-  const std::vector<int>& cpu_type_size,
-  const int number_of_steps)
+  const std::vector<int>& cpu_type_size)
 {
   printf("Compute radial distribution function (RDF).\n");
 

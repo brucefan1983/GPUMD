@@ -48,8 +48,7 @@ public:
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
-    const int number_of_steps);
+    const int number_of_types);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -86,8 +85,7 @@ public:
     const char** param,
     const int num_param,
     Box& box,
-    const int number_of_types,
-    const int number_of_steps);
+    const int number_of_types);
 
 private:
   int num_atoms_;

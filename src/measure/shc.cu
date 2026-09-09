@@ -44,6 +44,11 @@ void SHC::pre_run(
     return;
   }
 
+  if (Nc > number_of_steps / sample_interval) {
+    PRINT_INPUT_ERROR(
+      "The number of SHC correlation steps should not exceed the number of sampled frames.\n");
+  }
+
   num_time_origins = 0;
   if (-1 == group_method) {
     group_size = atom.number_of_atoms;

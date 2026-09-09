@@ -312,7 +312,7 @@ void ADF::end_of_step(
   CHECK(gpuMemcpy(adf.data(), adf_gpu.data(), sizeof(int) * adf.size(), gpuMemcpyDeviceToHost));
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
-  double delta = angle[1] - angle[0];
+  const double delta = 180.0 / adf_bins_;
   fprintf(fid, "#angles ");
   if (global_) {
     fprintf(fid, "total step = %d\n", step);
@@ -374,20 +374,23 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
   compute_ = true;
 
   if (num_param < 5) {
-    PRINT_INPUT_ERROR("compute_rdf should have at least 4 parameters.\n");
+    PRINT_INPUT_ERROR("compute_adf should have at least 4 parameters.\n");
+  }
+
+  if (!is_valid_int(param[1], &num_interval_)) {
+    PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
+  }
+  if (num_interval_ <= 0) {
+    PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
+  }
+  if (!is_valid_int(param[2], &adf_bins_)) {
+    PRINT_INPUT_ERROR("number of bins should be an integer.\n");
+  }
+  if (adf_bins_ <= 0) {
+    PRINT_INPUT_ERROR("number of bins should be positive.\n");
   }
 
   if (num_param == 5) {
-
-    if (!is_valid_int(param[1], &num_interval_)) {
-      PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
-    }
-    if (num_interval_ <= 0) {
-      PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
-    }
-    if (!is_valid_int(param[2], &adf_bins_)) {
-      PRINT_INPUT_ERROR("number of bins should be an integer.\n");
-    }
     if (!is_valid_real(param[3], &rc_min_)) {
       PRINT_INPUT_ERROR("minimum radial cutoff should be a number.\n");
     }
@@ -419,15 +422,6 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
   } else {
     if ((num_param - 3) % 7 != 0) {
       PRINT_INPUT_ERROR("compute_adf should have 4 parameters or 2 + 7 * Ntriples parameters.\n");
-    }
-    if (!is_valid_int(param[1], &num_interval_)) {
-      PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
-    }
-    if (num_interval_ <= 0) {
-      PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
-    }
-    if (!is_valid_int(param[2], &adf_bins_)) {
-      PRINT_INPUT_ERROR("number of bins should be an integer.\n");
     }
     num_triples_ = (num_param - 3) / 7;
     itype_cpu.resize(num_triples_);
