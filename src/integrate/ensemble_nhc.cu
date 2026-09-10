@@ -55,6 +55,7 @@ Ensemble_NHC::Ensemble_NHC(
   int sink_input,
   int N1,
   int N2,
+  int number_of_groups,
   double T,
   double Tc,
   double dT,
@@ -88,6 +89,9 @@ Ensemble_NHC::Ensemble_NHC(
   // initialize the energies transferred from the system to the baths
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
+
+  initialize_group_kinetic_energy_workspace(number_of_groups);
+  initialize_group_com_velocity_workspace(number_of_groups);
 }
 
 Ensemble_NHC::~Ensemble_NHC(void)
@@ -247,17 +251,17 @@ void Ensemble_NHC::integrate_heat_nhc_1(
   int label_1 = source;
   int label_2 = sink;
 
-  int Ng = group[0].number;
-
   double kT1 = K_B * (temperature + delta_temperature);
   double kT2 = K_B * (temperature - delta_temperature);
   double dN1 = (double)DIM * group[0].cpu_size[source];
   double dN2 = (double)DIM * group[0].cpu_size[sink];
   double dt2 = time_step * 0.5;
 
-  // allocate some memory (to be improved)
-  std::vector<double> ek2(Ng);
-  GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
+  std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+  GPU_Vector<double>& vcx = group_com_velocity_x_;
+  GPU_Vector<double>& vcy = group_com_velocity_y_;
+  GPU_Vector<double>& vcz = group_com_velocity_z_;
+  GPU_Vector<double>& ke = group_kinetic_energy_;
 
   // NHC first
   find_vc_and_ke(group, mass, velocity_per_atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
@@ -293,17 +297,17 @@ void Ensemble_NHC::integrate_heat_nhc_2(
   int label_1 = source;
   int label_2 = sink;
 
-  int Ng = group[0].number;
-
   double kT1 = K_B * (temperature + delta_temperature);
   double kT2 = K_B * (temperature - delta_temperature);
   double dN1 = (double)DIM * group[0].cpu_size[source];
   double dN2 = (double)DIM * group[0].cpu_size[sink];
   double dt2 = time_step * 0.5;
 
-  // allocate some memory (to be improved)
-  std::vector<double> ek2(Ng);
-  GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
+  std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+  GPU_Vector<double>& vcx = group_com_velocity_x_;
+  GPU_Vector<double>& vcy = group_com_velocity_y_;
+  GPU_Vector<double>& vcz = group_com_velocity_z_;
+  GPU_Vector<double>& ke = group_kinetic_energy_;
 
   velocity_verlet(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
@@ -355,11 +359,11 @@ void Ensemble_NHC::integrate_heat_nhc_power_2(
   int label_1 = source;
   int label_2 = sink;
 
-  int Ng = group[0].number;
-
-  // allocate some memory (to be improved)
-  std::vector<double> ek2(Ng);
-  GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
+  std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+  GPU_Vector<double>& vcx = group_com_velocity_x_;
+  GPU_Vector<double>& vcy = group_com_velocity_y_;
+  GPU_Vector<double>& vcz = group_com_velocity_z_;
+  GPU_Vector<double>& ke = group_kinetic_energy_;
 
   velocity_verlet(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);

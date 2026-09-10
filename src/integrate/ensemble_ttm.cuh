@@ -88,6 +88,7 @@ public:
     int sink_size,
     int source_offset,
     int sink_offset,
+    int number_of_groups,
     int ttm_group_size,
     int ttm_group_offset,
     double T,

@@ -33,6 +33,19 @@ Ensemble::~Ensemble(void)
   // nothing now
 }
 
+void Ensemble::initialize_group_kinetic_energy_workspace(const int number_of_groups)
+{
+  group_kinetic_energy_cpu_.resize(number_of_groups);
+  group_kinetic_energy_.resize(number_of_groups);
+}
+
+void Ensemble::initialize_group_com_velocity_workspace(const int number_of_groups)
+{
+  group_com_velocity_x_.resize(number_of_groups);
+  group_com_velocity_y_.resize(number_of_groups);
+  group_com_velocity_z_.resize(number_of_groups);
+}
+
 #ifdef USE_NEPCG
 static __global__ void gpu_velocity_verlet_cg(
   const bool is_step1,
@@ -919,8 +932,8 @@ static __global__ void gpu_scale_velocity_n_groups(
 }
 
 void Ensemble::scale_velocity_groups(
-  const std::vector<double>& factors,
-  const std::vector<int>& labels,
+  const GPU_Vector<double>& factors,
+  const GPU_Vector<int>& labels,
   const double* vcx,
   const double* vcy,
   const double* vcz,
@@ -934,18 +947,11 @@ void Ensemble::scale_velocity_groups(
   if (num_groups == 0)
     return;
 
-  // Create device arrays for factors and labels
-  GPU_Vector<double> d_factors(num_groups);
-  GPU_Vector<int> d_labels(num_groups);
-
-  d_factors.copy_from_host(factors.data());
-  d_labels.copy_from_host(labels.data());
-
   gpu_scale_velocity_n_groups<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     num_groups,
-    d_labels.data(),
-    d_factors.data(),
+    labels.data(),
+    factors.data(),
     group[0].label.data(),
     vcx,
     vcy,
