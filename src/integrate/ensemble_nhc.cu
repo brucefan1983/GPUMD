@@ -139,9 +139,10 @@ static double nhc(
       // update thermostat velocities from M - 2 to 0:
       for (int m = M - 2; m >= 0; m--) {
         double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
-        G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
         if (m == 0) {
           G = Ek2 - dN * kT;
+        } else {
+          G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
         }
         vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);
       }
@@ -159,9 +160,10 @@ static double nhc(
       // update thermostat velocities from 0 to M - 2:
       for (int m = 0; m < M - 1; m++) {
         double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
-        G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
         if (m == 0) {
           G = Ek2 - dN * kT;
+        } else {
+          G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
         }
         vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);
       }
