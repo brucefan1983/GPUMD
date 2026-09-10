@@ -83,7 +83,7 @@ Ensemble_LAN::Ensemble_LAN(
   GPU_CHECK_KERNEL
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
-  initialize_group_kinetic_energy_workspace(number_of_groups);
+  initialize_group_kinetic_energy_workspace(2 * number_of_groups);
 }
 
 Ensemble_LAN::Ensemble_LAN(
@@ -119,7 +119,7 @@ Ensemble_LAN::Ensemble_LAN(
   GPU_CHECK_KERNEL
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
-  initialize_group_kinetic_energy_workspace(2);
+  initialize_group_kinetic_energy_workspace(4);
 }
 
 Ensemble_LAN::~Ensemble_LAN(void)
@@ -185,10 +185,6 @@ void Ensemble_LAN::integrate_heat_lan_half(
     ke.data());
   GPU_CHECK_KERNEL
 
-  ke.copy_to_host(ek2.data());
-  energy_transferred[0] += ek2[source] * 0.5;
-  energy_transferred[1] += ek2[sink] * 0.5;
-
   gpu_langevin<<<(N_source - 1) / 128 + 1, 128>>>(
     curand_states_source.data(),
     N_source,
@@ -223,12 +219,14 @@ void Ensemble_LAN::integrate_heat_lan_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data());
+    ke.data() + Ng);
   GPU_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
-  energy_transferred[0] -= ek2[source] * 0.5;
-  energy_transferred[1] -= ek2[sink] * 0.5;
+  energy_transferred[0] += ek2[source] * 0.5;
+  energy_transferred[1] += ek2[sink] * 0.5;
+  energy_transferred[0] -= ek2[Ng + source] * 0.5;
+  energy_transferred[1] -= ek2[Ng + sink] * 0.5;
 }
 
 void Ensemble_LAN::integrate_heat_lan_region_half(
@@ -265,10 +263,6 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data() + 2 * number_of_atoms,
     ke.data());
   GPU_CHECK_KERNEL
-
-  ke.copy_to_host(ek2.data());
-  energy_transferred[0] += ek2[0] * 0.5;
-  energy_transferred[1] += ek2[1] * 0.5;
 
   gpu_langevin_region<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     curand_states.data(),
@@ -320,12 +314,14 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data());
+    ke.data() + 2);
   GPU_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
-  energy_transferred[0] -= ek2[0] * 0.5;
-  energy_transferred[1] -= ek2[1] * 0.5;
+  energy_transferred[0] += ek2[0] * 0.5;
+  energy_transferred[1] += ek2[1] * 0.5;
+  energy_transferred[0] -= ek2[2] * 0.5;
+  energy_transferred[1] -= ek2[3] * 0.5;
 }
 
 void Ensemble_LAN::compute1(
