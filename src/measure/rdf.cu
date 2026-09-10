@@ -30,10 +30,32 @@ Refactored by: Zheyong Fan
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cmath>
 #include <cstring>
 
 namespace
 {
+__device__ __forceinline__ int
+find_rdf_bin(const double distance_square, const double bin_width, const int number_of_bins)
+{
+  int bin = static_cast<int>(sqrt(distance_square) / bin_width);
+  if (bin >= number_of_bins) {
+    bin = number_of_bins - 1;
+  }
+
+  double edge = bin * bin_width;
+  if (distance_square <= edge * edge) {
+    --bin;
+  } else {
+    edge = (bin + 1) * bin_width;
+    if (distance_square > edge * edge) {
+      ++bin;
+    }
+  }
+
+  return (bin >= 0 && bin < number_of_bins) ? bin : -1;
+}
+
 __global__ void gpu_find_rdf_ON1(
   const int N,
   const RDF::RDF_Para para,
@@ -95,24 +117,27 @@ __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 > para.rc_square) {
+              if (!(d2 > 0.0 && d2 <= para.rc_square)) {
                 continue;
               }
-              for (int w = 0; w < para.num_bins; w++) {
-                double r_low = (w * para.dr) * (w * para.dr);
-                double r_up = ((w + 1) * para.dr) * ((w + 1) * para.dr);
-                double r_mid_sqaure = ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
-                double dV = r_mid_sqaure * 4 * rdf_PI * para.dr;
-                if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
-                  int count = 1;
-                  for (int a = 0; a < para.num_types; ++a) {
-                    for (int b = a; b < para.num_types; ++b) {
-                      if(type[n1] == para.type_index[a] && type[n2] == para.type_index[b]) {
-                        atomicAdd(&rdf_[w * para.num_RDFs + count], 1 / (para.num_atoms[a] * para.density_type[b] * dV));
-                      }
-                      ++count;
+              const int w = find_rdf_bin(d2, para.dr, para.num_bins);
+              if (w >= 0) {
+                const double r_mid_square =
+                  ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
+                const double dV = r_mid_square * 4 * rdf_PI * para.dr;
+                atomicAdd(
+                  &rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
+                int count = 1;
+                for (int a = 0; a < para.num_types; ++a) {
+                  for (int b = a; b < para.num_types; ++b) {
+                    if (
+                      type[n1] == para.type_index[a] &&
+                      type[n2] == para.type_index[b]) {
+                      atomicAdd(
+                        &rdf_[w * para.num_RDFs + count],
+                        1 / (para.num_atoms[a] * para.density_type[b] * dV));
                     }
+                    ++count;
                   }
                 }
               }
