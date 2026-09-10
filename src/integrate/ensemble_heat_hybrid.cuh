@@ -25,6 +25,7 @@ public:
     const std::vector<int>& label,
     const std::vector<int>& size,
     const std::vector<int>& offset,
+    int number_of_groups,
     double temperature,
     const std::vector<double>& coupling,
     double delta_temperature,
@@ -55,6 +56,12 @@ protected:
   std::vector<double> c1;
   std::vector<double> c2;
   std::vector<GPU_Vector<gpurandState>> curand_states;
+  bool has_nhc = false;
+  bool has_lan = false;
+  std::vector<int> nhc_labels;
+  std::vector<double> nhc_factors;
+  GPU_Vector<int> gpu_nhc_labels;
+  GPU_Vector<double> gpu_nhc_factors;
 
   // Flattened NHC arrays: [thermostat_index * NOSE_HOOVER_CHAIN_LENGTH + chain_index]
   std::vector<double> pos_nhc;

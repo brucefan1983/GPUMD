@@ -105,6 +105,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
   const std::vector<int>& label_input,
   const std::vector<int>& size_input,
   const std::vector<int>& offset_input,
+  int number_of_groups,
   double temperature_input,
   const std::vector<double>& coupling_input,
   double delta_temperature_input,
@@ -135,6 +136,8 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
   for (int i = 0; i < num_thermostats; i++) {
     double target = target_temperature(i);
     if (thermostat_type[i] == 0) {
+      has_nhc = true;
+      nhc_labels.push_back(label[i]);
       double* pos_eta = get_nhc_pos(i);
       double* vel_eta = get_nhc_vel(i);
       double* mas_eta = get_nhc_mas(i);
@@ -146,6 +149,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
       }
       mas_eta[0] *= DIM * size[i];
     } else {
+      has_lan = true;
       c1[i] = exp(-0.5 / coupling[i]);
       c2[i] = sqrt((1.0 - c1[i] * c1[i]) * K_B * target);
       curand_states[i].resize(size[i]);
@@ -153,6 +157,15 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
         curand_states[i].data(), size[i], rand());
       GPU_CHECK_KERNEL
     }
+  }
+
+  initialize_group_kinetic_energy_workspace(number_of_groups);
+  if (has_nhc) {
+    initialize_group_com_velocity_workspace(number_of_groups);
+    nhc_factors.resize(nhc_labels.size());
+    gpu_nhc_labels.resize(nhc_labels.size());
+    gpu_nhc_factors.resize(nhc_factors.size());
+    gpu_nhc_labels.copy_from_host(nhc_labels.data());
   }
 }
 
@@ -186,24 +199,18 @@ void Ensemble_Heat_Hybrid::integrate_heat_hybrid_half(
 {
   const int number_of_atoms = mass.size();
   const int number_of_groups = group[0].number;
-  bool has_nhc = false;
-  bool has_lan = false;
-  for (int i = 0; i < num_thermostats; i++) {
-    has_nhc = has_nhc || thermostat_type[i] == 0;
-    has_lan = has_lan || thermostat_type[i] == 1;
-  }
 
   if (has_nhc) {
-    std::vector<double> ek2(number_of_groups);
-    GPU_Vector<double> vcx(number_of_groups), vcy(number_of_groups), vcz(number_of_groups),
-      ke(number_of_groups);
-    std::vector<double> factor(num_thermostats, 1.0);
-    std::vector<int> nhc_labels;
-    std::vector<double> nhc_factors;
+    std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+    GPU_Vector<double>& vcx = group_com_velocity_x_;
+    GPU_Vector<double>& vcy = group_com_velocity_y_;
+    GPU_Vector<double>& vcz = group_com_velocity_z_;
+    GPU_Vector<double>& ke = group_kinetic_energy_;
 
     find_vc_and_ke(group, mass, velocity_per_atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
     ke.copy_to_host(ek2.data());
 
+    int nhc_index = 0;
     for (int i = 0; i < num_thermostats; i++) {
       if (thermostat_type[i] == 0) {
         double* pos_eta = get_nhc_pos(i);
@@ -211,7 +218,7 @@ void Ensemble_Heat_Hybrid::integrate_heat_hybrid_half(
         double* mas_eta = get_nhc_mas(i);
         double kT = K_B * target_temperature(i);
         double dN = (double)DIM * size[i];
-        factor[i] = nhc(
+        double factor = nhc(
           NOSE_HOOVER_CHAIN_LENGTH,
           pos_eta,
           vel_eta,
@@ -220,30 +227,26 @@ void Ensemble_Heat_Hybrid::integrate_heat_hybrid_half(
           kT,
           dN,
           time_step * 0.5);
-        energy_transferred_n[i] += ek2[label[i]] * 0.5 * (1.0 - factor[i] * factor[i]);
-
-        nhc_labels.push_back(label[i]);
-        nhc_factors.push_back(factor[i]);
+        energy_transferred_n[i] += ek2[label[i]] * 0.5 * (1.0 - factor * factor);
+        nhc_factors[nhc_index++] = factor;
       }
     }
 
-    // Use the GPU-based scaling function
-    if (!nhc_labels.empty()) {
-      scale_velocity_groups(
-        nhc_factors,
-        nhc_labels,
-        vcx.data(),
-        vcy.data(),
-        vcz.data(),
-        ke.data(),
-        group,
-        velocity_per_atom);
-    }
+    gpu_nhc_factors.copy_from_host(nhc_factors.data());
+    scale_velocity_groups(
+      gpu_nhc_factors,
+      gpu_nhc_labels,
+      vcx.data(),
+      vcy.data(),
+      vcz.data(),
+      ke.data(),
+      group,
+      velocity_per_atom);
   }
 
   if (has_lan) {
-    std::vector<double> ek2(number_of_groups);
-    GPU_Vector<double> ke(number_of_groups);
+    std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+    GPU_Vector<double>& ke = group_kinetic_energy_;
 
     find_ke<<<number_of_groups, 512>>>(
       group[0].size.data(),

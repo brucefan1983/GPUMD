@@ -801,6 +801,7 @@ Ensemble_TTM::Ensemble_TTM(
   int sink_size,
   int source_offset,
   int sink_offset,
+  int number_of_groups,
   int ttm_group_size,
   int ttm_group_offset,
   double T,
@@ -834,6 +835,7 @@ Ensemble_TTM::Ensemble_TTM(
   initialize_curand_states<<<grid_size_sink, 128>>>(
     curand_states_sink.data(), N_sink, rand());
   GPU_CHECK_KERNEL
+  initialize_group_kinetic_energy_workspace(number_of_groups);
   initialize_ttm_common(
     type_input,
     ttm_group_size,
@@ -881,10 +883,9 @@ void Ensemble_TTM::integrate_heat_lan_half(
   GPU_Vector<double>& velocity_per_atom)
 {
   const int number_of_atoms = mass.size();
-  int Ng = group[0].number;
-
-  std::vector<double> ek2(Ng);
-  GPU_Vector<double> ke(Ng);
+  const int Ng = group[0].number;
+  std::vector<double>& ek2 = group_kinetic_energy_cpu_;
+  GPU_Vector<double>& ke = group_kinetic_energy_;
 
   find_ke<<<Ng, 512>>>(
     group[0].size.data(),

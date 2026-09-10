@@ -47,7 +47,8 @@ Ensemble_BDP::Ensemble_BDP(int t, int mg, double* mv, double T, double Tc)
   initialize_rng();
 }
 
-Ensemble_BDP::Ensemble_BDP(int t, int source_input, int sink_input, double T, double Tc, double dT)
+Ensemble_BDP::Ensemble_BDP(
+  int t, int source_input, int sink_input, int number_of_groups, double T, double Tc, double dT)
 {
   type = t;
   temperature = T;
@@ -59,6 +60,8 @@ Ensemble_BDP::Ensemble_BDP(int t, int source_input, int sink_input, double T, do
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
   initialize_rng();
+  initialize_group_kinetic_energy_workspace(number_of_groups);
+  initialize_group_com_velocity_workspace(number_of_groups);
 }
 
 Ensemble_BDP::~Ensemble_BDP(void)
@@ -111,8 +114,6 @@ void Ensemble_BDP::integrate_heat_bdp_2(
 {
   int label_1 = source;
   int label_2 = sink;
-  int Ng = group[0].number;
-
   double kT1 = K_B * (temperature + delta_temperature);
   double kT2 = K_B * (temperature - delta_temperature);
   double dN1 = (double)DIM * (group[0].cpu_size[source] - 1);
@@ -120,9 +121,11 @@ void Ensemble_BDP::integrate_heat_bdp_2(
   double sigma_1 = dN1 * kT1 * 0.5;
   double sigma_2 = dN2 * kT2 * 0.5;
 
-  // allocate some memory
-  std::vector<double> ek(Ng);
-  GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
+  std::vector<double>& ek = group_kinetic_energy_cpu_;
+  GPU_Vector<double>& vcx = group_com_velocity_x_;
+  GPU_Vector<double>& vcy = group_com_velocity_y_;
+  GPU_Vector<double>& vcz = group_com_velocity_z_;
+  GPU_Vector<double>& ke = group_kinetic_energy_;
 
   velocity_verlet(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
