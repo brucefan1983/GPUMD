@@ -336,6 +336,9 @@ void Force::set_hnemd_parameters(
   if (compute_hnemd_ || compute_hnemdec_ >= 0) {
     PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
   }
+  if (hnemd_force_sum_.size() != 3) {
+    hnemd_force_sum_.resize(3);
+  }
   compute_hnemd_ = true;
   hnemd_fe_[0] = hnemd_fe_x;
   hnemd_fe_[1] = hnemd_fe_y;
@@ -593,14 +596,12 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
 
-    GPU_Vector<double> ftot(3); // total force vector of the system
-
     gpu_sum_force<<<3, 1024>>>(
       number_of_atoms,
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
-      ftot.data());
+      hnemd_force_sum_.data());
     GPU_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -609,7 +610,7 @@ void Force::compute(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
-      ftot.data());
+      hnemd_force_sum_.data());
     GPU_CHECK_KERNEL
   }
 
@@ -884,14 +885,12 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
 
-    GPU_Vector<double> ftot(3); // total force vector of the system
-
     gpu_sum_force<<<3, 1024>>>(
       number_of_atoms,
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
-      ftot.data());
+      hnemd_force_sum_.data());
     GPU_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -900,7 +899,7 @@ void Force::compute(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms,
-      ftot.data());
+      hnemd_force_sum_.data());
     GPU_CHECK_KERNEL
   } else if (compute_hnemdec_ == 0) {
     // the tensor:

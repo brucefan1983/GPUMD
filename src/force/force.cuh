@@ -79,6 +79,8 @@ private:
   int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;
+  // Workspace reused by the HNEMD total-force correction.
+  GPU_Vector<double> hnemd_force_sum_;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
   std::string atom_types[NUM_ELEMENTS];
 
