@@ -154,7 +154,6 @@ void Ensemble_TI_AS::init()
 void Ensemble_TI_AS::find_thermo()
 {
   Ensemble::find_thermo(
-    false,
     box->get_volume(),
     *group,
     atom->mass,

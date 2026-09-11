@@ -1209,7 +1209,6 @@ void Ensemble_TTM::compute2(
   update_electron_temperature(time_step);
 
   find_thermo(
-    false,
     box.get_volume(),
     group,
     atom.mass,

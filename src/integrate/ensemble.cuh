@@ -54,7 +54,6 @@ public:
   }
 
   void find_thermo(
-    const bool use_target_temperature,
     const double volume,
     const std::vector<Group>& group,
     const GPU_Vector<double>& mass,

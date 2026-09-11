@@ -84,7 +84,6 @@ void Ensemble_NVE::compute2(
 #endif
 
   find_thermo(
-    false,
     box.get_volume(),
     group,
     atom.mass,

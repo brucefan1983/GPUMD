@@ -168,7 +168,6 @@ Ensemble_MSST::~Ensemble_MSST(void)
 void Ensemble_MSST::find_thermo()
 {
   Ensemble::find_thermo(
-    false,
     box->get_volume(),
     *group,
     atom->mass,

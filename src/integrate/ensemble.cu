@@ -443,10 +443,7 @@ void Ensemble::velocity_verlet_cg(
 #endif
 
 // Find some thermodynamic properties.
-// The use_target_temperature argument is kept for API compatibility. It is
-// currently unused, matching the behavior before this refactor.
 void Ensemble::find_thermo(
-  const bool /* use_target_temperature */,
   const double volume,
   const std::vector<Group>& group,
   const GPU_Vector<double>& mass,

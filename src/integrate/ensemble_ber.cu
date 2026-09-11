@@ -281,7 +281,6 @@ void Ensemble_BER::compute2(
     atom.velocity_per_atom);
 
   find_thermo(
-    true,
     box.get_volume(),
     group,
     atom.mass,

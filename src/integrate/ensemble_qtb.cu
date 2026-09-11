@@ -325,7 +325,6 @@ void Ensemble_QTB::compute2(
   apply_qtb_half_step();
 
   find_thermo(
-    true,
     box.get_volume(),
     group,
     atom.mass,
