@@ -116,10 +116,11 @@ static __global__ void gpu_add_UF_force(
   double* fz_UF)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-  fy[i] = (1 - lambda) * fy[i] + lambda * fy_UF[i];
-  fz[i] = (1 - lambda) * fz[i] + lambda * fz_UF[i];
-  fx[i] = (1 - lambda) * fx[i] + lambda * fx_UF[i];
+  if (i < number_of_atoms) {
+    fy[i] = (1 - lambda) * fy[i] + lambda * fy_UF[i];
+    fz[i] = (1 - lambda) * fz[i] + lambda * fz_UF[i];
+    fx[i] = (1 - lambda) * fx[i] + lambda * fx_UF[i];
+  }
 }
 
 static __global__ void gpu_get_UF_sum(const int N, double* eUF)
