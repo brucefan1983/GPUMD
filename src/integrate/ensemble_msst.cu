@@ -62,12 +62,13 @@ static __global__ void gpu_msst_v(
   const double mu,
   const int shock_direction,
   const double omega,
-  const double vsum,
+  const double* g_vsum,
   const double volume,
   double dthalf)
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < N) {
+    const double vsum = g_vsum[0];
     double mass = g_mass[n];
     double mass_inv = 1.0 / mass;
     double C[3] = {g_f[n] * mass_inv, g_f[n + N] * mass_inv, g_f[n + 2 * N] * mass_inv};
@@ -218,7 +219,6 @@ void Ensemble_MSST::init()
 void Ensemble_MSST::get_vsum()
 {
   gpu_get_vsum<<<1, 1024>>>(N, atom->velocity_per_atom.data(), gpu_vsum.data());
-  gpu_vsum.copy_to_host(&vsum);
 }
 
 void Ensemble_MSST::remap(double dilation)
@@ -283,7 +283,7 @@ void Ensemble_MSST::msst_v()
     mu,
     shock_direction,
     omega,
-    vsum,
+    gpu_vsum.data(),
     vol,
     dthalf);
 }
@@ -355,7 +355,6 @@ void Ensemble_MSST::compute2(
   get_conserved();
   msst_v();
   find_thermo();
-  get_vsum();
   get_omega();
 
   // calculate Lagrangian position of computational cell
