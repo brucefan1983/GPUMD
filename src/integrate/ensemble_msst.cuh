@@ -67,7 +67,6 @@ public:
   double omega;
   double total_mass = 0;
   double etotal;
-  double vsum;
   double ke, temperature;
   double e_conserved, e_msst;
   double vol;
