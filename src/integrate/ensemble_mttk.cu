@@ -602,7 +602,6 @@ void Ensemble_MTTK::propagate_box_diagonal()
 void Ensemble_MTTK::find_thermo()
 {
   Ensemble::find_thermo(
-    false,
     box->get_volume(),
     *group,
     atom->mass,

@@ -89,8 +89,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
   // get thermo
   int N_fixed = (fixed_group == -1) ? 0 : group[fixed_grouping_method].cpu_size[fixed_group];
   N_fixed += (move_group == -1) ? 0 : group[move_grouping_method].cpu_size[move_group];
-  find_thermo(
-    true, volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+  find_thermo(volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 
   // re-scale the velocities
   double ek[1];

@@ -267,7 +267,6 @@ void Ensemble_TI_Liquid::init()
 void Ensemble_TI_Liquid::find_thermo()
 {
   Ensemble::find_thermo(
-    false,
     box->get_volume(),
     *group,
     atom->mass,

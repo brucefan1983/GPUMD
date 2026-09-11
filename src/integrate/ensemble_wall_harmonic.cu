@@ -131,7 +131,6 @@ void Ensemble_wall_harmonic::compute1(
   if (*current_step == 0)
     init();
   find_thermo(
-    false,
     box.get_volume(),
     group,
     atoms.mass,
