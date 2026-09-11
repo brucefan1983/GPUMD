@@ -19,6 +19,7 @@ The abstract base class (ABC) for the ensemble classes.
 
 #include "ensemble.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
 #define DIM 3
@@ -462,11 +463,11 @@ static __global__ void gpu_find_thermo_instant_temperature(
   const double* g_syz,
   double* g_thermo)
 {
-  //<<<8, MAX_THREAD>>>
+  //<<<8, block_size>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
   int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int number_of_patches = (N - 1) / blockDim.x + 1;
   double mass, vx, vy, vz;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
@@ -475,7 +476,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
     // temperature
     case 0:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -498,7 +499,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // potential energy
     case 1:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           s_data[tid] += g_potential[n];
         }
@@ -516,7 +517,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // sxx
     case 2:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -537,7 +538,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // syy
     case 3:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vy = g_vy[n];
@@ -558,7 +559,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // szz
     case 4:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vz = g_vz[n];
@@ -579,7 +580,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // sxy
     case 5:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -601,7 +602,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // sxz
     case 6:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -623,7 +624,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
       // syz
     case 7:
       for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
+        n = tid + patch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vz = g_vz[n];
@@ -645,7 +646,146 @@ static __global__ void gpu_find_thermo_instant_temperature(
   }
 }
 
-// wrapper of the above kernel
+// First stage for large systems. Each block computes one partial sum for one
+// thermodynamic quantity.
+static __global__ void gpu_find_thermo_partial(
+  const int N,
+  const double* g_mass,
+  const double* g_potential,
+  const double* g_vx,
+  const double* g_vy,
+  const double* g_vz,
+  const double* g_sxx,
+  const double* g_syy,
+  const double* g_szz,
+  const double* g_sxy,
+  const double* g_sxz,
+  const double* g_syz,
+  double* g_partial)
+{
+  const int tid = threadIdx.x;
+  const int quantity = blockIdx.y;
+  const int partial_index = blockIdx.x;
+  const int stride = gridDim.x * blockDim.x;
+  double sum = 0.0;
+  double mass, vx, vy, vz;
+
+  switch (quantity) {
+    case 0:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vx = g_vx[n];
+        vy = g_vy[n];
+        vz = g_vz[n];
+        sum += (vx * vx + vy * vy + vz * vz) * mass;
+      }
+      break;
+    case 1:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        sum += g_potential[n];
+      }
+      break;
+    case 2:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vx = g_vx[n];
+        sum += g_sxx[n] + vx * vx * mass;
+      }
+      break;
+    case 3:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vy = g_vy[n];
+        sum += g_syy[n] + vy * vy * mass;
+      }
+      break;
+    case 4:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vz = g_vz[n];
+        sum += g_szz[n] + vz * vz * mass;
+      }
+      break;
+    case 5:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vx = g_vx[n];
+        vy = g_vy[n];
+        sum += g_sxy[n] + vx * vy * mass;
+      }
+      break;
+    case 6:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vx = g_vx[n];
+        vz = g_vz[n];
+        sum += g_sxz[n] + vx * vz * mass;
+      }
+      break;
+    case 7:
+      for (int n = partial_index * blockDim.x + tid; n < N; n += stride) {
+        mass = g_mass[n];
+        vy = g_vy[n];
+        vz = g_vz[n];
+        sum += g_syz[n] + vy * vz * mass;
+      }
+      break;
+  }
+
+  __shared__ double s_data[256];
+  s_data[tid] = sum;
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_partial[quantity * gridDim.x + partial_index] = s_data[0];
+  }
+}
+
+// Second stage for large systems. The reduction order is fixed and no atomics
+// are used, so repeated runs of the same executable remain deterministic.
+static __global__ void gpu_reduce_thermo_partial(
+  const int number_of_partial_blocks,
+  const int N_temperature,
+  const double volume,
+  const double* g_partial,
+  double* g_thermo)
+{
+  const int tid = threadIdx.x;
+  const int quantity = blockIdx.x;
+  double sum = 0.0;
+
+  for (int n = tid; n < number_of_partial_blocks; n += blockDim.x) {
+    sum += g_partial[quantity * number_of_partial_blocks + n];
+  }
+
+  __shared__ double s_data[1024];
+  s_data[tid] = sum;
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    if (quantity == 0) {
+      g_thermo[0] = s_data[0] / (DIM * N_temperature * K_B);
+    } else if (quantity == 1) {
+      g_thermo[1] = s_data[0];
+    } else {
+      g_thermo[quantity] = s_data[0] / volume;
+    }
+  }
+}
+
+// wrapper of the above kernels
 void Ensemble::find_thermo(
   const bool use_target_temperature,
   const double volume,
@@ -665,11 +805,59 @@ void Ensemble::find_thermo(
     num_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
   }
 
-  gpu_find_thermo_instant_temperature<<<8, 1024>>>(
+  // V1: use the smallest power-of-two block that covers small systems.
+  int block_size = 32;
+  while (block_size < number_of_atoms && block_size < 1024) {
+    block_size <<= 1;
+  }
+
+  // V2: once 16 or more 256-thread partial blocks are available, spread the
+  // reduction across the GPU. Smaller systems stay on the V1 single-stage path
+  // to avoid the cost of an extra kernel launch.
+  int number_of_partial_blocks = (number_of_atoms + 255) / 256;
+  if (number_of_partial_blocks < 16) {
+    gpu_find_thermo_instant_temperature<<<8, block_size>>>(
+      number_of_atoms,
+      num_atoms_for_temperature,
+      temperature,
+      volume,
+      mass.data(),
+      potential_per_atom.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      virial_per_atom.data(),
+      virial_per_atom.data() + number_of_atoms,
+      virial_per_atom.data() + number_of_atoms * 2,
+      virial_per_atom.data() + number_of_atoms * 3,
+      virial_per_atom.data() + number_of_atoms * 4,
+      virial_per_atom.data() + number_of_atoms * 5,
+      thermo.data());
+    GPU_CHECK_KERNEL
+    return;
+  }
+
+  if (thermo_number_of_sms_ == 0) {
+    gpuDeviceProp device_prop;
+    CHECK(gpuGetDeviceProperties(&device_prop, 0));
+    thermo_number_of_sms_ = device_prop.multiProcessorCount;
+  }
+
+  const int max_partial_blocks = thermo_number_of_sms_ * 4 < 1024
+                                   ? thermo_number_of_sms_ * 4
+                                   : 1024;
+  if (number_of_partial_blocks > max_partial_blocks) {
+    number_of_partial_blocks = max_partial_blocks;
+  }
+
+  const int partial_size = 8 * number_of_partial_blocks;
+  if (thermo_partial_.size() < partial_size) {
+    thermo_partial_.resize(partial_size);
+  }
+
+  const dim3 grid(number_of_partial_blocks, 8);
+  gpu_find_thermo_partial<<<grid, 256>>>(
     number_of_atoms,
-    num_atoms_for_temperature,
-    temperature,
-    volume,
     mass.data(),
     potential_per_atom.data(),
     velocity_per_atom.data(),
@@ -681,6 +869,18 @@ void Ensemble::find_thermo(
     virial_per_atom.data() + number_of_atoms * 3,
     virial_per_atom.data() + number_of_atoms * 4,
     virial_per_atom.data() + number_of_atoms * 5,
+    thermo_partial_.data());
+  GPU_CHECK_KERNEL
+
+  int reduction_block_size = 32;
+  while (reduction_block_size < number_of_partial_blocks && reduction_block_size < 1024) {
+    reduction_block_size <<= 1;
+  }
+  gpu_reduce_thermo_partial<<<8, reduction_block_size>>>(
+    number_of_partial_blocks,
+    num_atoms_for_temperature,
+    volume,
+    thermo_partial_.data(),
     thermo.data());
   GPU_CHECK_KERNEL
 }
