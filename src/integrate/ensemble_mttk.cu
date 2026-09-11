@@ -444,10 +444,8 @@ void Ensemble_MTTK::find_current_pressure()
   find_thermo();
   double t[8];
   thermo->copy_to_host(t, 8);
-  if (use_thermostat) {
+  if (use_thermostat)
     t_current = t[0];
-    t_current_from_thermo = true;
-  }
   p_current[0][0] = t[2];
   p_current[1][1] = t[3];
   p_current[2][2] = t[4];
@@ -915,8 +913,11 @@ void Ensemble_MTTK::compute2(
   if (use_barostat)
     nh_omega_dot();
 
-  if (use_thermostat)
+  if (use_thermostat) {
+    if (use_barostat)
+      t_current_from_thermo = true;
     nhc_temp_integrate();
+  }
 
   if (use_barostat)
     nhc_press_integrate();
