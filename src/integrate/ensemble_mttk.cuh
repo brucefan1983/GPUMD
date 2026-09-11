@@ -68,6 +68,7 @@ protected:
   enum { NVT, NPT, NPH };
   int ensemble_type = -1;
   bool use_thermostat = false, use_barostat = false;
+  bool t_current_from_thermo = false;
 
   enum { NONE, XYZ, XY, YZ, XZ };
   int couple_type = NONE;
