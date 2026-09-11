@@ -18,6 +18,7 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "thermo.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
@@ -120,8 +121,7 @@ protected:
   GPU_Vector<double> group_com_velocity_y_;
   GPU_Vector<double> group_com_velocity_z_;
   GPU_Vector<double> group_kinetic_energy_;
-  GPU_Vector<double> thermo_partial_;
-  int thermo_number_of_sms_ = 0;
+  Thermo thermo_;
 
   void initialize_group_kinetic_energy_workspace(const int number_of_groups);
   void initialize_group_com_velocity_workspace(const int number_of_groups);
