@@ -247,6 +247,7 @@ void Ensemble_NPHug::get_thermo()
 void Ensemble_NPHug::get_target_temp()
 {
   get_thermo();
+  t_current_from_thermo = true;
   // calculate hugoniot
   dhugo = (0.5 * (p_nphug_current + p0) * (v0 - v_current)) + e0 - e_current;
   dhugo /= 3 * atom->number_of_atoms * kB;
