@@ -455,7 +455,7 @@ static __device__ void calc_normal(
         pvet[k][ip] = vect[k][modulo(ip + 1, 3)] * vect[k + 1][modulo(ip + 2, 3)] -
                 vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -470,7 +470,7 @@ static __device__ void calc_normal(
       dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -502,7 +502,7 @@ static __device__ void calc_normal(
     normal[2] = Nave[2] * nninv;
 
     // derivatives of non-normalized normal vector, dNave:3xcontx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         for (m = 0; m < cont; m++) {
@@ -563,7 +563,7 @@ static __device__ void calc_normal(
             vect[modulo(k, NNEI)][modulo(ip + 2, 3)] *
                 vect[modulo(k + 1, NNEI)][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -578,7 +578,7 @@ static __device__ void calc_normal(
       dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -618,7 +618,7 @@ static __device__ void calc_normal(
     }
 
     // derivatives of non-normalized normal vector, dNave:3xNNEIx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; ++id) {
       for (ip = 0; ip < 3; ++ip) {
         for (
@@ -742,7 +742,7 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12d, y12d, z12d;
     float x12f, y12f, z12f;
-    int neighor_number = g_neighbor_number[n1];
+    int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -792,7 +792,7 @@ static __global__ void gpu_find_force(
 
     // calculate energy and force
     double tt1,tt2,tt3;
-    for (int i1 = 0; i1 < neighor_number; ++i1) {
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
@@ -907,7 +907,7 @@ static __global__ void gpu_find_force(
       float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
-      // derivatives of the product of rij and ni, the resutl is a vector
+      // derivatives of the product of rij and ni, the result is a vector
       dprodnorm1[0] = 
         dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
       dprodnorm1[1] = 
@@ -1118,7 +1118,7 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_ilp_neighbor_list[index];
-      int ilp_neighor_number_2 = g_ilp_neighbor_number[n2];
+      int ilp_neighbor_number_2 = g_ilp_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
@@ -1129,7 +1129,7 @@ static __global__ void reduce_force_many_body(
       z12f = float(z12d);
 
       int offset = 0;
-      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+      for (int k = 0; k < ilp_neighbor_number_2; ++k) {
         if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
           offset = k;
           break;

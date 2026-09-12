@@ -403,15 +403,15 @@ void Force::set_hnemdec_parameters(
     int element_index = compute_hnemdec_ - 1;
     cpu_coefficient.resize(number_of_types);
     cpu_coefficient[element_index] = double(N) / type_size[element_index];
-    double patial_mass = 0;
+    double partial_mass = 0;
     for (int i = 0; i < number_of_types; i++) {
       if (i != element_index) {
-        patial_mass += mass_type[i] * type_size[i];
+        partial_mass += mass_type[i] * type_size[i];
       }
     }
     for (int i = 0; i < number_of_types; i++) {
       if (i != element_index) {
-        cpu_coefficient[i] = -1 * N * mass_type[i] / patial_mass;
+        cpu_coefficient[i] = -1 * N * mass_type[i] / partial_mass;
       }
     }
     coefficient.resize(number_of_types);

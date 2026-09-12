@@ -751,7 +751,7 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12d, y12d, z12d;
     float x12f, y12f, z12f;
-    int neighor_number = g_neighbor_number[n1];
+    int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -803,7 +803,7 @@ static __global__ void gpu_find_force(
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
-    for (int i1 = 0; i1 < neighor_number; ++i1) {
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
@@ -914,7 +914,7 @@ static __global__ void gpu_find_force(
       float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
-      // derivatives of the product of rij and ni, the resutl is a vector
+      // derivatives of the product of rij and ni, the result is a vector
       dprodnorm1[0] = 
         dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
       dprodnorm1[1] = 
@@ -1134,7 +1134,7 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_ilp_neighbor_list[index];
-      int ilp_neighor_number_2 = g_ilp_neighbor_number[n2];
+      int ilp_neighbor_number_2 = g_ilp_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
@@ -1145,7 +1145,7 @@ static __global__ void reduce_force_many_body(
       z12f = float(z12d);
 
       int offset = 0;
-      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+      for (int k = 0; k < ilp_neighbor_number_2; ++k) {
         if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
           offset = k;
           break;
