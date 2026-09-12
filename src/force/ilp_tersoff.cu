@@ -138,7 +138,7 @@ ILP_TERSOFF::ILP_TERSOFF(FILE* fid_ilp, FILE* fid_tersoff, int num_types, int nu
   ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
   ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
 
-  // intialize tersoff neighbor list
+  // initialize Tersoff neighbor list
   tersoff_data.NN.resize(num_atoms);
   tersoff_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
   tersoff_data.cell_count.resize(num_atoms);

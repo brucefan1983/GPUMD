@@ -116,7 +116,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
   ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_TMD);
 
-  // intialize sw neighbor list
+  // initialize SW neighbor list
   sw2_data.NN.resize(num_atoms);
   sw2_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
   sw2_data.cell_count.resize(num_atoms);
