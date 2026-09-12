@@ -113,13 +113,13 @@ static __global__ void gpu_get_UF_sum(const int N, const double* eUF, double* ti
 {
 
   int tid = threadIdx.x;
-  int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int batch, n;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
-  for (patch = 0; patch < number_of_patches; patch++) {
-    n = tid + patch * 1024;
+  for (batch = 0; batch < number_of_batches; batch++) {
+    n = tid + batch * 1024;
     if (n < N)
       s_data[tid] += eUF[n];
   }
@@ -317,10 +317,10 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
   F_UF = fe(x_UF, coef, sum_spline, index) * kT * N;
 
   double c_sum = 0;
-  double de_broigle_sum = 0;
+  double de_broglie_sum = 0;
 
   for (int i = 0; i < N; ++i) {
-    de_broigle_sum += log(HBAR * sqrt(2 * PI / (masses[i] * kT)));
+    de_broglie_sum += log(HBAR * sqrt(2 * PI / (masses[i] * kT)));
     species_count[types[i]]++;
   }
 
@@ -333,7 +333,7 @@ Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
     }
   }
 
-  double F_IG = N * kT * (log(1 / V) - 1 + c_sum) + 3 * kT * de_broigle_sum;
+  double F_IG = N * kT * (log(1 / V) - 1 + c_sum) + 3 * kT * de_broglie_sum;
   E_ref = (F_UF + F_IG) / N;
 
   FILE* yaml_file = my_fopen("ti_liquid.yaml", "w");

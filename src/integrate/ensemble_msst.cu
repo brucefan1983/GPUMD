@@ -27,14 +27,14 @@ static __global__ void gpu_get_vsum(const int N, const double* g_vector, double*
 {
   //<<<1, 1024>>>
   int tid = threadIdx.x;
-  int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int batch, n;
+  int number_of_batches = (N - 1) / 1024 + 1;
   double vector1, vector2, vector3;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
-  for (patch = 0; patch < number_of_patches; patch++) {
-    n = tid + patch * 1024;
+  for (batch = 0; batch < number_of_batches; batch++) {
+    n = tid + batch * 1024;
     if (n < N) {
       vector1 = g_vector[n];
       vector2 = g_vector[n + N];

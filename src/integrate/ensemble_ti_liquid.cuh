@@ -60,7 +60,6 @@ protected:
   double sigma_sqrd = 1;
   double p = 1;
   double beta;
-  // Force& force;
   double V;
   // The input pressure is only used when reporting the Gibbs free energy.
   double target_pressure = 0;
@@ -71,8 +70,6 @@ protected:
   GPU_Vector<double> gpu_fy_UF;
   GPU_Vector<double> gpu_fz_UF;
   GPU_Vector<double> gpu_ti_values;
-  // GPU_Vector<int> g_NN;
-  // GPU_Vector<int> g_NL;
 
   std::vector<double> sum_spline1 = {
     0.00254749763692896, 0.00502343076464539, 0.007503155352045, 0.009991644266977,
