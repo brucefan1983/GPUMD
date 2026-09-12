@@ -181,7 +181,7 @@ static void find_rtc(const int Nc, const double factor, const double* hac, doubl
   }
 }
 
-// Calculate HAC (heat currant auto-correlation function)
+// Calculate HAC (heat current auto-correlation function)
 // and RTC (running thermal conductivity)
 void HAC::post_run(
   Atom& atom,

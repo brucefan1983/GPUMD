@@ -71,13 +71,13 @@ void HNEMDEC::pre_run(
   if (compute == 0) {
     FACTOR = 1;
   } else {
-    double patial_mass = 0;
+    double partial_mass = 0;
     for (int i = 0; i < number_of_types; i++) {
       if (i != compute - 1) {
-        patial_mass += atom.cpu_type_size[i] * cpu_mass_type[i];
+        partial_mass += atom.cpu_type_size[i] * cpu_mass_type[i];
       }
     }
-    FACTOR = N * (1.0 / patial_mass + 1.0 / (atom.cpu_type_size[compute - 1] * cpu_mass_type[compute - 1]));
+    FACTOR = N * (1.0 / partial_mass + 1.0 / (atom.cpu_type_size[compute - 1] * cpu_mass_type[compute - 1]));
     FACTOR = 1.0 / FACTOR;
   }
 }

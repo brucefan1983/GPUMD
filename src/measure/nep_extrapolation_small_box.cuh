@@ -187,7 +187,7 @@ static __global__ void find_descriptor_small_box(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
     }

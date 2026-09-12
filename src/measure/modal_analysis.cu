@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Green-Kubo Modal Analysis (GKMA) and
-Homogenous Nonequilibrium Modal Analysis (HNEMA) implementations.
+Homogeneous Nonequilibrium Modal Analysis (HNEMA) implementations.
 
 Original GMKA method is detailed in:
 H.R. Seyf, K. Gordiz, F. DeAngelis, and A. Henry, "Using Green-Kubo modal
