@@ -196,13 +196,13 @@ NEP_Charge::NEP_Charge(
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
   zbl.enabled = para.enable_zbl;
-  zbl.flexibled = para.flexible_zbl;
+  zbl.flexible = para.flexible_zbl;
   zbl.rc_inner = para.zbl_rc_inner;
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
   }
-  if (zbl.flexibled) {
+  if (zbl.flexible) {
     zbl.num_types = para.num_types;
     int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
     for (int n = 0; n < num_type_zbl * 10; ++n) {
@@ -799,7 +799,7 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2]; // starting from 1
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.flexible) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;

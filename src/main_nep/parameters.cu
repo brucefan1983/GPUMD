@@ -89,7 +89,7 @@ void Parameters::set_default_parameters()
   basis_size_angular = 6;      // large enough in most cases
   n_max_radial = 6;            // large enough in most cases
   n_max_angular = 6;           // large enough in most cases
-  L_max = 4;                   // the only supported value
+  L_max = 4;                   // default value
   has_q_222 = 1;               // default is to include q_222
   has_q_1111 = 0;              // default is not to include q_1111
   has_q_112 = 0;               // default is not to include q_112

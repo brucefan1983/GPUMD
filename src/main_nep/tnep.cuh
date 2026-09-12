@@ -57,7 +57,7 @@ public:
   struct ANN {
     int dim = 0;                    // dimension of the descriptor
     int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_neurons2 = 0;           // number of neurons in the output layer
+    int num_neurons2 = 0;           // number of neurons in the second hidden layer
     int num_hidden_layers = 0;      // number of hidden layers
     int num_para = 0;               // number of parameters
     int one_ann_no_bias = 0;        // number of parameters in the ANN without bias

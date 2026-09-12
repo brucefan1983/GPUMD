@@ -348,7 +348,7 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the dipole data
+  // use the virial variable to keep the dipole data
   if (para.train_mode == 1) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
@@ -380,7 +380,7 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the polarizability data
+  // use the virial variable to keep the polarizability data
   if (para.train_mode == 2) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {

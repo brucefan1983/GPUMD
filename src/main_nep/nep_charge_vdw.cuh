@@ -91,7 +91,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     int num_types;
