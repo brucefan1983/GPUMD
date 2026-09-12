@@ -80,9 +80,7 @@ public:
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
     GPU_Vector<float> D_real;
-    GPU_Vector<size_t> num_kpoints;
-    GPU_Vector<size_t> kpoint_offset;
-    size_t kpoint_capacity = 0;
+    GPU_Vector<int> kpoint_offset;
     const Dataset* kpoint_dataset = nullptr;
   };
 
