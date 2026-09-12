@@ -82,7 +82,7 @@ public:
   std::vector<float> bec_ref_cpu;         // reference BEC in CPU
   std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
   std::vector<float> weight_cpu;          // configuration weight in CPU
-  std::vector<float> temperature_ref_cpu; // reference temeprature in CPU
+  std::vector<float> temperature_ref_cpu; // reference temperature in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 

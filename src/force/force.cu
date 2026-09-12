@@ -249,28 +249,28 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   //<<<3, 1024>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_f[1024];
   double f = 0.0;
 
   switch (bid) {
     case 0:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fx[n];
       }
       break;
     case 1:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fy[n];
       }
       break;
     case 2:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fz[n];
       }
@@ -403,15 +403,15 @@ void Force::set_hnemdec_parameters(
     int element_index = compute_hnemdec_ - 1;
     cpu_coefficient.resize(number_of_types);
     cpu_coefficient[element_index] = double(N) / type_size[element_index];
-    double patial_mass = 0;
+    double partial_mass = 0;
     for (int i = 0; i < number_of_types; i++) {
       if (i != element_index) {
-        patial_mass += mass_type[i] * type_size[i];
+        partial_mass += mass_type[i] * type_size[i];
       }
     }
     for (int i = 0; i < number_of_types; i++) {
       if (i != element_index) {
-        cpu_coefficient[i] = -1 * N * mass_type[i] / patial_mass;
+        cpu_coefficient[i] = -1 * N * mass_type[i] / partial_mass;
       }
     }
     coefficient.resize(number_of_types);
@@ -692,12 +692,12 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
   //<<<9,1024>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_t[1024];
   double t = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * 1024;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
     if (n < N)
       t += g_tensor[bid * N + n];
   }

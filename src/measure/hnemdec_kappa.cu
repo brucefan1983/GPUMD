@@ -71,13 +71,13 @@ void HNEMDEC::pre_run(
   if (compute == 0) {
     FACTOR = 1;
   } else {
-    double patial_mass = 0;
+    double partial_mass = 0;
     for (int i = 0; i < number_of_types; i++) {
       if (i != compute - 1) {
-        patial_mass += atom.cpu_type_size[i] * cpu_mass_type[i];
+        partial_mass += atom.cpu_type_size[i] * cpu_mass_type[i];
       }
     }
-    FACTOR = N * (1.0 / patial_mass + 1.0 / (atom.cpu_type_size[compute - 1] * cpu_mass_type[compute - 1]));
+    FACTOR = N * (1.0 / partial_mass + 1.0 / (atom.cpu_type_size[compute - 1] * cpu_mass_type[compute - 1]));
     FACTOR = 1.0 / FACTOR;
   }
 }
@@ -95,13 +95,13 @@ static __global__ void gpu_sum_heat_and_diffusion(
   // <<<3 + 3 * number_of_types, 1024>>>
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
+  const int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
   if (bid < 3) {
-    for (int patch = 0; patch < number_of_patches; ++patch) {
-      const int n = tid + patch * 1024;
+    for (int batch = 0; batch < number_of_batches; ++batch) {
+      const int n = tid + batch * 1024;
       if (n < N) {
         s_data[tid] += g_heat[n + N * bid];
       }
@@ -122,8 +122,8 @@ static __global__ void gpu_sum_heat_and_diffusion(
   } else {
     int element_index = ((bid - NUM_OF_HEAT_COMPONENTS) / 3);
     int component = bid % 3;
-    for (int patch = 0; patch < number_of_patches; ++patch) {
-      const int n = tid + patch * 1024;
+    for (int batch = 0; batch < number_of_batches; ++batch) {
+      const int n = tid + batch * 1024;
       if (n < N) {
         if (g_type[n] == element_index) {
           s_data[tid] += g_velocity[n + N * component];

@@ -71,11 +71,11 @@ public:
   struct ANN {
     int dim = 0;                    // dimension of the descriptor
     int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_neurons2 = 0;           // number of neurons in the output layer
+    int num_neurons2 = 0;           // number of neurons in the second hidden layer
     int num_hidden_layers = 0;      // number of hidden layers
     int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
     int num_para = 0;               // number of parameters
-    const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
+    const float* wb[NUM_ELEMENTS];  // weights and biases for the hidden layer
     const float* b;                 // bias for the output layer
     const float* c;                 // for elements in descriptor
   };
@@ -88,7 +88,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     int num_types;

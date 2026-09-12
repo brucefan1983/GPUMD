@@ -289,7 +289,7 @@ static __global__ void gpu_nve_1(
     for (int k = 1; k < number_of_beads; ++k) {
       double omega_k = use_eco_pimd ? omega_n * eco_mode_factors[k]
                                      : 2.0 * omega_n * sin(k * PI / number_of_beads);
-      // The exact solution is actaully not very stable:
+      // The exact solution is actually not very stable:
       // double cos_factor = cos(omega_k * time_step);
       // double sin_factor = sin(omega_k * time_step);
       // The approximate solution based on Cayley is more stable:

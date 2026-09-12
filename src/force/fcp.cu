@@ -49,7 +49,7 @@ FCP::FCP(FILE* fid, const int num_types, const int N, const Box& box)
   PRINT_SCANF_ERROR(count, 1, "Reading error for force constant potential.");
   printf("    Use the force constant data in %s.\n", file_path);
 
-  // allocate memeory
+  // allocate memory
   fcp_data.u.resize(N * 3);
   fcp_data.r0.resize(N * 3, Memory_Type::managed);
   fcp_data.pfv.resize(N * 13);

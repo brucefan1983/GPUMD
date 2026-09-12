@@ -89,7 +89,7 @@ void Parameters::set_default_parameters()
   basis_size_angular = 6;      // large enough in most cases
   n_max_radial = 6;            // large enough in most cases
   n_max_angular = 6;           // large enough in most cases
-  L_max = 4;                   // the only supported value
+  L_max = 4;                   // default value
   has_q_222 = 1;               // default is to include q_222
   has_q_1111 = 0;              // default is not to include q_1111
   has_q_112 = 0;               // default is not to include q_112
@@ -138,13 +138,12 @@ void Parameters::set_default_parameters()
   enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
 
-  // ------------new--------------
   int deviceCount;  
   CHECK(gpuGetDeviceCount(&deviceCount));  
-  int fully_used_device = population_size % deviceCount;  
-  if (fully_used_device != 0) {  
-    int population_should_increase = deviceCount - fully_used_device;  
-    population_size += population_should_increase;  
+  int population_remainder = population_size % deviceCount;
+  if (population_remainder != 0) {
+    int population_increase = deviceCount - population_remainder;
+    population_size += population_increase;
     printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
   }  
 }
@@ -238,7 +237,7 @@ void Parameters::calculate_parameters()
 
   dim = dim_radial + dim_angular;
   if (train_mode == 3) {
-    dim += 1; // concatenate temeprature with descriptors
+    dim += 1; // concatenate temperature with descriptors
   }
 
   if (num_hidden_layers == 2) {
@@ -1207,7 +1206,7 @@ void Parameters::report_inputs()
       fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
   }
 
-  // some calcuated parameters:
+  // some calculated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
   printf("    number of angular descriptor components = %d.\n", dim_angular);
@@ -1666,12 +1665,12 @@ void Parameters::parse_neuron(const char** param, int num_param)
 
   if (num_param == 3) {
     if (!is_valid_int(param[2], &num_neurons2)) {
-      PRINT_INPUT_ERROR("number of neurons2 in the output layer should be an integer.\n");
+      PRINT_INPUT_ERROR("number of neurons in the second hidden layer should be an integer.\n");
     }
     if (num_neurons2 < 0) {
-      PRINT_INPUT_ERROR("number of neurons2 in the output layer should >= 0.");
+      PRINT_INPUT_ERROR("number of neurons in the second hidden layer should >= 0.");
     } else if (num_neurons2 > 120) {
-      PRINT_INPUT_ERROR("number of neurons2 in the output layer should <= 120.");
+      PRINT_INPUT_ERROR("number of neurons in the second hidden layer should <= 120.");
     }
     num_hidden_layers = 2;
 
@@ -1879,15 +1878,15 @@ void Parameters::parse_population(const char** param, int num_param)
 
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
-  int fully_used_device = population_size % deviceCount;
-  int population_should_increase;
-  if (fully_used_device != 0) {
-    population_should_increase = deviceCount - fully_used_device;
-    population_size += population_should_increase;
+  int population_remainder = population_size % deviceCount;
+  int population_increase;
+  if (population_remainder != 0) {
+    population_increase = deviceCount - population_remainder;
+    population_size += population_increase;
   } else {
-    population_should_increase = 0;
+    population_increase = 0;
   }
-  if (population_should_increase != 0) {
+  if (population_increase != 0) {
     printf("The input population size is not divisible by the number of GPUs.\n");
     printf("This causes an inefficient use of resources.\n");
     printf("The population size has therefore been increased to %d.\n", population_size);

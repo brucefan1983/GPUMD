@@ -43,15 +43,15 @@ static __global__ void gpu_find_thermo_single(
 {
   const int tid = threadIdx.x;
   const int quantity = blockIdx.x;
-  const int number_of_patches = (N - 1) / blockDim.x + 1;
+  const int number_of_batches = (N - 1) / blockDim.x + 1;
   double mass, vx, vy, vz;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
   switch (quantity) {
     case 0:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -62,16 +62,16 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 1:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           s_data[tid] += g_potential[n];
         }
       }
       break;
     case 2:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -80,8 +80,8 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 3:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vy = g_vy[n];
@@ -90,8 +90,8 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 4:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vz = g_vz[n];
@@ -100,8 +100,8 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 5:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -111,8 +111,8 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 6:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
@@ -122,8 +122,8 @@ static __global__ void gpu_find_thermo_single(
       }
       break;
     case 7:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        const int n = tid + patch * blockDim.x;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        const int n = tid + batch * blockDim.x;
         if (n < N) {
           mass = g_mass[n];
           vy = g_vy[n];

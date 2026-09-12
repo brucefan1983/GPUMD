@@ -53,13 +53,13 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 {
   //<<<1, 1024>>>
   int tid = threadIdx.x;
-  int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int batch, n;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
-  for (patch = 0; patch < number_of_patches; patch++) {
-    n = tid + patch * 1024;
+  for (batch = 0; batch < number_of_batches; batch++) {
+    n = tid + batch * 1024;
     if (n < N)
       s_data[tid] += espring[n];
   }

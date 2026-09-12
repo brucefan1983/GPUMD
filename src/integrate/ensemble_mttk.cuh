@@ -77,7 +77,7 @@ protected:
   int h0_reset_interval = 1000;
   // When nph, there is no target temperature. So we use the temperature of kinetic energy.
   double t_for_barostat = 0;
-  // the 3x3 matric of cell parameters
+  // the 3x3 matrix of cell parameters
   double h[3][3], h_inv[3][3], h_old[3][3];
 
   // for computing sigma

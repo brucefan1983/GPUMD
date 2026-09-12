@@ -175,7 +175,7 @@ void Ensemble_NPHug::init_mttk()
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
   matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
   // set tstat params
-  // Here I negelect center of mass dof.
+  // Here I neglect center of mass dof.
   temperature_dof = atom->number_of_atoms * 3;
   dt = time_step;
   dt2 = dt / 2;

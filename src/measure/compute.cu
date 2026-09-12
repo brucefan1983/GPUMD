@@ -188,12 +188,12 @@ static __global__ void find_group_sum_1(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 256 + 1;
+  int number_of_batches = (group_size - 1) / 256 + 1;
   __shared__ double s_data[256];
   s_data[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 256;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 256;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_data[tid] += g_in[n];
@@ -227,7 +227,7 @@ static __global__ void find_group_sum_3(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 256 + 1;
+  int number_of_batches = (group_size - 1) / 256 + 1;
   __shared__ double s_fx[256];
   __shared__ double s_fy[256];
   __shared__ double s_fz[256];
@@ -235,8 +235,8 @@ static __global__ void find_group_sum_3(
   s_fy[tid] = 0.0;
   s_fz[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 256;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 256;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_fx[tid] += g_fx[n];
@@ -282,7 +282,7 @@ static __global__ void find_group_sum_9(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 128 + 1;
+  int number_of_batches = (group_size - 1) / 128 + 1;
   __shared__ double s_xx[128];
   __shared__ double s_xy[128];
   __shared__ double s_xz[128];
@@ -302,8 +302,8 @@ static __global__ void find_group_sum_9(
   s_zy[tid] = 0.0;
   s_zz[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 128;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 128;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_xx[tid] += g_xx[n];

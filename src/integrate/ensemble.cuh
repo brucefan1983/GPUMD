@@ -94,7 +94,7 @@ public:
   double energy_transferred[2]; // energy transferred from system to heat baths
 
   std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths
-  // addtional function for scaling velocities in multiple groups
+  // additional function for scaling velocities in multiple groups
   virtual void scale_velocity_groups(
     const GPU_Vector<double>& factors,
     const GPU_Vector<int>& labels,

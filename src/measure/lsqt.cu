@@ -276,13 +276,13 @@ static __global__ void gpu_find_inner_product_1(
 
 // 2nd step of <sl|sr>
 __global__ void gpu_find_inner_product_2(
-  int number_of_blocks, int number_of_patches, double* moments_tmp, double* moments)
+  int number_of_blocks, int number_of_batches, double* moments_tmp, double* moments)
 {
   int tid = threadIdx.x;
   __shared__ double s_data[BLOCK_SIZE_EC];
   s_data[tid] = 0.0;
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * BLOCK_SIZE_EC;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * BLOCK_SIZE_EC;
     if (n < number_of_blocks) {
       s_data[tid] += moments_tmp[blockIdx.x * number_of_blocks + n];
     }
@@ -316,7 +316,7 @@ void find_moments_chebyshev(
 {
   int grid_size = (N - 1) / BLOCK_SIZE_EC + 1;
   int number_of_blocks = grid_size;
-  int number_of_patches = (number_of_blocks - 1) / BLOCK_SIZE_EC + 1;
+  int number_of_batches = (number_of_blocks - 1) / BLOCK_SIZE_EC + 1;
 
   int memory_moments = sizeof(double) * Nm;
   int memory_moments_tmp = memory_moments * grid_size;
@@ -368,7 +368,7 @@ void find_moments_chebyshev(
   }
 
   gpu_find_inner_product_2<<<Nm, BLOCK_SIZE_EC>>>(
-    number_of_blocks, number_of_patches, moments_tmp, moments);
+    number_of_blocks, number_of_batches, moments_tmp, moments);
   GPU_CHECK_KERNEL
 
   gpuFree(s0r);

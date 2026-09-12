@@ -30,7 +30,7 @@ Dump polarizability at a given interval.
 #include <cstring>
 
 static __global__ void sum_polarizability(
-  const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_pol)
+  const int N, const int number_of_batches, const double* g_virial_per_atom, double* g_pol)
 {
   //<<<6, 1024>>>
   int tid = threadIdx.x;
@@ -45,18 +45,18 @@ static __global__ void sum_polarizability(
   const int blockToCompIdx[6] = {0, 1, 2, 3, 5, 7};
   const unsigned int componentIdx = blockToCompIdx[blockIdx.x] * N;
 
-  // 1024 threads, each summing a patch of N/1024 atoms
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int atomIdx = tid + patch * 1024;
+  // Each thread accumulates one atom from each batch.
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int atomIdx = tid + batch * 1024;
     if (atomIdx < N)
       p += g_virial_per_atom[componentIdx + atomIdx];
   }
 
-  // save the sum for this patch
+  // Store the per-thread partial sum.
   s_p[tid] = p;
   __syncthreads();
 
-  // aggregate the patches in parallel
+  // Reduce the partial sums in parallel.
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
@@ -149,9 +149,9 @@ void Dump_Polarizability::end_of_step(
   const GPU_Vector<double>& response = nep_response_->compute(box, atom.position_per_atom);
 
   const int number_of_threads = 1024;
-  const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
+  const int number_of_batches = (number_of_atoms - 1) / number_of_threads + 1;
   sum_polarizability<<<6, number_of_threads>>>(
-    number_of_atoms, number_of_atoms_per_thread, response.data(), gpu_pol_.data());
+    number_of_atoms, number_of_batches, response.data(), gpu_pol_.data());
   GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU

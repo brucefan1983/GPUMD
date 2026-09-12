@@ -516,7 +516,7 @@ static __global__ void gpu_find_vc_and_ke(
 
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 512 + 1;
+  int number_of_batches = (group_size - 1) / 512 + 1;
 
   __shared__ double s_mc[512]; // center of mass
   __shared__ double s_vx[512]; // center of mass velocity
@@ -530,8 +530,8 @@ static __global__ void gpu_find_vc_and_ke(
   s_vz[tid] = 0.0;
   s_ke[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * 512;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 512;
     if (n < group_size) {
       int index = g_group_contents[offset + n];
       double mass = g_mass[index];

@@ -55,11 +55,11 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
   // <<<5, 1024>>>
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
+  const int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    const int n = tid + patch * 1024;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    const int n = tid + batch * 1024;
     if (n < N) {
       s_data[tid] += g_heat[n + N * bid];
     }

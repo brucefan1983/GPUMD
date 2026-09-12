@@ -71,14 +71,14 @@ public:
   int save_potential_format;   // format of checkpoint nep.txt file name
   int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
   int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
-  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
-  int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
+  int num_neurons1;       // number of neurons in the first hidden layer
+  int num_neurons2;       // number of neurons in the second hidden layer; 0 if unused
   int num_hidden_layers;  // number of hidden layers
   int basis_size_radial;
   int basis_size_angular;
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the 3body spherical harmonics
+  int L_max;              // maximum order of the three-body spherical harmonics
   int has_q_222;          // has q_222
   int has_q_1111;         // has q_1111
   int has_q_112;          // has q_112
@@ -93,9 +93,9 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float lambda_q;         // weight for global charge
   float lambda_z;         // weight for BEC
-  float force_delta;      // a parameters used to modify the force loss
-  bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
+  float force_delta;      // a parameter used to modify the force loss
+  bool enable_zbl;        // true for including the universal ZBL potential
+  bool flexible_zbl;      // true for including the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy

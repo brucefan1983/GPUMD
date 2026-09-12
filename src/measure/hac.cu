@@ -56,13 +56,13 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
 {
   // <<<NUM_OF_HEAT_COMPONENTS, 1024>>>
   const int tid = threadIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
+  const int number_of_batches = (N - 1) / 1024 + 1;
 
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    const int n = tid + patch * 1024;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    const int n = tid + batch * 1024;
     if (n < N) {
       s_data[tid] += g_heat[n + N * blockIdx.x];
     }
@@ -124,7 +124,7 @@ static __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_
 
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  int number_of_patches = (Nd - 1) / 128 + 1;
+  int number_of_batches = (Nd - 1) / 128 + 1;
   int number_of_data = Nd - bid;
 
   s_hac_xi[tid] = 0.0;
@@ -133,8 +133,8 @@ static __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_
   s_hac_yo[tid] = 0.0;
   s_hac_z[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int index = tid + patch * 128;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int index = tid + batch * 128;
     if (index + bid < Nd) {
       s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0] +
                        g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
@@ -181,7 +181,7 @@ static void find_rtc(const int Nc, const double factor, const double* hac, doubl
   }
 }
 
-// Calculate HAC (heat currant auto-correlation function)
+// Calculate HAC (heat current auto-correlation function)
 // and RTC (running thermal conductivity)
 void HAC::post_run(
   Atom& atom,
