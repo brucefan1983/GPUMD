@@ -4,6 +4,12 @@
 Publications
 ************
 
+2027
+====
+.. bibliography::
+   :list: enumerated
+   :filter: year % "2027"
+
 2026
 ====
 .. bibliography::
