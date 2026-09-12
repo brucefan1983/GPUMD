@@ -60,28 +60,28 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   //<<<3, 1024>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_f[1024];
   double f = 0.0;
 
   switch (bid) {
     case 0:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fx[n];
       }
       break;
     case 1:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fy[n];
       }
       break;
     case 2:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fz[n];
       }

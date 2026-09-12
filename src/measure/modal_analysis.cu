@@ -65,7 +65,7 @@ static __device__ void gpu_bin_reduce(
   int num_bins,
   int tid,
   int bid,
-  int number_of_patches,
+  int number_of_batches,
   const float* __restrict__ jm,
   float* bin_out)
 {
@@ -80,8 +80,8 @@ static __device__ void gpu_bin_reduce(
   s_data_yout[tid] = 0.0f;
   s_data_z[tid] = 0.0f;
 
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int n = tid + patch * BIN_BLOCK;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * BIN_BLOCK;
     if (n < bin_size) {
       s_data_xin[tid] += jm[n + shift];
       s_data_xout[tid] += jm[n + shift + num_modes];
@@ -124,9 +124,9 @@ static __global__ void gpu_bin_modes(
   int bid = blockIdx.x;
   int bin_size = bin_count[bid];
   int shift = bin_sum[bid];
-  int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+  int number_of_batches = (bin_size - 1) / BIN_BLOCK + 1;
 
-  gpu_bin_reduce(num_modes, bin_size, shift, num_bins, tid, bid, number_of_patches, jm, bin_out);
+  gpu_bin_reduce(num_modes, bin_size, shift, num_bins, tid, bid, number_of_batches, jm, bin_out);
 }
 
 static __global__ void elemwise_mass_scale(
