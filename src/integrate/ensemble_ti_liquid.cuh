@@ -46,11 +46,10 @@ public:
     Force& force);
 
   double fe(double x, const double coef[4], const double sum_spline[106], int index);
-  void find_thermo();
-  double get_UF_sum();
+  void get_UF_sum();
   void add_UF_force(Force& force);
   void init();
-  void find_lambda();
+  bool find_lambda();
   double switch_func(double t);
   double dswitch_func(double t);
 
@@ -58,19 +57,20 @@ protected:
   FILE* output_file;
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
-  double pe, eUF;
   double sigma_sqrd = 1;
   double p = 1;
   double beta;
   // Force& force;
-  //  this is the actual pressure, which may cause problems due to its fluctuation
-  double pressure, avg_pressure = 0, V;
-  // so I use the input pressure.
+  double V;
+  // The input pressure is only used when reporting the Gibbs free energy.
   double target_pressure = 0;
   double E_diff = 0, E_ref = 0;
   bool auto_switch = true;
   GPU_Vector<double> gpu_eUF;
-  std::vector<double> thermo_cpu;
+  GPU_Vector<double> gpu_fx_UF;
+  GPU_Vector<double> gpu_fy_UF;
+  GPU_Vector<double> gpu_fz_UF;
+  GPU_Vector<double> gpu_ti_values;
   // GPU_Vector<int> g_NN;
   // GPU_Vector<int> g_NL;
 
