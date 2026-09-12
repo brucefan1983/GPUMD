@@ -31,6 +31,9 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cstring>
+#include <limits>
+#include <stdexcept>
+#include <vector>
 
 static __global__ void find_descriptors_radial(
   const int N,
@@ -235,16 +238,9 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     nep_data[device_id].sum_fxyz.resize(
       N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
-    nep_data[device_id].kx.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].ky.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].kz.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].G.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].G_vdw.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].G_vdw_virial.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].S_real.resize(Nc * charge_para.num_kpoints_max);
-    nep_data[device_id].S_imag.resize(Nc * charge_para.num_kpoints_max);
     nep_data[device_id].D_real.resize(N);
     nep_data[device_id].num_kpoints.resize(Nc);
+    nep_data[device_id].kpoint_offset.resize(Nc + 1);
   }
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
@@ -879,14 +875,13 @@ static __global__ void find_force_ZBL(
 }
 
 static __global__ void find_structure_factor(
-  const int num_kpoints_max,
   const int* Na,
   const int* Na_sum,
   const float* g_charge,
   const float* g_x,
   const float* g_y,
   const float* g_z,
-  const int* g_num_kpoints,
+  const size_t* g_kpoint_offset,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -895,32 +890,28 @@ static __global__ void find_structure_factor(
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
-  int num_kpoints = g_num_kpoints[blockIdx.x];
-  int number_of_batches = (num_kpoints - 1) / 1024 + 1;
+  const size_t kpoint_begin = g_kpoint_offset[blockIdx.x];
+  const size_t num_kpoints = g_kpoint_offset[blockIdx.x + 1] - kpoint_begin;
 
-  for (int batch = 0; batch < number_of_batches; ++batch) {
-    int nk = threadIdx.x + batch * 1024;
-    if (nk < num_kpoints) {
-      int nc_nk = blockIdx.x * num_kpoints_max + nk;
-      float S_real = 0.0f;
-      float S_imag = 0.0f;
-      for (int n = N1; n < N2; ++n) {
-        float kr = g_kx[nc_nk] * g_x[n] + g_ky[nc_nk] * g_y[n] + g_kz[nc_nk] * g_z[n];
-        const float charge = g_charge[n];
-        float sin_kr = sin(kr);
-        float cos_kr = cos(kr);
-        S_real += charge * cos_kr;
-        S_imag -= charge * sin_kr;
-      }
-      g_S_real[nc_nk] = S_real;
-      g_S_imag[nc_nk] = S_imag;
+  for (size_t nk = threadIdx.x; nk < num_kpoints; nk += blockDim.x) {
+    const size_t nc_nk = kpoint_begin + nk;
+    float S_real = 0.0f;
+    float S_imag = 0.0f;
+    for (int n = N1; n < N2; ++n) {
+      float kr = g_kx[nc_nk] * g_x[n] + g_ky[nc_nk] * g_y[n] + g_kz[nc_nk] * g_z[n];
+      const float charge = g_charge[n];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      S_real += charge * cos_kr;
+      S_imag -= charge * sin_kr;
     }
+    g_S_real[nc_nk] = S_real;
+    g_S_imag[nc_nk] = S_imag;
   }
 }
 
 static __global__ void find_force_charge_reciprocal_space(
   const int N,
-  const int num_kpoints_max,
   const float alpha_factor,
   const int* Na,
   const int* Na_sum,
@@ -928,7 +919,7 @@ static __global__ void find_force_charge_reciprocal_space(
   const float* g_x,
   const float* g_y,
   const float* g_z,
-  const int* g_num_kpoints,
+  const size_t* g_kpoint_offset,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -945,7 +936,8 @@ static __global__ void find_force_charge_reciprocal_space(
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
   int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
-  int num_kpoints = g_num_kpoints[blockIdx.x];
+  const size_t kpoint_begin = g_kpoint_offset[blockIdx.x];
+  const size_t num_kpoints = g_kpoint_offset[blockIdx.x + 1] - kpoint_begin;
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
@@ -953,8 +945,8 @@ static __global__ void find_force_charge_reciprocal_space(
       float temp_virial_sum[6] = {0.0f};
       float temp_force_sum[3] = {0.0f};
       float temp_D_real_sum = 0.0f;
-      for (int nk = 0; nk < num_kpoints; ++nk) {
-        const int nc_nk = blockIdx.x * num_kpoints_max + nk;
+      for (size_t nk = 0; nk < num_kpoints; ++nk) {
+        const size_t nc_nk = kpoint_begin + nk;
         const float kx = g_kx[nc_nk];
         const float ky = g_ky[nc_nk];
         const float kz = g_kz[nc_nk];
@@ -994,14 +986,13 @@ static __global__ void find_force_charge_reciprocal_space(
 
 static __global__ void find_force_vdw_reciprocal_space(
   const int N,
-  const int num_kpoints_max,
   const int* Na,
   const int* Na_sum,
   const float* g_C6,
   const float* g_x,
   const float* g_y,
   const float* g_z,
-  const int* g_num_kpoints,
+  const size_t* g_kpoint_offset,
   const float* g_kx,
   const float* g_ky,
   const float* g_kz,
@@ -1019,7 +1010,8 @@ static __global__ void find_force_vdw_reciprocal_space(
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
   int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
-  int num_kpoints = g_num_kpoints[blockIdx.x];
+  const size_t kpoint_begin = g_kpoint_offset[blockIdx.x];
+  const size_t num_kpoints = g_kpoint_offset[blockIdx.x + 1] - kpoint_begin;
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
@@ -1027,8 +1019,8 @@ static __global__ void find_force_vdw_reciprocal_space(
       float temp_virial_sum[6] = {0.0f};
       float temp_force_sum[3] = {0.0f};
       float temp_D_C6_sum = 0.0f;
-      for (int nk = 0; nk < num_kpoints; ++nk) {
-        const int nc_nk = blockIdx.x * num_kpoints_max + nk;
+      for (size_t nk = 0; nk < num_kpoints; ++nk) {
+        const size_t nc_nk = kpoint_begin + nk;
         const float kx = g_kx[nc_nk];
         const float ky = g_ky[nc_nk];
         const float kz = g_kz[nc_nk];
@@ -1085,11 +1077,11 @@ static __device__ float get_area(const float* a, const float* b)
 
 static __global__ void find_k_and_G(
   const int Nc,
-  const int num_kpoints_max,
   const float alpha,
   const float alpha_factor,
   const float* g_box,
-  int* g_num_kpoints,
+  const size_t* g_kpoint_offset,
+  size_t* g_num_kpoints,
   float* g_kx,
   float* g_ky,
   float* g_kz,
@@ -1127,41 +1119,115 @@ static __global__ void find_k_and_G(
     int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
     float ksq_max = two_pi * two_pi * alpha * alpha;
 
-    int nk = 0;
+    size_t nk = 0;
     for (int n1 = 0; n1 <= n1_max; ++n1) {
       for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
         for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-          const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-          if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 <= 0))) continue;
           const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
           const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
           const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
           const float ksq = kx * kx + ky * ky + kz * kz;
           if (ksq < ksq_max) {
-            const int nc_nk = nc * num_kpoints_max + (nk++);
-            g_kx[nc_nk] = kx;
-            g_ky[nc_nk] = ky;
-            g_kz[nc_nk] = kz;
-            g_G[nc_nk] = 2.0f * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+            if (g_kx != nullptr) {
+              const size_t nc_nk = g_kpoint_offset[nc] + nk;
+              g_kx[nc_nk] = kx;
+              g_ky[nc_nk] = ky;
+              g_kz[nc_nk] = kz;
+              g_G[nc_nk] =
+                2.0f * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
 
-            const float sqrt_pi = 1.77245385f;
-            const float b2 = ksq * alpha_factor;
-            const float b = sqrt(b2);
-            const float exp_b2 = exp(-b2);
-            const float k = sqrt(ksq);
-            const float erfc_b = erfc(b);
-            const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
-            const float c1 = -k * ksq *
-              (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
-            const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
-            g_G_vdw[nc_nk] = prefactor * c1;
-            g_G_vdw_virial[nc_nk] = prefactor * c2;
+              const float sqrt_pi = 1.77245385f;
+              const float b2 = ksq * alpha_factor;
+              const float b = sqrt(b2);
+              const float exp_b2 = exp(-b2);
+              const float k = sqrt(ksq);
+              const float erfc_b = erfc(b);
+              const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
+              const float c1 = -k * ksq *
+                (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+              const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
+              g_G_vdw[nc_nk] = prefactor * c1;
+              g_G_vdw_virial[nc_nk] = prefactor * c2;
+            }
+            ++nk;
           }
         }
       }
     }
     g_num_kpoints[nc] = nk;
   }
+}
+
+void NEP_Charge_VDW::prepare_kpoints(Dataset& dataset, int device_id)
+{
+  NEP_Charge_VDW_Data& data = nep_data[device_id];
+
+  // Training datasets and their boxes are immutable after construction.
+  if (data.kpoint_dataset == &dataset) {
+    return;
+  }
+
+  const int grid_size = (dataset.Nc - 1) / 64 + 1;
+  find_k_and_G<<<grid_size, 64>>>(
+    dataset.Nc,
+    charge_para.alpha,
+    charge_para.alpha_factor,
+    dataset.box_original.data(),
+    nullptr,
+    data.num_kpoints.data(),
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr);
+  GPU_CHECK_KERNEL
+
+  std::vector<size_t> num_kpoints(dataset.Nc);
+  std::vector<size_t> kpoint_offset(dataset.Nc + 1, 0);
+  data.num_kpoints.copy_to_host(num_kpoints.data(), dataset.Nc);
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    if (num_kpoints[nc] >
+        std::numeric_limits<size_t>::max() - kpoint_offset[nc]) {
+      throw std::runtime_error("The total number of Ewald K points is too large.");
+    }
+    kpoint_offset[nc + 1] = kpoint_offset[nc] + num_kpoints[nc];
+  }
+  data.kpoint_offset.copy_from_host(kpoint_offset.data(), dataset.Nc + 1);
+
+  const size_t total_num_kpoints = kpoint_offset[dataset.Nc];
+  const size_t required_capacity = total_num_kpoints > 0 ? total_num_kpoints : 1;
+  if (required_capacity > data.kpoint_capacity) {
+    if (required_capacity > std::numeric_limits<size_t>::max() / sizeof(float)) {
+      throw std::runtime_error("The Ewald K-point arrays are too large.");
+    }
+    data.kx.resize(required_capacity);
+    data.ky.resize(required_capacity);
+    data.kz.resize(required_capacity);
+    data.G.resize(required_capacity);
+    data.G_vdw.resize(required_capacity);
+    data.G_vdw_virial.resize(required_capacity);
+    data.S_real.resize(required_capacity);
+    data.S_imag.resize(required_capacity);
+    data.kpoint_capacity = required_capacity;
+  }
+
+  find_k_and_G<<<grid_size, 64>>>(
+    dataset.Nc,
+    charge_para.alpha,
+    charge_para.alpha_factor,
+    dataset.box_original.data(),
+    data.kpoint_offset.data(),
+    data.num_kpoints.data(),
+    data.kx.data(),
+    data.ky.data(),
+    data.kz.data(),
+    data.G.data(),
+    data.G_vdw.data(),
+    data.G_vdw_virial.data());
+  GPU_CHECK_KERNEL
+  data.kpoint_dataset = &dataset;
 }
 
 static __global__ void zero_total_charge(
@@ -1488,30 +1554,16 @@ void NEP_Charge_VDW::find_force(
     }
 
     // reciprocal space
-    find_k_and_G<<<(dataset[device_id].Nc - 1) / 64 + 1, 64>>>(
-      dataset[device_id].Nc,
-      charge_para.num_kpoints_max,
-      charge_para.alpha,
-      charge_para.alpha_factor,
-      dataset[device_id].box_original.data(),
-      nep_data[device_id].num_kpoints.data(),
-      nep_data[device_id].kx.data(),
-      nep_data[device_id].ky.data(),
-      nep_data[device_id].kz.data(),
-      nep_data[device_id].G.data(),
-      nep_data[device_id].G_vdw.data(),
-      nep_data[device_id].G_vdw_virial.data());
-    GPU_CHECK_KERNEL
+    prepare_kpoints(dataset[device_id], device_id);
 
     find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
-      charge_para.num_kpoints_max,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
       dataset[device_id].charge_shifted.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kpoint_offset.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
@@ -1521,7 +1573,6 @@ void NEP_Charge_VDW::find_force(
 
     find_force_charge_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].N,
-      charge_para.num_kpoints_max,
       charge_para.alpha_factor,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
@@ -1529,7 +1580,7 @@ void NEP_Charge_VDW::find_force(
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kpoint_offset.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
@@ -1553,14 +1604,13 @@ void NEP_Charge_VDW::find_force(
 
     // reciprocal-space vdW
     find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
-      charge_para.num_kpoints_max,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
       nep_data[device_id].C6.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kpoint_offset.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
@@ -1570,14 +1620,13 @@ void NEP_Charge_VDW::find_force(
 
     find_force_vdw_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].N,
-      charge_para.num_kpoints_max,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
       nep_data[device_id].C6.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
       dataset[device_id].r.data() + dataset[device_id].N * 2,
-      nep_data[device_id].num_kpoints.data(),
+      nep_data[device_id].kpoint_offset.data(),
       nep_data[device_id].kx.data(),
       nep_data[device_id].ky.data(),
       nep_data[device_id].kz.data(),
