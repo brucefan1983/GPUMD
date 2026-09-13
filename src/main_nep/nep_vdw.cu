@@ -823,7 +823,7 @@ static __global__ void find_k_and_G(
     for (int n1 = 0; n1 <= n1_max; ++n1) {
       for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
         for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 <= 0))) continue;
+          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0))) continue;
           const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
           const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
           const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
@@ -835,17 +835,25 @@ static __global__ void find_k_and_G(
               g_ky[nc_nk] = ky;
               g_kz[nc_nk] = kz;
               const float sqrt_pi = 1.77245385f;
-              const float b2 = ksq * alpha_factor;
-              const float b = sqrt(b2);
-              const float exp_b2 = exp(-b2);
-              const float k = sqrt(ksq);
-              const float erfc_b = erfc(b);
-              const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
-              const float c1 = -k * ksq *
-                (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
-              const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
-              g_G_vdw[nc_nk] = prefactor * c1;
-              g_G_vdw_virial[nc_nk] = prefactor * c2;
+              if (ksq == 0.0f) {
+                // k=0 occurs once, unlike each nonzero +/-k pair.
+                g_G_vdw[nc_nk] =
+                  -abs(two_pi_over_det) * sqrt_pi *
+                  alpha * alpha * alpha / 12.0f;
+                g_G_vdw_virial[nc_nk] = 0.0f;
+              } else {
+                const float b2 = ksq * alpha_factor;
+                const float b = sqrt(b2);
+                const float exp_b2 = exp(-b2);
+                const float k = sqrt(ksq);
+                const float erfc_b = erfc(b);
+                const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
+                const float c1 = -k * ksq *
+                  (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+                const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
+                g_G_vdw[nc_nk] = prefactor * c1;
+                g_G_vdw_virial[nc_nk] = prefactor * c2;
+              }
             }
             ++nk;
           }
