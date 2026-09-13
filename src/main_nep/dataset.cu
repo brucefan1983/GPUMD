@@ -92,6 +92,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<float> box_cpu(Nc * 18);
   std::vector<float> box_original_cpu(Nc * 9);
   std::vector<int> num_cell_cpu(Nc * 3);
+  std::vector<int> pbc_cpu(Nc);
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
 
@@ -124,6 +125,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   temperature_ref_cpu.resize(N);
 
   for (int n = 0; n < Nc; ++n) {
+    pbc_cpu[n] = structures[n].pbc;
     weight_cpu[n] = structures[n].weight;
     if ((para.charge_mode || para.charge_vdw)) {
       charge_ref_cpu[n] = structures[n].charge;
@@ -196,11 +198,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
   box.resize(Nc * 18);
   box_original.resize(Nc * 9);
   num_cell.resize(Nc * 3);
+  pbc.resize(Nc);
   r.resize(N * 3);
   type.resize(N);
   box.copy_from_host(box_cpu.data());
   box_original.copy_from_host(box_original_cpu.data());
   num_cell.copy_from_host(num_cell_cpu.data());
+  pbc.copy_from_host(pbc_cpu.data());
   r.copy_from_host(r_cpu.data());
   type.copy_from_host(type_cpu.data());
 }
@@ -216,6 +220,7 @@ static __global__ void gpu_find_neighbor_number(
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
+  const int* __restrict__ g_pbc,
   const float* x,
   const float* y,
   const float* z,
@@ -228,6 +233,7 @@ static __global__ void gpu_find_neighbor_number(
     const float* __restrict__ box = g_box + 18 * blockIdx.x;
     const float* __restrict__ box_original = g_box_original + 9 * blockIdx.x;
     const int* __restrict__ num_cell = g_num_cell + 3 * blockIdx.x;
+    const int is_periodic = g_pbc[blockIdx.x];
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
@@ -247,7 +253,9 @@ static __global__ void gpu_find_neighbor_number(
             float x12 = x[n2] + delta_x - x1;
             float y12 = y[n2] + delta_y - y1;
             float z12 = z[n2] + delta_z - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            if (is_periodic) {
+              dev_apply_mic(box, x12, y12, z12);
+            }
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             int t2 = g_type[n2];
             float rc_radial = (g_rc_radial[t1] + g_rc_radial[t2]) * 0.5f;
@@ -278,6 +286,7 @@ static __global__ void gpu_find_neighbor_list(
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
+  const int* __restrict__ g_pbc,
   const float* x,
   const float* y,
   const float* z,
@@ -300,6 +309,7 @@ static __global__ void gpu_find_neighbor_list(
     const float* __restrict__ box = g_box + 18 * blockIdx.x;
     const float* __restrict__ box_original = g_box_original + 9 * blockIdx.x;
     const int* __restrict__ num_cell = g_num_cell + 3 * blockIdx.x;
+    const int is_periodic = g_pbc[blockIdx.x];
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
@@ -319,7 +329,9 @@ static __global__ void gpu_find_neighbor_list(
             float x12 = x[n2] + delta_x - x1;
             float y12 = y[n2] + delta_y - y1;
             float z12 = z[n2] + delta_z - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            if (is_periodic) {
+              dev_apply_mic(box, x12, y12, z12);
+            }
             float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             int t2 = g_type[n2];
             float rc_radial = (g_rc_radial[t1] + g_rc_radial[t2]) * 0.5f;
@@ -379,6 +391,7 @@ void Dataset::find_neighbor(Parameters& para)
     box.data(),
     box_original.data(),
     num_cell.data(),
+    pbc.data(),
     r.data(),
     r.data() + N,
     r.data() + N * 2,
@@ -447,6 +460,7 @@ void Dataset::find_neighbor(Parameters& para)
     box.data(),
     box_original.data(),
     num_cell.data(),
+    pbc.data(),
     r.data(),
     r.data() + N,
     r.data() + N * 2,

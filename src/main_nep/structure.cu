@@ -52,9 +52,18 @@ static void change_box(const Parameters& para, Structure& structure)
   float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
   float det = get_det(structure.box_original);
   structure.volume = abs(det);
-  structure.num_cell[0] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
-  structure.num_cell[1] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
-  structure.num_cell[2] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+  if (structure.pbc) {
+    structure.num_cell[0] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
+    structure.num_cell[1] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
+    structure.num_cell[2] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+  } else {
+    structure.num_cell[0] = 1;
+    structure.num_cell[1] = 1;
+    structure.num_cell[2] = 1;
+  }
 
   structure.box[0] = structure.box_original[0] * structure.num_cell[0];
   structure.box[3] = structure.box_original[3] * structure.num_cell[0];
@@ -199,6 +208,33 @@ static void read_one_structure(
 
   if (tokens.size() == 0) {
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
+  }
+
+  // Read boundaries for long-range models. FFF is currently supported by
+  // NEP-Charge only. Keep PPP as the default for existing training data.
+  if (para.charge_mode || para.vdw || para.charge_vdw) {
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string pbc_string = "pbc=";
+      if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
+        if (n + 2 >= tokens.size()) {
+          PRINT_INPUT_ERROR("The pbc field should contain three values.");
+        }
+        const char pbc[3] = {
+          tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
+        for (int d = 0; d < 3; ++d) {
+          if (pbc[d] != 't' && pbc[d] != 'f') {
+            PRINT_INPUT_ERROR("Each pbc value should be T or F.");
+          }
+        }
+        if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
+          PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
+        }
+        if (!para.charge_mode && pbc[0] == 'f') {
+          PRINT_INPUT_ERROR("FFF boundaries are currently supported only for NEP-Charge.");
+        }
+        structure.pbc = (pbc[0] == 't');
+      }
+    }
   }
 
   // get energy_weight (optional)
@@ -543,6 +579,14 @@ static void read_exyz(
     ++Nc;
   }
   printf("Number of configurations = %d.\n", Nc);
+  if (para.charge_mode) {
+    int num_fff = 0;
+    for (const auto& structure : structures) {
+      num_fff += 1 - structure.pbc;
+    }
+    printf("Number of PPP configurations = %d.\n", Nc - num_fff);
+    printf("Number of FFF configurations = %d.\n", num_fff);
+  }
 
   for (const auto& s : structures) {
     if (s.energy < -100.0f) {
