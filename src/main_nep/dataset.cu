@@ -27,82 +27,14 @@
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
   Nc = n2 - n1;
-  structures.resize(Nc);
+  structures.assign(structures_input.begin() + n1, structures_input.begin() + n2);
 
   for (int n = 0; n < Nc; ++n) {
-    int n_input = n + n1;
-    structures[n].num_atom = structures_input[n_input].num_atom;
-    structures[n].weight = structures_input[n_input].weight;
-    structures[n].has_virial = structures_input[n_input].has_virial;
-    structures[n].has_bec = structures_input[n_input].has_bec;
-    structures[n].has_atomic_virial = structures_input[n_input].has_atomic_virial;
-    structures[n].atomic_virial_diag_only = structures_input[n_input].atomic_virial_diag_only;
-    structures[n].charge = structures_input[n_input].charge;
-    structures[n].energy = structures_input[n_input].energy;
-    structures[n].energy_weight = structures_input[n_input].energy_weight;
-    structures[n].has_temperature = structures_input[n_input].has_temperature;
-    structures[n].temperature = structures_input[n_input].temperature;
-    structures[n].volume = structures_input[n_input].volume;
-    for (int k = 0; k < 6; ++k) {
-      structures[n].virial[k] = structures_input[n_input].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures[n].box[k] = structures_input[n_input].box[k];
-    }
-    for (int k = 0; k < 9; ++k) {
-      structures[n].box_original[k] = structures_input[n_input].box_original[k];
-    }
-    for (int k = 0; k < 3; ++k) {
-      structures[n].num_cell[k] = structures_input[n_input].num_cell[k];
-    }
-
-    structures[n].type.resize(structures[n].num_atom);
-    structures[n].x.resize(structures[n].num_atom);
-    structures[n].y.resize(structures[n].num_atom);
-    structures[n].z.resize(structures[n].num_atom);
-    structures[n].fx.resize(structures[n].num_atom);
-    structures[n].fy.resize(structures[n].num_atom);
-    structures[n].fz.resize(structures[n].num_atom);
-    structures[n].bec.resize(structures[n].num_atom * 9);
-
-    for (int na = 0; na < structures[n].num_atom; ++na) {
-      structures[n].type[na] = structures_input[n_input].type[na];
-      structures[n].x[na] = structures_input[n_input].x[na];
-      structures[n].y[na] = structures_input[n_input].y[na];
-      structures[n].z[na] = structures_input[n_input].z[na];
-      structures[n].fx[na] = structures_input[n_input].fx[na];
-      structures[n].fy[na] = structures_input[n_input].fy[na];
-      structures[n].fz[na] = structures_input[n_input].fz[na];
-      for (int d = 0; d < 9; ++d) {
-        structures[n].bec[na * 9 + d] = structures_input[n_input].bec[na * 9 + d];
-      }
-    }
-
     if (structures[n].has_atomic_virial != structures[0].has_atomic_virial) {
       throw std::runtime_error("All structures must have the same has_atomic_virial flag.");
     }
     if (structures[n].atomic_virial_diag_only != structures[0].atomic_virial_diag_only) {
       throw std::runtime_error("All structures must have the same atomic_virial_diag_only flag.");
-    }
-    if (structures[n].has_atomic_virial) {
-      structures[n].avirialxx.resize(structures[n].num_atom);
-      structures[n].avirialyy.resize(structures[n].num_atom);
-      structures[n].avirialzz.resize(structures[n].num_atom);
-      for (int na = 0; na < structures[n].num_atom; ++na) {
-        structures[n].avirialxx[na] = structures_input[n_input].avirialxx[na];
-        structures[n].avirialyy[na] = structures_input[n_input].avirialyy[na];
-        structures[n].avirialzz[na] = structures_input[n_input].avirialzz[na];
-      }
-      if (!structures[n].atomic_virial_diag_only) {
-        structures[n].avirialxy.resize(structures[n].num_atom);
-        structures[n].avirialyz.resize(structures[n].num_atom);
-        structures[n].avirialzx.resize(structures[n].num_atom);
-        for (int na = 0; na < structures[n].num_atom; ++na) {
-          structures[n].avirialxy[na] = structures_input[n_input].avirialxy[na];
-          structures[n].avirialyz[na] = structures_input[n_input].avirialyz[na];
-          structures[n].avirialzx[na] = structures_input[n_input].avirialzx[na];
-        }
-      }
     }
   }
 }

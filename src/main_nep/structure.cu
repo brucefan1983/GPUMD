@@ -592,95 +592,12 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
   std::vector<int> configuration_id(structures.size());
   find_permuted_indices(num_batches, structures, configuration_id);
 
-  std::vector<Structure> structures_copy(structures.size());
-
+  std::vector<Structure> structures_reordered;
+  structures_reordered.reserve(structures.size());
   for (int nc = 0; nc < structures.size(); ++nc) {
-    structures_copy[nc].num_atom = structures[nc].num_atom;
-    structures_copy[nc].weight = structures[nc].weight;
-    structures_copy[nc].has_virial = structures[nc].has_virial;
-    structures_copy[nc].has_bec = structures[nc].has_bec;
-    structures_copy[nc].energy = structures[nc].energy;
-    structures_copy[nc].energy_weight = structures[nc].energy_weight;
-    structures_copy[nc].has_temperature = structures[nc].has_temperature;
-    structures_copy[nc].temperature = structures[nc].temperature;
-    structures_copy[nc].volume = structures[nc].volume;
-    for (int k = 0; k < 6; ++k) {
-      structures_copy[nc].virial[k] = structures[nc].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures_copy[nc].box[k] = structures[nc].box[k];
-    }
-    for (int k = 0; k < 9; ++k) {
-      structures_copy[nc].box_original[k] = structures[nc].box_original[k];
-    }
-    for (int k = 0; k < 3; ++k) {
-      structures_copy[nc].num_cell[k] = structures[nc].num_cell[k];
-    }
-    structures_copy[nc].type.resize(structures[nc].num_atom);
-    structures_copy[nc].x.resize(structures[nc].num_atom);
-    structures_copy[nc].y.resize(structures[nc].num_atom);
-    structures_copy[nc].z.resize(structures[nc].num_atom);
-    structures_copy[nc].fx.resize(structures[nc].num_atom);
-    structures_copy[nc].fy.resize(structures[nc].num_atom);
-    structures_copy[nc].fz.resize(structures[nc].num_atom);
-    structures_copy[nc].bec.resize(structures[nc].num_atom * 9);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures_copy[nc].type[na] = structures[nc].type[na];
-      structures_copy[nc].x[na] = structures[nc].x[na];
-      structures_copy[nc].y[na] = structures[nc].y[na];
-      structures_copy[nc].z[na] = structures[nc].z[na];
-      structures_copy[nc].fx[na] = structures[nc].fx[na];
-      structures_copy[nc].fy[na] = structures[nc].fy[na];
-      structures_copy[nc].fz[na] = structures[nc].fz[na];
-      for (int d = 0; d < 9; ++d) {
-        structures_copy[nc].bec[na * 9 + d] = structures[nc].bec[na * 9 + d];
-      }
-    }
+    structures_reordered.push_back(structures[configuration_id[nc]]);
   }
-
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
-    structures[nc].weight = structures_copy[configuration_id[nc]].weight;
-    structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
-    structures[nc].has_bec = structures_copy[configuration_id[nc]].has_bec;
-    structures[nc].energy = structures_copy[configuration_id[nc]].energy;
-    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
-    structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
-    structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
-    structures[nc].volume = structures_copy[configuration_id[nc]].volume;
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
-    }
-    for (int k = 0; k < 9; ++k) {
-      structures[nc].box_original[k] = structures_copy[configuration_id[nc]].box_original[k];
-    }
-    for (int k = 0; k < 3; ++k) {
-      structures[nc].num_cell[k] = structures_copy[configuration_id[nc]].num_cell[k];
-    }
-    structures[nc].type.resize(structures[nc].num_atom);
-    structures[nc].x.resize(structures[nc].num_atom);
-    structures[nc].y.resize(structures[nc].num_atom);
-    structures[nc].z.resize(structures[nc].num_atom);
-    structures[nc].fx.resize(structures[nc].num_atom);
-    structures[nc].fy.resize(structures[nc].num_atom);
-    structures[nc].fz.resize(structures[nc].num_atom);
-    structures[nc].bec.resize(structures[nc].num_atom * 9);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures[nc].type[na] = structures_copy[configuration_id[nc]].type[na];
-      structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
-      structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
-      structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];
-      structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
-      structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
-      structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
-      for (int d = 0; d < 9; ++d) {
-        structures[nc].bec[na * 9 + d] = structures_copy[configuration_id[nc]].bec[na * 9 + d];
-      }
-    }
-  }
+  structures.swap(structures_reordered);
 }
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
