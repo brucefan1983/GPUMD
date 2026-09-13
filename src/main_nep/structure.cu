@@ -210,8 +210,8 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
-  // Read boundaries for long-range models. FFF is currently supported by
-  // NEP-Charge only. Keep PPP as the default for existing training data.
+  // Read boundaries for long-range models. Keep PPP as the default for
+  // existing training data.
   if (para.charge_mode || para.vdw || para.charge_vdw) {
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string pbc_string = "pbc=";
@@ -228,9 +228,6 @@ static void read_one_structure(
         }
         if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
           PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
-        }
-        if (!para.charge_mode && pbc[0] == 'f') {
-          PRINT_INPUT_ERROR("FFF boundaries are currently supported only for NEP-Charge.");
         }
         structure.pbc = (pbc[0] == 't');
       }
@@ -579,7 +576,7 @@ static void read_exyz(
     ++Nc;
   }
   printf("Number of configurations = %d.\n", Nc);
-  if (para.charge_mode) {
+  if (para.charge_mode || para.vdw || para.charge_vdw) {
     int num_fff = 0;
     for (const auto& structure : structures) {
       num_fff += 1 - structure.pbc;

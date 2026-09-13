@@ -618,10 +618,12 @@ static __global__ void find_structure_factor(
   }
 }
 
-static __global__ void find_force_vdw_reciprocal_space(
+static __global__ void find_force_vdw_long_range(
   const int N,
+  const float alpha,
   const int* Na,
   const int* Na_sum,
+  const int* g_pbc,
   const float* g_C6,
   const float* g_x,
   const float* g_y,
@@ -644,11 +646,69 @@ static __global__ void find_force_vdw_reciprocal_space(
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
   int number_of_batches = (N2 - N1 - 1) / 1024 + 1;
+  const int is_periodic = g_pbc[blockIdx.x];
   const int kpoint_begin = g_kpoint_offset[blockIdx.x];
   const int num_kpoints = g_kpoint_offset[blockIdx.x + 1] - kpoint_begin;
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
+      if (!is_periodic) {
+        const float C6_1 = g_C6[n];
+        const float alpha_squared = alpha * alpha;
+        const float alpha_sixth =
+          alpha_squared * alpha_squared * alpha_squared;
+        // Keep the r=0 term used by the current reciprocal-space-only model.
+        float temp_energy_sum =
+          -alpha_sixth * C6_1 * C6_1 / 12.0f;
+        float temp_D_C6_sum = -alpha_sixth * C6_1 / 6.0f;
+        float temp_virial_sum[6] = {0.0f};
+        float temp_force_sum[3] = {0.0f};
+        for (int n2 = N1; n2 < N2; ++n2) {
+          if (n2 == n) {
+            continue;
+          }
+          const float x12 = g_x[n2] - g_x[n];
+          const float y12 = g_y[n2] - g_y[n];
+          const float z12 = g_z[n2] - g_z[n];
+          const float distance_square =
+            x12 * x12 + y12 * y12 + z12 * z12;
+          float potential;
+          float force_factor;
+          find_vdw_long_range(
+            alpha_squared,
+            alpha_sixth,
+            distance_square,
+            potential,
+            force_factor);
+          const float C6_2 = g_C6[n2];
+          const float C6_product = C6_1 * C6_2;
+          const float f12[3] = {
+            x12 * C6_product * force_factor,
+            y12 * C6_product * force_factor,
+            z12 * C6_product * force_factor};
+          temp_energy_sum += 0.5f * C6_product * potential;
+          temp_D_C6_sum += C6_2 * potential;
+          temp_force_sum[0] += f12[0];
+          temp_force_sum[1] += f12[1];
+          temp_force_sum[2] += f12[2];
+          temp_virial_sum[0] -= 0.5f * x12 * f12[0];
+          temp_virial_sum[1] -= 0.5f * y12 * f12[1];
+          temp_virial_sum[2] -= 0.5f * z12 * f12[2];
+          temp_virial_sum[3] -= 0.5f * x12 * f12[1];
+          temp_virial_sum[4] -= 0.5f * y12 * f12[2];
+          temp_virial_sum[5] -= 0.5f * z12 * f12[0];
+        }
+        g_pe[n] += temp_energy_sum;
+        for (int d = 0; d < 6; ++d) {
+          g_virial[n + N * d] += temp_virial_sum[d];
+        }
+        g_D_C6[n] = temp_D_C6_sum;
+        g_fx[n] += temp_force_sum[0];
+        g_fy[n] += temp_force_sum[1];
+        g_fz[n] += temp_force_sum[2];
+        continue;
+      }
+
       float temp_energy_sum = 0.0f;
       float temp_virial_sum[6] = {0.0f};
       float temp_force_sum[3] = {0.0f};
@@ -714,6 +774,7 @@ static __global__ void find_k_and_G(
   const float alpha,
   const float alpha_factor,
   const float* g_box,
+  const int* g_pbc,
   const int* g_kpoint_offset,
   int* g_kpoint_count,
   float* g_kx,
@@ -724,6 +785,12 @@ static __global__ void find_k_and_G(
 {
   int nc = threadIdx.x + blockIdx.x * blockDim.x; // structure index
   if (nc < Nc) {
+    if (!g_pbc[nc]) {
+      if (g_kpoint_count != nullptr) {
+        g_kpoint_count[nc] = 0;
+      }
+      return;
+    }
     const float* box = g_box + 9 * nc;
     const float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
                       box[1] * (box[5] * box[6] - box[3] * box[8]) +
@@ -806,6 +873,7 @@ void NEP_VDW::prepare_kpoints(Dataset& dataset, int device_id)
     vdw_para.alpha,
     vdw_para.alpha_factor,
     dataset.box_original.data(),
+    dataset.pbc.data(),
     nullptr,
     data.kpoint_offset.data(),
     nullptr,
@@ -846,6 +914,7 @@ void NEP_VDW::prepare_kpoints(Dataset& dataset, int device_id)
     vdw_para.alpha,
     vdw_para.alpha_factor,
     dataset.box_original.data(),
+    dataset.pbc.data(),
     data.kpoint_offset.data(),
     nullptr,
     data.kx.data(),
@@ -1105,6 +1174,7 @@ void NEP_VDW::find_force(
       GPU_CHECK_KERNEL
     }
 
+    // Long range: reciprocal-space Ewald for PPP and direct summation for FFF.
     prepare_kpoints(dataset[device_id], device_id);
 
     find_structure_factor<<<dataset[device_id].Nc, 1024>>>(
@@ -1122,10 +1192,12 @@ void NEP_VDW::find_force(
       nep_data[device_id].S_imag.data());
     GPU_CHECK_KERNEL
 
-    find_force_vdw_reciprocal_space<<<dataset[device_id].Nc, 1024>>>(
+    find_force_vdw_long_range<<<dataset[device_id].Nc, 1024>>>(
       dataset[device_id].N,
+      vdw_para.alpha,
       dataset[device_id].Na.data(),
       dataset[device_id].Na_sum.data(),
+      dataset[device_id].pbc.data(),
       nep_data[device_id].C6.data(),
       dataset[device_id].r.data(),
       dataset[device_id].r.data() + dataset[device_id].N,
