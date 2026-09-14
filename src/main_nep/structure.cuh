@@ -19,6 +19,7 @@
 class Parameters;
 
 struct Structure {
+  int pbc = 1; // 1 for PPP and 0 for FFF in long-range training
   int num_cell[3];
   int num_atom;
   int has_virial;

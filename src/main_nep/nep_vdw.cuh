@@ -36,7 +36,8 @@ struct NEP_VDW_Data {
   GPU_Vector<float> G_vdw_virial;
   GPU_Vector<float> S_real;
   GPU_Vector<float> S_imag;
-  GPU_Vector<int> num_kpoints;
+  GPU_Vector<int> kpoint_offset;
+  const Dataset* kpoint_dataset = nullptr;
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
@@ -81,7 +82,6 @@ public:
   };
 
   struct VDW_Para {
-    int num_kpoints_max = 50000;
     float alpha = 0.5f;
     float alpha_factor = 1.0f;
   };
@@ -117,4 +117,5 @@ private:
   VDW_Para vdw_para;
   std::unique_ptr<NEP_Compile> compiled_kernel_;
   void update_potential(float* parameters, ANN& ann);
+  void prepare_kpoints(Dataset& dataset, int device_id);
 };
