@@ -652,15 +652,13 @@ static __global__ void find_force_vdw_long_range(
   for (int batch = 0; batch < number_of_batches; ++batch) {
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
+      const float C6_1 = g_C6[n];
+      const float alpha_squared = alpha * alpha;
+      const float alpha_sixth =
+        alpha_squared * alpha_squared * alpha_squared;
       if (!is_periodic) {
-        const float C6_1 = g_C6[n];
-        const float alpha_squared = alpha * alpha;
-        const float alpha_sixth =
-          alpha_squared * alpha_squared * alpha_squared;
-        // Keep the r=0 term used by the current reciprocal-space-only model.
-        float temp_energy_sum =
-          -alpha_sixth * C6_1 * C6_1 / 12.0f;
-        float temp_D_C6_sum = -alpha_sixth * C6_1 / 6.0f;
+        float temp_energy_sum = 0.0f;
+        float temp_D_C6_sum = 0.0f;
         float temp_virial_sum[6] = {0.0f};
         float temp_force_sum[3] = {0.0f};
         for (int n2 = N1; n2 < N2; ++n2) {
@@ -741,12 +739,15 @@ static __global__ void find_force_vdw_long_range(
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
-      g_pe[n] += temp_energy_sum / (N2 - N1);
+      // Remove the r=0 self interaction contained in the structure factor.
+      g_pe[n] += temp_energy_sum / (N2 - N1) +
+        alpha_sixth * C6_1 * C6_1 / 12.0f;
       for (int d = 0; d < 6; ++d) {
         g_virial[n + N * d] += temp_virial_sum[d] / (N2 - N1);
       }
-      g_D_C6[n] = 2.0f * temp_D_C6_sum;
-      const float C6_factor = 2.0f * g_C6[n];
+      g_D_C6[n] = 2.0f * temp_D_C6_sum +
+        alpha_sixth * C6_1 / 6.0f;
+      const float C6_factor = 2.0f * C6_1;
       g_fx[n] += C6_factor * temp_force_sum[0];
       g_fy[n] += C6_factor * temp_force_sum[1];
       g_fz[n] += C6_factor * temp_force_sum[2];
