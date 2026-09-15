@@ -848,14 +848,9 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   audit.initialize(rc, num_atoms, MN);
 }
 
-NeighborManager::NeighborManager()
+void NeighborManager::initialize(const double rc, const int num_atoms, const int num_neighbors)
 {
-  neighbor = nullptr;
-}
-
-void NeighborManager::initialize(Neighbor* neighbor_in)
-{
-  neighbor = neighbor_in;
+  neighbor.initialize(rc, num_atoms, num_neighbors);
 }
 
 void NeighborManager::find_neighbor_global(
@@ -864,20 +859,20 @@ void NeighborManager::find_neighbor_global(
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom)
 {
-  neighbor->find_neighbor_global(rc, box, type, position_per_atom);
+  neighbor.find_neighbor_global(rc, box, type, position_per_atom);
 }
 
 const GPU_Vector<int>& NeighborManager::get_NN() const
 {
-  return neighbor->NN;
+  return neighbor.NN;
 }
 
 const GPU_Vector<int>& NeighborManager::get_NL() const
 {
-  return neighbor->NL;
+  return neighbor.NL;
 }
 
 NeighborAudit& NeighborManager::get_audit()
 {
-  return neighbor->audit;
+  return neighbor.audit;
 }

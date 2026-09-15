@@ -164,8 +164,7 @@ private:
 class NeighborManager
 {
 public:
-  NeighborManager();
-  void initialize(Neighbor* neighbor);
+  void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
     const double rc,
     Box& box,
@@ -176,5 +175,5 @@ public:
   NeighborAudit& get_audit();
 
 private:
-  Neighbor* neighbor;
+  Neighbor neighbor;
 };
