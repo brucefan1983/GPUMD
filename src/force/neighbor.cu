@@ -880,7 +880,7 @@ void NeighborManager::initialize(const double rc, const int num_atoms, const int
   initialized = true;
 }
 
-void NeighborManager::find_neighbor_global(
+void NeighborManager::update(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom)

@@ -176,7 +176,7 @@ class NeighborManager
 public:
   NeighborManager();
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
-  void find_neighbor_global(
+  void update(
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position_per_atom);

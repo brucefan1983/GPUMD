@@ -869,7 +869,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.find_neighbor_global(
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1384,7 +1384,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.find_neighbor_global(
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
