@@ -774,6 +774,10 @@ void Neighbor::find_neighbor_global(
     z0.resize(N);
   }
 
+  if (audit.enabled()) {
+    audit.begin_global(is_first_time);
+  }
+
   if (is_first_time || check_atom_distance(box, x, y, z)) {
     find_neighbor(
       0,
@@ -797,6 +801,12 @@ void Neighbor::find_neighbor_global(
       y0.data(), 
       z0.data());
     GPU_CHECK_KERNEL
+    if (audit.enabled()) {
+      audit.rebuilt(box, rc + skin);
+    }
+  }
+  if (audit.enabled()) {
+    audit.end_global(rc, skin, box, type, position_per_atom, x0, y0, z0, NN, NL);
   }
 }
 
@@ -820,6 +830,9 @@ void Neighbor::find_local_neighbor_from_global(
     NN_local.data(),
     NL_local.data());
   GPU_CHECK_KERNEL
+  if (audit.enabled()) {
+    audit.local_filter(rc, NN_local, NL_local);
+  }
 }
 
 void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
@@ -831,4 +844,5 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
+  audit.initialize(rc, num_atoms, MN);
 }

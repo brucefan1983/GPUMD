@@ -15,6 +15,7 @@
 
 #pragma once
 #include "model/box.cuh"
+#include "neighbor_audit.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 
@@ -137,6 +138,7 @@ class Neighbor
 {
 public:
   GPU_Vector<int> NN, NL; // global neighbor list
+  NeighborAudit audit;   // optional read-only diagnostics; disabled by default
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
     const double rc,
