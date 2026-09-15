@@ -15,7 +15,6 @@
 
 #pragma once
 #include "model/box.cuh"
-#include "neighbor_audit.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 
@@ -138,7 +137,6 @@ class Neighbor
 {
 public:
   GPU_Vector<int> NN, NL; // global neighbor list
-  NeighborAudit audit;   // optional read-only diagnostics; disabled by default
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   double get_skin() const;
   int get_capacity() const;
@@ -191,7 +189,6 @@ public:
     GPU_Vector<int>& NL_local);
   double get_supported_cutoff() const;
   void check_cutoff(const double requested_cutoff) const;
-  NeighborAudit& get_audit();
   const NeighborRequirement& get_requirement() const;
   bool has_same_requirement(const NeighborManager& other) const;
 

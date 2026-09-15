@@ -892,12 +892,6 @@ void NEP::compute_large_box(
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  if (neighbor_manager.get_audit().enabled()) {
-    neighbor_manager.get_audit().nep_filter(
-      N, N1, N2, paramb.num_types, paramb.rc_radial, paramb.rc_angular,
-      nep_data.NN_radial, nep_data.NL_radial, nep_data.NN_angular, nep_data.NL_angular);
-  }
-
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
     nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
@@ -1406,12 +1400,6 @@ void NEP::compute_large_box(
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
-
-  if (neighbor_manager.get_audit().enabled()) {
-    neighbor_manager.get_audit().nep_filter(
-      N, N1, N2, paramb.num_types, paramb.rc_radial, paramb.rc_angular,
-      nep_data.NN_radial, nep_data.NL_radial, nep_data.NN_angular, nep_data.NL_angular);
-  }
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
