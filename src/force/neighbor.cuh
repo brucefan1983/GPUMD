@@ -182,6 +182,13 @@ public:
     const GPU_Vector<double>& position_per_atom);
   const GPU_Vector<int>& get_candidate_NN() const;
   const GPU_Vector<int>& get_candidate_NL() const;
+  void set_candidate_capacity(const int capacity);
+  void find_local_neighbor(
+    const double rc,
+    Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN_local,
+    GPU_Vector<int>& NL_local);
   double get_supported_cutoff() const;
   void check_cutoff(const double requested_cutoff) const;
   NeighborAudit& get_audit();

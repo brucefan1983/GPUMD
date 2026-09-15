@@ -49,5 +49,5 @@ protected:
   int num_types;
   GPU_Vector<double> ters;
   Tersoff1988_Data tersoff_data;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };

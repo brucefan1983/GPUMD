@@ -45,5 +45,5 @@ public:
 
 protected:
   LJ_Para lj_para;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };

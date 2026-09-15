@@ -898,6 +898,23 @@ const GPU_Vector<int>& NeighborManager::get_candidate_NL() const
   return neighbor.NL;
 }
 
+void NeighborManager::set_candidate_capacity(const int capacity)
+{
+  neighbor.NL.resize(static_cast<size_t>(requirement.num_atoms) * capacity);
+  requirement.capacity = capacity;
+}
+
+void NeighborManager::find_local_neighbor(
+  const double rc,
+  Box& box,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& NN_local,
+  GPU_Vector<int>& NL_local)
+{
+  check_cutoff(rc);
+  neighbor.find_local_neighbor_from_global(rc, box, position_per_atom, NN_local, NL_local);
+}
+
 double NeighborManager::get_supported_cutoff() const
 {
   return requirement.rc;
