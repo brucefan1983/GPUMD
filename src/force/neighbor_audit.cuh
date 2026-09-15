@@ -24,8 +24,9 @@ class NeighborAudit
 {
 public:
   bool enabled() const { return mode != 0; }
+  bool force_rebuild() const { return force_rebuild_enabled; }
   void initialize(double rc, int num_atoms, int capacity);
-  void begin_global(bool first);
+  void begin_global(bool first, bool forced);
   void rebuilt(const Box& box, double list_cutoff);
   void end_global(
     double rc, double skin, const Box& box, const GPU_Vector<int>& type,
@@ -46,6 +47,8 @@ private:
   unsigned long long local_filters = 0;
   unsigned long long nep_filters = 0;
   bool first_call = false;
+  bool forced_call = false;
+  bool force_rebuild_enabled = false;
   bool was_rebuilt = false;
   bool dump_this_call = false;
   int snapshots = 0;

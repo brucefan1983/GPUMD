@@ -774,11 +774,12 @@ void Neighbor::find_neighbor_global(
     z0.resize(N);
   }
 
+  const bool force_rebuild = audit.enabled() && audit.force_rebuild() && !is_first_time;
   if (audit.enabled()) {
-    audit.begin_global(is_first_time);
+    audit.begin_global(is_first_time, force_rebuild);
   }
 
-  if (is_first_time || check_atom_distance(box, x, y, z)) {
+  if (is_first_time || force_rebuild || check_atom_distance(box, x, y, z)) {
     find_neighbor(
       0,
       N,

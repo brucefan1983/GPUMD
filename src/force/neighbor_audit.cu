@@ -75,7 +75,8 @@ void NeighborAudit::initialize(double rc, int num_atoms, int capacity)
   mode = 0;
   calls = checks = rebuilds = local_filters = nep_filters = 0;
   snapshots = 0;
-  first_call = was_rebuilt = dump_this_call = false;
+  first_call = forced_call = was_rebuilt = dump_this_call = false;
+  force_rebuild_enabled = false;
   const char* value = std::getenv("GPUMD_NEIGHBOR_AUDIT");
   if (value == nullptr || value[0] == '\0' || std::strcmp(value, "off") == 0 ||
       std::strcmp(value, "0") == 0) {
@@ -88,19 +89,29 @@ void NeighborAudit::initialize(double rc, int num_atoms, int capacity)
   } else {
     PRINT_INPUT_ERROR("GPUMD_NEIGHBOR_AUDIT must be off, counts, or full.");
   }
+  const char* force_value = std::getenv("GPUMD_NEIGHBOR_FORCE_REBUILD");
+  if (force_value != nullptr && force_value[0] != '\0' &&
+      std::strcmp(force_value, "0") != 0 && std::strcmp(force_value, "off") != 0) {
+    if (std::strcmp(force_value, "1") != 0 && std::strcmp(force_value, "on") != 0) {
+      PRINT_INPUT_ERROR("GPUMD_NEIGHBOR_FORCE_REBUILD must be off/0 or on/1.");
+    }
+    force_rebuild_enabled = true;
+  }
   FILE* output = open_event("initialize");
-  fprintf(output, ",\"mode\":\"%s\",\"n\":%d,\"capacity\":%d,\"rc\":%.17g",
-    mode == 1 ? "counts" : "full", num_atoms, capacity, rc);
+  fprintf(output, ",\"mode\":\"%s\",\"force_rebuild\":%s,\"n\":%d,\"capacity\":%d,\"rc\":%.17g",
+    mode == 1 ? "counts" : "full", force_rebuild_enabled ? "true" : "false",
+    num_atoms, capacity, rc);
   close_event(output);
 }
 
-void NeighborAudit::begin_global(bool first)
+void NeighborAudit::begin_global(bool first, bool forced)
 {
   ++calls;
   first_call = first;
+  forced_call = forced;
   was_rebuilt = false;
   dump_this_call = false;
-  if (!first) {
+  if (!first && !forced) {
     ++checks;
   }
 }
@@ -188,7 +199,8 @@ void NeighborAudit::end_global(
     ",\"checks\":%llu,\"rebuilds\":%llu,\"rebuilt\":%s,\"reason\":\"%s\","
     "\"n\":%d,\"skin\":%.17g,\"rc\":%.17g,\"build_cutoff\":%.17g",
     checks, rebuilds, was_rebuilt ? "true" : "false",
-    was_rebuilt ? (first_call ? "first" : "displacement") : "reuse", N, skin, rc, build_cutoff);
+    was_rebuilt ? (first_call ? "first" : (forced_call ? "forced" : "displacement")) : "reuse",
+    N, skin, rc, build_cutoff);
   write_list(output, "candidate", N, 0, N, NN, NL);
   if (dump_this_call) {
     if (position.size() != static_cast<size_t>(3) * N ||
