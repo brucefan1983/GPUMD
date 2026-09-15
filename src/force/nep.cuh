@@ -135,6 +135,7 @@ private:
   ExpandedBox ebox;
   DFTD3 dftd3;
   Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 

@@ -338,6 +338,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
   neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(&neighbor);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
@@ -869,7 +870,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
+  neighbor_manager.find_neighbor_global(
     rc,
     box, 
     type, 
@@ -885,16 +886,16 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_NN().data(),
+    neighbor_manager.get_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  if (neighbor.audit.enabled()) {
-    neighbor.audit.nep_filter(
+  if (neighbor_manager.get_audit().enabled()) {
+    neighbor_manager.get_audit().nep_filter(
       N, N1, N2, paramb.num_types, paramb.rc_radial, paramb.rc_angular,
       nep_data.NN_radial, nep_data.NL_radial, nep_data.NN_angular, nep_data.NL_angular);
   }
@@ -1385,7 +1386,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
+  neighbor_manager.find_neighbor_global(
     rc,
     box, 
     type, 
@@ -1401,16 +1402,16 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_NN().data(),
+    neighbor_manager.get_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  if (neighbor.audit.enabled()) {
-    neighbor.audit.nep_filter(
+  if (neighbor_manager.get_audit().enabled()) {
+    neighbor_manager.get_audit().nep_filter(
       N, N1, N2, paramb.num_types, paramb.rc_radial, paramb.rc_angular,
       nep_data.NN_radial, nep_data.NL_radial, nep_data.NN_angular, nep_data.NL_angular);
   }

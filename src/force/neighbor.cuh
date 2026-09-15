@@ -160,3 +160,21 @@ private:
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };
+
+class NeighborManager
+{
+public:
+  NeighborManager();
+  void initialize(Neighbor* neighbor);
+  void find_neighbor_global(
+    const double rc,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom);
+  const GPU_Vector<int>& get_NN() const;
+  const GPU_Vector<int>& get_NL() const;
+  NeighborAudit& get_audit();
+
+private:
+  Neighbor* neighbor;
+};
