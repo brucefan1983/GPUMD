@@ -881,22 +881,36 @@ void NeighborManager::initialize(const double rc, const int num_atoms, const int
 }
 
 void NeighborManager::find_neighbor_global(
-  const double rc,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom)
 {
-  neighbor.find_neighbor_global(rc, box, type, position_per_atom);
+  neighbor.find_neighbor_global(requirement.rc, box, type, position_per_atom);
 }
 
-const GPU_Vector<int>& NeighborManager::get_NN() const
+const GPU_Vector<int>& NeighborManager::get_candidate_NN() const
 {
   return neighbor.NN;
 }
 
-const GPU_Vector<int>& NeighborManager::get_NL() const
+const GPU_Vector<int>& NeighborManager::get_candidate_NL() const
 {
   return neighbor.NL;
+}
+
+double NeighborManager::get_supported_cutoff() const
+{
+  return requirement.rc;
+}
+
+void NeighborManager::check_cutoff(const double requested_cutoff) const
+{
+  if (!initialized) {
+    PRINT_INPUT_ERROR("Neighbor manager has not been initialized.");
+  }
+  if (requested_cutoff > requirement.rc) {
+    PRINT_INPUT_ERROR("Requested neighbor cutoff exceeds the supported candidate cutoff.");
+  }
 }
 
 NeighborAudit& NeighborManager::get_audit()

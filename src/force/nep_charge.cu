@@ -1352,7 +1352,6 @@ void NEP_Charge::compute_large_box(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   neighbor_manager.find_neighbor_global(
-    rc,
     box, 
     type, 
     position_per_atom);
@@ -1367,8 +1366,8 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor_manager.get_NN().data(),
-    neighbor_manager.get_NL().data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),

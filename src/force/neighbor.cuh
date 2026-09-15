@@ -177,12 +177,13 @@ public:
   NeighborManager();
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
-    const double rc,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position_per_atom);
-  const GPU_Vector<int>& get_NN() const;
-  const GPU_Vector<int>& get_NL() const;
+  const GPU_Vector<int>& get_candidate_NN() const;
+  const GPU_Vector<int>& get_candidate_NL() const;
+  double get_supported_cutoff() const;
+  void check_cutoff(const double requested_cutoff) const;
   NeighborAudit& get_audit();
   const NeighborRequirement& get_requirement() const;
   bool has_same_requirement(const NeighborManager& other) const;
