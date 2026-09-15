@@ -915,19 +915,3 @@ void NeighborManager::check_cutoff(const double requested_cutoff) const
   }
 }
 
-const NeighborRequirement& NeighborManager::get_requirement() const
-{
-  return requirement;
-}
-
-bool NeighborManager::has_same_requirement(const NeighborManager& other) const
-{
-  if (!initialized || !other.initialized) {
-    return false;
-  }
-  const NeighborRequirement& other_requirement = other.requirement;
-  return requirement.rc == other_requirement.rc &&
-         requirement.skin == other_requirement.skin &&
-         requirement.num_atoms == other_requirement.num_atoms &&
-         requirement.capacity == other_requirement.capacity;
-}

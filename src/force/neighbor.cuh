@@ -189,8 +189,6 @@ public:
     GPU_Vector<int>& NL_local);
   double get_supported_cutoff() const;
   void check_cutoff(const double requested_cutoff) const;
-  const NeighborRequirement& get_requirement() const;
-  bool has_same_requirement(const NeighborManager& other) const;
 
 private:
   Neighbor neighbor;
