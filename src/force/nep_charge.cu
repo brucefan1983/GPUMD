@@ -428,7 +428,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
 
   initialize_dftd3();
 }
@@ -1351,8 +1351,7 @@ void NEP_Charge::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1367,8 +1366,8 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),

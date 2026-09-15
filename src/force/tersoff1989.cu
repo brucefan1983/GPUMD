@@ -146,7 +146,7 @@ Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const int num_atoms)
   tersoff_data.f12z.resize(num_of_neighbors);
   tersoff_data.NN.resize(num_atoms);
   tersoff_data.NL.resize(num_of_neighbors);
-  neighbor.initialize(rc, num_atoms, 50);
+  neighbor_manager.initialize(rc, num_atoms, 50);
 }
 
 Tersoff1989::~Tersoff1989(void)
@@ -517,13 +517,9 @@ void Tersoff1989::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
 
-  neighbor.find_local_neighbor_from_global(
+  neighbor_manager.find_local_neighbor(
     rc,
     box, 
     position_per_atom,

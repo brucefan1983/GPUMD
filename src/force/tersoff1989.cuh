@@ -52,5 +52,5 @@ protected:
   Tersoff1989_Parameters ters1;
   Tersoff1989_Parameters ters2;
   Tersoff1989_Data tersoff_data;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };

@@ -138,6 +138,8 @@ class Neighbor
 public:
   GPU_Vector<int> NN, NL; // global neighbor list
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  double get_skin() const;
+  int get_capacity() const;
   void find_neighbor_global(
     const double rc,
     Box& box, 
@@ -157,4 +159,39 @@ private:
   GPU_Vector<int> cell_contents;  // for cell list
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
+};
+
+struct NeighborRequirement
+{
+  double rc;
+  double skin;
+  int num_atoms;
+  int capacity;
+};
+
+class NeighborManager
+{
+public:
+  NeighborManager();
+  void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  void update(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom);
+  const GPU_Vector<int>& get_candidate_NN() const;
+  const GPU_Vector<int>& get_candidate_NL() const;
+  void set_candidate_capacity(const int capacity);
+  void find_local_neighbor(
+    const double rc,
+    Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN_local,
+    GPU_Vector<int>& NL_local);
+  double get_supported_cutoff() const;
+  void check_cutoff(const double requested_cutoff) const;
+
+private:
+  Neighbor neighbor;
+  NeighborRequirement requirement;
+  bool initialized;
 };

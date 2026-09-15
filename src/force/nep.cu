@@ -337,7 +337,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
@@ -869,8 +869,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -885,8 +884,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1379,8 +1378,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1395,8 +1393,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),

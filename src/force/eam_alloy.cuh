@@ -53,5 +53,5 @@ public:
 
 protected:
   EAMAlloy_Data eam_data;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };
