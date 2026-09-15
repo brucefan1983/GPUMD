@@ -140,6 +140,8 @@ public:
   GPU_Vector<int> NN, NL; // global neighbor list
   NeighborAudit audit;   // optional read-only diagnostics; disabled by default
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  double get_skin() const;
+  int get_capacity() const;
   void find_neighbor_global(
     const double rc,
     Box& box, 
@@ -161,9 +163,18 @@ private:
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };
 
+struct NeighborRequirement
+{
+  double rc;
+  double skin;
+  int num_atoms;
+  int capacity;
+};
+
 class NeighborManager
 {
 public:
+  NeighborManager();
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
   void find_neighbor_global(
     const double rc,
@@ -173,7 +184,11 @@ public:
   const GPU_Vector<int>& get_NN() const;
   const GPU_Vector<int>& get_NL() const;
   NeighborAudit& get_audit();
+  const NeighborRequirement& get_requirement() const;
+  bool has_same_requirement(const NeighborManager& other) const;
 
 private:
   Neighbor neighbor;
+  NeighborRequirement requirement;
+  bool initialized;
 };

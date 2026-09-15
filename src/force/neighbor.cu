@@ -848,9 +848,36 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   audit.initialize(rc, num_atoms, MN);
 }
 
+double Neighbor::get_skin() const
+{
+  return skin;
+}
+
+int Neighbor::get_capacity() const
+{
+  if (NN.size() == 0) {
+    return 0;
+  }
+  return static_cast<int>(NL.size() / NN.size());
+}
+
+NeighborManager::NeighborManager()
+{
+  requirement.rc = 0.0;
+  requirement.skin = 0.0;
+  requirement.num_atoms = 0;
+  requirement.capacity = 0;
+  initialized = false;
+}
+
 void NeighborManager::initialize(const double rc, const int num_atoms, const int num_neighbors)
 {
   neighbor.initialize(rc, num_atoms, num_neighbors);
+  requirement.rc = rc;
+  requirement.skin = neighbor.get_skin();
+  requirement.num_atoms = num_atoms;
+  requirement.capacity = neighbor.get_capacity();
+  initialized = true;
 }
 
 void NeighborManager::find_neighbor_global(
@@ -875,4 +902,21 @@ const GPU_Vector<int>& NeighborManager::get_NL() const
 NeighborAudit& NeighborManager::get_audit()
 {
   return neighbor.audit;
+}
+
+const NeighborRequirement& NeighborManager::get_requirement() const
+{
+  return requirement;
+}
+
+bool NeighborManager::has_same_requirement(const NeighborManager& other) const
+{
+  if (!initialized || !other.initialized) {
+    return false;
+  }
+  const NeighborRequirement& other_requirement = other.requirement;
+  return requirement.rc == other_requirement.rc &&
+         requirement.skin == other_requirement.skin &&
+         requirement.num_atoms == other_requirement.num_atoms &&
+         requirement.capacity == other_requirement.capacity;
 }

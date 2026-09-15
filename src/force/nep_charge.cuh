@@ -156,7 +156,7 @@ private:
   Charge_Para charge_para;
   Ewald ewald;
   PPPM pppm;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
