@@ -157,13 +157,13 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
       }
       i += 3;
     } else if (strcmp(params[i], "couple") == 0) {
-      if (strcmp(params[i + 1], "xyz"))
+      if (strcmp(params[i + 1], "xyz") == 0)
         couple_type = XYZ;
-      else if (strcmp(params[i + 1], "xy"))
+      else if (strcmp(params[i + 1], "xy") == 0)
         couple_type = XY;
-      else if (strcmp(params[i + 1], "yz"))
+      else if (strcmp(params[i + 1], "yz") == 0)
         couple_type = YZ;
-      else if (strcmp(params[i + 1], "xz"))
+      else if (strcmp(params[i + 1], "xz") == 0)
         couple_type = XZ;
       else
         PRINT_INPUT_ERROR("Wrong inputs for couple keyword.");
