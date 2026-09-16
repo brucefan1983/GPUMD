@@ -25,9 +25,15 @@
 class Ensemble_BAO : public Ensemble
 {
 public:
-  Ensemble_BAO(EnsembleType, int, double, double);
+  Ensemble_BAO(const char** param, int num_param);
   Ensemble_BAO(EnsembleType, int, int, int, int, int, int, double, double, double);
   virtual ~Ensemble_BAO(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  virtual void initialize_run(
+    const double time_step, const Atom& atom, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -72,4 +78,10 @@ protected:
     const std::vector<Group>& group,
     const GPU_Vector<double>& mass,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  void parse(const char** param, int num_param);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

@@ -82,24 +82,12 @@ void Integrate::initialize(
     case EnsembleType::NVT_BER: // NVT-Berendsen
       break;
     case EnsembleType::NVT_NHC: // NVT-NHC
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        move_group,
-        move_velocity,
-        number_of_atoms,
-        temperature,
-        temperature_coupling,
-        time_step));
       break;
     case EnsembleType::NVT_LAN: // NVT-Langevin
-      ensemble.reset(new Ensemble_LAN(type, number_of_atoms, temperature, temperature_coupling));
       break;
     case EnsembleType::NVT_BDP: // NVT-BDP
-      ensemble.reset(
-        new Ensemble_BDP(type, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case EnsembleType::NVT_BAO: // NVT-BAOAB_Langevin
-      ensemble.reset(new Ensemble_BAO(type, number_of_atoms, temperature, temperature_coupling));
       break;
     case EnsembleType::NVT_QTB: // NVT-QTB
       ensemble.reset(new Ensemble_QTB(
@@ -147,71 +135,13 @@ void Integrate::initialize(
     case EnsembleType::NPT_QTB: // npt_qtb
       break;
     case EnsembleType::HEAT_NHC: // heat-NHC
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].number,
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        time_step));
       break;
     // heat with constant power (custom); delta_temperature stores power in eV/fs
     case EnsembleType::HEAT_NHC_POWER:
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].number,
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        time_step));
       break;
     case EnsembleType::HEAT_LAN: // heat-Langevin
-      if (use_heat_lan_region) {
-        ensemble.reset(new Ensemble_LAN(
-          type,
-          move_group,
-          move_velocity,
-          number_of_atoms,
-          heat_source_region,
-          heat_sink_region,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
-      } else {
-        ensemble.reset(new Ensemble_LAN(
-          type,
-          move_group,
-          move_velocity,
-          source,
-          sink,
-          group[0].cpu_size[source],
-          group[0].cpu_size[sink],
-          group[0].cpu_size_sum[source],
-          group[0].cpu_size_sum[sink],
-          group[0].number,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
-      }
       break;
     case EnsembleType::HEAT_BDP: // heat-BDP
-      ensemble.reset(
-        new Ensemble_BDP(
-          type,
-          source,
-          sink,
-          group[0].number,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
       break;
     case EnsembleType::HEAT_TTM: // heat-TTM
       ensemble.reset(new Ensemble_TTM(
@@ -305,20 +235,19 @@ void Integrate::initialize(
   ensemble->fixed_group = fixed_group;
   ensemble->fixed_grouping_method = fixed_grouping_method;
   ensemble->move_grouping_method = move_grouping_method;
-  if (type == EnsembleType::NVT_BER && move_group >= 0) {
-    ensemble->move_group = move_group;
+  ensemble->move_group = move_group;
+  if (move_group >= 0) {
     for (int i = 0; i < 3; ++i) {
       ensemble->move_velocity[i] = move_velocity[i];
     }
   }
-  if (type == EnsembleType::NPT_BER) {
-    ensemble->deform_x = deform_x;
-    ensemble->deform_y = deform_y;
-    ensemble->deform_z = deform_z;
-    ensemble->deform_xy = deform_xy;
-    ensemble->deform_xz = deform_xz;
-    ensemble->deform_yz = deform_yz;
-  }
+  ensemble->deform_x = deform_x;
+  ensemble->deform_y = deform_y;
+  ensemble->deform_z = deform_z;
+  ensemble->deform_xy = deform_xy;
+  ensemble->deform_xz = deform_xz;
+  ensemble->deform_yz = deform_yz;
+  ensemble->initialize_run(time_step, atom, group);
 }
 
 void Integrate::finalize()
@@ -399,7 +328,6 @@ void Integrate::parse_ensemble(
   use_eco_pimd = false;
   use_scr_barostat = false;
   eco_omega_max_cm1 = 0.0;
-  use_heat_lan_region = false;
   int pimd_num_param = num_param;
 
   // 1. Determine the integration method
@@ -416,26 +344,42 @@ void Integrate::parse_ensemble(
       num_target_pressure_components = ensemble_ber->get_num_target_pressure_components();
     }
     ensemble = std::move(ensemble_ber);
-  } else if (strcmp(param[1], "nvt_nhc") == 0) {
-    type = EnsembleType::NVT_NHC;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_nhc should have 3 parameters.");
+  } else if (
+    strcmp(param[1], "nvt_nhc") == 0 || strcmp(param[1], "heat_nhc") == 0 ||
+    strcmp(param[1], "heat_nhc_power") == 0) {
+    auto ensemble_nhc = std::make_unique<Ensemble_NHC>(param, num_param, group);
+    type = ensemble_nhc->type;
+    temperature = ensemble_nhc->temperature;
+    if (type == EnsembleType::NVT_NHC) {
+      temperature1 = ensemble_nhc->get_temperature1();
+      temperature2 = ensemble_nhc->get_temperature2();
     }
-  } else if (strcmp(param[1], "nvt_lan") == 0) {
-    type = EnsembleType::NVT_LAN;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_lan should have 3 parameters.");
+    ensemble = std::move(ensemble_nhc);
+  } else if (strcmp(param[1], "nvt_lan") == 0 || strcmp(param[1], "heat_lan") == 0) {
+    auto ensemble_lan = std::make_unique<Ensemble_LAN>(param, num_param, group);
+    type = ensemble_lan->type;
+    temperature = ensemble_lan->temperature;
+    if (type == EnsembleType::NVT_LAN) {
+      temperature1 = ensemble_lan->get_temperature1();
+      temperature2 = ensemble_lan->get_temperature2();
     }
-  } else if (strcmp(param[1], "nvt_bdp") == 0) {
-    type = EnsembleType::NVT_BDP;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters.");
+    ensemble = std::move(ensemble_lan);
+  } else if (strcmp(param[1], "nvt_bdp") == 0 || strcmp(param[1], "heat_bdp") == 0) {
+    auto ensemble_bdp = std::make_unique<Ensemble_BDP>(param, num_param, group);
+    type = ensemble_bdp->type;
+    temperature = ensemble_bdp->temperature;
+    if (type == EnsembleType::NVT_BDP) {
+      temperature1 = ensemble_bdp->get_temperature1();
+      temperature2 = ensemble_bdp->get_temperature2();
     }
+    ensemble = std::move(ensemble_bdp);
   } else if (strcmp(param[1], "nvt_bao") == 0) {
-    type = EnsembleType::NVT_BAO;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
-    }
+    auto ensemble_bao = std::make_unique<Ensemble_BAO>(param, num_param);
+    type = ensemble_bao->type;
+    temperature1 = ensemble_bao->get_temperature1();
+    temperature2 = ensemble_bao->get_temperature2();
+    temperature = temperature1;
+    ensemble = std::move(ensemble_bao);
   } else if (strcmp(param[1], "nvt_qtb") == 0) {
     type = EnsembleType::NVT_QTB;
     if (num_param < 5 || num_param % 2 == 0) {
@@ -461,27 +405,6 @@ void Integrate::parse_ensemble(
     ensemble.reset(ptr_temp);
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
-  } else if (strcmp(param[1], "heat_nhc") == 0) {
-    type = EnsembleType::HEAT_NHC;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_nhc should have 5 parameters.");
-    }
-  } else if (strcmp(param[1], "heat_lan") == 0) {
-    type = EnsembleType::HEAT_LAN;
-    if (num_param != 7 && num_param != 17) {
-      PRINT_INPUT_ERROR("ensemble heat_lan should have 5 or 15 parameters.");
-    }
-    use_heat_lan_region = num_param == 17;
-  } else if (strcmp(param[1], "heat_bdp") == 0) {
-    type = EnsembleType::HEAT_BDP;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
-    }
-  } else if (strcmp(param[1], "heat_nhc_power") == 0) {
-    type = EnsembleType::HEAT_NHC_POWER;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_nhc_power should have 5 parameters.");
-    }
   } else if (strcmp(param[1], "heat_ttm") == 0) {
     type = EnsembleType::HEAT_TTM;
     // ensemble heat_ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
@@ -553,9 +476,7 @@ void Integrate::parse_ensemble(
   }
 
   // 2. Temperatures and temperature_coupling (standard NVT and NPT)
-  if (
-    (is_standard_nvt(type) || is_standard_npt(type)) && type != EnsembleType::NVT_BER &&
-    type != EnsembleType::NPT_BER) {
+  if (type == EnsembleType::NVT_QTB || type == EnsembleType::NPT_SCR) {
     // initial temperature
     if (!is_valid_real(param[2], &temperature1)) {
       PRINT_INPUT_ERROR("Initial temperature should be a number.");
@@ -611,7 +532,7 @@ void Integrate::parse_ensemble(
   }
 
   // 3. Pressures and pressure_coupling (NPT)
-  if (is_standard_npt(type) && type != EnsembleType::NPT_BER) {
+  if (type == EnsembleType::NPT_SCR) {
     // pressures:
     if (num_param == 12) {
       for (int i = 0; i < 3; i++) {
@@ -691,9 +612,7 @@ void Integrate::parse_ensemble(
   }
 
   // 4. heating and cooling wiht fixed temperatures
-  if (
-    type == EnsembleType::HEAT_NHC || type == EnsembleType::HEAT_LAN ||
-    type == EnsembleType::HEAT_BDP || type == EnsembleType::HEAT_TTM) {
+  if (type == EnsembleType::HEAT_TTM) {
     // temperature
     if (!is_valid_real(param[2], &temperature)) {
       PRINT_INPUT_ERROR("Temperature should be a number.");
@@ -716,104 +635,6 @@ void Integrate::parse_ensemble(
     }
     if (delta_temperature >= temperature || delta_temperature <= -temperature) {
       PRINT_INPUT_ERROR("|Temperature difference| is too large.");
-    }
-
-    if (type == EnsembleType::HEAT_LAN && use_heat_lan_region) {
-      for (int i = 0; i < 6; ++i) {
-        if (!is_valid_real(param[5 + i], &heat_source_region[i])) {
-          PRINT_INPUT_ERROR("Heat source region bounds should be numbers.");
-        }
-        if (!is_valid_real(param[11 + i], &heat_sink_region[i])) {
-          PRINT_INPUT_ERROR("Heat sink region bounds should be numbers.");
-        }
-      }
-      for (int d = 0; d < 3; ++d) {
-        int i = 2 * d;
-        if (!(heat_source_region[i] >= 0.0 && heat_source_region[i] <= 1.0 &&
-              heat_source_region[i + 1] >= 0.0 && heat_source_region[i + 1] <= 1.0)) {
-          PRINT_INPUT_ERROR("Heat source region bounds should be in [0, 1].");
-        }
-        if (!(heat_sink_region[i] >= 0.0 && heat_sink_region[i] <= 1.0 &&
-              heat_sink_region[i + 1] >= 0.0 && heat_sink_region[i + 1] <= 1.0)) {
-          PRINT_INPUT_ERROR("Heat sink region bounds should be in [0, 1].");
-        }
-        if (heat_source_region[i] >= heat_source_region[i + 1]) {
-          PRINT_INPUT_ERROR("Heat source region minimum should be smaller than maximum.");
-        }
-        if (heat_sink_region[i] >= heat_sink_region[i + 1]) {
-          PRINT_INPUT_ERROR("Heat sink region minimum should be smaller than maximum.");
-        }
-      }
-      if (
-        heat_source_region[0] < heat_sink_region[1] &&
-        heat_sink_region[0] < heat_source_region[1] &&
-        heat_source_region[2] < heat_sink_region[3] &&
-        heat_sink_region[2] < heat_source_region[3] &&
-        heat_source_region[4] < heat_sink_region[5] &&
-        heat_sink_region[4] < heat_source_region[5]) {
-        PRINT_INPUT_ERROR("Heat source and sink regions cannot overlap.");
-      }
-    } else {
-      // group labels of heat source and sink
-      if (!is_valid_int(param[5], &source)) {
-        PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
-      }
-      if (!is_valid_int(param[6], &sink)) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
-      }
-      if (group.size() < 1) {
-        PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-      }
-      if (source == sink) {
-        PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
-      }
-      if (source < 0) {
-        PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
-      }
-      if (source >= group[0].number) {
-        PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
-      }
-      if (sink < 0) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
-      }
-      if (sink >= group[0].number) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
-      }
-    }
-  }
-
-  // 4b. heating and cooling with a constant power (custom command heat_nhc_power)
-  // syntax: ensemble heat_nhc_power T T_coup power source sink
-  //   T       : target/average temperature in K (used for output and velocity
-  //             initialization only; no thermostat acts on source/sink)
-  //   T_coup  : parsed for syntax compatibility but NOT used by this command
-  //   power   : heating power P in eV/fs, total for the whole source/sink group
-  //             (NOT per atom); stored in delta_temperature
-  //   source  : group ID of the heat source (P added)
-  //   sink    : group ID of the heat sink (P removed)
-  if (type == EnsembleType::HEAT_NHC_POWER) {
-    // temperature
-    if (!is_valid_real(param[2], &temperature)) {
-      PRINT_INPUT_ERROR("Temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature should > 0.");
-    }
-
-    // temperature_coupling (unused by heat_nhc_power, kept for syntax compatibility)
-    if (!is_valid_real(param[3], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-
-    // heating power in eV/fs (total for the whole group, not per atom)
-    if (!is_valid_real(param[4], &delta_temperature)) {
-      PRINT_INPUT_ERROR("Heating power should be a number.");
-    }
-    if (delta_temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Heating power should > 0.");
     }
 
     // group labels of heat source and sink
@@ -1110,32 +931,12 @@ void Integrate::parse_ensemble(
     case EnsembleType::NVT_BER:
       break;
     case EnsembleType::NVT_NHC:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Nose-Hoover chain method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case EnsembleType::NVT_LAN:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Langevin method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case EnsembleType::NVT_BDP:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Bussi-Donadio-Parrinello method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case EnsembleType::NVT_BAO:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the BAOAB Langevin method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case EnsembleType::NVT_QTB:
       printf("Use NVT ensemble for this run.\n");
@@ -1210,68 +1011,12 @@ void Integrate::parse_ensemble(
     case EnsembleType::NPT_QTB: // npt_qtb (self-parsed)
       break;
     case EnsembleType::HEAT_NHC:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Nose-Hoover chain method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
       break;
     case EnsembleType::HEAT_NHC_POWER:
-      printf("Integrate with constant-power heating and cooling for this run.\n");
-      printf("    choose the custom constant-power velocity-scaling method (heat_nhc_power).\n");
-      printf("    average temperature is %g K (no thermostat acts on source/sink).\n", temperature);
-      printf("    tau_T is %g time_step (parsed but NOT used by this command).\n", temperature_coupling);
-      printf("    heating power is %g eV/fs (total for the whole group, not per atom).\n",
-        delta_temperature);
-      printf("    every step, %g eV/fs * time_step is added to the source and removed from the sink.\n",
-        delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
       break;
     case EnsembleType::HEAT_LAN:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Langevin method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      if (use_heat_lan_region) {
-        printf(
-          "    heat source fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
-          heat_source_region[0],
-          heat_source_region[1],
-          heat_source_region[2],
-          heat_source_region[3],
-          heat_source_region[4],
-          heat_source_region[5]);
-        printf(
-          "    heat sink fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
-          heat_sink_region[0],
-          heat_sink_region[1],
-          heat_sink_region[2],
-          heat_sink_region[3],
-          heat_sink_region[4],
-          heat_sink_region[5]);
-      } else {
-        printf("    heat source is group %d in grouping method 0.\n", source);
-        printf("    heat sink is group %d in grouping method 0.\n", sink);
-      }
       break;
     case EnsembleType::HEAT_BDP:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Bussi-Donadio-Parrinello method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
       break;
     case EnsembleType::HEAT_TTM:
       printf("Integrate with heating/cooling and TTM for this run.\n");
