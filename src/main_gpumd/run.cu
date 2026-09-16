@@ -195,6 +195,10 @@ void Run::execute_run_in()
     }
   }
 
+  if (integrate.type != EnsembleType::UNKNOWN) {
+    PRINT_INPUT_ERROR("The last ensemble is not followed by a run.");
+  }
+
   print_line_1();
   printf("Finished executing the commands in run.in.\n");
   fflush(stdout);
@@ -669,6 +673,9 @@ void Run::parse_run(const char** param, int num_param)
   }
   if (number_of_steps <= 0) {
     PRINT_INPUT_ERROR("number of steps should be positive.\n");
+  }
+  if (integrate.type == EnsembleType::UNKNOWN) {
+    PRINT_INPUT_ERROR("An ensemble must be specified before each run.");
   }
   printf("Run %d steps.\n", number_of_steps);
 
