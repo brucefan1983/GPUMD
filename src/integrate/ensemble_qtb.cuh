@@ -27,11 +27,15 @@
 class Ensemble_QTB : public Ensemble
 {
 public:
-  // NVT-QTB constructor
-  Ensemble_QTB(
-    EnsembleType type, int N, double T, double Tc, double dt, double f_max, int N_f);
+  Ensemble_QTB(const char** param, int num_param);
 
   ~Ensemble_QTB(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -48,6 +52,11 @@ public:
     GPU_Vector<double>& thermo);
 
 private:
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
+  double f_max_input_ = 200.0;
+  int n_f_input_ = 100;
+
   int number_of_atoms;
   int N_f;
   int nfreq2;

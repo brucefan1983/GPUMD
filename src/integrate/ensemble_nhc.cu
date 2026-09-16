@@ -185,7 +185,7 @@ double Ensemble_NHC::get_temperature2() const
 }
 
 void Ensemble_NHC::initialize_run(
-  const double time_step, const Atom& atom, const std::vector<Group>& group)
+  const double time_step, Atom& atom, Box&, const std::vector<Group>& group)
 {
   if (type == EnsembleType::NVT_NHC) {
     // position and momentum variables for one NHC

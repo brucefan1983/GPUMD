@@ -160,7 +160,7 @@ double Ensemble_BDP::get_temperature2() const
 }
 
 void Ensemble_BDP::initialize_run(
-  const double, const Atom&, const std::vector<Group>& group)
+  const double, Atom&, Box&, const std::vector<Group>& group)
 {
   initialize_rng();
   if (type == EnsembleType::HEAT_BDP) {

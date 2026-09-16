@@ -213,7 +213,7 @@ double Ensemble_LAN::get_temperature2() const
 }
 
 void Ensemble_LAN::initialize_run(
-  const double, const Atom& atom, const std::vector<Group>& group)
+  const double, Atom& atom, Box&, const std::vector<Group>& group)
 {
   if (run_mode_ == RunMode::NONE) {
     return;

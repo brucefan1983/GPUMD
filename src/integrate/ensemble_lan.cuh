@@ -33,7 +33,7 @@ public:
   double get_temperature2() const;
 
   virtual void initialize_run(
-    const double time_step, const Atom& atom, const std::vector<Group>& group);
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,

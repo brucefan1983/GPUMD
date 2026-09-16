@@ -90,25 +90,10 @@ void Integrate::initialize(
     case EnsembleType::NVT_BAO: // NVT-BAOAB_Langevin
       break;
     case EnsembleType::NVT_QTB: // NVT-QTB
-      ensemble.reset(new Ensemble_QTB(
-        type, number_of_atoms, temperature, temperature_coupling, time_step, qtb_f_max, qtb_n_f));
       break;
     case EnsembleType::NPT_BER: // NPT-Berendsen
       break;
     case EnsembleType::NPT_SCR: // NPT-SCR
-      ensemble.reset(new Ensemble_NPT_SCR(
-        type,
-        temperature,
-        temperature_coupling,
-        target_pressure,
-        num_target_pressure_components,
-        pressure_coupling,
-        deform_x,
-        deform_y,
-        deform_z,
-        deform_xy,
-        deform_xz,
-        deform_yz));
       break;
     case EnsembleType::MSST: // msst
       break;
@@ -247,7 +232,7 @@ void Integrate::initialize(
   ensemble->deform_xy = deform_xy;
   ensemble->deform_xz = deform_xz;
   ensemble->deform_yz = deform_yz;
-  ensemble->initialize_run(time_step, atom, group);
+  ensemble->initialize_run(time_step, atom, box, group);
 }
 
 void Integrate::finalize()
@@ -323,8 +308,6 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
-  qtb_f_max = 200.0;
-  qtb_n_f = 100;
   use_eco_pimd = false;
   use_scr_barostat = false;
   eco_omega_max_cm1 = 0.0;
@@ -381,16 +364,20 @@ void Integrate::parse_ensemble(
     temperature = temperature1;
     ensemble = std::move(ensemble_bao);
   } else if (strcmp(param[1], "nvt_qtb") == 0) {
-    type = EnsembleType::NVT_QTB;
-    if (num_param < 5 || num_param % 2 == 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
-    }
+    auto ensemble_qtb = std::make_unique<Ensemble_QTB>(param, num_param);
+    type = ensemble_qtb->type;
+    temperature1 = ensemble_qtb->get_temperature1();
+    temperature2 = ensemble_qtb->get_temperature2();
+    temperature = ensemble_qtb->temperature;
+    ensemble = std::move(ensemble_qtb);
   } else if (strcmp(param[1], "npt_scr") == 0) {
-    type = EnsembleType::NPT_SCR;
-    if (num_param != 18 && num_param != 12 && num_param != 8) {
-      PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
-    }
+    auto ensemble_scr = std::make_unique<Ensemble_NPT_SCR>(param, num_param, box);
+    type = ensemble_scr->type;
+    temperature1 = ensemble_scr->get_temperature1();
+    temperature2 = ensemble_scr->get_temperature2();
+    temperature = ensemble_scr->temperature;
+    num_target_pressure_components = ensemble_scr->get_num_target_pressure_components();
+    ensemble = std::move(ensemble_scr);
   } else if (
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
@@ -473,142 +460,6 @@ void Integrate::parse_ensemble(
     ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
-  }
-
-  // 2. Temperatures and temperature_coupling (standard NVT and NPT)
-  if (type == EnsembleType::NVT_QTB || type == EnsembleType::NPT_SCR) {
-    // initial temperature
-    if (!is_valid_real(param[2], &temperature1)) {
-      PRINT_INPUT_ERROR("Initial temperature should be a number.");
-    }
-    if (temperature1 <= 0.0) {
-      PRINT_INPUT_ERROR("Initial temperature should > 0.");
-    }
-
-    // final temperature
-    if (!is_valid_real(param[3], &temperature2)) {
-      PRINT_INPUT_ERROR("Final temperature should be a number.");
-    }
-    if (temperature2 <= 0.0) {
-      PRINT_INPUT_ERROR("Final temperature should > 0.");
-    }
-
-    // The current temperature is the initial temperature
-    temperature = temperature1;
-
-    // temperature_coupling
-    if (!is_valid_real(param[4], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-  }
-
-  // 2b. Optional parameters for QTB
-  if (type == EnsembleType::NVT_QTB) {
-    // For nvt_qtb, optional parameters start at index 5
-    int i = 5;
-    while (i < num_param) {
-      if (strcmp(param[i], "f_max") == 0) {
-        if (!is_valid_real(param[i + 1], &qtb_f_max)) {
-          PRINT_INPUT_ERROR("f_max should be a number.");
-        }
-        if (qtb_f_max <= 0.0) {
-          PRINT_INPUT_ERROR("f_max should > 0.");
-        }
-      } else if (strcmp(param[i], "N_f") == 0) {
-        if (!is_valid_int(param[i + 1], &qtb_n_f)) {
-          PRINT_INPUT_ERROR("N_f should be an integer.");
-        }
-        if (qtb_n_f <= 0) {
-          PRINT_INPUT_ERROR("N_f should > 0.");
-        }
-      } else {
-        PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
-      }
-      i += 2;
-    }
-  }
-
-  // 3. Pressures and pressure_coupling (NPT)
-  if (type == EnsembleType::NPT_SCR) {
-    // pressures:
-    if (num_param == 12) {
-      for (int i = 0; i < 3; i++) {
-        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
-          PRINT_INPUT_ERROR("Pressure should be a number.");
-        }
-      }
-      for (int i = 0; i < 3; i++) {
-        if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
-          PRINT_INPUT_ERROR("elastic modulus should be a number.");
-        }
-        if (elastic_modulus[i] <= 0) {
-          PRINT_INPUT_ERROR("elastic modulus should > 0.");
-        }
-      }
-      num_target_pressure_components = 3;
-      if (
-        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-        PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
-      }
-    } else if (num_param == 8) { // isotropic
-      if (!is_valid_real(param[5], &target_pressure[0])) {
-        PRINT_INPUT_ERROR("Pressure should be a number.");
-      }
-      if (!is_valid_real(param[6], &elastic_modulus[0])) {
-        PRINT_INPUT_ERROR("elastic modulus should be a number.");
-      }
-      if (elastic_modulus[0] <= 0) {
-        PRINT_INPUT_ERROR("elastic modulus should > 0.");
-      }
-      num_target_pressure_components = 1;
-      if (
-        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-        PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
-      }
-      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-        PRINT_INPUT_ERROR(
-          "Cannot use isotropic pressure with non-periodic boundary in any direction.");
-      }
-    } else { // then must be triclinic box
-      for (int i = 0; i < 6; i++) {
-        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
-          PRINT_INPUT_ERROR("Pressure should be a number.");
-        }
-      }
-      for (int i = 0; i < 6; i++) {
-        if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
-          PRINT_INPUT_ERROR("elastic modulus should be a number.");
-        }
-        if (elastic_modulus[i] <= 0) {
-          PRINT_INPUT_ERROR("elastic modulus should > 0.");
-        }
-      }
-      num_target_pressure_components = 6;
-      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-        PRINT_INPUT_ERROR(
-          "Cannot use 6 pressure components with non-periodic boundary in any direction.");
-      }
-    }
-
-    // pressure_coupling:
-    int index_pressure_coupling = num_target_pressure_components * 2 + 5;
-    if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
-      PRINT_INPUT_ERROR("Pressure coupling should be a number.");
-    }
-    if (tau_p < 1) {
-      PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
-    }
-    for (int i = 0; i < 6; i++) {
-      pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
-      if (elastic_modulus[i] > 2.0e3) {
-        pressure_coupling[i] = 0.0;
-      }
-    }
   }
 
   // 4. heating and cooling wiht fixed temperatures
@@ -939,52 +790,10 @@ void Integrate::parse_ensemble(
     case EnsembleType::NVT_BAO:
       break;
     case EnsembleType::NVT_QTB:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the quantum thermal bath method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    f_max is %g ps^-1.\n", qtb_f_max);
-      printf("    N_f is %d.\n", qtb_n_f);
       break;
     case EnsembleType::NPT_BER:
       break;
     case EnsembleType::NPT_SCR:
-      printf("Use NPT ensemble for this run.\n");
-      printf("    choose the SCR method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      if (num_target_pressure_components == 1) {
-        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-      } else if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-      } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-        printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-      }
-      printf("    tau_p is %g time_step.\n", tau_p);
-      // Change the units of pressure form GPa to that used in the code
-      for (int i = 0; i < 6; i++) {
-        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-      }
       break;
     case EnsembleType::MSST:
       break;

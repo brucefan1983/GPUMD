@@ -109,7 +109,8 @@ public:
 
   virtual void initialize_run(
     const double /* time_step */,
-    const Atom& /* atom */,
+    Atom& /* atom */,
+    Box& /* box */,
     const std::vector<Group>& /* group */)
   {
   }

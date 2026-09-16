@@ -82,7 +82,7 @@ double Ensemble_BAO::get_temperature2() const
 }
 
 void Ensemble_BAO::initialize_run(
-  const double, const Atom& atom, const std::vector<Group>&)
+  const double, Atom& atom, Box&, const std::vector<Group>&)
 {
   if (type != EnsembleType::NVT_BAO) {
     return;

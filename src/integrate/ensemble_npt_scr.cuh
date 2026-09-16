@@ -20,9 +20,15 @@
 class Ensemble_NPT_SCR : public Ensemble
 {
 public:
-  Ensemble_NPT_SCR(
-    EnsembleType, double, double, double*, int, double*, int, int, int, int, int, int);
+  Ensemble_NPT_SCR(const char** param, int num_param, const Box& box);
   virtual ~Ensemble_NPT_SCR(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -41,4 +47,8 @@ public:
 protected:
   std::mt19937 rng;
   void initialize_rng();
+
+private:
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };
