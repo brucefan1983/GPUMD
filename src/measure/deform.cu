@@ -196,8 +196,8 @@ void Deform::pre_run(
   box.set_is_orthogonal();
 
   if (
-    !(integrate.type >= 0 && integrate.type <= 6) && integrate.type != 11 &&
-    integrate.type != 12) {
+    integrate.type != EnsembleType::NVE && !is_standard_nvt(integrate.type) &&
+    !is_standard_npt(integrate.type)) {
     PRINT_INPUT_ERROR(
       "The current deform implementation only supports NVE, standard NVT, NPT-Berendsen, and NPT-SCR ensembles.");
   }
@@ -225,7 +225,7 @@ void Deform::pre_run(
     PRINT_INPUT_ERROR("The legacy deform format only supports orthogonal boxes.");
   }
 
-  if (integrate.type == 11 || integrate.type == 12) {
+  if (is_standard_npt(integrate.type)) {
     if (integrate.num_target_pressure_components == 1) {
       PRINT_INPUT_ERROR("Deformation cannot be combined with isotropic NPT pressure control.");
     }

@@ -35,9 +35,10 @@ void Ensemble_BDP::initialize_rng()
 #endif
 };
 
-Ensemble_BDP::Ensemble_BDP(int t, int mg, double* mv, double T, double Tc)
+Ensemble_BDP::Ensemble_BDP(
+  EnsembleType type_input, int mg, double* mv, double T, double Tc)
 {
-  type = t;
+  type = type_input;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -48,9 +49,15 @@ Ensemble_BDP::Ensemble_BDP(int t, int mg, double* mv, double T, double Tc)
 }
 
 Ensemble_BDP::Ensemble_BDP(
-  int t, int source_input, int sink_input, int number_of_groups, double T, double Tc, double dT)
+  EnsembleType type_input,
+  int source_input,
+  int sink_input,
+  int number_of_groups,
+  double T,
+  double Tc,
+  double dT)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;
@@ -174,7 +181,7 @@ void Ensemble_BDP::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 4) {
+  if (type == EnsembleType::NVT_BDP) {
     integrate_nvt_bdp_2(
       time_step,
       box.get_volume(),

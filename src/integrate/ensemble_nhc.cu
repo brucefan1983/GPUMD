@@ -26,9 +26,10 @@ Oxford University Press, 2010.
 #include <cstring>
 #define DIM 3
 
-Ensemble_NHC::Ensemble_NHC(int t, int mg, double* mv, int N, double T, double Tc, double dt)
+Ensemble_NHC::Ensemble_NHC(
+  EnsembleType type_input, int mg, double* mv, int N, double T, double Tc, double dt)
 {
-  type = t;
+  type = type_input;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -50,7 +51,7 @@ Ensemble_NHC::Ensemble_NHC(int t, int mg, double* mv, int N, double T, double Tc
 }
 
 Ensemble_NHC::Ensemble_NHC(
-  int t,
+  EnsembleType type_input,
   int source_input,
   int sink_input,
   int N1,
@@ -61,7 +62,7 @@ Ensemble_NHC::Ensemble_NHC(
   double dT,
   double time_step)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;
@@ -410,7 +411,7 @@ void Ensemble_NHC::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 2) {
+  if (type == EnsembleType::NVT_NHC) {
     integrate_nvt_nhc_1(
       time_step,
       box.get_volume(),
@@ -422,7 +423,7 @@ void Ensemble_NHC::compute1(
       atom.position_per_atom,
       atom.velocity_per_atom,
       thermo);
-  } else if (type == 27) {
+  } else if (type == EnsembleType::HEAT_NHC_POWER) {
     integrate_heat_nhc_power_1(
       time_step,
       group,
@@ -448,7 +449,7 @@ void Ensemble_NHC::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 2) {
+  if (type == EnsembleType::NVT_NHC) {
     integrate_nvt_nhc_2(
       time_step,
       box.get_volume(),
@@ -460,7 +461,7 @@ void Ensemble_NHC::compute2(
       atom.position_per_atom,
       atom.velocity_per_atom,
       thermo);
-  } else if (type == 27) {
+  } else if (type == EnsembleType::HEAT_NHC_POWER) {
     integrate_heat_nhc_power_2(
       time_step,
       group,

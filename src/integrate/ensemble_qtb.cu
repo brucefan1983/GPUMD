@@ -170,9 +170,9 @@ void Ensemble_QTB::init_qtb_common(
 
 // NVT-QTB constructor
 Ensemble_QTB::Ensemble_QTB(
-  int t, int N, double T, double Tc, double dt_input, double f_max, int N_f)
+  EnsembleType type_input, int N, double T, double Tc, double dt_input, double f_max, int N_f)
 {
-  type = t;
+  type = type_input;
   num_target_pressure_components = 0;
   init_qtb_common(N, T, Tc, dt_input, f_max, N_f);
 }
