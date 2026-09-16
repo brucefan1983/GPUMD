@@ -57,7 +57,6 @@ void Integrate::initialize(
   int& total_steps)
 {
   this->total_steps = total_steps;
-  int number_of_atoms = atom.number_of_atoms;
   if (move_group >= 0) {
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
@@ -137,33 +136,10 @@ void Integrate::initialize(
     case EnsembleType::HEAT_HYBRID:
       break;
     case EnsembleType::RPMD: // RPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
       break;
     case EnsembleType::TRPMD: // TRPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, true, atom));
       break;
     case EnsembleType::PIMD: // PIMD
-      if (num_target_pressure_components == 0) {
-        ensemble.reset(new Ensemble_PIMD(
-          number_of_atoms,
-          number_of_beads,
-          temperature_coupling,
-          atom,
-          use_eco_pimd,
-          eco_omega_max_cm1));
-      } else {
-        ensemble.reset(new Ensemble_PIMD(
-          number_of_atoms,
-          number_of_beads,
-          temperature_coupling,
-          num_target_pressure_components,
-          target_pressure,
-          pressure_coupling,
-          atom,
-          use_eco_pimd,
-          eco_omega_max_cm1,
-          use_scr_barostat));
-      }
       break;
     default:
       printf("Illegal integrator!\n");
@@ -268,11 +244,6 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
-  use_eco_pimd = false;
-  use_scr_barostat = false;
-  eco_omega_max_cm1 = 0.0;
-  int pimd_num_param = num_param;
-
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
     ensemble = std::make_unique<Ensemble_NVE>(num_param);
@@ -372,21 +343,20 @@ void Integrate::parse_ensemble(
     type = ensemble_hybrid->type;
     temperature = ensemble_hybrid->temperature;
     ensemble = std::move(ensemble_hybrid);
-  } else if (strcmp(param[1], "rpmd") == 0) {
-    type = EnsembleType::RPMD;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble rpmd should have 1 parameter.");
+  } else if (
+    strcmp(param[1], "rpmd") == 0 || strcmp(param[1], "trpmd") == 0 ||
+    strcmp(param[1], "pimd") == 0 || strcmp(param[1], "pimd_scr") == 0) {
+    auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(param, num_param, box);
+    type = ensemble_pimd->type;
+    number_of_beads = ensemble_pimd->get_number_of_beads();
+    if (type == EnsembleType::PIMD) {
+      temperature1 = ensemble_pimd->get_temperature1();
+      temperature2 = ensemble_pimd->get_temperature2();
+      temperature = ensemble_pimd->temperature;
+      num_target_pressure_components =
+        ensemble_pimd->get_num_target_pressure_components();
     }
-  } else if (strcmp(param[1], "trpmd") == 0) {
-    type = EnsembleType::TRPMD;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble trpmd should have 1 parameter.");
-    }
-  } else if (strcmp(param[1], "pimd") == 0) {
-    type = EnsembleType::PIMD;
-  } else if (strcmp(param[1], "pimd_scr") == 0) {
-    type = EnsembleType::PIMD;
-    use_scr_barostat = true;
+    ensemble = std::move(ensemble_pimd);
   } else if (strcmp(param[1], "msst") == 0) {
     type = EnsembleType::MSST;
     ensemble.reset(new Ensemble_MSST(param, num_param));
@@ -419,163 +389,6 @@ void Integrate::parse_ensemble(
     ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
-  }
-
-  // 5. PIMD related
-  if (is_pimd(type)) {
-
-    // Optional Eco frequencies are selected by appending
-    // "eco omega_max_cm1" to an existing PIMD command.
-    if (type == EnsembleType::PIMD) {
-      if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
-        use_eco_pimd = true;
-        pimd_num_param = num_param - 2;
-        if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
-          PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
-        }
-      }
-      if (use_scr_barostat) {
-        if (pimd_num_param != 9 && pimd_num_param != 13 && pimd_num_param != 19) {
-          PRINT_INPUT_ERROR(
-            "ensemble pimd_scr should have 7, 11, or 17 parameters, optionally followed by "
-            "eco omega_max_cm1.");
-        }
-      } else {
-        if (
-          pimd_num_param != 6 && pimd_num_param != 9 && pimd_num_param != 13 &&
-          pimd_num_param != 19) {
-          PRINT_INPUT_ERROR(
-            "ensemble pimd should have 4, 7, 11, or 17 parameters, optionally followed by "
-            "eco omega_max_cm1.");
-        }
-      }
-      if (use_eco_pimd && eco_omega_max_cm1 <= 0.0) {
-        PRINT_INPUT_ERROR("Eco-PIMD omega_max should > 0.");
-      }
-    }
-
-    // number of beads for RPMD, TRPMD, or PIMD
-    if (!is_valid_int(param[2], &number_of_beads)) {
-      PRINT_INPUT_ERROR("number of beads should be an integer.");
-    }
-    if (number_of_beads < 2) {
-      PRINT_INPUT_ERROR("number of beads should >= 2.");
-    }
-    if (number_of_beads > MAX_NUM_BEADS) {
-      PRINT_INPUT_ERROR("number of beads should <= 128.");
-    }
-    if (number_of_beads % 2 != 0) {
-      PRINT_INPUT_ERROR("number of beads should be an even number.");
-    }
-
-    // thermostat and barostat for PIMD
-    if (type == EnsembleType::PIMD) {
-      // initial temperature
-      if (!is_valid_real(param[3], &temperature1)) {
-        PRINT_INPUT_ERROR("Initial temperature should be a number.");
-      }
-      if (temperature1 <= 0.0) {
-        PRINT_INPUT_ERROR("Initial temperature should > 0.");
-      }
-      temperature = temperature1;
-
-      // final temperature
-      if (!is_valid_real(param[4], &temperature2)) {
-        PRINT_INPUT_ERROR("Final temperature should be a number.");
-      }
-      if (temperature2 <= 0.0) {
-        PRINT_INPUT_ERROR("Final temperature should > 0.");
-      }
-
-      // temperature_coupling
-      if (!is_valid_real(param[5], &temperature_coupling)) {
-        PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-      }
-      if (temperature_coupling < 1.0) {
-        PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-      }
-
-      num_target_pressure_components = 0;
-
-      // pressures:
-      if (pimd_num_param >= 9) {
-        if (pimd_num_param == 13) {
-          for (int i = 0; i < 3; i++) {
-            if (!is_valid_real(param[6 + i], &target_pressure[i])) {
-              PRINT_INPUT_ERROR("Pressure should be a number.");
-            }
-          }
-          for (int i = 0; i < 3; i++) {
-            if (!is_valid_real(param[9 + i], &elastic_modulus[i])) {
-              PRINT_INPUT_ERROR("elastic modulus should be a number.");
-            }
-            if (elastic_modulus[i] <= 0) {
-              PRINT_INPUT_ERROR("elastic modulus should > 0.");
-            }
-          }
-          num_target_pressure_components = 3;
-          if (
-            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-            PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
-          }
-        } else if (pimd_num_param == 9) { // isotropic
-          if (!is_valid_real(param[6], &target_pressure[0])) {
-            PRINT_INPUT_ERROR("Pressure should be a number.");
-          }
-          if (!is_valid_real(param[7], &elastic_modulus[0])) {
-            PRINT_INPUT_ERROR("elastic modulus should be a number.");
-          }
-          if (elastic_modulus[0] <= 0) {
-            PRINT_INPUT_ERROR("elastic modulus should > 0.");
-          }
-          num_target_pressure_components = 1;
-          if (
-            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-            PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
-          }
-          if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-            PRINT_INPUT_ERROR(
-              "Cannot use isotropic pressure with non-periodic boundary in any direction.");
-          }
-        } else { // then must be triclinic box
-          for (int i = 0; i < 6; i++) {
-            if (!is_valid_real(param[6 + i], &target_pressure[i])) {
-              PRINT_INPUT_ERROR("Pressure should be a number.");
-            }
-          }
-          for (int i = 0; i < 6; i++) {
-            if (!is_valid_real(param[12 + i], &elastic_modulus[i])) {
-              PRINT_INPUT_ERROR("elastic modulus should be a number.");
-            }
-            if (elastic_modulus[i] <= 0) {
-              PRINT_INPUT_ERROR("elastic modulus should > 0.");
-            }
-          }
-          num_target_pressure_components = 6;
-          if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-            PRINT_INPUT_ERROR(
-              "Cannot use 6 pressure components with non-periodic boundary in any direction.");
-          }
-        }
-
-        // pressure_coupling:
-        int index_pressure_coupling = num_target_pressure_components * 2 + 6;
-        if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
-          PRINT_INPUT_ERROR("Pressure coupling should be a number.");
-        }
-        if (tau_p < 1) {
-          PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
-        }
-        for (int i = 0; i < 6; i++) {
-          pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
-          if (elastic_modulus[i] > 2.0e3) {
-            pressure_coupling[i] = 0.0;
-          }
-        }
-      }
-    }
   }
 
   switch (type) {
@@ -636,69 +449,14 @@ void Integrate::parse_ensemble(
     case EnsembleType::HEAT_HYBRID:
       break;
     case EnsembleType::RPMD:
-      printf("Use ring-polymer MD (RPMD) for this run.\n");
-      printf("    number of beads is %d.\n", number_of_beads);
       break;
     case EnsembleType::TRPMD:
-      printf("Use thermostatted ring-polyer MD (TRPMD) for this run.\n");
-      printf("    number of beads is %d.\n", number_of_beads);
       break;
     case EnsembleType::PIMD:
-      if (pimd_num_param >= 9) {
-        if (use_scr_barostat) {
-          printf("Use NPT-PIMD with stochastic cell rescaling for this run.\n");
-        } else {
-          printf("Use NPT-PIMD for this run.\n");
-        }
-      } else {
-        printf("Use NVT-PIMD for this run.\n");
-      }
-      printf("    number of beads is %d.\n", number_of_beads);
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      if (pimd_num_param >= 9) {
-        if (num_target_pressure_components == 1) {
-          printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-          printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-        } else if (num_target_pressure_components == 3) {
-          printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-          printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-          printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-          printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-          printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-          printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        } else if (num_target_pressure_components == 6) {
-          printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-          printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-          printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-          printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-          printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-          printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-          printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-          printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-          printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-          printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-          printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-          printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-        }
-        printf("    tau_p is %g time_step.\n", tau_p);
-
-        // Change the units of pressure form GPa to that used in the code
-        for (int i = 0; i < 6; i++) {
-          target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-          pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-        }
-      }
       break;
     default:
       PRINT_INPUT_ERROR("Invalid ensemble type.");
       break;
-  }
-
-  if (type == EnsembleType::PIMD && use_eco_pimd) {
-    printf("    use Eco-PIMD internal-mode frequencies.\n");
-    printf("    Eco-PIMD omega_max is %g cm^-1.\n", eco_omega_max_cm1);
   }
 }
 
