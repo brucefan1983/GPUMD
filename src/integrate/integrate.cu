@@ -36,6 +36,7 @@ The driver class for the various integrators.
 #include "ensemble_ti_liquid.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
+#include "ensemble_ttm.cuh"
 #include "ensemble_wall_harmonic.cuh"
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
@@ -129,30 +130,8 @@ void Integrate::initialize(
     case EnsembleType::HEAT_BDP: // heat-BDP
       break;
     case EnsembleType::HEAT_TTM: // heat-TTM
-      ensemble.reset(new Ensemble_TTM(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].cpu_size_sum[source],
-        group[0].cpu_size_sum[sink],
-        group[0].number,
-        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
-        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        ttm_parameters,
-        box));
       break;
     case EnsembleType::TTM: // pure TTM
-      ensemble.reset(new Ensemble_TTM(
-        type,
-        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
-        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
-        ttm_parameters,
-        box));
       break;
     // Heat-hybrid facilitates the use of both Langevin and Nose-Hoover thermostats
     case EnsembleType::HEAT_HYBRID:
@@ -374,19 +353,19 @@ void Integrate::parse_ensemble(
     temperature1 = ptr_temp->t_start;
     temperature2 = ptr_temp->t_stop;
   } else if (strcmp(param[1], "heat_ttm") == 0) {
-    type = EnsembleType::HEAT_TTM;
-    // ensemble heat_ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
-    if (num_param < 19 || (num_param - 19) % 2 != 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble heat_ttm should have 17 required parameters plus optional key-value pairs.");
-    }
+    auto ensemble_ttm =
+      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+    type = ensemble_ttm->type;
+    temperature = ensemble_ttm->temperature;
+    ensemble = std::move(ensemble_ttm);
   } else if (strcmp(param[1], "ttm") == 0) {
-    type = EnsembleType::TTM;
-    // ensemble ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
-    if (num_param < 14 || (num_param - 14) % 2 != 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble ttm should have 12 required parameters plus optional key-value pairs.");
-    }
+    auto ensemble_ttm =
+      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+    type = ensemble_ttm->type;
+    temperature = ensemble_ttm->temperature;
+    temperature1 = 0.0;
+    temperature2 = 0.0;
+    ensemble = std::move(ensemble_ttm);
   } else if (strcmp(param[1], "heat_hybrid") == 0) {
     auto ensemble_hybrid =
       std::make_unique<Ensemble_Heat_Hybrid>(param, num_param, group);
@@ -440,69 +419,6 @@ void Integrate::parse_ensemble(
     ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
-  }
-
-  // 4. heating and cooling wiht fixed temperatures
-  if (type == EnsembleType::HEAT_TTM) {
-    // temperature
-    if (!is_valid_real(param[2], &temperature)) {
-      PRINT_INPUT_ERROR("Temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature should > 0.");
-    }
-
-    // temperature_coupling
-    if (!is_valid_real(param[3], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-
-    // temperature difference
-    if (!is_valid_real(param[4], &delta_temperature)) {
-      PRINT_INPUT_ERROR("Temperature difference should be a number.");
-    }
-    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
-      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
-    }
-
-    // group labels of heat source and sink
-    if (!is_valid_int(param[5], &source)) {
-      PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
-    }
-    if (!is_valid_int(param[6], &sink)) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
-    }
-    if (group.size() < 1) {
-      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-    }
-    if (source == sink) {
-      PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
-    }
-    if (source < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
-    }
-    if (source >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
-    }
-    if (sink < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
-    }
-    if (sink >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
-    }
-  }
-
-  if (type == EnsembleType::TTM) {
-    temperature = 0.0;
-    temperature1 = 0.0;
-    temperature2 = 0.0;
-  }
-
-  if (type == EnsembleType::HEAT_TTM || type == EnsembleType::TTM) {
-    parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, ttm_parameters);
   }
 
   // 5. PIMD related
@@ -714,20 +630,8 @@ void Integrate::parse_ensemble(
     case EnsembleType::HEAT_BDP:
       break;
     case EnsembleType::HEAT_TTM:
-      printf("Integrate with heating/cooling and TTM for this run.\n");
-      printf("    choose the Two-Temperature Model (TTM) + Langevin method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      print_ttm_settings(ttm_parameters);
       break;
     case EnsembleType::TTM:
-      printf("Integrate with pure Two-Temperature Model (TTM) for this run.\n");
-      print_ttm_settings(ttm_parameters);
       break;
     case EnsembleType::HEAT_HYBRID:
       break;

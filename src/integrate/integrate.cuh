@@ -16,7 +16,6 @@
 #pragma once
 
 #include "ensemble.cuh"
-#include "ensemble_ttm.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -70,8 +69,6 @@ public:
 
   // these data will be used to initialize ensemble
   EnsembleType type = EnsembleType::UNKNOWN;
-  int source;
-  int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed
   int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
   int fixed_grouping_method = 0;
@@ -100,9 +97,6 @@ public:
   bool use_eco_pimd = false;
   bool use_scr_barostat = false;
   double eco_omega_max_cm1 = 0.0;
-
-  // TTM parameters
-  TTM_Parameters ttm_parameters;
 
   // save some quantities for ensemble to use.
   int current_step = 0;

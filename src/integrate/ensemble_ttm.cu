@@ -81,7 +81,7 @@ static void parse_ttm_active_range(
   }
 }
 
-void parse_ttm_parameters(
+static void parse_ttm_parameters(
   const EnsembleType type,
   const char** param,
   const int num_param,
@@ -254,7 +254,7 @@ void parse_ttm_parameters(
   }
 }
 
-void print_ttm_settings(const TTM_Parameters& ttm_parameters)
+static void print_ttm_settings(const TTM_Parameters& ttm_parameters)
 {
   printf(
     "    TTM metal group is group %d in grouping method %d.\n",
@@ -794,81 +794,138 @@ void Ensemble_TTM::initialize_ttm_common(
 }
 
 Ensemble_TTM::Ensemble_TTM(
-  EnsembleType type_input,
-  int source_input,
-  int sink_input,
-  int source_size,
-  int sink_size,
-  int source_offset,
-  int sink_offset,
-  int number_of_groups,
-  int ttm_group_size,
-  int ttm_group_offset,
-  double T,
-  double Tc,
-  double dT,
-  const TTM_Parameters& ttm_parameters,
-  const Box& box)
+  const char** param,
+  int num_param,
+  const Atom& atom,
+  const Box& box,
+  const std::vector<Group>& group)
 {
-  use_heat_lan = true;
-  temperature = T;
-  temperature_coupling = Tc;
-  delta_temperature = dT;
-  source = source_input;
-  sink = sink_input;
-  N_source = source_size;
-  N_sink = sink_size;
-  offset_source = source_offset;
-  offset_sink = sink_offset;
+  if (strcmp(param[1], "heat_ttm") == 0) {
+    type = EnsembleType::HEAT_TTM;
+    use_heat_lan = true;
+    if (num_param < 19 || (num_param - 19) % 2 != 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble heat_ttm should have 17 required parameters plus optional key-value pairs.");
+    }
 
-  c1 = exp(-0.5 / temperature_coupling);
-  c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
-  c2_sink = sqrt((1 - c1 * c1) * K_B * (T - dT));
+    if (!is_valid_real(param[2], &temperature)) {
+      PRINT_INPUT_ERROR("Temperature should be a number.");
+    }
+    if (temperature <= 0.0) {
+      PRINT_INPUT_ERROR("Temperature should > 0.");
+    }
+    if (!is_valid_real(param[3], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+    if (!is_valid_real(param[4], &delta_temperature)) {
+      PRINT_INPUT_ERROR("Temperature difference should be a number.");
+    }
+    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
+      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+    }
+    if (!is_valid_int(param[5], &source)) {
+      PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
+    }
+    if (!is_valid_int(param[6], &sink)) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+    }
+    if (group.empty()) {
+      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+    }
+    if (source == sink) {
+      PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+    }
+    if (source < 0) {
+      PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+    }
+    if (source >= group[0].number) {
+      PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+    }
+    if (sink < 0) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+    }
+    if (sink >= group[0].number) {
+      PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+    }
+  } else if (strcmp(param[1], "ttm") == 0) {
+    type = EnsembleType::TTM;
+    use_heat_lan = false;
+    if (num_param < 14 || (num_param - 14) % 2 != 0) {
+      PRINT_INPUT_ERROR(
+        "ensemble ttm should have 12 required parameters plus optional key-value pairs.");
+    }
+    temperature = 0.0;
+    temperature_coupling = 0.0;
+    delta_temperature = 0.0;
+    source = -1;
+    sink = -1;
+  } else {
+    PRINT_INPUT_ERROR("Invalid TTM ensemble type.");
+  }
 
-  curand_states_source.resize(N_source);
-  curand_states_sink.resize(N_sink);
-  int grid_size_source = (N_source - 1) / 128 + 1;
-  int grid_size_sink = (N_sink - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size_source, 128>>>(
-    curand_states_source.data(), N_source, rand());
-  GPU_CHECK_KERNEL
-  initialize_curand_states<<<grid_size_sink, 128>>>(
-    curand_states_sink.data(), N_sink, rand());
-  GPU_CHECK_KERNEL
-  initialize_group_kinetic_energy_workspace(number_of_groups);
-  initialize_ttm_common(
-    type_input,
-    ttm_group_size,
-    ttm_group_offset,
-    ttm_parameters,
-    box);
+  parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, parameters_);
+
+  if (use_heat_lan) {
+    printf("Integrate with heating/cooling and TTM for this run.\n");
+    printf("    choose the Two-Temperature Model (TTM) + Langevin method.\n");
+    printf("    average temperature is %g K.\n", temperature);
+    printf("    tau_T is %g time_step.\n", temperature_coupling);
+    printf("    delta_T is %g K.\n", delta_temperature);
+    printf("    T_hot is %g K.\n", temperature + delta_temperature);
+    printf("    T_cold is %g K.\n", temperature - delta_temperature);
+    printf("    heat source is group %d in grouping method 0.\n", source);
+    printf("    heat sink is group %d in grouping method 0.\n", sink);
+  } else {
+    printf("Integrate with pure Two-Temperature Model (TTM) for this run.\n");
+  }
+  print_ttm_settings(parameters_);
 }
 
-Ensemble_TTM::Ensemble_TTM(
-  EnsembleType type_input,
-  int ttm_group_size,
-  int ttm_group_offset,
-  const TTM_Parameters& ttm_parameters,
-  const Box& box)
+void Ensemble_TTM::initialize_run(
+  const double, Atom&, Box& box, const std::vector<Group>& group)
 {
-  use_heat_lan = false;
-  temperature = 0.0;
-  temperature_coupling = 0.0;
-  delta_temperature = 0.0;
-  source = -1;
-  sink = -1;
-  N_source = 0;
-  N_sink = 0;
-  offset_source = 0;
-  offset_sink = 0;
+  if (use_heat_lan) {
+    N_source = group[0].cpu_size[source];
+    N_sink = group[0].cpu_size[sink];
+    offset_source = group[0].cpu_size_sum[source];
+    offset_sink = group[0].cpu_size_sum[sink];
 
-  curand_states_source.resize(0);
-  curand_states_sink.resize(0);
+    c1 = exp(-0.5 / temperature_coupling);
+    c2_source =
+      sqrt((1 - c1 * c1) * K_B * (temperature + delta_temperature));
+    c2_sink =
+      sqrt((1 - c1 * c1) * K_B * (temperature - delta_temperature));
+
+    curand_states_source.resize(N_source);
+    curand_states_sink.resize(N_sink);
+    int grid_size_source = (N_source - 1) / 128 + 1;
+    int grid_size_sink = (N_sink - 1) / 128 + 1;
+    initialize_curand_states<<<grid_size_source, 128>>>(
+      curand_states_source.data(), N_source, rand());
+    GPU_CHECK_KERNEL
+    initialize_curand_states<<<grid_size_sink, 128>>>(
+      curand_states_sink.data(), N_sink, rand());
+    GPU_CHECK_KERNEL
+    initialize_group_kinetic_energy_workspace(group[0].number);
+  } else {
+    N_source = 0;
+    N_sink = 0;
+    offset_source = 0;
+    offset_sink = 0;
+    curand_states_source.resize(0);
+    curand_states_sink.resize(0);
+  }
+
+  const int ttm_grouping_method = parameters_.grouping_method;
+  const int ttm_group_id = parameters_.group_id;
   initialize_ttm_common(
-    type_input,
-    ttm_group_size,
-    ttm_group_offset,
-    ttm_parameters,
+    type,
+    group[ttm_grouping_method].cpu_size[ttm_group_id],
+    group[ttm_grouping_method].cpu_size_sum[ttm_group_id],
+    parameters_,
     box);
 }
 
