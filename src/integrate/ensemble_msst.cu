@@ -335,7 +335,10 @@ void Ensemble_MSST::compute1(
   // rescale positions and change box size
   remap(vol2 / vol1);
 
-  if (*current_step == 0 || *current_step % (*total_steps / 10) == 0) {
+  int output_interval = *total_steps / 10;
+  if (output_interval < 1)
+    output_interval = 1;
+  if (*current_step == 0 || *current_step % output_interval == 0) {
     printf(
       "    MSST conserved energy: %f eV/atom, dHugoniot: %f K, dRayleigh: %f GPa\n",
       e_conserved,
