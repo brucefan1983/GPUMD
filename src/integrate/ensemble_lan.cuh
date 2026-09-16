@@ -26,11 +26,14 @@ class Ensemble_LAN : public Ensemble
 {
 public:
   Ensemble_LAN();
-  Ensemble_LAN(EnsembleType, int, double, double);
-  Ensemble_LAN(
-    EnsembleType, int, double*, int, int, int, int, int, int, int, double, double, double);
-  Ensemble_LAN(EnsembleType, int, double*, int, double*, double*, double, double, double);
+  Ensemble_LAN(const char** param, int num_param, const std::vector<Group>& group);
   virtual ~Ensemble_LAN(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -69,4 +72,21 @@ protected:
     const GPU_Vector<double>& position_per_atom,
     const GPU_Vector<double>& mass,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  enum class RunMode
+  {
+    NONE,
+    NVT,
+    HEAT_GROUP,
+    HEAT_REGION
+  };
+
+  void parse(const char** param, int num_param, const std::vector<Group>& group);
+  void parse_heat_groups(const char** param, const std::vector<Group>& group);
+  void parse_heat_regions(const char** param);
+
+  RunMode run_mode_ = RunMode::NONE;
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

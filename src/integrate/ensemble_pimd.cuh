@@ -27,30 +27,35 @@
 class Ensemble_PIMD : public Ensemble
 {
 public:
-  Ensemble_PIMD(
-    int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal, Atom& atom);
-
-  Ensemble_PIMD(
-    int number_of_atoms_input,
-    int number_of_beads_input,
-    double temperature_coupling,
-    Atom& atom,
-    bool use_eco_pimd_input,
-    double eco_omega_max_cm1_input);
-
-  Ensemble_PIMD(
-    int number_of_atoms_input,
-    int number_of_beads_input,
-    double temperature_coupling,
-    int num_target_pressure_components,
-    double target_pressure[6],
-    double pressure_coupling[6],
-    Atom& atom,
-    bool use_eco_pimd_input,
-    double eco_omega_max_cm1_input,
-    bool use_scr_barostat_input);
+  Ensemble_PIMD(const char** param, int num_param, const Box& box);
 
   virtual ~Ensemble_PIMD(void);
+
+  void initialize_run(
+    const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
+  int get_number_of_beads() const
+  {
+    return number_of_beads;
+  }
+
+  double get_temperature1() const
+  {
+    return temperature1_;
+  }
+
+  double get_temperature2() const
+  {
+    return temperature2_;
+  }
+
+  int get_num_target_pressure_components() const
+  {
+    return num_target_pressure_components;
+  }
 
   virtual void compute1(
     const double time_step,
@@ -77,6 +82,10 @@ protected:
   bool eco_frequencies_reported = false;
   double eco_omega_max_cm1 = 0.0;
   double eco_last_temperature = -1.0;
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
+  double elastic_modulus_[6] = {0.0};
+  double tau_p_ = 0.0;
   GPU_Vector<gpurandState> curand_states;
   GPU_Vector<double*> position_beads;
   GPU_Vector<double*> velocity_beads;

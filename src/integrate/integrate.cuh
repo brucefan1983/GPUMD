@@ -16,7 +16,6 @@
 #pragma once
 
 #include "ensemble.cuh"
-#include "ensemble_ttm.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -70,8 +69,6 @@ public:
 
   // these data will be used to initialize ensemble
   EnsembleType type = EnsembleType::UNKNOWN;
-  int source;
-  int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed
   int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
   int fixed_grouping_method = 0;
@@ -81,18 +78,7 @@ public:
   double temperature;  // target temperature at a specific time
   double temperature1; // target initial temperature for a run
   double temperature2; // target final temperature for a run
-  double delta_temperature;
-  bool use_heat_lan_region = false;
-  double heat_source_region[6];
-  double heat_sink_region[6];
-  double target_pressure[6];
   int num_target_pressure_components;
-  double temperature_coupling;
-  double qtb_f_max = 200.0; // in ps^-1
-  int qtb_n_f = 100;
-  double tau_p;
-  double elastic_modulus[6];
-  double pressure_coupling[6];
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;
@@ -100,19 +86,8 @@ public:
   int deform_xz = 0;
   int deform_yz = 0;
 
-  // Dynamic arrays for multiple thermostats
-  std::vector<int> heat_thermostat;  // Thermostat types (0=NHC, 1=Langevin)
-  std::vector<double> heat_coupling; // Coupling parameters for each thermostat
-  std::vector<int> heat_labels;      // Group labels for each thermostat
-
   // PIMD
   int number_of_beads;
-  bool use_eco_pimd = false;
-  bool use_scr_barostat = false;
-  double eco_omega_max_cm1 = 0.0;
-
-  // TTM parameters
-  TTM_Parameters ttm_parameters;
 
   // save some quantities for ensemble to use.
   int current_step = 0;

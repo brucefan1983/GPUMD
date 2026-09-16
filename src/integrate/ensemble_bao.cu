@@ -23,20 +23,78 @@ The Langevin thermostat with the BAOAB splitting:
 #include "ensemble_bao.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cstdlib>
 #include <cstring>
 
-Ensemble_BAO::Ensemble_BAO(EnsembleType type_input, int N, double T, double Tc)
+Ensemble_BAO::Ensemble_BAO(const char** param, int num_param)
 {
-  type = type_input;
-  temperature = T;
-  temperature_coupling = Tc;
+  parse(param, num_param);
+}
+
+void Ensemble_BAO::parse(const char** param, int num_param)
+{
+  if (strcmp(param[1], "nvt_bao") != 0) {
+    PRINT_INPUT_ERROR("Invalid BAOAB Langevin ensemble type.");
+  }
+  type = EnsembleType::NVT_BAO;
+  if (num_param != 5) {
+    PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
+  }
+
+  if (!is_valid_real(param[2], &temperature1_)) {
+    PRINT_INPUT_ERROR("Initial temperature should be a number.");
+  }
+  if (temperature1_ <= 0.0) {
+    PRINT_INPUT_ERROR("Initial temperature should > 0.");
+  }
+  if (!is_valid_real(param[3], &temperature2_)) {
+    PRINT_INPUT_ERROR("Final temperature should be a number.");
+  }
+  if (temperature2_ <= 0.0) {
+    PRINT_INPUT_ERROR("Final temperature should > 0.");
+  }
+  temperature = temperature1_;
+  if (!is_valid_real(param[4], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
+
+  printf("Use NVT ensemble for this run.\n");
+  printf("    choose the BAOAB Langevin method.\n");
+  printf("    initial temperature is %g K.\n", temperature1_);
+  printf("    final temperature is %g K.\n", temperature2_);
+  printf("    tau_T is %g time_step.\n", temperature_coupling);
+}
+
+double Ensemble_BAO::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_BAO::get_temperature2() const
+{
+  return temperature2_;
+}
+
+void Ensemble_BAO::initialize_run(
+  const double, Atom& atom, Box&, const std::vector<Group>&)
+{
+  if (type != EnsembleType::NVT_BAO) {
+    return;
+  }
+
   c1 = exp(-1.0 / temperature_coupling);
-  c2 = sqrt((1 - c1 * c1) * K_B * T);
-  curand_states.resize(N);
-  int grid_size = (N - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
+  c2 = sqrt((1 - c1 * c1) * K_B * temperature);
+  const int number_of_atoms = atom.number_of_atoms;
+  curand_states.resize(number_of_atoms);
+  int grid_size = (number_of_atoms - 1) / 128 + 1;
+  initialize_curand_states<<<grid_size, 128>>>(
+    curand_states.data(), number_of_atoms, rand());
   GPU_CHECK_KERNEL
 }
 

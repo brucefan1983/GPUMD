@@ -107,6 +107,14 @@ public:
     Force& /* force */){
   }
 
+  virtual void initialize_run(
+    const double /* time_step */,
+    Atom& /* atom */,
+    Box& /* box */,
+    const std::vector<Group>& /* group */)
+  {
+  }
+
   void find_thermo(
     const double volume,
     const std::vector<Group>& group,

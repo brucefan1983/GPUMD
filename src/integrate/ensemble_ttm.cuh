@@ -64,47 +64,20 @@ struct TTM_Parameters
   double source = 0.0;
 };
 
-void parse_ttm_parameters(
-  const EnsembleType type,
-  const char** param,
-  const int num_param,
-  const Atom& atom,
-  const Box& box,
-  const std::vector<Group>& group,
-  const int source,
-  const int sink,
-  TTM_Parameters& ttm_parameters);
-
-void print_ttm_settings(const TTM_Parameters& ttm_parameters);
-
 class Ensemble_TTM : public Ensemble
 {
 public:
   Ensemble_TTM(
-    EnsembleType type_input,
-    int source_input,
-    int sink_input,
-    int source_size,
-    int sink_size,
-    int source_offset,
-    int sink_offset,
-    int number_of_groups,
-    int ttm_group_size,
-    int ttm_group_offset,
-    double T,
-    double Tc,
-    double dT,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
-
-  Ensemble_TTM(
-    EnsembleType type_input,
-    int ttm_group_size,
-    int ttm_group_offset,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
+    const char** param,
+    int num_param,
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
 
   virtual ~Ensemble_TTM(void);
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -122,6 +95,7 @@ public:
 
 private:
   bool use_heat_lan;
+  TTM_Parameters parameters_;
 
   int N_source, N_sink, offset_source, offset_sink;
   double c1, c2_source, c2_sink;

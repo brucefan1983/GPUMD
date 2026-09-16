@@ -19,9 +19,14 @@
 class Ensemble_NHC : public Ensemble
 {
 public:
-  Ensemble_NHC(EnsembleType, int, double*, int, double, double, double);
-  Ensemble_NHC(EnsembleType, int, int, int, int, int, double, double, double, double);
+  Ensemble_NHC(const char** param, int num_param, const std::vector<Group>& group);
   virtual ~Ensemble_NHC(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,
@@ -93,4 +98,11 @@ protected:
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  void parse(const char** param, int num_param, const std::vector<Group>& group);
+  void parse_heat_groups(const char** param, const std::vector<Group>& group);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

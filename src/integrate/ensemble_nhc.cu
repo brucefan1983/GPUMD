@@ -21,53 +21,187 @@ Oxford University Press, 2010.
 
 #include "ensemble_nhc.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
 #define DIM 3
 
 Ensemble_NHC::Ensemble_NHC(
-  EnsembleType type_input, int mg, double* mv, int N, double T, double Tc, double dt)
+  const char** param, int num_param, const std::vector<Group>& group)
 {
-  type = type_input;
-  move_group = mg;
-  move_velocity[0] = mv[0];
-  move_velocity[1] = mv[1];
-  move_velocity[2] = mv[2];
-  temperature = T;
-  temperature_coupling = Tc;
-  // position and momentum variables for one NHC
-  pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] = 0.0;
-  vel_nhc1[0] = vel_nhc1[2] = 1.0;
-  vel_nhc1[1] = vel_nhc1[3] = -1.0;
-
-  double tau = dt * temperature_coupling;
-  double kT = K_B * temperature;
-  double dN = DIM * N;
-  for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++) {
-    mas_nhc1[i] = kT * tau * tau;
-  }
-  mas_nhc1[0] *= dN;
+  parse(param, num_param, group);
 }
 
-Ensemble_NHC::Ensemble_NHC(
-  EnsembleType type_input,
-  int source_input,
-  int sink_input,
-  int N1,
-  int N2,
-  int number_of_groups,
-  double T,
-  double Tc,
-  double dT,
-  double time_step)
+void Ensemble_NHC::parse_heat_groups(
+  const char** param, const std::vector<Group>& group)
 {
-  type = type_input;
-  temperature = T;
-  temperature_coupling = Tc;
-  delta_temperature = dT;
-  source = source_input;
-  sink = sink_input;
+  if (!is_valid_int(param[5], &source)) {
+    PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
+  }
+  if (!is_valid_int(param[6], &sink)) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+  }
+  if (group.size() < 1) {
+    PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+  }
+  if (source == sink) {
+    PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+  }
+  if (source < 0) {
+    PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+  }
+  if (source >= group[0].number) {
+    PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+  }
+  if (sink < 0) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+  }
+  if (sink >= group[0].number) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+  }
+}
+
+void Ensemble_NHC::parse(
+  const char** param, int num_param, const std::vector<Group>& group)
+{
+  if (strcmp(param[1], "nvt_nhc") == 0) {
+    type = EnsembleType::NVT_NHC;
+    if (num_param != 5) {
+      PRINT_INPUT_ERROR("ensemble nvt_nhc should have 3 parameters.");
+    }
+
+    if (!is_valid_real(param[2], &temperature1_)) {
+      PRINT_INPUT_ERROR("Initial temperature should be a number.");
+    }
+    if (temperature1_ <= 0.0) {
+      PRINT_INPUT_ERROR("Initial temperature should > 0.");
+    }
+    if (!is_valid_real(param[3], &temperature2_)) {
+      PRINT_INPUT_ERROR("Final temperature should be a number.");
+    }
+    if (temperature2_ <= 0.0) {
+      PRINT_INPUT_ERROR("Final temperature should > 0.");
+    }
+    temperature = temperature1_;
+    if (!is_valid_real(param[4], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    printf("Use NVT ensemble for this run.\n");
+    printf("    choose the Nose-Hoover chain method.\n");
+    printf("    initial temperature is %g K.\n", temperature1_);
+    printf("    final temperature is %g K.\n", temperature2_);
+    printf("    tau_T is %g time_step.\n", temperature_coupling);
+    return;
+  }
+
+  if (strcmp(param[1], "heat_nhc") == 0) {
+    type = EnsembleType::HEAT_NHC;
+    if (num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble heat_nhc should have 5 parameters.");
+    }
+  } else if (strcmp(param[1], "heat_nhc_power") == 0) {
+    type = EnsembleType::HEAT_NHC_POWER;
+    if (num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble heat_nhc_power should have 5 parameters.");
+    }
+  } else {
+    PRINT_INPUT_ERROR("Invalid Nose-Hoover chain ensemble type.");
+  }
+
+  if (!is_valid_real(param[2], &temperature)) {
+    PRINT_INPUT_ERROR("Temperature should be a number.");
+  }
+  if (temperature <= 0.0) {
+    PRINT_INPUT_ERROR("Temperature should > 0.");
+  }
+  if (!is_valid_real(param[3], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
+
+  if (type == EnsembleType::HEAT_NHC) {
+    if (!is_valid_real(param[4], &delta_temperature)) {
+      PRINT_INPUT_ERROR("Temperature difference should be a number.");
+    }
+    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
+      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+    }
+  } else {
+    if (!is_valid_real(param[4], &delta_temperature)) {
+      PRINT_INPUT_ERROR("Heating power should be a number.");
+    }
+    if (delta_temperature <= 0.0) {
+      PRINT_INPUT_ERROR("Heating power should > 0.");
+    }
+  }
+
+  parse_heat_groups(param, group);
+
+  if (type == EnsembleType::HEAT_NHC) {
+    printf("Integrate with heating and cooling for this run.\n");
+    printf("    choose the Nose-Hoover chain method.\n");
+    printf("    average temperature is %g K.\n", temperature);
+    printf("    tau_T is %g time_step.\n", temperature_coupling);
+    printf("    delta_T is %g K.\n", delta_temperature);
+    printf("    T_hot is %g K.\n", temperature + delta_temperature);
+    printf("    T_cold is %g K.\n", temperature - delta_temperature);
+    printf("    heat source is group %d in grouping method 0.\n", source);
+    printf("    heat sink is group %d in grouping method 0.\n", sink);
+  } else {
+    printf("Integrate with constant-power heating and cooling for this run.\n");
+    printf("    choose the custom constant-power velocity-scaling method (heat_nhc_power).\n");
+    printf("    average temperature is %g K (no thermostat acts on source/sink).\n", temperature);
+    printf(
+      "    tau_T is %g time_step (parsed but NOT used by this command).\n",
+      temperature_coupling);
+    printf(
+      "    heating power is %g eV/fs (total for the whole group, not per atom).\n",
+      delta_temperature);
+    printf(
+      "    every step, %g eV/fs * time_step is added to the source and removed from the "
+      "sink.\n",
+      delta_temperature);
+    printf("    heat source is group %d in grouping method 0.\n", source);
+    printf("    heat sink is group %d in grouping method 0.\n", sink);
+  }
+}
+
+double Ensemble_NHC::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_NHC::get_temperature2() const
+{
+  return temperature2_;
+}
+
+void Ensemble_NHC::initialize_run(
+  const double time_step, Atom& atom, Box&, const std::vector<Group>& group)
+{
+  if (type == EnsembleType::NVT_NHC) {
+    // position and momentum variables for one NHC
+    pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] = 0.0;
+    vel_nhc1[0] = vel_nhc1[2] = 1.0;
+    vel_nhc1[1] = vel_nhc1[3] = -1.0;
+
+    double tau = time_step * temperature_coupling;
+    double kT = K_B * temperature;
+    double dN = DIM * atom.number_of_atoms;
+    for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++) {
+      mas_nhc1[i] = kT * tau * tau;
+    }
+    mas_nhc1[0] *= dN;
+    return;
+  }
 
   // position and momentum variables for NHC
   pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] = 0.0;
@@ -78,8 +212,8 @@ Ensemble_NHC::Ensemble_NHC(
   double tau = time_step * temperature_coupling;
   double kT1 = K_B * (temperature + delta_temperature);
   double kT2 = K_B * (temperature - delta_temperature);
-  double dN1 = DIM * N1;
-  double dN2 = DIM * N2;
+  double dN1 = DIM * group[0].cpu_size[source];
+  double dN2 = DIM * group[0].cpu_size[sink];
   for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++) {
     mas_nhc1[i] = kT1 * tau * tau;
     mas_nhc2[i] = kT2 * tau * tau;
@@ -91,8 +225,8 @@ Ensemble_NHC::Ensemble_NHC(
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
 
-  initialize_group_kinetic_energy_workspace(number_of_groups);
-  initialize_group_com_velocity_workspace(number_of_groups);
+  initialize_group_kinetic_energy_workspace(group[0].number);
+  initialize_group_com_velocity_workspace(group[0].number);
 }
 
 Ensemble_NHC::~Ensemble_NHC(void)

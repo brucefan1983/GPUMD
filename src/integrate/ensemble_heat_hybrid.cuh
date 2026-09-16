@@ -20,17 +20,11 @@ class Ensemble_Heat_Hybrid : public Ensemble
 {
 public:
   Ensemble_Heat_Hybrid(
-    EnsembleType type,
-    const std::vector<int>& thermostat_type,
-    const std::vector<int>& label,
-    const std::vector<int>& size,
-    const std::vector<int>& offset,
-    int number_of_groups,
-    double temperature,
-    const std::vector<double>& coupling,
-    double delta_temperature,
-    double time_step);
+    const char** param, int num_param, const std::vector<Group>& group);
   virtual ~Ensemble_Heat_Hybrid(void);
+
+  virtual void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   virtual void compute1(
     const double time_step,

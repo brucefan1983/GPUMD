@@ -21,9 +21,12 @@ The QTB thermostat based on a colored noise filter:
 #include "ensemble_qtb.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 namespace
 {
@@ -119,7 +122,87 @@ static __global__ void gpu_apply_qtb_half_step(
 
 } // namespace
 
-// PLACEHOLDER_METHODS
+Ensemble_QTB::Ensemble_QTB(const char** param, int num_param)
+{
+  type = EnsembleType::NVT_QTB;
+  num_target_pressure_components = 0;
+  if (num_param < 5 || num_param % 2 == 0) {
+    PRINT_INPUT_ERROR(
+      "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
+  }
+
+  if (!is_valid_real(param[2], &temperature1_)) {
+    PRINT_INPUT_ERROR("Initial temperature should be a number.");
+  }
+  if (temperature1_ <= 0.0) {
+    PRINT_INPUT_ERROR("Initial temperature should > 0.");
+  }
+  if (!is_valid_real(param[3], &temperature2_)) {
+    PRINT_INPUT_ERROR("Final temperature should be a number.");
+  }
+  if (temperature2_ <= 0.0) {
+    PRINT_INPUT_ERROR("Final temperature should > 0.");
+  }
+  temperature = temperature1_;
+  if (!is_valid_real(param[4], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
+
+  int i = 5;
+  while (i < num_param) {
+    if (strcmp(param[i], "f_max") == 0) {
+      if (!is_valid_real(param[i + 1], &f_max_input_)) {
+        PRINT_INPUT_ERROR("f_max should be a number.");
+      }
+      if (f_max_input_ <= 0.0) {
+        PRINT_INPUT_ERROR("f_max should > 0.");
+      }
+    } else if (strcmp(param[i], "N_f") == 0) {
+      if (!is_valid_int(param[i + 1], &n_f_input_)) {
+        PRINT_INPUT_ERROR("N_f should be an integer.");
+      }
+      if (n_f_input_ <= 0) {
+        PRINT_INPUT_ERROR("N_f should > 0.");
+      }
+    } else {
+      PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
+    }
+    i += 2;
+  }
+
+  printf("Use NVT ensemble for this run.\n");
+  printf("    choose the quantum thermal bath method.\n");
+  printf("    initial temperature is %g K.\n", temperature1_);
+  printf("    final temperature is %g K.\n", temperature2_);
+  printf("    tau_T is %g time_step.\n", temperature_coupling);
+  printf("    f_max is %g ps^-1.\n", f_max_input_);
+  printf("    N_f is %d.\n", n_f_input_);
+}
+
+double Ensemble_QTB::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_QTB::get_temperature2() const
+{
+  return temperature2_;
+}
+
+void Ensemble_QTB::initialize_run(
+  const double time_step, Atom& atom, Box&, const std::vector<Group>&)
+{
+  init_qtb_common(
+    atom.number_of_atoms,
+    temperature,
+    temperature_coupling,
+    time_step,
+    f_max_input_,
+    n_f_input_);
+}
 
 void Ensemble_QTB::init_qtb_common(
   int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input)
@@ -166,15 +249,6 @@ void Ensemble_QTB::init_qtb_common(
     random_array_1.data(),
     random_array_2.data());
   GPU_CHECK_KERNEL
-}
-
-// NVT-QTB constructor
-Ensemble_QTB::Ensemble_QTB(
-  EnsembleType type_input, int N, double T, double Tc, double dt_input, double f_max, int N_f)
-{
-  type = type_input;
-  num_target_pressure_components = 0;
-  init_qtb_common(N, T, Tc, dt_input, f_max, N_f);
 }
 
 Ensemble_QTB::~Ensemble_QTB(void)

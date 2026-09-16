@@ -36,6 +36,7 @@ The driver class for the various integrators.
 #include "ensemble_ti_liquid.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
+#include "ensemble_ttm.cuh"
 #include "ensemble_wall_harmonic.cuh"
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
@@ -45,6 +46,7 @@ The driver class for the various integrators.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <utility>
 
 void Integrate::initialize(
   double time_step,
@@ -55,7 +57,6 @@ void Integrate::initialize(
   int& total_steps)
 {
   this->total_steps = total_steps;
-  int number_of_atoms = atom.number_of_atoms;
   if (move_group >= 0) {
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
@@ -74,242 +75,6 @@ void Integrate::initialize(
     }
   }
 
-  // determine the integrator
-  switch (type) {
-    case EnsembleType::NVE: // NVE
-      ensemble.reset(new Ensemble_NVE(type));
-      break;
-    case EnsembleType::NVT_BER: // NVT-Berendsen
-      ensemble.reset(
-        new Ensemble_BER(type, move_group, move_velocity, temperature, temperature_coupling));
-      break;
-    case EnsembleType::NVT_NHC: // NVT-NHC
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        move_group,
-        move_velocity,
-        number_of_atoms,
-        temperature,
-        temperature_coupling,
-        time_step));
-      break;
-    case EnsembleType::NVT_LAN: // NVT-Langevin
-      ensemble.reset(new Ensemble_LAN(type, number_of_atoms, temperature, temperature_coupling));
-      break;
-    case EnsembleType::NVT_BDP: // NVT-BDP
-      ensemble.reset(
-        new Ensemble_BDP(type, move_group, move_velocity, temperature, temperature_coupling));
-      break;
-    case EnsembleType::NVT_BAO: // NVT-BAOAB_Langevin
-      ensemble.reset(new Ensemble_BAO(type, number_of_atoms, temperature, temperature_coupling));
-      break;
-    case EnsembleType::NVT_QTB: // NVT-QTB
-      ensemble.reset(new Ensemble_QTB(
-        type, number_of_atoms, temperature, temperature_coupling, time_step, qtb_f_max, qtb_n_f));
-      break;
-    case EnsembleType::NPT_BER: // NPT-Berendsen
-      ensemble.reset(new Ensemble_BER(
-        type,
-        temperature,
-        temperature_coupling,
-        target_pressure,
-        num_target_pressure_components,
-        pressure_coupling,
-        deform_x,
-        deform_y,
-        deform_z,
-        deform_xy,
-        deform_xz,
-        deform_yz));
-      break;
-    case EnsembleType::NPT_SCR: // NPT-SCR
-      ensemble.reset(new Ensemble_NPT_SCR(
-        type,
-        temperature,
-        temperature_coupling,
-        target_pressure,
-        num_target_pressure_components,
-        pressure_coupling,
-        deform_x,
-        deform_y,
-        deform_z,
-        deform_xy,
-        deform_xz,
-        deform_yz));
-      break;
-    case EnsembleType::MSST: // msst
-      break;
-    case EnsembleType::TI_SPRING: // ti_spring
-      break;
-    case EnsembleType::MTTK: // mttk
-      break;
-    case EnsembleType::WALL_PISTON: // piston
-      break;
-    case EnsembleType::NPHUG: // nphug
-      break;
-    case EnsembleType::TI: // ti
-      break;
-    case EnsembleType::WALL_MIRROR: // mirror
-      break;
-    case EnsembleType::TI_RS: // ti_rs
-      break;
-    case EnsembleType::TI_AS: // ti_as
-      break;
-    case EnsembleType::WALL_HARMONIC:
-      break;
-    case EnsembleType::TI_LIQUID: // ti_liquid
-      break;
-    case EnsembleType::NPT_QTB: // npt_qtb
-      break;
-    case EnsembleType::HEAT_NHC: // heat-NHC
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].number,
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        time_step));
-      break;
-    // heat with constant power (custom); delta_temperature stores power in eV/fs
-    case EnsembleType::HEAT_NHC_POWER:
-      ensemble.reset(new Ensemble_NHC(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].number,
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        time_step));
-      break;
-    case EnsembleType::HEAT_LAN: // heat-Langevin
-      if (use_heat_lan_region) {
-        ensemble.reset(new Ensemble_LAN(
-          type,
-          move_group,
-          move_velocity,
-          number_of_atoms,
-          heat_source_region,
-          heat_sink_region,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
-      } else {
-        ensemble.reset(new Ensemble_LAN(
-          type,
-          move_group,
-          move_velocity,
-          source,
-          sink,
-          group[0].cpu_size[source],
-          group[0].cpu_size[sink],
-          group[0].cpu_size_sum[source],
-          group[0].cpu_size_sum[sink],
-          group[0].number,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
-      }
-      break;
-    case EnsembleType::HEAT_BDP: // heat-BDP
-      ensemble.reset(
-        new Ensemble_BDP(
-          type,
-          source,
-          sink,
-          group[0].number,
-          temperature,
-          temperature_coupling,
-          delta_temperature));
-      break;
-    case EnsembleType::HEAT_TTM: // heat-TTM
-      ensemble.reset(new Ensemble_TTM(
-        type,
-        source,
-        sink,
-        group[0].cpu_size[source],
-        group[0].cpu_size[sink],
-        group[0].cpu_size_sum[source],
-        group[0].cpu_size_sum[sink],
-        group[0].number,
-        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
-        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
-        temperature,
-        temperature_coupling,
-        delta_temperature,
-        ttm_parameters,
-        box));
-      break;
-    case EnsembleType::TTM: // pure TTM
-      ensemble.reset(new Ensemble_TTM(
-        type,
-        group[ttm_parameters.grouping_method].cpu_size[ttm_parameters.group_id],
-        group[ttm_parameters.grouping_method].cpu_size_sum[ttm_parameters.group_id],
-        ttm_parameters,
-        box));
-      break;
-    // Heat-hybrid facilitates the use of both Langevin and Nose-Hoover thermostats
-    case EnsembleType::HEAT_HYBRID: {
-      // Use vectors from the class (heat_labels, heat_thermostat, heat_coupling)
-      std::vector<int> sizes(heat_labels.size());
-      std::vector<int> offsets(heat_labels.size());
-      for (size_t i = 0; i < heat_labels.size(); i++) {
-        sizes[i] = group[0].cpu_size[heat_labels[i]];
-        offsets[i] = group[0].cpu_size_sum[heat_labels[i]];
-      }
-      ensemble.reset(new Ensemble_Heat_Hybrid(
-        type,
-        heat_thermostat, // Now a vector
-        heat_labels,     // Now a vector
-        sizes,
-        offsets,
-        group[0].number,
-        temperature,
-        heat_coupling, // Now a vector
-        delta_temperature,
-        time_step));
-      break;
-    }
-    case EnsembleType::RPMD: // RPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
-      break;
-    case EnsembleType::TRPMD: // TRPMD
-      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, true, atom));
-      break;
-    case EnsembleType::PIMD: // PIMD
-      if (num_target_pressure_components == 0) {
-        ensemble.reset(new Ensemble_PIMD(
-          number_of_atoms,
-          number_of_beads,
-          temperature_coupling,
-          atom,
-          use_eco_pimd,
-          eco_omega_max_cm1));
-      } else {
-        ensemble.reset(new Ensemble_PIMD(
-          number_of_atoms,
-          number_of_beads,
-          temperature_coupling,
-          num_target_pressure_components,
-          target_pressure,
-          pressure_coupling,
-          atom,
-          use_eco_pimd,
-          eco_omega_max_cm1,
-          use_scr_barostat));
-      }
-      break;
-    default:
-      printf("Illegal integrator!\n");
-      break;
-  }
-
   ensemble->atom = &atom;
   ensemble->box = &box;
   ensemble->group = &group;
@@ -320,6 +85,19 @@ void Integrate::initialize(
   ensemble->fixed_group = fixed_group;
   ensemble->fixed_grouping_method = fixed_grouping_method;
   ensemble->move_grouping_method = move_grouping_method;
+  ensemble->move_group = move_group;
+  if (move_group >= 0) {
+    for (int i = 0; i < 3; ++i) {
+      ensemble->move_velocity[i] = move_velocity[i];
+    }
+  }
+  ensemble->deform_x = deform_x;
+  ensemble->deform_y = deform_y;
+  ensemble->deform_z = deform_z;
+  ensemble->deform_xy = deform_xy;
+  ensemble->deform_xz = deform_xz;
+  ensemble->deform_yz = deform_yz;
+  ensemble->initialize_run(time_step, atom, box, group);
 }
 
 void Integrate::finalize()
@@ -395,1053 +173,151 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
-  qtb_f_max = 200.0;
-  qtb_n_f = 100;
-  use_eco_pimd = false;
-  use_scr_barostat = false;
-  eco_omega_max_cm1 = 0.0;
-  use_heat_lan_region = false;
-  int pimd_num_param = num_param;
-
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
+    ensemble = std::make_unique<Ensemble_NVE>(num_param);
     type = EnsembleType::NVE;
-    if (num_param != 2) {
-      PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
+  } else if (strcmp(param[1], "nvt_ber") == 0 || strcmp(param[1], "npt_ber") == 0) {
+    auto ensemble_ber = std::make_unique<Ensemble_BER>(param, num_param, box);
+    type = ensemble_ber->type;
+    temperature1 = ensemble_ber->get_temperature1();
+    temperature2 = ensemble_ber->get_temperature2();
+    temperature = temperature1;
+    if (type == EnsembleType::NPT_BER) {
+      num_target_pressure_components = ensemble_ber->get_num_target_pressure_components();
     }
-  } else if (strcmp(param[1], "nvt_ber") == 0) {
-    type = EnsembleType::NVT_BER;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_ber should have 3 parameters.");
+    ensemble = std::move(ensemble_ber);
+  } else if (
+    strcmp(param[1], "nvt_nhc") == 0 || strcmp(param[1], "heat_nhc") == 0 ||
+    strcmp(param[1], "heat_nhc_power") == 0) {
+    auto ensemble_nhc = std::make_unique<Ensemble_NHC>(param, num_param, group);
+    type = ensemble_nhc->type;
+    temperature = ensemble_nhc->temperature;
+    if (type == EnsembleType::NVT_NHC) {
+      temperature1 = ensemble_nhc->get_temperature1();
+      temperature2 = ensemble_nhc->get_temperature2();
     }
-  } else if (strcmp(param[1], "nvt_nhc") == 0) {
-    type = EnsembleType::NVT_NHC;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_nhc should have 3 parameters.");
+    ensemble = std::move(ensemble_nhc);
+  } else if (strcmp(param[1], "nvt_lan") == 0 || strcmp(param[1], "heat_lan") == 0) {
+    auto ensemble_lan = std::make_unique<Ensemble_LAN>(param, num_param, group);
+    type = ensemble_lan->type;
+    temperature = ensemble_lan->temperature;
+    if (type == EnsembleType::NVT_LAN) {
+      temperature1 = ensemble_lan->get_temperature1();
+      temperature2 = ensemble_lan->get_temperature2();
     }
-  } else if (strcmp(param[1], "nvt_lan") == 0) {
-    type = EnsembleType::NVT_LAN;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_lan should have 3 parameters.");
+    ensemble = std::move(ensemble_lan);
+  } else if (strcmp(param[1], "nvt_bdp") == 0 || strcmp(param[1], "heat_bdp") == 0) {
+    auto ensemble_bdp = std::make_unique<Ensemble_BDP>(param, num_param, group);
+    type = ensemble_bdp->type;
+    temperature = ensemble_bdp->temperature;
+    if (type == EnsembleType::NVT_BDP) {
+      temperature1 = ensemble_bdp->get_temperature1();
+      temperature2 = ensemble_bdp->get_temperature2();
     }
-  } else if (strcmp(param[1], "nvt_bdp") == 0) {
-    type = EnsembleType::NVT_BDP;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters.");
-    }
+    ensemble = std::move(ensemble_bdp);
   } else if (strcmp(param[1], "nvt_bao") == 0) {
-    type = EnsembleType::NVT_BAO;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
-    }
+    auto ensemble_bao = std::make_unique<Ensemble_BAO>(param, num_param);
+    type = ensemble_bao->type;
+    temperature1 = ensemble_bao->get_temperature1();
+    temperature2 = ensemble_bao->get_temperature2();
+    temperature = temperature1;
+    ensemble = std::move(ensemble_bao);
   } else if (strcmp(param[1], "nvt_qtb") == 0) {
-    type = EnsembleType::NVT_QTB;
-    if (num_param < 5 || num_param % 2 == 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
-    }
-  } else if (strcmp(param[1], "npt_ber") == 0) {
-    type = EnsembleType::NPT_BER;
-    if (num_param != 18 && num_param != 12 && num_param != 8) {
-      PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
-    }
+    auto ensemble_qtb = std::make_unique<Ensemble_QTB>(param, num_param);
+    type = ensemble_qtb->type;
+    temperature1 = ensemble_qtb->get_temperature1();
+    temperature2 = ensemble_qtb->get_temperature2();
+    temperature = ensemble_qtb->temperature;
+    ensemble = std::move(ensemble_qtb);
   } else if (strcmp(param[1], "npt_scr") == 0) {
-    type = EnsembleType::NPT_SCR;
-    if (num_param != 18 && num_param != 12 && num_param != 8) {
-      PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
-    }
+    auto ensemble_scr = std::make_unique<Ensemble_NPT_SCR>(param, num_param, box);
+    type = ensemble_scr->type;
+    temperature1 = ensemble_scr->get_temperature1();
+    temperature2 = ensemble_scr->get_temperature2();
+    temperature = ensemble_scr->temperature;
+    num_target_pressure_components = ensemble_scr->get_num_target_pressure_components();
+    ensemble = std::move(ensemble_scr);
   } else if (
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
     type = EnsembleType::MTTK;
-    Ensemble_MTTK* ptr_temp = new Ensemble_MTTK(param, num_param);
-    ensemble.reset(ptr_temp);
-    temperature1 = ptr_temp->t_start;
-    temperature2 = ptr_temp->t_stop;
+    auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(param, num_param);
+    temperature1 = ensemble_mttk->t_start;
+    temperature2 = ensemble_mttk->t_stop;
+    ensemble = std::move(ensemble_mttk);
   } else if (strcmp(param[1], "npt_qtb") == 0) {
     type = EnsembleType::NPT_QTB;
-    Ensemble_NPT_QTB* ptr_temp = new Ensemble_NPT_QTB(param, num_param);
-    ensemble.reset(ptr_temp);
-    temperature1 = ptr_temp->t_start;
-    temperature2 = ptr_temp->t_stop;
-  } else if (strcmp(param[1], "heat_nhc") == 0) {
-    type = EnsembleType::HEAT_NHC;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_nhc should have 5 parameters.");
-    }
-  } else if (strcmp(param[1], "heat_lan") == 0) {
-    type = EnsembleType::HEAT_LAN;
-    if (num_param != 7 && num_param != 17) {
-      PRINT_INPUT_ERROR("ensemble heat_lan should have 5 or 15 parameters.");
-    }
-    use_heat_lan_region = num_param == 17;
-  } else if (strcmp(param[1], "heat_bdp") == 0) {
-    type = EnsembleType::HEAT_BDP;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
-    }
-  } else if (strcmp(param[1], "heat_nhc_power") == 0) {
-    type = EnsembleType::HEAT_NHC_POWER;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_nhc_power should have 5 parameters.");
-    }
+    auto ensemble_npt_qtb = std::make_unique<Ensemble_NPT_QTB>(param, num_param);
+    temperature1 = ensemble_npt_qtb->t_start;
+    temperature2 = ensemble_npt_qtb->t_stop;
+    ensemble = std::move(ensemble_npt_qtb);
   } else if (strcmp(param[1], "heat_ttm") == 0) {
-    type = EnsembleType::HEAT_TTM;
-    // ensemble heat_ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
-    if (num_param < 19 || (num_param - 19) % 2 != 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble heat_ttm should have 17 required parameters plus optional key-value pairs.");
-    }
+    auto ensemble_ttm =
+      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+    type = ensemble_ttm->type;
+    temperature = ensemble_ttm->temperature;
+    ensemble = std::move(ensemble_ttm);
   } else if (strcmp(param[1], "ttm") == 0) {
-    type = EnsembleType::TTM;
-    // ensemble ttm ... T_e_init [ttm_out_interval N] [ttm_infile FILE]
-    if (num_param < 14 || (num_param - 14) % 2 != 0) {
-      PRINT_INPUT_ERROR(
-        "ensemble ttm should have 12 required parameters plus optional key-value pairs.");
-    }
-  } else if (strcmp(param[1], "heat_hybrid") == 0) {
-    type = EnsembleType::HEAT_HYBRID;
-    // Minimum parameters
-    if (num_param < 9) {
-      PRINT_INPUT_ERROR("ensemble heat_hybrid needs at least 7 parameters.");
-    }
-    // The rest of the parsing happens in the dedicated section below
-  } else if (strcmp(param[1], "rpmd") == 0) {
-    type = EnsembleType::RPMD;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble rpmd should have 1 parameter.");
-    }
-  } else if (strcmp(param[1], "trpmd") == 0) {
-    type = EnsembleType::TRPMD;
-    if (num_param != 3) {
-      PRINT_INPUT_ERROR("ensemble trpmd should have 1 parameter.");
-    }
-  } else if (strcmp(param[1], "pimd") == 0) {
-    type = EnsembleType::PIMD;
-  } else if (strcmp(param[1], "pimd_scr") == 0) {
-    type = EnsembleType::PIMD;
-    use_scr_barostat = true;
-  } else if (strcmp(param[1], "msst") == 0) {
-    type = EnsembleType::MSST;
-    ensemble.reset(new Ensemble_MSST(param, num_param));
-  } else if (strcmp(param[1], "ti_spring") == 0) {
-    type = EnsembleType::TI_SPRING;
-    ensemble.reset(new Ensemble_TI_Spring(param, num_param));
-  } else if (strcmp(param[1], "wall_piston") == 0) {
-    type = EnsembleType::WALL_PISTON;
-    ensemble.reset(new Ensemble_wall_piston(param, num_param));
-  } else if (strcmp(param[1], "nphug") == 0) {
-    type = EnsembleType::NPHUG;
-    ensemble.reset(new Ensemble_NPHug(param, num_param));
-  } else if (strcmp(param[1], "ti") == 0) {
-    type = EnsembleType::TI;
-    ensemble.reset(new Ensemble_TI(param, num_param));
-  } else if (strcmp(param[1], "wall_mirror") == 0) {
-    type = EnsembleType::WALL_MIRROR;
-    ensemble.reset(new Ensemble_wall_mirror(param, num_param));
-  } else if (strcmp(param[1], "ti_rs") == 0) {
-    type = EnsembleType::TI_RS;
-    ensemble.reset(new Ensemble_TI_RS(param, num_param));
-  } else if (strcmp(param[1], "ti_as") == 0) {
-    type = EnsembleType::TI_AS;
-    ensemble.reset(new Ensemble_TI_AS(param, num_param));
-  } else if (strcmp(param[1], "wall_harmonic") == 0) {
-    type = EnsembleType::WALL_HARMONIC;
-    ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
-  } else if (strcmp(param[1], "ti_liquid") == 0) {
-    type = EnsembleType::TI_LIQUID;
-    ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
-  } else {
-    PRINT_INPUT_ERROR("Invalid ensemble type.");
-  }
-
-  // 2. Temperatures and temperature_coupling (standard NVT and NPT)
-  if (is_standard_nvt(type) || is_standard_npt(type)) {
-    // initial temperature
-    if (!is_valid_real(param[2], &temperature1)) {
-      PRINT_INPUT_ERROR("Initial temperature should be a number.");
-    }
-    if (temperature1 <= 0.0) {
-      PRINT_INPUT_ERROR("Initial temperature should > 0.");
-    }
-
-    // final temperature
-    if (!is_valid_real(param[3], &temperature2)) {
-      PRINT_INPUT_ERROR("Final temperature should be a number.");
-    }
-    if (temperature2 <= 0.0) {
-      PRINT_INPUT_ERROR("Final temperature should > 0.");
-    }
-
-    // The current temperature is the initial temperature
-    temperature = temperature1;
-
-    // temperature_coupling
-    if (!is_valid_real(param[4], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      if (type == EnsembleType::NVT_BER || type == EnsembleType::NPT_BER) {
-        PRINT_INPUT_ERROR(
-          "Temperature coupling should >= 1. \n(We have changed the convention for this "
-          "input starting from GPUMD-V3.0; See the manual for details.)");
-      } else {
-        PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-      }
-    }
-  }
-
-  // 2b. Optional parameters for QTB
-  if (type == EnsembleType::NVT_QTB) {
-    // For nvt_qtb, optional parameters start at index 5
-    int i = 5;
-    while (i < num_param) {
-      if (strcmp(param[i], "f_max") == 0) {
-        if (!is_valid_real(param[i + 1], &qtb_f_max)) {
-          PRINT_INPUT_ERROR("f_max should be a number.");
-        }
-        if (qtb_f_max <= 0.0) {
-          PRINT_INPUT_ERROR("f_max should > 0.");
-        }
-      } else if (strcmp(param[i], "N_f") == 0) {
-        if (!is_valid_int(param[i + 1], &qtb_n_f)) {
-          PRINT_INPUT_ERROR("N_f should be an integer.");
-        }
-        if (qtb_n_f <= 0) {
-          PRINT_INPUT_ERROR("N_f should > 0.");
-        }
-      } else {
-        PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
-      }
-      i += 2;
-    }
-  }
-
-  // 3. Pressures and pressure_coupling (NPT)
-  if (is_standard_npt(type)) {
-    // pressures:
-    if (num_param == 12) {
-      for (int i = 0; i < 3; i++) {
-        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
-          PRINT_INPUT_ERROR("Pressure should be a number.");
-        }
-      }
-      for (int i = 0; i < 3; i++) {
-        if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
-          PRINT_INPUT_ERROR("elastic modulus should be a number.");
-        }
-        if (elastic_modulus[i] <= 0) {
-          PRINT_INPUT_ERROR("elastic modulus should > 0.");
-        }
-      }
-      num_target_pressure_components = 3;
-      if (
-        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-        PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
-      }
-    } else if (num_param == 8) { // isotropic
-      if (!is_valid_real(param[5], &target_pressure[0])) {
-        PRINT_INPUT_ERROR("Pressure should be a number.");
-      }
-      if (!is_valid_real(param[6], &elastic_modulus[0])) {
-        PRINT_INPUT_ERROR("elastic modulus should be a number.");
-      }
-      if (elastic_modulus[0] <= 0) {
-        PRINT_INPUT_ERROR("elastic modulus should > 0.");
-      }
-      num_target_pressure_components = 1;
-      if (
-        box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-        box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-        PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
-      }
-      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-        PRINT_INPUT_ERROR(
-          "Cannot use isotropic pressure with non-periodic boundary in any direction.");
-      }
-    } else { // then must be triclinic box
-      for (int i = 0; i < 6; i++) {
-        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
-          PRINT_INPUT_ERROR("Pressure should be a number.");
-        }
-      }
-      for (int i = 0; i < 6; i++) {
-        if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
-          PRINT_INPUT_ERROR("elastic modulus should be a number.");
-        }
-        if (elastic_modulus[i] <= 0) {
-          PRINT_INPUT_ERROR("elastic modulus should > 0.");
-        }
-      }
-      num_target_pressure_components = 6;
-      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-        PRINT_INPUT_ERROR(
-          "Cannot use 6 pressure components with non-periodic boundary in any direction.");
-      }
-    }
-
-    // pressure_coupling:
-    int index_pressure_coupling = num_target_pressure_components * 2 + 5;
-    if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
-      PRINT_INPUT_ERROR("Pressure coupling should be a number.");
-    }
-    if (tau_p < 1) {
-      if (type == EnsembleType::NPT_BER) {
-        PRINT_INPUT_ERROR(
-          "Pressure coupling should >= 1. \n(We have changed the convention for this "
-          "input starting from GPUMD-V3.0; See the manual for details.)");
-      } else {
-        PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
-      }
-    }
-    for (int i = 0; i < 6; i++) {
-      pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
-      if (elastic_modulus[i] > 2.0e3) {
-        pressure_coupling[i] = 0.0;
-      }
-    }
-  }
-
-  // 4. heating and cooling wiht fixed temperatures
-  if (
-    type == EnsembleType::HEAT_NHC || type == EnsembleType::HEAT_LAN ||
-    type == EnsembleType::HEAT_BDP || type == EnsembleType::HEAT_TTM) {
-    // temperature
-    if (!is_valid_real(param[2], &temperature)) {
-      PRINT_INPUT_ERROR("Temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature should > 0.");
-    }
-
-    // temperature_coupling
-    if (!is_valid_real(param[3], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-
-    // temperature difference
-    if (!is_valid_real(param[4], &delta_temperature)) {
-      PRINT_INPUT_ERROR("Temperature difference should be a number.");
-    }
-    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
-      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
-    }
-
-    if (type == EnsembleType::HEAT_LAN && use_heat_lan_region) {
-      for (int i = 0; i < 6; ++i) {
-        if (!is_valid_real(param[5 + i], &heat_source_region[i])) {
-          PRINT_INPUT_ERROR("Heat source region bounds should be numbers.");
-        }
-        if (!is_valid_real(param[11 + i], &heat_sink_region[i])) {
-          PRINT_INPUT_ERROR("Heat sink region bounds should be numbers.");
-        }
-      }
-      for (int d = 0; d < 3; ++d) {
-        int i = 2 * d;
-        if (!(heat_source_region[i] >= 0.0 && heat_source_region[i] <= 1.0 &&
-              heat_source_region[i + 1] >= 0.0 && heat_source_region[i + 1] <= 1.0)) {
-          PRINT_INPUT_ERROR("Heat source region bounds should be in [0, 1].");
-        }
-        if (!(heat_sink_region[i] >= 0.0 && heat_sink_region[i] <= 1.0 &&
-              heat_sink_region[i + 1] >= 0.0 && heat_sink_region[i + 1] <= 1.0)) {
-          PRINT_INPUT_ERROR("Heat sink region bounds should be in [0, 1].");
-        }
-        if (heat_source_region[i] >= heat_source_region[i + 1]) {
-          PRINT_INPUT_ERROR("Heat source region minimum should be smaller than maximum.");
-        }
-        if (heat_sink_region[i] >= heat_sink_region[i + 1]) {
-          PRINT_INPUT_ERROR("Heat sink region minimum should be smaller than maximum.");
-        }
-      }
-      if (
-        heat_source_region[0] < heat_sink_region[1] &&
-        heat_sink_region[0] < heat_source_region[1] &&
-        heat_source_region[2] < heat_sink_region[3] &&
-        heat_sink_region[2] < heat_source_region[3] &&
-        heat_source_region[4] < heat_sink_region[5] &&
-        heat_sink_region[4] < heat_source_region[5]) {
-        PRINT_INPUT_ERROR("Heat source and sink regions cannot overlap.");
-      }
-    } else {
-      // group labels of heat source and sink
-      if (!is_valid_int(param[5], &source)) {
-        PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
-      }
-      if (!is_valid_int(param[6], &sink)) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
-      }
-      if (group.size() < 1) {
-        PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-      }
-      if (source == sink) {
-        PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
-      }
-      if (source < 0) {
-        PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
-      }
-      if (source >= group[0].number) {
-        PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
-      }
-      if (sink < 0) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
-      }
-      if (sink >= group[0].number) {
-        PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
-      }
-    }
-  }
-
-  // 4b. heating and cooling with a constant power (custom command heat_nhc_power)
-  // syntax: ensemble heat_nhc_power T T_coup power source sink
-  //   T       : target/average temperature in K (used for output and velocity
-  //             initialization only; no thermostat acts on source/sink)
-  //   T_coup  : parsed for syntax compatibility but NOT used by this command
-  //   power   : heating power P in eV/fs, total for the whole source/sink group
-  //             (NOT per atom); stored in delta_temperature
-  //   source  : group ID of the heat source (P added)
-  //   sink    : group ID of the heat sink (P removed)
-  if (type == EnsembleType::HEAT_NHC_POWER) {
-    // temperature
-    if (!is_valid_real(param[2], &temperature)) {
-      PRINT_INPUT_ERROR("Temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature should > 0.");
-    }
-
-    // temperature_coupling (unused by heat_nhc_power, kept for syntax compatibility)
-    if (!is_valid_real(param[3], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-
-    // heating power in eV/fs (total for the whole group, not per atom)
-    if (!is_valid_real(param[4], &delta_temperature)) {
-      PRINT_INPUT_ERROR("Heating power should be a number.");
-    }
-    if (delta_temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Heating power should > 0.");
-    }
-
-    // group labels of heat source and sink
-    if (!is_valid_int(param[5], &source)) {
-      PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
-    }
-    if (!is_valid_int(param[6], &sink)) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
-    }
-    if (group.size() < 1) {
-      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-    }
-    if (source == sink) {
-      PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
-    }
-    if (source < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
-    }
-    if (source >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
-    }
-    if (sink < 0) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
-    }
-    if (sink >= group[0].number) {
-      PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
-    }
-  }
-
-  if (type == EnsembleType::TTM) {
-    temperature = 0.0;
+    auto ensemble_ttm =
+      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+    type = ensemble_ttm->type;
+    temperature = ensemble_ttm->temperature;
     temperature1 = 0.0;
     temperature2 = 0.0;
-  }
-
-  if (type == EnsembleType::HEAT_TTM || type == EnsembleType::TTM) {
-    parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, ttm_parameters);
-  }
-
-  // heating and cooling wiht hybrid thermostat
-
-  if (type == EnsembleType::HEAT_HYBRID) {
-    // Clear vectors in case this is parsed multiple times
-    heat_thermostat.clear();
-    heat_coupling.clear();
-    heat_labels.clear();
-
-    // Parse thermostat types - variable number
-    int num_thermostats = 0;
-    while (num_thermostats + 2 < num_param) {
-      const char* type_str = param[2 + num_thermostats];
-      if (strcmp(type_str, "nhc") == 0) {
-        heat_thermostat.push_back(0);
-        num_thermostats++;
-      } else if (strcmp(type_str, "lan") == 0) {
-        heat_thermostat.push_back(1);
-        num_thermostats++;
-      } else {
-        // Not a thermostat type, stop parsing
-        break;
-      }
-    }
-
-    if (num_thermostats < 2) {
-      PRINT_INPUT_ERROR("Heat-hybrid needs at least 2 thermostats.");
-    }
-
-    int idx = 2 + num_thermostats; // Current position in param array
-
-    // Parse temperature
-    if (idx >= num_param || !is_valid_real(param[idx], &temperature)) {
-      PRINT_INPUT_ERROR("Temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature should > 0.");
-    }
-    idx++;
-
-    // Parse coupling parameters - must match number of thermostats
-    heat_coupling.resize(num_thermostats);
-    for (int n = 0; n < num_thermostats; n++) {
-      if (idx >= num_param || !is_valid_real(param[idx], &heat_coupling[n])) {
-        PRINT_INPUT_ERROR("Heat-hybrid damping parameter should be a number.");
-      }
-      if (heat_coupling[n] < 1.0) {
-        PRINT_INPUT_ERROR("Heat-hybrid damping parameter should >= 1.");
-      }
-      idx++;
-    }
-    temperature_coupling = heat_coupling[0];
-
-    // Parse delta_temperature
-    if (idx >= num_param || !is_valid_real(param[idx], &delta_temperature)) {
-      PRINT_INPUT_ERROR("Temperature difference should be a number.");
-    }
-    if (delta_temperature >= temperature || delta_temperature <= -temperature) {
-      PRINT_INPUT_ERROR("|Temperature difference| is too large.");
-    }
-    idx++;
-
-    // Parse group labels - must match number of thermostats
-    heat_labels.resize(num_thermostats);
-    for (int n = 0; n < num_thermostats; n++) {
-      if (idx >= num_param || !is_valid_int(param[idx], &heat_labels[n])) {
-        PRINT_INPUT_ERROR("Group ID for thermostat should be an integer.");
-      }
-      idx++;
-    }
-
-    if (group.size() < 1) {
-      PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
-    }
-
-    // Validate all groups
-    for (int n = 0; n < num_thermostats; n++) {
-      if (heat_labels[n] < 0 || heat_labels[n] >= group[0].number) {
-        PRINT_INPUT_ERROR("Group ID for heat thermostat is out of range.");
-      }
-      if (group[0].cpu_size[heat_labels[n]] <= 0) {
-        PRINT_INPUT_ERROR("Heat thermostat group cannot be empty.");
-      }
-    }
-
-    // Check all groups are distinct
-    for (int i = 0; i < num_thermostats; i++) {
-      for (int j = i + 1; j < num_thermostats; j++) {
-        if (heat_labels[i] == heat_labels[j]) {
-          PRINT_INPUT_ERROR("Heat thermostats must use different groups.");
-        }
-      }
-    }
-  }
-
-  // 5. PIMD related
-  if (is_pimd(type)) {
-
-    // Optional Eco frequencies are selected by appending
-    // "eco omega_max_cm1" to an existing PIMD command.
+    ensemble = std::move(ensemble_ttm);
+  } else if (strcmp(param[1], "heat_hybrid") == 0) {
+    auto ensemble_hybrid =
+      std::make_unique<Ensemble_Heat_Hybrid>(param, num_param, group);
+    type = ensemble_hybrid->type;
+    temperature = ensemble_hybrid->temperature;
+    ensemble = std::move(ensemble_hybrid);
+  } else if (
+    strcmp(param[1], "rpmd") == 0 || strcmp(param[1], "trpmd") == 0 ||
+    strcmp(param[1], "pimd") == 0 || strcmp(param[1], "pimd_scr") == 0) {
+    auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(param, num_param, box);
+    type = ensemble_pimd->type;
+    number_of_beads = ensemble_pimd->get_number_of_beads();
     if (type == EnsembleType::PIMD) {
-      if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
-        use_eco_pimd = true;
-        pimd_num_param = num_param - 2;
-        if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
-          PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
-        }
-      }
-      if (use_scr_barostat) {
-        if (pimd_num_param != 9 && pimd_num_param != 13 && pimd_num_param != 19) {
-          PRINT_INPUT_ERROR(
-            "ensemble pimd_scr should have 7, 11, or 17 parameters, optionally followed by "
-            "eco omega_max_cm1.");
-        }
-      } else {
-        if (
-          pimd_num_param != 6 && pimd_num_param != 9 && pimd_num_param != 13 &&
-          pimd_num_param != 19) {
-          PRINT_INPUT_ERROR(
-            "ensemble pimd should have 4, 7, 11, or 17 parameters, optionally followed by "
-            "eco omega_max_cm1.");
-        }
-      }
-      if (use_eco_pimd && eco_omega_max_cm1 <= 0.0) {
-        PRINT_INPUT_ERROR("Eco-PIMD omega_max should > 0.");
-      }
+      temperature1 = ensemble_pimd->get_temperature1();
+      temperature2 = ensemble_pimd->get_temperature2();
+      temperature = ensemble_pimd->temperature;
+      num_target_pressure_components =
+        ensemble_pimd->get_num_target_pressure_components();
     }
-
-    // number of beads for RPMD, TRPMD, or PIMD
-    if (!is_valid_int(param[2], &number_of_beads)) {
-      PRINT_INPUT_ERROR("number of beads should be an integer.");
-    }
-    if (number_of_beads < 2) {
-      PRINT_INPUT_ERROR("number of beads should >= 2.");
-    }
-    if (number_of_beads > MAX_NUM_BEADS) {
-      PRINT_INPUT_ERROR("number of beads should <= 128.");
-    }
-    if (number_of_beads % 2 != 0) {
-      PRINT_INPUT_ERROR("number of beads should be an even number.");
-    }
-
-    // thermostat and barostat for PIMD
-    if (type == EnsembleType::PIMD) {
-      // initial temperature
-      if (!is_valid_real(param[3], &temperature1)) {
-        PRINT_INPUT_ERROR("Initial temperature should be a number.");
-      }
-      if (temperature1 <= 0.0) {
-        PRINT_INPUT_ERROR("Initial temperature should > 0.");
-      }
-      temperature = temperature1;
-
-      // final temperature
-      if (!is_valid_real(param[4], &temperature2)) {
-        PRINT_INPUT_ERROR("Final temperature should be a number.");
-      }
-      if (temperature2 <= 0.0) {
-        PRINT_INPUT_ERROR("Final temperature should > 0.");
-      }
-
-      // temperature_coupling
-      if (!is_valid_real(param[5], &temperature_coupling)) {
-        PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-      }
-      if (temperature_coupling < 1.0) {
-        PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-      }
-
-      num_target_pressure_components = 0;
-
-      // pressures:
-      if (pimd_num_param >= 9) {
-        if (pimd_num_param == 13) {
-          for (int i = 0; i < 3; i++) {
-            if (!is_valid_real(param[6 + i], &target_pressure[i])) {
-              PRINT_INPUT_ERROR("Pressure should be a number.");
-            }
-          }
-          for (int i = 0; i < 3; i++) {
-            if (!is_valid_real(param[9 + i], &elastic_modulus[i])) {
-              PRINT_INPUT_ERROR("elastic modulus should be a number.");
-            }
-            if (elastic_modulus[i] <= 0) {
-              PRINT_INPUT_ERROR("elastic modulus should > 0.");
-            }
-          }
-          num_target_pressure_components = 3;
-          if (
-            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-            PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
-          }
-        } else if (pimd_num_param == 9) { // isotropic
-          if (!is_valid_real(param[6], &target_pressure[0])) {
-            PRINT_INPUT_ERROR("Pressure should be a number.");
-          }
-          if (!is_valid_real(param[7], &elastic_modulus[0])) {
-            PRINT_INPUT_ERROR("elastic modulus should be a number.");
-          }
-          if (elastic_modulus[0] <= 0) {
-            PRINT_INPUT_ERROR("elastic modulus should > 0.");
-          }
-          num_target_pressure_components = 1;
-          if (
-            box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
-            box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
-            PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
-          }
-          if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-            PRINT_INPUT_ERROR(
-              "Cannot use isotropic pressure with non-periodic boundary in any direction.");
-          }
-        } else { // then must be triclinic box
-          for (int i = 0; i < 6; i++) {
-            if (!is_valid_real(param[6 + i], &target_pressure[i])) {
-              PRINT_INPUT_ERROR("Pressure should be a number.");
-            }
-          }
-          for (int i = 0; i < 6; i++) {
-            if (!is_valid_real(param[12 + i], &elastic_modulus[i])) {
-              PRINT_INPUT_ERROR("elastic modulus should be a number.");
-            }
-            if (elastic_modulus[i] <= 0) {
-              PRINT_INPUT_ERROR("elastic modulus should > 0.");
-            }
-          }
-          num_target_pressure_components = 6;
-          if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-            PRINT_INPUT_ERROR(
-              "Cannot use 6 pressure components with non-periodic boundary in any direction.");
-          }
-        }
-
-        // pressure_coupling:
-        int index_pressure_coupling = num_target_pressure_components * 2 + 6;
-        if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
-          PRINT_INPUT_ERROR("Pressure coupling should be a number.");
-        }
-        if (tau_p < 1) {
-          PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
-        }
-        for (int i = 0; i < 6; i++) {
-          pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
-          if (elastic_modulus[i] > 2.0e3) {
-            pressure_coupling[i] = 0.0;
-          }
-        }
-      }
-    }
-  }
-
-  switch (type) {
-    case EnsembleType::NVE:
-      printf("Use NVE ensemble for this run.\n");
-      break;
-    case EnsembleType::NVT_BER:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Berendsen method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case EnsembleType::NVT_NHC:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Nose-Hoover chain method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case EnsembleType::NVT_LAN:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Langevin method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case EnsembleType::NVT_BDP:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Bussi-Donadio-Parrinello method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case EnsembleType::NVT_BAO:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the BAOAB Langevin method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case EnsembleType::NVT_QTB:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the quantum thermal bath method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    f_max is %g ps^-1.\n", qtb_f_max);
-      printf("    N_f is %d.\n", qtb_n_f);
-      break;
-    case EnsembleType::NPT_BER:
-      if (temperature_coupling <= 100000) {
-        printf("Use NPT ensemble for this run.\n");
-        printf("    choose the Berendsen method.\n");
-        printf("    initial temperature is %g K.\n", temperature1);
-        printf("    final temperature is %g K.\n", temperature2);
-        printf("    tau_T is %g time_step\n", temperature_coupling);
-      } else {
-        printf("Use NPH ensemble for this run.\n");
-        printf("    choose the Berendsen method.\n");
-        printf("    initial temperature is %g K but will not be used.\n", temperature1);
-        printf("    final temperature is %g K but will not be used.\n", temperature2);
-        printf("    tau_T is %g time_step but will not be used.\n", temperature_coupling);
-      }
-      if (num_target_pressure_components == 1) {
-        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-      } else if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-      } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-        printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-      }
-      printf("    tau_p is %g time_step.\n", tau_p);
-
-      // Change the units of pressure form GPa to that used in the code
-      for (int i = 0; i < 6; i++) {
-        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-      }
-      break;
-    case EnsembleType::NPT_SCR:
-      printf("Use NPT ensemble for this run.\n");
-      printf("    choose the SCR method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      if (num_target_pressure_components == 1) {
-        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-      } else if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-      } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-        printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-      }
-      printf("    tau_p is %g time_step.\n", tau_p);
-      // Change the units of pressure form GPa to that used in the code
-      for (int i = 0; i < 6; i++) {
-        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-      }
-      break;
-    case EnsembleType::MSST:
-      break;
-    case EnsembleType::TI_SPRING:
-      break;
-    case EnsembleType::MTTK:
-      break;
-    case EnsembleType::WALL_PISTON:
-      break;
-    case EnsembleType::NPHUG:
-      break;
-    case EnsembleType::TI:
-      break;
-    case EnsembleType::WALL_MIRROR:
-      break;
-    case EnsembleType::TI_RS:
-      break;
-    case EnsembleType::TI_AS:
-      break;
-    case EnsembleType::WALL_HARMONIC:
-      break;
-    case EnsembleType::TI_LIQUID:
-      break;
-    case EnsembleType::NPT_QTB: // npt_qtb (self-parsed)
-      break;
-    case EnsembleType::HEAT_NHC:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Nose-Hoover chain method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      break;
-    case EnsembleType::HEAT_NHC_POWER:
-      printf("Integrate with constant-power heating and cooling for this run.\n");
-      printf("    choose the custom constant-power velocity-scaling method (heat_nhc_power).\n");
-      printf("    average temperature is %g K (no thermostat acts on source/sink).\n", temperature);
-      printf("    tau_T is %g time_step (parsed but NOT used by this command).\n", temperature_coupling);
-      printf("    heating power is %g eV/fs (total for the whole group, not per atom).\n",
-        delta_temperature);
-      printf("    every step, %g eV/fs * time_step is added to the source and removed from the sink.\n",
-        delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      break;
-    case EnsembleType::HEAT_LAN:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Langevin method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      if (use_heat_lan_region) {
-        printf(
-          "    heat source fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
-          heat_source_region[0],
-          heat_source_region[1],
-          heat_source_region[2],
-          heat_source_region[3],
-          heat_source_region[4],
-          heat_source_region[5]);
-        printf(
-          "    heat sink fractional region is [%g, %g) [%g, %g) [%g, %g).\n",
-          heat_sink_region[0],
-          heat_sink_region[1],
-          heat_sink_region[2],
-          heat_sink_region[3],
-          heat_sink_region[4],
-          heat_sink_region[5]);
-      } else {
-        printf("    heat source is group %d in grouping method 0.\n", source);
-        printf("    heat sink is group %d in grouping method 0.\n", sink);
-      }
-      break;
-    case EnsembleType::HEAT_BDP:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the Bussi-Donadio-Parrinello method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      break;
-    case EnsembleType::HEAT_TTM:
-      printf("Integrate with heating/cooling and TTM for this run.\n");
-      printf("    choose the Two-Temperature Model (TTM) + Langevin method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      print_ttm_settings(ttm_parameters);
-      break;
-    case EnsembleType::TTM:
-      printf("Integrate with pure Two-Temperature Model (TTM) for this run.\n");
-      print_ttm_settings(ttm_parameters);
-      break;
-    case EnsembleType::HEAT_HYBRID:
-      printf("Integrate with hybrid heating and cooling for this run.\n");
-      printf("    Number of thermostats: %zu\n", heat_thermostat.size());
-      for (size_t n = 0; n < heat_thermostat.size(); n++) {
-        printf(
-          "    Thermostat %zu: %s, group %d, tau = %g time_step, T = %g K\n",
-          n + 1,
-          heat_thermostat[n] == 0 ? "NHC" : "Langevin",
-          heat_labels[n],
-          heat_coupling[n],
-          (n == 0) ? temperature + delta_temperature : temperature - delta_temperature);
-      }
-      printf("    Average temperature: %g K\n", temperature);
-      printf("    Delta T: %g K\n", delta_temperature);
-      printf(
-        "    Hot thermostat (T = %g K) is group %d\n",
-        temperature + delta_temperature,
-        heat_labels[0]);
-      for (size_t n = 1; n < heat_labels.size(); n++) {
-        printf(
-          "    Cold thermostat %zu (T = %g K) is group %d\n",
-          n,
-          temperature - delta_temperature,
-          heat_labels[n]);
-      }
-      break;
-    case EnsembleType::RPMD:
-      printf("Use ring-polymer MD (RPMD) for this run.\n");
-      printf("    number of beads is %d.\n", number_of_beads);
-      break;
-    case EnsembleType::TRPMD:
-      printf("Use thermostatted ring-polyer MD (TRPMD) for this run.\n");
-      printf("    number of beads is %d.\n", number_of_beads);
-      break;
-    case EnsembleType::PIMD:
-      if (pimd_num_param >= 9) {
-        if (use_scr_barostat) {
-          printf("Use NPT-PIMD with stochastic cell rescaling for this run.\n");
-        } else {
-          printf("Use NPT-PIMD for this run.\n");
-        }
-      } else {
-        printf("Use NVT-PIMD for this run.\n");
-      }
-      printf("    number of beads is %d.\n", number_of_beads);
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      if (pimd_num_param >= 9) {
-        if (num_target_pressure_components == 1) {
-          printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-          printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-        } else if (num_target_pressure_components == 3) {
-          printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-          printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-          printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-          printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-          printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-          printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        } else if (num_target_pressure_components == 6) {
-          printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-          printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-          printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-          printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-          printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-          printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-          printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-          printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-          printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-          printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-          printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-          printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-        }
-        printf("    tau_p is %g time_step.\n", tau_p);
-
-        // Change the units of pressure form GPa to that used in the code
-        for (int i = 0; i < 6; i++) {
-          target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-          pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-        }
-      }
-      break;
-    default:
-      PRINT_INPUT_ERROR("Invalid ensemble type.");
-      break;
-  }
-
-  if (type == EnsembleType::PIMD && use_eco_pimd) {
-    printf("    use Eco-PIMD internal-mode frequencies.\n");
-    printf("    Eco-PIMD omega_max is %g cm^-1.\n", eco_omega_max_cm1);
+    ensemble = std::move(ensemble_pimd);
+  } else if (strcmp(param[1], "msst") == 0) {
+    type = EnsembleType::MSST;
+    ensemble = std::make_unique<Ensemble_MSST>(param, num_param);
+  } else if (strcmp(param[1], "ti_spring") == 0) {
+    type = EnsembleType::TI_SPRING;
+    ensemble = std::make_unique<Ensemble_TI_Spring>(param, num_param);
+  } else if (strcmp(param[1], "wall_piston") == 0) {
+    type = EnsembleType::WALL_PISTON;
+    ensemble = std::make_unique<Ensemble_wall_piston>(param, num_param);
+  } else if (strcmp(param[1], "nphug") == 0) {
+    type = EnsembleType::NPHUG;
+    ensemble = std::make_unique<Ensemble_NPHug>(param, num_param);
+  } else if (strcmp(param[1], "ti") == 0) {
+    type = EnsembleType::TI;
+    ensemble = std::make_unique<Ensemble_TI>(param, num_param);
+  } else if (strcmp(param[1], "wall_mirror") == 0) {
+    type = EnsembleType::WALL_MIRROR;
+    ensemble = std::make_unique<Ensemble_wall_mirror>(param, num_param);
+  } else if (strcmp(param[1], "ti_rs") == 0) {
+    type = EnsembleType::TI_RS;
+    ensemble = std::make_unique<Ensemble_TI_RS>(param, num_param);
+  } else if (strcmp(param[1], "ti_as") == 0) {
+    type = EnsembleType::TI_AS;
+    ensemble = std::make_unique<Ensemble_TI_AS>(param, num_param);
+  } else if (strcmp(param[1], "wall_harmonic") == 0) {
+    type = EnsembleType::WALL_HARMONIC;
+    ensemble = std::make_unique<Ensemble_wall_harmonic>(param, num_param);
+  } else if (strcmp(param[1], "ti_liquid") == 0) {
+    type = EnsembleType::TI_LIQUID;
+    ensemble = std::make_unique<Ensemble_TI_Liquid>(param, num_param);
+  } else {
+    PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
 }
 
