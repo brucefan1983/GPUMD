@@ -78,13 +78,7 @@ public:
   double temperature;  // target temperature at a specific time
   double temperature1; // target initial temperature for a run
   double temperature2; // target final temperature for a run
-  double delta_temperature;
-  double target_pressure[6];
   int num_target_pressure_components;
-  double temperature_coupling;
-  double tau_p;
-  double elastic_modulus[6];
-  double pressure_coupling[6];
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;

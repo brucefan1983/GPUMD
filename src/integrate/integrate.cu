@@ -75,77 +75,6 @@ void Integrate::initialize(
     }
   }
 
-  // determine the integrator
-  switch (type) {
-    case EnsembleType::NVE: // NVE
-      break;
-    case EnsembleType::NVT_BER: // NVT-Berendsen
-      break;
-    case EnsembleType::NVT_NHC: // NVT-NHC
-      break;
-    case EnsembleType::NVT_LAN: // NVT-Langevin
-      break;
-    case EnsembleType::NVT_BDP: // NVT-BDP
-      break;
-    case EnsembleType::NVT_BAO: // NVT-BAOAB_Langevin
-      break;
-    case EnsembleType::NVT_QTB: // NVT-QTB
-      break;
-    case EnsembleType::NPT_BER: // NPT-Berendsen
-      break;
-    case EnsembleType::NPT_SCR: // NPT-SCR
-      break;
-    case EnsembleType::MSST: // msst
-      break;
-    case EnsembleType::TI_SPRING: // ti_spring
-      break;
-    case EnsembleType::MTTK: // mttk
-      break;
-    case EnsembleType::WALL_PISTON: // piston
-      break;
-    case EnsembleType::NPHUG: // nphug
-      break;
-    case EnsembleType::TI: // ti
-      break;
-    case EnsembleType::WALL_MIRROR: // mirror
-      break;
-    case EnsembleType::TI_RS: // ti_rs
-      break;
-    case EnsembleType::TI_AS: // ti_as
-      break;
-    case EnsembleType::WALL_HARMONIC:
-      break;
-    case EnsembleType::TI_LIQUID: // ti_liquid
-      break;
-    case EnsembleType::NPT_QTB: // npt_qtb
-      break;
-    case EnsembleType::HEAT_NHC: // heat-NHC
-      break;
-    // heat with constant power (custom); delta_temperature stores power in eV/fs
-    case EnsembleType::HEAT_NHC_POWER:
-      break;
-    case EnsembleType::HEAT_LAN: // heat-Langevin
-      break;
-    case EnsembleType::HEAT_BDP: // heat-BDP
-      break;
-    case EnsembleType::HEAT_TTM: // heat-TTM
-      break;
-    case EnsembleType::TTM: // pure TTM
-      break;
-    // Heat-hybrid facilitates the use of both Langevin and Nose-Hoover thermostats
-    case EnsembleType::HEAT_HYBRID:
-      break;
-    case EnsembleType::RPMD: // RPMD
-      break;
-    case EnsembleType::TRPMD: // TRPMD
-      break;
-    case EnsembleType::PIMD: // PIMD
-      break;
-    default:
-      printf("Illegal integrator!\n");
-      break;
-  }
-
   ensemble->atom = &atom;
   ensemble->box = &box;
   ensemble->group = &group;
@@ -313,16 +242,16 @@ void Integrate::parse_ensemble(
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
     type = EnsembleType::MTTK;
-    Ensemble_MTTK* ptr_temp = new Ensemble_MTTK(param, num_param);
-    ensemble.reset(ptr_temp);
-    temperature1 = ptr_temp->t_start;
-    temperature2 = ptr_temp->t_stop;
+    auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(param, num_param);
+    temperature1 = ensemble_mttk->t_start;
+    temperature2 = ensemble_mttk->t_stop;
+    ensemble = std::move(ensemble_mttk);
   } else if (strcmp(param[1], "npt_qtb") == 0) {
     type = EnsembleType::NPT_QTB;
-    Ensemble_NPT_QTB* ptr_temp = new Ensemble_NPT_QTB(param, num_param);
-    ensemble.reset(ptr_temp);
-    temperature1 = ptr_temp->t_start;
-    temperature2 = ptr_temp->t_stop;
+    auto ensemble_npt_qtb = std::make_unique<Ensemble_NPT_QTB>(param, num_param);
+    temperature1 = ensemble_npt_qtb->t_start;
+    temperature2 = ensemble_npt_qtb->t_stop;
+    ensemble = std::move(ensemble_npt_qtb);
   } else if (strcmp(param[1], "heat_ttm") == 0) {
     auto ensemble_ttm =
       std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
@@ -359,104 +288,36 @@ void Integrate::parse_ensemble(
     ensemble = std::move(ensemble_pimd);
   } else if (strcmp(param[1], "msst") == 0) {
     type = EnsembleType::MSST;
-    ensemble.reset(new Ensemble_MSST(param, num_param));
+    ensemble = std::make_unique<Ensemble_MSST>(param, num_param);
   } else if (strcmp(param[1], "ti_spring") == 0) {
     type = EnsembleType::TI_SPRING;
-    ensemble.reset(new Ensemble_TI_Spring(param, num_param));
+    ensemble = std::make_unique<Ensemble_TI_Spring>(param, num_param);
   } else if (strcmp(param[1], "wall_piston") == 0) {
     type = EnsembleType::WALL_PISTON;
-    ensemble.reset(new Ensemble_wall_piston(param, num_param));
+    ensemble = std::make_unique<Ensemble_wall_piston>(param, num_param);
   } else if (strcmp(param[1], "nphug") == 0) {
     type = EnsembleType::NPHUG;
-    ensemble.reset(new Ensemble_NPHug(param, num_param));
+    ensemble = std::make_unique<Ensemble_NPHug>(param, num_param);
   } else if (strcmp(param[1], "ti") == 0) {
     type = EnsembleType::TI;
-    ensemble.reset(new Ensemble_TI(param, num_param));
+    ensemble = std::make_unique<Ensemble_TI>(param, num_param);
   } else if (strcmp(param[1], "wall_mirror") == 0) {
     type = EnsembleType::WALL_MIRROR;
-    ensemble.reset(new Ensemble_wall_mirror(param, num_param));
+    ensemble = std::make_unique<Ensemble_wall_mirror>(param, num_param);
   } else if (strcmp(param[1], "ti_rs") == 0) {
     type = EnsembleType::TI_RS;
-    ensemble.reset(new Ensemble_TI_RS(param, num_param));
+    ensemble = std::make_unique<Ensemble_TI_RS>(param, num_param);
   } else if (strcmp(param[1], "ti_as") == 0) {
     type = EnsembleType::TI_AS;
-    ensemble.reset(new Ensemble_TI_AS(param, num_param));
+    ensemble = std::make_unique<Ensemble_TI_AS>(param, num_param);
   } else if (strcmp(param[1], "wall_harmonic") == 0) {
     type = EnsembleType::WALL_HARMONIC;
-    ensemble.reset(new Ensemble_wall_harmonic(param, num_param));
+    ensemble = std::make_unique<Ensemble_wall_harmonic>(param, num_param);
   } else if (strcmp(param[1], "ti_liquid") == 0) {
     type = EnsembleType::TI_LIQUID;
-    ensemble.reset(new Ensemble_TI_Liquid(param, num_param));
+    ensemble = std::make_unique<Ensemble_TI_Liquid>(param, num_param);
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
-  }
-
-  switch (type) {
-    case EnsembleType::NVE:
-      break;
-    case EnsembleType::NVT_BER:
-      break;
-    case EnsembleType::NVT_NHC:
-      break;
-    case EnsembleType::NVT_LAN:
-      break;
-    case EnsembleType::NVT_BDP:
-      break;
-    case EnsembleType::NVT_BAO:
-      break;
-    case EnsembleType::NVT_QTB:
-      break;
-    case EnsembleType::NPT_BER:
-      break;
-    case EnsembleType::NPT_SCR:
-      break;
-    case EnsembleType::MSST:
-      break;
-    case EnsembleType::TI_SPRING:
-      break;
-    case EnsembleType::MTTK:
-      break;
-    case EnsembleType::WALL_PISTON:
-      break;
-    case EnsembleType::NPHUG:
-      break;
-    case EnsembleType::TI:
-      break;
-    case EnsembleType::WALL_MIRROR:
-      break;
-    case EnsembleType::TI_RS:
-      break;
-    case EnsembleType::TI_AS:
-      break;
-    case EnsembleType::WALL_HARMONIC:
-      break;
-    case EnsembleType::TI_LIQUID:
-      break;
-    case EnsembleType::NPT_QTB: // npt_qtb (self-parsed)
-      break;
-    case EnsembleType::HEAT_NHC:
-      break;
-    case EnsembleType::HEAT_NHC_POWER:
-      break;
-    case EnsembleType::HEAT_LAN:
-      break;
-    case EnsembleType::HEAT_BDP:
-      break;
-    case EnsembleType::HEAT_TTM:
-      break;
-    case EnsembleType::TTM:
-      break;
-    case EnsembleType::HEAT_HYBRID:
-      break;
-    case EnsembleType::RPMD:
-      break;
-    case EnsembleType::TRPMD:
-      break;
-    case EnsembleType::PIMD:
-      break;
-    default:
-      PRINT_INPUT_ERROR("Invalid ensemble type.");
-      break;
   }
 }
 
