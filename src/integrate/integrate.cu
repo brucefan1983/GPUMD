@@ -324,6 +324,8 @@ void Integrate::initialize(
 
 void Integrate::finalize()
 {
+  ensemble.reset();
+  type = EnsembleType::UNKNOWN;
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
   fixed_grouping_method = 0;
@@ -389,6 +391,10 @@ void Integrate::parse_ensemble(
   std::vector<Group>& group,
   GPU_Vector<double>& thermo)
 {
+  if (type != EnsembleType::UNKNOWN) {
+    PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
+  }
+
   qtb_f_max = 200.0;
   qtb_n_f = 100;
   use_eco_pimd = false;
