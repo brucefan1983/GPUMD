@@ -38,7 +38,7 @@ void Ensemble_NPT_SCR::initialize_rng()
 };
 
 Ensemble_NPT_SCR::Ensemble_NPT_SCR(
-  int type_input,
+  EnsembleType type_input,
   double temperature_input,
   double temperature_coupling_input,
   double target_pressure_input[6],

@@ -23,9 +23,10 @@ The Berendsen thermostat and barostat:
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
 
-Ensemble_BER::Ensemble_BER(int t, int mg, double* mv, double T, double Tc)
+Ensemble_BER::Ensemble_BER(
+  EnsembleType type_input, int mg, double* mv, double T, double Tc)
 {
-  type = t;
+  type = type_input;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -35,7 +36,7 @@ Ensemble_BER::Ensemble_BER(int t, int mg, double* mv, double T, double Tc)
 }
 
 Ensemble_BER::Ensemble_BER(
-  int t,
+  EnsembleType type_input,
   double T,
   double Tc,
   double target_p[6],
@@ -48,7 +49,7 @@ Ensemble_BER::Ensemble_BER(
   int dxz,
   int dyz)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = 1.0 / Tc;
   for (int i = 0; i < 6; i++) {
@@ -301,7 +302,7 @@ void Ensemble_BER::compute2(
     GPU_CHECK_KERNEL
   }
 
-  if (type == 11) {
+  if (type == EnsembleType::NPT_BER) {
     if (num_target_pressure_components == 1) {
       double scale_factor;
       cpu_pressure_isotropic(box, target_pressure, pressure_coupling, thermo.data(), scale_factor);

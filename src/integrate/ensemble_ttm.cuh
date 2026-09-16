@@ -65,7 +65,7 @@ struct TTM_Parameters
 };
 
 void parse_ttm_parameters(
-  const int type,
+  const EnsembleType type,
   const char** param,
   const int num_param,
   const Atom& atom,
@@ -81,7 +81,7 @@ class Ensemble_TTM : public Ensemble
 {
 public:
   Ensemble_TTM(
-    int type_input,
+    EnsembleType type_input,
     int source_input,
     int sink_input,
     int source_size,
@@ -98,7 +98,7 @@ public:
     const Box& box);
 
   Ensemble_TTM(
-    int type_input,
+    EnsembleType type_input,
     int ttm_group_size,
     int ttm_group_offset,
     const TTM_Parameters& ttm_parameters,
@@ -171,7 +171,7 @@ private:
   double box_length[3];
 
   void initialize_ttm_common(
-    int type_input,
+    EnsembleType type_input,
     int ttm_group_size,
     int ttm_group_offset,
     const TTM_Parameters& ttm_parameters,

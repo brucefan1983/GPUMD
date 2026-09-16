@@ -69,7 +69,7 @@ public:
   void parse_move(const char**, int, std::vector<Group>& group);
 
   // these data will be used to initialize ensemble
-  int type; // ensemble type in a specific run
+  EnsembleType type = EnsembleType::UNKNOWN;
   int source;
   int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed

@@ -27,9 +27,9 @@ The Langevin thermostat with the BAOAB splitting:
 #include <cstdlib>
 #include <cstring>
 
-Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
+Ensemble_BAO::Ensemble_BAO(EnsembleType type_input, int N, double T, double Tc)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = Tc;
   c1 = exp(-1.0 / temperature_coupling);
@@ -41,7 +41,7 @@ Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
 }
 
 Ensemble_BAO::Ensemble_BAO(
-  int t,
+  EnsembleType type_input,
   int source_input,
   int sink_input,
   int source_size,
@@ -52,7 +52,7 @@ Ensemble_BAO::Ensemble_BAO(
   double Tc,
   double dT)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;
@@ -423,7 +423,7 @@ void Ensemble_BAO::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 5) {
+  if (type == EnsembleType::NVT_BAO) {
     operator_B(
       time_step,
       group,
@@ -485,7 +485,7 @@ void Ensemble_BAO::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 5) {
+  if (type == EnsembleType::NVT_BAO) {
     operator_B(
       time_step,
       group,

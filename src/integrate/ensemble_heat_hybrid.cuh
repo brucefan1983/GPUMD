@@ -20,7 +20,7 @@ class Ensemble_Heat_Hybrid : public Ensemble
 {
 public:
   Ensemble_Heat_Hybrid(
-    int type,
+    EnsembleType type,
     const std::vector<int>& thermostat_type,
     const std::vector<int>& label,
     const std::vector<int>& size,

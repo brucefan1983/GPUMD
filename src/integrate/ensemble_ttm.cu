@@ -82,7 +82,7 @@ static void parse_ttm_active_range(
 }
 
 void parse_ttm_parameters(
-  const int type,
+  const EnsembleType type,
   const char** param,
   const int num_param,
   const Atom& atom,
@@ -106,7 +106,7 @@ void parse_ttm_parameters(
     PRINT_INPUT_ERROR("ensemble ttm/heat_ttm requires at least one grouping method.");
   }
 
-  const int ttm_offset = (type == 24) ? 7 : 2;
+  const int ttm_offset = (type == EnsembleType::HEAT_TTM) ? 7 : 2;
 
   if (!is_valid_int(param[ttm_offset], &ttm_parameters.grouping_method)) {
     PRINT_INPUT_ERROR("TTM grouping method should be an integer.");
@@ -127,7 +127,7 @@ void parse_ttm_parameters(
     PRINT_INPUT_ERROR("TTM metal group cannot be empty.");
   }
 
-  if (type == 24) {
+  if (type == EnsembleType::HEAT_TTM) {
     if (group[0].cpu_size[source] <= 0) {
       PRINT_INPUT_ERROR("Heat source group for ensemble heat_ttm cannot be empty.");
     }
@@ -740,7 +740,7 @@ void Ensemble_TTM::initialize_ttm_gpu_data()
 }
 
 void Ensemble_TTM::initialize_ttm_common(
-  int type_input,
+  EnsembleType type_input,
   int ttm_group_size,
   int ttm_group_offset,
   const TTM_Parameters& ttm_parameters,
@@ -794,7 +794,7 @@ void Ensemble_TTM::initialize_ttm_common(
 }
 
 Ensemble_TTM::Ensemble_TTM(
-  int type_input,
+  EnsembleType type_input,
   int source_input,
   int sink_input,
   int source_size,
@@ -845,7 +845,7 @@ Ensemble_TTM::Ensemble_TTM(
 }
 
 Ensemble_TTM::Ensemble_TTM(
-  int type_input,
+  EnsembleType type_input,
   int ttm_group_size,
   int ttm_group_offset,
   const TTM_Parameters& ttm_parameters,

@@ -19,7 +19,7 @@
 class Ensemble_NVE : public Ensemble
 {
 public:
-  Ensemble_NVE(int);
+  Ensemble_NVE(EnsembleType);
   virtual ~Ensemble_NVE(void);
 
   virtual void compute1(

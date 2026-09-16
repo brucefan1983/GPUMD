@@ -148,7 +148,7 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
     temperature,
     temperature_coupling);
-  type = 3;
+  type = EnsembleType::NVT_LAN;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }

@@ -205,7 +205,7 @@ void Run::execute_run_in()
 
 void Run::compute_force()
 {
-  if (integrate.type >= 31) { // PIMD
+  if (is_pimd(integrate.type)) {
     for (int k = 0; k < integrate.number_of_beads; ++k) {
       force.compute(
         box,

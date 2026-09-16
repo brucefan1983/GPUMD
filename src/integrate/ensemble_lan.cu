@@ -27,9 +27,9 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 
 Ensemble_LAN::Ensemble_LAN() {}
 
-Ensemble_LAN::Ensemble_LAN(int t, int N, double T, double Tc)
+Ensemble_LAN::Ensemble_LAN(EnsembleType type_input, int N, double T, double Tc)
 {
-  type = t;
+  type = type_input;
   temperature = T;
   temperature_coupling = Tc;
   c1 = exp(-0.5 / temperature_coupling);
@@ -41,7 +41,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, double T, double Tc)
 }
 
 Ensemble_LAN::Ensemble_LAN(
-  int t,
+  EnsembleType type_input,
   int mg,
   double* mv,
   int source_input,
@@ -55,7 +55,7 @@ Ensemble_LAN::Ensemble_LAN(
   double Tc,
   double dT)
 {
-  type = t;
+  type = type_input;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -87,7 +87,7 @@ Ensemble_LAN::Ensemble_LAN(
 }
 
 Ensemble_LAN::Ensemble_LAN(
-  int t,
+  EnsembleType type_input,
   int mg,
   double* mv,
   int N,
@@ -97,7 +97,7 @@ Ensemble_LAN::Ensemble_LAN(
   double Tc,
   double dT)
 {
-  type = t;
+  type = type_input;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -331,7 +331,7 @@ void Ensemble_LAN::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 3) {
+  if (type == EnsembleType::NVT_LAN) {
     integrate_nvt_lan_half(atom.mass, atom.velocity_per_atom);
 
     velocity_verlet(
@@ -368,7 +368,7 @@ void Ensemble_LAN::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 3) {
+  if (type == EnsembleType::NVT_LAN) {
     velocity_verlet(
       false,
       time_step,

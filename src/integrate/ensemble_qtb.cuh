@@ -28,7 +28,8 @@ class Ensemble_QTB : public Ensemble
 {
 public:
   // NVT-QTB constructor
-  Ensemble_QTB(int t, int N, double T, double Tc, double dt, double f_max, int N_f);
+  Ensemble_QTB(
+    EnsembleType type, int N, double T, double Tc, double dt, double f_max, int N_f);
 
   ~Ensemble_QTB(void);
 

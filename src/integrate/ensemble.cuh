@@ -24,6 +24,60 @@
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
+enum class EnsembleType
+{
+  UNKNOWN,
+  NVE,
+  NVT_BER,
+  NVT_NHC,
+  NVT_LAN,
+  NVT_BDP,
+  NVT_BAO,
+  NVT_QTB,
+  NPT_BER,
+  NPT_SCR,
+  MTTK,
+  NPT_QTB,
+  HEAT_NHC,
+  HEAT_LAN,
+  HEAT_BDP,
+  HEAT_TTM,
+  TTM,
+  HEAT_HYBRID,
+  HEAT_NHC_POWER,
+  RPMD,
+  TRPMD,
+  PIMD,
+  MSST,
+  TI_SPRING,
+  WALL_PISTON,
+  NPHUG,
+  TI,
+  WALL_MIRROR,
+  TI_RS,
+  TI_AS,
+  WALL_HARMONIC,
+  TI_LIQUID
+};
+
+inline bool is_standard_nvt(const EnsembleType type)
+{
+  return type == EnsembleType::NVT_BER || type == EnsembleType::NVT_NHC ||
+         type == EnsembleType::NVT_LAN || type == EnsembleType::NVT_BDP ||
+         type == EnsembleType::NVT_BAO || type == EnsembleType::NVT_QTB;
+}
+
+inline bool is_standard_npt(const EnsembleType type)
+{
+  return type == EnsembleType::NPT_BER || type == EnsembleType::NPT_SCR;
+}
+
+inline bool is_pimd(const EnsembleType type)
+{
+  return type == EnsembleType::RPMD || type == EnsembleType::TRPMD ||
+         type == EnsembleType::PIMD;
+}
+
 class Ensemble
 {
 public:
@@ -70,7 +124,7 @@ public:
   Atom* atom;
   GPU_Vector<double>* thermo;
 
-  int type; // ensemble type in a specific run
+  EnsembleType type = EnsembleType::UNKNOWN;
   int source;
   int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed

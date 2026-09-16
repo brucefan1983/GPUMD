@@ -20,7 +20,8 @@
 class Ensemble_NPT_SCR : public Ensemble
 {
 public:
-  Ensemble_NPT_SCR(int, double, double, double*, int, double*, int, int, int, int, int, int);
+  Ensemble_NPT_SCR(
+    EnsembleType, double, double, double*, int, double*, int, int, int, int, int, int);
   virtual ~Ensemble_NPT_SCR(void);
 
   virtual void compute1(

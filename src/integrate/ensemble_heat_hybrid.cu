@@ -100,7 +100,7 @@ static double nhc(
 }
 
 Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
-  int type_input,
+  EnsembleType type_input,
   const std::vector<int>& thermostat_type_input,
   const std::vector<int>& label_input,
   const std::vector<int>& size_input,
