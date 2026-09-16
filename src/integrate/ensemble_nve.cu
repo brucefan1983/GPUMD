@@ -18,10 +18,22 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nve.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
-Ensemble_NVE::Ensemble_NVE(EnsembleType type_input) { type = type_input; }
+Ensemble_NVE::Ensemble_NVE(int num_param)
+{
+  type = EnsembleType::NVE;
+  parse(num_param);
+}
+
+void Ensemble_NVE::parse(int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
+  }
+  printf("Use NVE ensemble for this run.\n");
+}
 
 Ensemble_NVE::~Ensemble_NVE(void)
 {

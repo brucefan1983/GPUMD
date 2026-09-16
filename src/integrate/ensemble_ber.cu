@@ -20,49 +20,207 @@ The Berendsen thermostat and barostat:
 
 #include "ensemble_ber.cuh"
 #include "npt_utilities.cuh"
+#include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cstring>
 
-Ensemble_BER::Ensemble_BER(
-  EnsembleType type_input, int mg, double* mv, double T, double Tc)
+Ensemble_BER::Ensemble_BER(const char** param, int num_param, const Box& box)
 {
-  type = type_input;
-  move_group = mg;
-  move_velocity[0] = mv[0];
-  move_velocity[1] = mv[1];
-  move_velocity[2] = mv[2];
-  temperature = T;
-  temperature_coupling = 1.0 / Tc;
+  parse(param, num_param, box);
 }
 
-Ensemble_BER::Ensemble_BER(
-  EnsembleType type_input,
-  double T,
-  double Tc,
-  double target_p[6],
-  int num_target_p,
-  double pc[6],
-  int dx,
-  int dy,
-  int dz,
-  int dxy,
-  int dxz,
-  int dyz)
+void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
 {
-  type = type_input;
-  temperature = T;
-  temperature_coupling = 1.0 / Tc;
-  for (int i = 0; i < 6; i++) {
-    target_pressure[i] = target_p[i];
-    pressure_coupling[i] = pc[i];
+  num_target_pressure_components = 0;
+
+  if (strcmp(param[1], "nvt_ber") == 0) {
+    type = EnsembleType::NVT_BER;
+    if (num_param != 5) {
+      PRINT_INPUT_ERROR("ensemble nvt_ber should have 3 parameters.");
+    }
+  } else if (strcmp(param[1], "npt_ber") == 0) {
+    type = EnsembleType::NPT_BER;
+    if (num_param != 18 && num_param != 12 && num_param != 8) {
+      PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
+    }
+  } else {
+    PRINT_INPUT_ERROR("Invalid Berendsen ensemble type.");
   }
-  num_target_pressure_components = num_target_p;
-  deform_x = dx;
-  deform_y = dy;
-  deform_z = dz;
-  deform_xy = dxy;
-  deform_xz = dxz;
-  deform_yz = dyz;
+
+  if (!is_valid_real(param[2], &temperature1_)) {
+    PRINT_INPUT_ERROR("Initial temperature should be a number.");
+  }
+  if (temperature1_ <= 0.0) {
+    PRINT_INPUT_ERROR("Initial temperature should > 0.");
+  }
+  if (!is_valid_real(param[3], &temperature2_)) {
+    PRINT_INPUT_ERROR("Final temperature should be a number.");
+  }
+  if (temperature2_ <= 0.0) {
+    PRINT_INPUT_ERROR("Final temperature should > 0.");
+  }
+
+  double tau_temperature;
+  if (!is_valid_real(param[4], &tau_temperature)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (tau_temperature < 1.0) {
+    PRINT_INPUT_ERROR(
+      "Temperature coupling should >= 1. \n(We have changed the convention for this "
+      "input starting from GPUMD-V3.0; See the manual for details.)");
+  }
+
+  temperature = temperature1_;
+  temperature_coupling = 1.0 / tau_temperature;
+
+  if (type == EnsembleType::NVT_BER) {
+    printf("Use NVT ensemble for this run.\n");
+    printf("    choose the Berendsen method.\n");
+    printf("    initial temperature is %g K.\n", temperature1_);
+    printf("    final temperature is %g K.\n", temperature2_);
+    printf("    tau_T is %g time_step.\n", tau_temperature);
+    return;
+  }
+
+  double elastic_modulus[6];
+  if (num_param == 12) {
+    num_target_pressure_components = 3;
+    for (int i = 0; i < num_target_pressure_components; ++i) {
+      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+        PRINT_INPUT_ERROR("Pressure should be a number.");
+      }
+    }
+    for (int i = 0; i < num_target_pressure_components; ++i) {
+      if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
+        PRINT_INPUT_ERROR("elastic modulus should be a number.");
+      }
+      if (elastic_modulus[i] <= 0.0) {
+        PRINT_INPUT_ERROR("elastic modulus should > 0.");
+      }
+    }
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
+    }
+  } else if (num_param == 8) {
+    num_target_pressure_components = 1;
+    if (!is_valid_real(param[5], &target_pressure[0])) {
+      PRINT_INPUT_ERROR("Pressure should be a number.");
+    }
+    if (!is_valid_real(param[6], &elastic_modulus[0])) {
+      PRINT_INPUT_ERROR("elastic modulus should be a number.");
+    }
+    if (elastic_modulus[0] <= 0.0) {
+      PRINT_INPUT_ERROR("elastic modulus should > 0.");
+    }
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
+    }
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot use isotropic pressure with non-periodic boundary in any direction.");
+    }
+  } else {
+    num_target_pressure_components = 6;
+    for (int i = 0; i < num_target_pressure_components; ++i) {
+      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+        PRINT_INPUT_ERROR("Pressure should be a number.");
+      }
+    }
+    for (int i = 0; i < num_target_pressure_components; ++i) {
+      if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
+        PRINT_INPUT_ERROR("elastic modulus should be a number.");
+      }
+      if (elastic_modulus[i] <= 0.0) {
+        PRINT_INPUT_ERROR("elastic modulus should > 0.");
+      }
+    }
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot use 6 pressure components with non-periodic boundary in any direction.");
+    }
+  }
+
+  double tau_pressure;
+  const int index_pressure_coupling = num_target_pressure_components * 2 + 5;
+  if (!is_valid_real(param[index_pressure_coupling], &tau_pressure)) {
+    PRINT_INPUT_ERROR("Pressure coupling should be a number.");
+  }
+  if (tau_pressure < 1.0) {
+    PRINT_INPUT_ERROR(
+      "Pressure coupling should >= 1. \n(We have changed the convention for this "
+      "input starting from GPUMD-V3.0; See the manual for details.)");
+  }
+  for (int i = 0; i < num_target_pressure_components; ++i) {
+    pressure_coupling[i] = 1.0 / (tau_pressure * 3.0 * elastic_modulus[i]);
+    if (elastic_modulus[i] > 2.0e3) {
+      pressure_coupling[i] = 0.0;
+    }
+  }
+
+  if (tau_temperature <= 100000) {
+    printf("Use NPT ensemble for this run.\n");
+    printf("    choose the Berendsen method.\n");
+    printf("    initial temperature is %g K.\n", temperature1_);
+    printf("    final temperature is %g K.\n", temperature2_);
+    printf("    tau_T is %g time_step\n", tau_temperature);
+  } else {
+    printf("Use NPH ensemble for this run.\n");
+    printf("    choose the Berendsen method.\n");
+    printf("    initial temperature is %g K but will not be used.\n", temperature1_);
+    printf("    final temperature is %g K but will not be used.\n", temperature2_);
+    printf("    tau_T is %g time_step but will not be used.\n", tau_temperature);
+  }
+  if (num_target_pressure_components == 1) {
+    printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+    printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
+  } else if (num_target_pressure_components == 3) {
+    printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+    printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+    printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+    printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+    printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+    printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+  } else {
+    printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+    printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+    printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+    printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
+    printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+    printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
+    printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+    printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+    printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+    printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
+    printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
+    printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
+  }
+  printf("    tau_p is %g time_step.\n", tau_pressure);
+
+  for (int i = 0; i < num_target_pressure_components; ++i) {
+    target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+    pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
+  }
+}
+
+double Ensemble_BER::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_BER::get_temperature2() const
+{
+  return temperature2_;
+}
+
+int Ensemble_BER::get_num_target_pressure_components() const
+{
+  return num_target_pressure_components;
 }
 
 Ensemble_BER::~Ensemble_BER(void)

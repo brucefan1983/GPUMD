@@ -19,7 +19,7 @@
 class Ensemble_NVE : public Ensemble
 {
 public:
-  Ensemble_NVE(EnsembleType);
+  explicit Ensemble_NVE(int num_param);
   virtual ~Ensemble_NVE(void);
 
   virtual void compute1(
@@ -35,4 +35,7 @@ public:
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo);
+
+private:
+  void parse(int num_param);
 };

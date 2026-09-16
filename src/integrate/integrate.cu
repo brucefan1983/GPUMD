@@ -45,6 +45,7 @@ The driver class for the various integrators.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <utility>
 
 void Integrate::initialize(
   double time_step,
@@ -77,11 +78,8 @@ void Integrate::initialize(
   // determine the integrator
   switch (type) {
     case EnsembleType::NVE: // NVE
-      ensemble.reset(new Ensemble_NVE(type));
       break;
     case EnsembleType::NVT_BER: // NVT-Berendsen
-      ensemble.reset(
-        new Ensemble_BER(type, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case EnsembleType::NVT_NHC: // NVT-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -108,19 +106,6 @@ void Integrate::initialize(
         type, number_of_atoms, temperature, temperature_coupling, time_step, qtb_f_max, qtb_n_f));
       break;
     case EnsembleType::NPT_BER: // NPT-Berendsen
-      ensemble.reset(new Ensemble_BER(
-        type,
-        temperature,
-        temperature_coupling,
-        target_pressure,
-        num_target_pressure_components,
-        pressure_coupling,
-        deform_x,
-        deform_y,
-        deform_z,
-        deform_xy,
-        deform_xz,
-        deform_yz));
       break;
     case EnsembleType::NPT_SCR: // NPT-SCR
       ensemble.reset(new Ensemble_NPT_SCR(
@@ -320,6 +305,20 @@ void Integrate::initialize(
   ensemble->fixed_group = fixed_group;
   ensemble->fixed_grouping_method = fixed_grouping_method;
   ensemble->move_grouping_method = move_grouping_method;
+  if (type == EnsembleType::NVT_BER && move_group >= 0) {
+    ensemble->move_group = move_group;
+    for (int i = 0; i < 3; ++i) {
+      ensemble->move_velocity[i] = move_velocity[i];
+    }
+  }
+  if (type == EnsembleType::NPT_BER) {
+    ensemble->deform_x = deform_x;
+    ensemble->deform_y = deform_y;
+    ensemble->deform_z = deform_z;
+    ensemble->deform_xy = deform_xy;
+    ensemble->deform_xz = deform_xz;
+    ensemble->deform_yz = deform_yz;
+  }
 }
 
 void Integrate::finalize()
@@ -405,15 +404,18 @@ void Integrate::parse_ensemble(
 
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
+    ensemble = std::make_unique<Ensemble_NVE>(num_param);
     type = EnsembleType::NVE;
-    if (num_param != 2) {
-      PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
+  } else if (strcmp(param[1], "nvt_ber") == 0 || strcmp(param[1], "npt_ber") == 0) {
+    auto ensemble_ber = std::make_unique<Ensemble_BER>(param, num_param, box);
+    type = ensemble_ber->type;
+    temperature1 = ensemble_ber->get_temperature1();
+    temperature2 = ensemble_ber->get_temperature2();
+    temperature = temperature1;
+    if (type == EnsembleType::NPT_BER) {
+      num_target_pressure_components = ensemble_ber->get_num_target_pressure_components();
     }
-  } else if (strcmp(param[1], "nvt_ber") == 0) {
-    type = EnsembleType::NVT_BER;
-    if (num_param != 5) {
-      PRINT_INPUT_ERROR("ensemble nvt_ber should have 3 parameters.");
-    }
+    ensemble = std::move(ensemble_ber);
   } else if (strcmp(param[1], "nvt_nhc") == 0) {
     type = EnsembleType::NVT_NHC;
     if (num_param != 5) {
@@ -439,11 +441,6 @@ void Integrate::parse_ensemble(
     if (num_param < 5 || num_param % 2 == 0) {
       PRINT_INPUT_ERROR(
         "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
-    }
-  } else if (strcmp(param[1], "npt_ber") == 0) {
-    type = EnsembleType::NPT_BER;
-    if (num_param != 18 && num_param != 12 && num_param != 8) {
-      PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
     }
   } else if (strcmp(param[1], "npt_scr") == 0) {
     type = EnsembleType::NPT_SCR;
@@ -556,7 +553,9 @@ void Integrate::parse_ensemble(
   }
 
   // 2. Temperatures and temperature_coupling (standard NVT and NPT)
-  if (is_standard_nvt(type) || is_standard_npt(type)) {
+  if (
+    (is_standard_nvt(type) || is_standard_npt(type)) && type != EnsembleType::NVT_BER &&
+    type != EnsembleType::NPT_BER) {
     // initial temperature
     if (!is_valid_real(param[2], &temperature1)) {
       PRINT_INPUT_ERROR("Initial temperature should be a number.");
@@ -581,13 +580,7 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
     if (temperature_coupling < 1.0) {
-      if (type == EnsembleType::NVT_BER || type == EnsembleType::NPT_BER) {
-        PRINT_INPUT_ERROR(
-          "Temperature coupling should >= 1. \n(We have changed the convention for this "
-          "input starting from GPUMD-V3.0; See the manual for details.)");
-      } else {
-        PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-      }
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
     }
   }
 
@@ -618,7 +611,7 @@ void Integrate::parse_ensemble(
   }
 
   // 3. Pressures and pressure_coupling (NPT)
-  if (is_standard_npt(type)) {
+  if (is_standard_npt(type) && type != EnsembleType::NPT_BER) {
     // pressures:
     if (num_param == 12) {
       for (int i = 0; i < 3; i++) {
@@ -687,13 +680,7 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
     if (tau_p < 1) {
-      if (type == EnsembleType::NPT_BER) {
-        PRINT_INPUT_ERROR(
-          "Pressure coupling should >= 1. \n(We have changed the convention for this "
-          "input starting from GPUMD-V3.0; See the manual for details.)");
-      } else {
-        PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
-      }
+      PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
     }
     for (int i = 0; i < 6; i++) {
       pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
@@ -1119,14 +1106,8 @@ void Integrate::parse_ensemble(
 
   switch (type) {
     case EnsembleType::NVE:
-      printf("Use NVE ensemble for this run.\n");
       break;
     case EnsembleType::NVT_BER:
-      printf("Use NVT ensemble for this run.\n");
-      printf("    choose the Berendsen method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case EnsembleType::NVT_NHC:
       printf("Use NVT ensemble for this run.\n");
@@ -1166,50 +1147,6 @@ void Integrate::parse_ensemble(
       printf("    N_f is %d.\n", qtb_n_f);
       break;
     case EnsembleType::NPT_BER:
-      if (temperature_coupling <= 100000) {
-        printf("Use NPT ensemble for this run.\n");
-        printf("    choose the Berendsen method.\n");
-        printf("    initial temperature is %g K.\n", temperature1);
-        printf("    final temperature is %g K.\n", temperature2);
-        printf("    tau_T is %g time_step\n", temperature_coupling);
-      } else {
-        printf("Use NPH ensemble for this run.\n");
-        printf("    choose the Berendsen method.\n");
-        printf("    initial temperature is %g K but will not be used.\n", temperature1);
-        printf("    final temperature is %g K but will not be used.\n", temperature2);
-        printf("    tau_T is %g time_step but will not be used.\n", temperature_coupling);
-      }
-      if (num_target_pressure_components == 1) {
-        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
-        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
-      } else if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-      } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
-        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
-        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
-        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
-        printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
-        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
-        printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
-      }
-      printf("    tau_p is %g time_step.\n", tau_p);
-
-      // Change the units of pressure form GPa to that used in the code
-      for (int i = 0; i < 6; i++) {
-        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
-      }
       break;
     case EnsembleType::NPT_SCR:
       printf("Use NPT ensemble for this run.\n");

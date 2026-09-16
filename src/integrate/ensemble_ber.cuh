@@ -19,10 +19,12 @@
 class Ensemble_BER : public Ensemble
 {
 public:
-  Ensemble_BER(EnsembleType, int, double*, double, double);
-  Ensemble_BER(
-    EnsembleType, double, double, double*, int, double*, int, int, int, int, int, int);
+  Ensemble_BER(const char** param, int num_param, const Box& box);
   virtual ~Ensemble_BER(void);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
 
   virtual void compute1(
     const double time_step,
@@ -37,4 +39,10 @@ public:
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo);
+
+private:
+  void parse(const char** param, int num_param, const Box& box);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };
