@@ -110,13 +110,13 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_para
   vp = vp / 100 * TIME_UNIT_CONVERSION;
 }
 
-void Ensemble_wall_harmonic::init()
+void Ensemble_wall_harmonic::init(Box& box, Atom& atom)
 {
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   wall_pos_left = 0;
   gpu_right_wall_list.resize(N, false);
   gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
-    N, box->cpu_h[0] - thickness, gpu_right_wall_list.data(), atom->position_per_atom.data());
+    N, box.cpu_h[0] - thickness, gpu_right_wall_list.data(), atom.position_per_atom.data());
 }
 
 Ensemble_wall_harmonic::~Ensemble_wall_harmonic(void) {}
@@ -124,11 +124,11 @@ Ensemble_wall_harmonic::~Ensemble_wall_harmonic(void) {}
 void Ensemble_wall_harmonic::initialize_before_first_step(
   const double,
   const std::vector<Group>&,
-  Box&,
-  Atom&,
+  Box& box,
+  Atom& atom,
   GPU_Vector<double>&)
 {
-  init();
+  init(box, atom);
 }
 
 void Ensemble_wall_harmonic::compute1(

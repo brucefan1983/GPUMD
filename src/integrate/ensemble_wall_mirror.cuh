@@ -48,7 +48,7 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo) override;
 
-  void init();
+  void init(Box& box, Atom& atom);
 
 protected:
   double mirror_pos_left;

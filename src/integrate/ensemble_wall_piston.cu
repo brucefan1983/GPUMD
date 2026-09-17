@@ -111,18 +111,18 @@ Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
   printf("The thickness of fixed wall: %f Ang.\n", thickness);
 }
 
-void Ensemble_wall_piston::init()
+void Ensemble_wall_piston::init(Box& box, Atom& atom)
 {
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   gpu_left_wall_list.resize(N, false);
   gpu_right_wall_list.resize(N, false);
   gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
     N,
     thickness,
-    box->cpu_h[0] - thickness,
+    box.cpu_h[0] - thickness,
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
-    atom->position_per_atom.data());
+    atom.position_per_atom.data());
 }
 
 Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
@@ -130,11 +130,11 @@ Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
 void Ensemble_wall_piston::initialize_before_first_step(
   const double,
   const std::vector<Group>&,
-  Box&,
-  Atom&,
+  Box& box,
+  Atom& atom,
   GPU_Vector<double>&)
 {
-  init();
+  init(box, atom);
 }
 
 void Ensemble_wall_piston::compute1(
