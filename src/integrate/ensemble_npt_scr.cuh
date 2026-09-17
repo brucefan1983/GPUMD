@@ -21,7 +21,6 @@ class Ensemble_NPT_SCR : public Ensemble
 {
 public:
   Ensemble_NPT_SCR(const char** param, int num_param, const Box& box);
-  ~Ensemble_NPT_SCR(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

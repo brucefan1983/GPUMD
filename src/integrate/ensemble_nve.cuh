@@ -20,7 +20,6 @@ class Ensemble_NVE : public Ensemble
 {
 public:
   explicit Ensemble_NVE(int num_param);
-  ~Ensemble_NVE(void) override;
 
   void compute1(
     const double time_step,

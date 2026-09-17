@@ -215,8 +215,6 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
         printf("    %s: p_start=%g, p_stop=%g, pperiod=%g\n", sc[a][b], p_start[a][b], p_stop[a][b], p_period[a][b]);
 }
 
-Ensemble_NPT_QTB::~Ensemble_NPT_QTB(void) {}
-
 /* PLACEHOLDER_INIT */
 
 void Ensemble_NPT_QTB::init_mttk()

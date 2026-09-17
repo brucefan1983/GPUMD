@@ -29,8 +29,6 @@ void matrix_scale(double a[3][3], double b, double c[3][3])
 }
 } // namespace
 
-Ensemble_NPHug::~Ensemble_NPHug(void) {}
-
 Ensemble_NPHug::Ensemble_NPHug(void) {}
 
 Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)

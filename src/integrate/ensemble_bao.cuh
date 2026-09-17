@@ -27,7 +27,6 @@ class Ensemble_BAO : public Ensemble
 public:
   Ensemble_BAO(const char** param, int num_param);
   Ensemble_BAO(EnsembleType, int, int, int, int, int, int, double, double, double);
-  ~Ensemble_BAO(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

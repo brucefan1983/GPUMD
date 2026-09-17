@@ -265,8 +265,6 @@ void Ensemble_Heat_Hybrid::initialize_run(
   }
 }
 
-Ensemble_Heat_Hybrid::~Ensemble_Heat_Hybrid(void) {}
-
 double Ensemble_Heat_Hybrid::target_temperature(int index) const
 {
   return temperature + ((index == 0) ? delta_temperature : -delta_temperature);

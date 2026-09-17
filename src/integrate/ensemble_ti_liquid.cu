@@ -420,16 +420,6 @@ void Ensemble_TI_Liquid::initialize_before_first_step(
   init(atom);
 }
 
-void Ensemble_TI_Liquid::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
-}
-
 bool Ensemble_TI_Liquid::find_lambda(const int number_of_atoms)
 {
   bool need_output = false;

@@ -160,11 +160,6 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
   gpu_vsum.resize(1);
 }
 
-Ensemble_MSST::~Ensemble_MSST(void)
-{
-  // nothing now
-}
-
 void Ensemble_MSST::find_thermo(
   const Box& box,
   const std::vector<Group>& group,

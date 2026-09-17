@@ -251,11 +251,6 @@ void Ensemble_QTB::init_qtb_common(
   GPU_CHECK_KERNEL
 }
 
-Ensemble_QTB::~Ensemble_QTB(void)
-{
-  // nothing
-}
-
 // PLACEHOLDER_FILTER
 
 void Ensemble_QTB::update_time_filter(const double target_temperature)

@@ -27,7 +27,6 @@ class Ensemble_LAN : public Ensemble
 public:
   Ensemble_LAN();
   Ensemble_LAN(const char** param, int num_param, const std::vector<Group>& group);
-  ~Ensemble_LAN(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

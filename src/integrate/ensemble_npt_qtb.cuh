@@ -28,7 +28,6 @@ class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
   Ensemble_NPT_QTB(const char** params, int num_params);
-  ~Ensemble_NPT_QTB(void) override;
 
   void compute1(
     const double time_step,

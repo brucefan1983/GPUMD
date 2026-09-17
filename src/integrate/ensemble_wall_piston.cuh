@@ -25,7 +25,6 @@ class Ensemble_wall_piston : public Ensemble
 {
 public:
   Ensemble_wall_piston(const char** params, int num_params);
-  ~Ensemble_wall_piston(void) override;
 
   void initialize_before_first_step(
     const double time_step,

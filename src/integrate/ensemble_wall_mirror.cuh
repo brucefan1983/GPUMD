@@ -25,7 +25,6 @@ class Ensemble_wall_mirror : public Ensemble
 {
 public:
   Ensemble_wall_mirror(const char** params, int num_params);
-  ~Ensemble_wall_mirror(void) override;
 
   void initialize_before_first_step(
     const double time_step,

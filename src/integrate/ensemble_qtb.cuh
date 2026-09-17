@@ -29,8 +29,6 @@ class Ensemble_QTB : public Ensemble
 public:
   Ensemble_QTB(const char** param, int num_param);
 
-  ~Ensemble_QTB(void) override;
-
   double get_temperature1() const;
   double get_temperature2() const;
 

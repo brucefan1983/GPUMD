@@ -182,26 +182,6 @@ void Ensemble_TI_AS::initialize_before_first_step(
   Ensemble_MTTK::initialize_before_first_step(time_step, group, box, atom, thermo);
 }
 
-void Ensemble_TI_AS::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
-}
-
-void Ensemble_TI_AS::compute2(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_MTTK::compute2(time_step, group, box, atoms, thermo);
-}
-
 void Ensemble_TI_AS::get_target_pressure()
 {
   bool need_output = false;

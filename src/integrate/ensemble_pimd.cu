@@ -416,11 +416,6 @@ void Ensemble_PIMD::update_eco_modes()
   }
 }
 
-Ensemble_PIMD::~Ensemble_PIMD(void)
-{
-  // nothing
-}
-
 static __global__ void gpu_nve_1(
   const int number_of_atoms,
   const int number_of_beads,

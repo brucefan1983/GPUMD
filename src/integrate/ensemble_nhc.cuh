@@ -20,7 +20,6 @@ class Ensemble_NHC : public Ensemble
 {
 public:
   Ensemble_NHC(const char** param, int num_param, const std::vector<Group>& group);
-  ~Ensemble_NHC(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

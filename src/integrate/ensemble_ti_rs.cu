@@ -229,16 +229,6 @@ void Ensemble_TI_RS::initialize_before_first_step(
   Ensemble_MTTK::initialize_before_first_step(time_step, group, box, atom, thermo);
 }
 
-void Ensemble_TI_RS::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
-}
-
 void Ensemble_TI_RS::compute2(
   const double time_step,
   const std::vector<Group>& group,

@@ -28,10 +28,7 @@ Ensemble::Ensemble(void)
   // nothing now
 }
 
-Ensemble::~Ensemble(void)
-{
-  // nothing now
-}
+Ensemble::~Ensemble(void) = default;
 
 void Ensemble::initialize_group_kinetic_energy_workspace(const int number_of_groups)
 {

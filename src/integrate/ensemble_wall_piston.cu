@@ -125,8 +125,6 @@ void Ensemble_wall_piston::init(Box& box, Atom& atom)
     atom.position_per_atom.data());
 }
 
-Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
-
 void Ensemble_wall_piston::initialize_before_first_step(
   const double,
   const std::vector<Group>&,

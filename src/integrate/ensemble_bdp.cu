@@ -172,11 +172,6 @@ void Ensemble_BDP::initialize_run(
   }
 }
 
-Ensemble_BDP::~Ensemble_BDP(void)
-{
-  // nothing now
-}
-
 void Ensemble_BDP::integrate_nvt_bdp_2(
   const double time_step,
   const double volume,

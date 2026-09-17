@@ -292,16 +292,6 @@ void Ensemble_TI_Spring::initialize_before_first_step(
   init(atom, thermo);
 }
 
-void Ensemble_TI_Spring::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
-}
-
 void Ensemble_TI_Spring::find_lambda(
   const Box& box,
   const std::vector<Group>& group,

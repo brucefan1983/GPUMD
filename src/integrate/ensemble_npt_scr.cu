@@ -202,11 +202,6 @@ void Ensemble_NPT_SCR::initialize_run(
   initialize_rng();
 }
 
-Ensemble_NPT_SCR::~Ensemble_NPT_SCR(void)
-{
-  // nothing now
-}
-
 static void cpu_pressure_orthogonal(
   std::mt19937& rng,
   int deform_x,

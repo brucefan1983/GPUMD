@@ -35,11 +35,6 @@ void Ensemble_NVE::parse(int num_param)
   printf("Use NVE ensemble for this run.\n");
 }
 
-Ensemble_NVE::~Ensemble_NVE(void)
-{
-  // nothing now
-}
-
 void Ensemble_NVE::compute1(
   const double time_step,
   const std::vector<Group>& group,

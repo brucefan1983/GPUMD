@@ -265,11 +265,6 @@ void Ensemble_LAN::initialize_run(
   initialize_group_kinetic_energy_workspace(2 * group[0].number);
 }
 
-Ensemble_LAN::~Ensemble_LAN(void)
-{
-  // nothing
-}
-
 // wrapper of the global Langevin thermostatting kernels
 void Ensemble_LAN::integrate_nvt_lan_half(
   const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom)

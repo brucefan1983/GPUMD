@@ -23,7 +23,6 @@ class Ensemble_MSST : public Ensemble
 {
 public:
   Ensemble_MSST(const char** params, int num_params);
-  ~Ensemble_MSST(void) override;
 
   void initialize_before_first_step(
     const double time_step,

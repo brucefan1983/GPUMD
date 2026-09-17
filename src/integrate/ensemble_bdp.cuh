@@ -21,7 +21,6 @@ class Ensemble_BDP : public Ensemble
 {
 public:
   Ensemble_BDP(const char** param, int num_param, const std::vector<Group>& group);
-  ~Ensemble_BDP(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

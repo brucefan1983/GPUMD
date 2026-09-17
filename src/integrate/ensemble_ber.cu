@@ -223,11 +223,6 @@ int Ensemble_BER::get_num_target_pressure_components() const
   return num_target_pressure_components;
 }
 
-Ensemble_BER::~Ensemble_BER(void)
-{
-  // nothing now
-}
-
 static __global__ void gpu_berendsen_temperature(
   int N,
   double temperature,

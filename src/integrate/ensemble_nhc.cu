@@ -229,11 +229,6 @@ void Ensemble_NHC::initialize_run(
   initialize_group_com_velocity_workspace(group[0].number);
 }
 
-Ensemble_NHC::~Ensemble_NHC(void)
-{
-  // nothing now
-}
-
 // The Nose-Hover thermostat integrator
 // Run it on the CPU, which requires copying the kinetic energy
 // from the GPU to the CPU

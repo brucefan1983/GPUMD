@@ -37,13 +37,6 @@ public:
     Atom& atom,
     GPU_Vector<double>& thermo) override;
 
-  void compute1(
-    const double time_step,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atoms,
-    GPU_Vector<double>& thermo) override;
-
   void compute2(
     const double time_step,
     const std::vector<Group>& group,

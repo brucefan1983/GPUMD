@@ -110,8 +110,6 @@ void Ensemble_wall_mirror::init(Box& box, Atom& atom)
     N, box.cpu_h[0] - thickness, gpu_right_wall_list.data(), atom.position_per_atom.data());
 }
 
-Ensemble_wall_mirror::~Ensemble_wall_mirror(void) {}
-
 void Ensemble_wall_mirror::initialize_before_first_step(
   const double,
   const std::vector<Group>&,

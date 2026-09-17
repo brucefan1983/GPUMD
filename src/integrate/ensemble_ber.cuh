@@ -20,7 +20,6 @@ class Ensemble_BER : public Ensemble
 {
 public:
   Ensemble_BER(const char** param, int num_param, const Box& box);
-  ~Ensemble_BER(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;

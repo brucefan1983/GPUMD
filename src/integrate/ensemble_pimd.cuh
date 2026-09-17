@@ -29,8 +29,6 @@ class Ensemble_PIMD : public Ensemble
 public:
   Ensemble_PIMD(const char** param, int num_param, const Box& box);
 
-  ~Ensemble_PIMD(void) override;
-
   void initialize_run(
     const double time_step,
     Atom& atom,

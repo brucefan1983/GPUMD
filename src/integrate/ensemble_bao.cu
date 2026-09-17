@@ -136,11 +136,6 @@ Ensemble_BAO::Ensemble_BAO(
   energy_transferred[1] = 0.0;
 }
 
-Ensemble_BAO::~Ensemble_BAO(void)
-{
-  // nothing
-}
-
 // wrapper of the global Langevin thermostatting kernels
 void Ensemble_BAO::integrate_nvt_lan(
   const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom)

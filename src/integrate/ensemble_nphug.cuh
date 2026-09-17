@@ -21,7 +21,6 @@ class Ensemble_NPHug : public Ensemble_MTTK
 public:
   Ensemble_NPHug(const char** params, int num_params);
   Ensemble_NPHug(void);
-  ~Ensemble_NPHug(void) override;
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;
   bool p0_given = false;
