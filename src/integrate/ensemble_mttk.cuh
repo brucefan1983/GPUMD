@@ -26,6 +26,12 @@ public:
   Ensemble_MTTK(void);
   ~Ensemble_MTTK(void) override;
 
+  void initialize_run(
+    const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
   void initialize_before_first_step(
     const double time_step,
     const int number_of_steps,

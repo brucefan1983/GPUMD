@@ -195,7 +195,7 @@ void Ensemble_MSST::init(
                       "perpendicular to the plane.\n");
 
   N = atom.number_of_atoms;
-  dthalf = time_step / 2;
+  dthalf = initial_time_step / 2;
   thermo_cpu.resize(thermo.size());
   gpu_v_backup.resize(atom.cpu_velocity_per_atom.size());
   find_thermo(box, group, atom, thermo);
@@ -294,6 +294,15 @@ void Ensemble_MSST::msst_v(Atom& atom)
     dthalf);
 }
 
+void Ensemble_MSST::initialize_run(
+  const double time_step,
+  Atom&,
+  Box&,
+  const std::vector<Group>&)
+{
+  initial_time_step = time_step;
+}
+
 void Ensemble_MSST::initialize_before_first_step(
   const double,
   const int,
@@ -344,7 +353,7 @@ void Ensemble_MSST::compute1(
   // rescale positions and change box size
   remap(vol1 / vol, box, atom);
 
-  velocity_verlet_x(this->time_step, group, atom);
+  velocity_verlet_x(initial_time_step, group, atom);
 
   // propagate the volume 1/2 step
   double vol2 = vol1 + omega * dthalf;

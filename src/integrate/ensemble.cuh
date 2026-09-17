@@ -135,8 +135,6 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
-  double time_step;
-
   EnsembleType type = EnsembleType::UNKNOWN;
   int source;
   int sink;

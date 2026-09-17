@@ -89,7 +89,6 @@ void Integrate::initialize(
   }
 
   Ensemble& ensemble = get_ensemble();
-  ensemble.time_step = time_step;
   ensemble.fixed_group = fixed_group;
   ensemble.fixed_grouping_method = fixed_grouping_method;
   ensemble.move_grouping_method = move_grouping_method;

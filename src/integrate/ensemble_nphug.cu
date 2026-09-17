@@ -179,7 +179,6 @@ void Ensemble_NPHug::init_mttk(
   // set tstat params
   // Here I neglect center of mass dof.
   temperature_dof = atom.number_of_atoms * 3;
-  dt = time_step;
   dt2 = dt / 2;
   dt4 = dt / 4;
   dt8 = dt / 8;

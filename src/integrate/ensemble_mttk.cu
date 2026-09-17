@@ -302,6 +302,15 @@ Ensemble_MTTK::~Ensemble_MTTK(void)
   delete[] eta_p_dotdot;
 }
 
+void Ensemble_MTTK::initialize_run(
+  const double time_step,
+  Atom&,
+  Box&,
+  const std::vector<Group>&)
+{
+  dt = time_step;
+}
+
 void Ensemble_MTTK::init_mttk(
   const std::vector<Group>& group,
   const Box& box,
@@ -315,7 +324,6 @@ void Ensemble_MTTK::init_mttk(
   // set tstat params
   // Here I neglect center of mass dof.
   temperature_dof = atom.number_of_atoms * 3;
-  dt = time_step;
   dt2 = dt / 2;
   dt4 = dt / 4;
   dt8 = dt / 8;
@@ -885,7 +893,7 @@ void Ensemble_MTTK::nh_v_press(Atom& atom)
   int n = atom.number_of_atoms;
   gpu_nh_v_press<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    time_step,
+    dt,
     atom.velocity_per_atom.data(),
     atom.velocity_per_atom.data() + n,
     atom.velocity_per_atom.data() + 2 * n,
@@ -935,12 +943,12 @@ void Ensemble_MTTK::compute1(
     nh_v_press(atom);
   }
 
-  velocity_verlet_v(this->time_step, group, atom);
+  velocity_verlet_v(dt, group, atom);
 
   if (use_barostat)
     propagate_box(box, atom);
 
-  velocity_verlet_x(this->time_step, group, atom);
+  velocity_verlet_x(dt, group, atom);
 
   if (use_barostat)
     propagate_box(box, atom);
@@ -956,7 +964,7 @@ void Ensemble_MTTK::compute2(
   GPU_Vector<double>& thermo,
   Force& force)
 {
-  velocity_verlet_v(this->time_step, group, atom);
+  velocity_verlet_v(dt, group, atom);
 
   if (use_barostat) {
     get_h_matrix_from_box(box);

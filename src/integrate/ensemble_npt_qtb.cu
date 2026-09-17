@@ -232,7 +232,7 @@ void Ensemble_NPT_QTB::init_mttk(
 void Ensemble_NPT_QTB::init_qtb(const Atom& atom)
 {
   qtb_number_of_atoms = atom.number_of_atoms;
-  qtb_dt = time_step;
+  qtb_dt = dt;
   qtb_nfreq2 = 2 * qtb_N_f;
 
   qtb_f_max_natural = qtb_f_max * TIME_UNIT_CONVERSION / 1000.0;
@@ -380,13 +380,13 @@ void Ensemble_NPT_QTB::compute1(
   nh_v_press(atom);
 
   // 4. Velocity Verlet half-step (velocity)
-  velocity_verlet_v(this->time_step, group, atom);
+  velocity_verlet_v(dt, group, atom);
 
   // 5. Propagate box
   propagate_box(box, atom);
 
   // 6. Velocity Verlet (position)
-  velocity_verlet_x(this->time_step, group, atom);
+  velocity_verlet_x(dt, group, atom);
 
   // 7. Propagate box again
   propagate_box(box, atom);
@@ -403,7 +403,7 @@ void Ensemble_NPT_QTB::compute2(
   Force& force)
 {
   // 1. Velocity Verlet half-step (velocity)
-  velocity_verlet_v(this->time_step, group, atom);
+  velocity_verlet_v(dt, group, atom);
 
   // 2. Barostat: scale velocities and update omega_dot
   get_h_matrix_from_box(box);

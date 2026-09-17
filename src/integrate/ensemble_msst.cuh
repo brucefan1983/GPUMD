@@ -24,6 +24,12 @@ class Ensemble_MSST : public Ensemble
 public:
   Ensemble_MSST(const char** params, int num_params);
 
+  void initialize_run(
+    const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
   void initialize_before_first_step(
     const double time_step,
     const int number_of_steps,
@@ -73,6 +79,7 @@ public:
 
   int N;
   int shock_direction;
+  double initial_time_step;
   double dthalf;
   double vs;
   double qmass;
