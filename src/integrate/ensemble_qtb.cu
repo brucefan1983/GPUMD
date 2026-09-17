@@ -251,8 +251,6 @@ void Ensemble_QTB::init_qtb_common(
   GPU_CHECK_KERNEL
 }
 
-// PLACEHOLDER_FILTER
-
 void Ensemble_QTB::update_time_filter(const double target_temperature)
 {
   if (fabs(target_temperature - last_filter_temperature) < 1.0e-12) {

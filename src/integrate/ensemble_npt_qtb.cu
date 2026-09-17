@@ -27,8 +27,6 @@ Equivalent to LAMMPS fix nph + fix qtb.
 #include <cmath>
 #include <cstring>
 
-/* PLACEHOLDER_KERNELS */
-
 namespace
 {
 static __global__ void gpu_initialize_qtb_history(
@@ -93,8 +91,6 @@ static __global__ void gpu_apply_qtb_half_step(
   }
 }
 } // namespace
-
-/* PLACEHOLDER_CONSTRUCTOR */
 
 Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
 {
@@ -202,8 +198,6 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
       if (p_flag[a][b])
         printf("    %s: p_start=%g, p_stop=%g, pperiod=%g\n", sc[a][b], p_start[a][b], p_stop[a][b], p_period[a][b]);
 }
-
-/* PLACEHOLDER_INIT */
 
 void Ensemble_NPT_QTB::init_mttk(
   const std::vector<Group>& group,
@@ -334,8 +328,6 @@ void Ensemble_NPT_QTB::qtb_apply_half_step(Atom& atom)
     atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 }
-
-/* PLACEHOLDER_COMPUTE */
 
 // Integration scheme:
 // compute1: press_chain -> QTB_half_kick -> barostat_v -> verlet_v -> box -> verlet_x -> box
