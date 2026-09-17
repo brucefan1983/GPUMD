@@ -165,7 +165,8 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
   printf("    final lambda value is %f.\n", lambda_f);
 }
 
-void Ensemble_TI_RS::init(const int number_of_steps)
+void Ensemble_TI_RS::init(
+  const int number_of_steps, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
@@ -176,22 +177,26 @@ void Ensemble_TI_RS::init(const int number_of_steps)
     "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
     t_switch,
     t_equil);
-  thermo_cpu.resize(thermo->size());
+  thermo_cpu.resize(thermo.size());
   output_file = my_fopen("ti_rs.csv", "w");
   fprintf(output_file, "lambda,dlambda,enthalpy\n");
 }
 
-void Ensemble_TI_RS::find_thermo()
+void Ensemble_TI_RS::find_ti_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   pe = thermo_cpu[1];
 }
 
@@ -201,21 +206,21 @@ Ensemble_TI_RS::~Ensemble_TI_RS(void)
   fclose(output_file);
 }
 
-void Ensemble_TI_RS::scale_force()
+void Ensemble_TI_RS::scale_force(Atom& atom)
 {
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   gpu_scale_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
     lambda,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + N,
-    atom->force_per_atom.data() + 2 * N,
-    atom->virial_per_atom.data(),
-    atom->virial_per_atom.data() + N,
-    atom->virial_per_atom.data() + N * 2,
-    atom->virial_per_atom.data() + N * 3,
-    atom->virial_per_atom.data() + N * 4,
-    atom->virial_per_atom.data() + N * 5);
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + N,
+    atom.force_per_atom.data() + 2 * N,
+    atom.virial_per_atom.data(),
+    atom.virial_per_atom.data() + N,
+    atom.virial_per_atom.data() + N * 2,
+    atom.virial_per_atom.data() + N * 3,
+    atom.virial_per_atom.data() + N * 4,
+    atom.virial_per_atom.data() + N * 5);
 }
 
 void Ensemble_TI_RS::initialize_before_first_step(
@@ -226,7 +231,7 @@ void Ensemble_TI_RS::initialize_before_first_step(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  init(number_of_steps);
+  init(number_of_steps, thermo);
   Ensemble_MTTK::initialize_before_first_step(
     time_step, number_of_steps, group, box, atom, thermo);
 }
@@ -241,14 +246,19 @@ void Ensemble_TI_RS::compute2(
   GPU_Vector<double>& thermo,
   Force& force)
 {
-  find_lambda(step);
-  scale_force();
+  find_lambda(step, box, group, atoms, thermo);
+  scale_force(atoms);
 
   Ensemble_MTTK::compute2(
     time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }
 
-void Ensemble_TI_RS::find_lambda(const int step)
+void Ensemble_TI_RS::find_lambda(
+  const int step,
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   bool need_output = false;
   const double t = step - t_equil;
@@ -265,24 +275,30 @@ void Ensemble_TI_RS::find_lambda(const int step)
   }
 
   if (need_output) {
-    find_thermo();
+    find_ti_thermo(box, group, atom, thermo);
     fprintf(
       output_file,
       "%e,%e,%e\n",
       lambda,
       dlambda,
-      (pe + p_start[0][0] * box->get_volume()) / atom->number_of_atoms);
+      (pe + p_start[0][0] * box.get_volume()) / atom.number_of_atoms);
   }
 }
 
-void Ensemble_TI_RS::get_target_pressure(const int step, const int number_of_steps)
+void Ensemble_TI_RS::get_target_pressure(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   for (int ii = 0; ii < 3; ii++) {
     p_target[ii][ii] = p_start[ii][ii] * lambda;
   }
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma(step);
+    get_sigma(step, box);
 }
 
 double Ensemble_TI_RS::switch_func(double t) { return 1 / (1 + t * (1 / lambda_f - 1)); }

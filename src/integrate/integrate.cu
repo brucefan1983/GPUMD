@@ -89,11 +89,7 @@ void Integrate::initialize(
   }
 
   Ensemble& ensemble = get_ensemble();
-  ensemble.atom = &atom;
-  ensemble.box = &box;
-  ensemble.group = &group;
   ensemble.time_step = time_step;
-  ensemble.thermo = &thermo;
   ensemble.fixed_group = fixed_group;
   ensemble.fixed_grouping_method = fixed_grouping_method;
   ensemble.move_grouping_method = move_grouping_method;

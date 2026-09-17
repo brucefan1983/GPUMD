@@ -136,10 +136,6 @@ public:
     GPU_Vector<double>& thermo);
 
   double time_step;
-  const std::vector<Group>* group;
-  Box* box;
-  Atom* atom;
-  GPU_Vector<double>* thermo;
 
   EnsembleType type = EnsembleType::UNKNOWN;
   int source;

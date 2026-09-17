@@ -135,7 +135,8 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
   p_max /= PRESSURE_UNIT_CONVERSION;
 }
 
-void Ensemble_TI_AS::init(const int number_of_steps)
+void Ensemble_TI_AS::init(
+  const int number_of_steps, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
@@ -146,22 +147,26 @@ void Ensemble_TI_AS::init(const int number_of_steps)
     "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
     t_switch,
     t_equil);
-  thermo_cpu.resize(thermo->size());
+  thermo_cpu.resize(thermo.size());
   output_file = my_fopen("ti_as.csv", "w");
   fprintf(output_file, "p,V\n");
 }
 
-void Ensemble_TI_AS::find_thermo()
+void Ensemble_TI_AS::find_ti_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
@@ -179,12 +184,18 @@ void Ensemble_TI_AS::initialize_before_first_step(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  init(number_of_steps);
+  init(number_of_steps, thermo);
   Ensemble_MTTK::initialize_before_first_step(
     time_step, number_of_steps, group, box, atom, thermo);
 }
 
-void Ensemble_TI_AS::get_target_pressure(const int step, const int number_of_steps)
+void Ensemble_TI_AS::get_target_pressure(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   bool need_output = false;
   const int t = step;
@@ -206,10 +217,10 @@ void Ensemble_TI_AS::get_target_pressure(const int step, const int number_of_ste
 
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma(step);
+    get_sigma(step, box);
 
   if (need_output) {
-    find_thermo();
-    fprintf(output_file, "%e,%e\n", pp, box->get_volume() / atom->number_of_atoms);
+    find_ti_thermo(box, group, atom, thermo);
+    fprintf(output_file, "%e,%e\n", pp, box.get_volume() / atom.number_of_atoms);
   }
 }

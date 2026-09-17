@@ -217,17 +217,21 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
 
 /* PLACEHOLDER_INIT */
 
-void Ensemble_NPT_QTB::init_mttk()
+void Ensemble_NPT_QTB::init_mttk(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   // Call parent init for barostat setup
-  Ensemble_MTTK::init_mttk();
+  Ensemble_MTTK::init_mttk(group, box, atom, thermo);
   // Then initialize QTB
-  init_qtb();
+  init_qtb(atom);
 }
 
-void Ensemble_NPT_QTB::init_qtb()
+void Ensemble_NPT_QTB::init_qtb(const Atom& atom)
 {
-  qtb_number_of_atoms = atom->number_of_atoms;
+  qtb_number_of_atoms = atom.number_of_atoms;
   qtb_dt = time_step;
   qtb_nfreq2 = 2 * qtb_N_f;
 
@@ -260,7 +264,13 @@ void Ensemble_NPT_QTB::init_qtb()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPT_QTB::get_target_temp(const int step, const int number_of_steps)
+void Ensemble_NPT_QTB::get_target_temp(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   t_target = t_start + (t_stop - t_start) * get_delta(step, number_of_steps);
 }
@@ -298,42 +308,42 @@ void Ensemble_NPT_QTB::qtb_update_time_filter(const double target_temperature)
   qtb_last_filter_temperature = target_temperature;
 }
 
-void Ensemble_NPT_QTB::qtb_refresh_colored_random_force()
+void Ensemble_NPT_QTB::qtb_refresh_colored_random_force(const Atom& atom)
 {
   const double g3p = sqrt(2.0 * qtb_fric_coef * 12.0 / qtb_h_timestep);
   gpu_refresh_qtb_random_force<<<(qtb_number_of_atoms - 1) / 128 + 1, 128>>>(
     qtb_curand_states.data(), qtb_number_of_atoms, qtb_nfreq2,
-    qtb_time_H_device.data(), g3p, atom->mass.data(),
+    qtb_time_H_device.data(), g3p, atom.mass.data(),
     qtb_random_array_0.data(), qtb_random_array_1.data(), qtb_random_array_2.data(),
     qtb_fran.data(), qtb_fran.data() + qtb_number_of_atoms,
     qtb_fran.data() + qtb_number_of_atoms * 2);
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPT_QTB::qtb_apply_half_step()
+void Ensemble_NPT_QTB::qtb_apply_half_step(Atom& atom)
 {
   const int N = qtb_number_of_atoms;
   const double dt_half = 0.5 * qtb_dt;
 
   gpu_apply_qtb_half_step<<<(N - 1) / 128 + 1, 128>>>(
-    N, dt_half, qtb_fric_coef, atom->mass.data(),
+    N, dt_half, qtb_fric_coef, atom.mass.data(),
     qtb_fran.data(), qtb_fran.data() + N, qtb_fran.data() + 2 * N,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
-    N, atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    N, atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 
   gpu_correct_momentum<<<(N - 1) / 128 + 1, 128>>>(
-    N, atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    N, atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 }
 
@@ -353,33 +363,33 @@ void Ensemble_NPT_QTB::compute1(
   GPU_Vector<double>& thermo)
 {
   // 1. Pressure chain thermostat (for barostat DOF)
-  nhc_press_integrate();
+  nhc_press_integrate(atom);
 
   // 2. QTB thermostat half-kick (replaces nhc_temp_integrate)
-  get_target_temp(step, number_of_steps);
+  get_target_temp(step, number_of_steps, group, box, atom, thermo);
   if (qtb_counter_mu == 0) {
     qtb_update_time_filter(t_target);
-    qtb_refresh_colored_random_force();
+    qtb_refresh_colored_random_force(atom);
   }
-  qtb_apply_half_step();
+  qtb_apply_half_step(atom);
 
   // 3. Barostat: update omega_dot and scale velocities
-  get_h_matrix_from_box();
-  get_target_pressure(step, number_of_steps);
-  nh_omega_dot();
-  nh_v_press();
+  get_h_matrix_from_box(box);
+  get_target_pressure(step, number_of_steps, group, box, atom, thermo);
+  nh_omega_dot(group, box, atom, thermo);
+  nh_v_press(atom);
 
   // 4. Velocity Verlet half-step (velocity)
   velocity_verlet_v(this->time_step, group, atom);
 
   // 5. Propagate box
-  propagate_box();
+  propagate_box(box, atom);
 
   // 6. Velocity Verlet (position)
   velocity_verlet_x(this->time_step, group, atom);
 
   // 7. Propagate box again
-  propagate_box();
+  propagate_box(box, atom);
 }
 
 void Ensemble_NPT_QTB::compute2(
@@ -396,18 +406,18 @@ void Ensemble_NPT_QTB::compute2(
   velocity_verlet_v(this->time_step, group, atom);
 
   // 2. Barostat: scale velocities and update omega_dot
-  get_h_matrix_from_box();
-  nh_v_press();
-  nh_omega_dot();
+  get_h_matrix_from_box(box);
+  nh_v_press(atom);
+  nh_omega_dot(group, box, atom, thermo);
 
   // 3. QTB thermostat half-kick (replaces nhc_temp_integrate)
-  qtb_apply_half_step();
+  qtb_apply_half_step(atom);
 
   // 4. Pressure chain thermostat
-  nhc_press_integrate();
+  nhc_press_integrate(atom);
 
   // 5. Compute thermodynamic quantities
-  find_thermo();
+  find_thermo(group, box, atom, thermo);
 
   // 6. Update QTB counter
   qtb_counter_mu = (qtb_counter_mu + 1) % qtb_alpha;

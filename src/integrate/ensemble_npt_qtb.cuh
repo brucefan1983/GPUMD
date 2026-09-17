@@ -70,12 +70,22 @@ private:
   GPU_Vector<double> qtb_fran;
   GPU_Vector<gpurandState> qtb_curand_states;
 
-  void init_qtb();
+  void init_qtb(const Atom& atom);
   void qtb_update_time_filter(const double target_temperature);
-  void qtb_refresh_colored_random_force();
-  void qtb_apply_half_step();
+  void qtb_refresh_colored_random_force(const Atom& atom);
+  void qtb_apply_half_step(Atom& atom);
 
 protected:
-  void init_mttk() override;
-  void get_target_temp(const int step, const int number_of_steps) override;
+  void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 };

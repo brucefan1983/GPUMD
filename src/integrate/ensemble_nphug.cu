@@ -167,14 +167,18 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
   }
 }
 
-void Ensemble_NPHug::init_mttk()
+void Ensemble_NPHug::init_mttk(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
   matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
   // set tstat params
   // Here I neglect center of mass dof.
-  temperature_dof = atom->number_of_atoms * 3;
+  temperature_dof = atom.number_of_atoms * 3;
   dt = time_step;
   dt2 = dt / 2;
   dt4 = dt / 4;
@@ -196,7 +200,7 @@ void Ensemble_NPHug::init_mttk()
 
   eta_dot[tchain] = eta_p_dot[pchain] = 0;
 
-  t_for_barostat = find_current_temperature();
+  t_for_barostat = find_current_temperature(group, box, atom, thermo);
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -205,13 +209,13 @@ void Ensemble_NPHug::init_mttk()
         if (p_freq_max < p_freq[i][j])
           p_freq_max = p_freq[i][j];
         omega_mass[i][j] =
-          (atom->number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
+          (atom.number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
       }
     }
   }
 
   // get initial thermo info
-  get_thermo();
+  get_thermo(group, box, atom, thermo);
   if (!v0_given)
     v0 = v_current;
   if (!e0_given)
@@ -221,13 +225,17 @@ void Ensemble_NPHug::init_mttk()
   printf("    NPHug V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 }
 
-void Ensemble_NPHug::get_thermo()
+void Ensemble_NPHug::get_thermo(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  find_thermo();
-  thermo->copy_to_host(thermo_info, 8);
-  v_current = box->get_volume();
+  find_thermo(group, box, atom, thermo);
+  thermo.copy_to_host(thermo_info, 8);
+  v_current = box.get_volume();
   t_current = thermo_info[0];
-  e_current = thermo_info[1] + 1.5 * atom->number_of_atoms * kB * t_current;
+  e_current = thermo_info[1] + 1.5 * atom.number_of_atoms * kB * t_current;
   p_current[0][0] = thermo_info[2];
   p_current[1][1] = thermo_info[3];
   p_current[2][2] = thermo_info[4];
@@ -242,13 +250,19 @@ void Ensemble_NPHug::get_thermo()
     p_nphug_current = (p_current[0][0] + p_current[1][1] + p_current[2][2]) / 3.0;
 }
 
-void Ensemble_NPHug::get_target_temp(const int step, const int number_of_steps)
+void Ensemble_NPHug::get_target_temp(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  get_thermo();
+  get_thermo(group, box, atom, thermo);
   t_current_from_thermo = true;
   // calculate hugoniot
   dhugo = (0.5 * (p_nphug_current + p0) * (v0 - v_current)) + e0 - e_current;
-  dhugo /= 3 * atom->number_of_atoms * kB;
+  dhugo /= 3 * atom.number_of_atoms * kB;
   int output_interval = number_of_steps / 10;
   if (output_interval < 1)
     output_interval = 1;

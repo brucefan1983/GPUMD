@@ -45,13 +45,28 @@ public:
     GPU_Vector<double>& thermo,
     Force& force) override;
 
-  void init(const int number_of_steps);
-  void find_thermo();
-  void scale_force();
-  void find_lambda(const int step);
+  void init(const int number_of_steps, const GPU_Vector<double>& thermo);
+  void find_ti_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void scale_force(Atom& atom);
+  void find_lambda(
+    const int step,
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
   double switch_func(double t);
   double dswitch_func(double t);
-  void get_target_pressure(const int step, const int number_of_steps) override;
+  void get_target_pressure(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 
 protected:
   FILE* output_file;

@@ -56,26 +56,62 @@ public:
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
-  virtual void init_mttk();
-  void nhc_temp_integrate();
-  void nhc_press_integrate();
-  virtual void get_target_temp(const int step, const int number_of_steps);
-  virtual void get_target_pressure(const int step, const int number_of_steps);
+  virtual void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void nhc_temp_integrate(
+    const std::vector<Group>& group,
+    const Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
+  void nhc_press_integrate(const Atom& atom);
+  virtual void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  virtual void get_target_pressure(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
   double get_delta(const int step, const int number_of_steps);
-  void get_sigma(const int step);
-  double find_current_temperature();
-  void find_current_pressure();
-  void find_thermo();
-  void get_h_matrix_from_box();
-  void copy_h_matrix_to_box();
+  void get_sigma(const int step, const Box& box);
+  double find_current_temperature(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_current_pressure(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_thermo(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void get_h_matrix_from_box(Box& box);
+  void copy_h_matrix_to_box(Box& box);
   void get_p_hydro();
   void get_deviatoric();
-  void nh_omega_dot();
-  void propagate_box();
+  void nh_omega_dot(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void propagate_box(Box& box, Atom& atom);
   void propagate_box_off_diagonal();
   void propagate_box_diagonal();
-  void scale_positions();
-  void nh_v_press();
+  void scale_positions(Atom& atom);
+  void nh_v_press(Atom& atom);
   void couple();
 
   enum { NVT, NPT, NPH };
