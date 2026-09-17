@@ -19,18 +19,6 @@
 
 Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 {
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
-          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
-            p_flag[i][j] = h_ref_inv[i][j] = 0;
-      p_period[i][j] = 1000;
-      // TODO: if non-periodic...?
-      need_scale[i][j] = true;
-    }
-  }
-
   ensemble_type = NPT;
   int i = 2;
   while (i < num_params) {
@@ -135,68 +123,85 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
   p_max /= PRESSURE_UNIT_CONVERSION;
 }
 
-void Ensemble_TI_AS::init()
+void Ensemble_TI_AS::init(
+  const int number_of_steps, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
-    t_switch = (int)(*total_steps * 0.4);
-    t_equil = (int)(*total_steps * 0.1);
+    t_switch = (int)(number_of_steps * 0.4);
+    t_equil = (int)(number_of_steps * 0.1);
   } else
     printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
   printf(
     "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
     t_switch,
     t_equil);
-  thermo_cpu.resize(thermo->size());
+  thermo_cpu.resize(thermo.size());
   output_file = my_fopen("ti_as.csv", "w");
   fprintf(output_file, "p,V\n");
 }
 
-void Ensemble_TI_AS::find_thermo()
+void Ensemble_TI_AS::find_ti_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
 Ensemble_TI_AS::~Ensemble_TI_AS(void)
 {
-  printf("Closing ti_as output file...\n");
-  fclose(output_file);
+  close_output_file(false);
 }
 
-void Ensemble_TI_AS::compute1(
+void Ensemble_TI_AS::finalize_run(const Atom&, const Box&)
+{
+  close_output_file(true);
+}
+
+void Ensemble_TI_AS::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing ti_as output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
+}
+
+void Ensemble_TI_AS::initialize_before_first_step(
   const double time_step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
-  Atom& atoms,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
-  Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
+  init(number_of_steps, thermo);
+  Ensemble_MTTK::initialize_before_first_step(
+    time_step, number_of_steps, group, box, atom, thermo);
 }
 
-void Ensemble_TI_AS::compute2(
-  const double time_step,
+void Ensemble_TI_AS::get_target_pressure(
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
+  const Box& box,
+  const Atom& atom,
   GPU_Vector<double>& thermo)
-{
-  Ensemble_MTTK::compute2(time_step, group, box, atoms, thermo);
-}
-
-void Ensemble_TI_AS::get_target_pressure()
 {
   bool need_output = false;
-  const int t = *current_step;
+  const int t = step;
   const double r_switch = 1.0 / (t_switch - 1);
   double pp;
   double delta_p = p_max - p_min;
@@ -215,10 +220,10 @@ void Ensemble_TI_AS::get_target_pressure()
 
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma();
+    get_sigma(step, box);
 
   if (need_output) {
-    find_thermo();
-    fprintf(output_file, "%e,%e\n", pp, box->get_volume() / atom->number_of_atoms);
+    find_ti_thermo(box, group, atom, thermo);
+    fprintf(output_file, "%e,%e\n", pp, box.get_volume() / atom.number_of_atoms);
   }
 }

@@ -934,6 +934,11 @@ Ensemble_TTM::~Ensemble_TTM(void)
   close_electron_temperature_file();
 }
 
+void Ensemble_TTM::finalize_run(const Atom&, const Box&)
+{
+  close_electron_temperature_file();
+}
+
 void Ensemble_TTM::integrate_heat_lan_half(
   const std::vector<Group>& group,
   const GPU_Vector<double>& mass,
@@ -1089,7 +1094,7 @@ void Ensemble_TTM::accumulate_ttm_power(
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_TTM::update_electron_temperature(const double time_step)
+void Ensemble_TTM::update_electron_temperature(const double time_step, const int step)
 {
   double dt_fs = time_step * TIME_UNIT_CONVERSION;
   double del_vol = dx * dy * dz;
@@ -1204,14 +1209,16 @@ void Ensemble_TTM::update_electron_temperature(const double time_step)
   }
 
   gpu_T_electron.copy_from_host(T_electron.data());
-  const int step = *current_step + 1;
-  if (step % electron_temperature_output_interval == 0) {
-    write_electron_temperature_snapshot(step);
+  const int output_step = step + 1;
+  if (output_step % electron_temperature_output_interval == 0) {
+    write_electron_temperature_snapshot(output_step);
   }
 }
 
 void Ensemble_TTM::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -1237,10 +1244,13 @@ void Ensemble_TTM::compute1(
 
 void Ensemble_TTM::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   update_box_geometry(box);
 
@@ -1263,7 +1273,7 @@ void Ensemble_TTM::compute2(
 
   accumulate_ttm_power(group, atom.velocity_per_atom);
 
-  update_electron_temperature(time_step);
+  update_electron_temperature(time_step, step);
 
   find_thermo(
     box.get_volume(),

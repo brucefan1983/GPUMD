@@ -25,23 +25,35 @@ class Ensemble_wall_piston : public Ensemble
 {
 public:
   Ensemble_wall_piston(const char** params, int num_params);
-  virtual ~Ensemble_wall_piston(void);
 
-  virtual void compute1(
+  void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
-  void init();
+  void init(Box& box, Atom& atom);
 
 protected:
   double thickness = 20;

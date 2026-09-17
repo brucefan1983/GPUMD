@@ -21,28 +21,32 @@ class Ensemble_NPT_SCR : public Ensemble
 {
 public:
   Ensemble_NPT_SCR(const char** param, int num_param, const Box& box);
-  virtual ~Ensemble_NPT_SCR(void);
 
   double get_temperature1() const;
   double get_temperature2() const;
   int get_num_target_pressure_components() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   std::mt19937 rng;

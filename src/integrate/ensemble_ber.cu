@@ -223,11 +223,6 @@ int Ensemble_BER::get_num_target_pressure_components() const
   return num_target_pressure_components;
 }
 
-Ensemble_BER::~Ensemble_BER(void)
-{
-  // nothing now
-}
-
 static __global__ void gpu_berendsen_temperature(
   int N,
   double temperature,
@@ -406,6 +401,8 @@ static void cpu_pressure_triclinic(
 
 void Ensemble_BER::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -423,10 +420,13 @@ void Ensemble_BER::compute1(
 
 void Ensemble_BER::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   const int number_of_atoms = atom.mass.size();
 

@@ -195,7 +195,7 @@ void Run::execute_run_in()
     }
   }
 
-  if (integrate.type != EnsembleType::UNKNOWN) {
+  if (integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("The last ensemble is not followed by a run.");
   }
 
@@ -239,7 +239,7 @@ void Run::compute_force()
 
 void Run::perform_a_run()
 {
-  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
+  integrate.initialize(time_step, atom, box, group);
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
@@ -259,8 +259,7 @@ void Run::perform_a_run()
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
-    integrate.current_step = step;
-    integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    integrate.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
 
     measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
 
@@ -272,7 +271,7 @@ void Run::perform_a_run()
     atom.update_unwrapped_position(box);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
 
-    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
     measure.end_of_step(
@@ -307,7 +306,7 @@ void Run::perform_a_run()
 
   measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
-  integrate.finalize();
+  integrate.finalize(atom, box);
   velocity.finalize();
   force.finalize();
   max_distance_per_step = 0.0;
@@ -360,7 +359,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(param, num_param, time_step, atom, box, group, thermo);
+    integrate.parse_ensemble(param, num_param, atom, box, group);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
@@ -674,7 +673,7 @@ void Run::parse_run(const char** param, int num_param)
   if (number_of_steps <= 0) {
     PRINT_INPUT_ERROR("number of steps should be positive.\n");
   }
-  if (integrate.type == EnsembleType::UNKNOWN) {
+  if (!integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("An ensemble must be specified before each run.");
   }
   printf("Run %d steps.\n", number_of_steps);

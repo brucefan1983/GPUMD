@@ -21,24 +21,28 @@ class Ensemble_Heat_Hybrid : public Ensemble
 public:
   Ensemble_Heat_Hybrid(
     const char** param, int num_param, const std::vector<Group>& group);
-  virtual ~Ensemble_Heat_Hybrid(void);
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   int num_thermostats;
@@ -56,6 +60,17 @@ protected:
   std::vector<double> nhc_factors;
   GPU_Vector<int> gpu_nhc_labels;
   GPU_Vector<double> gpu_nhc_factors;
+
+  // additional function for scaling velocities in multiple groups
+  void scale_velocity_groups(
+    const GPU_Vector<double>& factors,
+    const GPU_Vector<int>& labels,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom);
 
   // Flattened NHC arrays: [thermostat_index * NOSE_HOOVER_CHAIN_LENGTH + chain_index]
   std::vector<double> pos_nhc;

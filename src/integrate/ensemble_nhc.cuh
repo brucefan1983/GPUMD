@@ -20,29 +20,40 @@ class Ensemble_NHC : public Ensemble
 {
 public:
   Ensemble_NHC(const char** param, int num_param, const std::vector<Group>& group);
-  virtual ~Ensemble_NHC(void);
 
   double get_temperature1() const;
   double get_temperature2() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
+  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+
   void integrate_nvt_nhc_1(
     const double time_step,
     const double volume,

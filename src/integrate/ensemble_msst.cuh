@@ -23,32 +23,63 @@ class Ensemble_MSST : public Ensemble
 {
 public:
   Ensemble_MSST(const char** params, int num_params);
-  virtual ~Ensemble_MSST(void);
 
-  virtual void compute1(
+  void initialize_run(
     const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
+  void initialize_before_first_step(
+    const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  void remap(double);
-  void init();
-  void find_thermo();
+  void compute2(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+  void remap(const double dilation, Box& box, Atom& atom);
+  void init(
+    const Box& box,
+    const std::vector<Group>& group,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
   void get_omega();
-  void get_conserved();
-  void get_vsum();
-  void msst_v();
+  void get_conserved(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void get_vsum(const Atom& atom);
+  void msst_v(Atom& atom);
 
   int N;
   int shock_direction;
+  double initial_time_step;
   double dthalf;
   double vs;
   double qmass;

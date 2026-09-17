@@ -25,22 +25,26 @@ class Atom;
 
 class Integrate
 {
+private:
+  std::unique_ptr<Ensemble> ensemble_;
+
 public:
-  std::unique_ptr<Ensemble> ensemble;
+  bool has_ensemble() const;
+  Ensemble& get_ensemble();
+  const Ensemble& get_ensemble() const;
 
   void initialize(
     double time_step,
     Atom& atom,
     Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo,
-    int& total_steps);
+    const std::vector<Group>& group);
 
-  void finalize();
+  void finalize(const Atom& atom, const Box& box);
 
   void compute1(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -48,7 +52,8 @@ public:
 
   void compute2(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -59,11 +64,9 @@ public:
   void parse_ensemble(
     const char** param,
     int num_param,
-    double time_step,
-    Atom& atom,
-    Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo);
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
   void parse_fix(const char**, int, std::vector<Group>& group);
   void parse_move(const char**, int, std::vector<Group>& group);
 
@@ -89,7 +92,4 @@ public:
   // PIMD
   int number_of_beads;
 
-  // save some quantities for ensemble to use.
-  int current_step = 0;
-  int total_steps = 0;
 };

@@ -86,6 +86,8 @@ public:
 
   virtual void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -93,19 +95,13 @@ public:
 
   virtual void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) = 0;
-
-  virtual void compute3(
-    const double /* time_step */,
-    const std::vector<Group>& /* group */,
-    Box& /* box */,
-    Atom& /* atom */,
-    GPU_Vector<double>& /* thermo */,
-    Force& /* force */){
-  }
+    GPU_Vector<double>& thermo,
+    Force& force) = 0;
 
   virtual void initialize_run(
     const double /* time_step */,
@@ -115,6 +111,21 @@ public:
   {
   }
 
+  // Called once immediately before the first integration step. At this point,
+  // the initial force has been computed and first-step velocity/time-step
+  // adjustments have been applied.
+  virtual void initialize_before_first_step(
+    const double /* time_step */,
+    const int /* number_of_steps */,
+    const std::vector<Group>& /* group */,
+    Box& /* box */,
+    Atom& /* atom */,
+    GPU_Vector<double>& /* thermo */)
+  {
+  }
+
+  virtual void finalize_run(const Atom& /* atom */, const Box& /* box */) {}
+
   void find_thermo(
     const double volume,
     const std::vector<Group>& group,
@@ -123,14 +134,6 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
-
-  int* current_step;
-  int* total_steps;
-  double time_step;
-  const std::vector<Group>* group;
-  Box* box;
-  Atom* atom;
-  GPU_Vector<double>* thermo;
 
   EnsembleType type = EnsembleType::UNKNOWN;
   int source;
@@ -156,23 +159,6 @@ public:
   double energy_transferred[2]; // energy transferred from system to heat baths
 
   std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths
-  // additional function for scaling velocities in multiple groups
-  virtual void scale_velocity_groups(
-    const GPU_Vector<double>& factors,
-    const GPU_Vector<int>& labels,
-    const double* vcx,
-    const double* vcy,
-    const double* vcz,
-    const double* ke,
-    const std::vector<Group>& group,
-    GPU_Vector<double>& velocity_per_atom);
-
-  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
   // Reusable workspaces for local heat baths. The kinetic-energy arrays
@@ -207,8 +193,14 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 #endif
 
-  void velocity_verlet_v();
-  void velocity_verlet_x();
+  void velocity_verlet_v(
+    const double time_step,
+    const std::vector<Group>& group,
+    Atom& atom);
+  void velocity_verlet_x(
+    const double time_step,
+    const std::vector<Group>& group,
+    Atom& atom);
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

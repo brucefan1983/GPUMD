@@ -29,27 +29,30 @@ class Ensemble_QTB : public Ensemble
 public:
   Ensemble_QTB(const char** param, int num_param);
 
-  ~Ensemble_QTB(void);
-
   double get_temperature1() const;
   double get_temperature2() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   double temperature1_ = 0.0;
@@ -79,6 +82,6 @@ private:
 
   void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
   void update_time_filter(const double target_temperature);
-  void refresh_colored_random_force();
-  void apply_qtb_half_step();
+  void refresh_colored_random_force(const Atom& atom);
+  void apply_qtb_half_step(Atom& atom);
 };

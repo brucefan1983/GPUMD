@@ -21,7 +21,6 @@ class Ensemble_NPHug : public Ensemble_MTTK
 public:
   Ensemble_NPHug(const char** params, int num_params);
   Ensemble_NPHug(void);
-  virtual ~Ensemble_NPHug(void);
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;
   bool p0_given = false;
@@ -31,7 +30,21 @@ public:
   int uniaxial_compress;
   double dhugo;
 
-  void get_target_temp();
-  void get_thermo();
-  void init_mttk();
+  void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void get_thermo(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 };

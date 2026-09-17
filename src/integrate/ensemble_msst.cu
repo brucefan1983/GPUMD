@@ -160,42 +160,45 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
   gpu_vsum.resize(1);
 }
 
-Ensemble_MSST::~Ensemble_MSST(void)
-{
-  // nothing now
-}
-
-void Ensemble_MSST::find_thermo()
+void Ensemble_MSST::find_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   ke = 1.5 * kB * N * thermo_cpu[0];
   etotal = ke + thermo_cpu[1];
-  vol = box->get_volume();
+  vol = box.get_volume();
   p_current = thermo_cpu[shock_direction + 2];
 }
 
-void Ensemble_MSST::init()
+void Ensemble_MSST::init(
+  const Box& box,
+  const std::vector<Group>& group,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   if (
-    (shock_direction == 0 && !(box->cpu_h[3] == 0 && box->cpu_h[6] == 0)) ||
-    (shock_direction == 1 && !(box->cpu_h[1] == 0 && box->cpu_h[7] == 0)) ||
-    (shock_direction == 2 && !(box->cpu_h[2] == 0 && box->cpu_h[5] == 0)))
+    (shock_direction == 0 && !(box.cpu_h[3] == 0 && box.cpu_h[6] == 0)) ||
+    (shock_direction == 1 && !(box.cpu_h[1] == 0 && box.cpu_h[7] == 0)) ||
+    (shock_direction == 2 && !(box.cpu_h[2] == 0 && box.cpu_h[5] == 0)))
     PRINT_INPUT_ERROR("You are using a trilinic box. The axis in the shock direction must be "
                       "perpendicular to the plane.\n");
 
-  N = atom->number_of_atoms;
-  dthalf = time_step / 2;
-  thermo_cpu.resize(thermo->size());
-  gpu_v_backup.resize(atom->cpu_velocity_per_atom.size());
-  find_thermo();
+  N = atom.number_of_atoms;
+  dthalf = initial_time_step / 2;
+  thermo_cpu.resize(thermo.size());
+  gpu_v_backup.resize(atom.cpu_velocity_per_atom.size());
+  find_thermo(box, group, atom, thermo);
   if (!v0_given)
     v0 = vol;
   if (!e0_given)
@@ -205,37 +208,41 @@ void Ensemble_MSST::init()
   printf("    MSST V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 
   // compute total mass
-  for (int i = 0; i < atom->cpu_mass.size(); i++)
-    total_mass += atom->cpu_mass[i];
+  for (int i = 0; i < atom.cpu_mass.size(); i++)
+    total_mass += atom.cpu_mass[i];
 
   omega = -sqrt(tscale * total_mass / qmass * ke);
 
-  scale_velocity_global(sqrt(1.0 - tscale), atom->velocity_per_atom);
+  scale_velocity_global(sqrt(1.0 - tscale), atom.velocity_per_atom);
 
   printf("    Initial strain rate %f, reduce temperature by %f\n", omega / v0, tscale);
 }
 
-void Ensemble_MSST::get_vsum()
+void Ensemble_MSST::get_vsum(const Atom& atom)
 {
-  gpu_get_vsum<<<1, 1024>>>(N, atom->velocity_per_atom.data(), gpu_vsum.data());
+  gpu_get_vsum<<<1, 1024>>>(N, atom.velocity_per_atom.data(), gpu_vsum.data());
 }
 
-void Ensemble_MSST::remap(double dilation)
+void Ensemble_MSST::remap(const double dilation, Box& box, Atom& atom)
 {
-  box->cpu_h[shock_direction * 4] *= dilation;
-  box->get_inverse();
+  box.cpu_h[shock_direction * 4] *= dilation;
+  box.get_inverse();
 
   gpu_remap<<<(N - 1) / 128 + 1, 128>>>(
     N,
     dilation,
-    atom->position_per_atom.data() + shock_direction * N,
-    atom->velocity_per_atom.data() + shock_direction * N);
+    atom.position_per_atom.data() + shock_direction * N,
+    atom.velocity_per_atom.data() + shock_direction * N);
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_MSST::get_conserved()
+void Ensemble_MSST::get_conserved(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  find_thermo();
+  find_thermo(box, group, atom, thermo);
 
   // compute msst energy
   e_msst = 0.5 * qmass * omega * omega / total_mass;
@@ -271,14 +278,14 @@ void Ensemble_MSST::get_omega()
     omega = omega + (A - B * omega) * dthalf + 0.5 * (B * B * omega - A * B) * dthalf * dthalf;
 }
 
-void Ensemble_MSST::msst_v()
+void Ensemble_MSST::msst_v(Atom& atom)
 {
   // propagate particle velocities 1/2 step
   gpu_msst_v<<<(N - 1) / 128 + 1, 128>>>(
     N,
-    atom->force_per_atom.data(),
-    atom->velocity_per_atom.data(),
-    atom->mass.data(),
+    atom.force_per_atom.data(),
+    atom.velocity_per_atom.data(),
+    atom.mass.data(),
     mu,
     shock_direction,
     omega,
@@ -287,20 +294,39 @@ void Ensemble_MSST::msst_v()
     dthalf);
 }
 
-void Ensemble_MSST::compute1(
+void Ensemble_MSST::initialize_run(
   const double time_step,
+  Atom&,
+  Box&,
+  const std::vector<Group>&)
+{
+  initial_time_step = time_step;
+}
+
+void Ensemble_MSST::initialize_before_first_step(
+  const double,
+  const int,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
+  init(box, group, atom, thermo);
+}
 
-  get_conserved();
+void Ensemble_MSST::compute1(
+  const double time_step,
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  get_conserved(box, group, atom, thermo);
   get_omega();
 
-  get_vsum();
+  get_vsum(atom);
   CHECK(gpuMemcpy(
     gpu_v_backup.data(),
     atom.velocity_per_atom.data(),
@@ -308,8 +334,8 @@ void Ensemble_MSST::compute1(
     gpuMemcpyDeviceToDevice));
 
   // propagate velocity sum 1/2 step by temporarily propagating the velocities
-  msst_v();
-  get_vsum();
+  msst_v(atom);
+  get_vsum(atom);
 
   // reset the velocities
   CHECK(gpuMemcpy(
@@ -319,26 +345,26 @@ void Ensemble_MSST::compute1(
     gpuMemcpyDeviceToDevice));
 
   // propagate velocities 1/2 step using the new velocity sum
-  msst_v();
+  msst_v(atom);
 
   // propagate the volume 1/2 step
   double vol1 = vol + omega * dthalf;
 
   // rescale positions and change box size
-  remap(vol1 / vol);
+  remap(vol1 / vol, box, atom);
 
-  velocity_verlet_x();
+  velocity_verlet_x(initial_time_step, group, atom);
 
   // propagate the volume 1/2 step
   double vol2 = vol1 + omega * dthalf;
 
   // rescale positions and change box size
-  remap(vol2 / vol1);
+  remap(vol2 / vol1, box, atom);
 
-  int output_interval = *total_steps / 10;
+  int output_interval = number_of_steps / 10;
   if (output_interval < 1)
     output_interval = 1;
-  if (*current_step == 0 || *current_step % output_interval == 0) {
+  if (step == 0 || step % output_interval == 0) {
     printf(
       "    MSST conserved energy: %f eV/atom, dHugoniot: %f K, dRayleigh: %f GPa\n",
       e_conserved,
@@ -349,14 +375,17 @@ void Ensemble_MSST::compute1(
 
 void Ensemble_MSST::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
-  get_conserved();
-  msst_v();
-  find_thermo();
+  get_conserved(box, group, atom, thermo);
+  msst_v(atom);
+  find_thermo(box, group, atom, thermo);
   get_omega();
 
   // calculate Lagrangian position of computational cell

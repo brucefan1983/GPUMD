@@ -74,24 +74,31 @@ public:
     const Box& box,
     const std::vector<Group>& group);
 
-  virtual ~Ensemble_TTM(void);
+  ~Ensemble_TTM(void) override;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void finalize_run(const Atom& atom, const Box& box) override;
 
-  virtual void compute1(
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   bool use_heat_lan;
@@ -187,5 +194,5 @@ private:
     const std::vector<Group>& group,
     GPU_Vector<double>& velocity_per_atom);
 
-  void update_electron_temperature(const double time_step);
+  void update_electron_temperature(const double time_step, const int step);
 };

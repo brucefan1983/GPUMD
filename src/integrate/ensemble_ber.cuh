@@ -20,25 +20,29 @@ class Ensemble_BER : public Ensemble
 {
 public:
   Ensemble_BER(const char** param, int num_param, const Box& box);
-  virtual ~Ensemble_BER(void);
 
   double get_temperature1() const;
   double get_temperature2() const;
   int get_num_target_pressure_components() const;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   void parse(const char** param, int num_param, const Box& box);

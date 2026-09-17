@@ -76,9 +76,7 @@ void matrix_minus(double a[3][3], double b[3][3], double c[3][3])
 
 } // namespace
 
-Ensemble_MTTK::Ensemble_MTTK(void) {}
-
-Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
+Ensemble_MTTK::Ensemble_MTTK(void)
 {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -91,7 +89,10 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
       need_scale[i][j] = true;
     }
   }
+}
 
+Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTTK()
+{
   int i = 1;
   while (i < num_params) {
     if (strcmp(params[i], "nvt_mttk") == 0) {
@@ -292,37 +293,14 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
     printf("No barostat is set. Pressure is not controlled.\n");
 }
 
-Ensemble_MTTK::~Ensemble_MTTK(void)
+void Ensemble_MTTK::initialize_nose_hoover_chains()
 {
-  delete[] Q;
-  delete[] eta_dot;
-  delete[] eta_dotdot;
-  delete[] Q_p;
-  delete[] eta_p_dot;
-  delete[] eta_p_dotdot;
-}
-
-void Ensemble_MTTK::init_mttk()
-{
-  printf("MTTK initializing...\n");
-  // from GPa to eV/A^2
-  matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
-  matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
-  // set tstat params
-  // Here I neglect center of mass dof.
-  temperature_dof = atom->number_of_atoms * 3;
-  dt = time_step;
-  dt2 = dt / 2;
-  dt4 = dt / 4;
-  dt8 = dt / 8;
-  dt16 = dt / 16;
-  t_freq = 1 / (t_period * dt);
-  Q = new double[tchain];
-  eta_dot = new double[tchain + 1];
-  eta_dotdot = new double[tchain];
-  Q_p = new double[pchain];
-  eta_p_dot = new double[pchain + 1];
-  eta_p_dotdot = new double[pchain];
+  Q.reset(new double[tchain]);
+  eta_dot.reset(new double[tchain + 1]);
+  eta_dotdot.reset(new double[tchain]);
+  Q_p.reset(new double[pchain]);
+  eta_p_dot.reset(new double[pchain + 1]);
+  eta_p_dotdot.reset(new double[pchain]);
 
   for (int n = 0; n < tchain; n++)
     Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
@@ -331,11 +309,41 @@ void Ensemble_MTTK::init_mttk()
     Q_p[n] = eta_p_dot[n] = eta_p_dotdot[n] = 0;
 
   eta_dot[tchain] = eta_p_dot[pchain] = 0;
+}
+
+void Ensemble_MTTK::initialize_run(
+  const double time_step,
+  Atom&,
+  Box&,
+  const std::vector<Group>&)
+{
+  dt = time_step;
+}
+
+void Ensemble_MTTK::init_mttk(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  printf("MTTK initializing...\n");
+  // from GPa to eV/A^2
+  matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
+  matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
+  // set tstat params
+  // Here I neglect center of mass dof.
+  temperature_dof = atom.number_of_atoms * 3;
+  dt2 = dt / 2;
+  dt4 = dt / 4;
+  dt8 = dt / 8;
+  dt16 = dt / 16;
+  t_freq = 1 / (t_period * dt);
+  initialize_nose_hoover_chains();
 
   if (use_barostat) {
     t_for_barostat = t_start;
     if (t_target < 1)
-      t_for_barostat = find_current_temperature();
+      t_for_barostat = find_current_temperature(group, box, atom, thermo);
   }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -344,19 +352,37 @@ void Ensemble_MTTK::init_mttk()
         if (p_freq_max < p_freq[i][j])
           p_freq_max = p_freq[i][j];
         omega_mass[i][j] =
-          (atom->number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
+          (atom.number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
       }
     }
   }
 }
 
-double Ensemble_MTTK::get_delta() { return (double)*current_step / (double)*total_steps; }
-
-void Ensemble_MTTK::get_target_temp() { t_target = t_start + (t_stop - t_start) * get_delta(); }
-
-void Ensemble_MTTK::get_target_pressure()
+double Ensemble_MTTK::get_delta(const int step, const int number_of_steps)
 {
-  double delta = get_delta();
+  return (double)step / (double)number_of_steps;
+}
+
+void Ensemble_MTTK::get_target_temp(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  t_target = t_start + (t_stop - t_start) * get_delta(step, number_of_steps);
+}
+
+void Ensemble_MTTK::get_target_pressure(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  double delta = get_delta(step, number_of_steps);
   for (int x = 0; x < 3; x++) {
     for (int y = 0; y < 3; y++) {
       p_target[x][y] = p_start[x][y] + (p_stop[x][y] - p_start[x][y]) * delta;
@@ -364,27 +390,27 @@ void Ensemble_MTTK::get_target_pressure()
   }
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma();
+    get_sigma(step, box);
 }
 
-void Ensemble_MTTK::get_h_matrix_from_box()
+void Ensemble_MTTK::get_h_matrix_from_box(Box& box)
 {
-  box->get_inverse();
+  box.get_inverse();
   for (int x = 0; x < 3; x++) {
     for (int y = 0; y < 3; y++) {
-      h[x][y] = box->cpu_h[y + x * 3];
-      h_inv[x][y] = box->cpu_h[9 + y + x * 3];
+      h[x][y] = box.cpu_h[y + x * 3];
+      h_inv[x][y] = box.cpu_h[9 + y + x * 3];
     }
   }
 }
 
-void Ensemble_MTTK::copy_h_matrix_to_box()
+void Ensemble_MTTK::copy_h_matrix_to_box(Box& box)
 {
   for (int x = 0; x < 3; x++) {
     for (int y = 0; y < 3; y++)
-      box->cpu_h[y + x * 3] = h[x][y];
+      box.cpu_h[y + x * 3] = h[x][y];
   }
-  box->get_inverse();
+  box.get_inverse();
 }
 
 void Ensemble_MTTK::get_p_hydro()
@@ -397,12 +423,12 @@ void Ensemble_MTTK::get_p_hydro()
     p_hydro[i][i] = hydro;
 }
 
-void Ensemble_MTTK::get_sigma()
+void Ensemble_MTTK::get_sigma(const int step, const Box& box)
 {
   if (h0_reset_interval > 0) {
-    if (*current_step % h0_reset_interval == 0) {
+    if (step % h0_reset_interval == 0) {
       std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_ref_inv[0][0]);
-      vol_ref = box->get_volume();
+      vol_ref = box.get_volume();
     }
   }
   // Eq. (2.24) of Parrinello1981
@@ -439,11 +465,15 @@ void Ensemble_MTTK::couple()
     p_current[0][0] = p_current[2][2] = (xx + zz) / 2;
 }
 
-void Ensemble_MTTK::find_current_pressure()
+void Ensemble_MTTK::find_current_pressure(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  find_thermo();
+  find_thermo(group, box, atom, thermo);
   double t[8];
-  thermo->copy_to_host(t, 8);
+  thermo.copy_to_host(t, 8);
   if (use_thermostat)
     t_current = t[0];
   p_current[0][0] = t[2];
@@ -456,12 +486,16 @@ void Ensemble_MTTK::find_current_pressure()
     couple();
 }
 
-void Ensemble_MTTK::nh_omega_dot()
+void Ensemble_MTTK::nh_omega_dot(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   // Eq. (1) of Shinoda2004
-  find_current_pressure();
+  find_current_pressure(group, box, atom, thermo);
   double f_omega, V;
-  V = box->get_volume();
+  V = box.get_volume();
   if (non_hydrostatic)
     get_deviatoric();
   for (int i = 0; i < 3; i++) {
@@ -477,20 +511,20 @@ void Ensemble_MTTK::nh_omega_dot()
   }
 }
 
-void Ensemble_MTTK::propagate_box()
+void Ensemble_MTTK::propagate_box(Box& box, Atom& atom)
 {
   // Eq. (1) of Shinoda2004
   // save old box
-  box->get_inverse();
-  get_h_matrix_from_box();
+  box.get_inverse();
+  get_h_matrix_from_box(box);
   std::copy(&h[0][0], &h[0][0] + 9, &h_old[0][0]);
   std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_old_inv[0][0]);
   // change box, according to h_dot = omega_dot * h
   propagate_box_off_diagonal();
   propagate_box_diagonal();
   propagate_box_off_diagonal();
-  scale_positions();
-  copy_h_matrix_to_box();
+  scale_positions(atom);
+  copy_h_matrix_to_box(box);
 }
 
 // void Ensemble_MTTK::propagate_box_off_diagonal()
@@ -599,32 +633,44 @@ void Ensemble_MTTK::propagate_box_diagonal()
     h[1][2] *= expfac;
 }
 
-void Ensemble_MTTK::find_thermo()
+void Ensemble_MTTK::find_thermo(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
 }
 
-double Ensemble_MTTK::find_current_temperature()
+double Ensemble_MTTK::find_current_temperature(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   if (t_current_from_thermo) {
     t_current_from_thermo = false;
     return t_current;
   }
-  find_thermo();
+  find_thermo(group, box, atom, thermo);
   double t = 0;
-  thermo->copy_to_host(&t, 1);
+  thermo.copy_to_host(&t, 1);
   return t;
 }
 
 // propagate eta_dot by 1/2 step
-void Ensemble_MTTK::nhc_temp_integrate()
+void Ensemble_MTTK::nhc_temp_integrate(
+  const std::vector<Group>& group,
+  const Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   double expfac = 0;
   for (int n = 0; n < tchain; n++)
@@ -632,7 +678,7 @@ void Ensemble_MTTK::nhc_temp_integrate()
   Q[0] *= temperature_dof;
 
   // propagate eta_dot by 1/4 step
-  t_current = find_current_temperature();
+  t_current = find_current_temperature(group, box, atom, thermo);
   eta_dotdot[0] = temperature_dof * kB * (t_current - t_target) / Q[0];
   for (int n = tchain - 1; n >= 0; n--) {
     expfac = exp(-dt8 * eta_dot[n + 1]);
@@ -641,7 +687,7 @@ void Ensemble_MTTK::nhc_temp_integrate()
 
   // scale velocity
   factor_eta = exp(-dt2 * eta_dot[0]);
-  scale_velocity_global(factor_eta, atom->velocity_per_atom);
+  scale_velocity_global(factor_eta, atom.velocity_per_atom);
 
   // propagate eta_dot by 1/4 step
   t_current *= factor_eta * factor_eta;
@@ -655,7 +701,7 @@ void Ensemble_MTTK::nhc_temp_integrate()
   }
 }
 
-void Ensemble_MTTK::nhc_press_integrate()
+void Ensemble_MTTK::nhc_press_integrate(const Atom& atom)
 {
 
   int cell_dof; // DOF of cell
@@ -668,7 +714,7 @@ void Ensemble_MTTK::nhc_press_integrate()
   else
     kT = kB * t_target;
 
-  double nkt = (atom->number_of_atoms + 1) * kT;
+  double nkt = (atom.number_of_atoms + 1) * kT;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j])
@@ -772,11 +818,11 @@ static __global__ void gpu_scale_positions(
   }
 }
 
-void Ensemble_MTTK::scale_positions()
+void Ensemble_MTTK::scale_positions(Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   gpu_scale_positions<<<(n - 1) / 128 + 1, 128>>>(
-    atom->number_of_atoms,
+    atom.number_of_atoms,
     h[0][0],
     h[0][1],
     h[0][2],
@@ -795,9 +841,9 @@ void Ensemble_MTTK::scale_positions()
     h_old_inv[2][0],
     h_old_inv[2][1],
     h_old_inv[2][2],
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + n,
-    atom->position_per_atom.data() + 2 * n);
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + n,
+    atom.position_per_atom.data() + 2 * n);
 }
 
 static __global__ void gpu_nh_v_press(
@@ -838,15 +884,15 @@ static __global__ void gpu_nh_v_press(
   }
 }
 
-void Ensemble_MTTK::nh_v_press()
+void Ensemble_MTTK::nh_v_press(Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   gpu_nh_v_press<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    time_step,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + n,
-    atom->velocity_per_atom.data() + 2 * n,
+    dt,
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n,
     omega_dot[0][0],
     omega_dot[0][1],
     omega_dot[0][2],
@@ -858,68 +904,80 @@ void Ensemble_MTTK::nh_v_press()
     omega_dot[2][2]);
 }
 
-void Ensemble_MTTK::compute1(
-  const double time_step,
+void Ensemble_MTTK::initialize_before_first_step(
+  const double,
+  const int,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0) {
-    init_mttk();
-  }
+  init_mttk(group, box, atom, thermo);
+}
 
+void Ensemble_MTTK::compute1(
+  const double time_step,
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
+{
   if (use_barostat)
-    nhc_press_integrate();
+    nhc_press_integrate(atom);
 
   if (use_thermostat) {
-    get_target_temp();
-    nhc_temp_integrate();
+    get_target_temp(step, number_of_steps, group, box, atom, thermo);
+    nhc_temp_integrate(group, box, atom, thermo);
   }
 
   if (use_barostat) {
-    get_h_matrix_from_box();
-    get_target_pressure();
-    nh_omega_dot();
-    nh_v_press();
+    get_h_matrix_from_box(box);
+    get_target_pressure(step, number_of_steps, group, box, atom, thermo);
+    nh_omega_dot(group, box, atom, thermo);
+    nh_v_press(atom);
   }
 
-  velocity_verlet_v();
+  velocity_verlet_v(dt, group, atom);
 
   if (use_barostat)
-    propagate_box();
+    propagate_box(box, atom);
 
-  velocity_verlet_x();
+  velocity_verlet_x(dt, group, atom);
 
   if (use_barostat)
-    propagate_box();
+    propagate_box(box, atom);
 }
 
 void Ensemble_MTTK::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
-  velocity_verlet_v();
+  velocity_verlet_v(dt, group, atom);
 
   if (use_barostat) {
-    get_h_matrix_from_box();
-    nh_v_press();
+    get_h_matrix_from_box(box);
+    nh_v_press(atom);
   }
 
   if (use_barostat)
-    nh_omega_dot();
+    nh_omega_dot(group, box, atom, thermo);
 
   if (use_thermostat) {
     if (use_barostat)
       t_current_from_thermo = true;
-    nhc_temp_integrate();
+    nhc_temp_integrate(group, box, atom, thermo);
   }
 
   if (use_barostat)
-    nhc_press_integrate();
+    nhc_press_integrate(atom);
 
-  find_thermo();
+  find_thermo(group, box, atom, thermo);
 }

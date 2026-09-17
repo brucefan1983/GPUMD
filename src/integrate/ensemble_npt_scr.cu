@@ -202,11 +202,6 @@ void Ensemble_NPT_SCR::initialize_run(
   initialize_rng();
 }
 
-Ensemble_NPT_SCR::~Ensemble_NPT_SCR(void)
-{
-  // nothing now
-}
-
 static void cpu_pressure_orthogonal(
   std::mt19937& rng,
   int deform_x,
@@ -409,6 +404,8 @@ static void cpu_pressure_triclinic(
 
 void Ensemble_NPT_SCR::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -426,10 +423,13 @@ void Ensemble_NPT_SCR::compute1(
 
 void Ensemble_NPT_SCR::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   const int number_of_atoms = atom.mass.size();
 

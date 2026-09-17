@@ -27,27 +27,31 @@ class Ensemble_BAO : public Ensemble
 public:
   Ensemble_BAO(const char** param, int num_param);
   Ensemble_BAO(EnsembleType, int, int, int, int, int, int, double, double, double);
-  virtual ~Ensemble_BAO(void);
 
   double get_temperature1() const;
   double get_temperature2() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   int N_source, N_sink, offset_source, offset_sink;

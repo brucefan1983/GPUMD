@@ -18,51 +18,107 @@
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <memory>
 
 class Ensemble_MTTK : public Ensemble
 {
 public:
   Ensemble_MTTK(const char** params, int num_params);
   Ensemble_MTTK(void);
-  virtual ~Ensemble_MTTK(void);
 
-  virtual void compute1(
+  void initialize_run(
     const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
+  void initialize_before_first_step(
+    const double time_step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
-  virtual void init_mttk();
-  void nhc_temp_integrate();
-  void nhc_press_integrate();
-  virtual void get_target_temp();
-  virtual void get_target_pressure();
-  double get_delta();
-  void get_sigma();
-  double find_current_temperature();
-  void find_current_pressure();
-  void find_thermo();
-  void get_h_matrix_from_box();
-  void copy_h_matrix_to_box();
+  void initialize_nose_hoover_chains();
+  virtual void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void nhc_temp_integrate(
+    const std::vector<Group>& group,
+    const Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
+  void nhc_press_integrate(const Atom& atom);
+  virtual void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  virtual void get_target_pressure(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  double get_delta(const int step, const int number_of_steps);
+  void get_sigma(const int step, const Box& box);
+  double find_current_temperature(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_current_pressure(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_thermo(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void get_h_matrix_from_box(Box& box);
+  void copy_h_matrix_to_box(Box& box);
   void get_p_hydro();
   void get_deviatoric();
-  void nh_omega_dot();
-  void propagate_box();
+  void nh_omega_dot(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void propagate_box(Box& box, Atom& atom);
   void propagate_box_off_diagonal();
   void propagate_box_diagonal();
-  void scale_positions();
-  void nh_v_press();
+  void scale_positions(Atom& atom);
+  void nh_v_press(Atom& atom);
   void couple();
 
   enum { NVT, NPT, NPH };
@@ -102,8 +158,12 @@ protected:
   // degrees of freedom when computing temperature
   int temperature_dof = 0;
   double t_freq = 0, t_period = 100;
-  double *Q, *eta_dot, *eta_dotdot;
-  double *Q_p, *eta_p_dot, *eta_p_dotdot;
+  std::unique_ptr<double[]> Q;
+  std::unique_ptr<double[]> eta_dot;
+  std::unique_ptr<double[]> eta_dotdot;
+  std::unique_ptr<double[]> Q_p;
+  std::unique_ptr<double[]> eta_p_dot;
+  std::unique_ptr<double[]> eta_p_dotdot;
   double factor_eta = 0;
   const double kB = 8.617333262e-5;
   // length of Nose-Hoover chain
