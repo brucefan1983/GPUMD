@@ -232,7 +232,7 @@ Ensemble_TI_Liquid::fe(double x, const double coef[4], const double sum_spline[1
   return result;
 }
 
-void Ensemble_TI_Liquid::init()
+void Ensemble_TI_Liquid::init(const Atom& atom)
 {
   if (auto_switch) {
     t_switch = (int)(*total_steps * 0.4);
@@ -245,7 +245,7 @@ void Ensemble_TI_Liquid::init()
     t_equil);
   output_file = my_fopen("ti_liquid.csv", "w");
   fprintf(output_file, "lambda,dlambda,pe,eUF\n");
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
 
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
@@ -364,10 +364,10 @@ void Ensemble_TI_Liquid::finalize_run(const Atom& atom, const Box& box)
   printf("-----------------------------------------------------------------------\n");
 }
 
-void Ensemble_TI_Liquid::add_UF_force(Force& force)
+void Ensemble_TI_Liquid::add_UF_force(const Box& box, Atom& atom, Force& force)
 {
 
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
 
   const GPU_Vector<int>& NN = force.potentials[0]->get_NN_radial_ptr();
 
@@ -378,16 +378,16 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
 
   calc_UF_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
-    *box,
+    box,
     gpu_eUF.data(),
     sigma_sqrd,
     p,
     beta,
     NN.data(),
     NL.data(),
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + N,
-    atom->position_per_atom.data() + 2 * N,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + N,
+    atom.position_per_atom.data() + 2 * N,
     gpu_fx_UF.data(),
     gpu_fy_UF.data(),
     gpu_fz_UF.data());
@@ -395,19 +395,18 @@ void Ensemble_TI_Liquid::add_UF_force(Force& force)
   gpu_add_UF_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
     lambda,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + N,
-    atom->force_per_atom.data() + 2 * N,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + N,
+    atom.force_per_atom.data() + 2 * N,
     gpu_fx_UF.data(),
     gpu_fy_UF.data(),
     gpu_fz_UF.data());
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_TI_Liquid::get_UF_sum()
+void Ensemble_TI_Liquid::get_UF_sum(const int number_of_atoms)
 {
-  gpu_get_UF_sum<<<1, 1024>>>(
-    atom->number_of_atoms, gpu_eUF.data(), gpu_ti_values.data());
+  gpu_get_UF_sum<<<1, 1024>>>(number_of_atoms, gpu_eUF.data(), gpu_ti_values.data());
   GPU_CHECK_KERNEL
 }
 
@@ -415,10 +414,10 @@ void Ensemble_TI_Liquid::initialize_before_first_step(
   const double,
   const std::vector<Group>&,
   Box&,
-  Atom&,
+  Atom& atom,
   GPU_Vector<double>&)
 {
-  init();
+  init(atom);
 }
 
 void Ensemble_TI_Liquid::compute1(
@@ -431,7 +430,7 @@ void Ensemble_TI_Liquid::compute1(
   Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
 }
 
-bool Ensemble_TI_Liquid::find_lambda()
+bool Ensemble_TI_Liquid::find_lambda(const int number_of_atoms)
 {
   bool need_output = false;
 
@@ -449,7 +448,7 @@ bool Ensemble_TI_Liquid::find_lambda()
   }
 
   if (need_output)
-    get_UF_sum();
+    get_UF_sum(number_of_atoms);
 
   return need_output;
 }
@@ -463,9 +462,9 @@ void Ensemble_TI_Liquid::compute3(
   Force& force_object)
 {
 
-  const bool need_output = find_lambda();
+  const bool need_output = find_lambda(atoms.number_of_atoms);
 
-  add_UF_force(force_object);
+  add_UF_force(box, atoms, force_object);
 
   Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
 
@@ -475,7 +474,7 @@ void Ensemble_TI_Liquid::compute3(
     gpu_ti_values.copy_to_host(ti_values, 2);
     const double eUF = ti_values[0];
     const double pe = ti_values[1];
-    const int N = atom->number_of_atoms;
+    const int N = atoms.number_of_atoms;
     fprintf(output_file, "%e,%e,%e,%e\n", lambda, dlambda, pe / N, eUF / N);
     E_diff += 0.5 * (pe - eUF) * abs(dlambda) / N;
   }

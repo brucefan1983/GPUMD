@@ -54,10 +54,10 @@ public:
     Force& force) override;
 
   double fe(double x, const double coef[4], const double sum_spline[106], int index);
-  void get_UF_sum();
-  void add_UF_force(Force& force);
-  void init();
-  bool find_lambda();
+  void get_UF_sum(const int number_of_atoms);
+  void add_UF_force(const Box& box, Atom& atom, Force& force);
+  void init(const Atom& atom);
+  bool find_lambda(const int number_of_atoms);
   double switch_func(double t);
   double dswitch_func(double t);
 

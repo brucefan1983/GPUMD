@@ -51,11 +51,19 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo) override;
 
-  void find_thermo();
-  double get_espring_sum();
-  void add_spring_force();
-  void init();
-  void find_lambda();
+  void find_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  double get_espring_sum(const int number_of_atoms);
+  void add_spring_force(const Box& box, Atom& atom);
+  void init(const Atom& atom, const GPU_Vector<double>& thermo);
+  void find_lambda(
+    const Box& box,
+    const std::vector<Group>& group,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
   double switch_func(double t);
   double dswitch_func(double t);
 
