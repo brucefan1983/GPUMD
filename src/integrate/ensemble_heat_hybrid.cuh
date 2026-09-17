@@ -27,6 +27,8 @@ public:
 
   void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -34,10 +36,13 @@ public:
 
   void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) override;
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   int num_thermostats;

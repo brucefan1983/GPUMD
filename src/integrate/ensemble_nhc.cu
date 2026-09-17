@@ -535,6 +535,8 @@ void Ensemble_NHC::integrate_heat_nhc_power_2(
 
 void Ensemble_NHC::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -573,10 +575,13 @@ void Ensemble_NHC::compute1(
 
 void Ensemble_NHC::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == EnsembleType::NVT_NHC) {
     integrate_nvt_nhc_2(

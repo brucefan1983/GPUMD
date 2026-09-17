@@ -464,6 +464,8 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
 
 void Ensemble_LAN::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -501,10 +503,13 @@ void Ensemble_LAN::compute1(
 
 void Ensemble_LAN::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == EnsembleType::NVT_LAN) {
     velocity_verlet(

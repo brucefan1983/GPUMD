@@ -127,6 +127,7 @@ void Ensemble_wall_piston::init(Box& box, Atom& atom)
 
 void Ensemble_wall_piston::initialize_before_first_step(
   const double,
+  const int,
   const std::vector<Group>&,
   Box& box,
   Atom& atom,
@@ -137,6 +138,8 @@ void Ensemble_wall_piston::initialize_before_first_step(
 
 void Ensemble_wall_piston::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
@@ -172,10 +175,13 @@ void Ensemble_wall_piston::compute1(
 
 void Ensemble_wall_piston::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   int n = atoms.number_of_atoms;
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(

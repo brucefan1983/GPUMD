@@ -29,14 +29,15 @@ public:
 
   void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo) override;
 
-  void init();
+  void init(const int number_of_steps);
   void find_thermo();
-  void get_target_pressure() override;
+  void get_target_pressure(const int step, const int number_of_steps) override;
 
 protected:
   FILE* output_file;

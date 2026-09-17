@@ -135,11 +135,11 @@ Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
   p_max /= PRESSURE_UNIT_CONVERSION;
 }
 
-void Ensemble_TI_AS::init()
+void Ensemble_TI_AS::init(const int number_of_steps)
 {
   if (auto_switch) {
-    t_switch = (int)(*total_steps * 0.4);
-    t_equil = (int)(*total_steps * 0.1);
+    t_switch = (int)(number_of_steps * 0.4);
+    t_equil = (int)(number_of_steps * 0.1);
   } else
     printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
   printf(
@@ -173,19 +173,21 @@ Ensemble_TI_AS::~Ensemble_TI_AS(void)
 
 void Ensemble_TI_AS::initialize_before_first_step(
   const double time_step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  init();
-  Ensemble_MTTK::initialize_before_first_step(time_step, group, box, atom, thermo);
+  init(number_of_steps);
+  Ensemble_MTTK::initialize_before_first_step(
+    time_step, number_of_steps, group, box, atom, thermo);
 }
 
-void Ensemble_TI_AS::get_target_pressure()
+void Ensemble_TI_AS::get_target_pressure(const int step, const int number_of_steps)
 {
   bool need_output = false;
-  const int t = *current_step;
+  const int t = step;
   const double r_switch = 1.0 / (t_switch - 1);
   double pp;
   double delta_p = p_max - p_min;
@@ -204,7 +206,7 @@ void Ensemble_TI_AS::get_target_pressure()
 
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma();
+    get_sigma(step);
 
   if (need_output) {
     find_thermo();

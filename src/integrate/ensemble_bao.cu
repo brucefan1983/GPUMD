@@ -471,6 +471,8 @@ void Ensemble_BAO::operator_B(
 
 void Ensemble_BAO::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -533,10 +535,13 @@ void Ensemble_BAO::compute1(
 
 void Ensemble_BAO::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == EnsembleType::NVT_BAO) {
     operator_B(

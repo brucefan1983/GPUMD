@@ -33,13 +33,16 @@ public:
 
   void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo) override;
 
-  void compute3(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
@@ -49,8 +52,8 @@ public:
   double fe(double x, const double coef[4], const double sum_spline[106], int index);
   void get_UF_sum(const int number_of_atoms);
   void add_UF_force(const Box& box, Atom& atom, Force& force);
-  void init(const Atom& atom);
-  bool find_lambda(const int number_of_atoms);
+  void init(const int number_of_steps, const Atom& atom);
+  bool find_lambda(const int step, const int number_of_atoms);
   double switch_func(double t);
   double dswitch_func(double t);
 

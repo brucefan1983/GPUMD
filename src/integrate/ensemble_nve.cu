@@ -37,6 +37,8 @@ void Ensemble_NVE::parse(int num_param)
 
 void Ensemble_NVE::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -65,10 +67,13 @@ void Ensemble_NVE::compute1(
 
 void Ensemble_NVE::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
 #ifdef USE_NEPCG
   velocity_verlet_cg(

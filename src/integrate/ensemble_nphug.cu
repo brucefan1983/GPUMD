@@ -242,17 +242,17 @@ void Ensemble_NPHug::get_thermo()
     p_nphug_current = (p_current[0][0] + p_current[1][1] + p_current[2][2]) / 3.0;
 }
 
-void Ensemble_NPHug::get_target_temp()
+void Ensemble_NPHug::get_target_temp(const int step, const int number_of_steps)
 {
   get_thermo();
   t_current_from_thermo = true;
   // calculate hugoniot
   dhugo = (0.5 * (p_nphug_current + p0) * (v0 - v_current)) + e0 - e_current;
   dhugo /= 3 * atom->number_of_atoms * kB;
-  int output_interval = *total_steps / 10;
+  int output_interval = number_of_steps / 10;
   if (output_interval < 1)
     output_interval = 1;
-  if (*current_step == 0 || *current_step % output_interval == 0) {
+  if (step == 0 || step % output_interval == 0) {
     printf("    NPHug info: current T: %f K, dHugoniot: %f K\n", t_current, dhugo);
   }
   t_target = t_current + dhugo;

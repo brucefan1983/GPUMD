@@ -86,6 +86,8 @@ public:
 
   virtual void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -93,19 +95,13 @@ public:
 
   virtual void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) = 0;
-
-  virtual void compute3(
-    const double /* time_step */,
-    const std::vector<Group>& /* group */,
-    Box& /* box */,
-    Atom& /* atom */,
-    GPU_Vector<double>& /* thermo */,
-    Force& /* force */){
-  }
+    GPU_Vector<double>& thermo,
+    Force& force) = 0;
 
   virtual void initialize_run(
     const double /* time_step */,
@@ -120,6 +116,7 @@ public:
   // adjustments have been applied.
   virtual void initialize_before_first_step(
     const double /* time_step */,
+    const int /* number_of_steps */,
     const std::vector<Group>& /* group */,
     Box& /* box */,
     Atom& /* atom */,
@@ -138,8 +135,6 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
-  int* current_step;
-  int* total_steps;
   double time_step;
   const std::vector<Group>* group;
   Box* box;

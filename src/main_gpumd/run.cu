@@ -239,7 +239,7 @@ void Run::compute_force()
 
 void Run::perform_a_run()
 {
-  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
+  integrate.initialize(time_step, atom, box, group, thermo);
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
@@ -259,8 +259,7 @@ void Run::perform_a_run()
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
-    integrate.current_step = step;
-    integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
+    integrate.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
 
     measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
 
@@ -272,7 +271,7 @@ void Run::perform_a_run()
     atom.update_unwrapped_position(box);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
 
-    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo, force);
+    integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
     measure.end_of_step(

@@ -81,6 +81,8 @@ public:
 
   void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -88,10 +90,13 @@ public:
 
   void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) override;
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   bool use_heat_lan;
@@ -187,5 +192,5 @@ private:
     const std::vector<Group>& group,
     GPU_Vector<double>& velocity_per_atom);
 
-  void update_electron_temperature(const double time_step);
+  void update_electron_temperature(const double time_step, const int step);
 };

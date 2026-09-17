@@ -31,6 +31,8 @@ public:
 
   void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -38,10 +40,13 @@ public:
 
   void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) override;
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   int qtb_number_of_atoms;
@@ -72,5 +77,5 @@ private:
 
 protected:
   void init_mttk() override;
-  void get_target_temp() override;
+  void get_target_temp(const int step, const int number_of_steps) override;
 };

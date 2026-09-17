@@ -232,11 +232,11 @@ Ensemble_TI_Liquid::fe(double x, const double coef[4], const double sum_spline[1
   return result;
 }
 
-void Ensemble_TI_Liquid::init(const Atom& atom)
+void Ensemble_TI_Liquid::init(const int number_of_steps, const Atom& atom)
 {
   if (auto_switch) {
-    t_switch = (int)(*total_steps * 0.4);
-    t_equil = (int)(*total_steps * 0.1);
+    t_switch = (int)(number_of_steps * 0.4);
+    t_equil = (int)(number_of_steps * 0.1);
   } else
     printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
   printf(
@@ -412,19 +412,20 @@ void Ensemble_TI_Liquid::get_UF_sum(const int number_of_atoms)
 
 void Ensemble_TI_Liquid::initialize_before_first_step(
   const double,
+  const int number_of_steps,
   const std::vector<Group>&,
   Box&,
   Atom& atom,
   GPU_Vector<double>&)
 {
-  init(atom);
+  init(number_of_steps, atom);
 }
 
-bool Ensemble_TI_Liquid::find_lambda(const int number_of_atoms)
+bool Ensemble_TI_Liquid::find_lambda(const int step, const int number_of_atoms)
 {
   bool need_output = false;
 
-  const int t = *current_step - t_equil;
+  const int t = step - t_equil;
   const double r_switch = 1.0 / t_switch;
 
   if ((t >= 0) && (t <= t_switch)) {
@@ -443,8 +444,10 @@ bool Ensemble_TI_Liquid::find_lambda(const int number_of_atoms)
   return need_output;
 }
 
-void Ensemble_TI_Liquid::compute3(
+void Ensemble_TI_Liquid::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
@@ -452,11 +455,12 @@ void Ensemble_TI_Liquid::compute3(
   Force& force_object)
 {
 
-  const bool need_output = find_lambda(atoms.number_of_atoms);
+  const bool need_output = find_lambda(step, atoms.number_of_atoms);
 
   add_UF_force(box, atoms, force_object);
 
-  Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute2(
+    time_step, step, number_of_steps, group, box, atoms, thermo, force_object);
 
   if (need_output) {
     gpu_store_ti_pe<<<1, 1>>>(thermo.data(), gpu_ti_values.data());

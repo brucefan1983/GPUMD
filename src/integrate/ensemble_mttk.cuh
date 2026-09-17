@@ -28,6 +28,7 @@ public:
 
   void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -35,6 +36,8 @@ public:
 
   void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
@@ -42,10 +45,13 @@ public:
 
   void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo) override;
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
@@ -53,10 +59,10 @@ protected:
   virtual void init_mttk();
   void nhc_temp_integrate();
   void nhc_press_integrate();
-  virtual void get_target_temp();
-  virtual void get_target_pressure();
-  double get_delta();
-  void get_sigma();
+  virtual void get_target_temp(const int step, const int number_of_steps);
+  virtual void get_target_pressure(const int step, const int number_of_steps);
+  double get_delta(const int step, const int number_of_steps);
+  void get_sigma(const int step);
   double find_current_temperature();
   void find_current_pressure();
   void find_thermo();

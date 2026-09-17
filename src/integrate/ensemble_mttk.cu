@@ -350,13 +350,19 @@ void Ensemble_MTTK::init_mttk()
   }
 }
 
-double Ensemble_MTTK::get_delta() { return (double)*current_step / (double)*total_steps; }
-
-void Ensemble_MTTK::get_target_temp() { t_target = t_start + (t_stop - t_start) * get_delta(); }
-
-void Ensemble_MTTK::get_target_pressure()
+double Ensemble_MTTK::get_delta(const int step, const int number_of_steps)
 {
-  double delta = get_delta();
+  return (double)step / (double)number_of_steps;
+}
+
+void Ensemble_MTTK::get_target_temp(const int step, const int number_of_steps)
+{
+  t_target = t_start + (t_stop - t_start) * get_delta(step, number_of_steps);
+}
+
+void Ensemble_MTTK::get_target_pressure(const int step, const int number_of_steps)
+{
+  double delta = get_delta(step, number_of_steps);
   for (int x = 0; x < 3; x++) {
     for (int y = 0; y < 3; y++) {
       p_target[x][y] = p_start[x][y] + (p_stop[x][y] - p_start[x][y]) * delta;
@@ -364,7 +370,7 @@ void Ensemble_MTTK::get_target_pressure()
   }
   get_p_hydro();
   if (non_hydrostatic)
-    get_sigma();
+    get_sigma(step);
 }
 
 void Ensemble_MTTK::get_h_matrix_from_box()
@@ -397,10 +403,10 @@ void Ensemble_MTTK::get_p_hydro()
     p_hydro[i][i] = hydro;
 }
 
-void Ensemble_MTTK::get_sigma()
+void Ensemble_MTTK::get_sigma(const int step)
 {
   if (h0_reset_interval > 0) {
-    if (*current_step % h0_reset_interval == 0) {
+    if (step % h0_reset_interval == 0) {
       std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_ref_inv[0][0]);
       vol_ref = box->get_volume();
     }
@@ -860,6 +866,7 @@ void Ensemble_MTTK::nh_v_press()
 
 void Ensemble_MTTK::initialize_before_first_step(
   const double,
+  const int,
   const std::vector<Group>&,
   Box&,
   Atom&,
@@ -870,6 +877,8 @@ void Ensemble_MTTK::initialize_before_first_step(
 
 void Ensemble_MTTK::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -879,13 +888,13 @@ void Ensemble_MTTK::compute1(
     nhc_press_integrate();
 
   if (use_thermostat) {
-    get_target_temp();
+    get_target_temp(step, number_of_steps);
     nhc_temp_integrate();
   }
 
   if (use_barostat) {
     get_h_matrix_from_box();
-    get_target_pressure();
+    get_target_pressure(step, number_of_steps);
     nh_omega_dot();
     nh_v_press();
   }
@@ -903,10 +912,13 @@ void Ensemble_MTTK::compute1(
 
 void Ensemble_MTTK::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   velocity_verlet_v(this->time_step, group, atom);
 

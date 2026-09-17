@@ -203,6 +203,7 @@ double Ensemble_TI::get_espring_sum(const int number_of_atoms)
 
 void Ensemble_TI::initialize_before_first_step(
   const double,
+  const int,
   const std::vector<Group>&,
   Box&,
   Atom& atom,
@@ -213,14 +214,18 @@ void Ensemble_TI::initialize_before_first_step(
 
 void Ensemble_TI::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   find_thermo(box, group, atoms, thermo);
   fprintf(output_file, "%e,%e\n", pe / atoms.number_of_atoms, espring / atoms.number_of_atoms);
   add_spring_force(box, atoms);
 
-  Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute2(
+    time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }

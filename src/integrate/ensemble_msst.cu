@@ -296,6 +296,7 @@ void Ensemble_MSST::msst_v(Atom& atom)
 
 void Ensemble_MSST::initialize_before_first_step(
   const double,
+  const int,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -306,6 +307,8 @@ void Ensemble_MSST::initialize_before_first_step(
 
 void Ensemble_MSST::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -349,10 +352,10 @@ void Ensemble_MSST::compute1(
   // rescale positions and change box size
   remap(vol2 / vol1, box, atom);
 
-  int output_interval = *total_steps / 10;
+  int output_interval = number_of_steps / 10;
   if (output_interval < 1)
     output_interval = 1;
-  if (*current_step == 0 || *current_step % output_interval == 0) {
+  if (step == 0 || step % output_interval == 0) {
     printf(
       "    MSST conserved energy: %f eV/atom, dHugoniot: %f K, dRayleigh: %f GPa\n",
       e_conserved,
@@ -363,10 +366,13 @@ void Ensemble_MSST::compute1(
 
 void Ensemble_MSST::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   get_conserved(box, group, atom, thermo);
   msst_v(atom);

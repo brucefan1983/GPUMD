@@ -1075,6 +1075,8 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
 
 void Ensemble_PIMD::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -1106,10 +1108,13 @@ void Ensemble_PIMD::compute1(
 
 void Ensemble_PIMD::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   omega_n = number_of_beads * K_B * temperature / HBAR;
 

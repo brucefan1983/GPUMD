@@ -29,6 +29,7 @@ public:
 
   void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -36,18 +37,21 @@ public:
 
   void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo) override;
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
-  void init();
+  void init(const int number_of_steps);
   void find_thermo();
   void scale_force();
-  void find_lambda();
+  void find_lambda(const int step);
   double switch_func(double t);
   double dswitch_func(double t);
-  void get_target_pressure() override;
+  void get_target_pressure(const int step, const int number_of_steps) override;
 
 protected:
   FILE* output_file;

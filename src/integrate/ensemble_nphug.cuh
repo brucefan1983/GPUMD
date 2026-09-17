@@ -30,7 +30,7 @@ public:
   int uniaxial_compress;
   double dhugo;
 
-  void get_target_temp() override;
+  void get_target_temp(const int step, const int number_of_steps) override;
   void get_thermo();
   void init_mttk() override;
 };

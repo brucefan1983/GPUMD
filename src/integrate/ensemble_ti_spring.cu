@@ -153,11 +153,12 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
-void Ensemble_TI_Spring::init(const Atom& atom, const GPU_Vector<double>& thermo)
+void Ensemble_TI_Spring::init(
+  const int number_of_steps, const Atom& atom, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
-    t_switch = (int)(*total_steps * 0.4);
-    t_equil = (int)(*total_steps * 0.1);
+    t_switch = (int)(number_of_steps * 0.4);
+    t_equil = (int)(number_of_steps * 0.1);
   } else
     printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
   printf(
@@ -284,15 +285,17 @@ double Ensemble_TI_Spring::get_espring_sum(const int number_of_atoms)
 
 void Ensemble_TI_Spring::initialize_before_first_step(
   const double,
+  const int number_of_steps,
   const std::vector<Group>&,
   Box&,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  init(atom, thermo);
+  init(number_of_steps, atom, thermo);
 }
 
 void Ensemble_TI_Spring::find_lambda(
+  const int step,
   const Box& box,
   const std::vector<Group>& group,
   Atom& atom,
@@ -302,7 +305,7 @@ void Ensemble_TI_Spring::find_lambda(
   int N = atom.number_of_atoms;
   bool need_output = false;
 
-  if (*current_step < t_equil) {
+  if (step < t_equil) {
     avg_pressure += pressure / t_equil;
     if (auto_k)
       gpu_add_msd<<<(N - 1) / 128 + 1, 128>>>(
@@ -318,7 +321,7 @@ void Ensemble_TI_Spring::find_lambda(
   }
 
   // calculate MSD and spring constants
-  if ((*current_step == t_equil - 1) && auto_k) {
+  if ((step == t_equil - 1) && auto_k) {
     gpu_k.copy_to_host(cpu_k.data());
     for (int i = 0; i < N; i++) {
       std::string ele = atom.cpu_atom_symbol[i];
@@ -342,7 +345,7 @@ void Ensemble_TI_Spring::find_lambda(
     gpu_k.copy_from_host(cpu_k.data());
   }
 
-  const int t = *current_step - t_equil;
+  const int t = step - t_equil;
   const double r_switch = 1.0 / t_switch;
 
   if ((t >= 0) && (t <= t_switch)) {
@@ -370,15 +373,19 @@ void Ensemble_TI_Spring::find_lambda(
 
 void Ensemble_TI_Spring::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
-  find_lambda(box, group, atoms, thermo);
+  find_lambda(step, box, group, atoms, thermo);
   add_spring_force(box, atoms);
 
-  Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute2(
+    time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }
 
 double Ensemble_TI_Spring::switch_func(double t)

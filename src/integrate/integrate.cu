@@ -68,10 +68,8 @@ void Integrate::initialize(
   Atom& atom,
   Box& box,
   std::vector<Group>& group,
-  GPU_Vector<double>& thermo,
-  int& total_steps)
+  GPU_Vector<double>& thermo)
 {
-  this->total_steps = total_steps;
   if (move_group >= 0) {
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
@@ -95,8 +93,6 @@ void Integrate::initialize(
   ensemble.box = &box;
   ensemble.group = &group;
   ensemble.time_step = time_step;
-  ensemble.current_step = &this->current_step;
-  ensemble.total_steps = &this->total_steps;
   ensemble.thermo = &thermo;
   ensemble.fixed_group = fixed_group;
   ensemble.fixed_grouping_method = fixed_grouping_method;
@@ -137,13 +133,15 @@ void Integrate::finalize(const Atom& atom, const Box& box)
 
 void Integrate::compute1(
   const double time_step,
-  const double step_over_number_of_steps,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
   Ensemble& ensemble = get_ensemble();
+  const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
@@ -153,16 +151,18 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (current_step == 0) {
-    ensemble.initialize_before_first_step(time_step, group, box, atom, thermo);
+  if (step == 0) {
+    ensemble.initialize_before_first_step(
+      time_step, number_of_steps, group, box, atom, thermo);
   }
 
-  ensemble.compute1(time_step, group, box, atom, thermo);
+  ensemble.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
 }
 
 void Integrate::compute2(
   const double time_step,
-  const double step_over_number_of_steps,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -170,6 +170,7 @@ void Integrate::compute2(
   Force& force)
 {
   Ensemble& ensemble = get_ensemble();
+  const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
@@ -177,12 +178,9 @@ void Integrate::compute2(
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
-  } else if (type == EnsembleType::TI_LIQUID) {
-    ensemble.compute3(time_step, group, box, atom, thermo, force);
-    return;
   }
 
-  ensemble.compute2(time_step, group, box, atom, thermo);
+  ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
 }
 
 void Integrate::parse_ensemble(

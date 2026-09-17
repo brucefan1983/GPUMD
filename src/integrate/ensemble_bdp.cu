@@ -255,6 +255,8 @@ void Ensemble_BDP::integrate_heat_bdp_2(
 
 void Ensemble_BDP::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -272,10 +274,13 @@ void Ensemble_BDP::compute1(
 
 void Ensemble_BDP::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   if (type == EnsembleType::NVT_BDP) {
     integrate_nvt_bdp_2(

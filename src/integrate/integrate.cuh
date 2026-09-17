@@ -38,14 +38,14 @@ public:
     Atom& atom,
     Box& box,
     std::vector<Group>& group,
-    GPU_Vector<double>& thermo,
-    int& total_steps);
+    GPU_Vector<double>& thermo);
 
   void finalize(const Atom& atom, const Box& box);
 
   void compute1(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -53,7 +53,8 @@ public:
 
   void compute2(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -94,7 +95,4 @@ public:
   // PIMD
   int number_of_beads;
 
-  // save some quantities for ensemble to use.
-  int current_step = 0;
-  int total_steps = 0;
 };
