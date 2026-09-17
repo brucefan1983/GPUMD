@@ -117,23 +117,23 @@ Ensemble_TI::Ensemble_TI(const char** params, int num_params)
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
-void Ensemble_TI::init()
+void Ensemble_TI::init(const Atom& atom, const GPU_Vector<double>& thermo)
 {
   printf("Opening TI output file...\n");
   output_file = my_fopen("ti.csv", "w");
   fprintf(output_file, "pe,espring\n");
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
 
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
   GPU_CHECK_KERNEL
 
-  thermo_cpu.resize(thermo->size());
+  thermo_cpu.resize(thermo.size());
   gpu_k.resize(N);
   cpu_k.resize(N);
   for (int i = 0; i < N; i++) {
-    std::string ele = atom->cpu_atom_symbol[i];
+    std::string ele = atom.cpu_atom_symbol[i];
     if (spring_map.find(ele) == spring_map.end())
       PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
     cpu_k[i] = spring_map[ele];
@@ -143,24 +143,28 @@ void Ensemble_TI::init()
   position_0.resize(3 * N);
   CHECK(gpuMemcpy(
     position_0.data(),
-    atom->position_per_atom.data(),
+    atom.position_per_atom.data(),
     sizeof(double) * position_0.size(),
     gpuMemcpyDeviceToDevice));
 }
 
-void Ensemble_TI::find_thermo()
+void Ensemble_TI::find_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   pe = thermo_cpu[1];
-  espring = get_espring_sum();
+  espring = get_espring_sum(atom.number_of_atoms);
 }
 
 Ensemble_TI::~Ensemble_TI(void)
@@ -169,30 +173,30 @@ Ensemble_TI::~Ensemble_TI(void)
   fclose(output_file);
 }
 
-void Ensemble_TI::add_spring_force()
+void Ensemble_TI::add_spring_force(const Box& box, Atom& atom)
 {
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   gpu_add_spring_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
-    *box,
+    box,
     lambda,
     gpu_espring.data(),
     gpu_k.data(),
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + N,
-    atom->position_per_atom.data() + 2 * N,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + N,
+    atom.position_per_atom.data() + 2 * N,
     position_0.data(),
     position_0.data() + N,
     position_0.data() + 2 * N,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + N,
-    atom->force_per_atom.data() + 2 * N);
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + N,
+    atom.force_per_atom.data() + 2 * N);
 }
 
-double Ensemble_TI::get_espring_sum()
+double Ensemble_TI::get_espring_sum(const int number_of_atoms)
 {
   double temp;
-  gpu_get_espring_sum<<<1, 1024>>>(atom->number_of_atoms, gpu_espring.data());
+  gpu_get_espring_sum<<<1, 1024>>>(number_of_atoms, gpu_espring.data());
   gpu_espring.copy_to_host(&temp, 1);
   return temp;
 }
@@ -201,10 +205,10 @@ void Ensemble_TI::initialize_before_first_step(
   const double,
   const std::vector<Group>&,
   Box&,
-  Atom&,
-  GPU_Vector<double>&)
+  Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  init();
+  init(atom, thermo);
 }
 
 void Ensemble_TI::compute1(
@@ -224,9 +228,9 @@ void Ensemble_TI::compute2(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  find_thermo();
-  fprintf(output_file, "%e,%e\n", pe / atom->number_of_atoms, espring / atom->number_of_atoms);
-  add_spring_force();
+  find_thermo(box, group, atoms, thermo);
+  fprintf(output_file, "%e,%e\n", pe / atoms.number_of_atoms, espring / atoms.number_of_atoms);
+  add_spring_force(box, atoms);
 
   Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
 }

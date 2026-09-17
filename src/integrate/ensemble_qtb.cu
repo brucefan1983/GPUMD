@@ -302,7 +302,7 @@ void Ensemble_QTB::update_time_filter(const double target_temperature)
   last_filter_temperature = target_temperature;
 }
 
-void Ensemble_QTB::refresh_colored_random_force()
+void Ensemble_QTB::refresh_colored_random_force(const Atom& atom)
 {
   const double gamma3_prefactor = sqrt(2.0 * fric_coef * 12.0 / h_timestep);
   gpu_refresh_qtb_random_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -311,7 +311,7 @@ void Ensemble_QTB::refresh_colored_random_force()
     nfreq2,
     time_H_device.data(),
     gamma3_prefactor,
-    atom->mass.data(),
+    atom.mass.data(),
     random_array_0.data(),
     random_array_1.data(),
     random_array_2.data(),
@@ -321,7 +321,7 @@ void Ensemble_QTB::refresh_colored_random_force()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_QTB::apply_qtb_half_step()
+void Ensemble_QTB::apply_qtb_half_step(Atom& atom)
 {
   const double dt_half = 0.5 * dt;
 
@@ -329,28 +329,28 @@ void Ensemble_QTB::apply_qtb_half_step()
     number_of_atoms,
     dt_half,
     fric_coef,
-    atom->mass.data(),
+    atom.mass.data(),
     fran.data(),
     fran.data() + number_of_atoms,
     fran.data() + 2 * number_of_atoms,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
     number_of_atoms,
-    atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
   gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 }
 
@@ -363,10 +363,10 @@ void Ensemble_QTB::compute1(
 {
   if (counter_mu == 0) {
     update_time_filter(temperature);
-    refresh_colored_random_force();
+    refresh_colored_random_force(atom);
   }
 
-  apply_qtb_half_step();
+  apply_qtb_half_step(atom);
 
 #ifdef USE_NEPCG
   velocity_verlet_cg(
@@ -396,7 +396,7 @@ void Ensemble_QTB::compute2(
     atom.position_per_atom, atom.velocity_per_atom);
 #endif
 
-  apply_qtb_half_step();
+  apply_qtb_half_step(atom);
 
   find_thermo(
     box.get_volume(),

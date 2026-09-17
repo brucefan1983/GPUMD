@@ -79,6 +79,6 @@ private:
 
   void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
   void update_time_filter(const double target_temperature);
-  void refresh_colored_random_force();
-  void apply_qtb_half_step();
+  void refresh_colored_random_force(const Atom& atom);
+  void apply_qtb_half_step(Atom& atom);
 };
