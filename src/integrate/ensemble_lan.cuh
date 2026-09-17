@@ -27,27 +27,27 @@ class Ensemble_LAN : public Ensemble
 public:
   Ensemble_LAN();
   Ensemble_LAN(const char** param, int num_param, const std::vector<Group>& group);
-  virtual ~Ensemble_LAN(void);
+  ~Ensemble_LAN(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
 protected:
   int N_source, N_sink, offset_source, offset_sink;

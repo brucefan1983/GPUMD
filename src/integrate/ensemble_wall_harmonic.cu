@@ -121,6 +121,16 @@ void Ensemble_wall_harmonic::init()
 
 Ensemble_wall_harmonic::~Ensemble_wall_harmonic(void) {}
 
+void Ensemble_wall_harmonic::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init();
+}
+
 void Ensemble_wall_harmonic::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -128,8 +138,6 @@ void Ensemble_wall_harmonic::compute1(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   find_thermo(
     box.get_volume(),
     group,

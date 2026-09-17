@@ -24,21 +24,28 @@ class Ensemble_MTTK : public Ensemble
 public:
   Ensemble_MTTK(const char** params, int num_params);
   Ensemble_MTTK(void);
-  virtual ~Ensemble_MTTK(void);
+  ~Ensemble_MTTK(void) override;
 
-  virtual void compute1(
+  void initialize_before_first_step(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 

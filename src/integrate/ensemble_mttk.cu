@@ -858,6 +858,16 @@ void Ensemble_MTTK::nh_v_press()
     omega_dot[2][2]);
 }
 
+void Ensemble_MTTK::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init_mttk();
+}
+
 void Ensemble_MTTK::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -865,10 +875,6 @@ void Ensemble_MTTK::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0) {
-    init_mttk();
-  }
-
   if (use_barostat)
     nhc_press_integrate();
 

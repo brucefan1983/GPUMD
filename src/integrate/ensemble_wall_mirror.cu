@@ -112,6 +112,16 @@ void Ensemble_wall_mirror::init()
 
 Ensemble_wall_mirror::~Ensemble_wall_mirror(void) {}
 
+void Ensemble_wall_mirror::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init();
+}
+
 void Ensemble_wall_mirror::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -119,8 +129,6 @@ void Ensemble_wall_mirror::compute1(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   find_thermo(
     box.get_volume(),
     group,

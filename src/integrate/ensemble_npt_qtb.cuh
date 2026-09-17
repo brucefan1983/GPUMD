@@ -28,21 +28,21 @@ class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
   Ensemble_NPT_QTB(const char** params, int num_params);
-  virtual ~Ensemble_NPT_QTB(void);
+  ~Ensemble_NPT_QTB(void) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
 private:
   int qtb_number_of_atoms;
@@ -72,6 +72,6 @@ private:
   void qtb_apply_half_step();
 
 protected:
-  virtual void init_mttk() override;
-  virtual void get_target_temp() override;
+  void init_mttk() override;
+  void get_target_temp() override;
 };

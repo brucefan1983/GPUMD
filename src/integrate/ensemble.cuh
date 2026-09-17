@@ -115,6 +115,18 @@ public:
   {
   }
 
+  // Called once immediately before the first integration step. At this point,
+  // the initial force has been computed and first-step velocity/time-step
+  // adjustments have been applied.
+  virtual void initialize_before_first_step(
+    const double /* time_step */,
+    const std::vector<Group>& /* group */,
+    Box& /* box */,
+    Atom& /* atom */,
+    GPU_Vector<double>& /* thermo */)
+  {
+  }
+
   void find_thermo(
     const double volume,
     const std::vector<Group>& group,

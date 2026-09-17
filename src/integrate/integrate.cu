@@ -133,6 +133,10 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
+  if (current_step == 0) {
+    ensemble->initialize_before_first_step(time_step, group, box, atom, thermo);
+  }
+
   ensemble->compute1(time_step, group, box, atom, thermo);
 }
 

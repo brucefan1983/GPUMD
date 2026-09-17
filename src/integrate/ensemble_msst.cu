@@ -287,6 +287,16 @@ void Ensemble_MSST::msst_v()
     dthalf);
 }
 
+void Ensemble_MSST::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init();
+}
+
 void Ensemble_MSST::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -294,9 +304,6 @@ void Ensemble_MSST::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
-
   get_conserved();
   get_omega();
 

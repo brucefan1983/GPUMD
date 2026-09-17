@@ -352,10 +352,6 @@ void Ensemble_NPT_QTB::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0) {
-    init_mttk();
-  }
-
   // 1. Pressure chain thermostat (for barostat DOF)
   nhc_press_integrate();
 

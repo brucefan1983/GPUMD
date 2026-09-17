@@ -28,22 +28,29 @@ class Ensemble_TI_Liquid : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Liquid(const char** params, int num_params);
-  virtual ~Ensemble_TI_Liquid(void);
+  ~Ensemble_TI_Liquid(void) override;
 
-  virtual void compute1(
+  void initialize_before_first_step(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute3(
+  void compute3(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
     GPU_Vector<double>& thermo,
-    Force& force);
+    Force& force) override;
 
   double fe(double x, const double coef[4], const double sum_spline[106], int index);
   void get_UF_sum();

@@ -29,7 +29,7 @@ class Ensemble_PIMD : public Ensemble
 public:
   Ensemble_PIMD(const char** param, int num_param, const Box& box);
 
-  virtual ~Ensemble_PIMD(void);
+  ~Ensemble_PIMD(void) override;
 
   void initialize_run(
     const double time_step,
@@ -57,19 +57,19 @@ public:
     return num_target_pressure_components;
   }
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
 protected:
   int number_of_atoms = 0;

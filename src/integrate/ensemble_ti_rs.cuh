@@ -25,21 +25,28 @@ class Ensemble_TI_RS : public Ensemble_MTTK
 {
 public:
   Ensemble_TI_RS(const char** params, int num_params);
-  virtual ~Ensemble_TI_RS(void);
+  ~Ensemble_TI_RS(void) override;
 
-  virtual void compute1(
+  void initialize_before_first_step(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
   void init();
   void find_thermo();
@@ -47,7 +54,7 @@ public:
   void find_lambda();
   double switch_func(double t);
   double dswitch_func(double t);
-  void get_target_pressure();
+  void get_target_pressure() override;
 
 protected:
   FILE* output_file;

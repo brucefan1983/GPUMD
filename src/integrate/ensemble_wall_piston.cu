@@ -127,6 +127,16 @@ void Ensemble_wall_piston::init()
 
 Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
 
+void Ensemble_wall_piston::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init();
+}
+
 void Ensemble_wall_piston::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -134,8 +144,6 @@ void Ensemble_wall_piston::compute1(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   find_thermo(
     box.get_volume(),
     group,

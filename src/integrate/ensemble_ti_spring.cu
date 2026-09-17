@@ -278,6 +278,16 @@ double Ensemble_TI_Spring::get_espring_sum()
   return temp;
 }
 
+void Ensemble_TI_Spring::initialize_before_first_step(
+  const double,
+  const std::vector<Group>&,
+  Box&,
+  Atom&,
+  GPU_Vector<double>&)
+{
+  init();
+}
+
 void Ensemble_TI_Spring::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -285,8 +295,6 @@ void Ensemble_TI_Spring::compute1(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
 }
 

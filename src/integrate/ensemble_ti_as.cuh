@@ -25,25 +25,32 @@ class Ensemble_TI_AS : public Ensemble_MTTK
 {
 public:
   Ensemble_TI_AS(const char** params, int num_params);
-  virtual ~Ensemble_TI_AS(void);
+  ~Ensemble_TI_AS(void) override;
 
-  virtual void compute1(
+  void initialize_before_first_step(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
   void init();
   void find_thermo();
-  void get_target_pressure();
+  void get_target_pressure() override;
 
 protected:
   FILE* output_file;

@@ -218,6 +218,17 @@ void Ensemble_TI_RS::scale_force()
     atom->virial_per_atom.data() + N * 5);
 }
 
+void Ensemble_TI_RS::initialize_before_first_step(
+  const double time_step,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  init();
+  Ensemble_MTTK::initialize_before_first_step(time_step, group, box, atom, thermo);
+}
+
 void Ensemble_TI_RS::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -225,8 +236,6 @@ void Ensemble_TI_RS::compute1(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
 }
 

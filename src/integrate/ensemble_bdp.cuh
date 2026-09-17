@@ -21,27 +21,27 @@ class Ensemble_BDP : public Ensemble
 {
 public:
   Ensemble_BDP(const char** param, int num_param, const std::vector<Group>& group);
-  virtual ~Ensemble_BDP(void);
+  ~Ensemble_BDP(void) override;
 
   double get_temperature1() const;
   double get_temperature2() const;
 
-  virtual void initialize_run(
-    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
 protected:
   std::mt19937 rng;
