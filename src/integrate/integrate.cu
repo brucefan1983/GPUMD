@@ -116,8 +116,11 @@ void Integrate::initialize(
   ensemble.initialize_run(time_step, atom, box, group);
 }
 
-void Integrate::finalize()
+void Integrate::finalize(const Atom& atom, const Box& box)
 {
+  if (has_ensemble()) {
+    get_ensemble().finalize_run(atom, box);
+  }
   ensemble_.reset();
   type = EnsembleType::UNKNOWN;
   fixed_group = -1; // no group has an index of -1

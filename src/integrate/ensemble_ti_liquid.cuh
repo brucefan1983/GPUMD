@@ -28,7 +28,8 @@ class Ensemble_TI_Liquid : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Liquid(const char** params, int num_params);
-  ~Ensemble_TI_Liquid(void) override;
+
+  void finalize_run(const Atom& atom, const Box& box) override;
 
   void initialize_before_first_step(
     const double time_step,

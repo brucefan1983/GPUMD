@@ -259,16 +259,16 @@ void Ensemble_TI_Liquid::init()
   gpu_ti_values.resize(2);
 }
 
-Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
+void Ensemble_TI_Liquid::finalize_run(const Atom& atom, const Box& box)
 {
 
   double kT = K_B * temperature;
-  int N = atom->number_of_atoms;
-  const std::vector<double>& masses = atom->cpu_mass;
-  const std::vector<int>& types = atom->cpu_type;
+  int N = atom.number_of_atoms;
+  const std::vector<double>& masses = atom.cpu_mass;
+  const std::vector<int>& types = atom.cpu_type;
   std::unordered_map<int, int> species_count;
 
-  V = box->get_volume() / N; // 1/V is the number density, rho
+  V = box.get_volume() / N; // 1/V is the number density, rho
 
   double x_UF = pow(PI * sigma_sqrd, 1.5) / (2.0 * V);
 

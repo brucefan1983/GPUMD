@@ -210,17 +210,17 @@ void Ensemble_TI_Spring::find_thermo()
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
-Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
+void Ensemble_TI_Spring::finalize_run(const Atom& atom, const Box& box)
 {
   double kT = K_B * temperature;
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   for (int i = 0; i < N; i++) {
-    cpu_k[i] = pow(cpu_k[i] / atom->cpu_mass[i], 0.5);
+    cpu_k[i] = pow(cpu_k[i] / atom.cpu_mass[i], 0.5);
     cpu_k[i] = log(cpu_k[i] * HBAR / kT);
     E_Ein += cpu_k[i];
   }
   E_Ein = 3 * kT * E_Ein / N;
-  V = box->get_volume() / N;
+  V = box.get_volume() / N;
 
   FILE* yaml_file = my_fopen("ti_spring.yaml", "w");
   fprintf(yaml_file, "E_Einstein: %f\n", E_Ein);

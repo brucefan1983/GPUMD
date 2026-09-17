@@ -307,7 +307,7 @@ void Run::perform_a_run()
 
   measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
 
-  integrate.finalize();
+  integrate.finalize(atom, box);
   velocity.finalize();
   force.finalize();
   max_distance_per_step = 0.0;

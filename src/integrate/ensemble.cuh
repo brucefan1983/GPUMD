@@ -127,6 +127,8 @@ public:
   {
   }
 
+  virtual void finalize_run(const Atom& /* atom */, const Box& /* box */) {}
+
   void find_thermo(
     const double volume,
     const std::vector<Group>& group,

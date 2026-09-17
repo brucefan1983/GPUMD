@@ -41,7 +41,7 @@ public:
     GPU_Vector<double>& thermo,
     int& total_steps);
 
-  void finalize();
+  void finalize(const Atom& atom, const Box& box);
 
   void compute1(
     const double time_step,

@@ -27,7 +27,8 @@ class Ensemble_TI_Spring : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Spring(const char** params, int num_params);
-  ~Ensemble_TI_Spring(void) override;
+
+  void finalize_run(const Atom& atom, const Box& box) override;
 
   void initialize_before_first_step(
     const double time_step,
