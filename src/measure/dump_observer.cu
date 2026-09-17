@@ -213,7 +213,7 @@ void Dump_Observer::end_of_step(
         atom.potential_per_atom,
         atom.force_per_atom,
         atom.virial_per_atom);
-      integrate.ensemble->find_thermo(
+      integrate.get_ensemble().find_thermo(
         box.get_volume(),
         group,
         atom.mass,

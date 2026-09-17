@@ -523,13 +523,14 @@ void Compute::end_of_step(
     cpu_group_sum_ave[n] += cpu_group_sum[n];
 
   if (output_flag) {
+    Ensemble& ensemble = integrate.get_ensemble();
     if (integrate.type == EnsembleType::HEAT_HYBRID) {
       //  Extract energy from multiple thermal reservoirs
-      int num_thermostats = integrate.ensemble->energy_transferred_n.size();
-      output_results_n(integrate.ensemble->energy_transferred_n.data(), group, num_thermostats);
+      int num_thermostats = ensemble.energy_transferred_n.size();
+      output_results_n(ensemble.energy_transferred_n.data(), group, num_thermostats);
     } else {
       // Use legacy version for other ensemble types
-      output_results(integrate.ensemble->energy_transferred, group);
+      output_results(ensemble.energy_transferred, group);
     }
 
     for (int n = 0; n < Ng * number_of_scalars; ++n)

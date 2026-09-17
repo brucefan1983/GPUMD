@@ -25,8 +25,13 @@ class Atom;
 
 class Integrate
 {
+private:
+  std::unique_ptr<Ensemble> ensemble_;
+
 public:
-  std::unique_ptr<Ensemble> ensemble;
+  bool has_ensemble() const;
+  Ensemble& get_ensemble();
+  const Ensemble& get_ensemble() const;
 
   void initialize(
     double time_step,
