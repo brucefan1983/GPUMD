@@ -181,11 +181,9 @@ void Integrate::compute2(
 void Integrate::parse_ensemble(
   const char** param,
   int num_param,
-  double time_step,
-  Atom& atom,
-  Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo)
+  const Atom& atom,
+  const Box& box,
+  const std::vector<Group>& group)
 {
   if (has_ensemble()) {
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");

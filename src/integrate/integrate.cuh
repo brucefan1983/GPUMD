@@ -65,11 +65,9 @@ public:
   void parse_ensemble(
     const char** param,
     int num_param,
-    double time_step,
-    Atom& atom,
-    Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo);
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
   void parse_fix(const char**, int, std::vector<Group>& group);
   void parse_move(const char**, int, std::vector<Group>& group);
 
