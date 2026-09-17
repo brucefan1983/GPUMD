@@ -37,8 +37,7 @@ public:
     double time_step,
     Atom& atom,
     Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group);
 
   void finalize(const Atom& atom, const Box& box);
 

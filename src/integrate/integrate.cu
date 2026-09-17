@@ -67,8 +67,7 @@ void Integrate::initialize(
   double time_step,
   Atom& atom,
   Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group)
 {
   if (move_group >= 0) {
     if (fixed_group < 0) {
