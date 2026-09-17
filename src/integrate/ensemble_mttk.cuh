@@ -18,13 +18,13 @@
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <memory>
 
 class Ensemble_MTTK : public Ensemble
 {
 public:
   Ensemble_MTTK(const char** params, int num_params);
   Ensemble_MTTK(void);
-  ~Ensemble_MTTK(void) override;
 
   void initialize_run(
     const double time_step,
@@ -62,6 +62,7 @@ public:
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
+  void initialize_nose_hoover_chains();
   virtual void init_mttk(
     const std::vector<Group>& group,
     const Box& box,
@@ -157,8 +158,12 @@ protected:
   // degrees of freedom when computing temperature
   int temperature_dof = 0;
   double t_freq = 0, t_period = 100;
-  double *Q, *eta_dot, *eta_dotdot;
-  double *Q_p, *eta_p_dot, *eta_p_dotdot;
+  std::unique_ptr<double[]> Q;
+  std::unique_ptr<double[]> eta_dot;
+  std::unique_ptr<double[]> eta_dotdot;
+  std::unique_ptr<double[]> Q_p;
+  std::unique_ptr<double[]> eta_p_dot;
+  std::unique_ptr<double[]> eta_p_dotdot;
   double factor_eta = 0;
   const double kB = 8.617333262e-5;
   // length of Nose-Hoover chain

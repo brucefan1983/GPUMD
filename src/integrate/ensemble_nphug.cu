@@ -184,20 +184,7 @@ void Ensemble_NPHug::init_mttk(
   dt8 = dt / 8;
   dt16 = dt / 16;
   t_freq = 1 / (t_period * dt);
-  Q = new double[tchain];
-  eta_dot = new double[tchain + 1];
-  eta_dotdot = new double[tchain];
-  Q_p = new double[pchain];
-  eta_p_dot = new double[pchain + 1];
-  eta_p_dotdot = new double[pchain];
-
-  for (int n = 0; n < tchain; n++)
-    Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
-
-  for (int n = 0; n < pchain; n++)
-    Q_p[n] = eta_p_dot[n] = eta_p_dotdot[n] = 0;
-
-  eta_dot[tchain] = eta_p_dot[pchain] = 0;
+  initialize_nose_hoover_chains();
 
   t_for_barostat = find_current_temperature(group, box, atom, thermo);
 
