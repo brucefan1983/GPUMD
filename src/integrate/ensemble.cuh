@@ -159,23 +159,6 @@ public:
   double energy_transferred[2]; // energy transferred from system to heat baths
 
   std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths
-  // additional function for scaling velocities in multiple groups
-  virtual void scale_velocity_groups(
-    const GPU_Vector<double>& factors,
-    const GPU_Vector<int>& labels,
-    const double* vcx,
-    const double* vcy,
-    const double* vcz,
-    const double* ke,
-    const std::vector<Group>& group,
-    GPU_Vector<double>& velocity_per_atom);
-
-  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
   // Reusable workspaces for local heat baths. The kinetic-energy arrays

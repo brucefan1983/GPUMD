@@ -47,6 +47,13 @@ public:
     Force& force) override;
 
 protected:
+  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+
   void integrate_nvt_nhc_1(
     const double time_step,
     const double volume,

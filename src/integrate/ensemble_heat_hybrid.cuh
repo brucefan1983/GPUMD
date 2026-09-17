@@ -61,6 +61,17 @@ protected:
   GPU_Vector<int> gpu_nhc_labels;
   GPU_Vector<double> gpu_nhc_factors;
 
+  // additional function for scaling velocities in multiple groups
+  void scale_velocity_groups(
+    const GPU_Vector<double>& factors,
+    const GPU_Vector<int>& labels,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom);
+
   // Flattened NHC arrays: [thermostat_index * NOSE_HOOVER_CHAIN_LENGTH + chain_index]
   std::vector<double> pos_nhc;
   std::vector<double> vel_nhc;
