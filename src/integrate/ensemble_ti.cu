@@ -169,8 +169,23 @@ void Ensemble_TI::find_thermo(
 
 Ensemble_TI::~Ensemble_TI(void)
 {
-  printf("Closing TI output file...\n");
-  fclose(output_file);
+  close_output_file(false);
+}
+
+void Ensemble_TI::finalize_run(const Atom&, const Box&)
+{
+  close_output_file(true);
+}
+
+void Ensemble_TI::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing TI output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
 }
 
 void Ensemble_TI::add_spring_force(const Box& box, Atom& atom)

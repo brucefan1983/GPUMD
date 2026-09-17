@@ -172,8 +172,23 @@ void Ensemble_TI_AS::find_ti_thermo(
 
 Ensemble_TI_AS::~Ensemble_TI_AS(void)
 {
-  printf("Closing ti_as output file...\n");
-  fclose(output_file);
+  close_output_file(false);
+}
+
+void Ensemble_TI_AS::finalize_run(const Atom&, const Box&)
+{
+  close_output_file(true);
+}
+
+void Ensemble_TI_AS::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing ti_as output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
 }
 
 void Ensemble_TI_AS::initialize_before_first_step(

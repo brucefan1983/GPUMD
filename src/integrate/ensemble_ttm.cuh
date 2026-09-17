@@ -76,6 +76,8 @@ public:
 
   ~Ensemble_TTM(void) override;
 
+  void finalize_run(const Atom& atom, const Box& box) override;
+
   void initialize_run(
     const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 

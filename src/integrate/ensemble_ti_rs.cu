@@ -202,8 +202,23 @@ void Ensemble_TI_RS::find_ti_thermo(
 
 Ensemble_TI_RS::~Ensemble_TI_RS(void)
 {
-  printf("Closing ti_rs output file...\n");
-  fclose(output_file);
+  close_output_file(false);
+}
+
+void Ensemble_TI_RS::finalize_run(const Atom&, const Box&)
+{
+  close_output_file(true);
+}
+
+void Ensemble_TI_RS::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing ti_rs output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
 }
 
 void Ensemble_TI_RS::scale_force(Atom& atom)

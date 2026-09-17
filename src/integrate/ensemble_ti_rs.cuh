@@ -27,6 +27,8 @@ public:
   Ensemble_TI_RS(const char** params, int num_params);
   ~Ensemble_TI_RS(void) override;
 
+  void finalize_run(const Atom& atom, const Box& box) override;
+
   void initialize_before_first_step(
     const double time_step,
     const int number_of_steps,
@@ -69,7 +71,7 @@ public:
     GPU_Vector<double>& thermo) override;
 
 protected:
-  FILE* output_file;
+  FILE* output_file = nullptr;
   double lambda_f;
   double lambda = 1, dlambda = 0;
   int t_switch = -1, t_equil = -1;
@@ -77,4 +79,7 @@ protected:
   double pe;
   std::vector<double> thermo_cpu;
   bool auto_switch = true;
+
+private:
+  void close_output_file(const bool print_message);
 };

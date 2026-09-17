@@ -934,6 +934,11 @@ Ensemble_TTM::~Ensemble_TTM(void)
   close_electron_temperature_file();
 }
 
+void Ensemble_TTM::finalize_run(const Atom&, const Box&)
+{
+  close_electron_temperature_file();
+}
+
 void Ensemble_TTM::integrate_heat_lan_half(
   const std::vector<Group>& group,
   const GPU_Vector<double>& mass,
