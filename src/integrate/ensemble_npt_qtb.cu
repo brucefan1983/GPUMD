@@ -98,18 +98,6 @@ static __global__ void gpu_apply_qtb_half_step(
 
 Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
 {
-  // Initialize MTTK matrices to zero (same as parent constructor)
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
-          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
-            p_flag[i][j] = h_ref_inv[i][j] = 0;
-      p_period[i][j] = 1000;
-      need_scale[i][j] = true;
-    }
-  }
-
   // NPT-QTB: barostat on, NHC thermostat off (QTB replaces it)
   ensemble_type = NPH;
   use_barostat = false;  // will be set true only when a pressure direction is parsed

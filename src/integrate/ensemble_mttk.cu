@@ -76,9 +76,7 @@ void matrix_minus(double a[3][3], double b[3][3], double c[3][3])
 
 } // namespace
 
-Ensemble_MTTK::Ensemble_MTTK(void) {}
-
-Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
+Ensemble_MTTK::Ensemble_MTTK(void)
 {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -91,7 +89,10 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
       need_scale[i][j] = true;
     }
   }
+}
 
+Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTTK()
+{
   int i = 1;
   while (i < num_params) {
     if (strcmp(params[i], "nvt_mttk") == 0) {

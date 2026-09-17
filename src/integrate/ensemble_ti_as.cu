@@ -19,18 +19,6 @@
 
 Ensemble_TI_AS::Ensemble_TI_AS(const char** params, int num_params)
 {
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
-          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
-            p_flag[i][j] = h_ref_inv[i][j] = 0;
-      p_period[i][j] = 1000;
-      // TODO: if non-periodic...?
-      need_scale[i][j] = true;
-    }
-  }
-
   ensemble_type = NPT;
   int i = 2;
   while (i < num_params) {
