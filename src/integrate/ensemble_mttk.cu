@@ -890,12 +890,12 @@ void Ensemble_MTTK::compute1(
     nh_v_press();
   }
 
-  velocity_verlet_v();
+  velocity_verlet_v(this->time_step, group, atom);
 
   if (use_barostat)
     propagate_box();
 
-  velocity_verlet_x();
+  velocity_verlet_x(this->time_step, group, atom);
 
   if (use_barostat)
     propagate_box();
@@ -908,7 +908,7 @@ void Ensemble_MTTK::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  velocity_verlet_v();
+  velocity_verlet_v(this->time_step, group, atom);
 
   if (use_barostat) {
     get_h_matrix_from_box();

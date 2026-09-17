@@ -307,42 +307,48 @@ static __global__ void gpu_velocity_verlet_v(
   }
 }
 
-void Ensemble::velocity_verlet_v()
+void Ensemble::velocity_verlet_v(
+  const double time_step,
+  const std::vector<Group>& group,
+  Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   const int* group_pointer;
-  if (group->size())
-    group_pointer = (*group)[fixed_grouping_method].label.data();
+  if (group.size())
+    group_pointer = group[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
 
   gpu_velocity_verlet_v<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    group->size(),
+    group.size(),
     group_pointer,
     fixed_group,
     move_group,
     time_step,
-    atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + n,
-    atom->velocity_per_atom.data() + 2 * n,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + n,
-    atom->force_per_atom.data() + 2 * n);
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + n,
+    atom.force_per_atom.data() + 2 * n);
 }
 
-void Ensemble::velocity_verlet_x()
+void Ensemble::velocity_verlet_x(
+  const double time_step,
+  const std::vector<Group>& group,
+  Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   const int* group_pointer;
-  if (group->size())
-    group_pointer = (*group)[fixed_grouping_method].label.data();
+  if (group.size())
+    group_pointer = group[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
   gpu_velocity_verlet_x<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    group->size(),
+    group.size(),
     group_pointer,
     fixed_group,
     move_group,
@@ -350,12 +356,12 @@ void Ensemble::velocity_verlet_x()
     move_velocity[1],
     move_velocity[2],
     time_step,
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + n,
-    atom->position_per_atom.data() + 2 * n,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + n,
-    atom->velocity_per_atom.data() + 2 * n);
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + n,
+    atom.position_per_atom.data() + 2 * n,
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n);
 }
 
 void Ensemble::velocity_verlet(

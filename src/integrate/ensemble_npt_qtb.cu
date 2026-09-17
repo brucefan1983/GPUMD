@@ -370,13 +370,13 @@ void Ensemble_NPT_QTB::compute1(
   nh_v_press();
 
   // 4. Velocity Verlet half-step (velocity)
-  velocity_verlet_v();
+  velocity_verlet_v(this->time_step, group, atom);
 
   // 5. Propagate box
   propagate_box();
 
   // 6. Velocity Verlet (position)
-  velocity_verlet_x();
+  velocity_verlet_x(this->time_step, group, atom);
 
   // 7. Propagate box again
   propagate_box();
@@ -390,7 +390,7 @@ void Ensemble_NPT_QTB::compute2(
   GPU_Vector<double>& thermo)
 {
   // 1. Velocity Verlet half-step (velocity)
-  velocity_verlet_v();
+  velocity_verlet_v(this->time_step, group, atom);
 
   // 2. Barostat: scale velocities and update omega_dot
   get_h_matrix_from_box();

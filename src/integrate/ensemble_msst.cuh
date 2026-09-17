@@ -46,13 +46,25 @@ public:
     Atom& atom,
     GPU_Vector<double>& thermo) override;
 
-  void remap(double);
-  void init();
-  void find_thermo();
+  void remap(const double dilation, Box& box, Atom& atom);
+  void init(
+    const Box& box,
+    const std::vector<Group>& group,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
   void get_omega();
-  void get_conserved();
-  void get_vsum();
-  void msst_v();
+  void get_conserved(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void get_vsum(const Atom& atom);
+  void msst_v(Atom& atom);
 
   int N;
   int shock_direction;
