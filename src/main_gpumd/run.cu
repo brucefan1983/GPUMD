@@ -359,7 +359,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(param, num_param, time_step, atom, box, group, thermo);
+    integrate.parse_ensemble(param, num_param, atom, box, group);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
