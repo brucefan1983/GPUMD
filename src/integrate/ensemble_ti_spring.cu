@@ -215,6 +215,11 @@ void Ensemble_TI_Spring::find_thermo(
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
+Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
+{
+  close_output_file(false);
+}
+
 void Ensemble_TI_Spring::finalize_run(const Atom& atom, const Box& box)
 {
   double kT = K_B * temperature;
@@ -236,8 +241,7 @@ void Ensemble_TI_Spring::finalize_run(const Atom& atom, const Box& box)
   fprintf(yaml_file, "P: %f\n", target_pressure);
   fprintf(yaml_file, "G: %f\n", E_Ein + E_diff + target_pressure * V);
 
-  printf("Closing ti_spring output file...\n");
-  fclose(output_file);
+  close_output_file(true);
   fclose(yaml_file);
 
   printf("\n");
@@ -253,6 +257,17 @@ void Ensemble_TI_Spring::finalize_run(const Atom& atom, const Box& box)
     E_Ein + E_diff + target_pressure * V);
   printf("These values are stored in ti_spring.yaml.\n");
   printf("-----------------------------------------------------------------------\n");
+}
+
+void Ensemble_TI_Spring::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing ti_spring output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
 }
 
 void Ensemble_TI_Spring::add_spring_force(const Box& box, Atom& atom)

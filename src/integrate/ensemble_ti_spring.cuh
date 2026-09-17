@@ -27,6 +27,7 @@ class Ensemble_TI_Spring : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Spring(const char** params, int num_params);
+  ~Ensemble_TI_Spring(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;
 
@@ -67,7 +68,7 @@ public:
   double dswitch_func(double t);
 
 protected:
-  FILE* output_file;
+  FILE* output_file = nullptr;
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
   double pe, espring;
@@ -85,4 +86,7 @@ protected:
   GPU_Vector<double> gpu_espring;
   GPU_Vector<double> position_0;
   std::vector<double> thermo_cpu;
+
+private:
+  void close_output_file(const bool print_message);
 };

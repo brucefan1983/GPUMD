@@ -951,6 +951,11 @@ void Ensemble_TI_Liquid::init(const int number_of_steps, const Atom& atom)
   gpu_ti_values.resize(2);
 }
 
+Ensemble_TI_Liquid::~Ensemble_TI_Liquid(void)
+{
+  close_output_file(false);
+}
+
 void Ensemble_TI_Liquid::finalize_run(const Atom& atom, const Box& box)
 {
 
@@ -1037,8 +1042,7 @@ void Ensemble_TI_Liquid::finalize_run(const Atom& atom, const Box& box)
   fprintf(yaml_file, "P: %f\n", target_pressure);
   fprintf(yaml_file, "G: %f\n", E_ref + E_diff + target_pressure * V);
 
-  printf("Closing ti_liquid output file...\n");
-  fclose(output_file);
+  close_output_file(true);
   fclose(yaml_file);
 
   printf("\n");
@@ -1054,6 +1058,17 @@ void Ensemble_TI_Liquid::finalize_run(const Atom& atom, const Box& box)
     E_ref + E_diff + target_pressure * V);
   printf("These values are stored in ti_liquid.yaml.\n");
   printf("-----------------------------------------------------------------------\n");
+}
+
+void Ensemble_TI_Liquid::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing ti_liquid output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
 }
 
 void Ensemble_TI_Liquid::add_UF_force(const Box& box, Atom& atom, Force& force)

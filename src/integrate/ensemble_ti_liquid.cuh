@@ -21,6 +21,7 @@ class Ensemble_TI_Liquid : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Liquid(const char** params, int num_params);
+  ~Ensemble_TI_Liquid(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;
 
@@ -51,7 +52,7 @@ public:
   double dswitch_func(double t);
 
 protected:
-  FILE* output_file;
+  FILE* output_file = nullptr;
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
   double sigma_sqrd = 1;
@@ -67,4 +68,7 @@ protected:
   GPU_Vector<double> gpu_fy_UF;
   GPU_Vector<double> gpu_fz_UF;
   GPU_Vector<double> gpu_ti_values;
+
+private:
+  void close_output_file(const bool print_message);
 };
