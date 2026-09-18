@@ -314,6 +314,11 @@ void Run::perform_a_run()
 
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
+  if (tokens[0] == "replicate" && has_seen_effective_command) {
+    PRINT_INPUT_ERROR("replicate must be the first effective command.");
+  }
+  has_seen_effective_command = true;
+
   if (tokens.size() >= 2 && tokens[0] == "potential") {
     tokens[1] = get_compact_nep_filename(tokens[1]);
   }
