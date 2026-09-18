@@ -40,6 +40,7 @@ private:
   void perform_a_run();
   void compute_force();
   void parse_one_keyword(const std::vector<std::string>& tokens);
+  bool parse_action(const char** param, int num_param);
 
   // keyword parsing functions
   void parse_velocity(const std::vector<std::string>& tokens);

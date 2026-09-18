@@ -369,7 +369,30 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     parse_time_step(tokens);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(tokens, group);
-  } else if (strcmp(param[0], "dump_thermo") == 0) {
+  } else if (tokens[0] == "fix") {
+    integrate.parse_fix(param, num_param, group);
+  } else if (tokens[0] == "move") {
+    integrate.parse_move(param, num_param, group);
+  } else if (tokens[0] == "kspace") {
+    if (has_seen_kspace_command) {
+      PRINT_INPUT_ERROR("kspace can only appear once.");
+    }
+    has_seen_kspace_command = true;
+  } else if (tokens[0] == "dftd3") {
+    if (has_seen_dftd3_command) {
+      PRINT_INPUT_ERROR("dftd3 can only appear once.");
+    }
+    has_seen_dftd3_command = true;
+  } else if (tokens[0] == "run") {
+    parse_run(tokens);
+  } else if (!parse_action(param, num_param)) {
+    PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+bool Run::parse_action(const char** param, int num_param)
+{
+  if (strcmp(param[0], "dump_thermo") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Dump_Thermo(param, num_param));
     measure.actions.emplace_back(std::move(action));
@@ -532,10 +555,6 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new Compute(param, num_param, group));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "fix") == 0) {
-    integrate.parse_fix(param, num_param, group);
-  } else if (strcmp(param[0], "move") == 0) {
-    integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Electron_Stop(param, num_param, atom.number_of_atoms, number_of_types));
@@ -560,25 +579,14 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new MC(param, num_param, group, atom));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "kspace") == 0) {
-    if (has_seen_kspace_command) {
-      PRINT_INPUT_ERROR("kspace can only appear once.");
-    }
-    has_seen_kspace_command = true;
-  } else if (strcmp(param[0], "dftd3") == 0) {
-    if (has_seen_dftd3_command) {
-      PRINT_INPUT_ERROR("dftd3 can only appear once.");
-    }
-    has_seen_dftd3_command = true;
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new LSQT(param, num_param));
     measure.actions.emplace_back(std::move(action));
-  } else if (tokens[0] == "run") {
-    parse_run(tokens);
   } else {
-    PRINT_KEYWORD_ERROR(param[0]);
+    return false;
   }
+  return true;
 }
 
 void Run::parse_velocity(const std::vector<std::string>& tokens)
