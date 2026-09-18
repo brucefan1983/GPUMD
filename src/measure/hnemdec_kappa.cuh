@@ -30,11 +30,11 @@ public:
   double fe_z = 0.0;
   double fe = 0.0; // magnitude of the driving force vector
 
-  int number_of_types;
-  int NUM_OF_DIFFUSION_COMPONENTS;
+  int number_of_types = 0;
+  int NUM_OF_DIFFUSION_COMPONENTS = 0;
   std::vector<double> cpu_mass_type; // atom types' mass
   GPU_Vector<double> mass_type;
-  double FACTOR;
+  double FACTOR = 0.0;
 
   GPU_Vector<double> heat_all;
   GPU_Vector<double> diffusion_all;
@@ -70,6 +70,6 @@ public:
     const double time_step,
     const double temperature);
 
-  HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature);
+  HNEMDEC(const char** param, int num_param);
   void parse(const char** param, int num_param);
 };

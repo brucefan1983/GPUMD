@@ -24,6 +24,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "compute_heat.cuh"
 #include "hnemdec_kappa.cuh"
 #include "force/force.cuh"
+#include "integrate/integrate.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -45,11 +46,27 @@ void HNEMDEC::pre_run(
 {
   if (compute == -1)
     return;
+
+  number_of_types = atom.cpu_type_size.size();
+  if (compute > number_of_types) {
+    PRINT_INPUT_ERROR(
+      "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
+  }
+
+  force.set_hnemdec_parameters(
+    compute,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.cpu_mass,
+    atom.cpu_type,
+    atom.cpu_type_size,
+    integrate.temperature1);
+
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
   atom.heat_per_atom.resize(atom.number_of_atoms * 5);
 
   // find atom types' mass and factor
-  number_of_types = atom.cpu_type_size.size();
   NUM_OF_DIFFUSION_COMPONENTS = 3 * number_of_types;
   int N = atom.number_of_atoms;
   diffusion_all.resize(3 * number_of_types * output_interval);
@@ -247,19 +264,10 @@ void HNEMDEC::post_run(
   const double time_step,
   const double temperature) { compute = -1; }
 
-HNEMDEC::HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature)
+HNEMDEC::HNEMDEC(const char** param, int num_param)
 {
   parse(param, num_param);
   action_name = "compute_hnemdec";
-  force.set_hnemdec_parameters(
-    compute,
-    fe_x,
-    fe_y,
-    fe_z,
-    atom.cpu_mass,
-    atom.cpu_type,
-    atom.cpu_type_size,
-    temperature);
 }
 
 void HNEMDEC::parse(const char** param, int num_param)
@@ -275,7 +283,7 @@ void HNEMDEC::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer number.\n");
   }
 
-  if ((compute > number_of_types) || (compute < 0)) {
+  if (compute < 0) {
     PRINT_INPUT_ERROR(
       "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
   }
