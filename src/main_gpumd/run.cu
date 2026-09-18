@@ -191,6 +191,9 @@ void Run::execute_run_in()
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
     if (tokens.size() > 0) {
+      if (tokens.size() >= 2 && tokens[0] == "potential") {
+        tokens[1] = get_compact_nep_filename(tokens[1]);
+      }
       parse_one_keyword(tokens);
     }
   }
@@ -312,16 +315,13 @@ void Run::perform_a_run()
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(std::vector<std::string>& tokens)
+void Run::parse_one_keyword(const std::vector<std::string>& tokens)
 {
   if (tokens[0] == "replicate" && has_seen_effective_command) {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
   has_seen_effective_command = true;
 
-  if (tokens.size() >= 2 && tokens[0] == "potential") {
-    tokens[1] = get_compact_nep_filename(tokens[1]);
-  }
   int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
@@ -359,17 +359,40 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     Cohesive cohesive;
     cohesive.parse(param, num_param, 1);
     cohesive.compute(box, atom, group, force);
-  } else if (strcmp(param[0], "change_box") == 0) {
-    parse_change_box(param, num_param);
+  } else if (tokens[0] == "change_box") {
+    parse_change_box(tokens);
   } else if (strcmp(param[0], "velocity") == 0) {
-    parse_velocity(param, num_param);
+    parse_velocity(tokens);
   } else if (strcmp(param[0], "ensemble") == 0) {
     integrate.parse_ensemble(param, num_param, atom, box, group);
   } else if (strcmp(param[0], "time_step") == 0) {
-    parse_time_step(param, num_param);
+    parse_time_step(tokens);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    parse_correct_velocity(param, num_param, group);
-  } else if (strcmp(param[0], "dump_thermo") == 0) {
+    parse_correct_velocity(tokens, group);
+  } else if (tokens[0] == "fix") {
+    integrate.parse_fix(param, num_param, group);
+  } else if (tokens[0] == "move") {
+    integrate.parse_move(param, num_param, group);
+  } else if (tokens[0] == "kspace") {
+    if (has_seen_kspace_command) {
+      PRINT_INPUT_ERROR("kspace can only appear once.");
+    }
+    has_seen_kspace_command = true;
+  } else if (tokens[0] == "dftd3") {
+    if (has_seen_dftd3_command) {
+      PRINT_INPUT_ERROR("dftd3 can only appear once.");
+    }
+    has_seen_dftd3_command = true;
+  } else if (tokens[0] == "run") {
+    parse_run(tokens);
+  } else if (!parse_action(param, num_param)) {
+    PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+bool Run::parse_action(const char** param, int num_param)
+{
+  if (strcmp(param[0], "dump_thermo") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Dump_Thermo(param, num_param));
     measure.actions.emplace_back(std::move(action));
@@ -532,10 +555,6 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new Compute(param, num_param, group));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "fix") == 0) {
-    integrate.parse_fix(param, num_param, group);
-  } else if (strcmp(param[0], "move") == 0) {
-    integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Electron_Stop(param, num_param, atom.number_of_atoms, number_of_types));
@@ -560,29 +579,19 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new MC(param, num_param, group, atom));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "kspace") == 0) {
-    if (has_seen_kspace_command) {
-      PRINT_INPUT_ERROR("kspace can only appear once.");
-    }
-    has_seen_kspace_command = true;
-  } else if (strcmp(param[0], "dftd3") == 0) {
-    if (has_seen_dftd3_command) {
-      PRINT_INPUT_ERROR("dftd3 can only appear once.");
-    }
-    has_seen_dftd3_command = true;
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new LSQT(param, num_param));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "run") == 0) {
-    parse_run(param, num_param);
   } else {
-    PRINT_KEYWORD_ERROR(param[0]);
+    return false;
   }
+  return true;
 }
 
-void Run::parse_velocity(const char** param, int num_param)
+void Run::parse_velocity(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
@@ -591,12 +600,12 @@ void Run::parse_velocity(const char** param, int num_param)
     // See https://github.com/brucefan1983/GPUMD/pull/768
     // for the reason for putting this branch here.
     use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
+    if (!is_valid_int(tokens[3], &seed)) {
       PRINT_INPUT_ERROR("seed should be a positive integer.\n");
     }
   }
 
-  if (!is_valid_real(param[1], &initial_temperature)) {
+  if (!is_valid_real(tokens[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
@@ -614,14 +623,16 @@ void Run::parse_velocity(const char** param, int num_param)
   }
 }
 
-void Run::parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group)
+void Run::parse_correct_velocity(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   printf("Correct linear and angular momenta.\n");
 
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("correct_velocity should have 1 or 2 parameters.\n");
   }
-  if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
+  if (!is_valid_int(tokens[1], &velocity.velocity_correction_interval)) {
     PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
   }
   if (velocity.velocity_correction_interval < 10) {
@@ -631,7 +642,7 @@ void Run::parse_correct_velocity(const char** param, int num_param, const std::v
   printf("    every %d steps.\n", velocity.velocity_correction_interval);
 
   if (num_param == 3) {
-    if (!is_valid_int(param[2], &velocity.velocity_correction_group_method)) {
+    if (!is_valid_int(tokens[2], &velocity.velocity_correction_group_method)) {
       PRINT_INPUT_ERROR("velocity correction group method should be an integer.\n");
     }
     if (velocity.velocity_correction_group_method < 0) {
@@ -652,18 +663,19 @@ void Run::parse_correct_velocity(const char** param, int num_param, const std::v
   velocity.do_velocity_correction = true;
 }
 
-void Run::parse_time_step(const char** param, int num_param)
+void Run::parse_time_step(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("time_step should have 1 or 2 parameters.\n");
   }
-  if (!is_valid_real(param[1], &time_step)) {
+  if (!is_valid_real(tokens[1], &time_step)) {
     PRINT_INPUT_ERROR("time_step should be a real number.\n");
   }
   printf("Time step for this run is %g fs.\n", time_step);
   time_step /= TIME_UNIT_CONVERSION;
   if (num_param == 3) {
-    if (!is_valid_real(param[2], &max_distance_per_step)) {
+    if (!is_valid_real(tokens[2], &max_distance_per_step)) {
       PRINT_INPUT_ERROR("max distance per step should be a real number.\n");
     }
     if (max_distance_per_step <= 0.0) {
@@ -673,12 +685,13 @@ void Run::parse_time_step(const char** param, int num_param)
   }
 }
 
-void Run::parse_run(const char** param, int num_param)
+void Run::parse_run(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("run should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &number_of_steps)) {
+  if (!is_valid_int(tokens[1], &number_of_steps)) {
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   if (number_of_steps <= 0) {
@@ -722,36 +735,37 @@ static __global__ void gpu_deform_atom(
   }
 }
 
-void Run::parse_change_box(const char** param, int num_param)
+void Run::parse_change_box(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 4 && num_param != 7) {
     PRINT_INPUT_ERROR("change_box can only have 1 or 3 or 6 parameters\n.");
   }
 
   double deformation_matrix[3][3] = {0.0};
 
-  if (!is_valid_real(param[1], &deformation_matrix[0][0])) {
+  if (!is_valid_real(tokens[1], &deformation_matrix[0][0])) {
     PRINT_INPUT_ERROR("box change parameter in xx should be a number.");
   }
   deformation_matrix[1][1] = deformation_matrix[2][2] = deformation_matrix[0][0];
 
   if (num_param >= 4) {
-    if (!is_valid_real(param[2], &deformation_matrix[1][1])) {
+    if (!is_valid_real(tokens[2], &deformation_matrix[1][1])) {
       PRINT_INPUT_ERROR("box change parameter in yy should be a number.");
     }
-    if (!is_valid_real(param[3], &deformation_matrix[2][2])) {
+    if (!is_valid_real(tokens[3], &deformation_matrix[2][2])) {
       PRINT_INPUT_ERROR("box change parameter in zz should be a number.");
     }
   }
 
   if (num_param == 7) {
-    if (!is_valid_real(param[4], &deformation_matrix[1][2])) {
+    if (!is_valid_real(tokens[4], &deformation_matrix[1][2])) {
       PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
     }
-    if (!is_valid_real(param[5], &deformation_matrix[0][2])) {
+    if (!is_valid_real(tokens[5], &deformation_matrix[0][2])) {
       PRINT_INPUT_ERROR("box change parameter in xz should be a number.");
     }
-    if (!is_valid_real(param[6], &deformation_matrix[0][1])) {
+    if (!is_valid_real(tokens[6], &deformation_matrix[0][1])) {
       PRINT_INPUT_ERROR("box change parameter in xy should be a number.");
     }
     deformation_matrix[1][0] = deformation_matrix[0][1];
