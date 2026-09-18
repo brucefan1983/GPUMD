@@ -93,8 +93,10 @@ void Add_Force::apply_force(
   GPU_CHECK_KERNEL
 }
 
-Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>& group)
+Add_Force::Add_Force(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   action_name = "add_force";
   printf("Add force.\n");
 
@@ -104,7 +106,7 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   }
 
   // parse grouping method
-  if (!is_valid_int(param[1], &grouping_method_)) {
+  if (!is_valid_int(tokens[1], &grouping_method_)) {
     PRINT_INPUT_ERROR("grouping method should be an integer.\n");
   }
   if (grouping_method_ < 0) {
@@ -115,7 +117,7 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   }
 
   // parse group id
-  if (!is_valid_int(param[2], &group_id_)) {
+  if (!is_valid_int(tokens[2], &group_id_)) {
     PRINT_INPUT_ERROR("group id should be an integer.\n");
   }
   if (group_id_ < 0) {
@@ -133,22 +135,22 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   if (num_param == 6) {
     table_length_ = 1;
     force_table_.resize(table_length_ * 3);
-    if (!is_valid_real(param[3], &force_table_[0])) {
+    if (!is_valid_real(tokens[3], &force_table_[0])) {
       PRINT_INPUT_ERROR("fx should be a number.\n");
     }
-    if (!is_valid_real(param[4], &force_table_[1])) {
+    if (!is_valid_real(tokens[4], &force_table_[1])) {
       PRINT_INPUT_ERROR("fy should be a number.\n");
     }
-    if (!is_valid_real(param[5], &force_table_[2])) {
+    if (!is_valid_real(tokens[5], &force_table_[2])) {
       PRINT_INPUT_ERROR("fz should be a number.\n");
     }
     printf("    fx = %g eV/A.\n", force_table_[0]);
     printf("    fy = %g eV/A.\n", force_table_[1]);
     printf("    fz = %g eV/A.\n", force_table_[2]);
   } else {
-    std::ifstream input(param[3]);
+    std::ifstream input(tokens[3]);
     if (!input.is_open()) {
-      printf("Failed to open %s.\n", param[3]);
+      printf("Failed to open %s.\n", tokens[3].c_str());
       exit(1);
     }
     std::vector<std::string> tokens = get_tokens(input);

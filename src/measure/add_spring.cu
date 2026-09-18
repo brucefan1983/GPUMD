@@ -359,8 +359,10 @@ static void release_spring_id(
   }
 }
 
-static int parse_continue_option(const char** param, const int num_param, const int base_num_param)
+static int parse_continue_option(
+  const std::vector<std::string>& tokens, const int base_num_param)
 {
+  const int num_param = tokens.size();
   if (num_param == base_num_param) {
     return -1;
   }
@@ -368,11 +370,11 @@ static int parse_continue_option(const char** param, const int num_param, const 
     PRINT_INPUT_ERROR(
       "add_spring has an invalid number of parameters. Optional continuation syntax is: continue <spring_id>.\n");
   }
-  if (strcmp(param[base_num_param], "continue") != 0) {
+  if (tokens[base_num_param] != "continue") {
     PRINT_INPUT_ERROR("The optional add_spring arguments should be: continue <spring_id>.\n");
   }
   int spring_id = -1;
-  if (!is_valid_int(param[base_num_param + 1], &spring_id)) {
+  if (!is_valid_int(tokens[base_num_param + 1], &spring_id)) {
     PRINT_INPUT_ERROR("The spring id after 'continue' should be an integer.\n");
   }
   if (spring_id < 0) {
@@ -391,11 +393,11 @@ static bool read_labeled_int(std::ifstream& input, const char* expected_label, i
 }
 
 Add_Spring::Add_Spring(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   const std::vector<Group>& groups,
   Atom& atom)
 {
+  const int num_param = tokens.size();
   action_name = "add_spring";
   printf("Add spring.\n");
   atom.enable_unwrapped_position();
@@ -403,20 +405,20 @@ Add_Spring::Add_Spring(
   if (num_param < 2) {
     PRINT_INPUT_ERROR("add_spring requires a mode.\n");
   }
-  const char* mode_str = param[1];
+  const std::string& mode_str = tokens[1];
 
-  if (strcmp(mode_str, "ghost_com") == 0) {
+  if (mode_str == "ghost_com") {
     mode_ = MODE_GHOST_COM;
     if (num_param < 8) {
       PRINT_INPUT_ERROR("add_spring ghost_com has too few parameters.\n");
     }
-    if (!is_valid_int(param[2], &grouping_method_)) {
+    if (!is_valid_int(tokens[2], &grouping_method_)) {
       PRINT_INPUT_ERROR("grouping method should be an integer.\n");
     }
     if (grouping_method_ < 0 || grouping_method_ >= (int)groups.size()) {
       PRINT_INPUT_ERROR("grouping method is out of range.\n");
     }
-    if (!is_valid_int(param[3], &group_id_)) {
+    if (!is_valid_int(tokens[3], &group_id_)) {
       PRINT_INPUT_ERROR("group id should be an integer.\n");
     }
     if (group_id_ < 0 || group_id_ >= groups[grouping_method_].number) {
@@ -426,25 +428,25 @@ Add_Spring::Add_Spring(
     if (restart_group_size_ <= 0) {
       PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
     }
-    if (!is_valid_real(param[4], &velocity_[0]) ||
-        !is_valid_real(param[5], &velocity_[1]) ||
-        !is_valid_real(param[6], &velocity_[2])) {
+    if (!is_valid_real(tokens[4], &velocity_[0]) ||
+        !is_valid_real(tokens[5], &velocity_[1]) ||
+        !is_valid_real(tokens[6], &velocity_[2])) {
       PRINT_INPUT_ERROR("velocity should be three numbers.\n");
     }
 
-    const char* stiff_str = param[7];
-    if (strcmp(stiff_str, "couple") == 0) {
-      continue_spring_id_ = parse_continue_option(param, num_param, 13);
+    const std::string& stiff_str = tokens[7];
+    if (stiff_str == "couple") {
+      continue_spring_id_ = parse_continue_option(tokens, 13);
       stiffness_mode_ = STIFFNESS_COUPLE;
-      if (!is_valid_real(param[8], &k_couple_) || k_couple_ <= 0.0) {
+      if (!is_valid_real(tokens[8], &k_couple_) || k_couple_ <= 0.0) {
         PRINT_INPUT_ERROR("spring constant k should be positive.\n");
       }
-      if (!is_valid_real(param[9], &R0_) || R0_ < -1.0e-20) {
+      if (!is_valid_real(tokens[9], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
-      if (!is_valid_real(param[10], &offset_[0]) ||
-          !is_valid_real(param[11], &offset_[1]) ||
-          !is_valid_real(param[12], &offset_[2])) {
+      if (!is_valid_real(tokens[10], &offset_[0]) ||
+          !is_valid_real(tokens[11], &offset_[1]) ||
+          !is_valid_real(tokens[12], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
       if (continue_spring_id_ < 0 &&
@@ -456,17 +458,17 @@ Add_Spring::Add_Spring(
         "    velocity=(%g,%g,%g) Å/step, k=%g eV/Å^2, R0=%g Å\n",
         velocity_[0], velocity_[1], velocity_[2], k_couple_, R0_);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
-    } else if (strcmp(stiff_str, "decouple") == 0) {
-      continue_spring_id_ = parse_continue_option(param, num_param, 14);
+    } else if (stiff_str == "decouple") {
+      continue_spring_id_ = parse_continue_option(tokens, 14);
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(param[8], &k_decouple_[0]) || k_decouple_[0] < -1.0e-20 ||
-          !is_valid_real(param[9], &k_decouple_[1]) || k_decouple_[1] < -1.0e-20 ||
-          !is_valid_real(param[10], &k_decouple_[2]) || k_decouple_[2] < -1.0e-20) {
+      if (!is_valid_real(tokens[8], &k_decouple_[0]) || k_decouple_[0] < -1.0e-20 ||
+          !is_valid_real(tokens[9], &k_decouple_[1]) || k_decouple_[1] < -1.0e-20 ||
+          !is_valid_real(tokens[10], &k_decouple_[2]) || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
-      if (!is_valid_real(param[11], &offset_[0]) ||
-          !is_valid_real(param[12], &offset_[1]) ||
-          !is_valid_real(param[13], &offset_[2])) {
+      if (!is_valid_real(tokens[11], &offset_[0]) ||
+          !is_valid_real(tokens[12], &offset_[1]) ||
+          !is_valid_real(tokens[13], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
       printf("    ghost_com decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
@@ -478,18 +480,18 @@ Add_Spring::Add_Spring(
     } else {
       PRINT_INPUT_ERROR("stiffness mode should be 'couple' or 'decouple'.\n");
     }
-  } else if (strcmp(mode_str, "ghost_atom") == 0) {
+  } else if (mode_str == "ghost_atom") {
     mode_ = MODE_GHOST_ATOM;
     if (num_param < 8) {
       PRINT_INPUT_ERROR("add_spring ghost_atom has too few parameters.\n");
     }
-    if (!is_valid_int(param[2], &grouping_method_)) {
+    if (!is_valid_int(tokens[2], &grouping_method_)) {
       PRINT_INPUT_ERROR("grouping method should be an integer.\n");
     }
     if (grouping_method_ < 0 || grouping_method_ >= (int)groups.size()) {
       PRINT_INPUT_ERROR("grouping method is out of range.\n");
     }
-    if (!is_valid_int(param[3], &group_id_)) {
+    if (!is_valid_int(tokens[3], &group_id_)) {
       PRINT_INPUT_ERROR("group id should be an integer.\n");
     }
     if (group_id_ < 0 || group_id_ >= groups[grouping_method_].number) {
@@ -499,28 +501,28 @@ Add_Spring::Add_Spring(
     if (restart_group_size_ <= 0) {
       PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
     }
-    if (!is_valid_real(param[4], &velocity_[0]) ||
-        !is_valid_real(param[5], &velocity_[1]) ||
-        !is_valid_real(param[6], &velocity_[2])) {
+    if (!is_valid_real(tokens[4], &velocity_[0]) ||
+        !is_valid_real(tokens[5], &velocity_[1]) ||
+        !is_valid_real(tokens[6], &velocity_[2])) {
       PRINT_INPUT_ERROR("velocity should be three numbers.\n");
     }
 
-    const char* stiff_str = param[7];
-    if (strcmp(stiff_str, "couple") == 0) {
-      continue_spring_id_ = parse_continue_option(param, num_param, 13);
+    const std::string& stiff_str = tokens[7];
+    if (stiff_str == "couple") {
+      continue_spring_id_ = parse_continue_option(tokens, 13);
       stiffness_mode_ = STIFFNESS_COUPLE;
-      if (!is_valid_real(param[8], &k_couple_) || k_couple_ <= 0.0) {
+      if (!is_valid_real(tokens[8], &k_couple_) || k_couple_ <= 0.0) {
         PRINT_INPUT_ERROR("spring constant k should be positive.\n");
       }
       const double k_total = k_couple_;
       k_couple_ /= restart_group_size_;
       printf("    total k=%g eV/Å^2, k per atom=%g eV/Å^2\n", k_total, k_couple_);
-      if (!is_valid_real(param[9], &R0_) || R0_ < -1.0e-20) {
+      if (!is_valid_real(tokens[9], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
-      if (!is_valid_real(param[10], &offset_[0]) ||
-          !is_valid_real(param[11], &offset_[1]) ||
-          !is_valid_real(param[12], &offset_[2])) {
+      if (!is_valid_real(tokens[10], &offset_[0]) ||
+          !is_valid_real(tokens[11], &offset_[1]) ||
+          !is_valid_real(tokens[12], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
       if (continue_spring_id_ < 0 &&
@@ -532,12 +534,12 @@ Add_Spring::Add_Spring(
         "    velocity=(%g,%g,%g) Å/step, k=%g eV/Å^2, R0=%g Å\n",
         velocity_[0], velocity_[1], velocity_[2], k_couple_, R0_);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
-    } else if (strcmp(stiff_str, "decouple") == 0) {
-      continue_spring_id_ = parse_continue_option(param, num_param, 14);
+    } else if (stiff_str == "decouple") {
+      continue_spring_id_ = parse_continue_option(tokens, 14);
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(param[8], &k_decouple_[0]) ||
-          !is_valid_real(param[9], &k_decouple_[1]) ||
-          !is_valid_real(param[10], &k_decouple_[2]) ||
+      if (!is_valid_real(tokens[8], &k_decouple_[0]) ||
+          !is_valid_real(tokens[9], &k_decouple_[1]) ||
+          !is_valid_real(tokens[10], &k_decouple_[2]) ||
           k_decouple_[0] < -1.0e-20 || k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
@@ -549,9 +551,9 @@ Add_Spring::Add_Spring(
         "    total k=(%g,%g,%g) eV/Å^2, k per atom=(%g,%g,%g) eV/Å^2\n",
         k_total[0], k_total[1], k_total[2],
         k_decouple_[0], k_decouple_[1], k_decouple_[2]);
-      if (!is_valid_real(param[11], &offset_[0]) ||
-          !is_valid_real(param[12], &offset_[1]) ||
-          !is_valid_real(param[13], &offset_[2])) {
+      if (!is_valid_real(tokens[11], &offset_[0]) ||
+          !is_valid_real(tokens[12], &offset_[1]) ||
+          !is_valid_real(tokens[13], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
       printf("    ghost_atom decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
@@ -566,24 +568,24 @@ Add_Spring::Add_Spring(
 
     ghost_atom_group_size_ = restart_group_size_;
     ghost_atom_pos_.resize(3 * ghost_atom_group_size_);
-  } else if (strcmp(mode_str, "com_com") == 0) {
+  } else if (mode_str == "com_com") {
     mode_ = MODE_COM_COM;
     if (num_param < 6) {
       PRINT_INPUT_ERROR("add_spring com_com has too few parameters.\n");
     }
-    if (!is_valid_int(param[2], &grouping_method_)) {
+    if (!is_valid_int(tokens[2], &grouping_method_)) {
       PRINT_INPUT_ERROR("grouping_method should be an integer.\n");
     }
     if (grouping_method_ < 0 || grouping_method_ >= (int)groups.size()) {
       PRINT_INPUT_ERROR("grouping_method is out of range.\n");
     }
-    if (!is_valid_int(param[3], &group_id_)) {
+    if (!is_valid_int(tokens[3], &group_id_)) {
       PRINT_INPUT_ERROR("group_id_1 should be an integer.\n");
     }
     if (group_id_ < 0 || group_id_ >= groups[grouping_method_].number) {
       PRINT_INPUT_ERROR("group_id_1 is out of range.\n");
     }
-    if (!is_valid_int(param[4], &group_id_2_)) {
+    if (!is_valid_int(tokens[4], &group_id_2_)) {
       PRINT_INPUT_ERROR("group_id_2 should be an integer.\n");
     }
     if (group_id_2_ < 0 || group_id_2_ >= groups[grouping_method_].number) {
@@ -599,28 +601,28 @@ Add_Spring::Add_Spring(
       PRINT_INPUT_ERROR("group_id_1 and group_id_2 cannot be the same.\n");
     }
 
-    const char* stiff_str = param[5];
-    if (strcmp(stiff_str, "couple") == 0) {
+    const std::string& stiff_str = tokens[5];
+    if (stiff_str == "couple") {
       if (num_param != 8) {
         PRINT_INPUT_ERROR("add_spring com_com couple requires 8 parameters.\n");
       }
       stiffness_mode_ = STIFFNESS_COUPLE;
-      if (!is_valid_real(param[6], &k_couple_) || k_couple_ <= 0.0) {
+      if (!is_valid_real(tokens[6], &k_couple_) || k_couple_ <= 0.0) {
         PRINT_INPUT_ERROR("spring constant k should be positive.\n");
       }
-      if (!is_valid_real(param[7], &R0_) || R0_ < -1.0e-20) {
+      if (!is_valid_real(tokens[7], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
       printf("    com_com couple: gm=%d, gid1=%d, gid2=%d\n", grouping_method_, group_id_, group_id_2_);
       printf("    k=%g eV/Å^2, R0=%g Å\n", k_couple_, R0_);
-    } else if (strcmp(stiff_str, "decouple") == 0) {
+    } else if (stiff_str == "decouple") {
       if (num_param != 9) {
         PRINT_INPUT_ERROR("add_spring com_com decouple requires 9 parameters.\n");
       }
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(param[6], &k_decouple_[0]) ||
-          !is_valid_real(param[7], &k_decouple_[1]) ||
-          !is_valid_real(param[8], &k_decouple_[2]) ||
+      if (!is_valid_real(tokens[6], &k_decouple_[0]) ||
+          !is_valid_real(tokens[7], &k_decouple_[1]) ||
+          !is_valid_real(tokens[8], &k_decouple_[2]) ||
           k_decouple_[0] < -1.0e-20 || k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }

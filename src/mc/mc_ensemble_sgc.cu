@@ -137,8 +137,7 @@ const std::map<std::string, double> MASS_TABLE{
   {"Lr", 262}};
 
 MC_Ensemble_SGC::MC_Ensemble_SGC(
-  const char** param,
-  int num_param,
+  const std::vector<std::string>& tokens,
   int num_steps_mc_input,
   bool is_vcsgc_input,
   std::vector<std::string>& species_input,
@@ -146,7 +145,7 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   std::vector<int>& num_atoms_species_input,
   std::vector<double>& mu_or_phi_input,
   double kappa_input)
-  : MC_Ensemble(param, num_param)
+  : MC_Ensemble(tokens)
 {
   num_steps_mc = num_steps_mc_input;
   is_vcsgc = is_vcsgc_input;

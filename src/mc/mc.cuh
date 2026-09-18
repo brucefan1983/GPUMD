@@ -20,6 +20,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
+#include <string>
 #include <vector>
 
 class Atom;
@@ -28,7 +29,10 @@ class MC : public Action
 {
 public:
   MC(void);
-  MC(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
+  MC(
+    const std::vector<std::string>& tokens,
+    std::vector<Group>& group,
+    Atom& atom);
 
   std::unique_ptr<MC_Ensemble> mc_ensemble;
 
@@ -36,7 +40,10 @@ public:
   void finalize(void);
   void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
 
-  void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
+  void parse_mc(
+    const std::vector<std::string>& tokens,
+    std::vector<Group>& group,
+    Atom& atom);
 
   void pre_run(
     const int number_of_steps,
@@ -73,7 +80,9 @@ private:
   std::vector<double> mu_or_phi;
 
   void parse_group(
-    const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group);
+    const std::vector<std::string>& tokens,
+    std::vector<Group>& groups,
+    int num_param_before_group);
   void check_species_canonical(std::vector<Group>& groups, Atom& atom);
   void check_species_sgc(std::vector<Group>& groups, Atom& atom);
 };

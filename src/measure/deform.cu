@@ -50,32 +50,33 @@ static __global__ void gpu_deform_atom(
   }
 }
 
-Deform::Deform(const char** param, int num_param)
+Deform::Deform(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "deform";
 }
 
-void Deform::parse(const char** param, int num_param)
+void Deform::parse(const std::vector<std::string>& tokens)
 {
   printf("Deform the box.\n");
 
   double value;
-  if (num_param > 1 && is_valid_real(param[1], &value)) {
+  if (tokens.size() > 1 && is_valid_real(tokens[1], &value)) {
     use_legacy_format_ = true;
-    parse_legacy(param, num_param);
+    parse_legacy(tokens);
   } else {
-    parse_general(param, num_param);
+    parse_general(tokens);
   }
 }
 
-void Deform::parse_legacy(const char** param, int num_param)
+void Deform::parse_legacy(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 5 && num_param != 7) {
     PRINT_INPUT_ERROR("Keyword 'deform' should have 4 or 6 parameters.");
   }
 
-  if (!is_valid_real(param[1], &deform_rate_[0])) {
+  if (!is_valid_real(tokens[1], &deform_rate_[0])) {
     PRINT_INPUT_ERROR("Deform rate should be a number.");
   }
 
@@ -86,10 +87,10 @@ void Deform::parse_legacy(const char** param, int num_param)
     printf("    strain rate is %g A / step.\n", deform_rate_[0]);
   } else {
     offset = 2;
-    if (!is_valid_real(param[2], &deform_rate_[1])) {
+    if (!is_valid_real(tokens[2], &deform_rate_[1])) {
       PRINT_INPUT_ERROR("Deform rate should be a number.");
     }
-    if (!is_valid_real(param[3], &deform_rate_[2])) {
+    if (!is_valid_real(tokens[3], &deform_rate_[2])) {
       PRINT_INPUT_ERROR("Deform rate should be a number.");
     }
     printf(
@@ -99,13 +100,13 @@ void Deform::parse_legacy(const char** param, int num_param)
       deform_rate_[2]);
   }
 
-  if (!is_valid_int(param[2 + offset], &deform_component_[0])) {
+  if (!is_valid_int(tokens[2 + offset], &deform_component_[0])) {
     PRINT_INPUT_ERROR("deform_x should be integer.\n");
   }
-  if (!is_valid_int(param[3 + offset], &deform_component_[1])) {
+  if (!is_valid_int(tokens[3 + offset], &deform_component_[1])) {
     PRINT_INPUT_ERROR("deform_y should be integer.\n");
   }
-  if (!is_valid_int(param[4 + offset], &deform_component_[2])) {
+  if (!is_valid_int(tokens[4 + offset], &deform_component_[2])) {
     PRINT_INPUT_ERROR("deform_z should be integer.\n");
   }
 
@@ -120,8 +121,9 @@ void Deform::parse_legacy(const char** param, int num_param)
   }
 }
 
-void Deform::parse_general(const char** param, int num_param)
+void Deform::parse_general(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param < 3 || num_param > 13 || num_param % 2 == 0) {
     PRINT_INPUT_ERROR(
       "The general form of keyword 'deform' should contain component-rate pairs.");
@@ -132,7 +134,7 @@ void Deform::parse_general(const char** param, int num_param)
   for (int n = 1; n < num_param; n += 2) {
     int component = -1;
     for (int d = 0; d < 6; ++d) {
-      if (strcmp(param[n], component_name[d]) == 0) {
+      if (tokens[n] == component_name[d]) {
         component = d;
         break;
       }
@@ -144,7 +146,7 @@ void Deform::parse_general(const char** param, int num_param)
     if (deform_component_[component]) {
       PRINT_INPUT_ERROR("The same deform component cannot be specified more than once.");
     }
-    if (!is_valid_real(param[n + 1], &deform_rate_[component])) {
+    if (!is_valid_real(tokens[n + 1], &deform_rate_[component])) {
       PRINT_INPUT_ERROR("Deform rate should be a number.");
     }
 

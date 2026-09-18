@@ -232,40 +232,41 @@ void Electron_Stop::end_of_step(
 }
 
 Electron_Stop::Electron_Stop(
-  const char** param, int num_param, const int num_atoms, const int num_types)
+  const std::vector<std::string>& tokens, const int num_atoms, const int num_types)
 {
+  const int num_param = tokens.size();
   action_name = "electron_stop";
   printf("Apply electron stopping.\n");
   if (num_param != 2) {
     PRINT_INPUT_ERROR("electron_stop should have 1 parameter.\n");
   }
-  printf("    using the stopping power data in %s.\n", param[1]);
+  printf("    using the stopping power data in %s.\n", tokens[1].c_str());
 
-  std::ifstream input(param[1]);
+  std::ifstream input(tokens[1]);
   if (!input.is_open()) {
-    printf("Failed to open %s.\n", param[1]);
+    printf("Failed to open %s.\n", tokens[1].c_str());
     exit(1);
   }
 
-  std::vector<std::string> tokens = get_tokens(input);
-  if (tokens.size() != 3) {
+  std::vector<std::string> header_tokens = get_tokens(input);
+  if (header_tokens.size() != 3) {
     PRINT_INPUT_ERROR("The first line of the stopping power file should have 3 values.");
   }
-  num_points = get_int_from_token(tokens[0], __FILE__, __LINE__);
+  num_points = get_int_from_token(header_tokens[0], __FILE__, __LINE__);
   if (num_points < 2) {
     PRINT_INPUT_ERROR("Number of energy values should >= 2.\n");
   } else {
     printf("    number of energy values = %d.\n", num_points);
   }
 
-  energy_min = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  energy_min = get_double_from_token(header_tokens[1], __FILE__, __LINE__);
   if (energy_min <= 0) {
     PRINT_INPUT_ERROR("energy_min should > 0.\n");
   } else {
     printf("    energy_min = %g eV.\n", energy_min);
   }
 
-  energy_max = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  energy_max = get_double_from_token(header_tokens[2], __FILE__, __LINE__);
   if (energy_max <= energy_min) {
     PRINT_INPUT_ERROR("energy_max should > energy_min.\n");
   } else {
@@ -277,12 +278,13 @@ Electron_Stop::Electron_Stop(
 
   stopping_power_cpu.resize(num_points * num_types);
   for (int n = 0; n < num_points; ++n) {
-    std::vector<std::string> tokens = get_tokens(input);
-    if (tokens.size() != num_types) {
+    std::vector<std::string> line_tokens = get_tokens(input);
+    if (line_tokens.size() != num_types) {
       PRINT_INPUT_ERROR("Number of values does not match with the number of elements.");
     }
     for (int t = 0; t < num_types; ++t) {
-      stopping_power_cpu[t * num_points + n] = get_double_from_token(tokens[t], __FILE__, __LINE__);
+      stopping_power_cpu[t * num_points + n] =
+        get_double_from_token(line_tokens[t], __FILE__, __LINE__);
     }
   }
 

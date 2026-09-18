@@ -65,12 +65,13 @@ static void check_is_nep(std::string& potential_file_name)
   input_potential.close();
 }
 
-MC_Ensemble::MC_Ensemble(const char** param, int num_param)
+MC_Ensemble::MC_Ensemble(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   mc_output.open("mcmd.out", std::ios::app);
   mc_output << "# ";
   for (int n = 0; n < num_param; ++n) {
-    mc_output << param[n] << " ";
+    mc_output << tokens[n] << " ";
   }
   mc_output << "\n";
   mc_output << "# num_MD_steps  acceptance_ratio [species_concentrations]" << std::endl;
