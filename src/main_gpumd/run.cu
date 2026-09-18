@@ -334,13 +334,12 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
   if (strcmp(param[0], "potential") == 0) {
     force.parse_potential(tokens, box, atom.type.size());
   } else if (strcmp(param[0], "replicate") == 0) {
-    Replicate(param, num_param, box, atom, group);
+    Replicate(tokens, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
-      param,
-      num_param,
+      tokens,
       integrate.fixed_group,
       integrate.fixed_grouping_method,
       force,
@@ -349,15 +348,15 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
       group);
   } else if (strcmp(param[0], "compute_phonon") == 0) {
     Hessian hessian;
-    hessian.parse(param, num_param);
+    hessian.parse(tokens);
     hessian.compute(force, box, atom, group);
   } else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
-    cohesive.parse(param, num_param, 0);
+    cohesive.parse(tokens, 0);
     cohesive.compute(box, atom, group, force);
   } else if (strcmp(param[0], "compute_elastic") == 0) {
     Cohesive cohesive;
-    cohesive.parse(param, num_param, 1);
+    cohesive.parse(tokens, 1);
     cohesive.compute(box, atom, group, force);
   } else if (tokens[0] == "change_box") {
     parse_change_box(tokens);

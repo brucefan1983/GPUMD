@@ -28,7 +28,6 @@ Compute the cohesive energy curve with different deformations.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 
 static void __global__ deform_position(
   const int N,
@@ -98,23 +97,24 @@ void Cohesive::deform_box(
     new_position_per_atom.data() + N * 2);
 }
 
-void Cohesive::parse(const char** param, int num_param, int type)
+void Cohesive::parse(const std::vector<std::string>& tokens, int type)
 {
   if (type == 0) {
-    parse_cohesive(param, num_param);
+    parse_cohesive(tokens);
   } else if (type == 1) {
-    parse_elastic(param, num_param);
+    parse_elastic(tokens);
   }
 }
 
-void Cohesive::parse_cohesive(const char** param, int num_param)
+void Cohesive::parse_cohesive(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute cohesive energy.\n");
   if (num_param != 4) {
     PRINT_INPUT_ERROR("compute_cohesive should have 3 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &start_factor)) {
+  if (!is_valid_real(tokens[1], &start_factor)) {
     PRINT_INPUT_ERROR("start_factor should be a number.\n");
   }
   if (start_factor <= 0) {
@@ -122,7 +122,7 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   }
   printf("    start_factor = %g.\n", start_factor);
 
-  if (!is_valid_real(param[2], &end_factor)) {
+  if (!is_valid_real(tokens[2], &end_factor)) {
     PRINT_INPUT_ERROR("end_factor should be a number.\n");
   }
   if (end_factor <= start_factor) {
@@ -130,7 +130,7 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   }
   printf("    end_factor = %g.\n", end_factor);
 
-  if (!is_valid_int(param[3], &deform_d)) {
+  if (!is_valid_int(tokens[3], &deform_d)) {
     PRINT_INPUT_ERROR("deform direction should be an integer.\n");
   }
   if (deform_d < 0 || deform_d > 6) {
@@ -148,14 +148,15 @@ void Cohesive::parse_cohesive(const char** param, int num_param)
   deformation_type = 0; // deformation for cohesive
 }
 
-void Cohesive::parse_elastic(const char** param, int num_param)
+void Cohesive::parse_elastic(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute elastic constants.\n");
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_elastic should have 1 parameter.\n");
   }
 
-  if (!is_valid_real(param[1], &strain)) {
+  if (!is_valid_real(tokens[1], &strain)) {
     PRINT_INPUT_ERROR("strain should be a number.\n");
   }
   if (strain <= 0) {

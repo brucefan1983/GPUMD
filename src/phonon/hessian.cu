@@ -28,7 +28,6 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <vector>
 #include <array>
 
@@ -494,13 +493,14 @@ void Hessian::find_eigenvectors()
   eigfile.close();
 }
 
-void Hessian::parse(const char** param, int num_param)
+void Hessian::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &displacement)) {
+  if (!is_valid_real(tokens[1], &displacement)) {
     PRINT_INPUT_ERROR("displacement for compute_phonon should be a number.\n");
   }
   if (displacement <= 0) {
