@@ -40,6 +40,11 @@ int is_valid_int(const char* s, int* result)
   }
 }
 
+int is_valid_int(const std::string& s, int* result)
+{
+  return is_valid_int(s.c_str(), result);
+}
+
 int is_valid_real(const char* s, double* result)
 {
   if (s == NULL) {
@@ -55,6 +60,11 @@ int is_valid_real(const char* s, double* result)
   } else {
     return 1;
   }
+}
+
+int is_valid_real(const std::string& s, double* result)
+{
+  return is_valid_real(s.c_str(), result);
 }
 
 static std::string get_potential_file_name()
