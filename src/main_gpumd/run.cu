@@ -191,6 +191,9 @@ void Run::execute_run_in()
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
     if (tokens.size() > 0) {
+      if (tokens.size() >= 2 && tokens[0] == "potential") {
+        tokens[1] = get_compact_nep_filename(tokens[1]);
+      }
       parse_one_keyword(tokens);
     }
   }
@@ -312,16 +315,13 @@ void Run::perform_a_run()
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(std::vector<std::string>& tokens)
+void Run::parse_one_keyword(const std::vector<std::string>& tokens)
 {
   if (tokens[0] == "replicate" && has_seen_effective_command) {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
   has_seen_effective_command = true;
 
-  if (tokens.size() >= 2 && tokens[0] == "potential") {
-    tokens[1] = get_compact_nep_filename(tokens[1]);
-  }
   int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
