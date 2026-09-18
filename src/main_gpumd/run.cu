@@ -561,9 +561,15 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     action.reset(new MC(param, num_param, group, atom));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "kspace") == 0) {
-    // nothing here; will be handled elsewhere
+    if (has_seen_kspace_command) {
+      PRINT_INPUT_ERROR("kspace can only appear once.");
+    }
+    has_seen_kspace_command = true;
   } else if (strcmp(param[0], "dftd3") == 0) {
-    // nothing here; will be handled elsewhere
+    if (has_seen_dftd3_command) {
+      PRINT_INPUT_ERROR("dftd3 can only appear once.");
+    }
+    has_seen_dftd3_command = true;
   } else if (strcmp(param[0], "compute_lsqt") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new LSQT(param, num_param));

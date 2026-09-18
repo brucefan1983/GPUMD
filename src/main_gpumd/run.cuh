@@ -52,6 +52,8 @@ private:
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
   bool has_seen_effective_command = false;
+  bool has_seen_dftd3_command = false;
+  bool has_seen_kspace_command = false;
   int number_of_steps;        // number of steps in a specific run
   double global_time = 0.0;   // run time of entire simulation (fs)
   double initial_temperature; // initial temperature for velocity
