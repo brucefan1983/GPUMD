@@ -111,7 +111,7 @@ Run::Run(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
-  initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
+  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
 
   allocate_memory_gpu(group, atom, thermo);
 

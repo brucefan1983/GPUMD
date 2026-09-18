@@ -15,24 +15,27 @@
 
 #pragma once
 
-class Box;
-class Neighbor;
-class Group;
-class Atom;
-class RunInput;
-#include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
 
-void initialize_position(
-  const RunInput& run_input,
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
+struct RunInputLine
+{
+  std::string raw_line;
+  std::vector<std::string> tokens;
+  int line_number = 0;
+};
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
+class RunInput
+{
+public:
+  explicit RunInput(const std::string& filename);
 
-void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+  const std::vector<RunInputLine>& lines() const;
+  const RunInputLine* find_first(const std::string& keyword) const;
+  const RunInputLine* find_last(const std::string& keyword) const;
+  std::vector<const RunInputLine*> find_all(const std::string& keyword) const;
+  bool contains(const std::string& keyword) const;
 
-std::string get_filename_potential(const RunInput& run_input);
-std::string get_filename_potential();
-std::vector<std::string> get_atom_symbols(std::string& filename_potential);
+private:
+  std::vector<RunInputLine> lines_;
+};

@@ -24,6 +24,7 @@ The class defining the simulation model.
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
+#include "utilities/run_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -425,29 +426,25 @@ void find_type_size(
   }
 }
 
-std::string get_filename_potential()
+std::string get_filename_potential(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
-  std::string line;
   std::string filename_potential;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 2) {
-      if (tokens[0] == "potential") {
-        filename_potential = tokens[1];
-      }
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      filename_potential = line.tokens[1];
     }
   }
-  input_run.close();
   if (filename_potential.size() == 0) {
     PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
   } else {
     return filename_potential;
   }
+}
+
+std::string get_filename_potential()
+{
+  RunInput run_input("run.in");
+  return get_filename_potential(run_input);
 }
 
 std::vector<std::string> get_atom_symbols(std::string& filename_potential)
@@ -481,6 +478,7 @@ std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 }
 
 void initialize_position(
+  const RunInput& run_input,
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   std::string filename("model.xyz");
@@ -491,7 +489,7 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_filename_potential();
+  auto filename_potential = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
@@ -522,7 +520,7 @@ void initialize_position(
 
   input.close();
 
-  prepare_compact_nep_files(atom.cpu_atom_symbol);
+  prepare_compact_nep_files(atom.cpu_atom_symbol, run_input);
   const std::vector<std::string>& compact_species = get_compact_nep_species();
   if (compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
     atom_symbols = compact_species;
@@ -538,6 +536,13 @@ void initialize_position(
   }
 
   find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
+}
+
+void initialize_position(
+  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
+{
+  RunInput run_input("run.in");
+  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
 }
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
