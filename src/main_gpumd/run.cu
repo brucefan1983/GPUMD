@@ -362,13 +362,13 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "change_box") == 0) {
     parse_change_box(param, num_param);
   } else if (strcmp(param[0], "velocity") == 0) {
-    parse_velocity(param, num_param);
+    parse_velocity(tokens);
   } else if (strcmp(param[0], "ensemble") == 0) {
     integrate.parse_ensemble(param, num_param, atom, box, group);
   } else if (strcmp(param[0], "time_step") == 0) {
-    parse_time_step(param, num_param);
+    parse_time_step(tokens);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    parse_correct_velocity(param, num_param, group);
+    parse_correct_velocity(tokens, group);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Dump_Thermo(param, num_param));
@@ -581,8 +581,9 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
   }
 }
 
-void Run::parse_velocity(const char** param, int num_param)
+void Run::parse_velocity(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
@@ -591,12 +592,12 @@ void Run::parse_velocity(const char** param, int num_param)
     // See https://github.com/brucefan1983/GPUMD/pull/768
     // for the reason for putting this branch here.
     use_seed = true;
-    if (!is_valid_int(param[3], &seed)) {
+    if (!is_valid_int(tokens[3], &seed)) {
       PRINT_INPUT_ERROR("seed should be a positive integer.\n");
     }
   }
 
-  if (!is_valid_real(param[1], &initial_temperature)) {
+  if (!is_valid_real(tokens[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
   }
   if (initial_temperature <= 0.0) {
@@ -614,14 +615,16 @@ void Run::parse_velocity(const char** param, int num_param)
   }
 }
 
-void Run::parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group)
+void Run::parse_correct_velocity(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   printf("Correct linear and angular momenta.\n");
 
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("correct_velocity should have 1 or 2 parameters.\n");
   }
-  if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
+  if (!is_valid_int(tokens[1], &velocity.velocity_correction_interval)) {
     PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
   }
   if (velocity.velocity_correction_interval < 10) {
@@ -631,7 +634,7 @@ void Run::parse_correct_velocity(const char** param, int num_param, const std::v
   printf("    every %d steps.\n", velocity.velocity_correction_interval);
 
   if (num_param == 3) {
-    if (!is_valid_int(param[2], &velocity.velocity_correction_group_method)) {
+    if (!is_valid_int(tokens[2], &velocity.velocity_correction_group_method)) {
       PRINT_INPUT_ERROR("velocity correction group method should be an integer.\n");
     }
     if (velocity.velocity_correction_group_method < 0) {
@@ -652,18 +655,19 @@ void Run::parse_correct_velocity(const char** param, int num_param, const std::v
   velocity.do_velocity_correction = true;
 }
 
-void Run::parse_time_step(const char** param, int num_param)
+void Run::parse_time_step(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("time_step should have 1 or 2 parameters.\n");
   }
-  if (!is_valid_real(param[1], &time_step)) {
+  if (!is_valid_real(tokens[1], &time_step)) {
     PRINT_INPUT_ERROR("time_step should be a real number.\n");
   }
   printf("Time step for this run is %g fs.\n", time_step);
   time_step /= TIME_UNIT_CONVERSION;
   if (num_param == 3) {
-    if (!is_valid_real(param[2], &max_distance_per_step)) {
+    if (!is_valid_real(tokens[2], &max_distance_per_step)) {
       PRINT_INPUT_ERROR("max distance per step should be a real number.\n");
     }
     if (max_distance_per_step <= 0.0) {

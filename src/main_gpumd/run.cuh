@@ -43,10 +43,11 @@ private:
 
   // keyword parsing functions
   void parse_neighbor(const char** param, int num_param);
-  void parse_velocity(const char** param, int num_param);
+  void parse_velocity(const std::vector<std::string>& tokens);
   void parse_change_box(const char** param, int num_param);
-  void parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group);
-  void parse_time_step(const char** param, int num_param);
+  void parse_correct_velocity(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_time_step(const std::vector<std::string>& tokens);
   void parse_run(const char** param, int num_param);
 
   int number_of_types; // number of atom types
