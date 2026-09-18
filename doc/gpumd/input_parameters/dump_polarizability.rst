@@ -15,7 +15,7 @@ Syntax
 
    dump_polarizability <interval> <nep_file>
 
-:attr:`interval` parameter is the output interval (number of steps) for evaluating and writing the polarizability.
+:attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the polarizability.
 
 :attr:`nep_file` is the name of the `nep4_polarizability` potential file used to predict the polarizability.
 
