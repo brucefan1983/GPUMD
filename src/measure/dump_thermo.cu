@@ -62,7 +62,7 @@ void Dump_Thermo::pre_run(
   fprintf(fid_, "# format_version 1\n");
   fprintf(fid_, "# num_atoms %d\n", atom.number_of_atoms);
   fprintf(fid_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
-  if (is_pimd(integrate.type)) {
+  if (is_pimd(integrate.get_type())) {
     fprintf(
       fid_,
       "# columns T_target KE_quantum PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
@@ -89,12 +89,14 @@ void Dump_Thermo::end_of_step(
     return;
 
   int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
+    (fixed_group < 0)
+      ? 0
+      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
 
   double thermo[8];
   gpu_thermo.copy_to_host(thermo, 8);
   double energy_kin, temperature;
-  if (is_pimd(integrate.type)) {
+  if (is_pimd(integrate.get_type())) {
     energy_kin = thermo[0];
     temperature = temperature_target;
   } else {

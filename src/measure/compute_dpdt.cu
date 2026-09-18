@@ -130,7 +130,7 @@ void Compute_dpdt::end_of_step(
     return;
 
   const int N = atom.number_of_atoms;
-  GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+  GPU_Vector<float>& bec = force.get_potential(0).get_bec_reference();
   gpu_compute_dpdt<<<(N - 1) / 64 + 1, 64>>>(
     N,
     bec.data(),

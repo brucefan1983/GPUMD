@@ -41,7 +41,7 @@ public:
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
-    std::vector<Group>& group,
+    const std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
@@ -50,7 +50,7 @@ public:
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
-    std::vector<Group>& group,
+    const std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
@@ -72,16 +72,20 @@ public:
     const std::vector<int>& type_size,
     const double T);
   void set_multiple_potentials_mode(std::string mode);
+  void set_temperature_range(
+    const double temperature1, const double temperature2, const int number_of_steps);
+  void advance_temperature();
+  int get_number_of_potentials() const;
+  Potential& get_potential(const int index);
 
+private:
+  double temperature = 0;
+  double delta_T;
   bool compute_hnemd_ = false;
   int compute_hnemdec_ = -1;
   double hnemd_fe_[3];
-  double temperature = 0;
-  double delta_T;
   GPU_Vector<double> coefficient;
   std::vector<std::unique_ptr<Potential>> potentials;
-
-private:
   int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;

@@ -504,11 +504,24 @@ static __global__ void gpu_average_properties(
 
 void Force::set_multiple_potentials_mode(std::string mode) { multiple_potentials_mode_ = mode; }
 
+void Force::set_temperature_range(
+  const double temperature1, const double temperature2, const int number_of_steps)
+{
+  temperature = temperature1;
+  delta_T = (temperature2 - temperature1) / number_of_steps;
+}
+
+void Force::advance_temperature() { temperature += delta_T; }
+
+int Force::get_number_of_potentials() const { return potentials.size(); }
+
+Potential& Force::get_potential(const int index) { return *potentials[index]; }
+
 void Force::compute(
   Box& box,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
-  std::vector<Group>& group,
+  const std::vector<Group>& group,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
@@ -794,7 +807,7 @@ void Force::compute(
   Box& box,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
-  std::vector<Group>& group,
+  const std::vector<Group>& group,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,

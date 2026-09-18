@@ -121,7 +121,7 @@ void Add_Efield::apply_field(
   const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];
 
   if (use_bec_) {
-    GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+    GPU_Vector<float>& bec = force.get_potential(0).get_bec_reference();
     add_efield_bec<<<(group_size - 1) / 64 + 1, 64>>>(
       num_atoms_total,
       group_size,
@@ -135,7 +135,7 @@ void Add_Efield::apply_field(
       atom.force_per_atom.data() + num_atoms_total,
       atom.force_per_atom.data() + num_atoms_total * 2);
   } else if (is_nep_charge_) {
-    GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+    GPU_Vector<float>& nep_charge = force.get_potential(0).get_charge_reference();
     add_efield<<<(group_size - 1) / 64 + 1, 64>>>(
       group_size,
       group_size_sum,

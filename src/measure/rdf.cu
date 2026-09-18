@@ -236,7 +236,9 @@ void RDF::end_of_step(
     rdf_para.density_type[t] = rdf_para.num_atoms[t] / rdf_para.volume;
   }
   find_rdf(
-    box, atom.type, is_pimd(integrate.type) ? atom.position_beads[0] : atom.position_per_atom);
+    box,
+    atom.type,
+    is_pimd(integrate.get_type()) ? atom.position_beads[0] : atom.position_per_atom);
 }
 
 void RDF::post_run(

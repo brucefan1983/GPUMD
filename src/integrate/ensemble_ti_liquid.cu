@@ -1076,9 +1076,9 @@ void Ensemble_TI_Liquid::add_UF_force(const Box& box, Atom& atom, Force& force)
 
   int N = atom.number_of_atoms;
 
-  const GPU_Vector<int>& NN = force.potentials[0]->get_NN_radial_ptr();
+  const GPU_Vector<int>& NN = force.get_potential(0).get_NN_radial_ptr();
 
-  const GPU_Vector<int>& NL = force.potentials[0]->get_NL_radial_ptr();
+  const GPU_Vector<int>& NL = force.get_potential(0).get_NL_radial_ptr();
 
   init_UF_force<<<(N - 1) / 128 + 1, 128>>>(
     N, gpu_fx_UF.data(), gpu_fy_UF.data(), gpu_fz_UF.data());

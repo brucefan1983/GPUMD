@@ -150,7 +150,8 @@ void Dump_Observer::pre_run(
 {
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
-    const int number_of_files = (mode_.compare("observe") == 0) ? force.potentials.size() : 1;
+    const int number_of_files =
+      (mode_.compare("observe") == 0) ? force.get_number_of_potentials() : 1;
     for (int i = 0; i < number_of_files; i++) {
       const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
       std::string exyz_filename = "observer" + file_number + ".xyz";
@@ -187,13 +188,17 @@ void Dump_Observer::end_of_step(
     return;
 
   int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
+    (fixed_group < 0)
+      ? 0
+      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
   number_of_atoms_fixed +=
-    (move_group < 0) ? 0 : group[integrate.move_grouping_method].cpu_size[move_group];
+    (move_group < 0)
+      ? 0
+      : group[integrate.get_move_grouping_method()].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
     // If observing, calculate properties with all potentials.
-    const int number_of_potentials = force.potentials.size();
+    const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
     // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
     for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
@@ -207,14 +212,14 @@ void Dump_Observer::end_of_step(
         atom.virial_per_atom.data());
       GPU_CHECK_KERNEL
       // Compute new potential properties
-      force.potentials[potential_index]->compute(
+      force.get_potential(potential_index).compute(
         box,
         atom.type,
         atom.position_per_atom,
         atom.potential_per_atom,
         atom.force_per_atom,
         atom.virial_per_atom);
-      integrate.get_ensemble().find_thermo(
+      integrate.find_thermo(
         box.get_volume(),
         group,
         atom.mass,

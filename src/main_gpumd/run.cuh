@@ -38,7 +38,7 @@ public:
 
 private:
   void execute_run_in(const RunInput& run_input);
-  void perform_a_run();
+  void perform_a_run(const int number_of_steps);
   void compute_force();
   void parse_one_keyword(
     const std::vector<std::string>& tokens, const RunInput& run_input);
@@ -56,9 +56,7 @@ private:
   bool has_seen_effective_command = false;
   bool has_seen_dftd3_command = false;
   bool has_seen_kspace_command = false;
-  int number_of_steps;        // number of steps in a specific run
-  double global_time = 0.0;   // run time of entire simulation (fs)
-  double initial_temperature; // initial temperature for velocity
+  double global_time = 0.0; // run time of entire simulation (fs)
   double time_step = 1.0 / TIME_UNIT_CONVERSION;
   double max_distance_per_step = -1.0;
   Atom atom;

@@ -165,8 +165,8 @@ void Run::execute_run_in(const RunInput& run_input)
 
 void Run::compute_force()
 {
-  if (is_pimd(integrate.type)) {
-    for (int k = 0; k < integrate.number_of_beads; ++k) {
+  if (is_pimd(integrate.get_type())) {
+    for (int k = 0; k < integrate.get_number_of_beads(); ++k) {
       force.compute(
         box,
         atom.position_beads[k],
@@ -193,7 +193,7 @@ void Run::compute_force()
   }
 }
 
-void Run::perform_a_run()
+void Run::perform_a_run(const int number_of_steps)
 {
   integrate.initialize(time_step, atom, box, group);
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
@@ -219,7 +219,7 @@ void Run::perform_a_run()
 
     measure.post_integrate1(step, time_step, integrate, group, atom, box, force);
 
-    force.temperature += force.delta_T;
+    force.advance_temperature();
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
     compute_force();
@@ -233,10 +233,10 @@ void Run::perform_a_run()
     measure.end_of_step(
       number_of_steps,
       step,
-      integrate.fixed_group,
-      integrate.move_group,
+      integrate.get_fixed_group(),
+      integrate.get_move_group(),
       global_time,
-      integrate.temperature2,
+      integrate.get_temperature2(),
       integrate,
       box,
       group,
@@ -260,7 +260,8 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.temperature2);
+  measure.post_run(
+    atom, box, integrate, number_of_steps, time_step, integrate.get_temperature2());
 
   integrate.finalize(atom, box);
   velocity.finalize();
@@ -290,8 +291,8 @@ void Run::parse_one_keyword(
     Minimize minimize;
     minimize.parse_minimize(
       tokens,
-      integrate.fixed_group,
-      integrate.fixed_grouping_method,
+      integrate.get_fixed_group(),
+      integrate.get_fixed_grouping_method(),
       force,
       box,
       atom,
@@ -342,6 +343,7 @@ void Run::parse_one_keyword(
 void Run::parse_velocity(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
+  double initial_temperature;
   int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
@@ -438,6 +440,7 @@ void Run::parse_time_step(const std::vector<std::string>& tokens)
 void Run::parse_run(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
+  int number_of_steps;
   if (num_param != 2) {
     PRINT_INPUT_ERROR("run should have 1 parameter.\n");
   }
@@ -453,10 +456,10 @@ void Run::parse_run(const std::vector<std::string>& tokens)
   printf("Run %d steps.\n", number_of_steps);
 
   // set target temperature for temperature-dependent NEP
-  force.temperature = integrate.temperature1;
-  force.delta_T = (integrate.temperature2 - integrate.temperature1) / number_of_steps;
+  force.set_temperature_range(
+    integrate.get_temperature1(), integrate.get_temperature2(), number_of_steps);
 
-  perform_a_run();
+  perform_a_run(number_of_steps);
 }
 
 static __global__ void gpu_deform_atom(

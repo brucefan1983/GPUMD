@@ -53,14 +53,94 @@ bool Integrate::has_ensemble() const
   return ensemble_ != nullptr;
 }
 
-Ensemble& Integrate::get_ensemble()
+EnsembleType Integrate::get_type() const
 {
-  return *ensemble_;
+  return type;
 }
 
-const Ensemble& Integrate::get_ensemble() const
+int Integrate::get_fixed_group() const
 {
-  return *ensemble_;
+  return fixed_group;
+}
+
+int Integrate::get_move_group() const
+{
+  return move_group;
+}
+
+int Integrate::get_fixed_grouping_method() const
+{
+  return fixed_grouping_method;
+}
+
+int Integrate::get_move_grouping_method() const
+{
+  return move_grouping_method;
+}
+
+double Integrate::get_temperature1() const
+{
+  return temperature1;
+}
+
+double Integrate::get_temperature2() const
+{
+  return temperature2;
+}
+
+int Integrate::get_num_target_pressure_components() const
+{
+  return num_target_pressure_components;
+}
+
+int Integrate::get_number_of_beads() const
+{
+  return number_of_beads;
+}
+
+const double* Integrate::get_energy_transferred() const
+{
+  return ensemble_->energy_transferred;
+}
+
+const std::vector<double>& Integrate::get_energy_transferred_n() const
+{
+  return ensemble_->energy_transferred_n;
+}
+
+void Integrate::find_thermo(
+  const double volume,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential_per_atom,
+  const GPU_Vector<double>& velocity_per_atom,
+  const GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& thermo)
+{
+  ensemble_->find_thermo(
+    volume,
+    group,
+    mass,
+    potential_per_atom,
+    velocity_per_atom,
+    virial_per_atom,
+    thermo);
+}
+
+void Integrate::set_deform(
+  int new_deform_x,
+  int new_deform_y,
+  int new_deform_z,
+  int new_deform_xy,
+  int new_deform_xz,
+  int new_deform_yz)
+{
+  deform_x = new_deform_x;
+  deform_y = new_deform_y;
+  deform_z = new_deform_z;
+  deform_xy = new_deform_xy;
+  deform_xz = new_deform_xz;
+  deform_yz = new_deform_yz;
 }
 
 void Integrate::initialize(
@@ -87,7 +167,7 @@ void Integrate::initialize(
     }
   }
 
-  Ensemble& ensemble = get_ensemble();
+  Ensemble& ensemble = *ensemble_;
   ensemble.fixed_group = fixed_group;
   ensemble.fixed_grouping_method = fixed_grouping_method;
   ensemble.move_grouping_method = move_grouping_method;
@@ -109,7 +189,7 @@ void Integrate::initialize(
 void Integrate::finalize(const Atom& atom, const Box& box)
 {
   if (has_ensemble()) {
-    get_ensemble().finalize_run(atom, box);
+    ensemble_->finalize_run(atom, box);
   }
   ensemble_.reset();
   type = EnsembleType::UNKNOWN;
@@ -134,7 +214,7 @@ void Integrate::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  Ensemble& ensemble = get_ensemble();
+  Ensemble& ensemble = *ensemble_;
   const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
@@ -163,7 +243,7 @@ void Integrate::compute2(
   GPU_Vector<double>& thermo,
   Force& force)
 {
-  Ensemble& ensemble = get_ensemble();
+  Ensemble& ensemble = *ensemble_;
   const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
@@ -336,7 +416,7 @@ void Integrate::parse_ensemble(
 }
 
 void Integrate::parse_fix(
-  const std::vector<std::string>& tokens, std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
@@ -381,7 +461,7 @@ void Integrate::parse_fix(
 }
 
 void Integrate::parse_move(
-  const std::vector<std::string>& tokens, std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (num_param != 5 && num_param != 6) {

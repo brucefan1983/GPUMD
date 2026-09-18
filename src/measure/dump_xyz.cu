@@ -323,14 +323,14 @@ void Dump_XYZ::end_of_step(
   }
   if (quantities.has_charge_) {
     if (is_nep_charge) {
-      GPU_Vector<float>& nep_charge = force.potentials[0]->get_charge_reference();
+      GPU_Vector<float>& nep_charge = force.get_potential(0).get_charge_reference();
       nep_charge.copy_to_host(atom.cpu_charge.data());
     } else {
       atom.charge.copy_to_host(atom.cpu_charge.data());
     }
   }
   if (quantities.has_bec_) {
-    GPU_Vector<float>& gpu_bec = force.potentials[0]->get_bec_reference();
+    GPU_Vector<float>& gpu_bec = force.get_potential(0).get_bec_reference();
     gpu_bec.copy_to_host(cpu_bec_.data());
   }
   if (quantities.has_velocity_) {

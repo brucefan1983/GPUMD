@@ -81,8 +81,8 @@ void Hessian::compute(
 
 void Hessian::get_cutoff_from_potential(Force& force)
 {
-  for (const auto& potential : force.potentials) {
-    cutoff = std::max(cutoff, potential->rc);
+  for (int i = 0; i < force.get_number_of_potentials(); ++i) {
+    cutoff = std::max(cutoff, force.get_potential(i).rc);
   }
   phonon_cutoff = cutoff * 2.0;
   printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);

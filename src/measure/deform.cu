@@ -198,8 +198,8 @@ void Deform::pre_run(
   box.set_is_orthogonal();
 
   if (
-    integrate.type != EnsembleType::NVE && !is_standard_nvt(integrate.type) &&
-    !is_standard_npt(integrate.type)) {
+    integrate.get_type() != EnsembleType::NVE && !is_standard_nvt(integrate.get_type()) &&
+    !is_standard_npt(integrate.get_type())) {
     PRINT_INPUT_ERROR(
       "The current deform implementation only supports NVE, standard NVT, NPT-Berendsen, and NPT-SCR ensembles.");
   }
@@ -227,18 +227,19 @@ void Deform::pre_run(
     PRINT_INPUT_ERROR("The legacy deform format only supports orthogonal boxes.");
   }
 
-  if (is_standard_npt(integrate.type)) {
-    if (integrate.num_target_pressure_components == 1) {
+  if (is_standard_npt(integrate.get_type())) {
+    if (integrate.get_num_target_pressure_components() == 1) {
       PRINT_INPUT_ERROR("Deformation cannot be combined with isotropic NPT pressure control.");
     }
-    if (integrate.num_target_pressure_components == 3) {
+    if (integrate.get_num_target_pressure_components() == 3) {
       if (deform_component_[3] || deform_component_[4] || deform_component_[5]) {
         PRINT_INPUT_ERROR("Shear deformation with NPT requires 6 target pressure components.");
       }
       if (!box.is_orthogonal) {
         PRINT_INPUT_ERROR("Deformation with 3-component NPT requires an orthogonal box.");
       }
-    } else if (integrate.num_target_pressure_components == 6 && use_legacy_format_) {
+    } else if (
+      integrate.get_num_target_pressure_components() == 6 && use_legacy_format_) {
       PRINT_INPUT_ERROR(
         "The legacy deform format cannot be combined with 6-component NPT pressure control.");
     }
