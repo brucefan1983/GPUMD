@@ -42,8 +42,8 @@ public:
   };
 #endif
 
-  LSQT(const char** param, const int num_param);
-  void parse(const char** param, const int num_param);
+  LSQT(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

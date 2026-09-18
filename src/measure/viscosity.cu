@@ -22,7 +22,6 @@ Calculate the stress autocorrelation function and viscosity.
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>
-#include <cstring>
 
 #define NUM_OF_COMPONENTS 9
 
@@ -266,14 +265,15 @@ void Viscosity::post_run(
   compute = 0;
 }
 
-Viscosity::Viscosity(const char** param, int num_param)
+Viscosity::Viscosity(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_viscosity";
 }
 
-void Viscosity::parse(const char** param, int num_param)
+void Viscosity::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   compute = 1;
 
   printf("Compute Viscosity.\n");
@@ -282,7 +282,7 @@ void Viscosity::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_viscosity should have 2 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for viscosity should be an integer number.\n");
   }
   if (sample_interval <= 0) {
@@ -290,7 +290,7 @@ void Viscosity::parse(const char** param, int num_param)
   }
   printf("    sample interval is %d.\n", sample_interval);
 
-  if (!is_valid_int(param[2], &Nc)) {
+  if (!is_valid_int(tokens[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for viscosity should be an integer number.\n");
   }
   if (Nc <= 0) {

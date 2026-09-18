@@ -502,41 +502,41 @@ bool Run::parse_action(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new AngularRDF(tokens, box, number_of_types));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_dpdt") == 0) {
+  } else if (tokens[0] == "compute_dpdt") {
     std::unique_ptr<Action> action;
-    action.reset(new Compute_dpdt(param, num_param));
+    action.reset(new Compute_dpdt(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_es") == 0) {
+  } else if (tokens[0] == "compute_es") {
     std::unique_ptr<Action> action;
-    action.reset(new Compute_es(param, num_param));
+    action.reset(new Compute_es(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_hac") == 0) {
+  } else if (tokens[0] == "compute_hac") {
     std::unique_ptr<Action> action;
-    action.reset(new HAC(param, num_param));
+    action.reset(new HAC(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_viscosity") == 0) {
+  } else if (tokens[0] == "compute_viscosity") {
     std::unique_ptr<Action> action;
-    action.reset(new Viscosity(param, num_param));
+    action.reset(new Viscosity(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_hnemd") == 0) {
+  } else if (tokens[0] == "compute_hnemd") {
     std::unique_ptr<Action> action;
-    action.reset(new HNEMD(param, num_param, force));
+    action.reset(new HNEMD(tokens, force));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_hnemdec") == 0) {
+  } else if (tokens[0] == "compute_hnemdec") {
     std::unique_ptr<Action> action;
-    action.reset(new HNEMDEC(param, num_param));
+    action.reset(new HNEMDEC(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_shc") == 0) {
+  } else if (tokens[0] == "compute_shc") {
     std::unique_ptr<Action> action;
-    action.reset(new SHC(param, num_param, group));
+    action.reset(new SHC(tokens, group));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_gkma") == 0) {
+  } else if (tokens[0] == "compute_gkma") {
     std::unique_ptr<Action> action;
-    action.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 0, force));
+    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 0, force));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_hnema") == 0) {
+  } else if (tokens[0] == "compute_hnema") {
     std::unique_ptr<Action> action;
-    action.reset(new MODAL_ANALYSIS(param, num_param, number_of_types, 1, force));
+    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 1, force));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "deform") == 0) {
     Deform* deform = new Deform(param, num_param);
@@ -581,9 +581,9 @@ bool Run::parse_action(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new MC(param, num_param, group, atom));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_lsqt") == 0) {
+  } else if (tokens[0] == "compute_lsqt") {
     std::unique_ptr<Action> action;
-    action.reset(new LSQT(param, num_param));
+    action.reset(new LSQT(tokens));
     measure.actions.emplace_back(std::move(action));
   } else {
     return false;

@@ -22,7 +22,6 @@ Calculate the time derivative of the polarization of the system and output to dp
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <vector>
 
 namespace{
@@ -174,8 +173,9 @@ void Compute_dpdt::post_run(
   fclose(fid);
 }
 
-void Compute_dpdt::parse(const char** param, int num_param)
+void Compute_dpdt::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute dp/dt.\n");
 
   if (!check_is_nep_charge()) {
@@ -186,7 +186,7 @@ void Compute_dpdt::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for compute_dpdt should be an integer number.\n");
   }
   if (sample_interval <= 0) {
@@ -195,8 +195,8 @@ void Compute_dpdt::parse(const char** param, int num_param)
   printf("    sample interval is %d.\n", sample_interval);
 }
 
-Compute_dpdt::Compute_dpdt(const char** param, int num_param)
+Compute_dpdt::Compute_dpdt(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_dpdt";
 }

@@ -29,7 +29,6 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
-#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
@@ -139,15 +138,16 @@ void HNEMD::post_run(
   const double time_step,
   const double temperature) { compute = 0; }
 
-HNEMD::HNEMD(const char** param, int num_param, Force& force)
+HNEMD::HNEMD(const std::vector<std::string>& tokens, Force& force)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_hnemd";
   force.set_hnemd_parameters(fe_x, fe_y, fe_z);
 }
 
-void HNEMD::parse(const char** param, int num_param)
+void HNEMD::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   compute = 1;
 
   printf("Compute thermal conductivity using the HNEMD method.\n");
@@ -156,22 +156,22 @@ void HNEMD::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_hnemd should have 4 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &output_interval)) {
+  if (!is_valid_int(tokens[1], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HNEMD should be an integer number.\n");
   }
   printf("    output_interval = %d\n", output_interval);
   if (output_interval < 1) {
     PRINT_INPUT_ERROR("output_interval for HNEMD should be larger than 0.\n");
   }
-  if (!is_valid_real(param[2], &fe_x)) {
+  if (!is_valid_real(tokens[2], &fe_x)) {
     PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
   }
   printf("    fe_x = %g /A\n", fe_x);
-  if (!is_valid_real(param[3], &fe_y)) {
+  if (!is_valid_real(tokens[3], &fe_y)) {
     PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
   }
   printf("    fe_y = %g /A\n", fe_y);
-  if (!is_valid_real(param[4], &fe_z)) {
+  if (!is_valid_real(tokens[4], &fe_z)) {
     PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
   }
   printf("    fe_z = %g /A\n", fe_z);

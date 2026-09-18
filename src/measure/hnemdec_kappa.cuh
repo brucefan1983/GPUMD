@@ -70,6 +70,6 @@ public:
     const double time_step,
     const double temperature);
 
-  HNEMDEC(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  HNEMDEC(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
 };
