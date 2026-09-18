@@ -15,7 +15,6 @@
 
 #include "ensemble_wall_harmonic.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -90,16 +89,17 @@ static __global__ void gpu_velocity_verlet(
 }
 } // namespace
 
-Ensemble_wall_harmonic::Ensemble_wall_harmonic(const char** params, int num_params)
+Ensemble_wall_harmonic::Ensemble_wall_harmonic(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "vp") == 0) {
-      if (!is_valid_real(params[i + 1], &vp))
+    if (tokens[i] == "vp") {
+      if (!is_valid_real(tokens[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
-    } else if (strcmp(params[i], "k") == 0) {
-      if (!is_valid_real(params[i + 1], &k))
+    } else if (tokens[i] == "k") {
+      if (!is_valid_real(tokens[i + 1], &k))
         PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
       i += 2;
     } else {

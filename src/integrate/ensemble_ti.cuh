@@ -22,11 +22,13 @@
 #include "utilities/read_file.cuh"
 #include <map>
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_TI : public Ensemble_LAN
 {
 public:
-  Ensemble_TI(const char** params, int num_params);
+  Ensemble_TI(const std::vector<std::string>& tokens);
   ~Ensemble_TI(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;

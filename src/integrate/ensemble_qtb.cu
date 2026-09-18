@@ -26,7 +26,6 @@ The QTB thermostat based on a colored noise filter:
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 
 namespace
 {
@@ -122,8 +121,9 @@ static __global__ void gpu_apply_qtb_half_step(
 
 } // namespace
 
-Ensemble_QTB::Ensemble_QTB(const char** param, int num_param)
+Ensemble_QTB::Ensemble_QTB(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   type = EnsembleType::NVT_QTB;
   num_target_pressure_components = 0;
   if (num_param < 5 || num_param % 2 == 0) {
@@ -131,20 +131,20 @@ Ensemble_QTB::Ensemble_QTB(const char** param, int num_param)
       "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
   }
 
-  if (!is_valid_real(param[2], &temperature1_)) {
+  if (!is_valid_real(tokens[2], &temperature1_)) {
     PRINT_INPUT_ERROR("Initial temperature should be a number.");
   }
   if (temperature1_ <= 0.0) {
     PRINT_INPUT_ERROR("Initial temperature should > 0.");
   }
-  if (!is_valid_real(param[3], &temperature2_)) {
+  if (!is_valid_real(tokens[3], &temperature2_)) {
     PRINT_INPUT_ERROR("Final temperature should be a number.");
   }
   if (temperature2_ <= 0.0) {
     PRINT_INPUT_ERROR("Final temperature should > 0.");
   }
   temperature = temperature1_;
-  if (!is_valid_real(param[4], &temperature_coupling)) {
+  if (!is_valid_real(tokens[4], &temperature_coupling)) {
     PRINT_INPUT_ERROR("Temperature coupling should be a number.");
   }
   if (temperature_coupling < 1.0) {
@@ -153,15 +153,15 @@ Ensemble_QTB::Ensemble_QTB(const char** param, int num_param)
 
   int i = 5;
   while (i < num_param) {
-    if (strcmp(param[i], "f_max") == 0) {
-      if (!is_valid_real(param[i + 1], &f_max_input_)) {
+    if (tokens[i] == "f_max") {
+      if (!is_valid_real(tokens[i + 1], &f_max_input_)) {
         PRINT_INPUT_ERROR("f_max should be a number.");
       }
       if (f_max_input_ <= 0.0) {
         PRINT_INPUT_ERROR("f_max should > 0.");
       }
-    } else if (strcmp(param[i], "N_f") == 0) {
-      if (!is_valid_int(param[i + 1], &n_f_input_)) {
+    } else if (tokens[i] == "N_f") {
+      if (!is_valid_int(tokens[i + 1], &n_f_input_)) {
         PRINT_INPUT_ERROR("N_f should be an integer.");
       }
       if (n_f_input_ <= 0) {

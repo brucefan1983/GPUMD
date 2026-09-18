@@ -17,6 +17,7 @@
 
 #include "ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -27,7 +28,7 @@
 class Ensemble_QTB : public Ensemble
 {
 public:
-  Ensemble_QTB(const char** param, int num_param);
+  Ensemble_QTB(const std::vector<std::string>& tokens);
 
   double get_temperature1() const;
   double get_temperature2() const;

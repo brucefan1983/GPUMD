@@ -22,7 +22,6 @@ P and T are both set -> NPT ensemable
 
 #include "ensemble_mttk.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -91,25 +90,26 @@ Ensemble_MTTK::Ensemble_MTTK(void)
   }
 }
 
-Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTTK()
+Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_MTTK()
 {
+  const int num_params = tokens.size();
   int i = 1;
   while (i < num_params) {
-    if (strcmp(params[i], "nvt_mttk") == 0) {
+    if (tokens[i] == "nvt_mttk") {
       ensemble_type = NVT;
       i += 1;
-    } else if (strcmp(params[i], "npt_mttk") == 0) {
+    } else if (tokens[i] == "npt_mttk") {
       ensemble_type = NPT;
       i += 1;
-    } else if (strcmp(params[i], "nph_mttk") == 0) {
+    } else if (tokens[i] == "nph_mttk") {
       ensemble_type = NPH;
       i += 1;
-    } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &t_period))
+    } else if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for tperiod keyword.");
       i += 2;
-    } else if (strcmp(params[i], "pperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+    } else if (tokens[i] == "pperiod") {
+      if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pperiod keyword.");
       if (p_period[0][0] < 200) {
         PRINT_INPUT_ERROR("pperiod should >= 200 timestep."); 
@@ -120,31 +120,30 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTT
           p_period[i][j] = p_period[0][0];
         }
       }
-    } else if (strcmp(params[i], "temp") == 0) {
+    } else if (tokens[i] == "temp") {
       use_thermostat = true;
-      if (!is_valid_real(params[i + 1], &t_start))
+      if (!is_valid_real(tokens[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for t_start keyword.");
-      if (!is_valid_real(params[i + 2], &t_stop))
+      if (!is_valid_real(tokens[i + 2], &t_stop))
         PRINT_INPUT_ERROR("Wrong inputs for t_stop keyword.");
       t_target = t_start;
       i += 3;
     } else if (
-      strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
-      strcmp(params[i], "tri") == 0) {
+      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       use_barostat = true;
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[1][1] = p_start[2][2] = p_start[0][0];
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
-      if (strcmp(params[i], "iso") == 0)
+      if (tokens[i] == "iso")
         couple_type = XYZ;
 
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
-      if (strcmp(params[i], "tri") == 0) {
+      if (tokens[i] == "tri") {
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             if (i != j) {
@@ -157,50 +156,50 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTT
         }
       }
       i += 3;
-    } else if (strcmp(params[i], "couple") == 0) {
-      if (strcmp(params[i + 1], "xyz") == 0)
+    } else if (tokens[i] == "couple") {
+      if (tokens[i + 1] == "xyz")
         couple_type = XYZ;
-      else if (strcmp(params[i + 1], "xy") == 0)
+      else if (tokens[i + 1] == "xy")
         couple_type = XY;
-      else if (strcmp(params[i + 1], "yz") == 0)
+      else if (tokens[i + 1] == "yz")
         couple_type = YZ;
-      else if (strcmp(params[i + 1], "xz") == 0)
+      else if (tokens[i + 1] == "xz")
         couple_type = XZ;
       else
         PRINT_INPUT_ERROR("Wrong inputs for couple keyword.");
       i += 2;
-    } else if (strcmp(params[i], "x") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+    } else if (tokens[i] == "x") {
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[0][0] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "y") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[1][1]))
+    } else if (tokens[i] == "y") {
+      if (!is_valid_real(tokens[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[1][1]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[1][1] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "z") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[2][2]))
+    } else if (tokens[i] == "z") {
+      if (!is_valid_real(tokens[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[2][2]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[2][2] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "xy") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[0][1]))
+    } else if (tokens[i] == "xy") {
+      if (!is_valid_real(tokens[i + 1], &p_start[0][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[1][0] = p_start[0][1];
-      if (!is_valid_real(params[i + 2], &p_stop[0][1]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][0] = p_stop[0][1];
       p_flag[1][0] = p_flag[0][1] = 1;
@@ -208,11 +207,11 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTT
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "xz") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[0][2]))
+    } else if (tokens[i] == "xz") {
+      if (!is_valid_real(tokens[i + 1], &p_start[0][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[2][0] = p_start[0][2];
-      if (!is_valid_real(params[i + 2], &p_stop[0][2]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][0] = p_stop[0][2];
       p_flag[2][0] = p_flag[0][2] = 1;
@@ -220,11 +219,11 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params) : Ensemble_MTT
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "yz") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[1][2]))
+    } else if (tokens[i] == "yz") {
+      if (!is_valid_real(tokens[i + 1], &p_start[1][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[2][1] = p_start[1][2];
-      if (!is_valid_real(params[i + 2], &p_stop[1][2]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[1][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][1] = p_stop[1][2];
       p_flag[2][1] = p_flag[1][2] = 1;

@@ -15,7 +15,6 @@
 
 #include "ensemble_ti.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -75,32 +74,33 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 
 } // namespace
 
-Ensemble_TI::Ensemble_TI(const char** params, int num_params)
+Ensemble_TI::Ensemble_TI(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   temperature_coupling = 100;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "lambda") == 0) {
-      if (!is_valid_real(params[i + 1], &lambda))
+    if (tokens[i] == "lambda") {
+      if (!is_valid_real(tokens[i + 1], &lambda))
         PRINT_INPUT_ERROR("Wrong inputs for lambda keyword.");
       if (lambda < 0 || lambda > 1)
         PRINT_INPUT_ERROR("lambda value should be between 0 and 1.");
       i += 2;
-    } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature))
+    } else if (tokens[i] == "temp") {
+      if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
-    } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature_coupling))
+    } else if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "spring") == 0) {
+    } else if (tokens[i] == "spring") {
       i++;
       double _k;
       while (i < num_params) {
-        if (!is_valid_real(params[i + 1], &_k))
+        if (!is_valid_real(tokens[i + 1], &_k))
           PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
-        spring_map[params[i]] = _k;
+        spring_map[tokens[i]] = _k;
         i += 2;
       }
     } else {

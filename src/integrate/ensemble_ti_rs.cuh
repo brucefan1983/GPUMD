@@ -20,11 +20,13 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_TI_RS : public Ensemble_MTTK
 {
 public:
-  Ensemble_TI_RS(const char** params, int num_params);
+  Ensemble_TI_RS(const std::vector<std::string>& tokens);
   ~Ensemble_TI_RS(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;

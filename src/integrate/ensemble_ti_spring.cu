@@ -15,7 +15,6 @@
 
 #include "ensemble_ti_spring.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -97,42 +96,43 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 
 } // namespace
 
-Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
+Ensemble_TI_Spring::Ensemble_TI_Spring(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   temperature_coupling = 100;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "tswitch") == 0) {
+    if (tokens[i] == "tswitch") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_switch))
+      if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
-    } else if (strcmp(params[i], "tequil") == 0) {
+    } else if (tokens[i] == "tequil") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_equil))
+      if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
-    } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature))
+    } else if (tokens[i] == "temp") {
+      if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
-    } else if (strcmp(params[i], "press") == 0) {
-      if (!is_valid_real(params[i + 1], &target_pressure))
+    } else if (tokens[i] == "press") {
+      if (!is_valid_real(tokens[i + 1], &target_pressure))
         PRINT_INPUT_ERROR("Wrong inputs for press keyword.");
       target_pressure /= PRESSURE_UNIT_CONVERSION;
       i += 2;
-    } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature_coupling))
+    } else if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "spring") == 0) {
+    } else if (tokens[i] == "spring") {
       i++;
       auto_k = false;
       double _k;
       while (i < num_params) {
-        if (!is_valid_real(params[i + 1], &_k))
+        if (!is_valid_real(tokens[i + 1], &_k))
           PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
-        spring_map[params[i]] = _k;
+        spring_map[tokens[i]] = _k;
         i += 2;
       }
     } else {

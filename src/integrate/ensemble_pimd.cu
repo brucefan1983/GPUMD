@@ -36,7 +36,6 @@ References for implementation:
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <utility>
 
 void Ensemble_PIMD::initialize_rng()
@@ -48,18 +47,19 @@ void Ensemble_PIMD::initialize_rng()
 #endif
 };
 
-Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
+Ensemble_PIMD::Ensemble_PIMD(const std::vector<std::string>& tokens, const Box& box)
 {
+  const int num_param = tokens.size();
   int pimd_num_param = num_param;
 
-  if (strcmp(param[1], "rpmd") == 0) {
+  if (tokens[1] == "rpmd") {
     type = EnsembleType::RPMD;
     thermostat_internal = false;
     thermostat_centroid = false;
     if (num_param != 3) {
       PRINT_INPUT_ERROR("ensemble rpmd should have 1 parameter.");
     }
-  } else if (strcmp(param[1], "trpmd") == 0) {
+  } else if (tokens[1] == "trpmd") {
     type = EnsembleType::TRPMD;
     thermostat_internal = true;
     thermostat_centroid = false;
@@ -70,14 +70,14 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
     type = EnsembleType::PIMD;
     thermostat_internal = true;
     thermostat_centroid = true;
-    use_scr_barostat = strcmp(param[1], "pimd_scr") == 0;
+    use_scr_barostat = tokens[1] == "pimd_scr";
 
     // Optional Eco frequencies are selected by appending
     // "eco omega_max_cm1" to an existing PIMD command.
-    if (num_param >= 8 && strcmp(param[num_param - 2], "eco") == 0) {
+    if (num_param >= 8 && tokens[num_param - 2] == "eco") {
       use_eco_pimd = true;
       pimd_num_param = num_param - 2;
-      if (!is_valid_real(param[num_param - 1], &eco_omega_max_cm1)) {
+      if (!is_valid_real(tokens[num_param - 1], &eco_omega_max_cm1)) {
         PRINT_INPUT_ERROR("Eco-PIMD omega_max should be a number in cm^-1.");
       }
     }
@@ -101,7 +101,7 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
     }
   }
 
-  if (!is_valid_int(param[2], &number_of_beads)) {
+  if (!is_valid_int(tokens[2], &number_of_beads)) {
     PRINT_INPUT_ERROR("number of beads should be an integer.");
   }
   if (number_of_beads < 2) {
@@ -116,7 +116,7 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
 
   num_target_pressure_components = 0;
   if (type == EnsembleType::PIMD) {
-    if (!is_valid_real(param[3], &temperature1_)) {
+    if (!is_valid_real(tokens[3], &temperature1_)) {
       PRINT_INPUT_ERROR("Initial temperature should be a number.");
     }
     if (temperature1_ <= 0.0) {
@@ -124,14 +124,14 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
     }
     temperature = temperature1_;
 
-    if (!is_valid_real(param[4], &temperature2_)) {
+    if (!is_valid_real(tokens[4], &temperature2_)) {
       PRINT_INPUT_ERROR("Final temperature should be a number.");
     }
     if (temperature2_ <= 0.0) {
       PRINT_INPUT_ERROR("Final temperature should > 0.");
     }
 
-    if (!is_valid_real(param[5], &temperature_coupling)) {
+    if (!is_valid_real(tokens[5], &temperature_coupling)) {
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
     if (temperature_coupling < 1.0) {
@@ -141,12 +141,12 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
     if (pimd_num_param >= 9) {
       if (pimd_num_param == 13) {
         for (int i = 0; i < 3; i++) {
-          if (!is_valid_real(param[6 + i], &target_pressure[i])) {
+          if (!is_valid_real(tokens[6 + i], &target_pressure[i])) {
             PRINT_INPUT_ERROR("Pressure should be a number.");
           }
         }
         for (int i = 0; i < 3; i++) {
-          if (!is_valid_real(param[9 + i], &elastic_modulus_[i])) {
+          if (!is_valid_real(tokens[9 + i], &elastic_modulus_[i])) {
             PRINT_INPUT_ERROR("elastic modulus should be a number.");
           }
           if (elastic_modulus_[i] <= 0) {
@@ -160,10 +160,10 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
           PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
         }
       } else if (pimd_num_param == 9) {
-        if (!is_valid_real(param[6], &target_pressure[0])) {
+        if (!is_valid_real(tokens[6], &target_pressure[0])) {
           PRINT_INPUT_ERROR("Pressure should be a number.");
         }
-        if (!is_valid_real(param[7], &elastic_modulus_[0])) {
+        if (!is_valid_real(tokens[7], &elastic_modulus_[0])) {
           PRINT_INPUT_ERROR("elastic modulus should be a number.");
         }
         if (elastic_modulus_[0] <= 0) {
@@ -181,12 +181,12 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
         }
       } else {
         for (int i = 0; i < 6; i++) {
-          if (!is_valid_real(param[6 + i], &target_pressure[i])) {
+          if (!is_valid_real(tokens[6 + i], &target_pressure[i])) {
             PRINT_INPUT_ERROR("Pressure should be a number.");
           }
         }
         for (int i = 0; i < 6; i++) {
-          if (!is_valid_real(param[12 + i], &elastic_modulus_[i])) {
+          if (!is_valid_real(tokens[12 + i], &elastic_modulus_[i])) {
             PRINT_INPUT_ERROR("elastic modulus should be a number.");
           }
           if (elastic_modulus_[i] <= 0) {
@@ -201,7 +201,7 @@ Ensemble_PIMD::Ensemble_PIMD(const char** param, int num_param, const Box& box)
       }
 
       int index_pressure_coupling = num_target_pressure_components * 2 + 6;
-      if (!is_valid_real(param[index_pressure_coupling], &tau_p_)) {
+      if (!is_valid_real(tokens[index_pressure_coupling], &tau_p_)) {
         PRINT_INPUT_ERROR("Pressure coupling should be a number.");
       }
       if (tau_p_ < 1) {

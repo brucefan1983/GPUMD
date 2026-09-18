@@ -187,14 +187,6 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
-  const int num_param = tokens.size();
-  std::vector<const char*> legacy_param;
-  legacy_param.reserve(tokens.size());
-  for (const std::string& token : tokens) {
-    legacy_param.push_back(token.c_str());
-  }
-  const char** param = legacy_param.data();
-
   // 1. Determine the integration method
   if (tokens[1] == "nve") {
     ensemble_ = std::make_unique<Ensemble_NVE>(tokens);
@@ -246,7 +238,7 @@ void Integrate::parse_ensemble(
     temperature = temperature1;
     ensemble_ = std::move(ensemble_bao);
   } else if (tokens[1] == "nvt_qtb") {
-    auto ensemble_qtb = std::make_unique<Ensemble_QTB>(param, num_param);
+    auto ensemble_qtb = std::make_unique<Ensemble_QTB>(tokens);
     type = ensemble_qtb->type;
     temperature1 = ensemble_qtb->get_temperature1();
     temperature2 = ensemble_qtb->get_temperature2();
@@ -264,25 +256,25 @@ void Integrate::parse_ensemble(
     tokens[1] == "nvt_mttk" || tokens[1] == "npt_mttk" ||
     tokens[1] == "nph_mttk") {
     type = EnsembleType::MTTK;
-    auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(param, num_param);
+    auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(tokens);
     temperature1 = ensemble_mttk->t_start;
     temperature2 = ensemble_mttk->t_stop;
     ensemble_ = std::move(ensemble_mttk);
   } else if (tokens[1] == "npt_qtb") {
     type = EnsembleType::NPT_QTB;
-    auto ensemble_npt_qtb = std::make_unique<Ensemble_NPT_QTB>(param, num_param);
+    auto ensemble_npt_qtb = std::make_unique<Ensemble_NPT_QTB>(tokens);
     temperature1 = ensemble_npt_qtb->t_start;
     temperature2 = ensemble_npt_qtb->t_stop;
     ensemble_ = std::move(ensemble_npt_qtb);
   } else if (tokens[1] == "heat_ttm") {
     auto ensemble_ttm =
-      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+      std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
     type = ensemble_ttm->type;
     temperature = ensemble_ttm->temperature;
     ensemble_ = std::move(ensemble_ttm);
   } else if (tokens[1] == "ttm") {
     auto ensemble_ttm =
-      std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
+      std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
     type = ensemble_ttm->type;
     temperature = ensemble_ttm->temperature;
     temperature1 = 0.0;
@@ -297,7 +289,7 @@ void Integrate::parse_ensemble(
   } else if (
     tokens[1] == "rpmd" || tokens[1] == "trpmd" || tokens[1] == "pimd" ||
     tokens[1] == "pimd_scr") {
-    auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(param, num_param, box);
+    auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(tokens, box);
     type = ensemble_pimd->type;
     number_of_beads = ensemble_pimd->get_number_of_beads();
     if (type == EnsembleType::PIMD) {
@@ -310,34 +302,34 @@ void Integrate::parse_ensemble(
     ensemble_ = std::move(ensemble_pimd);
   } else if (tokens[1] == "msst") {
     type = EnsembleType::MSST;
-    ensemble_ = std::make_unique<Ensemble_MSST>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_MSST>(tokens);
   } else if (tokens[1] == "ti_spring") {
     type = EnsembleType::TI_SPRING;
-    ensemble_ = std::make_unique<Ensemble_TI_Spring>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_TI_Spring>(tokens);
   } else if (tokens[1] == "wall_piston") {
     type = EnsembleType::WALL_PISTON;
-    ensemble_ = std::make_unique<Ensemble_wall_piston>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_wall_piston>(tokens);
   } else if (tokens[1] == "nphug") {
     type = EnsembleType::NPHUG;
-    ensemble_ = std::make_unique<Ensemble_NPHug>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_NPHug>(tokens);
   } else if (tokens[1] == "ti") {
     type = EnsembleType::TI;
-    ensemble_ = std::make_unique<Ensemble_TI>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_TI>(tokens);
   } else if (tokens[1] == "wall_mirror") {
     type = EnsembleType::WALL_MIRROR;
-    ensemble_ = std::make_unique<Ensemble_wall_mirror>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_wall_mirror>(tokens);
   } else if (tokens[1] == "ti_rs") {
     type = EnsembleType::TI_RS;
-    ensemble_ = std::make_unique<Ensemble_TI_RS>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_TI_RS>(tokens);
   } else if (tokens[1] == "ti_as") {
     type = EnsembleType::TI_AS;
-    ensemble_ = std::make_unique<Ensemble_TI_AS>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_TI_AS>(tokens);
   } else if (tokens[1] == "wall_harmonic") {
     type = EnsembleType::WALL_HARMONIC;
-    ensemble_ = std::make_unique<Ensemble_wall_harmonic>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_wall_harmonic>(tokens);
   } else if (tokens[1] == "ti_liquid") {
     type = EnsembleType::TI_LIQUID;
-    ensemble_ = std::make_unique<Ensemble_TI_Liquid>(param, num_param);
+    ensemble_ = std::make_unique<Ensemble_TI_Liquid>(tokens);
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }

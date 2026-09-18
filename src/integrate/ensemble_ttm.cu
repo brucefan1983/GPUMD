@@ -26,7 +26,6 @@ channel for heat transport across metal-nonmetal heterointerfaces.
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -38,13 +37,13 @@ channel for heat transport across metal-nonmetal heterointerfaces.
 #endif
 
 static void parse_ttm_active_range(
-  const char* text,
-  const char* axis_name,
+  const std::string& text,
+  const std::string& axis_name,
   const int upper_bound,
   int& lower,
   int& upper)
 {
-  if (strcmp(text, "all") == 0) {
+  if (text == "all") {
     lower = 1;
     upper = upper_bound;
     return;
@@ -55,25 +54,25 @@ static void parse_ttm_active_range(
     lower = value;
     upper = value;
   } else {
-    const char* separator = strchr(text, ':');
-    if (separator == nullptr) {
-      separator = strchr(text, '-');
+    size_t separator = text.find(':');
+    if (separator == std::string::npos) {
+      separator = text.find('-');
     }
-    if (separator == nullptr) {
+    if (separator == std::string::npos) {
       PRINT_INPUT_ERROR("TTM active range should be an integer, all, or min:max.");
     }
 
-    const std::string lower_text(text, separator - text);
-    const std::string upper_text(separator + 1);
-    if (!is_valid_int(lower_text.c_str(), &lower) || !is_valid_int(upper_text.c_str(), &upper)) {
+    const std::string lower_text = text.substr(0, separator);
+    const std::string upper_text = text.substr(separator + 1);
+    if (!is_valid_int(lower_text, &lower) || !is_valid_int(upper_text, &upper)) {
       PRINT_INPUT_ERROR("TTM active range bounds should be integers.");
     }
   }
 
   if (lower < 1 || upper < 1 || lower > upper_bound || upper > upper_bound || lower > upper) {
-    if (strcmp(axis_name, "x") == 0) {
+    if (axis_name == "x") {
       PRINT_INPUT_ERROR("ttm_active_x is out of range.");
-    } else if (strcmp(axis_name, "y") == 0) {
+    } else if (axis_name == "y") {
       PRINT_INPUT_ERROR("ttm_active_y is out of range.");
     } else {
       PRINT_INPUT_ERROR("ttm_active_z is out of range.");
@@ -83,8 +82,7 @@ static void parse_ttm_active_range(
 
 static void parse_ttm_parameters(
   const EnsembleType type,
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
   const std::vector<Group>& group,
@@ -92,6 +90,7 @@ static void parse_ttm_parameters(
   const int sink,
   TTM_Parameters& ttm_parameters)
 {
+  const int num_param = tokens.size();
   ttm_parameters = TTM_Parameters();
 
   if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
@@ -108,14 +107,14 @@ static void parse_ttm_parameters(
 
   const int ttm_offset = (type == EnsembleType::HEAT_TTM) ? 7 : 2;
 
-  if (!is_valid_int(param[ttm_offset], &ttm_parameters.grouping_method)) {
+  if (!is_valid_int(tokens[ttm_offset], &ttm_parameters.grouping_method)) {
     PRINT_INPUT_ERROR("TTM grouping method should be an integer.");
   }
   if (ttm_parameters.grouping_method < 0 || ttm_parameters.grouping_method >= group.size()) {
     PRINT_INPUT_ERROR("TTM grouping method out of range.");
   }
 
-  if (!is_valid_int(param[ttm_offset + 1], &ttm_parameters.group_id)) {
+  if (!is_valid_int(tokens[ttm_offset + 1], &ttm_parameters.group_id)) {
     PRINT_INPUT_ERROR("TTM group ID should be an integer.");
   }
   if (
@@ -143,55 +142,55 @@ static void parse_ttm_parameters(
     }
   }
 
-  if (!is_valid_real(param[ttm_offset + 2], &ttm_parameters.Ce)) {
+  if (!is_valid_real(tokens[ttm_offset + 2], &ttm_parameters.Ce)) {
     PRINT_INPUT_ERROR("Ce (electronic specific heat) should be a number.");
   }
   if (ttm_parameters.Ce <= 0.0) {
     PRINT_INPUT_ERROR("Ce should > 0.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 3], &ttm_parameters.rho_e)) {
+  if (!is_valid_real(tokens[ttm_offset + 3], &ttm_parameters.rho_e)) {
     PRINT_INPUT_ERROR("rho_e (electronic density) should be a number.");
   }
   if (ttm_parameters.rho_e <= 0.0) {
     PRINT_INPUT_ERROR("rho_e should > 0.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 4], &ttm_parameters.kappa_e)) {
+  if (!is_valid_real(tokens[ttm_offset + 4], &ttm_parameters.kappa_e)) {
     PRINT_INPUT_ERROR("kappa_e (electronic thermal conductivity) should be a number.");
   }
   if (ttm_parameters.kappa_e < 0.0) {
     PRINT_INPUT_ERROR("kappa_e should >= 0.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 5], &ttm_parameters.gamma_p)) {
+  if (!is_valid_real(tokens[ttm_offset + 5], &ttm_parameters.gamma_p)) {
     PRINT_INPUT_ERROR("gamma_p (e-ph coupling friction) should be a number.");
   }
   if (ttm_parameters.gamma_p <= 0.0) {
     PRINT_INPUT_ERROR("gamma_p should > 0.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 6], &ttm_parameters.gamma_s)) {
+  if (!is_valid_real(tokens[ttm_offset + 6], &ttm_parameters.gamma_s)) {
     PRINT_INPUT_ERROR("gamma_s (stopping power friction) should be a number.");
   }
   if (ttm_parameters.gamma_s < 0.0) {
     PRINT_INPUT_ERROR("gamma_s should >= 0.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 7], &ttm_parameters.v_0)) {
+  if (!is_valid_real(tokens[ttm_offset + 7], &ttm_parameters.v_0)) {
     PRINT_INPUT_ERROR("v_0 (velocity threshold) should be a number.");
   }
   if (ttm_parameters.v_0 < 0.0) {
     PRINT_INPUT_ERROR("v_0 should >= 0.");
   }
 
-  if (!is_valid_int(param[ttm_offset + 8], &ttm_parameters.nx)) {
+  if (!is_valid_int(tokens[ttm_offset + 8], &ttm_parameters.nx)) {
     PRINT_INPUT_ERROR("nx (electron grid x) should be an integer.");
   }
-  if (!is_valid_int(param[ttm_offset + 9], &ttm_parameters.ny)) {
+  if (!is_valid_int(tokens[ttm_offset + 9], &ttm_parameters.ny)) {
     PRINT_INPUT_ERROR("ny (electron grid y) should be an integer.");
   }
-  if (!is_valid_int(param[ttm_offset + 10], &ttm_parameters.nz)) {
+  if (!is_valid_int(tokens[ttm_offset + 10], &ttm_parameters.nz)) {
     PRINT_INPUT_ERROR("nz (electron grid z) should be an integer.");
   }
   if (ttm_parameters.nx <= 0 || ttm_parameters.ny <= 0 || ttm_parameters.nz <= 0) {
@@ -208,7 +207,7 @@ static void parse_ttm_parameters(
     PRINT_INPUT_ERROR("Too many electron grid points for ensemble ttm/heat_ttm.");
   }
 
-  if (!is_valid_real(param[ttm_offset + 11], &ttm_parameters.T_e_init)) {
+  if (!is_valid_real(tokens[ttm_offset + 11], &ttm_parameters.T_e_init)) {
     PRINT_INPUT_ERROR("T_e_init (initial electron temperature) should be a number.");
   }
   if (ttm_parameters.T_e_init <= 0.0) {
@@ -217,36 +216,36 @@ static void parse_ttm_parameters(
 
   int i = ttm_offset + 12;
   while (i < num_param) {
-    if (strcmp(param[i], "ttm_out_interval") == 0) {
-      if (!is_valid_int(param[i + 1], &ttm_parameters.out_interval)) {
+    if (tokens[i] == "ttm_out_interval") {
+      if (!is_valid_int(tokens[i + 1], &ttm_parameters.out_interval)) {
         PRINT_INPUT_ERROR("ttm_out_interval should be an integer.");
       }
       if (ttm_parameters.out_interval <= 0) {
         PRINT_INPUT_ERROR("ttm_out_interval should > 0.");
       }
-    } else if (strcmp(param[i], "ttm_infile") == 0) {
-      ttm_parameters.infile = param[i + 1];
+    } else if (tokens[i] == "ttm_infile") {
+      ttm_parameters.infile = tokens[i + 1];
       if (ttm_parameters.infile.empty()) {
         PRINT_INPUT_ERROR("ttm_infile should be a valid file path.");
       }
-    } else if (strcmp(param[i], "ttm_properties_file") == 0) {
-      ttm_parameters.properties_file = param[i + 1];
+    } else if (tokens[i] == "ttm_properties_file") {
+      ttm_parameters.properties_file = tokens[i + 1];
       if (ttm_parameters.properties_file.empty()) {
         PRINT_INPUT_ERROR("ttm_properties_file should be a valid file path.");
       }
-    } else if (strcmp(param[i], "ttm_source") == 0) {
-      if (!is_valid_real(param[i + 1], &ttm_parameters.source)) {
+    } else if (tokens[i] == "ttm_source") {
+      if (!is_valid_real(tokens[i + 1], &ttm_parameters.source)) {
         PRINT_INPUT_ERROR("ttm_source should be a number.");
       }
-    } else if (strcmp(param[i], "ttm_active_x") == 0) {
+    } else if (tokens[i] == "ttm_active_x") {
       parse_ttm_active_range(
-        param[i + 1], "x", ttm_parameters.nx, ttm_parameters.active_x_min, ttm_parameters.active_x_max);
-    } else if (strcmp(param[i], "ttm_active_y") == 0) {
+        tokens[i + 1], "x", ttm_parameters.nx, ttm_parameters.active_x_min, ttm_parameters.active_x_max);
+    } else if (tokens[i] == "ttm_active_y") {
       parse_ttm_active_range(
-        param[i + 1], "y", ttm_parameters.ny, ttm_parameters.active_y_min, ttm_parameters.active_y_max);
-    } else if (strcmp(param[i], "ttm_active_z") == 0) {
+        tokens[i + 1], "y", ttm_parameters.ny, ttm_parameters.active_y_min, ttm_parameters.active_y_max);
+    } else if (tokens[i] == "ttm_active_z") {
       parse_ttm_active_range(
-        param[i + 1], "z", ttm_parameters.nz, ttm_parameters.active_z_min, ttm_parameters.active_z_max);
+        tokens[i + 1], "z", ttm_parameters.nz, ttm_parameters.active_z_min, ttm_parameters.active_z_max);
     } else {
       PRINT_INPUT_ERROR("Unknown ensemble ttm/heat_ttm optional keyword.");
     }
@@ -794,13 +793,13 @@ void Ensemble_TTM::initialize_ttm_common(
 }
 
 Ensemble_TTM::Ensemble_TTM(
-  const char** param,
-  int num_param,
+  const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
   const std::vector<Group>& group)
 {
-  if (strcmp(param[1], "heat_ttm") == 0) {
+  const int num_param = tokens.size();
+  if (tokens[1] == "heat_ttm") {
     type = EnsembleType::HEAT_TTM;
     use_heat_lan = true;
     if (num_param < 19 || (num_param - 19) % 2 != 0) {
@@ -808,28 +807,28 @@ Ensemble_TTM::Ensemble_TTM(
         "ensemble heat_ttm should have 17 required parameters plus optional key-value pairs.");
     }
 
-    if (!is_valid_real(param[2], &temperature)) {
+    if (!is_valid_real(tokens[2], &temperature)) {
       PRINT_INPUT_ERROR("Temperature should be a number.");
     }
     if (temperature <= 0.0) {
       PRINT_INPUT_ERROR("Temperature should > 0.");
     }
-    if (!is_valid_real(param[3], &temperature_coupling)) {
+    if (!is_valid_real(tokens[3], &temperature_coupling)) {
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
     if (temperature_coupling < 1.0) {
       PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
     }
-    if (!is_valid_real(param[4], &delta_temperature)) {
+    if (!is_valid_real(tokens[4], &delta_temperature)) {
       PRINT_INPUT_ERROR("Temperature difference should be a number.");
     }
     if (delta_temperature >= temperature || delta_temperature <= -temperature) {
       PRINT_INPUT_ERROR("|Temperature difference| is too large.");
     }
-    if (!is_valid_int(param[5], &source)) {
+    if (!is_valid_int(tokens[5], &source)) {
       PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
     }
-    if (!is_valid_int(param[6], &sink)) {
+    if (!is_valid_int(tokens[6], &sink)) {
       PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
     }
     if (group.empty()) {
@@ -850,7 +849,7 @@ Ensemble_TTM::Ensemble_TTM(
     if (sink >= group[0].number) {
       PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
     }
-  } else if (strcmp(param[1], "ttm") == 0) {
+  } else if (tokens[1] == "ttm") {
     type = EnsembleType::TTM;
     use_heat_lan = false;
     if (num_param < 14 || (num_param - 14) % 2 != 0) {
@@ -866,7 +865,7 @@ Ensemble_TTM::Ensemble_TTM(
     PRINT_INPUT_ERROR("Invalid TTM ensemble type.");
   }
 
-  parse_ttm_parameters(type, param, num_param, atom, box, group, source, sink, parameters_);
+  parse_ttm_parameters(type, tokens, atom, box, group, source, sink, parameters_);
 
   if (use_heat_lan) {
     printf("Integrate with heating/cooling and TTM for this run.\n");

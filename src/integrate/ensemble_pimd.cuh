@@ -22,12 +22,13 @@
   #include <curand_kernel.h>
 #endif
 #include <random>
+#include <string>
 #include <vector>
 
 class Ensemble_PIMD : public Ensemble
 {
 public:
-  Ensemble_PIMD(const char** param, int num_param, const Box& box);
+  Ensemble_PIMD(const std::vector<std::string>& tokens, const Box& box);
 
   void initialize_run(
     const double time_step,

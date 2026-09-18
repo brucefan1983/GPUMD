@@ -15,11 +15,13 @@
 
 #pragma once
 #include "ensemble_mttk.cuh"
+#include <string>
+#include <vector>
 
 class Ensemble_NPHug : public Ensemble_MTTK
 {
 public:
-  Ensemble_NPHug(const char** params, int num_params);
+  Ensemble_NPHug(const std::vector<std::string>& tokens);
   Ensemble_NPHug(void);
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;

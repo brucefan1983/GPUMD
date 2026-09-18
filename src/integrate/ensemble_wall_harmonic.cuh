@@ -20,11 +20,13 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_wall_harmonic : public Ensemble
 {
 public:
-  Ensemble_wall_harmonic(const char** params, int num_params);
+  Ensemble_wall_harmonic(const std::vector<std::string>& tokens);
 
   void initialize_before_first_step(
     const double time_step,
