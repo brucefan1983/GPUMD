@@ -977,13 +977,13 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, Atom& atom, Fo
   }
   if (quantities_.has_charge_) {
     GPU_Vector<float>& charge =
-      is_nep_charge_ ? force.potentials[0]->get_charge_reference() : atom.charge;
+      is_nep_charge_ ? force.get_potential(0).get_charge_reference() : atom.charge;
     stage(charge, 1, gather_float_, host_float_);
     pack_scalar_by_precision(precision_, number_to_dump, host_float_, pack_float_, pack_double_);
     put_packed(charge_var, atom_start, atom_count);
   }
   if (quantities_.has_bec_) {
-    stage(force.potentials[0]->get_bec_reference(), 9, gather_float_, host_float_);
+    stage(force.get_potential(0).get_bec_reference(), 9, gather_float_, host_float_);
     pack_tensor_by_precision(
       precision_,
       number_to_dump,

@@ -105,10 +105,14 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       ensemble_type = NPH;
       i += 1;
     } else if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for tperiod keyword.");
       i += 2;
     } else if (tokens[i] == "pperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for pperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pperiod keyword.");
       if (p_period[0][0] < 200) {
@@ -121,6 +125,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
         }
       }
     } else if (tokens[i] == "temp") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword temp requires two values.");
       use_thermostat = true;
       if (!is_valid_real(tokens[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for t_start keyword.");
@@ -130,6 +136,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       i += 3;
     } else if (
       tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       use_barostat = true;
       if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
@@ -157,6 +165,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       }
       i += 3;
     } else if (tokens[i] == "couple") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for couple keyword.");
       if (tokens[i + 1] == "xyz")
         couple_type = XYZ;
       else if (tokens[i + 1] == "xy")
@@ -169,6 +179,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
         PRINT_INPUT_ERROR("Wrong inputs for couple keyword.");
       i += 2;
     } else if (tokens[i] == "x") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword x requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
@@ -178,6 +190,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "y") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword y requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[1][1]))
@@ -187,6 +201,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "z") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword z requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[2][2]))
@@ -196,6 +212,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "xy") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword xy requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[0][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[1][0] = p_start[0][1];
@@ -208,6 +226,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "xz") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword xz requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[0][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[2][0] = p_start[0][2];
@@ -220,6 +240,8 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "yz") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword yz requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[1][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[2][1] = p_start[1][2];

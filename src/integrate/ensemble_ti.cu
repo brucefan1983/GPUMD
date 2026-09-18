@@ -81,23 +81,33 @@ Ensemble_TI::Ensemble_TI(const std::vector<std::string>& tokens)
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "lambda") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for lambda keyword.");
       if (!is_valid_real(tokens[i + 1], &lambda))
         PRINT_INPUT_ERROR("Wrong inputs for lambda keyword.");
       if (lambda < 0 || lambda > 1)
         PRINT_INPUT_ERROR("lambda value should be between 0 and 1.");
       i += 2;
     } else if (tokens[i] == "temp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for temp keyword.");
       if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
     } else if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
     } else if (tokens[i] == "spring") {
       i++;
+      if (i >= num_params)
+        PRINT_INPUT_ERROR("Spring keyword requires at least one type and force constant pair.");
       double _k;
       while (i < num_params) {
+        if (i + 1 >= num_params)
+          PRINT_INPUT_ERROR("Spring type requires a force constant.");
         if (!is_valid_real(tokens[i + 1], &_k))
           PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
         spring_map[tokens[i]] = _k;

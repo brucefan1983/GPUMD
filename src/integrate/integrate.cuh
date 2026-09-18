@@ -29,10 +29,54 @@ class Integrate
 private:
   std::unique_ptr<Ensemble> ensemble_;
 
+  EnsembleType type = EnsembleType::UNKNOWN;
+  int fixed_group = -1; // ID of the group in which the atoms will be fixed
+  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  int fixed_grouping_method = 0;
+  int move_grouping_method = 0;
+  double move_velocity[3];
+
+  double temperature1; // target initial temperature for a run
+  double temperature2; // target final temperature for a run
+  int num_target_pressure_components;
+  int deform_x = 0;
+  int deform_y = 0;
+  int deform_z = 0;
+  int deform_xy = 0;
+  int deform_xz = 0;
+  int deform_yz = 0;
+
+  // PIMD
+  int number_of_beads;
+
 public:
   bool has_ensemble() const;
-  Ensemble& get_ensemble();
-  const Ensemble& get_ensemble() const;
+  EnsembleType get_type() const;
+  int get_fixed_group() const;
+  int get_move_group() const;
+  int get_fixed_grouping_method() const;
+  int get_move_grouping_method() const;
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
+  int get_number_of_beads() const;
+  const double* get_energy_transferred() const;
+  const std::vector<double>& get_energy_transferred_n() const;
+  void find_thermo(
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo);
+  void set_deform(
+    int deform_x,
+    int deform_y,
+    int deform_z,
+    int deform_xy,
+    int deform_xz,
+    int deform_yz);
 
   void initialize(
     double time_step,
@@ -67,29 +111,9 @@ public:
     const Atom& atom,
     const Box& box,
     const std::vector<Group>& group);
-  void parse_fix(const std::vector<std::string>& tokens, std::vector<Group>& group);
-  void parse_move(const std::vector<std::string>& tokens, std::vector<Group>& group);
+  void parse_fix(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_move(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
-  // these data will be used to initialize ensemble
-  EnsembleType type = EnsembleType::UNKNOWN;
-  int fixed_group = -1; // ID of the group in which the atoms will be fixed
-  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
-  int fixed_grouping_method = 0;
-  int move_grouping_method = 0;
-  double move_velocity[3];
-
+  // Kept public for the optional PLUMED integration.
   double temperature;  // target temperature at a specific time
-  double temperature1; // target initial temperature for a run
-  double temperature2; // target final temperature for a run
-  int num_target_pressure_components;
-  int deform_x = 0;
-  int deform_y = 0;
-  int deform_z = 0;
-  int deform_xy = 0;
-  int deform_xz = 0;
-  int deform_yz = 0;
-
-  // PIMD
-  int number_of_beads;
-
 };

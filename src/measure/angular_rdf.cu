@@ -515,7 +515,7 @@ void AngularRDF::pre_run(
     return;
 
   // if PIMD, return directly, currently not support PIMD
-  if (is_pimd(integrate.type)) {
+  if (is_pimd(integrate.get_type())) {
     return;
   }
 
@@ -587,7 +587,7 @@ void AngularRDF::end_of_step(
   Force& force)
 {
   // if PIMD, return directly, currently not support PIMD
-  if (is_pimd(integrate.type)) {
+  if (is_pimd(integrate.get_type())) {
     return;
   }
 
@@ -661,7 +661,7 @@ void AngularRDF::post_run(
 {
   if (!compute_)
     return;
-  if (is_pimd(integrate.type))
+  if (is_pimd(integrate.get_type()))
     return;
 
   CHECK(gpuMemcpy(

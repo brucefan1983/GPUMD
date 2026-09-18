@@ -103,33 +103,47 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const std::vector<std::string>& tokens)
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "tswitch") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tswitch keyword.");
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
     } else if (tokens[i] == "tequil") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tequil keyword.");
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
     } else if (tokens[i] == "temp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for temp keyword.");
       if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
     } else if (tokens[i] == "press") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for press keyword.");
       if (!is_valid_real(tokens[i + 1], &target_pressure))
         PRINT_INPUT_ERROR("Wrong inputs for press keyword.");
       target_pressure /= PRESSURE_UNIT_CONVERSION;
       i += 2;
     } else if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
     } else if (tokens[i] == "spring") {
       i++;
+      if (i >= num_params)
+        PRINT_INPUT_ERROR("Spring keyword requires at least one type and force constant pair.");
       auto_k = false;
       double _k;
       while (i < num_params) {
+        if (i + 1 >= num_params)
+          PRINT_INPUT_ERROR("Spring type requires a force constant.");
         if (!is_valid_real(tokens[i + 1], &_k))
           PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
         spring_map[tokens[i]] = _k;

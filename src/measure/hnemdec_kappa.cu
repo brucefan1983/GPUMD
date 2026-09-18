@@ -60,7 +60,7 @@ void HNEMDEC::pre_run(
     atom.cpu_mass,
     atom.cpu_type,
     atom.cpu_type_size,
-    integrate.temperature1);
+    integrate.get_temperature1());
 
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
   atom.heat_per_atom.resize(atom.number_of_atoms * 5);

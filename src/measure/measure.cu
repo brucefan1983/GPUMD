@@ -235,12 +235,13 @@ bool Measure::parse_action(
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "deform") {
     Deform* deform = new Deform(tokens);
-    integrate.deform_x = deform->get_deform_x();
-    integrate.deform_y = deform->get_deform_y();
-    integrate.deform_z = deform->get_deform_z();
-    integrate.deform_xy = deform->get_deform_xy();
-    integrate.deform_xz = deform->get_deform_xz();
-    integrate.deform_yz = deform->get_deform_yz();
+    integrate.set_deform(
+      deform->get_deform_x(),
+      deform->get_deform_y(),
+      deform->get_deform_z(),
+      deform->get_deform_xy(),
+      deform->get_deform_xz(),
+      deform->get_deform_yz());
     std::unique_ptr<Action> action;
     action.reset(deform);
     actions_.emplace_back(std::move(action));

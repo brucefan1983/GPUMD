@@ -102,6 +102,9 @@ Ensemble_MSST::Ensemble_MSST(const std::vector<std::string>& tokens)
 {
   const int num_params = tokens.size();
   // the first 2 keywords must be <direction> <vs>
+  if (num_params < 4) {
+    PRINT_INPUT_ERROR("ensemble msst requires a direction and a shock velocity.");
+  }
   if (tokens[2] == "x") {
     shock_direction = 0;
   } else if (tokens[2] == "y") {
@@ -117,29 +120,41 @@ Ensemble_MSST::Ensemble_MSST(const std::vector<std::string>& tokens)
   int i = 4;
   while (i < num_params) {
     if (tokens[i] == "qmass") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for qmass keyword.");
       if (!is_valid_real(tokens[i + 1], &qmass))
         PRINT_INPUT_ERROR("Invalid qmass value.");
       i += 2;
     } else if (tokens[i] == "mu") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for mu keyword.");
       if (!is_valid_real(tokens[i + 1], &mu))
         PRINT_INPUT_ERROR("Invalid mu value.");
       i += 2;
     } else if (tokens[i] == "tscale") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tscale keyword.");
       if (!is_valid_real(tokens[i + 1], &tscale))
         PRINT_INPUT_ERROR("Invalid tscale value.");
       i += 2;
     } else if (tokens[i] == "p0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for p0 keyword.");
       if (!is_valid_real(tokens[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
     } else if (tokens[i] == "v0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for v0 keyword.");
       if (!is_valid_real(tokens[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
     } else if (tokens[i] == "e0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for e0 keyword.");
       if (!is_valid_real(tokens[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;

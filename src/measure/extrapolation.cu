@@ -49,29 +49,53 @@ Extrapolation::Extrapolation(const std::vector<std::string>& tokens)
   int i = 1;
   while (i < num_params) {
     if (tokens[i] == "nep_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for nep_file keyword.");
+      }
       nep_file_name = tokens[i + 1];
       i += 2;
     } else if (tokens[i] == "asi_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for asi_file keyword.");
+      }
       asi_file_name = tokens[i + 1];
       i += 2;
     } else if (tokens[i] == "gamma_low") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_low keyword.");
+      }
       if (!is_valid_real(tokens[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
       }
       i += 2;
     } else if (tokens[i] == "gamma_high") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_high keyword.");
+      }
       if (!is_valid_real(tokens[i + 1], &gamma_high)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
       i += 2;
     } else if (tokens[i] == "check_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for check_interval keyword.");
+      }
       if (!is_valid_int(tokens[i + 1], &check_interval)) {
         PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
       }
+      if (check_interval <= 0) {
+        PRINT_INPUT_ERROR("check_interval should be positive.");
+      }
       i += 2;
     } else if (tokens[i] == "dump_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for dump_interval keyword.");
+      }
       if (!is_valid_int(tokens[i + 1], &dump_interval)) {
         PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
+      }
+      if (dump_interval <= 0) {
+        PRINT_INPUT_ERROR("dump_interval should be positive.");
       }
       i += 2;
     } else {

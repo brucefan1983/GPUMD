@@ -54,10 +54,14 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
     } else if (tokens[i] == "pperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for pperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
@@ -67,6 +71,8 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
         }
       }
     } else if (tokens[i] == "temp") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword temp requires two values.");
       use_thermostat = true;
       if (!is_valid_real(tokens[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
@@ -77,6 +83,8 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
       i += 3;
     } else if (
       tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for pressure keyword.");
       use_barostat = true;
       if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pressure keyword.");
@@ -101,11 +109,15 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
       }
       i += 2;
     } else if (tokens[i] == "tswitch") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tswitch keyword.");
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
     } else if (tokens[i] == "tequil") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tequil keyword.");
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");

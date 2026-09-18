@@ -218,7 +218,7 @@ void Active::end_of_step(
   if ((step + 1) % check_interval_ != 0)
     return;
 
-  const int number_of_potentials = force.potentials.size();
+  const int number_of_potentials = force.get_number_of_potentials();
   const int number_of_atoms = atom.type.size();
   // Reset mean vectors to zero
   initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -237,7 +237,7 @@ void Active::end_of_step(
       atom.virial_per_atom.data());
     GPU_CHECK_KERNEL
     // Compute new potential properties
-    force.potentials[potential_index]->compute(
+    force.get_potential(potential_index).compute(
       box,
       atom.type,
       atom.position_per_atom,
