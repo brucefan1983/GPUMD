@@ -20,6 +20,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/add_random_force.cuh"
 #include "cohesive.cuh"
 #include "measure/electron_stop.cuh"
+#include "measure/enhanced_sampling.cuh"
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
@@ -388,6 +389,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
+  } else if (strcmp(param[0], "enhanced_sampling") == 0) {
+    std::unique_ptr<Action> action;
+    action.reset(new EnhancedSamplingAction(param, num_param));
+    measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "dump_restart") == 0) {
     std::unique_ptr<Action> action;
     action.reset(new Dump_Restart(param, num_param));
