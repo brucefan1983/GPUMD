@@ -16,11 +16,13 @@
 #pragma once
 #include "ensemble_lan.cuh"
 #include <cstdio>
+#include <string>
+#include <vector>
 
 class Ensemble_TI_Liquid : public Ensemble_LAN
 {
 public:
-  Ensemble_TI_Liquid(const char** params, int num_params);
+  Ensemble_TI_Liquid(const std::vector<std::string>& tokens);
   ~Ensemble_TI_Liquid(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;

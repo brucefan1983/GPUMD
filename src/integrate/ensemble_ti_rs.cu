@@ -15,7 +15,6 @@
 
 #include "ensemble_ti_rs.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -48,17 +47,18 @@ static __global__ void gpu_scale_force(
 
 } // namespace
 
-Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
+Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   ensemble_type = NPT;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &t_period))
+    if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "pperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+    } else if (tokens[i] == "pperiod") {
+      if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
       for (int i = 0; i < 3; i++) {
@@ -66,29 +66,28 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
           p_period[i][j] = p_period[0][0];
         }
       }
-    } else if (strcmp(params[i], "temp") == 0) {
+    } else if (tokens[i] == "temp") {
       use_thermostat = true;
-      if (!is_valid_real(params[i + 1], &t_start))
+      if (!is_valid_real(tokens[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
-      if (!is_valid_real(params[i + 2], &t_max))
+      if (!is_valid_real(tokens[i + 2], &t_max))
         PRINT_INPUT_ERROR("Wrong inputs for t_max keyword.");
       t_stop = t_start;
       t_target = t_start;
       i += 3;
     } else if (
-      strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
-      strcmp(params[i], "tri") == 0) {
+      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       use_barostat = true;
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pressure keyword.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
-      if (strcmp(params[i], "iso") == 0)
+      if (tokens[i] == "iso")
         couple_type = XYZ;
 
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
-      if (strcmp(params[i], "tri") == 0) {
+      if (tokens[i] == "tri") {
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             if (i != j) {
@@ -101,14 +100,14 @@ Ensemble_TI_RS::Ensemble_TI_RS(const char** params, int num_params)
         }
       }
       i += 2;
-    } else if (strcmp(params[i], "tswitch") == 0) {
+    } else if (tokens[i] == "tswitch") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_switch))
+      if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
-    } else if (strcmp(params[i], "tequil") == 0) {
+    } else if (tokens[i] == "tequil") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_equil))
+      if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
     } else {

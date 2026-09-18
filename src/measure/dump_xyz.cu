@@ -52,11 +52,12 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
+Dump_XYZ::Dump_XYZ(
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
 {
   is_nep_charge = check_is_nep_charge();
 
-  parse(param, num_param, groups);
+  parse(tokens, groups);
 
   if (quantities.has_unwrapped_position_) {
     atom.enable_unwrapped_position();
@@ -65,26 +66,30 @@ Dump_XYZ::Dump_XYZ(const char** param, int num_param, const std::vector<Group>& 
   action_name = "dump_xyz";
 }
 
-void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>& groups)
+void Dump_XYZ::parse(
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
+  const int num_param = tokens.size();
   printf("Dump extended XYZ.\n");
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("dump_xyz should have at least 2 parameters.\n");
   }
 
-  // The old syntax started with <grouping_method> <group_id> <interval>, so param[2] and param[3]
-  // were both integers. In the current syntax param[2] is the file name and param[3] is an option
-  // or a quantity keyword, neither of which is an integer.
+  // The old syntax started with <grouping_method> <group_id> <interval>, so tokens[2] and
+  // tokens[3] were both integers. In the current syntax tokens[2] is the file name and tokens[3]
+  // is an option or a quantity keyword, neither of which is an integer.
   int scratch;
-  if (num_param >= 4 && is_valid_int(param[2], &scratch) && is_valid_int(param[3], &scratch)) {
+  if (
+    num_param >= 4 && is_valid_int(tokens[2], &scratch) &&
+    is_valid_int(tokens[3], &scratch)) {
     PRINT_INPUT_ERROR(
       "dump_xyz no longer takes <grouping_method> <group_id> as its first two "
       "parameters. Use dump_xyz <interval> <filename> [group <grouping_method> "
       "<group_id>] instead.");
   }
 
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -94,7 +99,7 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   }
 
   // filename
-  std::string filename_temp = param[2];
+  std::string filename_temp = tokens[2];
   printf("    into file %s.\n", filename_temp.c_str());
   if (filename_temp.back() == '*') {
     separated_ = 1;
@@ -108,7 +113,7 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
   bool precision_seen = false;
 
   for (int m = 3; m < num_param; ++m) {
-    if (strcmp(param[m], "group") == 0) {
+    if (tokens[m] == "group") {
       if (group_seen) {
         PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_xyz.\n");
       }
@@ -116,25 +121,25 @@ void Dump_XYZ::parse(const char** param, int num_param, const std::vector<Group>
       // what it is called now rather than only complaining about the missing arguments.
       int probe;
       if (
-        m + 2 >= num_param || !is_valid_int(param[m + 1], &probe) ||
-        !is_valid_int(param[m + 2], &probe)) {
+        m + 2 >= num_param || !is_valid_int(tokens[m + 1], &probe) ||
+        !is_valid_int(tokens[m + 2], &probe)) {
         PRINT_INPUT_ERROR(
           "Option 'group' should be followed by a grouping method and a group ID. The quantity "
           "that writes group labels as a column is now called 'group_labels'.");
       }
-      parse_group(param, num_param, false, groups, m, grouping_method_, group_id_);
+      parse_group(tokens, false, groups, m, grouping_method_, group_id_);
       group_seen = true;
       continue;
     }
-    if (strcmp(param[m], "precision") == 0) {
+    if (tokens[m] == "precision") {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_xyz.\n");
       }
-      parse_precision(param, num_param, m, precision_);
+      parse_precision(tokens, m, precision_);
       precision_seen = true;
       continue;
     }
-    if (!parse_dump_quantity(param[m], quantities, is_nep_charge, groups, "dump_xyz")) {
+    if (!parse_dump_quantity(tokens[m], quantities, is_nep_charge, groups, "dump_xyz")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
   }

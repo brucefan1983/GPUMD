@@ -53,21 +53,22 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-Dump_CG::Dump_CG(const char** param, int num_param, std::vector<Group>& group) 
+Dump_CG::Dump_CG(const std::vector<std::string>& tokens, std::vector<Group>& group)
 {
-  parse(param, num_param, group);
+  parse(tokens, group);
   action_name = "dump_cg";
 }
 
-void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group)
+void Dump_CG::parse(const std::vector<std::string>& tokens, std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   printf("Dump train.xyz for NEP-CG.\n");
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("dump_cg should have at least 2 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -76,7 +77,7 @@ void Dump_CG::parse(const char** param, int num_param, std::vector<Group>& group
 
   printf("    every %d steps.\n", dump_interval_);
 
-  if (!is_valid_int(param[2], &grouping_method_)) {
+  if (!is_valid_int(tokens[2], &grouping_method_)) {
     PRINT_INPUT_ERROR("grouping method should be an integer.");
   }
   if (grouping_method_ < 0) {

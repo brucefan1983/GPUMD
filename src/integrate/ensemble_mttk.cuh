@@ -19,11 +19,13 @@
 #include "utilities/read_file.cuh"
 #include <math.h>
 #include <memory>
+#include <string>
+#include <vector>
 
 class Ensemble_MTTK : public Ensemble
 {
 public:
-  Ensemble_MTTK(const char** params, int num_params);
+  Ensemble_MTTK(const std::vector<std::string>& tokens);
   Ensemble_MTTK(void);
 
   void initialize_run(

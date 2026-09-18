@@ -113,13 +113,14 @@ public:
     const double temperature);
 
   MODAL_ANALYSIS(
-    const char** param, 
-    int num_param, 
+    const std::vector<std::string>& tokens,
     const int number_of_types, 
     int method_input,
     Force& force);
-  void parse_compute_gkma(const char**, int, const int number_of_types);
-  void parse_compute_hnema(const char**, int, const int number_of_types);
+  void parse_compute_gkma(
+    const std::vector<std::string>& tokens, const int number_of_types);
+  void parse_compute_hnema(
+    const std::vector<std::string>& tokens, const int number_of_types);
 
 private:
   int samples_per_output; // samples to be averaged for output

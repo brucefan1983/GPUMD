@@ -587,21 +587,22 @@ void Compute::output_results_n(
   fflush(fid);
 }
 
-Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
+Compute::Compute(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  parse(param, num_param, group);
+  parse(tokens, group);
   action_name = "compute";
 }
 
-void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)
+void Compute::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   printf("Compute space and/or time average of:\n");
+  const int num_param = tokens.size();
   if (num_param < 5) {
     PRINT_INPUT_ERROR("compute should have at least 4 parameters.");
   }
 
   // grouping_method
-  if (!is_valid_int(param[1], &grouping_method)) {
+  if (!is_valid_int(tokens[1], &grouping_method)) {
     PRINT_INPUT_ERROR("grouping method of compute should be integer.");
   }
   if (grouping_method < 0) {
@@ -612,7 +613,7 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
   }
 
   // sample_interval
-  if (!is_valid_int(param[2], &sample_interval)) {
+  if (!is_valid_int(tokens[2], &sample_interval)) {
     PRINT_INPUT_ERROR("sampling interval of compute should be integer.");
   }
   if (sample_interval <= 0) {
@@ -620,7 +621,7 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
   }
 
   // output_interval
-  if (!is_valid_int(param[3], &output_interval)) {
+  if (!is_valid_int(tokens[3], &output_interval)) {
     PRINT_INPUT_ERROR("output interval of compute should be integer.");
   }
   if (output_interval <= 0) {
@@ -629,25 +630,25 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
 
   // temperature potential force virial jp jk (order is not important)
   for (int k = 0; k < num_param - 4; ++k) {
-    if (strcmp(param[k + 4], "temperature") == 0) {
+    if (tokens[k + 4] == "temperature") {
       compute_temperature = 1;
       printf("    temperature\n");
-    } else if (strcmp(param[k + 4], "potential") == 0) {
+    } else if (tokens[k + 4] == "potential") {
       compute_potential = 1;
       printf("    potential energy\n");
-    } else if (strcmp(param[k + 4], "force") == 0) {
+    } else if (tokens[k + 4] == "force") {
       compute_force = 1;
       printf("    force\n");
-    } else if (strcmp(param[k + 4], "virial") == 0) {
+    } else if (tokens[k + 4] == "virial") {
       compute_virial = 1;
       printf("    virial\n");
-    } else if (strcmp(param[k + 4], "jp") == 0) {
+    } else if (tokens[k + 4] == "jp") {
       compute_jp = 1;
       printf("    potential part of heat current\n");
-    } else if (strcmp(param[k + 4], "jk") == 0) {
+    } else if (tokens[k + 4] == "jk") {
       compute_jk = 1;
       printf("    kinetic part of heat current\n");
-    } else if (strcmp(param[k + 4], "momentum") == 0) {
+    } else if (tokens[k + 4] == "momentum") {
       compute_momentum = 1;
       printf("    momentum\n");
     } else {

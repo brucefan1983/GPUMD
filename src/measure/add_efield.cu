@@ -163,8 +163,10 @@ void Add_Efield::apply_field(
   GPU_CHECK_KERNEL
 }
 
-Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Group>& group)
+Add_Efield::Add_Efield(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   action_name = "add_efield";
   printf("Add electric field.\n");
 
@@ -173,10 +175,10 @@ Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Grou
   std::string mode_str = is_nep_charge_ ? "bec" : "charge";
 
   if (num_param == 7) {
-    mode_str = param[6];
+    mode_str = tokens[6];
     use_file_input = false;
   } else if (num_param == 5) {
-    mode_str = param[4];
+    mode_str = tokens[4];
     use_file_input = true;
   } else if (num_param == 6) {
     use_file_input = false;
@@ -208,7 +210,7 @@ Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Grou
   }
 
   // parse grouping method
-  if (!is_valid_int(param[1], &grouping_method_)) {
+  if (!is_valid_int(tokens[1], &grouping_method_)) {
     PRINT_INPUT_ERROR("grouping method should be an integer.\n");
   }
   if (grouping_method_ < 0) {
@@ -219,7 +221,7 @@ Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Grou
   }
 
   // parse group id
-  if (!is_valid_int(param[2], &group_id_)) {
+  if (!is_valid_int(tokens[2], &group_id_)) {
     PRINT_INPUT_ERROR("group id should be an integer.\n");
   }
   if (group_id_ < 0) {
@@ -237,22 +239,22 @@ Add_Efield::Add_Efield(const char** param, int num_param, const std::vector<Grou
   if (!use_file_input) {
     table_length_ = 1;
     efield_table_.resize(table_length_ * 3);
-    if (!is_valid_real(param[3], &efield_table_[0])) {
+    if (!is_valid_real(tokens[3], &efield_table_[0])) {
       PRINT_INPUT_ERROR("Ex should be a number.\n");
     }
-    if (!is_valid_real(param[4], &efield_table_[1])) {
+    if (!is_valid_real(tokens[4], &efield_table_[1])) {
       PRINT_INPUT_ERROR("Ey should be a number.\n");
     }
-    if (!is_valid_real(param[5], &efield_table_[2])) {
+    if (!is_valid_real(tokens[5], &efield_table_[2])) {
       PRINT_INPUT_ERROR("Ez should be a number.\n");
     }
     printf("    Ex = %g V/A.\n", efield_table_[0]);
     printf("    Ey = %g V/A.\n", efield_table_[1]);
     printf("    Ez = %g V/A.\n", efield_table_[2]);
   } else {
-    std::ifstream input(param[3]);
+    std::ifstream input(tokens[3]);
     if (!input.is_open()) {
-      printf("Failed to open %s.\n", param[3]);
+      printf("Failed to open %s.\n", tokens[3].c_str());
       exit(1);
     }
 

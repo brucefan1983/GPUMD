@@ -165,8 +165,10 @@ void Add_Random_Force::post_force(
   apply_random_force(atom);
 }
 
-Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)
+Add_Random_Force::Add_Random_Force(
+  const std::vector<std::string>& tokens, int number_of_atoms)
 {
+  const int num_param = tokens.size();
   action_name = "add_random_force";
   printf("Add force.\n");
 
@@ -176,7 +178,7 @@ Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number
   }
 
   // parse force variance
-  if (!is_valid_real(param[1], &force_variance_)) {
+  if (!is_valid_real(tokens[1], &force_variance_)) {
     PRINT_INPUT_ERROR("force variance should be a number.\n");
   }
   if (force_variance_ < 0) {

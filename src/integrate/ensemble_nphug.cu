@@ -15,7 +15,6 @@
 
 #include "ensemble_nphug.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -31,17 +30,18 @@ void matrix_scale(double a[3][3], double b, double c[3][3])
 
 Ensemble_NPHug::Ensemble_NPHug(void) {}
 
-Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
+Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   use_thermostat = true;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &t_period))
+    if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "pperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+    } else if (tokens[i] == "pperiod") {
+      if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
       for (int i = 0; i < 3; i++) {
@@ -50,23 +50,22 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
         }
       }
     } else if (
-      strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
-      strcmp(params[i], "tri") == 0) {
+      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       uniaxial_compress = -1;
       use_barostat = true;
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[1][1] = p_start[2][2] = p_start[0][0];
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
-      if (strcmp(params[i], "iso") == 0)
+      if (tokens[i] == "iso")
         couple_type = XYZ;
 
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
-      if (strcmp(params[i], "tri") == 0) {
+      if (tokens[i] == "tri") {
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             if (i != j) {
@@ -79,49 +78,49 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
         }
       }
       i += 3;
-    } else if (strcmp(params[i], "x") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+    } else if (tokens[i] == "x") {
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 0;
       p_flag[0][0] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "y") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[1][1]))
+    } else if (tokens[i] == "y") {
+      if (!is_valid_real(tokens[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[1][1]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 1;
       p_flag[1][1] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "z") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[2][2]))
+    } else if (tokens[i] == "z") {
+      if (!is_valid_real(tokens[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[2][2]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 2;
       p_flag[2][2] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "p0") == 0) {
-      if (!is_valid_real(params[i + 1], &p0))
+    } else if (tokens[i] == "p0") {
+      if (!is_valid_real(tokens[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "v0") == 0) {
-      if (!is_valid_real(params[i + 1], &v0))
+    } else if (tokens[i] == "v0") {
+      if (!is_valid_real(tokens[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "e0") == 0) {
-      if (!is_valid_real(params[i + 1], &e0))
+    } else if (tokens[i] == "e0") {
+      if (!is_valid_real(tokens[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
       i += 2;

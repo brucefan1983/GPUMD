@@ -21,6 +21,7 @@
 #include "utilities/common.cuh"
 #include <memory>
 #include <stdio.h>
+#include <string>
 #include <vector>
 
 class Force
@@ -28,8 +29,8 @@ class Force
 public:
   Force(void);
 
-  void
-  parse_potential(const char** param, int num_param, const Box& box, const int number_of_atoms);
+  void parse_potential(
+    const std::vector<std::string>& tokens, const Box& box, const int number_of_atoms);
 
   void compute(
     Box& box,
@@ -87,5 +88,5 @@ private:
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
   std::string atom_types[NUM_ELEMENTS];
 
-  void check_types(const char* file_potential);
+  void check_types(const std::string& file_potential);
 };

@@ -30,7 +30,6 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
-#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 3
 #define FILE_NAME_LENGTH 200
@@ -264,14 +263,15 @@ void HNEMDEC::post_run(
   const double time_step,
   const double temperature) { compute = -1; }
 
-HNEMDEC::HNEMDEC(const char** param, int num_param)
+HNEMDEC::HNEMDEC(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_hnemdec";
 }
 
-void HNEMDEC::parse(const char** param, int num_param)
+void HNEMDEC::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute thermal conductivity using the HNEMD Evans-Cummings method.\n");
 
   // compute_hnemdec compute output_interval fe_x fe_y fe_z
@@ -279,7 +279,7 @@ void HNEMDEC::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_hnemdec should have 5 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &compute)) {
+  if (!is_valid_int(tokens[1], &compute)) {
     PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer number.\n");
   }
 
@@ -288,22 +288,22 @@ void HNEMDEC::parse(const char** param, int num_param)
       "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
   }
 
-  if (!is_valid_int(param[2], &output_interval)) {
+  if (!is_valid_int(tokens[2], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HNEMDEC should be an integer number.\n");
   }
 
   if (output_interval < 1) {
     PRINT_INPUT_ERROR("output_interval for HNEMDEC should be larger than 0.\n");
   }
-  if (!is_valid_real(param[3], &fe_x)) {
+  if (!is_valid_real(tokens[3], &fe_x)) {
     PRINT_INPUT_ERROR("fe_x for HNEMDEC should be a real number.\n");
   }
 
-  if (!is_valid_real(param[4], &fe_y)) {
+  if (!is_valid_real(tokens[4], &fe_y)) {
     PRINT_INPUT_ERROR("fe_y for HNEMDEC should be a real number.\n");
   }
 
-  if (!is_valid_real(param[5], &fe_z)) {
+  if (!is_valid_real(tokens[5], &fe_z)) {
     PRINT_INPUT_ERROR("fe_z for HNEMDEC should be a real number.\n");
   }
 

@@ -15,11 +15,13 @@
 
 #pragma once
 #include "action.cuh"
+#include <string>
+#include <vector>
 
 class Deform : public Action
 {
 public:
-  Deform(const char** param, int num_param);
+  Deform(const std::vector<std::string>& tokens);
 
   int get_deform_x() const;
   int get_deform_y() const;
@@ -47,9 +49,9 @@ public:
     Force& force) override;
 
 private:
-  void parse(const char** param, int num_param);
-  void parse_legacy(const char** param, int num_param);
-  void parse_general(const char** param, int num_param);
+  void parse(const std::vector<std::string>& tokens);
+  void parse_legacy(const std::vector<std::string>& tokens);
+  void parse_general(const std::vector<std::string>& tokens);
 
   bool use_legacy_format_ = false;
   int deform_component_[6] = {0, 0, 0, 0, 0, 0};

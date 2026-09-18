@@ -24,8 +24,8 @@ class Group;
 class Dump_Restart : public Action
 {
 public:
-  Dump_Restart(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_Restart(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

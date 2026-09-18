@@ -175,8 +175,9 @@ void Ensemble_Heat_Hybrid::scale_velocity_groups(
 }
 
 Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
-  const char** param, int num_param, const std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   type = EnsembleType::HEAT_HYBRID;
   if (num_param < 9) {
     PRINT_INPUT_ERROR("ensemble heat_hybrid needs at least 7 parameters.");
@@ -184,11 +185,11 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
 
   num_thermostats = 0;
   while (num_thermostats + 2 < num_param) {
-    const char* type_str = param[2 + num_thermostats];
-    if (strcmp(type_str, "nhc") == 0) {
+    const std::string& type_str = tokens[2 + num_thermostats];
+    if (type_str == "nhc") {
       thermostat_type.push_back(0);
       ++num_thermostats;
-    } else if (strcmp(type_str, "lan") == 0) {
+    } else if (type_str == "lan") {
       thermostat_type.push_back(1);
       ++num_thermostats;
     } else {
@@ -200,7 +201,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
   }
 
   int idx = 2 + num_thermostats;
-  if (idx >= num_param || !is_valid_real(param[idx], &temperature)) {
+  if (idx >= num_param || !is_valid_real(tokens[idx], &temperature)) {
     PRINT_INPUT_ERROR("Temperature should be a number.");
   }
   if (temperature <= 0.0) {
@@ -210,7 +211,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
 
   coupling.resize(num_thermostats);
   for (int n = 0; n < num_thermostats; ++n) {
-    if (idx >= num_param || !is_valid_real(param[idx], &coupling[n])) {
+    if (idx >= num_param || !is_valid_real(tokens[idx], &coupling[n])) {
       PRINT_INPUT_ERROR("Heat-hybrid damping parameter should be a number.");
     }
     if (coupling[n] < 1.0) {
@@ -219,7 +220,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
     ++idx;
   }
 
-  if (idx >= num_param || !is_valid_real(param[idx], &delta_temperature)) {
+  if (idx >= num_param || !is_valid_real(tokens[idx], &delta_temperature)) {
     PRINT_INPUT_ERROR("Temperature difference should be a number.");
   }
   if (delta_temperature >= temperature || delta_temperature <= -temperature) {
@@ -229,7 +230,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
 
   label.resize(num_thermostats);
   for (int n = 0; n < num_thermostats; ++n) {
-    if (idx >= num_param || !is_valid_int(param[idx], &label[n])) {
+    if (idx >= num_param || !is_valid_int(tokens[idx], &label[n])) {
       PRINT_INPUT_ERROR("Group ID for thermostat should be an integer.");
     }
     ++idx;

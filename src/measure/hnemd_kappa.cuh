@@ -62,6 +62,6 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char** param, int num_param);
-  HNEMD(const char** param, int num_param, Force& force);
+  void parse(const std::vector<std::string>& tokens);
+  HNEMD(const std::vector<std::string>& tokens, Force& force);
 };

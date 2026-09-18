@@ -10,6 +10,7 @@
 #pragma once
 #include "ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #ifdef USE_HIP
 #include <hiprand/hiprand_kernel.h>
 #else
@@ -20,7 +21,7 @@ class Ensemble_Heat_Hybrid : public Ensemble
 {
 public:
   Ensemble_Heat_Hybrid(
-    const char** param, int num_param, const std::vector<Group>& group);
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   void initialize_run(
     const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;

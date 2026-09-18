@@ -19,6 +19,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
+#include <string>
 #include <vector>
 
 class Atom;
@@ -62,13 +63,12 @@ public:
 
   // get inputs from run.in
   void parse_ensemble(
-    const char** param,
-    int num_param,
+    const std::vector<std::string>& tokens,
     const Atom& atom,
     const Box& box,
     const std::vector<Group>& group);
-  void parse_fix(const char**, int, std::vector<Group>& group);
-  void parse_move(const char**, int, std::vector<Group>& group);
+  void parse_fix(const std::vector<std::string>& tokens, std::vector<Group>& group);
+  void parse_move(const std::vector<std::string>& tokens, std::vector<Group>& group);
 
   // these data will be used to initialize ensemble
   EnsembleType type = EnsembleType::UNKNOWN;

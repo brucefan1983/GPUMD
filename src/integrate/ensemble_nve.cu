@@ -21,14 +21,15 @@ The NVE ensemble integrator.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 
-Ensemble_NVE::Ensemble_NVE(int num_param)
+Ensemble_NVE::Ensemble_NVE(const std::vector<std::string>& tokens)
 {
   type = EnsembleType::NVE;
-  parse(num_param);
+  parse(tokens);
 }
 
-void Ensemble_NVE::parse(int num_param)
+void Ensemble_NVE::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
   }

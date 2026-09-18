@@ -18,11 +18,13 @@
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_MSST : public Ensemble
 {
 public:
-  Ensemble_MSST(const char** params, int num_params);
+  Ensemble_MSST(const std::vector<std::string>& tokens);
 
   void initialize_run(
     const double time_step,

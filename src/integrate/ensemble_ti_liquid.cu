@@ -21,7 +21,6 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <math.h>
 #include <unordered_map>
 #include <vector>
@@ -833,41 +832,42 @@ static __global__ void gpu_store_ti_pe(const double* thermo, double* ti_values)
 
 } // namespace
 
-Ensemble_TI_Liquid::Ensemble_TI_Liquid(const char** params, int num_params)
+Ensemble_TI_Liquid::Ensemble_TI_Liquid(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   temperature_coupling = 100;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "tswitch") == 0) {
+    if (tokens[i] == "tswitch") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_switch))
+      if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
-    } else if (strcmp(params[i], "tequil") == 0) {
+    } else if (tokens[i] == "tequil") {
       auto_switch = false;
-      if (!is_valid_int(params[i + 1], &t_equil))
+      if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
-    } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature))
+    } else if (tokens[i] == "temp") {
+      if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
       beta = 1 / (temperature * 8.6173 * 1e-5);
-    } else if (strcmp(params[i], "press") == 0) {
-      if (!is_valid_real(params[i + 1], &target_pressure))
+    } else if (tokens[i] == "press") {
+      if (!is_valid_real(tokens[i + 1], &target_pressure))
         PRINT_INPUT_ERROR("Wrong inputs for press keyword.");
       target_pressure /= PRESSURE_UNIT_CONVERSION;
       i += 2;
-    } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature_coupling))
+    } else if (tokens[i] == "tperiod") {
+      if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "sigmasqrd") == 0) {
-      if (!is_valid_real(params[i + 1], &sigma_sqrd))
+    } else if (tokens[i] == "sigmasqrd") {
+      if (!is_valid_real(tokens[i + 1], &sigma_sqrd))
         PRINT_INPUT_ERROR("Wrong inputs for sigmasqrd keyword.");
       i += 2;
-    } else if (strcmp(params[i], "p") == 0) {
-      if (!is_valid_real(params[i + 1], &p))
+    } else if (tokens[i] == "p") {
+      if (!is_valid_real(tokens[i + 1], &p))
         PRINT_INPUT_ERROR("Wrong inputs for p keyword.");
 
       if (p != 1 && p != 25 && p != 50 && p != 75 && p != 100)

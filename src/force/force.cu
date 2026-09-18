@@ -53,7 +53,7 @@ Force::Force(void)
   has_non_nep = false;
 }
 
-void Force::check_types(const char* file_potential)
+void Force::check_types(const std::string& file_potential)
 {
   std::ifstream input(file_potential);
   std::vector<std::string> tokens = get_tokens(input);
@@ -73,14 +73,15 @@ void Force::check_types(const char* file_potential)
 }
 
 void Force::parse_potential(
-  const char** param, int num_param, const Box& box, const int number_of_atoms)
+  const std::vector<std::string>& tokens, const Box& box, const int number_of_atoms)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
 
   std::unique_ptr<Potential> potential;
-  FILE* fid_potential = my_fopen(param[1], "r");
+  FILE* fid_potential = my_fopen(tokens[1].c_str(), "r");
   char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
   if (count != 1) {
@@ -103,14 +104,14 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "eam/alloy") == 0) {
     int max_neigh = 400;
     if (num_param == 3) {
-      if (!is_valid_int(param[2], &max_neigh) || max_neigh <= 0 || max_neigh > 1024) {
+      if (!is_valid_int(tokens[2], &max_neigh) || max_neigh <= 0 || max_neigh > 1024) {
         PRINT_INPUT_ERROR(
           "max_neighbor for eam/alloy must be a positive integer in (0, 1024].");
       }
     }
-    potential.reset(new EAMAlloy(param[1], number_of_atoms, max_neigh));
+    potential.reset(new EAMAlloy(tokens[1].c_str(), number_of_atoms, max_neigh));
   } else if (strcmp(potential_name, "adp") == 0) {
-    potential.reset(new ADP(param[1], number_of_atoms));
+    potential.reset(new ADP(tokens[1].c_str(), number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
@@ -121,9 +122,9 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge3") == 0) {
-    potential.reset(new NEP_Charge(param[1], number_of_atoms));
+    potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms));
     is_nep = true;
-    check_types(param[1]);
+    check_types(tokens[1]);
   } else if (
     strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||
@@ -134,32 +135,34 @@ void Force::parse_potential(
     num_gpus = 3;
 #endif
     if (num_gpus == 1) {
-      potential.reset(new NEP(param[1], number_of_atoms));
+      potential.reset(new NEP(tokens[1].c_str(), number_of_atoms));
     } else {
       int partition_direction = -1;
       if (num_param == 3) {
-        if (strcmp(param[2], "x") == 0) {
+        if (tokens[2] == "x") {
           partition_direction = 0;
-        } else if (strcmp(param[2], "y") == 0) {
+        } else if (tokens[2] == "y") {
           partition_direction = 1;
-        } else if (strcmp(param[2], "z") == 0) {
+        } else if (tokens[2] == "z") {
           partition_direction = 2;
         } else {
           PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.\n");
         }
       }
-      potential.reset(new NEP_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
+      potential.reset(
+        new NEP_MULTIGPU(
+          num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction));
     }
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
-    check_types(param[1]);
+    check_types(tokens[1]);
 #ifdef USE_DEEPMD
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR(
         "The potential command should contain two parameters, the setting file and the DP potential file.\n");
     }
-    potential.reset(new DP(param[2], number_of_atoms));
+    potential.reset(new DP(tokens[2].c_str(), number_of_atoms));
 #endif
 #ifdef USE_NNAP
   } else if (strcmp(potential_name, "nnap") == 0 || strcmp(potential_name, "nnap_zbl") == 0) {
@@ -167,7 +170,7 @@ void Force::parse_potential(
       PRINT_INPUT_ERROR(
         "The potential command should contain two parameters, the setting file and the NNAP potential file.\n");
     }
-    potential.reset(new NNAP(param[1], param[2], number_of_atoms));
+    potential.reset(new NNAP(tokens[1].c_str(), tokens[2].c_str(), number_of_atoms));
 #endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
@@ -175,21 +178,21 @@ void Force::parse_potential(
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain an ILP potential file and a NEP map file.\n");
     }
-    FILE* fid_nep_map = my_fopen(param[2], "r");
+    FILE* fid_nep_map = my_fopen(tokens[2].c_str(), "r");
     potential.reset(new ILP_NEP(fid_potential, fid_nep_map, num_types, number_of_atoms));
     fclose(fid_nep_map);
   } else if (strcmp(potential_name, "tersoff_ilp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and Tersoff potential file.\n");
     }
-    FILE* fid_tersoff = my_fopen(param[2], "r");
+    FILE* fid_tersoff = my_fopen(tokens[2].c_str(), "r");
     potential.reset(new ILP_TERSOFF(fid_potential, fid_tersoff, num_types, number_of_atoms));
     fclose(fid_tersoff);
   } else if (strcmp(potential_name, "sw_ilp") == 0) {
     if (num_param != 3) {
       PRINT_INPUT_ERROR("potential should contain ILP potential file and SW potential file.\n");
     }
-    FILE* fid_sw = my_fopen(param[2], "r");
+    FILE* fid_sw = my_fopen(tokens[2].c_str(), "r");
     potential.reset(new ILP_TMD_SW(fid_potential, fid_sw, num_types, number_of_atoms));
     fclose(fid_sw);
   } else {

@@ -15,11 +15,12 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 
 class Ensemble_BER : public Ensemble
 {
 public:
-  Ensemble_BER(const char** param, int num_param, const Box& box);
+  Ensemble_BER(const std::vector<std::string>& tokens, const Box& box);
 
   double get_temperature1() const;
   double get_temperature2() const;
@@ -45,7 +46,7 @@ public:
     Force& force) override;
 
 private:
-  void parse(const char** param, int num_param, const Box& box);
+  void parse(const std::vector<std::string>& tokens, const Box& box);
 
   double temperature1_ = 0.0;
   double temperature2_ = 0.0;

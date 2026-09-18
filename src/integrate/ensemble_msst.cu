@@ -19,7 +19,6 @@ The NVE ensemble integrator.
 
 #include "ensemble_msst.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -99,48 +98,49 @@ gpu_remap(const int N, const double dilation, double* g_position, double* g_velo
 }
 } // namespace
 
-Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
+Ensemble_MSST::Ensemble_MSST(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   // the first 2 keywords must be <direction> <vs>
-  if (strcmp(params[2], "x") == 0) {
+  if (tokens[2] == "x") {
     shock_direction = 0;
-  } else if (strcmp(params[2], "y") == 0) {
+  } else if (tokens[2] == "y") {
     shock_direction = 1;
-  } else if (strcmp(params[2], "z") == 0) {
+  } else if (tokens[2] == "z") {
     shock_direction = 2;
   } else {
     PRINT_INPUT_ERROR("Shock direction should be x or y or z.");
   }
-  if (!is_valid_real(params[3], &vs))
+  if (!is_valid_real(tokens[3], &vs))
     PRINT_INPUT_ERROR("Invalid shock velocity value.");
 
   int i = 4;
   while (i < num_params) {
-    if (strcmp(params[i], "qmass") == 0) {
-      if (!is_valid_real(params[i + 1], &qmass))
+    if (tokens[i] == "qmass") {
+      if (!is_valid_real(tokens[i + 1], &qmass))
         PRINT_INPUT_ERROR("Invalid qmass value.");
       i += 2;
-    } else if (strcmp(params[i], "mu") == 0) {
-      if (!is_valid_real(params[i + 1], &mu))
+    } else if (tokens[i] == "mu") {
+      if (!is_valid_real(tokens[i + 1], &mu))
         PRINT_INPUT_ERROR("Invalid mu value.");
       i += 2;
-    } else if (strcmp(params[i], "tscale") == 0) {
-      if (!is_valid_real(params[i + 1], &tscale))
+    } else if (tokens[i] == "tscale") {
+      if (!is_valid_real(tokens[i + 1], &tscale))
         PRINT_INPUT_ERROR("Invalid tscale value.");
       i += 2;
-    } else if (strcmp(params[i], "p0") == 0) {
-      if (!is_valid_real(params[i + 1], &p0))
+    } else if (tokens[i] == "p0") {
+      if (!is_valid_real(tokens[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "v0") == 0) {
-      if (!is_valid_real(params[i + 1], &v0))
+    } else if (tokens[i] == "v0") {
+      if (!is_valid_real(tokens[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "e0") == 0) {
-      if (!is_valid_real(params[i + 1], &e0))
+    } else if (tokens[i] == "e0") {
+      if (!is_valid_real(tokens[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
       i += 2;

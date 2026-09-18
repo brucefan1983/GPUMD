@@ -16,6 +16,7 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Group;
 
@@ -28,7 +29,7 @@ public:
   int grouping_method_ = -1;
   int group_id_ = -1;
 
-  SDC(const char** param, const int num_param, const std::vector<Group>& groups);
+  SDC(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -61,7 +62,7 @@ public:
     const double time_step,
     const double temperature);
     
-  void parse(const char** param, const int num_param, const std::vector<Group>& groups);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
 
 private:
   int num_atoms_;

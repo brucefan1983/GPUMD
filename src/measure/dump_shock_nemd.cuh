@@ -26,8 +26,8 @@
 class Dump_Shock_NEMD : public Action
 {
 public:
-  Dump_Shock_NEMD(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_Shock_NEMD(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

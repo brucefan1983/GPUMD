@@ -20,7 +20,7 @@
 class HAC : public Action
 {
 public:
-  HAC(const char**, int);
+  HAC(const std::vector<std::string>& tokens);
 
   int compute = 0;
   int sample_interval; // sample interval for heat current
@@ -58,7 +58,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char**, int);
+  void parse(const std::vector<std::string>& tokens);
 
 private:
   GPU_Vector<double> heat_all;

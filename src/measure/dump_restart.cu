@@ -28,18 +28,19 @@ Dump a restart file
 #include <vector>
 #include <cstring>
 
-Dump_Restart::Dump_Restart(const char** param, int num_param)
+Dump_Restart::Dump_Restart(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_restart";
 }
 
-void Dump_Restart::parse(const char** param, int num_param)
+void Dump_Restart::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_restart should have 1 parameter.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("restart dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {

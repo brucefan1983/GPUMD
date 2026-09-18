@@ -16,12 +16,14 @@
 #pragma once
 
 #include "action.cuh"
+#include <string>
 #include <vector>
 
 class Add_Efield : public Action
 {
 public:
-  Add_Efield(const char** param, int num_param, const std::vector<Group>& group);
+  Add_Efield(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   void setup_force(
     const double time_step,

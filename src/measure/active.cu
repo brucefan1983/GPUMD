@@ -109,21 +109,22 @@ static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, d
   }
 }
 
-Active::Active(const char** param, int num_param)
+Active::Active(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "active";
 }
 
-void Active::parse(const char** param, int num_param)
+void Active::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   check_ = true;
   printf("Active learning.\n");
 
   if (num_param != 6) {
     PRINT_INPUT_ERROR("active should have 5 parameters.");
   }
-  if (!is_valid_int(param[1], &check_interval_)) {
+  if (!is_valid_int(tokens[1], &check_interval_)) {
     PRINT_INPUT_ERROR("check interval should be an integer.");
   }
   if (check_interval_ <= 0) {
@@ -131,7 +132,7 @@ void Active::parse(const char** param, int num_param)
   }
   printf("    check uncertainty every %d steps.\n", check_interval_);
 
-  if (!is_valid_int(param[2], &has_velocity_)) {
+  if (!is_valid_int(tokens[2], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
   if (has_velocity_ == 0) {
@@ -140,7 +141,7 @@ void Active::parse(const char** param, int num_param)
     printf("    with velocity data.\n");
   }
 
-  if (!is_valid_int(param[3], &has_force_)) {
+  if (!is_valid_int(tokens[3], &has_force_)) {
     PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {
@@ -149,7 +150,7 @@ void Active::parse(const char** param, int num_param)
     printf("    with force data.\n");
   }
 
-  if (!is_valid_int(param[4], &has_uncertainty_)) {
+  if (!is_valid_int(tokens[4], &has_uncertainty_)) {
     PRINT_INPUT_ERROR("has_uncertainty should be an integer.");
   }
   if (has_uncertainty_ == 0) {
@@ -158,7 +159,7 @@ void Active::parse(const char** param, int num_param)
     printf("    with per-atom uncertainty data.\n");
   }
 
-  if (!is_valid_real(param[5], &threshold_)) {
+  if (!is_valid_real(tokens[5], &threshold_)) {
     PRINT_INPUT_ERROR("threshold should be a real number.\n");
   }
 

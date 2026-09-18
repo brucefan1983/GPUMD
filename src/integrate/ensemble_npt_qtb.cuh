@@ -17,6 +17,7 @@
 
 #include "ensemble_mttk.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -27,7 +28,7 @@
 class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
-  Ensemble_NPT_QTB(const char** params, int num_params);
+  Ensemble_NPT_QTB(const std::vector<std::string>& tokens);
 
   void compute1(
     const double time_step,

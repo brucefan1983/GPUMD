@@ -24,8 +24,8 @@ class Atom;
 class Dump_CG : public Action
 {
 public:
-  Dump_CG(const char** param, int num_param, std::vector<Group>& group);
-  void parse(const char** param, int num_param, std::vector<Group>& group);
+  Dump_CG(const std::vector<std::string>& tokens, std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, std::vector<Group>& group);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

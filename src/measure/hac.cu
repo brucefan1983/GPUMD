@@ -22,7 +22,6 @@ Calculate the heat current autocorrelation (HAC) function.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <vector>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -251,8 +250,9 @@ void HAC::post_run(
   compute = 0;
 }
 
-void HAC::parse(const char** param, int num_param)
+void HAC::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   compute = 1;
 
   printf("Compute HAC.\n");
@@ -261,7 +261,7 @@ void HAC::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_hac should have 3 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for HAC should be an integer number.\n");
   }
   if (sample_interval <= 0) {
@@ -269,7 +269,7 @@ void HAC::parse(const char** param, int num_param)
   }
   printf("    sample interval is %d.\n", sample_interval);
 
-  if (!is_valid_int(param[2], &Nc)) {
+  if (!is_valid_int(tokens[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for HAC should be an integer number.\n");
   }
   if (Nc <= 0) {
@@ -277,7 +277,7 @@ void HAC::parse(const char** param, int num_param)
   }
   printf("    Nc is %d\n", Nc);
 
-  if (!is_valid_int(param[3], &output_interval)) {
+  if (!is_valid_int(tokens[3], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HAC should be an integer number.\n");
   }
   if (output_interval <= 0) {
@@ -286,8 +286,8 @@ void HAC::parse(const char** param, int num_param)
   printf("    output_interval is %d\n", output_interval);
 }
 
-HAC::HAC(const char** param, int num_param)
+HAC::HAC(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_hac";
 }

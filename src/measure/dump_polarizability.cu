@@ -71,24 +71,25 @@ static __global__ void sum_polarizability(
   }
 }
 
-Dump_Polarizability::Dump_Polarizability(const char** param, int num_param)
+Dump_Polarizability::Dump_Polarizability(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_polarizability";
 }
 
-void Dump_Polarizability::parse(const char** param, int num_param)
+void Dump_Polarizability::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump polarizability\n");
 
   if (num_param != 3) {
     PRINT_INPUT_ERROR("dump_polarizability should have 2 parameters.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
-  file_potential_ = param[2];
+  file_potential_ = tokens[2];
   printf("   every %d steps.\n", dump_interval_);
   printf("   response potential: %s.\n", file_potential_.c_str());
 }

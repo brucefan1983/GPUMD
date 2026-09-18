@@ -68,8 +68,7 @@ class Ensemble_TTM : public Ensemble
 {
 public:
   Ensemble_TTM(
-    const char** param,
-    int num_param,
+    const std::vector<std::string>& tokens,
     const Atom& atom,
     const Box& box,
     const std::vector<Group>& group);
