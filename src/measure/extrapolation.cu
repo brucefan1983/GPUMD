@@ -42,34 +42,35 @@ __global__ void gpu_calculate_max_gamma(
   }
 }
 
-Extrapolation::Extrapolation(const char** params, int num_params)
+Extrapolation::Extrapolation(const std::vector<std::string>& tokens)
 {
   action_name = "compute_extrapolation";
+  const int num_params = tokens.size();
   int i = 1;
   while (i < num_params) {
-    if (strcmp(params[i], "nep_file") == 0) {
-      nep_file_name.assign(params[i + 1]);
+    if (tokens[i] == "nep_file") {
+      nep_file_name = tokens[i + 1];
       i += 2;
-    } else if (strcmp(params[i], "asi_file") == 0) {
-      asi_file_name.assign(params[i + 1]);
+    } else if (tokens[i] == "asi_file") {
+      asi_file_name = tokens[i + 1];
       i += 2;
-    } else if (strcmp(params[i], "gamma_low") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_low)) {
+    } else if (tokens[i] == "gamma_low") {
+      if (!is_valid_real(tokens[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "gamma_high") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_high)) {
+    } else if (tokens[i] == "gamma_high") {
+      if (!is_valid_real(tokens[i + 1], &gamma_high)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "check_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &check_interval)) {
+    } else if (tokens[i] == "check_interval") {
+      if (!is_valid_int(tokens[i + 1], &check_interval)) {
         PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "dump_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &dump_interval)) {
+    } else if (tokens[i] == "dump_interval") {
+      if (!is_valid_int(tokens[i + 1], &dump_interval)) {
         PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
       }
       i += 2;

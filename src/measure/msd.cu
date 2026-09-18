@@ -465,17 +465,18 @@ void MSD::post_run(
   grouping_method_ = -1;
 }
 
-MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
+MSD::MSD(const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
 {
-  parse(param, num_param, groups);
+  parse(tokens, groups);
   atom.enable_unwrapped_position();
   action_name = "compute_msd";
 }
 
-void MSD::parse(const char** param, const int num_param, const std::vector<Group>& groups)
+void MSD::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   printf("Compute mean square displacement (MSD).\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("compute_msd should have at least 2 parameters.\n");
@@ -485,7 +486,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   }
 
   // sample interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -494,7 +495,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   printf("    sample interval is %d.\n", sample_interval_);
 
   // number of correlation steps
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -503,13 +504,13 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
   for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+    if (tokens[k] == "group") {
+      parse_group(tokens, false, groups, k, grouping_method_, group_id_);
 
-    } else if (strcmp(param[k], "all_groups") == 0) {
+    } else if (tokens[k] == "all_groups") {
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
-     if (!is_valid_int(param[4], &grouping_method_)) {
+     if (!is_valid_int(tokens[4], &grouping_method_)) {
         PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
       }
       if (grouping_method_ < 0) {
@@ -520,8 +521,8 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
       }
       printf("    will compute MSD for all groups in grouping %d.\n", grouping_method_);
       k += 1; // update index for next command
-    } else if (strcmp(param[k], "save_every") == 0) {
-      if (!is_valid_int(param[k+1], &save_output_every_)) {
+    } else if (tokens[k] == "save_every") {
+      if (!is_valid_int(tokens[k+1], &save_output_every_)) {
         PRINT_INPUT_ERROR("save_every should be an integer.\n");
       }
       printf("    will save a copy of the MSD every %d steps.\n", save_output_every_);

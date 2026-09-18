@@ -19,6 +19,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Group;
@@ -45,8 +46,7 @@ public:
   int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
 
   AngularRDF(
-    const char** param,
-    const int num_param,
+    const std::vector<std::string>& tokens,
     Box& box,
     const int number_of_types);
 
@@ -82,8 +82,7 @@ public:
     const double temperature);
 
   void parse(
-    const char** param,
-    const int num_param,
+    const std::vector<std::string>& tokens,
     Box& box,
     const int number_of_types);
 

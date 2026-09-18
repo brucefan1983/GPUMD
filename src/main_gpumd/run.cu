@@ -466,41 +466,41 @@ bool Run::parse_action(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new Active(param, num_param));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_extrapolation") == 0) {
+  } else if (tokens[0] == "compute_extrapolation") {
     std::unique_ptr<Action> action;
-    action.reset(new Extrapolation(param, num_param));
+    action.reset(new Extrapolation(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_dos") == 0) {
+  } else if (tokens[0] == "compute_dos") {
     std::unique_ptr<Action> action;
-    action.reset(new DOS(param, num_param, group));
+    action.reset(new DOS(tokens, group));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_sdc") == 0) {
+  } else if (tokens[0] == "compute_sdc") {
     std::unique_ptr<Action> action;
-    action.reset(new SDC(param, num_param, group));
+    action.reset(new SDC(tokens, group));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_msd") == 0) {
+  } else if (tokens[0] == "compute_msd") {
     std::unique_ptr<Action> action;
-    action.reset(new MSD(param, num_param, group, atom));
+    action.reset(new MSD(tokens, group, atom));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_ic") == 0) {
+  } else if (tokens[0] == "compute_ic") {
     std::unique_ptr<Action> action;
-    action.reset(new IC(param, num_param, atom));
+    action.reset(new IC(tokens, atom));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_rdf") == 0) {
+  } else if (tokens[0] == "compute_rdf") {
     std::unique_ptr<Action> action;
-    action.reset(new RDF(param, num_param, box, atom.cpu_type_size));
+    action.reset(new RDF(tokens, box, atom.cpu_type_size));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_adf") == 0) {
+  } else if (tokens[0] == "compute_adf") {
     std::unique_ptr<Action> action;
-    action.reset(new ADF(param, num_param, box, number_of_types));
+    action.reset(new ADF(tokens, box, number_of_types));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_orientorder") == 0) {
+  } else if (tokens[0] == "compute_orientorder") {
     std::unique_ptr<Action> action;
-    action.reset(new OrientOrder(param, num_param));
+    action.reset(new OrientOrder(tokens));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_angular_rdf") == 0) {
+  } else if (tokens[0] == "compute_angular_rdf") {
     std::unique_ptr<Action> action;
-    action.reset(new AngularRDF(param, num_param, box, number_of_types));
+    action.reset(new AngularRDF(tokens, box, number_of_types));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_dpdt") == 0) {
     std::unique_ptr<Action> action;
@@ -549,13 +549,13 @@ bool Run::parse_action(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(deform);
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute_chunk") == 0) {
+  } else if (tokens[0] == "compute_chunk") {
     std::unique_ptr<Action> action;
-    action.reset(new ComputeChunk(param, num_param, box));
+    action.reset(new ComputeChunk(tokens, box));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "compute") == 0) {
+  } else if (tokens[0] == "compute") {
     std::unique_ptr<Action> action;
-    action.reset(new Compute(param, num_param, group));
+    action.reset(new Compute(tokens, group));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "electron_stop") == 0) {
     std::unique_ptr<Action> action;

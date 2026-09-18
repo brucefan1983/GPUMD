@@ -17,6 +17,7 @@
 #include "action.cuh"
 #include "model/box.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Group;
@@ -31,7 +32,7 @@ public:
   int adf_bins_ = 30;
   int num_interval_ = 100;
 
-  ADF(const char** param, const int num_param, Box& box, const int number_of_types);
+  ADF(const std::vector<std::string>& tokens, Box& box, const int number_of_types);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -64,7 +65,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char** param, const int num_param, Box& box, const int number_of_types);
+  void parse(const std::vector<std::string>& tokens, Box& box, const int number_of_types);
 
 private:
   FILE* fid;

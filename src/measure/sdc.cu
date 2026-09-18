@@ -296,16 +296,17 @@ void SDC::post_run(
   grouping_method_ = -1;
 }
 
-SDC::SDC(const char** param, const int num_param, const std::vector<Group>& groups)
+SDC::SDC(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
-  parse(param, num_param, groups);
+  parse(tokens, groups);
   action_name = "compute_sdc";
 }
 
-void SDC::parse(const char** param, const int num_param, const std::vector<Group>& groups)
+void SDC::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   printf("Compute self diffusion coefficient (SDC).\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("compute_sdc should have at least 2 parameters.\n");
@@ -315,7 +316,7 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
   }
 
   // sample interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -324,7 +325,7 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
   printf("    sample interval is %d.\n", sample_interval_);
 
   // number of correlation steps
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -334,8 +335,8 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
 
   // Process optional arguments
   for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+    if (tokens[k] == "group") {
+      parse_group(tokens, false, groups, k, grouping_method_, group_id_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
     }

@@ -41,7 +41,7 @@
 class Extrapolation : public Action
 {
 public:
-  Extrapolation(const char** params, int num_params);
+  Extrapolation(const std::vector<std::string>& tokens);
 
   void pre_run(
     const int number_of_steps,

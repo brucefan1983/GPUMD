@@ -493,12 +493,11 @@ void AngularRDF::find_angular_rdf(
 }
 
 AngularRDF::AngularRDF(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
   const int number_of_types)
 {
-  parse(param, num_param, box, number_of_types);
+  parse(tokens, box, number_of_types);
   action_name = "compute_angular_rdf";
 }
 
@@ -730,13 +729,13 @@ void AngularRDF::post_run(
 }
 
 void AngularRDF::parse(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
   const int number_of_types)
 {
   printf("Compute Angular RDF.\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 5) {
     PRINT_INPUT_ERROR("compute_angular_rdf should have at least 4 parameters.\n");
@@ -750,7 +749,7 @@ void AngularRDF::parse(
   }
 
   // radial cutoff
-  if (!is_valid_real(param[1], &r_cut_)) {
+  if (!is_valid_real(tokens[1], &r_cut_)) {
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
   if (r_cut_ <= 0) {
@@ -769,7 +768,7 @@ void AngularRDF::parse(
   printf("    radial cutoff %g.\n", r_cut_);
 
   // number of bins
-  if (!is_valid_int(param[2], &rdf_r_bins_)) {
+  if (!is_valid_int(tokens[2], &rdf_r_bins_)) {
     PRINT_INPUT_ERROR("number of bins should be an integer.\n");
   }
   if (rdf_r_bins_ <= 20) {
@@ -783,7 +782,7 @@ void AngularRDF::parse(
   printf("    radial cutoff will be divided into %d bins.\n", rdf_r_bins_);
 
   // 角度方向的bin数量
-  if (!is_valid_int(param[3], &rdf_theta_bins_)) {
+  if (!is_valid_int(tokens[3], &rdf_theta_bins_)) {
     PRINT_INPUT_ERROR("number of theta bins should be an integer.\n");
   }
   if (rdf_theta_bins_ <= 20) {
@@ -792,7 +791,7 @@ void AngularRDF::parse(
   printf("    theta cutoff will be divided into %d bins.\n", rdf_theta_bins_);
 
   // sample interval
-  if (!is_valid_int(param[4], &num_interval_)) {
+  if (!is_valid_int(tokens[4], &num_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
   if (num_interval_ <= 0) {
@@ -802,10 +801,10 @@ void AngularRDF::parse(
 
   // Process optional arguments
   for (int k = 5; k < num_param; k += 3) {
-    if (strcmp(param[k], "atom") == 0) {
+    if (tokens[k] == "atom") {
       int k_a = (k - 5) / 3;
       rdf_atom_count++;
-      if (!is_valid_int(param[k + 1], &atom_id1_[k_a])) {
+      if (!is_valid_int(tokens[k + 1], &atom_id1_[k_a])) {
         PRINT_INPUT_ERROR("atom type index1 should be an integer.\n");
       }
       if (atom_id1_[k_a] < 0) {
@@ -814,7 +813,7 @@ void AngularRDF::parse(
       if (atom_id1_[k_a] >= number_of_types) {
         PRINT_INPUT_ERROR("atom type index1 should be less than number of atomic types.\n");
       }
-      if (!is_valid_int(param[k + 2], &atom_id2_[k_a])) {
+      if (!is_valid_int(tokens[k + 2], &atom_id2_[k_a])) {
         PRINT_INPUT_ERROR("atom type index2 should be an integer.\n");
       }
       if (atom_id2_[k_a] < 0) {
