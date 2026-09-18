@@ -41,6 +41,7 @@ The driver class calculating force and related quantities.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include <cstring>
 #include <iostream>
 #include <vector>
@@ -73,7 +74,10 @@ void Force::check_types(const std::string& file_potential)
 }
 
 void Force::parse_potential(
-  const std::vector<std::string>& tokens, const Box& box, const int number_of_atoms)
+  const std::vector<std::string>& tokens,
+  const Box& box,
+  const int number_of_atoms,
+  const RunInput& run_input)
 {
   const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
@@ -122,7 +126,7 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
     strcmp(potential_name, "nep4_zbl_charge3") == 0) {
-    potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms));
+    potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
     check_types(tokens[1]);
   } else if (
@@ -135,7 +139,7 @@ void Force::parse_potential(
     num_gpus = 3;
 #endif
     if (num_gpus == 1) {
-      potential.reset(new NEP(tokens[1].c_str(), number_of_atoms));
+      potential.reset(new NEP(tokens[1].c_str(), number_of_atoms, run_input));
     } else {
       int partition_direction = -1;
       if (num_param == 3) {
@@ -151,7 +155,7 @@ void Force::parse_potential(
       }
       potential.reset(
         new NEP_MULTIGPU(
-          num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction));
+          num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction, run_input));
     }
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials

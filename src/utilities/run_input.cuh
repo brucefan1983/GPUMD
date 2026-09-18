@@ -14,10 +14,30 @@
 */
 
 #pragma once
-#include <string>
 
-int is_valid_int(const char*, int*);
-int is_valid_int(const std::string&, int*);
-int is_valid_real(const char*, double*);
-int is_valid_real(const std::string&, double*);
-bool check_is_nep_charge();
+#include <string>
+#include <vector>
+
+struct RunInputLine
+{
+  std::string raw_line;
+  std::vector<std::string> tokens;
+  int line_number = 0;
+};
+
+class RunInput
+{
+public:
+  explicit RunInput(const std::string& filename);
+  explicit RunInput(const std::vector<std::string>& raw_lines);
+
+  const std::vector<RunInputLine>& lines() const;
+  const RunInputLine* find_first(const std::string& keyword) const;
+  const RunInputLine* find_last(const std::string& keyword) const;
+  std::vector<const RunInputLine*> find_all(const std::string& keyword) const;
+  bool contains(const std::string& keyword) const;
+
+private:
+  void append_line(const std::string& raw_line, int line_number);
+  std::vector<RunInputLine> lines_;
+};

@@ -24,10 +24,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -43,37 +45,31 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP::initialize_dftd3()
+void NEP::initialize_dftd3(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
   has_dftd3 = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens_without_comments(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        has_dftd3 = true;
-        if (tokens.size() != 4) {
-          std::cout << "dftd3 must have 3 parameters\n";
-          exit(1);
-        }
-        std::string xc_functional = tokens[1];
-        float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-        float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
-        break;
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty() && tokens[0] == "dftd3") {
+      has_dftd3 = true;
+      if (tokens.size() != 4) {
+        std::cout << "dftd3 must have 3 parameters\n";
+        exit(1);
       }
+      std::string xc_functional = tokens[1];
+      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
+      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
+      dftd3.initialize(
+        xc_functional,
+        rc_potential,
+        rc_coordination_number,
+        get_first_potential_filename(run_input));
+      break;
     }
   }
-
-  input_run.close();
 }
 
-NEP::NEP(const char* file_potential, const int num_atoms)
+NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -348,7 +344,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 NEP::~NEP(void)

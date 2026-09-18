@@ -23,6 +23,8 @@ the deposition keyword and performs atom insertion between consecutive sub-runs.
 #include <string>
 #include <vector>
 
+class RunInput;
+
 class Deposition {
 public:
   std::vector<std::vector<std::string>> subrun_lines;
@@ -50,14 +52,14 @@ public:
   };
   std::vector<FileAtom> file_atoms;
 
-  void initialize();
-  void prepare_subrun(int run_idx);
-  bool has_deposition(const std::string& filename);
+  void initialize(const RunInput& run_input);
+  RunInput prepare_subrun(int run_idx);
+  bool has_deposition(const RunInput& run_input);
 
 private:
   static void copy_file(const std::string& in_file, const std::string& out_file);
-  void parse_deposition(const char** param, int num_param);
-  void analyze_run(const std::string& filename);
+  void parse_deposition(const std::vector<std::string>& tokens);
+  void analyze_run(const RunInput& run_input);
   void deposit(const std::string& in_xyz, const std::string& out_xyz);
   void read_file_atoms();
   void initialize_rng();

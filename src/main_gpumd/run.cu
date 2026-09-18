@@ -32,6 +32,7 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include "velocity.cuh"
 #include <chrono>
 
@@ -103,14 +104,14 @@ static void calculate_time_step(
   }
 }
 
-Run::Run()
+Run::Run(const RunInput& run_input)
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
   fflush(stdout);
   print_line_2();
 
-  initialize_position(has_velocity_in_xyz, number_of_types, box, group, atom);
+  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
 
   allocate_memory_gpu(group, atom, thermo);
 
@@ -131,29 +132,23 @@ Run::Run()
   fflush(stdout);
   print_line_2();
 
-  execute_run_in();
+  execute_run_in(run_input);
 }
 
-void Run::execute_run_in()
+void Run::execute_run_in(const RunInput& run_input)
 {
   print_line_1();
   printf("Started executing the commands in run.in.\n");
   fflush(stdout);
   print_line_2();
 
-  std::ifstream input("run.in");
-  if (!input.is_open()) {
-    std::cout << "Failed to open run.in." << std::endl;
-    exit(1);
-  }
-
-  while (input.peek() != EOF) {
-    std::vector<std::string> tokens = get_tokens_without_comments(input);
-    if (tokens.size() > 0) {
+  for (const auto& line : run_input.lines()) {
+    if (!line.tokens.empty()) {
+      std::vector<std::string> tokens = line.tokens;
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
-      parse_one_keyword(tokens);
+      parse_one_keyword(tokens, run_input);
     }
   }
 
@@ -166,7 +161,6 @@ void Run::execute_run_in()
   fflush(stdout);
   print_line_2();
 
-  input.close();
 }
 
 void Run::compute_force()
@@ -274,7 +268,8 @@ void Run::perform_a_run()
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(const std::vector<std::string>& tokens)
+void Run::parse_one_keyword(
+  const std::vector<std::string>& tokens, const RunInput& run_input)
 {
   if (tokens[0] == "replicate" && has_seen_effective_command) {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
@@ -287,7 +282,7 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
 
   if (tokens[0] == "potential") {
-    force.parse_potential(tokens, box, atom.type.size());
+    force.parse_potential(tokens, box, atom.type.size(), run_input);
   } else if (tokens[0] == "replicate") {
     Replicate(tokens, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);

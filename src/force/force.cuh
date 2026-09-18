@@ -24,13 +24,18 @@
 #include <string>
 #include <vector>
 
+class RunInput;
+
 class Force
 {
 public:
   Force(void);
 
   void parse_potential(
-    const std::vector<std::string>& tokens, const Box& box, const int number_of_atoms);
+    const std::vector<std::string>& tokens,
+    const Box& box,
+    const int number_of_atoms,
+    const RunInput& run_input);
 
   void compute(
     Box& box,
