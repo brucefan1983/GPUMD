@@ -332,7 +332,7 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
   }
 
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(param, num_param, box, atom.type.size());
+    force.parse_potential(tokens, box, atom.type.size());
   } else if (strcmp(param[0], "replicate") == 0) {
     Replicate(param, num_param, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
