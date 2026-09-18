@@ -73,6 +73,19 @@ void find_neighbor_SW(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL);
 
+static __device__ void get_neighbor_cell_offset_range(
+  const int pbc, const int num_bins, int& begin, int& end)
+{
+  if (pbc) {
+    const int count = num_bins < 5 ? num_bins : 5;
+    begin = -(count / 2);
+    end = begin + count;
+  } else {
+    begin = 0;
+    end = 1;
+  }
+}
+
 static __device__ void find_cell_id(
   const Box& box,
   const double x,
@@ -109,6 +122,7 @@ static __device__ void find_cell_id(
   cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
 }
 
+// The rank-based sort requires unique atom indices in each neighbor list.
 static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
 {
   int bid = blockIdx.x;
