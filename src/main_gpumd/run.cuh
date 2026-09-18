@@ -18,6 +18,7 @@
 class Force;
 class Integrate;
 class Measure;
+class RunInput;
 
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -33,10 +34,10 @@ class Measure;
 class Run
 {
 public:
-  Run();
+  Run(const RunInput& run_input);
 
 private:
-  void execute_run_in();
+  void execute_run_in(const RunInput& run_input);
   void perform_a_run();
   void compute_force();
   void parse_one_keyword(const std::vector<std::string>& tokens);

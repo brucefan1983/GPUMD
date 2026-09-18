@@ -32,6 +32,7 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include "velocity.cuh"
 #include <chrono>
 
@@ -103,7 +104,7 @@ static void calculate_time_step(
   }
 }
 
-Run::Run()
+Run::Run(const RunInput& run_input)
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
@@ -131,25 +132,19 @@ Run::Run()
   fflush(stdout);
   print_line_2();
 
-  execute_run_in();
+  execute_run_in(run_input);
 }
 
-void Run::execute_run_in()
+void Run::execute_run_in(const RunInput& run_input)
 {
   print_line_1();
   printf("Started executing the commands in run.in.\n");
   fflush(stdout);
   print_line_2();
 
-  std::ifstream input("run.in");
-  if (!input.is_open()) {
-    std::cout << "Failed to open run.in." << std::endl;
-    exit(1);
-  }
-
-  while (input.peek() != EOF) {
-    std::vector<std::string> tokens = get_tokens_without_comments(input);
-    if (tokens.size() > 0) {
+  for (const auto& line : run_input.lines()) {
+    if (!line.tokens.empty()) {
+      std::vector<std::string> tokens = line.tokens;
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
@@ -166,7 +161,6 @@ void Run::execute_run_in()
   fflush(stdout);
   print_line_2();
 
-  input.close();
 }
 
 void Run::compute_force()
