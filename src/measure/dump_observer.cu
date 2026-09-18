@@ -72,31 +72,32 @@ static __global__ void initialize_properties(
   }
 }
 
-Dump_Observer::Dump_Observer(const char** param, int num_param)
+Dump_Observer::Dump_Observer(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_observer";
 }
 
-void Dump_Observer::parse(const char** param, int num_param)
+void Dump_Observer::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump observer.\n");
 
   if (num_param != 6) {
     PRINT_INPUT_ERROR("dump_observer should have 5 parameters.");
   }
-  mode_ = param[1];
+  mode_ = tokens[1];
   if (mode_.compare("observe") != 0 && mode_.compare("average") != 0) {
     PRINT_INPUT_ERROR("observer mode should be 'observe' or 'average'");
   }
-  if (!is_valid_int(param[2], &dump_interval_thermo_)) {
+  if (!is_valid_int(tokens[2], &dump_interval_thermo_)) {
     PRINT_INPUT_ERROR("dump interval thermo should be an integer.");
   }
   if (dump_interval_thermo_ <= 0) {
     PRINT_INPUT_ERROR("dump interval thermo should > 0.");
   }
-  if (!is_valid_int(param[3], &dump_interval_exyz_)) {
+  if (!is_valid_int(tokens[3], &dump_interval_exyz_)) {
     PRINT_INPUT_ERROR("dump interval exyz should be an integer.");
   }
   if (dump_interval_exyz_ <= 0) {
@@ -106,7 +107,7 @@ void Dump_Observer::parse(const char** param, int num_param)
   printf("    .out every %d steps.\n", dump_interval_thermo_);
   printf("    .exyz every %d steps.\n", dump_interval_exyz_);
 
-  if (!is_valid_int(param[4], &has_velocity_)) {
+  if (!is_valid_int(tokens[4], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
   if (has_velocity_ == 0) {
@@ -115,7 +116,7 @@ void Dump_Observer::parse(const char** param, int num_param)
     printf("    with velocity data.\n");
   }
 
-  if (!is_valid_int(param[5], &has_force_)) {
+  if (!is_valid_int(tokens[5], &has_force_)) {
     PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {

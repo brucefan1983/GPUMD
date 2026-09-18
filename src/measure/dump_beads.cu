@@ -27,14 +27,15 @@ Dump bead data in PIMD-related run
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-Dump_Beads::Dump_Beads(const char** param, int num_param)
+Dump_Beads::Dump_Beads(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_beads";
 }
 
-void Dump_Beads::parse(const char** param, int num_param)
+void Dump_Beads::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump data for beads in PIMD-related runs.\n");
 
@@ -42,7 +43,7 @@ void Dump_Beads::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("dump_beads should have 3 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -51,7 +52,7 @@ void Dump_Beads::parse(const char** param, int num_param)
 
   printf("    every %d steps.\n", dump_interval_);
 
-  if (!is_valid_int(param[2], &has_velocity_)) {
+  if (!is_valid_int(tokens[2], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
   if (has_velocity_ == 0) {
@@ -60,7 +61,7 @@ void Dump_Beads::parse(const char** param, int num_param)
     printf("    with velocity data.\n");
   }
 
-  if (!is_valid_int(param[3], &has_force_)) {
+  if (!is_valid_int(tokens[3], &has_force_)) {
     PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {
