@@ -23,6 +23,7 @@ void prepare_compact_nep_files(
   const std::vector<std::string>& atom_symbols, const RunInput& run_input);
 void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols);
 std::string get_compact_nep_filename(const std::string& filename);
+std::string get_first_potential_filename(const RunInput& run_input);
 const std::vector<std::string>& get_compact_nep_species();
 int get_compact_nep_type(const std::string& atom_symbol);
 void remove_compact_nep_files();

@@ -148,7 +148,7 @@ void Run::execute_run_in(const RunInput& run_input)
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
-      parse_one_keyword(tokens);
+      parse_one_keyword(tokens, run_input);
     }
   }
 
@@ -268,7 +268,8 @@ void Run::perform_a_run()
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(const std::vector<std::string>& tokens)
+void Run::parse_one_keyword(
+  const std::vector<std::string>& tokens, const RunInput& run_input)
 {
   if (tokens[0] == "replicate" && has_seen_effective_command) {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
@@ -281,7 +282,7 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
 
   if (tokens[0] == "potential") {
-    force.parse_potential(tokens, box, atom.type.size());
+    force.parse_potential(tokens, box, atom.type.size(), run_input);
   } else if (tokens[0] == "replicate") {
     Replicate(tokens, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);

@@ -445,6 +445,16 @@ std::string get_compact_nep_filename(const std::string& filename)
   return filename;
 }
 
+std::string get_first_potential_filename(const RunInput& run_input)
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      return get_compact_nep_filename(line.tokens[1]);
+    }
+  }
+  return "";
+}
+
 const std::vector<std::string>& get_compact_nep_species() { return compact_species; }
 
 int get_compact_nep_type(const std::string& atom_symbol)

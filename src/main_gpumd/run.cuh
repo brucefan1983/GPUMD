@@ -40,7 +40,8 @@ private:
   void execute_run_in(const RunInput& run_input);
   void perform_a_run();
   void compute_force();
-  void parse_one_keyword(const std::vector<std::string>& tokens);
+  void parse_one_keyword(
+    const std::vector<std::string>& tokens, const RunInput& run_input);
 
   // keyword parsing functions
   void parse_velocity(const std::vector<std::string>& tokens);
