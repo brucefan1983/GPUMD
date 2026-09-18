@@ -95,10 +95,14 @@ Ensemble_wall_piston::Ensemble_wall_piston(const std::vector<std::string>& token
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "vp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for vp keyword.");
       if (!is_valid_real(tokens[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
     } else if (tokens[i] == "thickness") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for thickness keyword.");
       if (!is_valid_real(tokens[i + 1], &thickness))
         PRINT_INPUT_ERROR("Wrong inputs for thickness keyword.");
       i += 2;

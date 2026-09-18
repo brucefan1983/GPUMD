@@ -263,6 +263,10 @@ void Integrate::parse_ensemble(
   const Box& box,
   const std::vector<Group>& group)
 {
+  if (tokens.size() < 2) {
+    PRINT_INPUT_ERROR("Keyword 'ensemble' requires an ensemble type.");
+  }
+
   if (has_ensemble()) {
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }

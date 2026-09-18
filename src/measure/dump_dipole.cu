@@ -84,6 +84,9 @@ void Dump_Dipole::parse(const std::vector<std::string>& tokens)
   if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
+  if (dump_interval_ <= 0) {
+    PRINT_INPUT_ERROR("dump interval should be positive.");
+  }
   file_potential_ = tokens[2];
   printf("   every %d steps.\n", dump_interval_);
   printf("   response potential: %s.\n", file_potential_.c_str());

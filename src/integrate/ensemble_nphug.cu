@@ -37,10 +37,14 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
     } else if (tokens[i] == "pperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for pperiod keyword.");
       if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
@@ -51,6 +55,8 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
       }
     } else if (
       tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       uniaxial_compress = -1;
       use_barostat = true;
       if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
@@ -79,6 +85,8 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
       }
       i += 3;
     } else if (tokens[i] == "x") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword x requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
@@ -89,6 +97,8 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "y") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword y requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[1][1]))
@@ -99,6 +109,8 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "z") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword z requires two values.");
       if (!is_valid_real(tokens[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(tokens[i + 2], &p_stop[2][2]))
@@ -109,17 +121,23 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
       use_barostat = true;
       i += 3;
     } else if (tokens[i] == "p0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for p0 keyword.");
       if (!is_valid_real(tokens[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
     } else if (tokens[i] == "v0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for v0 keyword.");
       if (!is_valid_real(tokens[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
     } else if (tokens[i] == "e0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for e0 keyword.");
       if (!is_valid_real(tokens[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;

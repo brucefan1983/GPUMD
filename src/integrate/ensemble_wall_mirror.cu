@@ -90,6 +90,8 @@ Ensemble_wall_mirror::Ensemble_wall_mirror(const std::vector<std::string>& token
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "vp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for vp keyword.");
       if (!is_valid_real(tokens[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;

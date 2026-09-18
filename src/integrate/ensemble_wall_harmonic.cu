@@ -95,10 +95,14 @@ Ensemble_wall_harmonic::Ensemble_wall_harmonic(const std::vector<std::string>& t
   int i = 2;
   while (i < num_params) {
     if (tokens[i] == "vp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for vp keyword.");
       if (!is_valid_real(tokens[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
     } else if (tokens[i] == "k") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for k keyword.");
       if (!is_valid_real(tokens[i + 1], &k))
         PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
       i += 2;
