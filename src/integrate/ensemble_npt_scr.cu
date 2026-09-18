@@ -40,27 +40,28 @@ void Ensemble_NPT_SCR::initialize_rng()
 };
 
 Ensemble_NPT_SCR::Ensemble_NPT_SCR(
-  const char** param, int num_param, const Box& box)
+  const std::vector<std::string>& tokens, const Box& box)
 {
+  const int num_param = tokens.size();
   type = EnsembleType::NPT_SCR;
   if (num_param != 18 && num_param != 12 && num_param != 8) {
     PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
   }
 
-  if (!is_valid_real(param[2], &temperature1_)) {
+  if (!is_valid_real(tokens[2], &temperature1_)) {
     PRINT_INPUT_ERROR("Initial temperature should be a number.");
   }
   if (temperature1_ <= 0.0) {
     PRINT_INPUT_ERROR("Initial temperature should > 0.");
   }
-  if (!is_valid_real(param[3], &temperature2_)) {
+  if (!is_valid_real(tokens[3], &temperature2_)) {
     PRINT_INPUT_ERROR("Final temperature should be a number.");
   }
   if (temperature2_ <= 0.0) {
     PRINT_INPUT_ERROR("Final temperature should > 0.");
   }
   temperature = temperature1_;
-  if (!is_valid_real(param[4], &temperature_coupling)) {
+  if (!is_valid_real(tokens[4], &temperature_coupling)) {
     PRINT_INPUT_ERROR("Temperature coupling should be a number.");
   }
   if (temperature_coupling < 1.0) {
@@ -70,12 +71,12 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   double elastic_modulus[6] = {0.0};
   if (num_param == 12) {
     for (int i = 0; i < 3; ++i) {
-      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
     }
     for (int i = 0; i < 3; ++i) {
-      if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
+      if (!is_valid_real(tokens[8 + i], &elastic_modulus[i])) {
         PRINT_INPUT_ERROR("elastic modulus should be a number.");
       }
       if (elastic_modulus[i] <= 0.0) {
@@ -89,10 +90,10 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
       PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
     }
   } else if (num_param == 8) {
-    if (!is_valid_real(param[5], &target_pressure[0])) {
+    if (!is_valid_real(tokens[5], &target_pressure[0])) {
       PRINT_INPUT_ERROR("Pressure should be a number.");
     }
-    if (!is_valid_real(param[6], &elastic_modulus[0])) {
+    if (!is_valid_real(tokens[6], &elastic_modulus[0])) {
       PRINT_INPUT_ERROR("elastic modulus should be a number.");
     }
     if (elastic_modulus[0] <= 0.0) {
@@ -110,12 +111,12 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
     }
   } else {
     for (int i = 0; i < 6; ++i) {
-      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
     }
     for (int i = 0; i < 6; ++i) {
-      if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
+      if (!is_valid_real(tokens[11 + i], &elastic_modulus[i])) {
         PRINT_INPUT_ERROR("elastic modulus should be a number.");
       }
       if (elastic_modulus[i] <= 0.0) {
@@ -131,7 +132,7 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
 
   double tau_p;
   int index_pressure_coupling = num_target_pressure_components * 2 + 5;
-  if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
+  if (!is_valid_real(tokens[index_pressure_coupling], &tau_p)) {
     PRINT_INPUT_ERROR("Pressure coupling should be a number.");
   }
   if (tau_p < 1.0) {

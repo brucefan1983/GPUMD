@@ -30,18 +30,18 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 Ensemble_LAN::Ensemble_LAN() {}
 
 Ensemble_LAN::Ensemble_LAN(
-  const char** param, int num_param, const std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  parse(param, num_param, group);
+  parse(tokens, group);
 }
 
 void Ensemble_LAN::parse_heat_groups(
-  const char** param, const std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  if (!is_valid_int(param[5], &source)) {
+  if (!is_valid_int(tokens[5], &source)) {
     PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
   }
-  if (!is_valid_int(param[6], &sink)) {
+  if (!is_valid_int(tokens[6], &sink)) {
     PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
   }
   if (group.size() < 1) {
@@ -64,13 +64,13 @@ void Ensemble_LAN::parse_heat_groups(
   }
 }
 
-void Ensemble_LAN::parse_heat_regions(const char** param)
+void Ensemble_LAN::parse_heat_regions(const std::vector<std::string>& tokens)
 {
   for (int i = 0; i < 6; ++i) {
-    if (!is_valid_real(param[5 + i], &source_region[i])) {
+    if (!is_valid_real(tokens[5 + i], &source_region[i])) {
       PRINT_INPUT_ERROR("Heat source region bounds should be numbers.");
     }
-    if (!is_valid_real(param[11 + i], &sink_region[i])) {
+    if (!is_valid_real(tokens[11 + i], &sink_region[i])) {
       PRINT_INPUT_ERROR("Heat sink region bounds should be numbers.");
     }
   }
@@ -100,29 +100,30 @@ void Ensemble_LAN::parse_heat_regions(const char** param)
 }
 
 void Ensemble_LAN::parse(
-  const char** param, int num_param, const std::vector<Group>& group)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  if (strcmp(param[1], "nvt_lan") == 0) {
+  const int num_param = tokens.size();
+  if (tokens[1] == "nvt_lan") {
     type = EnsembleType::NVT_LAN;
     run_mode_ = RunMode::NVT;
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_lan should have 3 parameters.");
     }
 
-    if (!is_valid_real(param[2], &temperature1_)) {
+    if (!is_valid_real(tokens[2], &temperature1_)) {
       PRINT_INPUT_ERROR("Initial temperature should be a number.");
     }
     if (temperature1_ <= 0.0) {
       PRINT_INPUT_ERROR("Initial temperature should > 0.");
     }
-    if (!is_valid_real(param[3], &temperature2_)) {
+    if (!is_valid_real(tokens[3], &temperature2_)) {
       PRINT_INPUT_ERROR("Final temperature should be a number.");
     }
     if (temperature2_ <= 0.0) {
       PRINT_INPUT_ERROR("Final temperature should > 0.");
     }
     temperature = temperature1_;
-    if (!is_valid_real(param[4], &temperature_coupling)) {
+    if (!is_valid_real(tokens[4], &temperature_coupling)) {
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
     if (temperature_coupling < 1.0) {
@@ -137,7 +138,7 @@ void Ensemble_LAN::parse(
     return;
   }
 
-  if (strcmp(param[1], "heat_lan") != 0) {
+  if (tokens[1] != "heat_lan") {
     PRINT_INPUT_ERROR("Invalid Langevin ensemble type.");
   }
   type = EnsembleType::HEAT_LAN;
@@ -147,19 +148,19 @@ void Ensemble_LAN::parse(
   use_region = num_param == 17;
   run_mode_ = use_region ? RunMode::HEAT_REGION : RunMode::HEAT_GROUP;
 
-  if (!is_valid_real(param[2], &temperature)) {
+  if (!is_valid_real(tokens[2], &temperature)) {
     PRINT_INPUT_ERROR("Temperature should be a number.");
   }
   if (temperature <= 0.0) {
     PRINT_INPUT_ERROR("Temperature should > 0.");
   }
-  if (!is_valid_real(param[3], &temperature_coupling)) {
+  if (!is_valid_real(tokens[3], &temperature_coupling)) {
     PRINT_INPUT_ERROR("Temperature coupling should be a number.");
   }
   if (temperature_coupling < 1.0) {
     PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
   }
-  if (!is_valid_real(param[4], &delta_temperature)) {
+  if (!is_valid_real(tokens[4], &delta_temperature)) {
     PRINT_INPUT_ERROR("Temperature difference should be a number.");
   }
   if (delta_temperature >= temperature || delta_temperature <= -temperature) {
@@ -167,9 +168,9 @@ void Ensemble_LAN::parse(
   }
 
   if (use_region) {
-    parse_heat_regions(param);
+    parse_heat_regions(tokens);
   } else {
-    parse_heat_groups(param, group);
+    parse_heat_groups(tokens, group);
   }
 
   printf("Integrate with heating and cooling for this run.\n");

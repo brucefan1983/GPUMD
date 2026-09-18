@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -25,7 +26,7 @@
 class Ensemble_BAO : public Ensemble
 {
 public:
-  Ensemble_BAO(const char** param, int num_param);
+  Ensemble_BAO(const std::vector<std::string>& tokens);
   Ensemble_BAO(EnsembleType, int, int, int, int, int, int, double, double, double);
 
   double get_temperature1() const;
@@ -84,7 +85,7 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 
 private:
-  void parse(const char** param, int num_param);
+  void parse(const std::vector<std::string>& tokens);
 
   double temperature1_ = 0.0;
   double temperature2_ = 0.0;

@@ -15,11 +15,12 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 
 class Ensemble_NVE : public Ensemble
 {
 public:
-  explicit Ensemble_NVE(int num_param);
+  explicit Ensemble_NVE(const std::vector<std::string>& tokens);
 
   void compute1(
     const double time_step,
@@ -41,5 +42,5 @@ public:
     Force& force) override;
 
 private:
-  void parse(int num_param);
+  void parse(const std::vector<std::string>& tokens);
 };

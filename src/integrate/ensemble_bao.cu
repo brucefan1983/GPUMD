@@ -29,14 +29,15 @@ The Langevin thermostat with the BAOAB splitting:
 #include <cstdlib>
 #include <cstring>
 
-Ensemble_BAO::Ensemble_BAO(const char** param, int num_param)
+Ensemble_BAO::Ensemble_BAO(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
 }
 
-void Ensemble_BAO::parse(const char** param, int num_param)
+void Ensemble_BAO::parse(const std::vector<std::string>& tokens)
 {
-  if (strcmp(param[1], "nvt_bao") != 0) {
+  const int num_param = tokens.size();
+  if (tokens[1] != "nvt_bao") {
     PRINT_INPUT_ERROR("Invalid BAOAB Langevin ensemble type.");
   }
   type = EnsembleType::NVT_BAO;
@@ -44,20 +45,20 @@ void Ensemble_BAO::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
   }
 
-  if (!is_valid_real(param[2], &temperature1_)) {
+  if (!is_valid_real(tokens[2], &temperature1_)) {
     PRINT_INPUT_ERROR("Initial temperature should be a number.");
   }
   if (temperature1_ <= 0.0) {
     PRINT_INPUT_ERROR("Initial temperature should > 0.");
   }
-  if (!is_valid_real(param[3], &temperature2_)) {
+  if (!is_valid_real(tokens[3], &temperature2_)) {
     PRINT_INPUT_ERROR("Final temperature should be a number.");
   }
   if (temperature2_ <= 0.0) {
     PRINT_INPUT_ERROR("Final temperature should > 0.");
   }
   temperature = temperature1_;
-  if (!is_valid_real(param[4], &temperature_coupling)) {
+  if (!is_valid_real(tokens[4], &temperature_coupling)) {
     PRINT_INPUT_ERROR("Temperature coupling should be a number.");
   }
   if (temperature_coupling < 1.0) {

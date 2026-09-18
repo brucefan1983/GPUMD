@@ -363,15 +363,15 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(tokens);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(param, num_param, atom, box, group);
+    integrate.parse_ensemble(tokens, atom, box, group);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(tokens);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(tokens, group);
   } else if (tokens[0] == "fix") {
-    integrate.parse_fix(param, num_param, group);
+    integrate.parse_fix(tokens, group);
   } else if (tokens[0] == "move") {
-    integrate.parse_move(param, num_param, group);
+    integrate.parse_move(tokens, group);
   } else if (tokens[0] == "kspace") {
     if (has_seen_kspace_command) {
       PRINT_INPUT_ERROR("kspace can only appear once.");

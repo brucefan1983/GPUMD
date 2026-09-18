@@ -26,21 +26,22 @@ The Berendsen thermostat and barostat:
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-Ensemble_BER::Ensemble_BER(const char** param, int num_param, const Box& box)
+Ensemble_BER::Ensemble_BER(const std::vector<std::string>& tokens, const Box& box)
 {
-  parse(param, num_param, box);
+  parse(tokens, box);
 }
 
-void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
+void Ensemble_BER::parse(const std::vector<std::string>& tokens, const Box& box)
 {
+  const int num_param = tokens.size();
   num_target_pressure_components = 0;
 
-  if (strcmp(param[1], "nvt_ber") == 0) {
+  if (tokens[1] == "nvt_ber") {
     type = EnsembleType::NVT_BER;
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_ber should have 3 parameters.");
     }
-  } else if (strcmp(param[1], "npt_ber") == 0) {
+  } else if (tokens[1] == "npt_ber") {
     type = EnsembleType::NPT_BER;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
       PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
@@ -49,13 +50,13 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
     PRINT_INPUT_ERROR("Invalid Berendsen ensemble type.");
   }
 
-  if (!is_valid_real(param[2], &temperature1_)) {
+  if (!is_valid_real(tokens[2], &temperature1_)) {
     PRINT_INPUT_ERROR("Initial temperature should be a number.");
   }
   if (temperature1_ <= 0.0) {
     PRINT_INPUT_ERROR("Initial temperature should > 0.");
   }
-  if (!is_valid_real(param[3], &temperature2_)) {
+  if (!is_valid_real(tokens[3], &temperature2_)) {
     PRINT_INPUT_ERROR("Final temperature should be a number.");
   }
   if (temperature2_ <= 0.0) {
@@ -63,7 +64,7 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
   }
 
   double tau_temperature;
-  if (!is_valid_real(param[4], &tau_temperature)) {
+  if (!is_valid_real(tokens[4], &tau_temperature)) {
     PRINT_INPUT_ERROR("Temperature coupling should be a number.");
   }
   if (tau_temperature < 1.0) {
@@ -88,12 +89,12 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
   if (num_param == 12) {
     num_target_pressure_components = 3;
     for (int i = 0; i < num_target_pressure_components; ++i) {
-      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
     }
     for (int i = 0; i < num_target_pressure_components; ++i) {
-      if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
+      if (!is_valid_real(tokens[8 + i], &elastic_modulus[i])) {
         PRINT_INPUT_ERROR("elastic modulus should be a number.");
       }
       if (elastic_modulus[i] <= 0.0) {
@@ -107,10 +108,10 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
     }
   } else if (num_param == 8) {
     num_target_pressure_components = 1;
-    if (!is_valid_real(param[5], &target_pressure[0])) {
+    if (!is_valid_real(tokens[5], &target_pressure[0])) {
       PRINT_INPUT_ERROR("Pressure should be a number.");
     }
-    if (!is_valid_real(param[6], &elastic_modulus[0])) {
+    if (!is_valid_real(tokens[6], &elastic_modulus[0])) {
       PRINT_INPUT_ERROR("elastic modulus should be a number.");
     }
     if (elastic_modulus[0] <= 0.0) {
@@ -128,12 +129,12 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
   } else {
     num_target_pressure_components = 6;
     for (int i = 0; i < num_target_pressure_components; ++i) {
-      if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
     }
     for (int i = 0; i < num_target_pressure_components; ++i) {
-      if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
+      if (!is_valid_real(tokens[11 + i], &elastic_modulus[i])) {
         PRINT_INPUT_ERROR("elastic modulus should be a number.");
       }
       if (elastic_modulus[i] <= 0.0) {
@@ -148,7 +149,7 @@ void Ensemble_BER::parse(const char** param, int num_param, const Box& box)
 
   double tau_pressure;
   const int index_pressure_coupling = num_target_pressure_components * 2 + 5;
-  if (!is_valid_real(param[index_pressure_coupling], &tau_pressure)) {
+  if (!is_valid_real(tokens[index_pressure_coupling], &tau_pressure)) {
     PRINT_INPUT_ERROR("Pressure coupling should be a number.");
   }
   if (tau_pressure < 1.0) {

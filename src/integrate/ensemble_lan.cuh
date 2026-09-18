@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -26,7 +27,8 @@ class Ensemble_LAN : public Ensemble
 {
 public:
   Ensemble_LAN();
-  Ensemble_LAN(const char** param, int num_param, const std::vector<Group>& group);
+  Ensemble_LAN(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   double get_temperature1() const;
   double get_temperature2() const;
@@ -86,9 +88,11 @@ private:
     HEAT_REGION
   };
 
-  void parse(const char** param, int num_param, const std::vector<Group>& group);
-  void parse_heat_groups(const char** param, const std::vector<Group>& group);
-  void parse_heat_regions(const char** param);
+  void parse(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_groups(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_regions(const std::vector<std::string>& tokens);
 
   RunMode run_mode_ = RunMode::NONE;
   double temperature1_ = 0.0;

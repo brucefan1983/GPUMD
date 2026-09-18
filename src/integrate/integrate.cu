@@ -178,8 +178,7 @@ void Integrate::compute2(
 }
 
 void Integrate::parse_ensemble(
-  const char** param,
-  int num_param,
+  const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
   const std::vector<Group>& group)
@@ -188,12 +187,20 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
+  const int num_param = tokens.size();
+  std::vector<const char*> legacy_param;
+  legacy_param.reserve(tokens.size());
+  for (const std::string& token : tokens) {
+    legacy_param.push_back(token.c_str());
+  }
+  const char** param = legacy_param.data();
+
   // 1. Determine the integration method
-  if (strcmp(param[1], "nve") == 0) {
-    ensemble_ = std::make_unique<Ensemble_NVE>(num_param);
+  if (tokens[1] == "nve") {
+    ensemble_ = std::make_unique<Ensemble_NVE>(tokens);
     type = EnsembleType::NVE;
-  } else if (strcmp(param[1], "nvt_ber") == 0 || strcmp(param[1], "npt_ber") == 0) {
-    auto ensemble_ber = std::make_unique<Ensemble_BER>(param, num_param, box);
+  } else if (tokens[1] == "nvt_ber" || tokens[1] == "npt_ber") {
+    auto ensemble_ber = std::make_unique<Ensemble_BER>(tokens, box);
     type = ensemble_ber->type;
     temperature1 = ensemble_ber->get_temperature1();
     temperature2 = ensemble_ber->get_temperature2();
@@ -203,9 +210,9 @@ void Integrate::parse_ensemble(
     }
     ensemble_ = std::move(ensemble_ber);
   } else if (
-    strcmp(param[1], "nvt_nhc") == 0 || strcmp(param[1], "heat_nhc") == 0 ||
-    strcmp(param[1], "heat_nhc_power") == 0) {
-    auto ensemble_nhc = std::make_unique<Ensemble_NHC>(param, num_param, group);
+    tokens[1] == "nvt_nhc" || tokens[1] == "heat_nhc" ||
+    tokens[1] == "heat_nhc_power") {
+    auto ensemble_nhc = std::make_unique<Ensemble_NHC>(tokens, group);
     type = ensemble_nhc->type;
     temperature = ensemble_nhc->temperature;
     if (type == EnsembleType::NVT_NHC) {
@@ -213,8 +220,8 @@ void Integrate::parse_ensemble(
       temperature2 = ensemble_nhc->get_temperature2();
     }
     ensemble_ = std::move(ensemble_nhc);
-  } else if (strcmp(param[1], "nvt_lan") == 0 || strcmp(param[1], "heat_lan") == 0) {
-    auto ensemble_lan = std::make_unique<Ensemble_LAN>(param, num_param, group);
+  } else if (tokens[1] == "nvt_lan" || tokens[1] == "heat_lan") {
+    auto ensemble_lan = std::make_unique<Ensemble_LAN>(tokens, group);
     type = ensemble_lan->type;
     temperature = ensemble_lan->temperature;
     if (type == EnsembleType::NVT_LAN) {
@@ -222,8 +229,8 @@ void Integrate::parse_ensemble(
       temperature2 = ensemble_lan->get_temperature2();
     }
     ensemble_ = std::move(ensemble_lan);
-  } else if (strcmp(param[1], "nvt_bdp") == 0 || strcmp(param[1], "heat_bdp") == 0) {
-    auto ensemble_bdp = std::make_unique<Ensemble_BDP>(param, num_param, group);
+  } else if (tokens[1] == "nvt_bdp" || tokens[1] == "heat_bdp") {
+    auto ensemble_bdp = std::make_unique<Ensemble_BDP>(tokens, group);
     type = ensemble_bdp->type;
     temperature = ensemble_bdp->temperature;
     if (type == EnsembleType::NVT_BDP) {
@@ -231,22 +238,22 @@ void Integrate::parse_ensemble(
       temperature2 = ensemble_bdp->get_temperature2();
     }
     ensemble_ = std::move(ensemble_bdp);
-  } else if (strcmp(param[1], "nvt_bao") == 0) {
-    auto ensemble_bao = std::make_unique<Ensemble_BAO>(param, num_param);
+  } else if (tokens[1] == "nvt_bao") {
+    auto ensemble_bao = std::make_unique<Ensemble_BAO>(tokens);
     type = ensemble_bao->type;
     temperature1 = ensemble_bao->get_temperature1();
     temperature2 = ensemble_bao->get_temperature2();
     temperature = temperature1;
     ensemble_ = std::move(ensemble_bao);
-  } else if (strcmp(param[1], "nvt_qtb") == 0) {
+  } else if (tokens[1] == "nvt_qtb") {
     auto ensemble_qtb = std::make_unique<Ensemble_QTB>(param, num_param);
     type = ensemble_qtb->type;
     temperature1 = ensemble_qtb->get_temperature1();
     temperature2 = ensemble_qtb->get_temperature2();
     temperature = ensemble_qtb->temperature;
     ensemble_ = std::move(ensemble_qtb);
-  } else if (strcmp(param[1], "npt_scr") == 0) {
-    auto ensemble_scr = std::make_unique<Ensemble_NPT_SCR>(param, num_param, box);
+  } else if (tokens[1] == "npt_scr") {
+    auto ensemble_scr = std::make_unique<Ensemble_NPT_SCR>(tokens, box);
     type = ensemble_scr->type;
     temperature1 = ensemble_scr->get_temperature1();
     temperature2 = ensemble_scr->get_temperature2();
@@ -254,26 +261,26 @@ void Integrate::parse_ensemble(
     num_target_pressure_components = ensemble_scr->get_num_target_pressure_components();
     ensemble_ = std::move(ensemble_scr);
   } else if (
-    strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
-    strcmp(param[1], "nph_mttk") == 0) {
+    tokens[1] == "nvt_mttk" || tokens[1] == "npt_mttk" ||
+    tokens[1] == "nph_mttk") {
     type = EnsembleType::MTTK;
     auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(param, num_param);
     temperature1 = ensemble_mttk->t_start;
     temperature2 = ensemble_mttk->t_stop;
     ensemble_ = std::move(ensemble_mttk);
-  } else if (strcmp(param[1], "npt_qtb") == 0) {
+  } else if (tokens[1] == "npt_qtb") {
     type = EnsembleType::NPT_QTB;
     auto ensemble_npt_qtb = std::make_unique<Ensemble_NPT_QTB>(param, num_param);
     temperature1 = ensemble_npt_qtb->t_start;
     temperature2 = ensemble_npt_qtb->t_stop;
     ensemble_ = std::move(ensemble_npt_qtb);
-  } else if (strcmp(param[1], "heat_ttm") == 0) {
+  } else if (tokens[1] == "heat_ttm") {
     auto ensemble_ttm =
       std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
     type = ensemble_ttm->type;
     temperature = ensemble_ttm->temperature;
     ensemble_ = std::move(ensemble_ttm);
-  } else if (strcmp(param[1], "ttm") == 0) {
+  } else if (tokens[1] == "ttm") {
     auto ensemble_ttm =
       std::make_unique<Ensemble_TTM>(param, num_param, atom, box, group);
     type = ensemble_ttm->type;
@@ -281,15 +288,15 @@ void Integrate::parse_ensemble(
     temperature1 = 0.0;
     temperature2 = 0.0;
     ensemble_ = std::move(ensemble_ttm);
-  } else if (strcmp(param[1], "heat_hybrid") == 0) {
+  } else if (tokens[1] == "heat_hybrid") {
     auto ensemble_hybrid =
-      std::make_unique<Ensemble_Heat_Hybrid>(param, num_param, group);
+      std::make_unique<Ensemble_Heat_Hybrid>(tokens, group);
     type = ensemble_hybrid->type;
     temperature = ensemble_hybrid->temperature;
     ensemble_ = std::move(ensemble_hybrid);
   } else if (
-    strcmp(param[1], "rpmd") == 0 || strcmp(param[1], "trpmd") == 0 ||
-    strcmp(param[1], "pimd") == 0 || strcmp(param[1], "pimd_scr") == 0) {
+    tokens[1] == "rpmd" || tokens[1] == "trpmd" || tokens[1] == "pimd" ||
+    tokens[1] == "pimd_scr") {
     auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(param, num_param, box);
     type = ensemble_pimd->type;
     number_of_beads = ensemble_pimd->get_number_of_beads();
@@ -301,34 +308,34 @@ void Integrate::parse_ensemble(
         ensemble_pimd->get_num_target_pressure_components();
     }
     ensemble_ = std::move(ensemble_pimd);
-  } else if (strcmp(param[1], "msst") == 0) {
+  } else if (tokens[1] == "msst") {
     type = EnsembleType::MSST;
     ensemble_ = std::make_unique<Ensemble_MSST>(param, num_param);
-  } else if (strcmp(param[1], "ti_spring") == 0) {
+  } else if (tokens[1] == "ti_spring") {
     type = EnsembleType::TI_SPRING;
     ensemble_ = std::make_unique<Ensemble_TI_Spring>(param, num_param);
-  } else if (strcmp(param[1], "wall_piston") == 0) {
+  } else if (tokens[1] == "wall_piston") {
     type = EnsembleType::WALL_PISTON;
     ensemble_ = std::make_unique<Ensemble_wall_piston>(param, num_param);
-  } else if (strcmp(param[1], "nphug") == 0) {
+  } else if (tokens[1] == "nphug") {
     type = EnsembleType::NPHUG;
     ensemble_ = std::make_unique<Ensemble_NPHug>(param, num_param);
-  } else if (strcmp(param[1], "ti") == 0) {
+  } else if (tokens[1] == "ti") {
     type = EnsembleType::TI;
     ensemble_ = std::make_unique<Ensemble_TI>(param, num_param);
-  } else if (strcmp(param[1], "wall_mirror") == 0) {
+  } else if (tokens[1] == "wall_mirror") {
     type = EnsembleType::WALL_MIRROR;
     ensemble_ = std::make_unique<Ensemble_wall_mirror>(param, num_param);
-  } else if (strcmp(param[1], "ti_rs") == 0) {
+  } else if (tokens[1] == "ti_rs") {
     type = EnsembleType::TI_RS;
     ensemble_ = std::make_unique<Ensemble_TI_RS>(param, num_param);
-  } else if (strcmp(param[1], "ti_as") == 0) {
+  } else if (tokens[1] == "ti_as") {
     type = EnsembleType::TI_AS;
     ensemble_ = std::make_unique<Ensemble_TI_AS>(param, num_param);
-  } else if (strcmp(param[1], "wall_harmonic") == 0) {
+  } else if (tokens[1] == "wall_harmonic") {
     type = EnsembleType::WALL_HARMONIC;
     ensemble_ = std::make_unique<Ensemble_wall_harmonic>(param, num_param);
-  } else if (strcmp(param[1], "ti_liquid") == 0) {
+  } else if (tokens[1] == "ti_liquid") {
     type = EnsembleType::TI_LIQUID;
     ensemble_ = std::make_unique<Ensemble_TI_Liquid>(param, num_param);
   } else {
@@ -336,8 +343,10 @@ void Integrate::parse_ensemble(
   }
 }
 
-void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>& group)
+void Integrate::parse_fix(
+  const std::vector<std::string>& tokens, std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("Keyword 'fix' should have 1 or 2 parameters.");
   }
@@ -348,7 +357,7 @@ void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>&
 
   if (num_param == 3) {
     // fix grouping_method group_id
-    if (!is_valid_int(param[1], &fixed_grouping_method)) {
+    if (!is_valid_int(tokens[1], &fixed_grouping_method)) {
       PRINT_INPUT_ERROR("Grouping method for 'fix' should be an integer.");
     }
     if (fixed_grouping_method < 0) {
@@ -357,13 +366,13 @@ void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>&
     if (fixed_grouping_method >= group.size()) {
       PRINT_INPUT_ERROR("Grouping method for 'fix' should < number of grouping methods.");
     }
-    if (!is_valid_int(param[2], &fixed_group)) {
+    if (!is_valid_int(tokens[2], &fixed_group)) {
       PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
     }
   } else {
     // fix group_id (default grouping_method = 0)
     fixed_grouping_method = 0;
-    if (!is_valid_int(param[1], &fixed_group)) {
+    if (!is_valid_int(tokens[1], &fixed_group)) {
       PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
     }
   }
@@ -379,8 +388,10 @@ void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>&
   printf("Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
 }
 
-void Integrate::parse_move(const char** param, int num_param, std::vector<Group>& group)
+void Integrate::parse_move(
+  const std::vector<std::string>& tokens, std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   if (num_param != 5 && num_param != 6) {
     PRINT_INPUT_ERROR("Keyword 'move' should have 4 or 5 parameters.");
   }
@@ -392,7 +403,7 @@ void Integrate::parse_move(const char** param, int num_param, std::vector<Group>
   int vid; // index where vx starts
   if (num_param == 6) {
     // move grouping_method group_id vx vy vz
-    if (!is_valid_int(param[1], &move_grouping_method)) {
+    if (!is_valid_int(tokens[1], &move_grouping_method)) {
       PRINT_INPUT_ERROR("Grouping method for 'move' should be an integer.");
     }
     if (move_grouping_method < 0) {
@@ -401,14 +412,14 @@ void Integrate::parse_move(const char** param, int num_param, std::vector<Group>
     if (move_grouping_method >= group.size()) {
       PRINT_INPUT_ERROR("Grouping method for 'move' should < number of grouping methods.");
     }
-    if (!is_valid_int(param[2], &move_group)) {
+    if (!is_valid_int(tokens[2], &move_group)) {
       PRINT_INPUT_ERROR("Moving group ID should be an integer.");
     }
     vid = 3;
   } else {
     // move group_id vx vy vz (default grouping_method = 0)
     move_grouping_method = 0;
-    if (!is_valid_int(param[1], &move_group)) {
+    if (!is_valid_int(tokens[1], &move_group)) {
       PRINT_INPUT_ERROR("Moving group ID should be an integer.");
     }
     vid = 2;
@@ -422,13 +433,13 @@ void Integrate::parse_move(const char** param, int num_param, std::vector<Group>
     PRINT_INPUT_ERROR("Moving group ID should < number of groups.");
   }
 
-  if (!is_valid_real(param[vid], &move_velocity[0])) {
+  if (!is_valid_real(tokens[vid], &move_velocity[0])) {
     PRINT_INPUT_ERROR("Moving velocity in x direction should be a number.");
   }
-  if (!is_valid_real(param[vid + 1], &move_velocity[1])) {
+  if (!is_valid_real(tokens[vid + 1], &move_velocity[1])) {
     PRINT_INPUT_ERROR("Moving velocity in y direction should be a number.");
   }
-  if (!is_valid_real(param[vid + 2], &move_velocity[2])) {
+  if (!is_valid_real(tokens[vid + 2], &move_velocity[2])) {
     PRINT_INPUT_ERROR("Moving velocity in z direction should be a number.");
   }
 
