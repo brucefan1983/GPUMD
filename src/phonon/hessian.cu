@@ -206,8 +206,11 @@ void Hessian::initialize(
   std::string line;
   bool has_rep = false;
   while (std::getline(fin, line)) {
-    auto tokens = get_tokens(line);
-    if (!tokens.empty() && tokens[0][0] != '#' && tokens[0] == "replicate") {  // 跳过空行和注释行
+    auto tokens = get_tokens_without_comments(line);
+    if (tokens.empty()) {
+      continue;
+    }
+    if (tokens[0] == "replicate") {
       has_rep = true;
       for (int i = 0; i < 3; ++i) {
         cxyz[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
