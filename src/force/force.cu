@@ -328,6 +328,7 @@ void Force::finalize()
 {
   compute_hnemd_ = false;
   compute_hnemdec_ = -1;
+  multiple_potentials_mode_ = "observe";
 }
 
 void Force::set_hnemd_parameters(

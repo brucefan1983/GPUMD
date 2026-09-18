@@ -71,5 +71,5 @@ The memory requirements are comparable to the size of the :ref:`eigenvector.in i
 
 Depending on the number of steps to run, sampling interval, and number of bins, the :ref:`heatmode.out output file <heatmode_out>` can become very large as well (i.e., many GBs).
 
-This keyword cannot be used in the same run as the :ref:`compute_hnema keyword <kw_compute_hnema>`.
-The keyword that appears last will be used in the run.
+Only one modal-analysis calculation can be specified in a run.
+Repeating this keyword or using it together with the :ref:`compute_hnema keyword <kw_compute_hnema>` results in an input error.
