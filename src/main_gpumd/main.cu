@@ -42,13 +42,12 @@ int main(int argc, char* argv[])
 
   RunInput run_input("run.in");
   Deposition deposition;
-  if (!deposition.has_deposition("run.in")) {
+  if (!deposition.has_deposition(run_input)) {
     Run run(run_input);
   } else {
-    deposition.initialize();
+    deposition.initialize(run_input);
     for (int i = 0; i < deposition.num_subruns; ++i) {
-      deposition.prepare_subrun(i);
-      RunInput subrun_input("run.in");
+      RunInput subrun_input = deposition.prepare_subrun(i);
       Run run(subrun_input);
     }
   }

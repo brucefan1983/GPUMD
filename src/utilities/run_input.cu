@@ -31,12 +31,24 @@ RunInput::RunInput(const std::string& filename)
   std::string raw_line;
   int line_number = 0;
   while (std::getline(input, raw_line)) {
-    RunInputLine line;
-    line.raw_line = raw_line;
-    line.tokens = get_tokens_without_comments(raw_line);
-    line.line_number = ++line_number;
-    lines_.emplace_back(std::move(line));
+    append_line(raw_line, ++line_number);
   }
+}
+
+RunInput::RunInput(const std::vector<std::string>& raw_lines)
+{
+  for (int n = 0; n < static_cast<int>(raw_lines.size()); ++n) {
+    append_line(raw_lines[n], n + 1);
+  }
+}
+
+void RunInput::append_line(const std::string& raw_line, int line_number)
+{
+  RunInputLine line;
+  line.raw_line = raw_line;
+  line.tokens = get_tokens_without_comments(raw_line);
+  line.line_number = line_number;
+  lines_.emplace_back(std::move(line));
 }
 
 const std::vector<RunInputLine>& RunInput::lines() const { return lines_; }

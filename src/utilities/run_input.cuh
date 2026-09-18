@@ -29,6 +29,7 @@ class RunInput
 {
 public:
   explicit RunInput(const std::string& filename);
+  explicit RunInput(const std::vector<std::string>& raw_lines);
 
   const std::vector<RunInputLine>& lines() const;
   const RunInputLine* find_first(const std::string& keyword) const;
@@ -37,5 +38,6 @@ public:
   bool contains(const std::string& keyword) const;
 
 private:
+  void append_line(const std::string& raw_line, int line_number);
   std::vector<RunInputLine> lines_;
 };
