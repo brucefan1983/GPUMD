@@ -359,8 +359,8 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     Cohesive cohesive;
     cohesive.parse(param, num_param, 1);
     cohesive.compute(box, atom, group, force);
-  } else if (strcmp(param[0], "change_box") == 0) {
-    parse_change_box(param, num_param);
+  } else if (tokens[0] == "change_box") {
+    parse_change_box(tokens);
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(tokens);
   } else if (strcmp(param[0], "ensemble") == 0) {
@@ -574,8 +574,8 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens)
     std::unique_ptr<Action> action;
     action.reset(new LSQT(param, num_param));
     measure.actions.emplace_back(std::move(action));
-  } else if (strcmp(param[0], "run") == 0) {
-    parse_run(param, num_param);
+  } else if (tokens[0] == "run") {
+    parse_run(tokens);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -677,12 +677,13 @@ void Run::parse_time_step(const std::vector<std::string>& tokens)
   }
 }
 
-void Run::parse_run(const char** param, int num_param)
+void Run::parse_run(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("run should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &number_of_steps)) {
+  if (!is_valid_int(tokens[1], &number_of_steps)) {
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   if (number_of_steps <= 0) {
@@ -726,36 +727,37 @@ static __global__ void gpu_deform_atom(
   }
 }
 
-void Run::parse_change_box(const char** param, int num_param)
+void Run::parse_change_box(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2 && num_param != 4 && num_param != 7) {
     PRINT_INPUT_ERROR("change_box can only have 1 or 3 or 6 parameters\n.");
   }
 
   double deformation_matrix[3][3] = {0.0};
 
-  if (!is_valid_real(param[1], &deformation_matrix[0][0])) {
+  if (!is_valid_real(tokens[1], &deformation_matrix[0][0])) {
     PRINT_INPUT_ERROR("box change parameter in xx should be a number.");
   }
   deformation_matrix[1][1] = deformation_matrix[2][2] = deformation_matrix[0][0];
 
   if (num_param >= 4) {
-    if (!is_valid_real(param[2], &deformation_matrix[1][1])) {
+    if (!is_valid_real(tokens[2], &deformation_matrix[1][1])) {
       PRINT_INPUT_ERROR("box change parameter in yy should be a number.");
     }
-    if (!is_valid_real(param[3], &deformation_matrix[2][2])) {
+    if (!is_valid_real(tokens[3], &deformation_matrix[2][2])) {
       PRINT_INPUT_ERROR("box change parameter in zz should be a number.");
     }
   }
 
   if (num_param == 7) {
-    if (!is_valid_real(param[4], &deformation_matrix[1][2])) {
+    if (!is_valid_real(tokens[4], &deformation_matrix[1][2])) {
       PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
     }
-    if (!is_valid_real(param[5], &deformation_matrix[0][2])) {
+    if (!is_valid_real(tokens[5], &deformation_matrix[0][2])) {
       PRINT_INPUT_ERROR("box change parameter in xz should be a number.");
     }
-    if (!is_valid_real(param[6], &deformation_matrix[0][1])) {
+    if (!is_valid_real(tokens[6], &deformation_matrix[0][1])) {
       PRINT_INPUT_ERROR("box change parameter in xy should be a number.");
     }
     deformation_matrix[1][0] = deformation_matrix[0][1];
