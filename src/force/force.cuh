@@ -115,6 +115,4 @@ private:
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
-  void correct_fcp_force(
-    const int number_of_atoms, GPU_Vector<double>& force_per_atom);
 };
