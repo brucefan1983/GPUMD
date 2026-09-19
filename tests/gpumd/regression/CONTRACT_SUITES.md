@@ -1,10 +1,10 @@
 # Durable behavior-contract diagnostics
 
-`full` is the only acceptance suite. It runs all 175 manifest cases and then
-evaluates all 18 cross-case relations for both the baseline and candidate:
+`full` is the only acceptance suite. It runs all 195 manifest cases and then
+evaluates all 23 cross-case relations for both the baseline and candidate:
 
 ```text
-Summary: 175 passed, 0 failed; relations: 18 passed, 0 failed, 0 skipped
+Summary: 195 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
 ```
 
 The 20 focused suites are diagnostic views of the same manifest. They may skip
@@ -63,6 +63,11 @@ equivalent.
 | `observer_reset_second_run_equality` | average-observer state resets before the second run |
 | `observer_reset_restart_equality` | observer reset leaves the expected restart state |
 | `msd_option_order_equality` | supported MSD option orders produce identical output |
+| `active_observer_independence_out` | enabling `dump_observer` does not change active-learning uncertainty output |
+| `active_observer_independence_xyz` | enabling `dump_observer` does not change selected active structures |
+| `dump_dipole_thermo_side_effect` | dipole response dumping leaves thermodynamics unchanged |
+| `dump_dipole_xyz_side_effect` | dipole response dumping leaves the trajectory unchanged |
+| `dump_polarizability_thermo_side_effect` | polarizability response dumping leaves thermodynamics unchanged |
 
 Several negative cases complement these relations. In particular, they
 preserve sequential validation of late or duplicate `replicate`, duplicate

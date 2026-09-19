@@ -1,7 +1,0 @@
-potential nep.txt
-time_step 1
-velocity 300
-ensemble nve
-dump_polarizability 1 nep_pol.txt
-dump_xyz 1 movie.xyz
-run 10

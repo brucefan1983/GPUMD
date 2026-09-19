@@ -13,15 +13,15 @@ is 5 Angstrom and the candidate neighbor list adds a 1 Angstrom skin. Wall
 cases use `replicate 12 6 6`, giving 13824 atoms and an x length of
 86.76 Angstrom.
 
-Triclinic and `ti_liquid` cases reuse the two-atom primitive Si cell at
-`tests/gpumd/silicon_dispersion/model.xyz` and replicate it `16 16 16` before
-loading `potentials/nep/Si_2022_NEP4_3body.txt`, giving 8192 atoms.
+Triclinic and the compact Si `ti_liquid` regression case reuse the two-atom
+primitive Si cell stored in `../phonon/si_primitive.xyz` and replicate it
+`16 16 16` before loading `potentials/nep/Si_2022_NEP4_3body.txt`, giving
+8192 atoms.
 
-The group-based `heat_nhc`, `heat_bdp`, and `heat_lan` cases reuse the
-40400-atom system from `tests/gpumd/graphene_kappa_nemd/model.xyz` together
-with `potentials/tersoff/Graphene_Lindsay_2010_modified.txt`. Group 0 is fixed,
-and groups 1 and 8 are the heat source and sink, matching the established
-graphene NEMD layout.
+The group-based `heat_nhc`, `heat_bdp`, and `heat_lan` cases use the
+self-contained `graphene_grouped_40400.xyz` fixture together with
+`potentials/tersoff/Graphene_Lindsay_2010_modified.txt`. Group 0 is fixed, and
+groups 1 and 8 are the heat source and sink.
 
 `temperature_F_512.xyz` and `../potentials/temperature_F_nep.txt` are the
 user-supplied temperature-dependent NEP fixture. The 512-atom fluorine model
@@ -38,3 +38,12 @@ NEP large-box path. Their pinned SHA-256 values are:
 `7319c9a7c21aa4cc66ba66c91cf4d4540dade2a28acab90f2529b39c26bbd459`.
 The unmodified companion is staged directly from
 `potentials/nep/C_2022_NEP4.txt`.
+
+
+Additional self-contained systems support semantic regression checks for
+active learning, TNEP dipole/polarizability response output, observer species
+validation, and grouped MSD. Their response or test-specific NEP models are
+stored under `../models/`; ordinary public GPUMD potentials continue to be
+staged from the repository-level `potentials/` directory when available.
+Legacy NEP3 fixtures used by these tests were converted to the equivalent
+NEP4 parameter layout before being added here.

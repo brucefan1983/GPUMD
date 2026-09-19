@@ -1,0 +1,6 @@
+potential nep.txt
+time_step 1
+velocity 300 seed 20260919
+ensemble nve
+dump_dipole 1 nep.txt
+run 10

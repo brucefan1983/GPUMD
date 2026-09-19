@@ -351,6 +351,32 @@ def test_parsing_validation_cases_match_the_accepted_baseline():
     ]
 
 
+
+def test_semantic_postchecks_preserve_byte_exact_cross_version_outputs():
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    post_checked = [case for case in manifest["cases"] if case.get("post_checks")]
+    assert post_checked
+    for case in post_checked:
+        # Semantic tolerances are independent post-processing oracles only.
+        # Baseline/candidate output comparison stays byte-exact.
+        assert case.get("comparisons", {}) == {}
+        assert "role_expectations" not in case
+        assert case.get("compare_cross_version", True) is True
+
+
+def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
+    text = MANIFEST.read_text(encoding="utf-8")
+    for directory in (
+        "active",
+        "dump_dipole",
+        "dump_observer",
+        "dump_polarizability",
+        "msd",
+        "ti-liquid",
+    ):
+        assert f"repo:tests/gpumd/{directory}/" not in text
+
+
 def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     actual = {
@@ -398,6 +424,8 @@ if __name__ == "__main__":
         test_behavior_contract_cases_are_full_differential_cases,
         test_default_runtime_consumers_are_full_cases,
         test_parsing_validation_cases_match_the_accepted_baseline,
+        test_semantic_postchecks_preserve_byte_exact_cross_version_outputs,
+        test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
         test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs,
     )
     for test in tests:

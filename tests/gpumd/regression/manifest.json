@@ -151,7 +151,7 @@
     "dual_nep_carbon": {
       "stage": [
         {
-          "source": "repo:tests/gpumd/dump_observer/carbon_average/model.xyz",
+          "source": "package:fixtures/systems/observer_carbon_159.xyz",
           "target": "model.xyz"
         },
         {
@@ -329,6 +329,98 @@
         {
           "source": "repo:potentials/nep/Si_2022_NEP4_3body.txt",
           "target": "potential.txt"
+        }
+      ]
+    },
+    "active_six_nep": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/active_carbon_192.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_full.txt",
+          "target": "nep_full.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split1.txt",
+          "target": "nep_split1.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split2.txt",
+          "target": "nep_split2.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split3.txt",
+          "target": "nep_split3.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split4.txt",
+          "target": "nep_split4.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split5.txt",
+          "target": "nep_split5.txt"
+        }
+      ]
+    },
+    "tnep_dipole": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/tnep_dipole_27.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_base_27.txt",
+          "target": "nep.txt"
+        },
+        {
+          "source": "package:fixtures/models/tnep_dipole.txt",
+          "target": "dipole.txt"
+        }
+      ]
+    },
+    "observer_pbte_species": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/observer_pbte_250.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/observer_PbTe.txt",
+          "target": "PbTe.txt"
+        },
+        {
+          "source": "package:fixtures/models/observer_PbTe_modified.txt",
+          "target": "PbTe_modified.txt"
+        }
+      ]
+    },
+    "tnep_polarizability": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/tnep_polarizability_320.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_polar_base_nep4.txt",
+          "target": "nep.txt"
+        },
+        {
+          "source": "package:fixtures/models/tnep_polarizability_nep4.txt",
+          "target": "polar.txt"
+        }
+      ]
+    },
+    "msd_reference": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/msd_grouped_27.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_base_27.txt",
+          "target": "nep.txt"
         }
       ]
     }
@@ -719,6 +811,101 @@
         {
           "case": "msd_options_reversed",
           "output": "msd.out"
+        }
+      ]
+    },
+    {
+      "id": "active_observer_independence_out",
+      "description": "dump_observer does not change active uncertainty output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "active_no_threshold",
+          "output": "active.out"
+        },
+        {
+          "case": "active_without_observer",
+          "output": "active.out"
+        }
+      ]
+    },
+    {
+      "id": "active_observer_independence_xyz",
+      "description": "dump_observer does not change selected active structures",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "active_no_threshold",
+          "output": "active.xyz"
+        },
+        {
+          "case": "active_without_observer",
+          "output": "active.xyz"
+        }
+      ]
+    },
+    {
+      "id": "dump_dipole_thermo_side_effect",
+      "description": "dump_dipole does not change thermodynamic output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_dipole",
+          "output": "thermo.out"
+        },
+        {
+          "case": "dump_dipole_control",
+          "output": "thermo.out"
+        }
+      ]
+    },
+    {
+      "id": "dump_dipole_xyz_side_effect",
+      "description": "dump_dipole does not change trajectory output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_dipole",
+          "output": "dump.xyz"
+        },
+        {
+          "case": "dump_dipole_control",
+          "output": "dump.xyz"
+        }
+      ]
+    },
+    {
+      "id": "dump_polarizability_thermo_side_effect",
+      "description": "dump_polarizability does not change thermodynamic output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_polarizability",
+          "output": "thermo.out"
+        },
+        {
+          "case": "dump_polarizability_control",
+          "output": "thermo.out"
         }
       ]
     }
@@ -4686,6 +4873,665 @@
         "neighbor.out"
       ],
       "input_style": "canonical"
+    },
+    {
+      "id": "active_no_threshold",
+      "description": "Active uncertainty matches six observer-force predictions and dumps every checked structure",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_no_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_interval_10",
+      "description": "Active uncertainty sampling every tenth step matches observer-force predictions",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_interval_10.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 10,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_low_threshold",
+      "description": "Active threshold writes only structures above the low uncertainty threshold",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_low_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.015,
+          "expected_selection": "partial",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_high_threshold",
+      "description": "Active high threshold writes no selected structures",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_high_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 1.0,
+          "expected_selection": "none",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ],
+      "allow_empty_outputs": [
+        "active.xyz"
+      ]
+    },
+    {
+      "id": "active_no_fields",
+      "description": "Active output can omit velocities and forces while retaining uncertainty",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_no_fields.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": false,
+          "has_force": false,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_without_observer",
+      "description": "Active uncertainty is unchanged when dump_observer is absent",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_without_observer.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-observer-independence"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole",
+      "description": "Dipole response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-dipole",
+        "contract:response-output"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dipole.out",
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_control",
+      "description": "Control trajectory without dipole response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "contract:response-side-effect-control"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_replicated",
+      "description": "Dipole response remains valid on a replicated system",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_replicated.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-dipole",
+        "command:replicate"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dipole.out",
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_invalid_model",
+      "description": "Reject a non-dipole response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_invalid_model.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:model-type-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "NEP_Response only supports nep4_dipole and nep4_polarizability models.",
+      "outputs": [
+        "dipole.out"
+      ],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_dipole_missing_model",
+      "description": "Reject dump_dipole without a response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_missing_model.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:parameter-count"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_dipole should have 2 parameters.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_observer_species_mismatch",
+      "description": "Reject multiple potentials with inconsistent atomic species ordering",
+      "suites": [
+        "invalid",
+        "potential",
+        "full"
+      ],
+      "fixture": "observer_pbte_species",
+      "input": "package:cases/observables/dump_observer_species_mismatch.in",
+      "covers": [
+        "potential:multiple-nep",
+        "command:dump-observer",
+        "contract:species-order-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "The atomic species and/or the order of the species are not consistent between the multiple potential",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_polarizability",
+      "description": "Polarizability response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-polarizability",
+        "contract:response-output"
+      ],
+      "expect": "success",
+      "outputs": [
+        "polarizability.out",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_control",
+      "description": "Control trajectory without polarizability response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "contract:response-side-effect-control"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_replicated",
+      "description": "Polarizability reduction is exercised on a 2560-atom replicated system",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_replicated.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-polarizability",
+        "command:replicate",
+        "contract:large-reduction"
+      ],
+      "expect": "success",
+      "outputs": [
+        "polarizability.out",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_invalid_model",
+      "description": "Reject a non-polarizability response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_invalid_model.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:model-type-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "NEP_Response only supports nep4_dipole and nep4_polarizability models.",
+      "outputs": [
+        "polarizability.out"
+      ],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_polarizability_missing_model",
+      "description": "Reject dump_polarizability without a response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_missing_model.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:parameter-count"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_polarizability should have 2 parameters.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_all_groups_numpy",
+      "description": "All-groups MSD agrees with a NumPy calculation from dumped unwrapped positions",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_all_groups.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:all-groups-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "msd_step10.out",
+        "msd_step20.out",
+        "msd_step30.out",
+        "group_0.xyz",
+        "group_1.xyz",
+        "group_2.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "group_0.xyz",
+              "column_start": 1
+            },
+            {
+              "xyz": "group_1.xyz",
+              "column_start": 7
+            },
+            {
+              "xyz": "group_2.xyz",
+              "column_start": 13
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "msd_group_0_numpy",
+      "description": "Single-group MSD agrees with a NumPy calculation",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_group_0.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:group-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "group_0.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "group_0.xyz",
+              "column_start": 1
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "msd_all_atoms_numpy",
+      "description": "Whole-system MSD agrees with a NumPy calculation",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_all_atoms.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:all-atoms-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "all_atoms.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "all_atoms.xyz",
+              "column_start": 1
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
     }
   ]
 }

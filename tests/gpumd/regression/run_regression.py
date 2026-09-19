@@ -2,8 +2,8 @@
 """Run strict, two-executable GPUMD regression tests.
 
 Each selected case is run exactly once with the baseline executable and once
-with the candidate executable. The package uses only the Python standard
-library.
+with the candidate executable. The runner uses the Python standard library
+and NumPy for declared semantic post-checks.
 """
 
 from __future__ import annotations
@@ -25,6 +25,8 @@ import subprocess
 import sys
 import time
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
+
+import post_checks
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -521,6 +523,8 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         "role_expectations",
         "compare_cross_version",
         "candidate_only",
+        "allow_empty_outputs",
+        "post_checks",
     }
     ids: Set[str] = set()
     full_coverage: Set[str] = set()
@@ -743,6 +747,31 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Successful case {case_id} must declare outputs")
         if "comparisons" in case:
             validate_comparisons(case["comparisons"], set(outputs), case_id)
+
+        allow_empty_outputs = case.get("allow_empty_outputs", [])
+        if (
+            not isinstance(allow_empty_outputs, list)
+            or not all(isinstance(output, str) for output in allow_empty_outputs)
+            or len(allow_empty_outputs) != len(set(allow_empty_outputs))
+        ):
+            raise ConfigurationError(
+                f"Case {case_id} allow_empty_outputs must be a unique string list"
+            )
+        unknown_empty_outputs = set(allow_empty_outputs) - set(outputs)
+        if unknown_empty_outputs:
+            raise ConfigurationError(
+                f"Case {case_id} allow_empty_outputs names undeclared output(s): "
+                f"{sorted(unknown_empty_outputs)}"
+            )
+
+        post_check_specs = case.get("post_checks", [])
+        if not isinstance(post_check_specs, list):
+            raise ConfigurationError(f"Case {case_id} post_checks must be a list")
+        for index, spec in enumerate(post_check_specs):
+            try:
+                post_checks.validate_spec(spec, f"Case {case_id} post_checks[{index}]")
+            except ValueError as exc:
+                raise ConfigurationError(str(exc)) from exc
 
         if "timeout_s" in case:
             value = case["timeout_s"]
@@ -1071,12 +1100,16 @@ def validate_yaml_output(text: str, label: str) -> None:
             )
 
 
-def validate_generated_output(path: Path, relative_path: str, label: str) -> None:
+def validate_generated_output(
+    path: Path, relative_path: str, label: str, allow_empty: bool = False
+) -> None:
     try:
         data = path.read_bytes()
     except OSError as exc:
         raise ComparisonError(f"{label}: cannot read generated output: {exc}") from exc
     if not data:
+        if allow_empty:
+            return
         raise ComparisonError(f"{label}: generated output is empty")
     suffix = Path(relative_path).suffix.lower()
     try:
@@ -1568,8 +1601,14 @@ def validate_run_result(result: Mapping[str, Any], case: Mapping[str, Any]) -> N
             f"{label}: generated-file inventory differs from manifest; "
             f"missing={missing}, unexpected={unexpected}"
         )
+    allow_empty_outputs = set(case.get("allow_empty_outputs", []))
     for output in result["generated_files"]:
-        validate_generated_output(workdir / output, output, f"{label}:{output}")
+        validate_generated_output(
+            workdir / output,
+            output,
+            f"{label}:{output}",
+            allow_empty=output in allow_empty_outputs,
+        )
 
 
 def cross_version_comparison_enabled(case: Mapping[str, Any]) -> bool:
@@ -1595,6 +1634,7 @@ def execute_case(
     runs: Dict[str, Dict[str, Any]] = {}
     errors: List[str] = []
     metrics: Dict[str, Any] = {}
+    post_check_metrics: Dict[str, Any] = {}
     cross_version_compared = False
     candidate_only = bool(case.get("candidate_only", False))
     roles = (("candidate", candidate),) if candidate_only else (
@@ -1621,6 +1661,13 @@ def execute_case(
         runs[role] = result
         try:
             validate_run_result(result, case)
+            if case.get("post_checks"):
+                try:
+                    post_check_metrics[role] = post_checks.run(
+                        case["post_checks"], Path(result["workdir"])
+                    )
+                except post_checks.PostCheckError as exc:
+                    raise ComparisonError(f"{case['id']}:{role}: post-check failed: {exc}") from exc
         except ComparisonError as exc:
             errors.append(str(exc))
 
@@ -1630,6 +1677,9 @@ def execute_case(
             metrics = compare_run_pair(runs["baseline"], runs["candidate"], case, recorder)
         except ComparisonError as exc:
             errors.append(str(exc))
+
+    if post_check_metrics:
+        metrics["post_checks"] = post_check_metrics
 
     status = "PASS" if not errors else "FAIL"
     if status == "PASS":
