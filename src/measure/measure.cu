@@ -95,14 +95,8 @@ bool Measure::parse_action(
 #endif
   } else if (tokens[0] == "plumed") {
 #ifdef USE_PLUMED
-    std::vector<const char*> param;
-    param.reserve(tokens.size());
-    for (const auto& token : tokens) {
-      param.emplace_back(token.c_str());
-    }
-    const int num_param = tokens.size();
     std::unique_ptr<Action> action;
-    action.reset(new PLUMED(param.data(), num_param));
+    action.reset(new PLUMED(tokens));
     actions_.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
