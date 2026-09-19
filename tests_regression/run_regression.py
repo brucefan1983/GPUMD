@@ -1944,6 +1944,12 @@ def main() -> int:
             if not os.access(executable, os.X_OK):
                 raise ConfigurationError(f"{role} executable is not executable: {executable}")
 
+        if WORK_ROOT.exists():
+            if WORK_ROOT.is_symlink():
+                raise ConfigurationError(f"Work root must not be a symlink: {WORK_ROOT}")
+            shutil.rmtree(WORK_ROOT)
+        WORK_ROOT.mkdir(parents=True)
+
         run_id = (
             dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
             + f"-p{os.getpid()}"

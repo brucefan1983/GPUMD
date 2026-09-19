@@ -8,7 +8,7 @@ The runner does not build GPUMD, infer revisions, or select a baseline. Supply
 the repository root and both executables explicitly:
 
 ```bash
-python3 tests/gpumd/regression/run_regression.py \
+python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --baseline /path/to/gpumd_baseline \
   --candidate /path/to/gpumd_candidate \
@@ -66,7 +66,7 @@ Manifest validation does not start GPUMD or require executable arguments. It
 does require the repository root so that every `repo:` source can be checked:
 
 ```bash
-python3 tests/gpumd/regression/run_regression.py \
+python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --check-manifest
 ```
@@ -75,17 +75,17 @@ The package self-tests verify the manifest and runner contracts:
 
 ```bash
 GPUMD_REPO_ROOT=/path/to/GPUMD \
-  python3 tests/gpumd/regression/test_manifest.py
+  python3 tests_regression/test_manifest.py
 
 python3 -m unittest discover \
-  -s tests/gpumd/regression -p 'test_*.py'
+  -s tests_regression -p 'test_*.py'
 ```
 
 Use `--list` and optional shell-style case patterns to inspect a selection
 without executing GPUMD:
 
 ```bash
-python3 tests/gpumd/regression/run_regression.py \
+python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --suite full --case 'pimd_*' --list
 ```
@@ -122,7 +122,7 @@ suites exist only to isolate a failure:
 For example, a focused rerun may help diagnose a full-suite failure:
 
 ```bash
-python3 tests/gpumd/regression/run_regression.py \
+python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --baseline /path/to/gpumd_baseline \
   --candidate /path/to/gpumd_candidate \
@@ -224,7 +224,7 @@ first run.
 Machine-readable reports are written below:
 
 ```text
-tests/gpumd/regression/reports/
+tests_regression/reports/
 ```
 
 Each report records the selected cases, results, durations, executable
@@ -232,13 +232,15 @@ metadata, and staged/generated file hashes. Failed work directories are
 retained below:
 
 ```text
-tests/gpumd/regression/.work/<run-id>/
+tests_regression/.work/<run-id>/
 ```
 
 Passing directories are normally removed after their hashes and applicable
-relations have been recorded. Add `--keep-all` to retain all baseline and
-candidate directories for inspection. Inspect the report and retained files
-before changing an expected output, tolerance, or normalization rule.
+relations have been recorded. Before each actual regression run, any previous
+`.work` tree is removed, so retained work from at most the current run remains.
+Add `--keep-all` to retain all baseline and candidate directories for that run.
+Inspect the report and retained files before changing an expected output,
+tolerance, or normalization rule.
 
 ## Coverage and known gaps
 
