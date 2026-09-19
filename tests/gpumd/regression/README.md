@@ -22,12 +22,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 175 cases and evaluates
-all 18 cross-case relations after the cases pass. Every case and relation runs
+`full` is the only acceptance suite. It contains all 195 cases and evaluates
+all 23 cross-case relations after the cases pass. Every case and relation runs
 for both the baseline and candidate. A successful run ends with:
 
 ```text
-Summary: 175 passed, 0 failed; relations: 18 passed, 0 failed, 0 skipped
+Summary: 195 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -40,7 +40,7 @@ source change is:
 
 ## Requirements and reproducible builds
 
-- Python 3.9 or newer and the standard library;
+- Python 3.9 or newer, the standard library, and NumPy;
 - Linux with one available CUDA or HIP device;
 - baseline and candidate built from the intended sources with identical
   compiler, backend, architecture, feature, and optimization options.
@@ -78,7 +78,7 @@ GPUMD_REPO_ROOT=/path/to/GPUMD \
   python3 tests/gpumd/regression/test_manifest.py
 
 python3 -m unittest discover \
-  -s tests/gpumd/regression -p 'test_runner.py'
+  -s tests/gpumd/regression -p 'test_*.py'
 ```
 
 Use `--list` and optional shell-style case patterns to inspect a selection
@@ -117,7 +117,7 @@ suites exist only to isolate a failure:
 | `first_step_init` | initialization exercised by the first integration step |
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
-| `full` | all 175 cases and all 18 relations |
+| `full` | all 195 cases and all 23 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 
@@ -164,6 +164,13 @@ order, and nonnumeric text, and rejects non-finite or overflowing values. All
 other outputs remain byte-exact unless their manifest entry explicitly says
 otherwise.
 
+Selected cases also declare NumPy-based semantic post-checks. These checks are
+additional oracles applied independently to the baseline and candidate after
+the direct outputs have satisfied the normal byte-exact comparison. Tolerances
+are permitted only inside these post-processing checks, currently for quantities
+that can be recomputed independently from generated data: active-learning
+uncertainty and MSD. They do not relax baseline/candidate output comparison.
+
 Inputs and staged fixtures are hashed before and after execution. A case that
 intentionally rewrites an input must declare it in `mutable_inputs`.
 Unexpected mutation or deletion fails the case. Declared mutable inputs are
@@ -179,7 +186,7 @@ cases:
   concatenation of its parts.
 
 A relation runs only after all referenced cases pass. `full` includes every
-relation member, so all 18 relations run for both executables. Passing work
+relation member, so all 23 relations run for both executables. Passing work
 directories are retained until applicable relations complete. A relation
 failure retains all implicated case directories and exits unsuccessfully.
 
@@ -248,8 +255,14 @@ conditions are exercised.
 
 Potential coverage includes EAM, Tersoff, NEP89, multiple NEPs,
 temperature-dependent NEP, qNEP Ewald/PPPM with charge and BEC consumers, and
-three hybrid ILP paths. Additional cases exercise RDF/angular RDF, active
-learning, observer grouping, fixed/moving atoms, and electric-field consumers.
+three hybrid ILP paths. Additional cases exercise RDF/angular RDF, active learning (including interval,
+threshold, output-field, and observer-independence contracts), observer
+observe/average modes, dipole and polarizability response dumps, fixed/moving
+atoms, and electric-field consumers. NumPy post-checks independently recompute
+active uncertainty and MSD. Dipole, polarizability, observer, and liquid-TI
+outputs are checked by the normal byte-exact baseline/candidate regression and
+by exact cross-case side-effect relations where applicable; no historical
+hardcoded response or free-energy values are used.
 Coverage is recorded through generic `covers` tags rather than inferred from
 case names.
 
