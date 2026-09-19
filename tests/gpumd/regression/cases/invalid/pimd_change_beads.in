@@ -1,0 +1,8 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.1
+ensemble pimd 4 300 300 20
+run 1
+ensemble pimd 6 300 300 20
+run 1

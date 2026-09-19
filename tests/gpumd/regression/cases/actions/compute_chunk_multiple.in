@@ -1,0 +1,10 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+compute_chunk 1 2 bin/1d x lower 100.0 density/number
+compute_chunk 1 2 bin/2d y lower 100.0 z lower 100.0 density/number
+dump_restart 2
+run 2

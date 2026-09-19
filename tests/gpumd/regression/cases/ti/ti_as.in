@@ -1,0 +1,10 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.1
+ensemble ti_as temp 300 tperiod 100 iso 0 1 pperiod 1000 tequil 2 tswitch 4
+
+dump_thermo 1
+dump_xyz 12 final.xyz precision double velocity force potential virial group_labels
+dump_restart 12
+run 12
