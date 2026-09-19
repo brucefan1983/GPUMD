@@ -48,6 +48,15 @@ public:
     Box& box,
     Force& force);
 
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
   virtual void end_of_step(
       const int number_of_steps,
       int step,
@@ -72,4 +81,9 @@ public:
 
   HNEMDEC(const std::vector<std::string>& tokens);
   void parse(const std::vector<std::string>& tokens);
+
+private:
+  GPU_Vector<double> coefficient_;
+  GPU_Vector<double> tensor_per_atom_;
+  GPU_Vector<double> tensor_sum_;
 };
