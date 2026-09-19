@@ -30,7 +30,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #include "modal_analysis.cuh"
-#include "force/force.cuh"
+#include "hnemd_force.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
@@ -459,6 +459,7 @@ void MODAL_ANALYSIS::pre_run(
     strcpy(output_file_position, "heatmode.out");
   } else if (method == HNEMA_METHOD) {
     strcpy(output_file_position, "kappamode.out");
+    force_sum_.resize(3);
   }
 
   size_t eig_size = num_participating * num_modes;
@@ -557,6 +558,28 @@ void MODAL_ANALYSIS::pre_run(
   gpublasCreate(&ma_handle);
 }
 
+void MODAL_ANALYSIS::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute || method != HNEMA_METHOD)
+    return;
+
+  apply_hnemd_force(
+    atom.number_of_atoms,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.virial_per_atom,
+    atom.force_per_atom,
+    force_sum_);
+}
+
 void MODAL_ANALYSIS::end_of_step(
   const int number_of_steps,
   int step,
@@ -633,17 +656,16 @@ void MODAL_ANALYSIS::post_run(
 
 MODAL_ANALYSIS::MODAL_ANALYSIS(
   const std::vector<std::string>& tokens,
-  const int number_of_types, 
-  int method_input,
-  Force& force)
+  const int number_of_types,
+  int method_input)
 {
   if (method_input == 0) {
     parse_compute_gkma(tokens, number_of_types);
+    action_name = "compute_gkma";
   } else {
     parse_compute_hnema(tokens, number_of_types);
-    force.set_hnemd_parameters(fe_x, fe_y, fe_z);
+    action_name = "compute_hnema";
   }
-  action_name = "modal_analysis";
 }
 
 void MODAL_ANALYSIS::parse_compute_gkma(

@@ -250,32 +250,6 @@ int Force::get_number_of_types(FILE* fid_potential)
   return num_of_types;
 }
 
-static __global__ void gpu_add_driving_force(
-  int N,
-  double fe_x,
-  double fe_y,
-  double fe_z,
-  double* g_sxx,
-  double* g_sxy,
-  double* g_sxz,
-  double* g_syx,
-  double* g_syy,
-  double* g_syz,
-  double* g_szx,
-  double* g_szy,
-  double* g_szz,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N) {
-    g_fx[i] += fe_x * g_sxx[i] + fe_y * g_syx[i] + fe_z * g_szx[i];
-    g_fy[i] += fe_x * g_sxy[i] + fe_y * g_syy[i] + fe_z * g_szy[i];
-    g_fz[i] += fe_x * g_sxz[i] + fe_y * g_syz[i] + fe_z * g_szz[i];
-  }
-}
-
 // get the total force
 static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
 {
@@ -359,24 +333,8 @@ static __global__ void initialize_properties(
 
 void Force::finalize()
 {
-  compute_hnemd_ = false;
   compute_hnemdec_ = -1;
   multiple_potentials_mode_ = "observe";
-}
-
-void Force::set_hnemd_parameters(
-  const double hnemd_fe_x, const double hnemd_fe_y, const double hnemd_fe_z)
-{
-  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
-    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
-  }
-  if (hnemd_force_sum_.size() != 3) {
-    hnemd_force_sum_.resize(3);
-  }
-  compute_hnemd_ = true;
-  hnemd_fe_[0] = hnemd_fe_x;
-  hnemd_fe_[1] = hnemd_fe_y;
-  hnemd_fe_[2] = hnemd_fe_z;
 }
 
 void Force::set_hnemdec_parameters(
@@ -389,7 +347,7 @@ void Force::set_hnemdec_parameters(
   const std::vector<int>& type_size,
   const double T)
 {
-  if (compute_hnemd_ || compute_hnemdec_ >= 0) {
+  if (compute_hnemdec_ >= 0) {
     PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
   }
 
@@ -650,56 +608,11 @@ void Force::compute_potentials(
   }
 }
 
-void Force::apply_hnemd(
-  const int number_of_atoms,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
-{
-  // the virial tensor:
-  // xx xy xz    0 3 4
-  // yx yy yz    6 1 5
-  // zx zy zz    7 8 2
-  gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    hnemd_fe_[0],
-    hnemd_fe_[1],
-    hnemd_fe_[2],
-    virial_per_atom.data() + 0 * number_of_atoms,
-    virial_per_atom.data() + 3 * number_of_atoms,
-    virial_per_atom.data() + 4 * number_of_atoms,
-    virial_per_atom.data() + 6 * number_of_atoms,
-    virial_per_atom.data() + 1 * number_of_atoms,
-    virial_per_atom.data() + 5 * number_of_atoms,
-    virial_per_atom.data() + 7 * number_of_atoms,
-    virial_per_atom.data() + 8 * number_of_atoms,
-    virial_per_atom.data() + 2 * number_of_atoms,
-    force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + 2 * number_of_atoms);
-
-  gpu_sum_force<<<3, 1024>>>(
-    number_of_atoms,
-    force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + 2 * number_of_atoms,
-    hnemd_force_sum_.data());
-  GPU_CHECK_KERNEL
-
-  gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    1.0 / number_of_atoms,
-    force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + 2 * number_of_atoms,
-    hnemd_force_sum_.data());
-  GPU_CHECK_KERNEL
-}
-
 void Force::correct_fcp_force(
   const int number_of_atoms, GPU_Vector<double>& force_per_atom)
 {
   // always correct the force when using the FCP potential
-  if (is_fcp && !compute_hnemd_) {
+  if (is_fcp) {
     GPU_Vector<double> ftot(3); // total force vector of the system
     gpu_sum_force<<<3, 1024>>>(
       number_of_atoms,
@@ -747,10 +660,6 @@ void Force::compute(
     potential_per_atom,
     force_per_atom,
     virial_per_atom);
-
-  if (compute_hnemd_) {
-    apply_hnemd(number_of_atoms, force_per_atom, virial_per_atom);
-  }
 
   correct_fcp_force(number_of_atoms, force_per_atom);
 }
@@ -995,9 +904,7 @@ void Force::compute(
     force_per_atom,
     virial_per_atom);
 
-  if (compute_hnemd_) {
-    apply_hnemd(number_of_atoms, force_per_atom, virial_per_atom);
-  } else if (compute_hnemdec_ != -1) {
+  if (compute_hnemdec_ != -1) {
     apply_hnemdec(
       number_of_atoms,
       type,

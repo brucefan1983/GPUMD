@@ -23,7 +23,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 #include "compute_heat.cuh"
 #include "hnemd_kappa.cuh"
-#include "force/force.cuh"
+#include "hnemd_force.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -46,6 +46,29 @@ void HNEMD::pre_run(
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
   atom.heat_per_atom.resize(atom.number_of_atoms * 5);
+  force_sum_.resize(3);
+}
+
+void HNEMD::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute)
+    return;
+
+  apply_hnemd_force(
+    atom.number_of_atoms,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.virial_per_atom,
+    atom.force_per_atom,
+    force_sum_);
 }
 
 static __global__ void
@@ -138,11 +161,10 @@ void HNEMD::post_run(
   const double time_step,
   const double temperature) { compute = 0; }
 
-HNEMD::HNEMD(const std::vector<std::string>& tokens, Force& force)
+HNEMD::HNEMD(const std::vector<std::string>& tokens)
 {
   parse(tokens);
   action_name = "compute_hnemd";
-  force.set_hnemd_parameters(fe_x, fe_y, fe_z);
 }
 
 void HNEMD::parse(const std::vector<std::string>& tokens)

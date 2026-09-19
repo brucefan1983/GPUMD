@@ -61,7 +61,6 @@ public:
   void finalize();
 
   int get_number_of_types(FILE* fid_potential);
-  void set_hnemd_parameters(const double, const double, const double);
   void set_hnemdec_parameters(
     const int compute_hnemdec,
     const double hnemd_fe_x,
@@ -91,7 +90,6 @@ private:
 
   double temperature = 0;
   double delta_T;
-  bool compute_hnemd_ = false;
   int compute_hnemdec_ = -1;
   double hnemd_fe_[3];
   GPU_Vector<double> coefficient;
@@ -99,8 +97,6 @@ private:
   int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;
-  // Workspace reused by the HNEMD total-force correction.
-  GPU_Vector<double> hnemd_force_sum_;
   // Workspaces reused by the HNEMDEC heat-flow driving force.
   GPU_Vector<double> hnemdec_tensor_per_atom_;
   GPU_Vector<double> hnemdec_tensor_sum_;
@@ -132,10 +128,6 @@ private:
     GPU_Vector<int>& type,
     const std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
-  void apply_hnemd(
-    const int number_of_atoms,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
   void apply_hnemdec(
