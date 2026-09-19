@@ -22,7 +22,6 @@ The driver class for the various MC ensembles.
 #include "mc_ensemble_sgc.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
@@ -35,10 +34,11 @@ MC::MC(void)
 MC::MC(
   const std::vector<std::string>& tokens,
   std::vector<Group>& group,
-  Atom& atom)
+  Atom& atom,
+  const std::string& potential_file_name)
 {
   action_name = "mc";
-  parse_mc(tokens, group, atom);
+  parse_mc(tokens, group, atom, potential_file_name);
 }
 
 void MC::initialize(void)
@@ -147,31 +147,8 @@ void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
   }
 }
 
-static std::string get_potential_file_name()
+static std::vector<std::string> get_atom_symbols_in_nep(const std::string& potential_file_name)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return get_compact_nep_filename(potential_file_name);
-}
-
-static std::vector<std::string> get_atom_symbols_in_nep()
-{
-  auto potential_file_name = get_potential_file_name();
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
@@ -192,9 +169,10 @@ static std::vector<std::string> get_atom_symbols_in_nep()
   return atom_symbols_in_nep;
 }
 
-void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
+void MC::check_species_sgc(
+  std::vector<Group>& groups, Atom& atom, const std::string& potential_file_name)
 {
-  auto atom_symbols_in_nep = get_atom_symbols_in_nep();
+  auto atom_symbols_in_nep = get_atom_symbols_in_nep(potential_file_name);
   for (int s = 0; s < species.size(); ++s) {
     bool allowed_species = false;
     for (int n = 0; n < atom_symbols_in_nep.size(); ++n) {
@@ -247,7 +225,8 @@ void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
 void MC::parse_mc(
   const std::vector<std::string>& tokens,
   std::vector<Group>& groups,
-  Atom& atom)
+  Atom& atom,
+  const std::string& potential_file_name)
 {
   const int num_param = tokens.size();
   if (num_param < 6) {
@@ -363,15 +342,31 @@ void MC::parse_mc(
   std::fill(num_atoms_species.begin(), num_atoms_species.end(), 0);
   if (mc_ensemble_type == 0) {
     check_species_canonical(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_Canonical(tokens, num_steps_mc));
+    mc_ensemble.reset(new MC_Ensemble_Canonical(tokens, num_steps_mc, potential_file_name));
   } else if (mc_ensemble_type == 1) {
-    check_species_sgc(groups, atom);
+    check_species_sgc(groups, atom, potential_file_name);
     mc_ensemble.reset(new MC_Ensemble_SGC(
-      tokens, num_steps_mc, false, species, types, num_atoms_species, mu_or_phi, kappa));
+      tokens,
+      num_steps_mc,
+      false,
+      species,
+      types,
+      num_atoms_species,
+      mu_or_phi,
+      kappa,
+      potential_file_name));
   } else if (mc_ensemble_type == 2) {
-    check_species_sgc(groups, atom);
+    check_species_sgc(groups, atom, potential_file_name);
     mc_ensemble.reset(new MC_Ensemble_SGC(
-      tokens, num_steps_mc, true, species, types, num_atoms_species, mu_or_phi, kappa));
+      tokens,
+      num_steps_mc,
+      true,
+      species,
+      types,
+      num_atoms_species,
+      mu_or_phi,
+      kappa,
+      potential_file_name));
   }
 
   do_mcmd = true;

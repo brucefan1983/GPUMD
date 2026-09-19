@@ -27,7 +27,8 @@ public:
     std::vector<int>& types,
     std::vector<int>& num_atoms_species,
     std::vector<double>& mu_or_phi,
-    double kappa);
+    double kappa,
+    const std::string& potential_file_name);
   virtual ~MC_Ensemble_SGC(void);
 
   virtual void compute(

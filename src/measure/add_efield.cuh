@@ -23,7 +23,9 @@ class Add_Efield : public Action
 {
 public:
   Add_Efield(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+    const std::vector<std::string>& tokens,
+    const std::vector<Group>& group,
+    bool is_nep_charge);
 
   void setup_force(
     const double time_step,

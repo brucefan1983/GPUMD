@@ -173,12 +173,12 @@ void Compute_dpdt::post_run(
   fclose(fid);
 }
 
-void Compute_dpdt::parse(const std::vector<std::string>& tokens)
+void Compute_dpdt::parse(const std::vector<std::string>& tokens, bool is_nep_charge)
 {
   const int num_param = tokens.size();
   printf("Compute dp/dt.\n");
 
-  if (!check_is_nep_charge()) {
+  if (!is_nep_charge) {
     PRINT_INPUT_ERROR("cannot use compute_dpdt for a non-NEP-Charge model.\n");
   }
 
@@ -195,8 +195,8 @@ void Compute_dpdt::parse(const std::vector<std::string>& tokens)
   printf("    sample interval is %d.\n", sample_interval);
 }
 
-Compute_dpdt::Compute_dpdt(const std::vector<std::string>& tokens)
+Compute_dpdt::Compute_dpdt(const std::vector<std::string>& tokens, bool is_nep_charge)
 {
-  parse(tokens);
+  parse(tokens, is_nep_charge);
   action_name = "compute_dpdt";
 }

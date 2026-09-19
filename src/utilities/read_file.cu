@@ -67,32 +67,9 @@ int is_valid_real(const std::string& s, double* result)
   return is_valid_real(s.c_str(), result);
 }
 
-static std::string get_potential_file_name()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return potential_file_name;
-}
-
-bool check_is_nep_charge()
+bool is_nep_charge_potential(const std::string& potential_file_name)
 {
   bool is_nep_charge = false;
-  std::string potential_file_name = get_potential_file_name();
 
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -105,7 +82,7 @@ bool check_is_nep_charge()
     if (tokens[0].substr(0, 11) == "nep4_charge") {
       is_nep_charge = true;
     }
-  } 
+  }
   if (tokens[0].size() >= 16) {
     if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
       is_nep_charge = true;

@@ -112,6 +112,7 @@ Run::Run(const RunInput& run_input)
   print_line_2();
 
   initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
+  first_potential_filename_ = get_first_potential_filename(run_input);
 
   allocate_memory_gpu(group, atom, thermo);
 
@@ -286,6 +287,10 @@ void Run::parse_one_keyword(
     force.parse_potential(tokens, box, atom.type.size(), run_input);
   } else if (tokens[0] == "replicate") {
     Replicate(tokens, box, atom, group);
+    for (int i = 0; i < 3; ++i) {
+      replicate_size_[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
+    }
+    has_replicate_ = true;
     allocate_memory_gpu(group, atom, thermo);
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
@@ -300,7 +305,10 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "compute_phonon") {
     Hessian hessian;
     hessian.parse(tokens);
-    hessian.compute(force, box, atom, group);
+    if (!has_replicate_) {
+      PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
+    }
+    hessian.compute(force, box, atom, group, replicate_size_);
   } else if (tokens[0] == "compute_cohesive") {
     Cohesive cohesive;
     cohesive.parse(tokens, 0);
@@ -335,7 +343,15 @@ void Run::parse_one_keyword(
     has_seen_dftd3_command = true;
   } else if (tokens[0] == "run") {
     parse_run(tokens);
-  } else if (!measure.parse_action(tokens, number_of_types, integrate, group, atom, box, force)) {
+  } else if (!measure.parse_action(
+               tokens,
+               number_of_types,
+               integrate,
+               group,
+               atom,
+               box,
+               force,
+               first_potential_filename_)) {
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
   }
 }

@@ -19,7 +19,6 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 
 #include "mc_ensemble.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <fstream>
@@ -28,29 +27,7 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 #include <string>
 #include <cstring>
 
-static std::string get_potential_file_name()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return get_compact_nep_filename(potential_file_name);
-}
-
-static void check_is_nep(std::string& potential_file_name)
+static void check_is_nep(const std::string& potential_file_name)
 {
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -65,7 +42,8 @@ static void check_is_nep(std::string& potential_file_name)
   input_potential.close();
 }
 
-MC_Ensemble::MC_Ensemble(const std::vector<std::string>& tokens)
+MC_Ensemble::MC_Ensemble(
+  const std::vector<std::string>& tokens, const std::string& potential_file_name)
 {
   const int num_param = tokens.size();
   mc_output.open("mcmd.out", std::ios::app);
@@ -95,7 +73,6 @@ MC_Ensemble::MC_Ensemble(const std::vector<std::string>& tokens)
   pe_before.resize(n_max);
   pe_after.resize(n_max);
 
-  std::string potential_file_name = get_potential_file_name();
   check_is_nep(potential_file_name);
   nep_energy.initialize(potential_file_name.c_str());
 
