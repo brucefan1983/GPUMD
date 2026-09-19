@@ -257,11 +257,11 @@ static void pack_tensor_by_precision(
 }
 
 DUMP_NETCDF::DUMP_NETCDF(
-  const char** param, int num_param, const std::vector<Group>& groups, Atom& atom)
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
 {
   is_nep_charge_ = check_is_nep_charge();
 
-  parse(param, num_param, groups);
+  parse(tokens, groups);
 
   if (quantities_.has_unwrapped_position_) {
     atom.enable_unwrapped_position();
@@ -270,27 +270,31 @@ DUMP_NETCDF::DUMP_NETCDF(
   action_name = "dump_netcdf";
 }
 
-void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Group>& groups)
+void DUMP_NETCDF::parse(
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   dump_ = true;
   printf("Dump per-atom data in NetCDF format.\n");
 
+  const int num_param = tokens.size();
   if (num_param < 3) {
     PRINT_INPUT_ERROR("dump_netcdf should have at least 2 parameters.\n");
   }
 
-  // The old syntax started with <grouping_method> <group_id> <interval>, so param[2] and param[3]
-  // were both integers. In the current syntax param[2] is the file name and param[3] is an option
-  // or a quantity keyword, neither of which is an integer.
+  // The old syntax started with <grouping_method> <group_id> <interval>, so tokens[2] and
+  // tokens[3] were both integers. In the current syntax tokens[2] is the file name and tokens[3]
+  // is an option or a quantity keyword, neither of which is an integer.
   int scratch;
-  if (num_param >= 4 && is_valid_int(param[2], &scratch) && is_valid_int(param[3], &scratch)) {
+  if (num_param >= 4 &&
+      is_valid_int(tokens[2], &scratch) &&
+      is_valid_int(tokens[3], &scratch)) {
     PRINT_INPUT_ERROR(
       "dump_netcdf no longer takes <grouping_method> <group_id> as its first two parameters, and "
       "<has_velocity> is now the optional quantity 'velocity'. Use dump_netcdf <interval> "
       "<filename> [group <grouping_method> <group_id>] [velocity] instead.");
   }
 
-  if (!is_valid_int(param[1], &interval_)) {
+  if (!is_valid_int(tokens[1], &interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (interval_ <= 0) {
@@ -298,7 +302,7 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
   }
   printf("    every %d steps.\n", interval_);
 
-  filename_ = param[2];
+  filename_ = tokens[2];
   printf("    into file %s.\n", filename_.c_str());
 
   number_of_grouping_methods_ = groups.size();
@@ -307,11 +311,11 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
   bool precision_seen = false;
   bool compression_seen = false;
   for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
+    if (tokens[k] == "group") {
       if (group_seen) {
         PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_netcdf.\n");
       }
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+      parse_group(tokens, false, groups, k, grouping_method_, group_id_);
       // parse_group checks the bounds but not the size, and an empty group is not caught further
       // down either. NC_UNLIMITED is 0, so defining the atom dimension with a length of zero
       // makes it unlimited rather than failing: with compression the run then succeeds and
@@ -322,28 +326,28 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
         PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
       }
       group_seen = true;
-    } else if (strcmp(param[k], "precision") == 0) {
+    } else if (tokens[k] == "precision") {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_netcdf.\n");
       }
-      parse_precision(param, num_param, k, precision_);
+      parse_precision(tokens, k, precision_);
       precision_seen = true;
-    } else if (strcmp(param[k], "compression") == 0) {
+    } else if (tokens[k] == "compression") {
       if (compression_seen) {
         PRINT_INPUT_ERROR("Option 'compression' is specified more than once in dump_netcdf.\n");
       }
       if (k + 1 >= num_param) {
         PRINT_INPUT_ERROR("Not enough arguments for option 'compression'.\n");
       }
-      if (strcmp(param[k + 1], "none") == 0) {
+      if (tokens[k + 1] == "none") {
         compression_level_ = -1;
         printf("    without compression.\n");
         ++k;
-      } else if (strcmp(param[k + 1], "deflate") == 0) {
+      } else if (tokens[k + 1] == "deflate") {
         if (k + 2 >= num_param) {
           PRINT_INPUT_ERROR("A deflate level is required for dump_netcdf compression.\n");
         }
-        if (!is_valid_int(param[k + 2], &compression_level_)) {
+        if (!is_valid_int(tokens[k + 2], &compression_level_)) {
           PRINT_INPUT_ERROR("The dump_netcdf deflate level should be an integer.\n");
         }
         if (compression_level_ < 0 || compression_level_ > 9) {
@@ -355,7 +359,8 @@ void DUMP_NETCDF::parse(const char** param, int num_param, const std::vector<Gro
         PRINT_INPUT_ERROR("Compression should be 'none' or 'deflate <0-9>'.\n");
       }
       compression_seen = true;
-    } else if (!parse_dump_quantity(param[k], quantities_, is_nep_charge_, groups, "dump_netcdf")) {
+    } else if (!parse_dump_quantity(
+                 tokens[k], quantities_, is_nep_charge_, groups, "dump_netcdf")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_netcdf.\n");
     }
   }
