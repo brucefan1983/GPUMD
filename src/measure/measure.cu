@@ -87,28 +87,16 @@ bool Measure::parse_action(
       "Use dump_xyz <interval> <filename> instead.");
   } else if (tokens[0] == "dump_netcdf") {
 #ifdef USE_NETCDF
-    std::vector<const char*> param;
-    param.reserve(tokens.size());
-    for (const auto& token : tokens) {
-      param.emplace_back(token.c_str());
-    }
-    const int num_param = tokens.size();
     std::unique_ptr<Action> action;
-    action.reset(new DUMP_NETCDF(param.data(), num_param, group, atom));
+    action.reset(new DUMP_NETCDF(tokens, group, atom));
     actions_.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
 #endif
   } else if (tokens[0] == "plumed") {
 #ifdef USE_PLUMED
-    std::vector<const char*> param;
-    param.reserve(tokens.size());
-    for (const auto& token : tokens) {
-      param.emplace_back(token.c_str());
-    }
-    const int num_param = tokens.size();
     std::unique_ptr<Action> action;
-    action.reset(new PLUMED(param.data(), num_param));
+    action.reset(new PLUMED(tokens));
     actions_.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");

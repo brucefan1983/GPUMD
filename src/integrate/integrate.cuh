@@ -38,6 +38,7 @@ private:
 
   double temperature1; // target initial temperature for a run
   double temperature2; // target final temperature for a run
+  double temperature;  // target temperature at a specific time
   int num_target_pressure_components;
   int deform_x = 0;
   int deform_y = 0;
@@ -58,6 +59,7 @@ public:
   int get_move_grouping_method() const;
   double get_temperature1() const;
   double get_temperature2() const;
+  double get_temperature() const;
   int get_num_target_pressure_components() const;
   int get_number_of_beads() const;
   const double* get_energy_transferred() const;
@@ -113,7 +115,4 @@ public:
     const std::vector<Group>& group);
   void parse_fix(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_move(const std::vector<std::string>& tokens, const std::vector<Group>& group);
-
-  // Kept public for the optional PLUMED integration.
-  double temperature;  // target temperature at a specific time
 };

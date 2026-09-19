@@ -28,8 +28,10 @@ class Group;
 class DUMP_NETCDF : public Action
 {
 public:
-  DUMP_NETCDF(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
-  void parse(const char** param, int num_param, const std::vector<Group>& groups);
+  DUMP_NETCDF(
+    const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
+  void parse(
+    const std::vector<std::string>& tokens, const std::vector<Group>& groups);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

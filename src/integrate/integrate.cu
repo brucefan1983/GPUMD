@@ -88,6 +88,11 @@ double Integrate::get_temperature2() const
   return temperature2;
 }
 
+double Integrate::get_temperature() const
+{
+  return temperature;
+}
+
 int Integrate::get_num_target_pressure_components() const
 {
   return num_target_pressure_components;
