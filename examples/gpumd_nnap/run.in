@@ -1,4 +1,4 @@
-potential  nnap.txt ../../../potentials/nnap/Cu.json
+potential  nnap.txt ../../potentials/nnap/Cu.json
 
 ensemble nve
 time_step 0

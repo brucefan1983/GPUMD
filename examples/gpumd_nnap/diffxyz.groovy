@@ -3,7 +3,7 @@ import jse.code.IO
 import jse.math.matrix.IMatrix
 import jsex.nnap.NNAP
 
-def pot = new NNAP('../../../potentials/nnap/Cu.json')
+def pot = new NNAP('../../potentials/nnap/Cu.json')
 def data = DataXYZ.read('dump.1.xyz')
 
 double eng = (double)data.parameter('energy')
