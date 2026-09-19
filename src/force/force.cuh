@@ -98,4 +98,36 @@ private:
   std::string atom_types[NUM_ELEMENTS];
 
   void check_types(const std::string& file_potential);
+  void prepare_compute(
+    const int number_of_atoms,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    int* position_image);
+  void compute_potentials(
+    const int number_of_atoms,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+  void compute_single_potential(
+    Potential& potential,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+  void apply_hnemd(
+    const int number_of_atoms,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+  void correct_fcp_force(
+    const int number_of_atoms, GPU_Vector<double>& force_per_atom);
 };
