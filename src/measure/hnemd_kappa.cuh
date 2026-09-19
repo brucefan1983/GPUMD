@@ -40,6 +40,15 @@ public:
     Box& box,
     Force& force);
 
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
   virtual void end_of_step(
       const int number_of_steps,
       int step,
@@ -63,5 +72,8 @@ public:
     const double temperature);
 
   void parse(const std::vector<std::string>& tokens);
-  HNEMD(const std::vector<std::string>& tokens, Force& force);
+  HNEMD(const std::vector<std::string>& tokens);
+
+private:
+  GPU_Vector<double> force_sum_;
 };

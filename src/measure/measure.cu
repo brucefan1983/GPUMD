@@ -208,7 +208,7 @@ bool Measure::parse_action(
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_hnemd") {
     std::unique_ptr<Action> action;
-    action.reset(new HNEMD(tokens, force));
+    action.reset(new HNEMD(tokens));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_hnemdec") {
     std::unique_ptr<Action> action;
@@ -220,11 +220,11 @@ bool Measure::parse_action(
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_gkma") {
     std::unique_ptr<Action> action;
-    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 0, force));
+    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 0));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_hnema") {
     std::unique_ptr<Action> action;
-    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 1, force));
+    action.reset(new MODAL_ANALYSIS(tokens, number_of_types, 1));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "deform") {
     Deform* deform = new Deform(tokens);
@@ -291,6 +291,8 @@ void Measure::pre_run(
   Force& force)
 {
   std::vector<std::string> action_names;
+  int number_of_hnemd_methods = 0;
+  int number_of_modal_methods = 0;
   for (auto& action : actions_) {
     if (action->action_name == "") {
       printf("Dear developer:\n");
@@ -311,9 +313,26 @@ void Measure::pre_run(
         }
       }
     }
+    if (
+      action->action_name == "compute_hnemd" ||
+      action->action_name == "compute_hnemdec" ||
+      action->action_name == "compute_hnema") {
+      ++number_of_hnemd_methods;
+    }
+    if (
+      action->action_name == "compute_gkma" ||
+      action->action_name == "compute_hnema") {
+      ++number_of_modal_methods;
+    }
     action_names.emplace_back(action->action_name);
   }
 
+  if (number_of_modal_methods > 1) {
+    PRINT_INPUT_ERROR("There are multiple modal_analysis keywords within one run.");
+  }
+  if (number_of_hnemd_methods > 1) {
+    PRINT_INPUT_ERROR("Cannot have more than one HNEMD method within one run.");
+  }
 
   for (auto& action : actions_) {
     action->pre_run(

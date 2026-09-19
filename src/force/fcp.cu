@@ -53,6 +53,7 @@ FCP::FCP(FILE* fid, const int num_types, const int N, const Box& box)
   fcp_data.u.resize(N * 3);
   fcp_data.r0.resize(N * 3, Memory_Type::managed);
   fcp_data.pfv.resize(N * 13);
+  total_force.resize(3);
 
   // read in the equilibrium positions and force constants
   read_r0(N);
@@ -1020,6 +1021,66 @@ static __global__ void gpu_save_pfv(
   }
 }
 
+// get the total force
+static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
+{
+  //<<<3, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_batches = (N - 1) / 1024 + 1;
+  __shared__ double s_f[1024];
+  double f = 0.0;
+
+  switch (bid) {
+    case 0:
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
+        if (n < N)
+          f += g_fx[n];
+      }
+      break;
+    case 1:
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
+        if (n < N)
+          f += g_fy[n];
+      }
+      break;
+    case 2:
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
+        if (n < N)
+          f += g_fz[n];
+      }
+      break;
+  }
+  s_f[tid] = f;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_f[bid] = s_f[0];
+  }
+}
+
+// correct the total force
+static __global__ void
+gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    g_fx[i] -= g_f[0] * one_over_N;
+    g_fy[i] -= g_f[1] * one_over_N;
+    g_fz[i] -= g_f[2] * one_over_N;
+  }
+}
+
 // Wrapper of the above kernels
 void FCP::compute(
   Box& box,
@@ -1126,5 +1187,22 @@ void FCP::compute(
     force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data());
 
+  GPU_CHECK_KERNEL
+
+  gpu_sum_force<<<3, 1024>>>(
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
+    total_force.data());
+  GPU_CHECK_KERNEL
+
+  gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    1.0 / number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
+    total_force.data());
   GPU_CHECK_KERNEL
 }
