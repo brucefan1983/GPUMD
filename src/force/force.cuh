@@ -82,7 +82,6 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
-  int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"

@@ -43,16 +43,9 @@ The driver class calculating force and related quantities.
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
-#include <iostream>
 #include <vector>
 
-#define BLOCK_SIZE 128
-
-Force::Force(void)
-{
-  is_fcp = false;
-  has_non_nep = false;
-}
+Force::Force(void) {}
 
 void Force::check_types(const std::string& file_potential)
 {
@@ -212,7 +205,6 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  number_of_atoms_ = number_of_atoms;
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
     tokens,
