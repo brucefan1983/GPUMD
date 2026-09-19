@@ -892,40 +892,16 @@ static __global__ void gpu_add_driving_force(
   }
 }
 
-void Force::compute(
-  Box& box,
-  GPU_Vector<double>& position_per_atom,
+void Force::apply_hnemdec(
+  const int number_of_atoms,
   GPU_Vector<int>& type,
-  const std::vector<Group>& group,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& velocity_per_atom,
-  GPU_Vector<double>& mass_per_atom,
-  int* position_image)
+  GPU_Vector<double>& mass_per_atom)
 {
-  const int number_of_atoms = type.size();
-  prepare_compute(
-    number_of_atoms,
-    box,
-    position_per_atom,
-    potential_per_atom,
-    force_per_atom,
-    virial_per_atom,
-    position_image);
-  compute_potentials(
-    number_of_atoms,
-    box,
-    position_per_atom,
-    type,
-    group,
-    potential_per_atom,
-    force_per_atom,
-    virial_per_atom);
-
-  if (compute_hnemd_) {
-    apply_hnemd(number_of_atoms, force_per_atom, virial_per_atom);
-  } else if (compute_hnemdec_ == 0) {
+  if (compute_hnemdec_ == 0) {
     // the tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -974,8 +950,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
     GPU_CHECK_KERNEL
-
-  } else if (compute_hnemdec_ != -1) {
+  } else {
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       coefficient.data(),
@@ -986,6 +961,51 @@ void Force::compute(
       force_per_atom.data(),
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
+  }
+}
+
+void Force::compute(
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  const std::vector<Group>& group,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& mass_per_atom,
+  int* position_image)
+{
+  const int number_of_atoms = type.size();
+  prepare_compute(
+    number_of_atoms,
+    box,
+    position_per_atom,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom,
+    position_image);
+  compute_potentials(
+    number_of_atoms,
+    box,
+    position_per_atom,
+    type,
+    group,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom);
+
+  if (compute_hnemd_) {
+    apply_hnemd(number_of_atoms, force_per_atom, virial_per_atom);
+  } else if (compute_hnemdec_ != -1) {
+    apply_hnemdec(
+      number_of_atoms,
+      type,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      velocity_per_atom,
+      mass_per_atom);
   }
 
   correct_fcp_force(number_of_atoms, force_per_atom);
