@@ -22,8 +22,10 @@ The canonical ensemble for MCMD.
 #include <cstring>
 
 MC_Ensemble_Canonical::MC_Ensemble_Canonical(
-  const std::vector<std::string>& tokens, int num_steps_mc_input)
-  : MC_Ensemble(tokens)
+  const std::vector<std::string>& tokens,
+  int num_steps_mc_input,
+  const std::string& potential_file_name)
+  : MC_Ensemble(tokens, potential_file_name)
 {
   num_steps_mc = num_steps_mc_input;
   NN_ij.resize(1);

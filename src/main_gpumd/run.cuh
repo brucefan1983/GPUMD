@@ -29,6 +29,7 @@ class RunInput;
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
+#include <string>
 #include <vector>
 
 class Run
@@ -56,6 +57,9 @@ private:
   bool has_seen_effective_command = false;
   bool has_seen_dftd3_command = false;
   bool has_seen_kspace_command = false;
+  bool has_replicate_ = false;
+  int replicate_size_[3] = {1, 1, 1};
+  std::string first_potential_filename_;
   double global_time = 0.0; // run time of entire simulation (fs)
   double time_step = 1.0 / TIME_UNIT_CONVERSION;
   double max_distance_per_step = -1.0;

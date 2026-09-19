@@ -36,7 +36,8 @@ public:
     std::vector<Group>& group,
     Atom& atom,
     Box& box,
-    Force& force);
+    Force& force,
+    const std::string& first_potential_filename);
 
   void pre_run(
     const int number_of_steps,

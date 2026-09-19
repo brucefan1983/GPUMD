@@ -27,7 +27,10 @@ class Dump_XYZ : public Action
 {
 public:
   Dump_XYZ(
-    const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
+    const std::vector<std::string>& tokens,
+    const std::vector<Group>& groups,
+    Atom& atom,
+    bool is_nep_charge);
   void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
   virtual void pre_run(
     const int number_of_steps,

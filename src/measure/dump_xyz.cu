@@ -53,9 +53,12 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
 }
 
 Dump_XYZ::Dump_XYZ(
-  const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
+  const std::vector<std::string>& tokens,
+  const std::vector<Group>& groups,
+  Atom& atom,
+  bool is_nep_charge_input)
 {
-  is_nep_charge = check_is_nep_charge();
+  is_nep_charge = is_nep_charge_input;
 
   parse(tokens, groups);
 

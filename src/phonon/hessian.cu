@@ -65,8 +65,12 @@ void Hessian::compute(
   Force& force,
   Box& box,
   Atom& atom,
-  std::vector<Group>& group)
+  std::vector<Group>& group,
+  const int replicate_size[3])
 {
+  for (int i = 0; i < 3; ++i) {
+    cxyz[i] = replicate_size[i];
+  }
   initialize(atom.cpu_mass, box, force, atom.number_of_atoms);
   find_H(force, box, atom, group);
 
@@ -200,27 +204,6 @@ void Hessian::initialize(
   const std::vector<double>& cpu_mass, Box& box, Force& force, int N)
 {
   get_cutoff_from_potential(force);
-
-  std::ifstream fin("run.in");
-  std::string line;
-  bool has_rep = false;
-  while (std::getline(fin, line)) {
-    auto tokens = get_tokens_without_comments(line);
-    if (tokens.empty()) {
-      continue;
-    }
-    if (tokens[0] == "replicate") {
-      has_rep = true;
-      for (int i = 0; i < 3; ++i) {
-        cxyz[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
-      }
-    }
-    break;
-  }
-  fin.close();
-  if (!has_rep) {
-    PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
-  }
 
   int s_c[3] = {1, 1, 1};
   int stru_pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};

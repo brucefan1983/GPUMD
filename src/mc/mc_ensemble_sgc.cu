@@ -144,8 +144,9 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   std::vector<int>& types_input,
   std::vector<int>& num_atoms_species_input,
   std::vector<double>& mu_or_phi_input,
-  double kappa_input)
-  : MC_Ensemble(tokens)
+  double kappa_input,
+  const std::string& potential_file_name)
+  : MC_Ensemble(tokens, potential_file_name)
 {
   num_steps_mc = num_steps_mc_input;
   is_vcsgc = is_vcsgc_input;

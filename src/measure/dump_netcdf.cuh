@@ -29,7 +29,10 @@ class DUMP_NETCDF : public Action
 {
 public:
   DUMP_NETCDF(
-    const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
+    const std::vector<std::string>& tokens,
+    const std::vector<Group>& groups,
+    Atom& atom,
+    bool is_nep_charge);
   void parse(
     const std::vector<std::string>& tokens, const std::vector<Group>& groups);
   virtual void pre_run(

@@ -20,4 +20,4 @@ int is_valid_int(const char*, int*);
 int is_valid_int(const std::string&, int*);
 int is_valid_real(const char*, double*);
 int is_valid_real(const std::string&, double*);
-bool check_is_nep_charge();
+bool is_nep_charge_potential(const std::string& potential_file_name);

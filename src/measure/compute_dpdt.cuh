@@ -20,7 +20,7 @@
 class Compute_dpdt : public Action
 {
 public:
-  Compute_dpdt(const std::vector<std::string>& tokens);
+  Compute_dpdt(const std::vector<std::string>& tokens, bool is_nep_charge);
 
   int sample_interval;
 
@@ -55,7 +55,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens, bool is_nep_charge);
 
 private:
   GPU_Vector<float> gpu_dpdt_per_atom;

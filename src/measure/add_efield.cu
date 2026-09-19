@@ -164,14 +164,16 @@ void Add_Efield::apply_field(
 }
 
 Add_Efield::Add_Efield(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+  const std::vector<std::string>& tokens,
+  const std::vector<Group>& group,
+  bool is_nep_charge)
 {
   const int num_param = tokens.size();
   action_name = "add_efield";
   printf("Add electric field.\n");
 
   bool use_file_input = false;
-  is_nep_charge_ = check_is_nep_charge();
+  is_nep_charge_ = is_nep_charge;
   std::string mode_str = is_nep_charge_ ? "bec" : "charge";
 
   if (num_param == 7) {

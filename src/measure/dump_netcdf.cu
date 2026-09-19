@@ -257,9 +257,12 @@ static void pack_tensor_by_precision(
 }
 
 DUMP_NETCDF::DUMP_NETCDF(
-  const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
+  const std::vector<std::string>& tokens,
+  const std::vector<Group>& groups,
+  Atom& atom,
+  bool is_nep_charge)
 {
-  is_nep_charge_ = check_is_nep_charge();
+  is_nep_charge_ = is_nep_charge;
 
   parse(tokens, groups);
 

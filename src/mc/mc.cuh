@@ -32,7 +32,8 @@ public:
   MC(
     const std::vector<std::string>& tokens,
     std::vector<Group>& group,
-    Atom& atom);
+    Atom& atom,
+    const std::string& potential_file_name);
 
   std::unique_ptr<MC_Ensemble> mc_ensemble;
 
@@ -43,7 +44,8 @@ public:
   void parse_mc(
     const std::vector<std::string>& tokens,
     std::vector<Group>& group,
-    Atom& atom);
+    Atom& atom,
+    const std::string& potential_file_name);
 
   void pre_run(
     const int number_of_steps,
@@ -84,5 +86,8 @@ private:
     std::vector<Group>& groups,
     int num_param_before_group);
   void check_species_canonical(std::vector<Group>& groups, Atom& atom);
-  void check_species_sgc(std::vector<Group>& groups, Atom& atom);
+  void check_species_sgc(
+    std::vector<Group>& groups,
+    Atom& atom,
+    const std::string& potential_file_name);
 };
