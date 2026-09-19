@@ -79,6 +79,16 @@ public:
   Potential& get_potential(const int index);
 
 private:
+  std::unique_ptr<Potential> create_potential(
+    const std::vector<std::string>& tokens,
+    FILE* fid_potential,
+    char* potential_name,
+    const int num_types,
+    const Box& box,
+    const int number_of_atoms,
+    const RunInput& run_input,
+    bool& is_nep);
+
   double temperature = 0;
   double delta_T;
   bool compute_hnemd_ = false;

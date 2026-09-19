@@ -73,28 +73,19 @@ void Force::check_types(const std::string& file_potential)
   }
 }
 
-void Force::parse_potential(
+std::unique_ptr<Potential> Force::create_potential(
   const std::vector<std::string>& tokens,
+  FILE* fid_potential,
+  char* potential_name,
+  const int num_types,
   const Box& box,
   const int number_of_atoms,
-  const RunInput& run_input)
+  const RunInput& run_input,
+  bool& is_nep)
 {
   const int num_param = tokens.size();
-  if (num_param != 2 && num_param != 3) {
-    PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
-  }
-
   std::unique_ptr<Potential> potential;
-  FILE* fid_potential = my_fopen(tokens[1].c_str(), "r");
-  char potential_name[100];
-  int count = fscanf(fid_potential, "%s", potential_name);
-  if (count != 1) {
-    PRINT_INPUT_ERROR("reading error for potential file.");
-  }
-  int num_types = get_number_of_types(fid_potential);
-  number_of_atoms_ = number_of_atoms;
-  bool is_nep = false;
-  // determine the potential
+
   if (strcmp(potential_name, "tersoff_1989") == 0) {
     potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
@@ -128,7 +119,6 @@ void Force::parse_potential(
     strcmp(potential_name, "nep4_zbl_charge3") == 0) {
     potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
-    check_types(tokens[1]);
   } else if (
     strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
     strcmp(potential_name, "nep4_temperature") == 0 ||
@@ -158,8 +148,6 @@ void Force::parse_potential(
           num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction, run_input));
     }
     is_nep = true;
-    // Check if the types for this potential are compatible with the possibly other potentials
-    check_types(tokens[1]);
 #ifdef USE_DEEPMD
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
@@ -201,6 +189,44 @@ void Force::parse_potential(
     fclose(fid_sw);
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
+  }
+
+  return potential;
+}
+
+void Force::parse_potential(
+  const std::vector<std::string>& tokens,
+  const Box& box,
+  const int number_of_atoms,
+  const RunInput& run_input)
+{
+  const int num_param = tokens.size();
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
+  }
+
+  FILE* fid_potential = my_fopen(tokens[1].c_str(), "r");
+  char potential_name[100];
+  int count = fscanf(fid_potential, "%s", potential_name);
+  if (count != 1) {
+    PRINT_INPUT_ERROR("reading error for potential file.");
+  }
+  int num_types = get_number_of_types(fid_potential);
+  number_of_atoms_ = number_of_atoms;
+  bool is_nep = false;
+  std::unique_ptr<Potential> potential = create_potential(
+    tokens,
+    fid_potential,
+    potential_name,
+    num_types,
+    box,
+    number_of_atoms,
+    run_input,
+    is_nep);
+
+  if (is_nep) {
+    // Check if the types for this potential are compatible with the possibly other potentials
+    check_types(tokens[1]);
   }
   fclose(fid_potential);
 
