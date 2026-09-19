@@ -1,0 +1,9 @@
+potential potential.txt
+velocity 300 seed 20260916
+time_step 1
+ensemble heat_lan 300 100 10 1 8
+fix 0
+move 2 0.0001 0 0
+compute 0 1 6 temperature
+dump_restart 6
+run 6

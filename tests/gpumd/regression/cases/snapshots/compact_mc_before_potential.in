@@ -1,0 +1,12 @@
+replicate 2 2 2
+mc sgc 2 1 300 300 2 Cu 0 Ag 0
+add_efield 0 0 0 0 0 charge
+potential unep_first.txt
+potential unep_last.txt
+velocity 300 seed 20260918
+time_step 1e-20
+
+ensemble nve
+dump_thermo 1
+dump_restart 1
+run 1
