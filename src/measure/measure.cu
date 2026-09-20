@@ -42,6 +42,7 @@ The driver class dealing with measurement.
 #include "dump_thermo.cuh"
 #include "dump_xyz.cuh"
 #include "electron_stop.cuh"
+#include "enhanced_sampling.cuh"
 #include "extrapolation.cuh"
 #include "hac.cuh"
 #include "hnemdec_kappa.cuh"
@@ -104,6 +105,15 @@ bool Measure::parse_action(
 #else
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
+  } else if (tokens[0] == "enhanced_sampling") {
+    const int num_param = static_cast<int>(tokens.size());
+    std::vector<const char*> param(num_param);
+    for (int i = 0; i < num_param; ++i) {
+      param[i] = tokens[i].c_str();
+    }
+    std::unique_ptr<Action> action;
+    action.reset(new EnhancedSamplingAction(param.data(), num_param));
+    actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_restart") {
     std::unique_ptr<Action> action;
     action.reset(new Dump_Restart(tokens));
@@ -293,6 +303,8 @@ void Measure::pre_run(
   std::vector<std::string> action_names;
   int number_of_hnemd_methods = 0;
   int number_of_modal_methods = 0;
+  bool has_deform = false;
+  bool has_enhanced_sampling = false;
   for (auto& action : actions_) {
     if (action->action_name == "") {
       printf("Dear developer:\n");
@@ -324,7 +336,16 @@ void Measure::pre_run(
       action->action_name == "compute_hnema") {
       ++number_of_modal_methods;
     }
+    if (action->action_name == "deform") {
+      has_deform = true;
+    }
+    if (action->action_name == "enhanced_sampling") {
+      has_enhanced_sampling = true;
+    }
     action_names.emplace_back(action->action_name);
+  }
+  if (has_deform && has_enhanced_sampling) {
+    PRINT_INPUT_ERROR("Enhanced sampling V1A does not support box deformation.");
   }
 
   if (number_of_modal_methods > 1) {

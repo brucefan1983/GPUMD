@@ -302,24 +302,23 @@ void EnhancedSamplingAction::pre_run(
   Box& box,
   Force& force)
 {
-  if (integrate.type != 0 && integrate.type != 2 && integrate.type != 4) {
+  const EnsembleType type = integrate.get_type();
+  if (
+    type != EnsembleType::NVE &&
+    type != EnsembleType::NVT_NHC &&
+    type != EnsembleType::NVT_BDP) {
     PRINT_INPUT_ERROR(
       "Enhanced sampling V1A only supports NVE, NVT-NHC, and NVT-BDP.\n");
   }
   if (
-    (integrate.type == 2 || integrate.type == 4) &&
-    integrate.temperature1 != integrate.temperature2) {
+    (type == EnsembleType::NVT_NHC || type == EnsembleType::NVT_BDP) &&
+    integrate.get_temperature1() != integrate.get_temperature2()) {
     PRINT_INPUT_ERROR(
       "Enhanced sampling V1A requires a constant target temperature.\n");
   }
-  if (integrate.fixed_group >= 0 || integrate.move_group >= 0) {
+  if (integrate.get_fixed_group() >= 0 || integrate.get_move_group() >= 0) {
     PRINT_INPUT_ERROR(
       "Enhanced sampling V1A does not support fixed or moving atom groups.\n");
-  }
-  if (
-    integrate.deform_x || integrate.deform_y || integrate.deform_z ||
-    integrate.deform_xy || integrate.deform_xz || integrate.deform_yz) {
-    PRINT_INPUT_ERROR("Enhanced sampling V1A does not support box deformation.\n");
   }
   if (!enhanced_sampling_is_orthogonal(box)) {
     PRINT_INPUT_ERROR("Enhanced sampling V1A requires an orthogonal simulation box.\n");
