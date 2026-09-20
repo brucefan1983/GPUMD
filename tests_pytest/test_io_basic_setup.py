@@ -90,8 +90,10 @@ BASIC_SETUP_CASES = [
         parse_check=_check_spring_output),
     CommandIOCase(name='change_box', run_in_lines=[('change_box', 0.01)]),
     CommandIOCase(
+        # The general component form, which applies to any box shape. The legacy numeric form
+        # applies only to an orthogonal box.
         name='deform', ensemble='npt_ber', ensemble_params=_NPT_BER_PARAMS_SENTINEL,
-        run_in_lines=[('deform', [1e-5, 0, 0, 1, 0, 0])]),
+        run_in_lines=[('deform', ['xx', 1e-5])]),
     CommandIOCase(name='dftd3', run_in_lines=[('dftd3', ['pbe', 12, 6])]),
     CommandIOCase(name='kspace', run_in_lines=[('kspace', 'ewald')]),
     CommandIOCase(
