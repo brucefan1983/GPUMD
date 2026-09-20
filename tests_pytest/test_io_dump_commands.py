@@ -397,6 +397,13 @@ def test_dump_xyz_writes_one_file_per_frame_for_a_starred_name(
         assert len(frames[0]) == len(structure)
 
 
+def _deposition_slab():
+    """A diamond slab with vacuum along z, for the deposited atoms to land on."""
+    slab = bulk('C', 'diamond', 3.57, cubic=True).repeat((2, 2, 3))
+    slab.center(vacuum=6, axis=2)
+    return slab
+
+
 def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
     """main_gpumd/deposition.cu builds a dump_xyz line as a runtime string, one per subrun, and
     appends `group_labels` when the model carries groupings. Nothing else covers it, so a stale
@@ -405,11 +412,10 @@ def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
 
     A slab with vacuum along z is built here rather than reusing the shared structure fixtures,
     since deposition needs somewhere to deposit into."""
-    slab = bulk('C', 'diamond', 3.57, cubic=True).repeat((2, 2, 3))
-    slab.center(vacuum=6, axis=2)
+    slab = _deposition_slab()
     case = CommandIOCase(
         name='deposition',
-        run_in_lines=[('deposit', [5, 2, 20, 'atom', 0, 2, -0.05])],
+        run_in_lines=[('deposit', [5, 2, 20, 'atom', 'C', 2, -0.05])],
         expected_output_files=[], n_groups=2)
     result = run_command_io_case(
         tmp_path, slab, MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
