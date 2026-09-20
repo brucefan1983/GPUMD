@@ -444,6 +444,20 @@ def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
         f'atom count should grow as atoms are deposited, got {atom_counts}')
 
 
+def test_deposit_rejects_a_numeric_species(tmp_path, gpumd_command):
+    """deposit names the deposited species by element symbol. A type index is refused rather
+    than read as one of the numbers that follow it, so the message is what is asserted."""
+    case = CommandIOCase(
+        name='deposition_numeric_species',
+        run_in_lines=[('deposit', [5, 2, 20, 'atom', 0, 2, -0.05])],
+        expected_output_files=[], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, _deposition_slab(), MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, 'a numeric deposit species was accepted'
+    assert 'should be specified using an element symbol' in output, output
+
+
 INVALID_DUMP_XYZ_ARGUMENTS = [
     ([1, 'f.xyz', 'forcee'], 'Unrecognized argument'),
     ([1, 'f.xyz', 'group', 0, 0, 'group', 0, 0], 'more than once'),

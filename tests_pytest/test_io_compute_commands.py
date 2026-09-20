@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 from calorine.gpumd import read_msd
 
-from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check, run_command_io_case
 from test_parsing import read_dpdt_out
 
 pytestmark = pytest.mark.fast
@@ -141,6 +141,34 @@ def test_compute_dpdt(tmp_path, structure, model_type, model_path, gpumd_command
         name='compute_dpdt', run_in_lines=[('compute_dpdt', 1)],
         expected_output_files=['dpdt.out'], parse_check=_check_dpdt_format)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+TOO_LONG_SAMPLING_INTERVALS = [
+    ('compute_rdf', [RDF_CUTOFF, 50, BASE_N_STEPS + 1],
+     'RDF sampling interval should not exceed the number of MD steps'),
+    ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS + 1],
+     'Angular RDF sampling interval should not exceed the number of MD steps'),
+]
+
+
+@pytest.mark.parametrize(
+    'keyword, args, expected_message', TOO_LONG_SAMPLING_INTERVALS,
+    ids=[case[0] for case in TOO_LONG_SAMPLING_INTERVALS])
+def test_sampling_interval_beyond_the_run_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, keyword, args,
+        expected_message):
+    """A sampling interval longer than the run would collect nothing, so GPUMD refuses it rather
+    than writing an empty file. The message is asserted alongside the exit code, since a test
+    that passes because gpumd died for an unrelated reason is worse than no test."""
+    case = CommandIOCase(
+        name=f'{keyword}_interval_too_long', repeat=(2, 2, 2),
+        run_in_lines=[(keyword, args)], expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f'{keyword} {args} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'{keyword} {args} did not report {expected_message!r}\n{output}')
 
 
 def test_compute_phonon():

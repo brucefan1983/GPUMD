@@ -15,7 +15,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check
+from conftest import MODELS_DIR, make_bulk_C, make_bulk_perovskite
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check, run_command_io_case
 
 pytestmark = pytest.mark.fast
 
@@ -140,3 +141,35 @@ def test_command_io(tmp_path, structure, structure_name, model_path, model_type,
                     'upstream bug.')
     case = _resolve_case(case, structure, model_path)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+# The legacy numeric deform form sets box lengths, which are defined only for an orthogonal box,
+# so GPUMD accepts it for bulk_perovskite and refuses it for bulk_C's triclinic cell.
+_DEFORM_LEGACY_CASES = [
+    ('orthogonal', make_bulk_perovskite, 'nep_BaTiO3.txt', None),
+    ('triclinic', make_bulk_C, 'nep_C.txt',
+     'The legacy deform format only supports orthogonal boxes'),
+]
+
+
+@pytest.mark.parametrize(
+    'builder, model_file, expected_message', [case[1:] for case in _DEFORM_LEGACY_CASES],
+    ids=[case[0] for case in _DEFORM_LEGACY_CASES])
+def test_deform_legacy_format_requires_an_orthogonal_box(
+        tmp_path, gpumd_command, builder, model_file, expected_message):
+    structure = builder()
+    model_path = MODELS_DIR / model_file
+    case = CommandIOCase(
+        name='deform_legacy', ensemble='npt_ber',
+        ensemble_params=_npt_ber_params(np.array(structure.cell)),
+        run_in_lines=[('deform', [1e-5, 0, 0, 1, 0, 0])])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, 'nep', gpumd_command, case)
+    output = result.stdout + result.stderr
+
+    if expected_message is None:
+        assert result.returncode == 0, f'the legacy deform form failed\n{output}'
+        assert (tmp_path / 'thermo.out').exists(), 'thermo.out was not produced'
+    else:
+        assert result.returncode != 0, 'the legacy deform form was accepted on a triclinic box'
+        assert expected_message in output, f'did not report {expected_message!r}\n{output}'
