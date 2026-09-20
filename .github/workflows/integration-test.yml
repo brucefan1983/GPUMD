@@ -24,11 +24,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      # numpy and MDAnalysis need a newer Python than the 3.10 of the container image.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends build-essential libnetcdf-dev python3-pip
+          apt-get install -y --no-install-recommends build-essential libnetcdf-dev
 
       - name: Install python dependencies
         run: python3 -m pip install ase calorine numpy pytest hypothesis netCDF4 MDAnalysis
@@ -63,11 +67,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      # numpy and MDAnalysis need a newer Python than the 3.10 of the container image.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends build-essential libnetcdf-dev python3-pip
+          apt-get install -y --no-install-recommends build-essential libnetcdf-dev
 
       - name: Install python dependencies
         run: python3 -m pip install ase calorine numpy pytest hypothesis netCDF4 MDAnalysis
