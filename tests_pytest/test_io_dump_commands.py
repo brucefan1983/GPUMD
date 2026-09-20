@@ -535,13 +535,15 @@ def _check_netcdf_result(result):
 def test_dump_netcdf_appends_across_run_commands(
         tmp_path, structure, model_path, model_type, gpumd_command):
     """Two dump_netcdf commands writing the same file in one execution extend it, since the
-    keyword does not propagate and each run needs its own command."""
+    keyword does not propagate and each run needs its own command. The second run block repeats
+    `ensemble`, which GPUMD requires before every run."""
     netcdf4 = pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf',
         run_in_lines=[
             ('dump_netcdf', [1, 'sed.nc', 'velocity']),
             ('run', BASE_N_STEPS),
+            ('ensemble', 'nve'),
             ('dump_netcdf', [1, 'sed.nc', 'velocity']),
         ],
         expected_output_files=['sed.nc'],
