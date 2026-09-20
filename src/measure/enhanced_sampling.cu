@@ -68,7 +68,7 @@ static bool enhanced_sampling_is_orthogonal(const Box& box)
     box.cpu_h[5] == 0.0 && box.cpu_h[6] == 0.0 && box.cpu_h[7] == 0.0;
 }
 
-EnhancedSamplingAction::EnhancedSamplingAction(const char** param, const int num_param)
+EnhancedSamplingAction::EnhancedSamplingAction(const std::vector<std::string>& tokens)
   : input_line_(0),
     output_interval_(0),
     output_is_set_(false),
@@ -76,10 +76,10 @@ EnhancedSamplingAction::EnhancedSamplingAction(const char** param, const int num
     output_(NULL)
 {
   action_name = "enhanced_sampling";
-  if (num_param != 2) {
+  if (tokens.size() != 2) {
     PRINT_INPUT_ERROR("enhanced_sampling should have one parameter: the input file.\n");
   }
-  input_filename_ = param[1];
+  input_filename_ = tokens[1];
   parse_input_file();
 
   printf("Use native enhanced sampling.\n");

@@ -23,7 +23,7 @@
 class EnhancedSamplingAction : public Action
 {
 public:
-  EnhancedSamplingAction(const char** param, const int num_param);
+  EnhancedSamplingAction(const std::vector<std::string>& tokens);
   ~EnhancedSamplingAction() override;
 
   void pre_run(

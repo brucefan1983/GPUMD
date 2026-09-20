@@ -106,13 +106,8 @@ bool Measure::parse_action(
     PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
   } else if (tokens[0] == "enhanced_sampling") {
-    const int num_param = static_cast<int>(tokens.size());
-    std::vector<const char*> param(num_param);
-    for (int i = 0; i < num_param; ++i) {
-      param[i] = tokens[i].c_str();
-    }
     std::unique_ptr<Action> action;
-    action.reset(new EnhancedSamplingAction(param.data(), num_param));
+    action.reset(new EnhancedSamplingAction(tokens));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_restart") {
     std::unique_ptr<Action> action;
