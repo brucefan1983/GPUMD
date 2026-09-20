@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 from calorine.gpumd import read_msd
 
-from io_helpers import CommandIOCase, run_and_check
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check
 from test_parsing import read_dpdt_out
 
 pytestmark = pytest.mark.fast
@@ -69,8 +69,10 @@ def _check_elastic_format(path):
 
 COMPUTE_COMMAND_CASES = [
     CommandIOCase(
+        # The sampling interval may not exceed the number of steps of the run, so it is tied to
+        # io_helpers.BASE_N_STEPS.
         name='compute_rdf', repeat=(2, 2, 2),
-        run_in_lines=[('compute_rdf', [RDF_CUTOFF, 50, 10])],
+        run_in_lines=[('compute_rdf', [RDF_CUTOFF, 50, BASE_N_STEPS])],
         expected_output_files=['rdf.out'],
         # >=2, not ==2: rdf.out also has one column per distinct atom-type pair (only 1 type
         # here, so 3 total; more with multiple species) on top of [radius, whole-system RDF].
@@ -87,7 +89,7 @@ COMPUTE_COMMAND_CASES = [
         name='compute_angular_rdf', repeat=(2, 2, 2),
         # both bin counts must be > 20 (GPUMD rejects <= 20 with "A larger n(theta)bins is
         # recommended", confirmed against the real binary).
-        run_in_lines=[('compute_angular_rdf', [RDF_CUTOFF, 21, 21, 10])],
+        run_in_lines=[('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS])],
         expected_output_files=['angular_rdf.out'],
         parse_check=lambda p: _check_columns(p, ncols=3)),
     CommandIOCase(
