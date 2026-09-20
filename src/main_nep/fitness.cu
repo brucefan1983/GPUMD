@@ -126,7 +126,7 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  if (para.train_mode == 1 || para.train_mode == 2) {
+  if (para.model_type == 1 || para.model_type == 2) {
     potential.reset(new TNEP(para, N, para.version, deviceCount));
   } else {
     if (para.charge_vdw) {
@@ -272,7 +272,7 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
-  if (para.train_mode == 0) { // potential model
+  if (para.model_type == 0) { // potential model
     if (!(para.charge_mode || para.charge_vdw)) {
       if (para.version == 4) {
         if (para.enable_zbl) {
@@ -304,15 +304,15 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
         }
       }
     }
-  } else if (para.train_mode == 1) { // dipole model
+  } else if (para.model_type == 1) { // dipole model
     if (para.version == 4) {
       fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
     }
-  } else if (para.train_mode == 2) { // polarizability model
+  } else if (para.model_type == 2) { // polarizability model
     if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
-  } else if (para.train_mode == 3) { // temperature model
+  } else if (para.model_type == 3) { // temperature model
     if (para.version == 4) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
@@ -368,7 +368,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   }
 
   std::vector<float> parameters_file(elite, elite + para.number_of_variables);
-  const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
   const int num_channels = para.num_types;
 #else
@@ -436,7 +436,7 @@ void Fitness::report_error(
     float rmse_bec_train = rmse_bec_train_array.back();
 
     // correct the last bias parameter in the NN
-    if (para.train_mode == 0 || para.train_mode == 3) {
+    if (para.model_type == 0 || para.model_type == 3) {
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
     }
 
@@ -475,7 +475,7 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
-    if (para.train_mode == 0 || para.train_mode == 3) {
+    if (para.model_type == 0 || para.model_type == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         // NEP models
         printf(
@@ -563,7 +563,7 @@ void Fitness::report_error(
     fflush(fid_loss_out);
 
     if (has_test_set) {
-      if (para.train_mode == 0 || para.train_mode == 3) {
+      if (para.model_type == 0 || para.model_type == 3) {
         FILE* fid_force = my_fopen("force_test.out", "w");
         FILE* fid_energy = my_fopen("energy_test.out", "w");
         FILE* fid_virial = my_fopen("virial_test.out", "w");
@@ -583,11 +583,11 @@ void Fitness::report_error(
             fclose(fid_bec);
           }
         }
-      } else if (para.train_mode == 1) {
+      } else if (para.model_type == 1) {
         FILE* fid_dipole = my_fopen("dipole_test.out", "w");
         update_dipole(fid_dipole, test_set[0], para.atomic_v);
         fclose(fid_dipole);
-      } else if (para.train_mode == 2) {
+      } else if (para.model_type == 2) {
         FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
         update_polarizability(fid_polarizability, test_set[0], para.atomic_v);
         fclose(fid_polarizability);
@@ -667,7 +667,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
 
 void Fitness::predict(Parameters& para, float* elite)
 {
-  if (para.train_mode == 0 || para.train_mode == 3) {
+  if (para.model_type == 0 || para.model_type == 3) {
     FILE* fid_force = my_fopen("force_train.out", "w");
     FILE* fid_energy = my_fopen("energy_train.out", "w");
     FILE* fid_virial = my_fopen("virial_train.out", "w");
@@ -701,14 +701,14 @@ void Fitness::predict(Parameters& para, float* elite)
         fclose(fid_bec);
       }
     }
-  } else if (para.train_mode == 1) {
+  } else if (para.model_type == 1) {
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, 1);
       update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
     }
     fclose(fid_dipole);
-  } else if (para.train_mode == 2) {
+  } else if (para.model_type == 2) {
     FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, 1);

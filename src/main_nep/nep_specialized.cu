@@ -526,7 +526,7 @@ __global__ void ann_tnep_pol_jit(
     q[d] = descriptors[n1 + d * N] * q_scaler[d];
   }
 
-  // Generic TNEP train_mode=2:
+  // Generic TNEP model_type=2:
   // second ANN set -> scalar polarizability;
   // first ANN set -> tensor descriptor derivative.
   float F = 0.0f;
