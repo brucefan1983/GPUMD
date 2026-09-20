@@ -1,29 +1,91 @@
-name: Integration tests using calorine
+name: Integration tests
 
 on: [pull_request]
 
+# The suite lives in tests_pytest and drives the real gpumd binary, so all 1038 of its tests
+# need an NVIDIA card. GitHub's ubuntu-latest runners have none. The build job therefore stops
+# at collection, which still catches a broken build and a suite that no longer imports. The
+# pytest job runs the suite and starts only on a runner that has a card.
+#
+# Both jobs build with -DUSE_NETCDF, install netCDF4 and MDAnalysis, and check for all three
+# afterwards, because each one is optional to the suite and absent support turns into skipped
+# tests and a green run:
+#   - a gpumd built without -DUSE_NETCDF skips all 325 dump_netcdf tests
+#   - a missing netCDF4 module skips 145 of those
+#   - a missing MDAnalysis module skips 9 of those
+#
+# -DDEBUG fixes the PRNG seed, which keeps a run reproducible.
+#
+# tests_regression is a separate suite and is not run here.
+
 jobs:
-  Integration_Test:
+  build:
+    name: Build and collect
     runs-on: ubuntu-latest
-    container: 
-      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
-  
+    container:
+      image: nvidia/cuda:12.2.2-devel-ubuntu22.04
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10.12'
+
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get -y upgrade
-          apt-get install -y build-essential
-           
+          apt-get install -y --no-install-recommends build-essential libnetcdf-dev python3-pip
+
       - name: Install python dependencies
-        run: python3 -m pip install calorine pytest
+        run: python3 -m pip install ase calorine numpy pytest hypothesis netCDF4 MDAnalysis
 
-      - name: Build with Make, with DDEBUG
-        run: cd src && make CFLAGS="-std=c++14 -O3 -arch=sm_60 -DDEBUG"
+      - name: Build gpumd and nep with NetCDF support
+        # CFLAGS is replaced wholesale, which drops the warning flags of src/makefile. The CUDA
+        # CI workflow builds with those flags in place.
+        run: |
+          cd src
+          make -j4 \
+            CFLAGS="-std=c++14 -O3 -arch=sm_60 -DDEBUG -DUSE_NETCDF" \
+            LIBS="-lcublas -lcusolver -lcufft -lnetcdf"
 
-      - name: Run integration test
-        run: cd tests && pytest  # This requires a GPU runner
+      - name: Check the optional dependencies
+        run: |
+          ldd src/gpumd | grep -q libnetcdf
+          python3 -c "import netCDF4, MDAnalysis"
+
+      - name: Collect the pytest suite
+        run: cd tests_pytest && python3 -m pytest --collect-only -q
+
+  pytest:
+    name: Run tests_pytest
+    # Starts only once the repository defines GPU_RUNNER_LABEL, naming a runner with an NVIDIA
+    # card, and GPU_RUNNER_CUDA_ARCH, naming the compute capability of that card, for example
+    # sm_86. Until both exist the job is skipped.
+    if: vars.GPU_RUNNER_LABEL != '' && vars.GPU_RUNNER_CUDA_ARCH != ''
+    runs-on: ${{ vars.GPU_RUNNER_LABEL }}
+    container:
+      image: nvidia/cuda:12.2.2-devel-ubuntu22.04
+      options: --gpus all
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential libnetcdf-dev python3-pip
+
+      - name: Install python dependencies
+        run: python3 -m pip install ase calorine numpy pytest hypothesis netCDF4 MDAnalysis
+
+      - name: Build gpumd and nep with NetCDF support
+        run: |
+          cd src
+          make -j4 \
+            CFLAGS="-std=c++14 -O3 -arch=${{ vars.GPU_RUNNER_CUDA_ARCH }} -DDEBUG -DUSE_NETCDF" \
+            LIBS="-lcublas -lcusolver -lcufft -lnetcdf"
+
+      - name: Check the optional dependencies
+        run: |
+          ldd src/gpumd | grep -q libnetcdf
+          python3 -c "import netCDF4, MDAnalysis"
+
+      - name: Run the pytest suite
+        run: cd tests_pytest && python3 -m pytest -q
