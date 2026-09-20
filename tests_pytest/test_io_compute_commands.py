@@ -171,6 +171,63 @@ def test_sampling_interval_beyond_the_run_is_rejected(
         f'{keyword} {args} did not report {expected_message!r}\n{output}')
 
 
+def _number_of_types(structure):
+    """The number of atom types GPUMD reads from model.xyz, which calorine writes from the
+    species present in the structure."""
+    return len(set(structure.get_chemical_symbols()))
+
+
+def test_angular_rdf_accepts_an_atom_type_pair(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The optional `atom type1 type2` triple adds a partial angular RDF as a fourth column, on
+    top of the three the whole-system measurement writes. Type 0 exists in every structure of
+    this suite, so the same pair works throughout."""
+    case = CommandIOCase(
+        name='compute_angular_rdf_pair', repeat=(2, 2, 2),
+        run_in_lines=[
+            ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS, 'atom', 0, 0])],
+        expected_output_files=['angular_rdf.out'],
+        parse_check=lambda p: _check_columns(p, ncols=4))
+    run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+_TYPE_COUNT_SENTINEL = '__TYPE_COUNT__'
+
+# A type index equal to the number of types is the first one out of range, so these two cases are
+# what distinguishes `>= number_of_types` from `> number_of_types`.
+ANGULAR_RDF_INVALID_OPTIONS = [
+    ('incomplete_triple', ['atom', 0],
+     'Optional arguments for compute_angular_rdf should be specified as atom type1 type2'),
+    ('type1_equals_the_type_count', ['atom', _TYPE_COUNT_SENTINEL, 0],
+     'atom type index1 should be less than number of atomic types'),
+    ('type2_equals_the_type_count', ['atom', 0, _TYPE_COUNT_SENTINEL],
+     'atom type index2 should be less than number of atomic types'),
+]
+
+
+@pytest.mark.parametrize(
+    'options, expected_message', [case[1:] for case in ANGULAR_RDF_INVALID_OPTIONS],
+    ids=[case[0] for case in ANGULAR_RDF_INVALID_OPTIONS])
+def test_invalid_angular_rdf_options_are_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, options, expected_message):
+    """The optional arguments of compute_angular_rdf come in triples and name types the model
+    actually has. The message is asserted alongside the exit code, since a test that passes
+    because gpumd died for an unrelated reason is worse than no test."""
+    type_count = _number_of_types(structure)
+    options = [type_count if option == _TYPE_COUNT_SENTINEL else option for option in options]
+    case = CommandIOCase(
+        name='compute_angular_rdf_invalid', repeat=(2, 2, 2),
+        run_in_lines=[
+            ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS, *options])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f'compute_angular_rdf {options} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'compute_angular_rdf {options} did not report {expected_message!r}\n{output}')
+
+
 def test_compute_phonon():
     pytest.skip("deferred: this suite's NEP cutoffs need a multi-thousand-atom supercell for "
                 'compute_phonon (see module docstring) -- too expensive for a smoke-test tier.')
