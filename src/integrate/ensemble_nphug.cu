@@ -15,7 +15,6 @@
 
 #include "ensemble_nphug.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -29,32 +28,24 @@ void matrix_scale(double a[3][3], double b, double c[3][3])
 }
 } // namespace
 
-Ensemble_NPHug::~Ensemble_NPHug(void) {}
-
 Ensemble_NPHug::Ensemble_NPHug(void) {}
 
-Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
+Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   use_thermostat = true;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
-          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
-            p_flag[i][j] = h_ref_inv[i][j] = 0;
-      p_period[i][j] = 1000;
-      need_scale[i][j] = true;
-    }
-  }
-
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &t_period))
+    if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
+      if (!is_valid_real(tokens[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "pperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+    } else if (tokens[i] == "pperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for pperiod keyword.");
+      if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
       for (int i = 0; i < 3; i++) {
@@ -63,23 +54,24 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
         }
       }
     } else if (
-      strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
-      strcmp(params[i], "tri") == 0) {
+      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       uniaxial_compress = -1;
       use_barostat = true;
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[1][1] = p_start[2][2] = p_start[0][0];
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
-      if (strcmp(params[i], "iso") == 0)
+      if (tokens[i] == "iso")
         couple_type = XYZ;
 
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
-      if (strcmp(params[i], "tri") == 0) {
+      if (tokens[i] == "tri") {
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             if (i != j) {
@@ -92,49 +84,61 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
         }
       }
       i += 3;
-    } else if (strcmp(params[i], "x") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+    } else if (tokens[i] == "x") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword x requires two values.");
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 0;
       p_flag[0][0] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "y") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[1][1]))
+    } else if (tokens[i] == "y") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword y requires two values.");
+      if (!is_valid_real(tokens[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[1][1]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 1;
       p_flag[1][1] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "z") == 0) {
-      if (!is_valid_real(params[i + 1], &p_start[2][2]))
+    } else if (tokens[i] == "z") {
+      if (i + 2 >= num_params)
+        PRINT_INPUT_ERROR("Keyword z requires two values.");
+      if (!is_valid_real(tokens[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      if (!is_valid_real(params[i + 2], &p_stop[2][2]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       uniaxial_compress = 2;
       p_flag[2][2] = 1;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
-    } else if (strcmp(params[i], "p0") == 0) {
-      if (!is_valid_real(params[i + 1], &p0))
+    } else if (tokens[i] == "p0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for p0 keyword.");
+      if (!is_valid_real(tokens[i + 1], &p0))
         PRINT_INPUT_ERROR("Invalid p0 value.");
       p0 /= PRESSURE_UNIT_CONVERSION;
       p0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "v0") == 0) {
-      if (!is_valid_real(params[i + 1], &v0))
+    } else if (tokens[i] == "v0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for v0 keyword.");
+      if (!is_valid_real(tokens[i + 1], &v0))
         PRINT_INPUT_ERROR("Invalid v0 value.");
       v0_given = true;
       i += 2;
-    } else if (strcmp(params[i], "e0") == 0) {
-      if (!is_valid_real(params[i + 1], &e0))
+    } else if (tokens[i] == "e0") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for e0 keyword.");
+      if (!is_valid_real(tokens[i + 1], &e0))
         PRINT_INPUT_ERROR("Invalid e0 value.");
       e0_given = true;
       i += 2;
@@ -169,36 +173,26 @@ Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
   }
 }
 
-void Ensemble_NPHug::init_mttk()
+void Ensemble_NPHug::init_mttk(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
   matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
   // set tstat params
   // Here I neglect center of mass dof.
-  temperature_dof = atom->number_of_atoms * 3;
-  dt = time_step;
+  temperature_dof = atom.number_of_atoms * 3;
   dt2 = dt / 2;
   dt4 = dt / 4;
   dt8 = dt / 8;
   dt16 = dt / 16;
   t_freq = 1 / (t_period * dt);
-  Q = new double[tchain];
-  eta_dot = new double[tchain + 1];
-  eta_dotdot = new double[tchain];
-  Q_p = new double[pchain];
-  eta_p_dot = new double[pchain + 1];
-  eta_p_dotdot = new double[pchain];
+  initialize_nose_hoover_chains();
 
-  for (int n = 0; n < tchain; n++)
-    Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
-
-  for (int n = 0; n < pchain; n++)
-    Q_p[n] = eta_p_dot[n] = eta_p_dotdot[n] = 0;
-
-  eta_dot[tchain] = eta_p_dot[pchain] = 0;
-
-  t_for_barostat = find_current_temperature();
+  t_for_barostat = find_current_temperature(group, box, atom, thermo);
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -207,13 +201,13 @@ void Ensemble_NPHug::init_mttk()
         if (p_freq_max < p_freq[i][j])
           p_freq_max = p_freq[i][j];
         omega_mass[i][j] =
-          (atom->number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
+          (atom.number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
       }
     }
   }
 
   // get initial thermo info
-  get_thermo();
+  get_thermo(group, box, atom, thermo);
   if (!v0_given)
     v0 = v_current;
   if (!e0_given)
@@ -223,13 +217,17 @@ void Ensemble_NPHug::init_mttk()
   printf("    NPHug V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 }
 
-void Ensemble_NPHug::get_thermo()
+void Ensemble_NPHug::get_thermo(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  find_thermo();
-  thermo->copy_to_host(thermo_info, 8);
-  v_current = box->get_volume();
+  find_thermo(group, box, atom, thermo);
+  thermo.copy_to_host(thermo_info, 8);
+  v_current = box.get_volume();
   t_current = thermo_info[0];
-  e_current = thermo_info[1] + 1.5 * atom->number_of_atoms * kB * t_current;
+  e_current = thermo_info[1] + 1.5 * atom.number_of_atoms * kB * t_current;
   p_current[0][0] = thermo_info[2];
   p_current[1][1] = thermo_info[3];
   p_current[2][2] = thermo_info[4];
@@ -244,14 +242,23 @@ void Ensemble_NPHug::get_thermo()
     p_nphug_current = (p_current[0][0] + p_current[1][1] + p_current[2][2]) / 3.0;
 }
 
-void Ensemble_NPHug::get_target_temp()
+void Ensemble_NPHug::get_target_temp(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  get_thermo();
+  get_thermo(group, box, atom, thermo);
   t_current_from_thermo = true;
   // calculate hugoniot
   dhugo = (0.5 * (p_nphug_current + p0) * (v0 - v_current)) + e0 - e_current;
-  dhugo /= 3 * atom->number_of_atoms * kB;
-  if (*current_step == 0 || *current_step % (*total_steps / 10) == 0) {
+  dhugo /= 3 * atom.number_of_atoms * kB;
+  int output_interval = number_of_steps / 10;
+  if (output_interval < 1)
+    output_interval = 1;
+  if (step == 0 || step % output_interval == 0) {
     printf("    NPHug info: current T: %f K, dHugoniot: %f K\n", t_current, dhugo);
   }
   t_target = t_current + dhugo;

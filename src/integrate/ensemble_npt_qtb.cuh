@@ -17,6 +17,7 @@
 
 #include "ensemble_mttk.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -27,22 +28,26 @@
 class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
-  Ensemble_NPT_QTB(const char** params, int num_params);
-  virtual ~Ensemble_NPT_QTB(void);
+  Ensemble_NPT_QTB(const std::vector<std::string>& tokens);
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   int qtb_number_of_atoms;
@@ -66,12 +71,22 @@ private:
   GPU_Vector<double> qtb_fran;
   GPU_Vector<gpurandState> qtb_curand_states;
 
-  void init_qtb();
+  void init_qtb(const Atom& atom);
   void qtb_update_time_filter(const double target_temperature);
-  void qtb_refresh_colored_random_force();
-  void qtb_apply_half_step();
+  void qtb_refresh_colored_random_force(const Atom& atom);
+  void qtb_apply_half_step(Atom& atom);
 
 protected:
-  virtual void init_mttk() override;
-  virtual void get_target_temp() override;
+  void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 };

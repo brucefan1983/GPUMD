@@ -29,8 +29,11 @@
 #include "ensemble_heat_hybrid.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cstdlib>
+#include <cstring>
 #define DIM 3
 
 static double nhc(
@@ -99,28 +102,194 @@ static double nhc(
   return factor;
 }
 
-Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
-  int type_input,
-  const std::vector<int>& thermostat_type_input,
-  const std::vector<int>& label_input,
-  const std::vector<int>& size_input,
-  const std::vector<int>& offset_input,
-  int number_of_groups,
-  double temperature_input,
-  const std::vector<double>& coupling_input,
-  double delta_temperature_input,
-  double time_step)
+static __global__ void gpu_scale_velocity_n_groups(
+  const int number_of_particles,
+  const int num_groups,
+  const int* g_group_labels, // Array of group labels to scale
+  const double* g_factors,   // Array of scaling factors (one per group)
+  const int* g_atom_label,
+  const double* g_vcx,
+  const double* g_vcy,
+  const double* g_vcz,
+  const double* g_ke,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz)
 {
-  type = type_input;
-  temperature = temperature_input;
-  delta_temperature = delta_temperature_input;
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_particles) {
+    int atom_label = g_atom_label[n];
+    double factor = 1.0;
 
-  num_thermostats = thermostat_type_input.size();
-  thermostat_type = thermostat_type_input;
-  label = label_input;
-  size = size_input;
-  offset = offset_input;
-  coupling = coupling_input;
+    // Find if this atom belongs to any of the groups we're scaling
+    for (int i = 0; i < num_groups; i++) {
+      if (atom_label == g_group_labels[i]) {
+        factor = g_factors[i];
+        break;
+      }
+    }
+
+    if (factor != 1.0) {
+      double vcx = g_vcx[atom_label];
+      double vcy = g_vcy[atom_label];
+      double vcz = g_vcz[atom_label];
+
+      // Scale velocity while conserving momentum
+      g_vx[n] = vcx + factor * (g_vx[n] - vcx);
+      g_vy[n] = vcy + factor * (g_vy[n] - vcy);
+      g_vz[n] = vcz + factor * (g_vz[n] - vcz);
+    }
+  }
+}
+
+void Ensemble_Heat_Hybrid::scale_velocity_groups(
+  const GPU_Vector<double>& factors,
+  const GPU_Vector<int>& labels,
+  const double* vcx,
+  const double* vcy,
+  const double* vcz,
+  const double* ke,
+  const std::vector<Group>& group,
+  GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms = velocity_per_atom.size() / 3;
+  const int num_groups = factors.size();
+
+  if (num_groups == 0)
+    return;
+
+  gpu_scale_velocity_n_groups<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    num_groups,
+    labels.data(),
+    factors.data(),
+    group[0].label.data(),
+    vcx,
+    vcy,
+    vcz,
+    ke,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
+  GPU_CHECK_KERNEL
+}
+
+Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+{
+  const int num_param = tokens.size();
+  type = EnsembleType::HEAT_HYBRID;
+  if (num_param < 9) {
+    PRINT_INPUT_ERROR("ensemble heat_hybrid needs at least 7 parameters.");
+  }
+
+  num_thermostats = 0;
+  while (num_thermostats + 2 < num_param) {
+    const std::string& type_str = tokens[2 + num_thermostats];
+    if (type_str == "nhc") {
+      thermostat_type.push_back(0);
+      ++num_thermostats;
+    } else if (type_str == "lan") {
+      thermostat_type.push_back(1);
+      ++num_thermostats;
+    } else {
+      break;
+    }
+  }
+  if (num_thermostats < 2) {
+    PRINT_INPUT_ERROR("Heat-hybrid needs at least 2 thermostats.");
+  }
+
+  int idx = 2 + num_thermostats;
+  if (idx >= num_param || !is_valid_real(tokens[idx], &temperature)) {
+    PRINT_INPUT_ERROR("Temperature should be a number.");
+  }
+  if (temperature <= 0.0) {
+    PRINT_INPUT_ERROR("Temperature should > 0.");
+  }
+  ++idx;
+
+  coupling.resize(num_thermostats);
+  for (int n = 0; n < num_thermostats; ++n) {
+    if (idx >= num_param || !is_valid_real(tokens[idx], &coupling[n])) {
+      PRINT_INPUT_ERROR("Heat-hybrid damping parameter should be a number.");
+    }
+    if (coupling[n] < 1.0) {
+      PRINT_INPUT_ERROR("Heat-hybrid damping parameter should >= 1.");
+    }
+    ++idx;
+  }
+
+  if (idx >= num_param || !is_valid_real(tokens[idx], &delta_temperature)) {
+    PRINT_INPUT_ERROR("Temperature difference should be a number.");
+  }
+  if (delta_temperature >= temperature || delta_temperature <= -temperature) {
+    PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+  }
+  ++idx;
+
+  label.resize(num_thermostats);
+  for (int n = 0; n < num_thermostats; ++n) {
+    if (idx >= num_param || !is_valid_int(tokens[idx], &label[n])) {
+      PRINT_INPUT_ERROR("Group ID for thermostat should be an integer.");
+    }
+    ++idx;
+  }
+
+  if (group.empty()) {
+    PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+  }
+  for (int n = 0; n < num_thermostats; ++n) {
+    if (label[n] < 0 || label[n] >= group[0].number) {
+      PRINT_INPUT_ERROR("Group ID for heat thermostat is out of range.");
+    }
+    if (group[0].cpu_size[label[n]] <= 0) {
+      PRINT_INPUT_ERROR("Heat thermostat group cannot be empty.");
+    }
+  }
+  for (int i = 0; i < num_thermostats; ++i) {
+    for (int j = i + 1; j < num_thermostats; ++j) {
+      if (label[i] == label[j]) {
+        PRINT_INPUT_ERROR("Heat thermostats must use different groups.");
+      }
+    }
+  }
+
+  printf("Integrate with hybrid heating and cooling for this run.\n");
+  printf("    Number of thermostats: %d\n", num_thermostats);
+  for (int n = 0; n < num_thermostats; ++n) {
+    printf(
+      "    Thermostat %d: %s, group %d, tau = %g time_step, T = %g K\n",
+      n + 1,
+      thermostat_type[n] == 0 ? "NHC" : "Langevin",
+      label[n],
+      coupling[n],
+      target_temperature(n));
+  }
+  printf("    Average temperature: %g K\n", temperature);
+  printf("    Delta T: %g K\n", delta_temperature);
+  printf(
+    "    Hot thermostat (T = %g K) is group %d\n",
+    temperature + delta_temperature,
+    label[0]);
+  for (int n = 1; n < num_thermostats; ++n) {
+    printf(
+      "    Cold thermostat %d (T = %g K) is group %d\n",
+      n,
+      temperature - delta_temperature,
+      label[n]);
+  }
+}
+
+void Ensemble_Heat_Hybrid::initialize_run(
+  const double time_step, Atom&, Box&, const std::vector<Group>& group)
+{
+  size.resize(num_thermostats);
+  offset.resize(num_thermostats);
+  for (int i = 0; i < num_thermostats; ++i) {
+    size[i] = group[0].cpu_size[label[i]];
+    offset[i] = group[0].cpu_size_sum[label[i]];
+  }
 
   // Resize vectors
   c1.resize(num_thermostats);
@@ -159,17 +328,15 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
     }
   }
 
-  initialize_group_kinetic_energy_workspace(number_of_groups);
+  initialize_group_kinetic_energy_workspace(group[0].number);
   if (has_nhc) {
-    initialize_group_com_velocity_workspace(number_of_groups);
+    initialize_group_com_velocity_workspace(group[0].number);
     nhc_factors.resize(nhc_labels.size());
     gpu_nhc_labels.resize(nhc_labels.size());
     gpu_nhc_factors.resize(nhc_factors.size());
     gpu_nhc_labels.copy_from_host(nhc_labels.data());
   }
 }
-
-Ensemble_Heat_Hybrid::~Ensemble_Heat_Hybrid(void) {}
 
 double Ensemble_Heat_Hybrid::target_temperature(int index) const
 {
@@ -305,6 +472,8 @@ void Ensemble_Heat_Hybrid::integrate_heat_hybrid_half(
 
 void Ensemble_Heat_Hybrid::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -323,10 +492,13 @@ void Ensemble_Heat_Hybrid::compute1(
 
 void Ensemble_Heat_Hybrid::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   velocity_verlet(
     false,

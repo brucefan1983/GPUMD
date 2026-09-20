@@ -1,0 +1,27 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+
+#include "utilities/gpu_vector.cuh"
+
+void apply_hnemd_force(
+  const int number_of_atoms,
+  const double fe_x,
+  const double fe_y,
+  const double fe_z,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& force_sum);

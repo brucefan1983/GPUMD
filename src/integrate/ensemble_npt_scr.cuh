@@ -16,28 +16,44 @@
 #pragma once
 #include "ensemble.cuh"
 #include <random>
+#include <string>
 
 class Ensemble_NPT_SCR : public Ensemble
 {
 public:
-  Ensemble_NPT_SCR(int, double, double, double*, int, double*, int, int, int, int, int, int);
-  virtual ~Ensemble_NPT_SCR(void);
+  Ensemble_NPT_SCR(const std::vector<std::string>& tokens, const Box& box);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   std::mt19937 rng;
   void initialize_rng();
+
+private:
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

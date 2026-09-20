@@ -84,5 +84,9 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  void initialize(std::string& ex_functional, const float rc_radial, const float rc_angular);
+  void initialize(
+    std::string& ex_functional,
+    const float rc_radial,
+    const float rc_angular,
+    const std::string& potential_file_name);
 };

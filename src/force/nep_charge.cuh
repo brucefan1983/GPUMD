@@ -22,6 +22,8 @@
 #include "ewald.cuh"
 #include "pppm.cuh"
 
+class RunInput;
+
 struct NEP_Charge_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
@@ -129,7 +131,7 @@ public:
     float B;
   };
 
-  NEP_Charge(const char* file_potential, const int num_atoms);
+  NEP_Charge(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP_Charge(void);
   virtual void compute(
     Box& box,
@@ -156,7 +158,7 @@ private:
   Charge_Para charge_para;
   Ewald ewald;
   PPPM pppm;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -179,9 +181,9 @@ private:
   void find_k_and_G(const double* box);
 
   bool need_bec = false;
-  void check_need_bec();
+  void check_need_bec(const RunInput& run_input);
   bool use_pppm = true; // use PPPM by default
-  void check_ewald_pppm();
+  void check_ewald_pppm(const RunInput& run_input);
   bool has_dftd3 = false;
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

@@ -1,0 +1,2 @@
+potential potential.txt
+ensemble npt_scr 300 300 20 0 100

@@ -20,35 +20,46 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_TI_AS : public Ensemble_MTTK
 {
 public:
-  Ensemble_TI_AS(const char** params, int num_params);
-  virtual ~Ensemble_TI_AS(void);
+  Ensemble_TI_AS(const std::vector<std::string>& tokens);
+  ~Ensemble_TI_AS(void) override;
 
-  virtual void compute1(
+  void finalize_run(const Atom& atom, const Box& box) override;
+
+  void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
-    Atom& atoms,
-    GPU_Vector<double>& thermo);
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
-    const double time_step,
+  void init(const int number_of_steps, const GPU_Vector<double>& thermo);
+  void find_ti_thermo(
+    const Box& box,
     const std::vector<Group>& group,
-    Box& box,
-    Atom& atoms,
+    const Atom& atom,
     GPU_Vector<double>& thermo);
-
-  void init();
-  void find_thermo();
-  void get_target_pressure();
+  void get_target_pressure(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 
 protected:
-  FILE* output_file;
+  FILE* output_file = nullptr;
   int t_switch = -1, t_equil = -1;
   double p_min, p_max, pressure;
   std::vector<double> thermo_cpu;
   bool auto_switch = true;
+
+private:
+  void close_output_file(const bool print_message);
 };

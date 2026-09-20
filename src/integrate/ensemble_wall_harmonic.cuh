@@ -20,28 +20,42 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_wall_harmonic : public Ensemble
 {
 public:
-  Ensemble_wall_harmonic(const char** params, int num_params);
-  virtual ~Ensemble_wall_harmonic(void);
+  Ensemble_wall_harmonic(const std::vector<std::string>& tokens);
 
-  virtual void compute1(
+  void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atoms,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
-  void init();
+  void init(Box& box, Atom& atom);
 
 protected:
   double wall_pos_left;

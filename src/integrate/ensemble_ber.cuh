@@ -15,25 +15,39 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 
 class Ensemble_BER : public Ensemble
 {
 public:
-  Ensemble_BER(int, int, double*, double, double);
-  Ensemble_BER(int, double, double, double*, int, double*, int, int, int, int, int, int);
-  virtual ~Ensemble_BER(void);
+  Ensemble_BER(const std::vector<std::string>& tokens, const Box& box);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+private:
+  void parse(const std::vector<std::string>& tokens, const Box& box);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

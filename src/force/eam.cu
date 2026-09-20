@@ -41,7 +41,7 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
   eam_data.Fp.resize(number_of_atoms);
   eam_data.NN.resize(number_of_atoms);
   eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
-  neighbor.initialize(rc, number_of_atoms, 400);
+  neighbor_manager.initialize(rc, number_of_atoms, 400);
 }
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
@@ -486,11 +486,10 @@ void EAM::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
+
+  const GPU_Vector<int>& NN = neighbor_manager.get_candidate_NN();
+  const GPU_Vector<int>& NL = neighbor_manager.get_candidate_NL();
 
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -501,8 +500,8 @@ void EAM::compute(
       N2,
       box,
       rc,
-      neighbor.NN.data(),
-      neighbor.NL.data(),
+      NN.data(),
+      NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),
@@ -544,8 +543,8 @@ void EAM::compute(
       N2,
       box,
       rc,
-      neighbor.NN.data(),
-      neighbor.NL.data(),
+      NN.data(),
+      NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),

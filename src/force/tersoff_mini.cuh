@@ -60,5 +60,5 @@ protected:
   int num_types; // number of atom tpyes
   Tersoff_mini_Data tersoff_mini_data;
   Tersoff_mini_Para para;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };

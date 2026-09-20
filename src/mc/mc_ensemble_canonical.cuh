@@ -19,7 +19,10 @@
 class MC_Ensemble_Canonical : public MC_Ensemble
 {
 public:
-  MC_Ensemble_Canonical(const char** param, int num_param, int num_steps_mc);
+  MC_Ensemble_Canonical(
+    const std::vector<std::string>& tokens,
+    int num_steps_mc,
+    const std::string& potential_file_name);
   virtual ~MC_Ensemble_Canonical(void);
 
   virtual void compute(

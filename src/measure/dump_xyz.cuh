@@ -26,8 +26,12 @@ class Group;
 class Dump_XYZ : public Action
 {
 public:
-  Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
-  void parse(const char** param, int num_param, const std::vector<Group>& groups);
+  Dump_XYZ(
+    const std::vector<std::string>& tokens,
+    const std::vector<Group>& groups,
+    Atom& atom,
+    bool is_nep_charge);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

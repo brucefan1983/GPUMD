@@ -1,0 +1,8 @@
+# Comments and blank lines are allowed before the first effective command.
+
+   # Indented comment.
+
+replicate 6 6 6
+potential Si_Tersoff_1989.txt
+compute_phonon 0.005
+

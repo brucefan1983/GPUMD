@@ -31,8 +31,8 @@ class Integrate;
 class Dump_Polarizability : public Action
 {
 public:
-  Dump_Polarizability(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_Polarizability(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,

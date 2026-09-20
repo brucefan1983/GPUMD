@@ -15,7 +15,6 @@
 
 #include "ensemble_wall_piston.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -90,16 +89,21 @@ static __global__ void gpu_velocity_verlet(
 }
 } // namespace
 
-Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
+Ensemble_wall_piston::Ensemble_wall_piston(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "vp") == 0) {
-      if (!is_valid_real(params[i + 1], &vp))
+    if (tokens[i] == "vp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for vp keyword.");
+      if (!is_valid_real(tokens[i + 1], &vp))
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
-    } else if (strcmp(params[i], "thickness") == 0) {
-      if (!is_valid_real(params[i + 1], &thickness))
+    } else if (tokens[i] == "thickness") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for thickness keyword.");
+      if (!is_valid_real(tokens[i + 1], &thickness))
         PRINT_INPUT_ERROR("Wrong inputs for thickness keyword.");
       i += 2;
     } else {
@@ -111,31 +115,40 @@ Ensemble_wall_piston::Ensemble_wall_piston(const char** params, int num_params)
   printf("The thickness of fixed wall: %f Ang.\n", thickness);
 }
 
-void Ensemble_wall_piston::init()
+void Ensemble_wall_piston::init(Box& box, Atom& atom)
 {
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
   gpu_left_wall_list.resize(N, false);
   gpu_right_wall_list.resize(N, false);
   gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
     N,
     thickness,
-    box->cpu_h[0] - thickness,
+    box.cpu_h[0] - thickness,
     gpu_left_wall_list.data(),
     gpu_right_wall_list.data(),
-    atom->position_per_atom.data());
+    atom.position_per_atom.data());
 }
 
-Ensemble_wall_piston::~Ensemble_wall_piston(void) {}
+void Ensemble_wall_piston::initialize_before_first_step(
+  const double,
+  const int,
+  const std::vector<Group>&,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>&)
+{
+  init(box, atom);
+}
 
 void Ensemble_wall_piston::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
   find_thermo(
     box.get_volume(),
     group,
@@ -166,10 +179,13 @@ void Ensemble_wall_piston::compute1(
 
 void Ensemble_wall_piston::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   int n = atoms.number_of_atoms;
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(

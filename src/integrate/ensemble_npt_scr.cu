@@ -24,7 +24,9 @@ J. Chem. Phys. 153, 114107 (2020).
 #include "npt_utilities.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <chrono>
 #include <cstring>
 
@@ -38,41 +40,167 @@ void Ensemble_NPT_SCR::initialize_rng()
 };
 
 Ensemble_NPT_SCR::Ensemble_NPT_SCR(
-  int type_input,
-  double temperature_input,
-  double temperature_coupling_input,
-  double target_pressure_input[6],
-  int num_target_pressure_components_input,
-  double pressure_coupling_input[6],
-  int deform_x_input,
-  int deform_y_input,
-  int deform_z_input,
-  int deform_xy_input,
-  int deform_xz_input,
-  int deform_yz_input)
+  const std::vector<std::string>& tokens, const Box& box)
 {
-  type = type_input;
-  temperature = temperature_input;
-  temperature_coupling = temperature_coupling_input;
-  for (int i = 0; i < 6; i++) {
-    target_pressure[i] = target_pressure_input[i];
-    pressure_coupling[i] = pressure_coupling_input[i];
+  const int num_param = tokens.size();
+  type = EnsembleType::NPT_SCR;
+  if (num_param != 18 && num_param != 12 && num_param != 8) {
+    PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
   }
-  num_target_pressure_components = num_target_pressure_components_input;
 
-  deform_x = deform_x_input;
-  deform_y = deform_y_input;
-  deform_z = deform_z_input;
-  deform_xy = deform_xy_input;
-  deform_xz = deform_xz_input;
-  deform_yz = deform_yz_input;
+  if (!is_valid_real(tokens[2], &temperature1_)) {
+    PRINT_INPUT_ERROR("Initial temperature should be a number.");
+  }
+  if (temperature1_ <= 0.0) {
+    PRINT_INPUT_ERROR("Initial temperature should > 0.");
+  }
+  if (!is_valid_real(tokens[3], &temperature2_)) {
+    PRINT_INPUT_ERROR("Final temperature should be a number.");
+  }
+  if (temperature2_ <= 0.0) {
+    PRINT_INPUT_ERROR("Final temperature should > 0.");
+  }
+  temperature = temperature1_;
+  if (!is_valid_real(tokens[4], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
 
-  initialize_rng();
+  double elastic_modulus[6] = {0.0};
+  if (num_param == 12) {
+    for (int i = 0; i < 3; ++i) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
+        PRINT_INPUT_ERROR("Pressure should be a number.");
+      }
+    }
+    for (int i = 0; i < 3; ++i) {
+      if (!is_valid_real(tokens[8 + i], &elastic_modulus[i])) {
+        PRINT_INPUT_ERROR("elastic modulus should be a number.");
+      }
+      if (elastic_modulus[i] <= 0.0) {
+        PRINT_INPUT_ERROR("elastic modulus should > 0.");
+      }
+    }
+    num_target_pressure_components = 3;
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
+    }
+  } else if (num_param == 8) {
+    if (!is_valid_real(tokens[5], &target_pressure[0])) {
+      PRINT_INPUT_ERROR("Pressure should be a number.");
+    }
+    if (!is_valid_real(tokens[6], &elastic_modulus[0])) {
+      PRINT_INPUT_ERROR("elastic modulus should be a number.");
+    }
+    if (elastic_modulus[0] <= 0.0) {
+      PRINT_INPUT_ERROR("elastic modulus should > 0.");
+    }
+    num_target_pressure_components = 1;
+    if (
+      box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
+      box.cpu_h[6] != 0 || box.cpu_h[7] != 0) {
+      PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
+    }
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot use isotropic pressure with non-periodic boundary in any direction.");
+    }
+  } else {
+    for (int i = 0; i < 6; ++i) {
+      if (!is_valid_real(tokens[5 + i], &target_pressure[i])) {
+        PRINT_INPUT_ERROR("Pressure should be a number.");
+      }
+    }
+    for (int i = 0; i < 6; ++i) {
+      if (!is_valid_real(tokens[11 + i], &elastic_modulus[i])) {
+        PRINT_INPUT_ERROR("elastic modulus should be a number.");
+      }
+      if (elastic_modulus[i] <= 0.0) {
+        PRINT_INPUT_ERROR("elastic modulus should > 0.");
+      }
+    }
+    num_target_pressure_components = 6;
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot use 6 pressure components with non-periodic boundary in any direction.");
+    }
+  }
+
+  double tau_p;
+  int index_pressure_coupling = num_target_pressure_components * 2 + 5;
+  if (!is_valid_real(tokens[index_pressure_coupling], &tau_p)) {
+    PRINT_INPUT_ERROR("Pressure coupling should be a number.");
+  }
+  if (tau_p < 1.0) {
+    PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
+  }
+  for (int i = 0; i < num_target_pressure_components; ++i) {
+    pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
+    if (elastic_modulus[i] > 2.0e3) {
+      pressure_coupling[i] = 0.0;
+    }
+  }
+
+  printf("Use NPT ensemble for this run.\n");
+  printf("    choose the SCR method.\n");
+  printf("    initial temperature is %g K.\n", temperature1_);
+  printf("    final temperature is %g K.\n", temperature2_);
+  printf("    tau_T is %g time_step.\n", temperature_coupling);
+  if (num_target_pressure_components == 1) {
+    printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+    printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
+  } else if (num_target_pressure_components == 3) {
+    printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+    printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+    printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+    printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+    printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+    printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+  } else {
+    printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+    printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+    printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+    printf("    pressure_yz is %g GPa.\n", target_pressure[3]);
+    printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+    printf("    pressure_xy is %g GPa.\n", target_pressure[5]);
+    printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+    printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+    printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+    printf("    modulus_yz is %g GPa.\n", elastic_modulus[3]);
+    printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
+    printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
+  }
+  printf("    tau_p is %g time_step.\n", tau_p);
+
+  for (int i = 0; i < num_target_pressure_components; ++i) {
+    target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+    pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
+  }
 }
 
-Ensemble_NPT_SCR::~Ensemble_NPT_SCR(void)
+double Ensemble_NPT_SCR::get_temperature1() const
 {
-  // nothing now
+  return temperature1_;
+}
+
+double Ensemble_NPT_SCR::get_temperature2() const
+{
+  return temperature2_;
+}
+
+int Ensemble_NPT_SCR::get_num_target_pressure_components() const
+{
+  return num_target_pressure_components;
+}
+
+void Ensemble_NPT_SCR::initialize_run(
+  const double, Atom&, Box&, const std::vector<Group>&)
+{
+  initialize_rng();
 }
 
 static void cpu_pressure_orthogonal(
@@ -277,6 +405,8 @@ static void cpu_pressure_triclinic(
 
 void Ensemble_NPT_SCR::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -294,10 +424,13 @@ void Ensemble_NPT_SCR::compute1(
 
 void Ensemble_NPT_SCR::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   const int number_of_atoms = atom.mass.size();
 

@@ -1510,7 +1510,7 @@ void ILP_TERSOFF::compute_ilp(
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
   GPU_Vector<double> &virial_per_atom,
-  std::vector<Group> &group)
+  const std::vector<Group> &group)
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;

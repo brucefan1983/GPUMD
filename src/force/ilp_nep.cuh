@@ -176,7 +176,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    std::vector<Group> &group);
+    const std::vector<Group>& group) override;
   
 
 protected:

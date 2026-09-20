@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
+#include <string>
 #include <vector>
 
 class Box;
@@ -35,9 +36,14 @@ public:
   double cutoff = 4.0;
   double phonon_cutoff = 8.0;
 
-  void compute(Force& force, Box& box, Atom& atom, std::vector<Group>& group);
+  void compute(
+    Force& force,
+    Box& box,
+    Atom& atom,
+    std::vector<Group>& group,
+    const int replicate_size[3]);
 
-  void parse(const char**, int);
+  void parse(const std::vector<std::string>& tokens);
   void get_cutoff_from_potential(Force& force);
 
 protected:

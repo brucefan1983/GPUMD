@@ -90,6 +90,15 @@ public:
     Box& box,
     Force& force);
 
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
   virtual void end_of_step(
       const int number_of_steps,
       int step,
@@ -113,13 +122,13 @@ public:
     const double temperature);
 
   MODAL_ANALYSIS(
-    const char** param, 
-    int num_param, 
-    const int number_of_types, 
-    int method_input,
-    Force& force);
-  void parse_compute_gkma(const char**, int, const int number_of_types);
-  void parse_compute_hnema(const char**, int, const int number_of_types);
+    const std::vector<std::string>& tokens,
+    const int number_of_types,
+    int method_input);
+  void parse_compute_gkma(
+    const std::vector<std::string>& tokens, const int number_of_types);
+  void parse_compute_hnema(
+    const std::vector<std::string>& tokens, const int number_of_types);
 
 private:
   int samples_per_output; // samples to be averaged for output
@@ -133,6 +142,7 @@ private:
   double fe_y = 0.0;
   double fe_z = 0.0;
   double fe;
+  GPU_Vector<double> force_sum_;
 
   gpublasHandle_t ma_handle;
 

@@ -55,8 +55,8 @@ public:
     const double time_step,
     const double temperature);
 
-  Viscosity(const char**, int);
-  void parse(const char**, int);
+  Viscosity(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
 
 private:
   GPU_Vector<double> stress_all;

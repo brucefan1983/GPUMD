@@ -17,6 +17,7 @@
 #include "action.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Compute : public Action
@@ -66,8 +67,8 @@ public:
     const double temperature);
 
 
-  Compute(const char**, int, const std::vector<Group>& group);
-  void parse(const char**, int, const std::vector<Group>& group);
+  Compute(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
 private:
   FILE* fid;

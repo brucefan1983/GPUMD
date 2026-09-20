@@ -23,6 +23,7 @@ keyword and perform deposition between consecutive sub-runs.
 #include "utilities/error.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -171,34 +172,29 @@ static int get_deposit_atom_type(
   return -1;
 }
 
-void Deposition::parse_deposition(const char** param, int num_param)
+void Deposition::parse_deposition(const std::vector<std::string>& tokens)
 {
-  for (int i = 0; i < num_param; ++i) {
-    if (std::string(param[i])[0] == '#') {
-      num_param = i;
-      break;
-    }
-  }
+  const int num_param = tokens.size();
 
   if (num_param < 6) {
     PRINT_INPUT_ERROR("deposit should have at least 5 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &interval)) {
+  if (!is_valid_int(tokens[1], &interval)) {
     PRINT_INPUT_ERROR("deposit interval should be an integer.\n");
   }
   if (interval <= 0) {
     PRINT_INPUT_ERROR("deposit interval should be positive.\n");
   }
 
-  if (!is_valid_int(param[2], &direction)) {
+  if (!is_valid_int(tokens[2], &direction)) {
     PRINT_INPUT_ERROR("deposit direction should be -1 or 0 (x), 1 (y), 2 (z).\n");
   }
   if (direction < -1 || direction > 2) {
     PRINT_INPUT_ERROR("deposit direction should be -1 or 0 (x), 1 (y), 2 (z).\n");
   }
 
-  if (!is_valid_real(param[3], &height_min)) {
+  if (!is_valid_real(tokens[3], &height_min)) {
     PRINT_INPUT_ERROR("deposit height should be a real number.\n");
   }
   if (direction >= 0 && height_min <= 0) {
@@ -206,11 +202,11 @@ void Deposition::parse_deposition(const char** param, int num_param)
   }
 
   int idx = 4;
-  if (std::string(param[idx]) == "atom" || std::string(param[idx]) == "file") {
+  if (tokens[idx] == "atom" || tokens[idx] == "file") {
     height_max = height_min;
     has_height_range = false;
   } else {
-    if (!is_valid_real(param[idx], &height_max)) {
+    if (!is_valid_real(tokens[idx], &height_max)) {
       PRINT_INPUT_ERROR("deposit height_max should be a real number, 'atom', or 'file'.\n");
     }
     if (direction >= 0 && height_max < height_min) {
@@ -220,11 +216,11 @@ void Deposition::parse_deposition(const char** param, int num_param)
     ++idx;
   }
 
-  if (idx >= num_param || (std::string(param[idx]) != "atom" && std::string(param[idx]) != "file")) {
+  if (idx >= num_param || (tokens[idx] != "atom" && tokens[idx] != "file")) {
     PRINT_INPUT_ERROR("deposit should have 'atom' or 'file' keyword.\n");
   }
 
-  if (std::string(param[idx]) == "atom") {
+  if (tokens[idx] == "atom") {
     if (direction == -1) {
       PRINT_INPUT_ERROR("deposit with direction=-1 does not support 'atom' mode.\n");
     }
@@ -240,12 +236,12 @@ void Deposition::parse_deposition(const char** param, int num_param)
         PRINT_INPUT_ERROR("deposit atom species requires element, number, and velocity.\n");
       }
 
-      int atom_type = get_deposit_atom_type(param[idx], atom_symbols);
+      int atom_type = get_deposit_atom_type(tokens[idx], atom_symbols);
       register_compact_nep_required_species(atom_symbols[atom_type]);
       ++idx;
 
       int number = 0;
-      if (!is_valid_int(param[idx], &number)) {
+      if (!is_valid_int(tokens[idx], &number)) {
         PRINT_INPUT_ERROR("deposit num_atoms should be an integer.\n");
       }
       if (number <= 0) {
@@ -254,13 +250,13 @@ void Deposition::parse_deposition(const char** param, int num_param)
       ++idx;
 
       double velocity = 0.0;
-      if (!is_valid_real(param[idx], &velocity)) {
+      if (!is_valid_real(tokens[idx], &velocity)) {
         PRINT_INPUT_ERROR("deposit velocity should be a real number.\n");
       }
       ++idx;
 
       double mass = 0.0;
-      if (idx < num_param && is_valid_real(param[idx], &mass)) {
+      if (idx < num_param && is_valid_real(tokens[idx], &mass)) {
         if (mass <= 0) {
           PRINT_INPUT_ERROR("deposit mass should be positive.\n");
         }
@@ -282,7 +278,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
     if (idx >= num_param) {
       PRINT_INPUT_ERROR("deposit file keyword should be followed by a file name.\n");
     }
-    add_atom_file = param[idx];
+    add_atom_file = tokens[idx];
     ++idx;
 
     if (direction < 0) {
@@ -294,7 +290,7 @@ void Deposition::parse_deposition(const char** param, int num_param)
       if (idx >= num_param) {
         PRINT_INPUT_ERROR("deposit file mode with a direction should be followed by a velocity.\n");
       }
-      if (!is_valid_real(param[idx], &file_velocity)) {
+      if (!is_valid_real(tokens[idx], &file_velocity)) {
         PRINT_INPUT_ERROR("deposit file velocity should be a real number.\n");
       }
       has_file_velocity = true;
@@ -344,49 +340,32 @@ static int find_property(
   return 0;
 }
 
-void Deposition::analyze_run(const std::string& filename)
+void Deposition::analyze_run(const RunInput& run_input)
 {
   subrun_lines.clear();
-
-  std::ifstream input(filename);
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << filename << "." << std::endl;
-    exit(1);
-  }
-  std::vector<std::string> raw_lines;
-  std::string raw_line;
-  while (std::getline(input, raw_line)) {
-    raw_lines.emplace_back(raw_line);
-  }
-  input.close();
 
   int deposition_line = -1;
   int run_line = -1;
   int total_steps = 0;
 
-  for (int n = 0; n < raw_lines.size(); ++n) {
-    std::vector<std::string> tokens = get_tokens(raw_lines[n]);
+  const std::vector<RunInputLine>& input_lines = run_input.lines();
+  for (int n = 0; n < static_cast<int>(input_lines.size()); ++n) {
+    const std::vector<std::string>& tokens = input_lines[n].tokens;
     if (tokens.empty()) {
       continue;
     }
-
-    std::vector<const char*> param(tokens.size());
-    for (int k = 0; k < tokens.size(); ++k) {
-      param[k] = tokens[k].c_str();
-    }
-    const int num_param = tokens.size();
 
     if (tokens[0] == "deposit") {
       if (deposition_line >= 0) {
         PRINT_INPUT_ERROR("deposit should appear only once in run.in.\n");
       }
-      parse_deposition(param.data(), num_param);
+      parse_deposition(tokens);
       deposition_line = n;
     } else if (tokens[0] == "run") {
       if (run_line >= 0) {
         PRINT_INPUT_ERROR("run should appear only once in run.in when deposit is used.\n");
       }
-      if (!is_valid_int(param[1], &total_steps)) {
+      if (!is_valid_int(tokens[1], &total_steps)) {
         PRINT_INPUT_ERROR("number of steps should be an integer.\n");
       }
       run_line = n;
@@ -406,7 +385,7 @@ void Deposition::analyze_run(const std::string& filename)
     std::vector<std::string> lines;
     const int dump_index = has_vel ? (i + 1) : i;
 
-    for (size_t n = 0; n < raw_lines.size(); ++n) {      
+    for (size_t n = 0; n < input_lines.size(); ++n) {
       if (int(n) == deposition_line) {
         continue;
       }
@@ -417,7 +396,7 @@ void Deposition::analyze_run(const std::string& filename)
           ".xyz" + (has_mass ? " mass" : "") + " velocity" + (has_group ? " group_labels" : ""));
         lines.emplace_back("run " + std::to_string(interval));
       } else {
-        lines.emplace_back(raw_lines[n]);
+        lines.emplace_back(input_lines[n].raw_line);
       }
     }
     subrun_lines.emplace_back(std::move(lines));
@@ -578,9 +557,6 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     }
   }
 
-  std::string potential_filename = get_filename_potential();
-  std::vector<std::string> atom_symbols = get_atom_symbols(potential_filename);
-
   auto sample_height = [&]() {
     return has_height_range ? height_min + dist01(rng) * (height_max - height_min) : height_min;
   };
@@ -661,14 +637,14 @@ void Deposition::initialize_rng()
 #endif
 }
 
-void Deposition::initialize()
+void Deposition::initialize(const RunInput& run_input)
 {
   copy_file("run.in", "run.in.original");
   copy_file("model.xyz", "model.xyz.original");
 
   initialize_rng();
 
-  std::string potential_filename = get_filename_potential();
+  std::string potential_filename = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(potential_filename);
 
   std::ifstream model_input("model.xyz");
@@ -683,11 +659,11 @@ void Deposition::initialize()
     model_input.close();
   }
 
-  analyze_run("run.in.original");
+  analyze_run(run_input);
   printf("Split run.in into %d sub-runs.\n", num_subruns);
 }
 
-void Deposition::prepare_subrun(int run_idx)
+RunInput Deposition::prepare_subrun(int run_idx)
 {
   printf(
     "Running sub-run %d / %d.\n", run_idx + 1, num_subruns);
@@ -712,24 +688,11 @@ void Deposition::prepare_subrun(int run_idx)
     std::string previous_xyz = "deposited_" + std::to_string(previous_index) + ".xyz";
     deposit(previous_xyz, "model.xyz");
   }
+
+  return RunInput(subrun_lines[run_idx]);
 }
 
-bool Deposition::has_deposition(const std::string& filename)
+bool Deposition::has_deposition(const RunInput& run_input)
 {
-  std::ifstream input(filename);
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << filename << "." << std::endl;
-    exit(1);
-  }
-
-  while (input.peek() != EOF) {
-    std::vector<std::string> tokens = get_tokens(input);
-    if (!tokens.empty() && tokens[0] == "deposit") {
-      input.close();
-      return true;
-    }
-  }
-
-  input.close();
-  return false;
+  return run_input.contains("deposit");
 }

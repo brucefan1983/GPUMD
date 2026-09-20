@@ -27,18 +27,19 @@ Dump thermo data to a file at a given interval.
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-Dump_Thermo::Dump_Thermo(const char** param, int num_param) 
+Dump_Thermo::Dump_Thermo(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_thermo";
 }
 
-void Dump_Thermo::parse(const char** param, int num_param)
+void Dump_Thermo::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("thermo dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -61,7 +62,7 @@ void Dump_Thermo::pre_run(
   fprintf(fid_, "# format_version 1\n");
   fprintf(fid_, "# num_atoms %d\n", atom.number_of_atoms);
   fprintf(fid_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
-  if (integrate.type >= 31) {
+  if (is_pimd(integrate.get_type())) {
     fprintf(
       fid_,
       "# columns T_target KE_quantum PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
@@ -88,12 +89,14 @@ void Dump_Thermo::end_of_step(
     return;
 
   int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
+    (fixed_group < 0)
+      ? 0
+      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
 
   double thermo[8];
   gpu_thermo.copy_to_host(thermo, 8);
   double energy_kin, temperature;
-  if (integrate.type >= 31) {
+  if (is_pimd(integrate.get_type())) {
     energy_kin = thermo[0];
     temperature = temperature_target;
   } else {

@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Force;
 class Box;
@@ -25,8 +26,7 @@ class Minimize
 {
 public:
   void parse_minimize(
-    const char** param,
-    int num_param,
+    const std::vector<std::string>& tokens,
     int fixed_group,
     int fixed_grouping_method,
     Force& force,

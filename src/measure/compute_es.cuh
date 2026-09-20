@@ -22,7 +22,7 @@
 class Compute_es : public Action
 {
 public:
-  Compute_es(const char**, int);
+  Compute_es(const std::vector<std::string>& tokens);
 
   int sample_interval;
 
@@ -57,7 +57,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char**, int);
+  void parse(const std::vector<std::string>& tokens);
 
 private:
   void initialize();

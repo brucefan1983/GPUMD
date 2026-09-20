@@ -20,6 +20,8 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
+class RunInput;
+
 struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
@@ -105,7 +107,7 @@ public:
         GPU_Vector<float> r12;
     } small_box_data;
 
-  NEP(const char* file_potential, const int num_atoms);
+  NEP(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP(void);
   virtual void compute(
     Box& box,
@@ -134,7 +136,7 @@ private:
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -173,5 +175,5 @@ private:
     GPU_Vector<double>& virial);
 
   bool has_dftd3 = false;
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

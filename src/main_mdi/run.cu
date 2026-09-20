@@ -749,7 +749,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
     std::unique_ptr<Action> action;
-    action.reset(new HNEMDEC(param, num_param, force, atom, integrate.temperature1));
+    action.reset(new HNEMDEC(param, num_param));
     measure.actions.emplace_back(std::move(action));
   } else if (strcmp(param[0], "compute_shc") == 0) {
     std::unique_ptr<Action> action;

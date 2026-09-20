@@ -32,9 +32,9 @@ This keyword is used as follows::
 
 :attr:`gamma_high`: If the max gamma value of a structure exceeds `gamma_high`, then the simulation will stop. The default value is very large so it will never stop.
 
-:attr:`check_interval`: Since calculating gamma value is slow, you can check the gamma value every `check_interval` steps. The default value is `1` (check every step).
+:attr:`check_interval`: A positive integer specifying how often to calculate the gamma value. The default value is `1` (check every step).
 
-:attr:`dump_interval`: You can set the minimum interval between dumps to `dump_interval` steps. The default value is `1`.
+:attr:`dump_interval`: A positive integer specifying the minimum interval between dumps. The default value is `1`.
 
 Output file
 -----------

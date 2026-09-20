@@ -23,7 +23,7 @@
 class ComputeChunk : public Action
 {
 public:
-  ComputeChunk(const char** param, int num_param, Box& box);
+  ComputeChunk(const std::vector<std::string>& tokens, Box& box);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -101,8 +101,9 @@ private:
   // Output
   FILE* fid_ = nullptr;
 
-  void parse(const char** param, int num_param, Box& box);
-  int parse_bin_params(const char** param, int num_param, int start, Box& box);
+  void parse(const std::vector<std::string>& tokens, Box& box);
+  int parse_bin_params(
+    const std::vector<std::string>& tokens, int num_param, int start, Box& box);
   void assign_chunks(const Atom& atom, const Box& box);
   void sample(const Atom& atom);
   void output_results(int step);

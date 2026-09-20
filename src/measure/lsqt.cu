@@ -22,7 +22,6 @@
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 
 /*----------------------------------------------------------------------------80
     This file implements the linear-scaling quantum transport (LSQT) method
@@ -953,14 +952,15 @@ void LSQT::post_run(
   const double time_step,
   const double temperature) { compute = false; };
 
-LSQT::LSQT(const char** param, const int num_param)
+LSQT::LSQT(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "lsqt";
 }
 
-void LSQT::parse(const char** param, const int num_param)
+void LSQT::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute LSQT.\n");
   compute = true;
 
@@ -969,13 +969,13 @@ void LSQT::parse(const char** param, const int num_param)
   }
 
   // transport direction
-  if (strcmp(param[1], "x") == 0) {
+  if (tokens[1] == "x") {
     transport_direction = 1;
     printf("    transport direction is x.\n");
-  } else if (strcmp(param[1], "y") == 0) {
+  } else if (tokens[1] == "y") {
     transport_direction = 2;
     printf("    transport direction is y.\n");
-  } else if (strcmp(param[1], "z") == 0) {
+  } else if (tokens[1] == "z") {
     transport_direction = 3;
     printf("    transport direction is z.\n");
   } else {
@@ -983,7 +983,7 @@ void LSQT::parse(const char** param, const int num_param)
   }
 
   // number of moments
-  if (!is_valid_int(param[2], &number_of_moments)) {
+  if (!is_valid_int(tokens[2], &number_of_moments)) {
     PRINT_INPUT_ERROR("number of moments should be an integer.\n");
   }
   if (number_of_moments < 100 || number_of_moments > 10000) {
@@ -992,7 +992,7 @@ void LSQT::parse(const char** param, const int num_param)
   printf("    number of moments is %d.\n", number_of_moments);
 
   // number of energy points
-  if (!is_valid_int(param[3], &number_of_energy_points)) {
+  if (!is_valid_int(tokens[3], &number_of_energy_points)) {
     PRINT_INPUT_ERROR("number of energy points should be an integer.\n");
   }
   if (number_of_energy_points < 100 || number_of_energy_points > 10001) {
@@ -1002,14 +1002,14 @@ void LSQT::parse(const char** param, const int num_param)
 
   // starting energy
   double start_energy;
-  if (!is_valid_real(param[4], &start_energy)) {
+  if (!is_valid_real(tokens[4], &start_energy)) {
     PRINT_INPUT_ERROR("starting energy should be a number.\n");
   }
   printf("    starting energy is %g eV.\n", start_energy);
 
   // ending energy
   double end_energy;
-  if (!is_valid_real(param[5], &end_energy)) {
+  if (!is_valid_real(tokens[5], &end_energy)) {
     PRINT_INPUT_ERROR("ending energy should be a number.\n");
   }
   printf("    ending energy is %g eV.\n", end_energy);
@@ -1019,7 +1019,7 @@ void LSQT::parse(const char** param, const int num_param)
   }
 
   // maximum energy
-  if (!is_valid_real(param[6], &maximum_energy)) {
+  if (!is_valid_real(tokens[6], &maximum_energy)) {
     PRINT_INPUT_ERROR("maximum energy should be a number.\n");
   }
   if (maximum_energy <= std::max(std::abs(start_energy), std::abs(end_energy))) {

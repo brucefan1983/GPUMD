@@ -78,5 +78,5 @@ Caveats
 This computation can be very memory intensive.
 The memory requirements are comparable to the size of the :ref:`eigenvector.in input file <eigenvector_in>`.
 
-This keyword cannot be used in the same run as the :ref:`compute_gkma keyword <kw_compute_gkma>`.
-The keyword used last will be used in the run.
+Only one modal-analysis calculation can be specified in a run.
+Repeating this keyword or using it together with the :ref:`compute_gkma keyword <kw_compute_gkma>` results in an input error.

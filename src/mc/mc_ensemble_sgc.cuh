@@ -20,15 +20,15 @@ class MC_Ensemble_SGC : public MC_Ensemble
 {
 public:
   MC_Ensemble_SGC(
-    const char** param,
-    int num_param,
+    const std::vector<std::string>& tokens,
     int num_steps_mc,
     bool is_vcsgc,
     std::vector<std::string>& species,
     std::vector<int>& types,
     std::vector<int>& num_atoms_species,
     std::vector<double>& mu_or_phi,
-    double kappa);
+    double kappa,
+    const std::string& potential_file_name);
   virtual ~MC_Ensemble_SGC(void);
 
   virtual void compute(

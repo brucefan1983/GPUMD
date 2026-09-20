@@ -134,26 +134,27 @@ static __global__ void gpu_sum_ke_per_chunk(
   }
 }
 
-ComputeChunk::ComputeChunk(const char** param, int num_param, Box& box)
+ComputeChunk::ComputeChunk(const std::vector<std::string>& tokens, Box& box)
 {
   action_name = "compute_chunk";
   for (int i = 0; i < 3; i++) {
     axis_[i] = 0; origin_[i] = 0.0;
     delta_[i] = 1.0; invdelta_[i] = 1.0; nlayers_[i] = 1;
   }
-  parse(param, num_param, box);
+  parse(tokens, box);
 }
 
-void ComputeChunk::parse(const char** param, int num_param, Box& box)
+void ComputeChunk::parse(const std::vector<std::string>& tokens, Box& box)
 {
   printf("Compute chunk-averaged properties:\n");
+  const int num_param = tokens.size();
 
   if (num_param < 6) {
     PRINT_INPUT_ERROR("compute_chunk requires at least 5 parameters.\n");
   }
 
   // param[1]: sample_interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample_interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -161,7 +162,7 @@ void ComputeChunk::parse(const char** param, int num_param, Box& box)
   }
 
   // param[2]: output_interval
-  if (!is_valid_int(param[2], &output_interval_)) {
+  if (!is_valid_int(tokens[2], &output_interval_)) {
     PRINT_INPUT_ERROR("output_interval should be an integer.\n");
   }
   if (output_interval_ <= 0) {
@@ -169,7 +170,7 @@ void ComputeChunk::parse(const char** param, int num_param, Box& box)
   }
 
   // param[3]: bin style -> parse bin params, returns index of next param
-  int next = parse_bin_params(param, num_param, 3, box);
+  int next = parse_bin_params(tokens, num_param, 3, box);
 
   // remaining params are properties
   if (next >= num_param) {
@@ -177,29 +178,29 @@ void ComputeChunk::parse(const char** param, int num_param, Box& box)
   }
 
   for (int k = next; k < num_param; ++k) {
-    if (strcmp(param[k], "temperature") == 0) {
+    if (tokens[k] == "temperature") {
       compute_temperature_ = 1;
       number_of_scalars_++;
       printf("    temperature\n");
-    } else if (strcmp(param[k], "density/number") == 0) {
+    } else if (tokens[k] == "density/number") {
       compute_density_number_ = 1;
       number_of_scalars_++;
       printf("    density/number\n");
-    } else if (strcmp(param[k], "density/mass") == 0) {
+    } else if (tokens[k] == "density/mass") {
       compute_density_mass_ = 1;
       number_of_scalars_++;
       printf("    density/mass\n");
-    } else if (strcmp(param[k], "vx") == 0) {
+    } else if (tokens[k] == "vx") {
       compute_vx_ = 1; number_of_scalars_++; printf("    vx\n");
-    } else if (strcmp(param[k], "vy") == 0) {
+    } else if (tokens[k] == "vy") {
       compute_vy_ = 1; number_of_scalars_++; printf("    vy\n");
-    } else if (strcmp(param[k], "vz") == 0) {
+    } else if (tokens[k] == "vz") {
       compute_vz_ = 1; number_of_scalars_++; printf("    vz\n");
-    } else if (strcmp(param[k], "fx") == 0) {
+    } else if (tokens[k] == "fx") {
       compute_fx_ = 1; number_of_scalars_++; printf("    fx\n");
-    } else if (strcmp(param[k], "fy") == 0) {
+    } else if (tokens[k] == "fy") {
       compute_fy_ = 1; number_of_scalars_++; printf("    fy\n");
-    } else if (strcmp(param[k], "fz") == 0) {
+    } else if (tokens[k] == "fz") {
       compute_fz_ = 1; number_of_scalars_++; printf("    fz\n");
     } else {
       PRINT_INPUT_ERROR("Invalid property for compute_chunk.\n");
@@ -212,7 +213,7 @@ void ComputeChunk::parse(const char** param, int num_param, Box& box)
 }
 
 static int parse_one_axis(
-  const char** param, int idx, int* axis, double* origin, double* delta,
+  const std::vector<std::string>& tokens, int idx, int* axis, double* origin, double* delta,
   double* invdelta, int* nlayers, double* box_len_out, const Box& box)
 {
   // Use geometric thickness (volume/area) which is correct for triclinic boxes
@@ -223,21 +224,21 @@ static int parse_one_axis(
     vol / box.get_area(2)   // thickness along z
   };
 
-  if (strcmp(param[idx], "x") == 0) *axis = 0;
-  else if (strcmp(param[idx], "y") == 0) *axis = 1;
-  else if (strcmp(param[idx], "z") == 0) *axis = 2;
+  if (tokens[idx] == "x") *axis = 0;
+  else if (tokens[idx] == "y") *axis = 1;
+  else if (tokens[idx] == "z") *axis = 2;
   else { PRINT_INPUT_ERROR("dim must be x, y, or z.\n"); }
 
   double box_len = box_lengths[*axis];
 
   // GPUMD wraps positions to [0, L], bins always start from 0.
-  if (strcmp(param[idx + 1], "lower") == 0) {
+  if (tokens[idx + 1] == "lower") {
     *origin = 0.0;
   } else {
     PRINT_INPUT_ERROR("origin must be lower.\n");
   }
 
-  if (!is_valid_real(param[idx + 2], delta)) {
+  if (!is_valid_real(tokens[idx + 2], delta)) {
     PRINT_INPUT_ERROR("delta must be a positive number.\n");
   }
   if (*delta <= 0.0) {
@@ -253,47 +254,47 @@ static int parse_one_axis(
 }
 
 int ComputeChunk::parse_bin_params(
-  const char** param, int num_param, int start, Box& box)
+  const std::vector<std::string>& tokens, int num_param, int start, Box& box)
 {
-  if (strcmp(param[start], "bin/1d") == 0) {
+  if (tokens[start] == "bin/1d") {
     dim_ = 1; ncoord_ = 1;
     if (start + 4 > num_param) {
       PRINT_INPUT_ERROR("bin/1d requires: dim origin delta.\n");
     }
     int next = parse_one_axis(
-      param, start + 1, &axis_[0], &origin_[0], &delta_[0],
+      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
       &invdelta_[0], &nlayers_[0], &box_length_[0], box);
     nchunk_ = nlayers_[0];
     return next;
-  } else if (strcmp(param[start], "bin/2d") == 0) {
+  } else if (tokens[start] == "bin/2d") {
     dim_ = 2; ncoord_ = 2;
     if (start + 7 > num_param) {
       PRINT_INPUT_ERROR("bin/2d requires: dim origin delta dim origin delta.\n");
     }
     int next = parse_one_axis(
-      param, start + 1, &axis_[0], &origin_[0], &delta_[0],
+      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
       &invdelta_[0], &nlayers_[0], &box_length_[0], box);
     next = parse_one_axis(
-      param, next, &axis_[1], &origin_[1], &delta_[1],
+      tokens, next, &axis_[1], &origin_[1], &delta_[1],
       &invdelta_[1], &nlayers_[1], &box_length_[1], box);
     if (axis_[0] == axis_[1]) {
       PRINT_INPUT_ERROR("bin/2d requires two different axes.\n");
     }
     nchunk_ = nlayers_[0] * nlayers_[1];
     return next;
-  } else if (strcmp(param[start], "bin/3d") == 0) {
+  } else if (tokens[start] == "bin/3d") {
     dim_ = 3; ncoord_ = 3;
     if (start + 10 > num_param) {
       PRINT_INPUT_ERROR("bin/3d requires: dim origin delta (x3).\n");
     }
     int next = parse_one_axis(
-      param, start + 1, &axis_[0], &origin_[0], &delta_[0],
+      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
       &invdelta_[0], &nlayers_[0], &box_length_[0], box);
     next = parse_one_axis(
-      param, next, &axis_[1], &origin_[1], &delta_[1],
+      tokens, next, &axis_[1], &origin_[1], &delta_[1],
       &invdelta_[1], &nlayers_[1], &box_length_[1], box);
     next = parse_one_axis(
-      param, next, &axis_[2], &origin_[2], &delta_[2],
+      tokens, next, &axis_[2], &origin_[2], &delta_[2],
       &invdelta_[2], &nlayers_[2], &box_length_[2], box);
     if (axis_[0] == axis_[1] || axis_[0] == axis_[2] || axis_[1] == axis_[2]) {
       PRINT_INPUT_ERROR("bin/3d requires three different axes.\n");

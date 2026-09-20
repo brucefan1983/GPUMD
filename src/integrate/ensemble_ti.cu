@@ -15,7 +15,6 @@
 
 #include "ensemble_ti.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -75,32 +74,43 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 
 } // namespace
 
-Ensemble_TI::Ensemble_TI(const char** params, int num_params)
+Ensemble_TI::Ensemble_TI(const std::vector<std::string>& tokens)
 {
+  const int num_params = tokens.size();
   temperature_coupling = 100;
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "lambda") == 0) {
-      if (!is_valid_real(params[i + 1], &lambda))
+    if (tokens[i] == "lambda") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for lambda keyword.");
+      if (!is_valid_real(tokens[i + 1], &lambda))
         PRINT_INPUT_ERROR("Wrong inputs for lambda keyword.");
       if (lambda < 0 || lambda > 1)
         PRINT_INPUT_ERROR("lambda value should be between 0 and 1.");
       i += 2;
-    } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature))
+    } else if (tokens[i] == "temp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for temp keyword.");
+      if (!is_valid_real(tokens[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
-    } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &temperature_coupling))
+    } else if (tokens[i] == "tperiod") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for tperiod keyword.");
+      if (!is_valid_real(tokens[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "spring") == 0) {
+    } else if (tokens[i] == "spring") {
       i++;
+      if (i >= num_params)
+        PRINT_INPUT_ERROR("Spring keyword requires at least one type and force constant pair.");
       double _k;
       while (i < num_params) {
-        if (!is_valid_real(params[i + 1], &_k))
+        if (i + 1 >= num_params)
+          PRINT_INPUT_ERROR("Spring type requires a force constant.");
+        if (!is_valid_real(tokens[i + 1], &_k))
           PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
-        spring_map[params[i]] = _k;
+        spring_map[tokens[i]] = _k;
         i += 2;
       }
     } else {
@@ -112,28 +122,28 @@ Ensemble_TI::Ensemble_TI(const char** params, int num_params)
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
     temperature,
     temperature_coupling);
-  type = 3;
+  type = EnsembleType::NVT_LAN;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
-void Ensemble_TI::init()
+void Ensemble_TI::init(const Atom& atom, const GPU_Vector<double>& thermo)
 {
   printf("Opening TI output file...\n");
   output_file = my_fopen("ti.csv", "w");
   fprintf(output_file, "pe,espring\n");
-  int N = atom->number_of_atoms;
+  int N = atom.number_of_atoms;
 
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
   GPU_CHECK_KERNEL
 
-  thermo_cpu.resize(thermo->size());
+  thermo_cpu.resize(thermo.size());
   gpu_k.resize(N);
   cpu_k.resize(N);
   for (int i = 0; i < N; i++) {
-    std::string ele = atom->cpu_atom_symbol[i];
+    std::string ele = atom.cpu_atom_symbol[i];
     if (spring_map.find(ele) == spring_map.end())
       PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
     cpu_k[i] = spring_map[ele];
@@ -143,82 +153,104 @@ void Ensemble_TI::init()
   position_0.resize(3 * N);
   CHECK(gpuMemcpy(
     position_0.data(),
-    atom->position_per_atom.data(),
+    atom.position_per_atom.data(),
     sizeof(double) * position_0.size(),
     gpuMemcpyDeviceToDevice));
 }
 
-void Ensemble_TI::find_thermo()
+void Ensemble_TI::find_thermo(
+  const Box& box,
+  const std::vector<Group>& group,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
-    box->get_volume(),
-    *group,
-    atom->mass,
-    atom->potential_per_atom,
-    atom->velocity_per_atom,
-    atom->virial_per_atom,
-    *thermo);
-  thermo->copy_to_host(thermo_cpu.data());
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
+  thermo.copy_to_host(thermo_cpu.data());
   pe = thermo_cpu[1];
-  espring = get_espring_sum();
+  espring = get_espring_sum(atom.number_of_atoms);
 }
 
 Ensemble_TI::~Ensemble_TI(void)
 {
-  printf("Closing TI output file...\n");
-  fclose(output_file);
+  close_output_file(false);
 }
 
-void Ensemble_TI::add_spring_force()
+void Ensemble_TI::finalize_run(const Atom&, const Box&)
 {
-  int N = atom->number_of_atoms;
+  close_output_file(true);
+}
+
+void Ensemble_TI::close_output_file(const bool print_message)
+{
+  if (output_file != nullptr) {
+    if (print_message) {
+      printf("Closing TI output file...\n");
+    }
+    fclose(output_file);
+    output_file = nullptr;
+  }
+}
+
+void Ensemble_TI::add_spring_force(const Box& box, Atom& atom)
+{
+  int N = atom.number_of_atoms;
   gpu_add_spring_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
-    *box,
+    box,
     lambda,
     gpu_espring.data(),
     gpu_k.data(),
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + N,
-    atom->position_per_atom.data() + 2 * N,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + N,
+    atom.position_per_atom.data() + 2 * N,
     position_0.data(),
     position_0.data() + N,
     position_0.data() + 2 * N,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + N,
-    atom->force_per_atom.data() + 2 * N);
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + N,
+    atom.force_per_atom.data() + 2 * N);
 }
 
-double Ensemble_TI::get_espring_sum()
+double Ensemble_TI::get_espring_sum(const int number_of_atoms)
 {
   double temp;
-  gpu_get_espring_sum<<<1, 1024>>>(atom->number_of_atoms, gpu_espring.data());
+  gpu_get_espring_sum<<<1, 1024>>>(number_of_atoms, gpu_espring.data());
   gpu_espring.copy_to_host(&temp, 1);
   return temp;
 }
 
-void Ensemble_TI::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atoms,
+void Ensemble_TI::initialize_before_first_step(
+  const double,
+  const int,
+  const std::vector<Group>&,
+  Box&,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0)
-    init();
-  Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
+  init(atom, thermo);
 }
 
 void Ensemble_TI::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atoms,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
-  find_thermo();
-  fprintf(output_file, "%e,%e\n", pe / atom->number_of_atoms, espring / atom->number_of_atoms);
-  add_spring_force();
+  find_thermo(box, group, atoms, thermo);
+  fprintf(output_file, "%e,%e\n", pe / atoms.number_of_atoms, espring / atoms.number_of_atoms);
+  add_spring_force(box, atoms);
 
-  Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute2(
+    time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }

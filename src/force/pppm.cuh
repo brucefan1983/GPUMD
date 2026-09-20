@@ -27,7 +27,7 @@ class PPPM
 public:
   PPPM();
   ~PPPM();
-  void initialize(const float alpha_input);
+  void initialize(const float alpha_input, const bool need_peratom_virial_input);
   void find_force(
     const int N,
     const int N1,

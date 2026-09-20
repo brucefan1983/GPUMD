@@ -28,10 +28,7 @@ Ensemble::Ensemble(void)
   // nothing now
 }
 
-Ensemble::~Ensemble(void)
-{
-  // nothing now
-}
+Ensemble::~Ensemble(void) = default;
 
 void Ensemble::initialize_group_kinetic_energy_workspace(const int number_of_groups)
 {
@@ -307,42 +304,48 @@ static __global__ void gpu_velocity_verlet_v(
   }
 }
 
-void Ensemble::velocity_verlet_v()
+void Ensemble::velocity_verlet_v(
+  const double time_step,
+  const std::vector<Group>& group,
+  Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   const int* group_pointer;
-  if (group->size())
-    group_pointer = (*group)[fixed_grouping_method].label.data();
+  if (group.size())
+    group_pointer = group[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
 
   gpu_velocity_verlet_v<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    group->size(),
+    group.size(),
     group_pointer,
     fixed_group,
     move_group,
     time_step,
-    atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + n,
-    atom->velocity_per_atom.data() + 2 * n,
-    atom->force_per_atom.data(),
-    atom->force_per_atom.data() + n,
-    atom->force_per_atom.data() + 2 * n);
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + n,
+    atom.force_per_atom.data() + 2 * n);
 }
 
-void Ensemble::velocity_verlet_x()
+void Ensemble::velocity_verlet_x(
+  const double time_step,
+  const std::vector<Group>& group,
+  Atom& atom)
 {
-  int n = atom->number_of_atoms;
+  int n = atom.number_of_atoms;
   const int* group_pointer;
-  if (group->size())
-    group_pointer = (*group)[fixed_grouping_method].label.data();
+  if (group.size())
+    group_pointer = group[fixed_grouping_method].label.data();
   else
     group_pointer = 0;
   gpu_velocity_verlet_x<<<(n - 1) / 128 + 1, 128>>>(
     n,
-    group->size(),
+    group.size(),
     group_pointer,
     fixed_group,
     move_group,
@@ -350,12 +353,12 @@ void Ensemble::velocity_verlet_x()
     move_velocity[1],
     move_velocity[2],
     time_step,
-    atom->position_per_atom.data(),
-    atom->position_per_atom.data() + n,
-    atom->position_per_atom.data() + 2 * n,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + n,
-    atom->velocity_per_atom.data() + 2 * n);
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + n,
+    atom.position_per_atom.data() + 2 * n,
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n);
 }
 
 void Ensemble::velocity_verlet(
@@ -667,78 +670,6 @@ void Ensemble::scale_velocity_local(
     group[0].label.data(),
     factor_1,
     factor_2,
-    vcx,
-    vcy,
-    vcz,
-    ke,
-    velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms);
-  GPU_CHECK_KERNEL
-}
-
-static __global__ void gpu_scale_velocity_n_groups(
-  const int number_of_particles,
-  const int num_groups,
-  const int* g_group_labels, // Array of group labels to scale
-  const double* g_factors,   // Array of scaling factors (one per group)
-  const int* g_atom_label,
-  const double* g_vcx,
-  const double* g_vcy,
-  const double* g_vcz,
-  const double* g_ke,
-  double* g_vx,
-  double* g_vy,
-  double* g_vz)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_particles) {
-    int atom_label = g_atom_label[n];
-    double factor = 1.0;
-
-    // Find if this atom belongs to any of the groups we're scaling
-    for (int i = 0; i < num_groups; i++) {
-      if (atom_label == g_group_labels[i]) {
-        factor = g_factors[i];
-        break;
-      }
-    }
-
-    if (factor != 1.0) {
-      double vcx = g_vcx[atom_label];
-      double vcy = g_vcy[atom_label];
-      double vcz = g_vcz[atom_label];
-
-      // Scale velocity while conserving momentum
-      g_vx[n] = vcx + factor * (g_vx[n] - vcx);
-      g_vy[n] = vcy + factor * (g_vy[n] - vcy);
-      g_vz[n] = vcz + factor * (g_vz[n] - vcz);
-    }
-  }
-}
-
-void Ensemble::scale_velocity_groups(
-  const GPU_Vector<double>& factors,
-  const GPU_Vector<int>& labels,
-  const double* vcx,
-  const double* vcy,
-  const double* vcz,
-  const double* ke,
-  const std::vector<Group>& group,
-  GPU_Vector<double>& velocity_per_atom)
-{
-  const int number_of_atoms = velocity_per_atom.size() / 3;
-  const int num_groups = factors.size();
-
-  if (num_groups == 0)
-    return;
-
-  gpu_scale_velocity_n_groups<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    num_groups,
-    labels.data(),
-    factors.data(),
-    group[0].label.data(),
     vcx,
     vcy,
     vcz,

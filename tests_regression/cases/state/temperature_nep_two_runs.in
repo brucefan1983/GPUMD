@@ -1,0 +1,11 @@
+potential temperature_F_nep.txt
+velocity 300 seed 123
+time_step 1e-20
+
+ensemble nvt_ber 300 380 20
+dump_thermo 1
+run 2
+
+ensemble nvt_ber 400 360 20
+dump_thermo 1
+run 2

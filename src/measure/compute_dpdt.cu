@@ -22,7 +22,6 @@ Calculate the time derivative of the polarization of the system and output to dp
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <vector>
 
 namespace{
@@ -131,7 +130,7 @@ void Compute_dpdt::end_of_step(
     return;
 
   const int N = atom.number_of_atoms;
-  GPU_Vector<float>& bec = force.potentials[0]->get_bec_reference();
+  GPU_Vector<float>& bec = force.get_potential(0).get_bec_reference();
   gpu_compute_dpdt<<<(N - 1) / 64 + 1, 64>>>(
     N,
     bec.data(),
@@ -174,11 +173,12 @@ void Compute_dpdt::post_run(
   fclose(fid);
 }
 
-void Compute_dpdt::parse(const char** param, int num_param)
+void Compute_dpdt::parse(const std::vector<std::string>& tokens, bool is_nep_charge)
 {
+  const int num_param = tokens.size();
   printf("Compute dp/dt.\n");
 
-  if (!check_is_nep_charge()) {
+  if (!is_nep_charge) {
     PRINT_INPUT_ERROR("cannot use compute_dpdt for a non-NEP-Charge model.\n");
   }
 
@@ -186,7 +186,7 @@ void Compute_dpdt::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for compute_dpdt should be an integer number.\n");
   }
   if (sample_interval <= 0) {
@@ -195,8 +195,8 @@ void Compute_dpdt::parse(const char** param, int num_param)
   printf("    sample interval is %d.\n", sample_interval);
 }
 
-Compute_dpdt::Compute_dpdt(const char** param, int num_param)
+Compute_dpdt::Compute_dpdt(const std::vector<std::string>& tokens, bool is_nep_charge)
 {
-  parse(param, num_param);
+  parse(tokens, is_nep_charge);
   action_name = "compute_dpdt";
 }

@@ -31,7 +31,7 @@ public:
   int num_omega;         // number of frequency points
   double max_omega;      // maximum angular frequency
 
-  SHC(const char**, int, const std::vector<Group>& group);
+  SHC(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   
   virtual void pre_run(
     const int number_of_steps,
@@ -64,7 +64,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char**, int, const std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void find_shc(const double dt_in_ps, const double d_omega);
   void average_k();
 

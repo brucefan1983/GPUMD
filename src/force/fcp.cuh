@@ -47,6 +47,7 @@ protected:
   int order, heat_order, number2, number3, number4, number5, number6;
   char file_path[200];
   FCP_Data fcp_data;
+  GPU_Vector<double> total_force;
   void read_r0(const int N);
   void read_fc2(const int N, const Box& box);
   void read_fc3(const int N, const Box& box);

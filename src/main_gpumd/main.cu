@@ -18,6 +18,7 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
+#include "utilities/run_input.cuh"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -39,14 +40,15 @@ int main(int argc, char* argv[])
   CHECK(gpuDeviceSynchronize());
   const auto time_begin = std::chrono::high_resolution_clock::now();
 
+  RunInput run_input("run.in");
   Deposition deposition;
-  if (!deposition.has_deposition("run.in")) {
-    Run run;
+  if (!deposition.has_deposition(run_input)) {
+    Run run(run_input);
   } else {
-    deposition.initialize();
+    deposition.initialize(run_input);
     for (int i = 0; i < deposition.num_subruns; ++i) {
-      deposition.prepare_subrun(i);
-      Run run;
+      RunInput subrun_input = deposition.prepare_subrun(i);
+      Run run(subrun_input);
     }
   }
 

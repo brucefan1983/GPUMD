@@ -17,6 +17,8 @@
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
+#include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
 #else
@@ -26,7 +28,7 @@
 class Add_Random_Force : public Action
 {
 public:
-  Add_Random_Force(const char** param, int num_param, int number_of_atoms);
+  Add_Random_Force(const std::vector<std::string>& tokens, int number_of_atoms);
 
   void setup_force(
     const double time_step,

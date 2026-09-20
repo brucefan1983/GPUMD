@@ -30,7 +30,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #include "modal_analysis.cuh"
-#include "force/force.cuh"
+#include "hnemd_force.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
@@ -459,6 +459,7 @@ void MODAL_ANALYSIS::pre_run(
     strcpy(output_file_position, "heatmode.out");
   } else if (method == HNEMA_METHOD) {
     strcpy(output_file_position, "kappamode.out");
+    force_sum_.resize(3);
   }
 
   size_t eig_size = num_participating * num_modes;
@@ -557,6 +558,28 @@ void MODAL_ANALYSIS::pre_run(
   gpublasCreate(&ma_handle);
 }
 
+void MODAL_ANALYSIS::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute || method != HNEMA_METHOD)
+    return;
+
+  apply_hnemd_force(
+    atom.number_of_atoms,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.virial_per_atom,
+    atom.force_per_atom,
+    force_sum_);
+}
+
 void MODAL_ANALYSIS::end_of_step(
   const int number_of_steps,
   int step,
@@ -632,23 +655,23 @@ void MODAL_ANALYSIS::post_run(
 }
 
 MODAL_ANALYSIS::MODAL_ANALYSIS(
-  const char** param, 
-  int num_param, 
-  const int number_of_types, 
-  int method_input,
-  Force& force)
+  const std::vector<std::string>& tokens,
+  const int number_of_types,
+  int method_input)
 {
   if (method_input == 0) {
-    parse_compute_gkma(param, num_param, number_of_types);
+    parse_compute_gkma(tokens, number_of_types);
+    action_name = "compute_gkma";
   } else {
-    parse_compute_hnema(param, num_param, number_of_types);
-    force.set_hnemd_parameters(fe_x, fe_y, fe_z);
+    parse_compute_hnema(tokens, number_of_types);
+    action_name = "compute_hnema";
   }
-  action_name = "modal_analysis";
 }
 
-void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const int number_of_types)
+void MODAL_ANALYSIS::parse_compute_gkma(
+  const std::vector<std::string>& tokens, const int number_of_types)
 {
+  const int num_param = tokens.size();
   compute = 1;
   method = GKMA_METHOD;
 
@@ -664,20 +687,20 @@ void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const
     PRINT_INPUT_ERROR("compute_gkma should have 5 parameters.\n");
   }
   if (
-    !is_valid_int(param[1], &sample_interval) ||
-    !is_valid_int(param[2], &first_mode) ||
-    !is_valid_int(param[3], &last_mode)) {
+    !is_valid_int(tokens[1], &sample_interval) ||
+    !is_valid_int(tokens[2], &first_mode) ||
+    !is_valid_int(tokens[3], &last_mode)) {
     PRINT_INPUT_ERROR("A parameter for GKMA should be an integer.\n");
   }
 
-  if (strcmp(param[4], "bin_size") == 0) {
+  if (tokens[4] == "bin_size") {
     f_flag = 0;
-    if (!is_valid_int(param[5], &bin_size)) {
+    if (!is_valid_int(tokens[5], &bin_size)) {
       PRINT_INPUT_ERROR("GKMA bin_size must be an integer.\n");
     }
-  } else if (strcmp(param[4], "f_bin_size") == 0) {
+  } else if (tokens[4] == "f_bin_size") {
     f_flag = 1;
-    if (!is_valid_real(param[5], &f_bin_size)) {
+    if (!is_valid_real(tokens[5], &f_bin_size)) {
       PRINT_INPUT_ERROR("GKMA f_bin_size must be a real number.\n");
     }
   } else {
@@ -718,10 +741,10 @@ void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const
 
   // Hidden feature implementation
   if (num_param == 9) {
-    if (strcmp(param[6], "atom_range") == 0) {
+    if (tokens[6] == "atom_range") {
       if (
-        !is_valid_int(param[7], &atom_begin) ||
-        !is_valid_int(param[8], &atom_end)) {
+        !is_valid_int(tokens[7], &atom_begin) ||
+        !is_valid_int(tokens[8], &atom_end)) {
         PRINT_INPUT_ERROR("GKMA atom_begin & atom_end must be integers.\n");
       }
       if (atom_begin > atom_end) {
@@ -749,10 +772,10 @@ void MODAL_ANALYSIS::parse_compute_gkma(const char** param, int num_param, const
 }
 
 void MODAL_ANALYSIS::parse_compute_hnema(
-  const char** param, 
-  int num_param, 
+  const std::vector<std::string>& tokens,
   const int number_of_types)
 {
+  const int num_param = tokens.size();
   compute = 1;
   method = HNEMA_METHOD;
 
@@ -768,36 +791,36 @@ void MODAL_ANALYSIS::parse_compute_hnema(
     PRINT_INPUT_ERROR("compute_hnema should have 9 parameters.\n");
   }
   if (
-    !is_valid_int(param[1], &sample_interval) ||
-    !is_valid_int(param[2], &output_interval) ||
-    !is_valid_int(param[6], &first_mode) ||
-    !is_valid_int(param[7], &last_mode)) {
+    !is_valid_int(tokens[1], &sample_interval) ||
+    !is_valid_int(tokens[2], &output_interval) ||
+    !is_valid_int(tokens[6], &first_mode) ||
+    !is_valid_int(tokens[7], &last_mode)) {
     PRINT_INPUT_ERROR("A parameter for HNEMA should be an integer.\n");
   }
 
   // HNEMD driving force parameters
-  if (!is_valid_real(param[3], &fe_x)) {
+  if (!is_valid_real(tokens[3], &fe_x)) {
     PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
   }
   printf("    fe_x = %g /A\n", fe_x);
-  if (!is_valid_real(param[4], &fe_y)) {
+  if (!is_valid_real(tokens[4], &fe_y)) {
     PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
   }
   printf("    fe_y = %g /A\n", fe_y);
-  if (!is_valid_real(param[5], &fe_z)) {
+  if (!is_valid_real(tokens[5], &fe_z)) {
     PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
   }
   printf("    fe_z = %g /A\n", fe_z);
   fe = sqrt(fe_x * fe_x + fe_y * fe_y + fe_z * fe_z);
 
-  if (strcmp(param[8], "bin_size") == 0) {
+  if (tokens[8] == "bin_size") {
     f_flag = 0;
-    if (!is_valid_int(param[9], &bin_size)) {
+    if (!is_valid_int(tokens[9], &bin_size)) {
       PRINT_INPUT_ERROR("HNEMA bin_size must be an integer.\n");
     }
-  } else if (strcmp(param[8], "f_bin_size") == 0) {
+  } else if (tokens[8] == "f_bin_size") {
     f_flag = 1;
-    if (!is_valid_real(param[9], &f_bin_size)) {
+    if (!is_valid_real(tokens[9], &f_bin_size)) {
       PRINT_INPUT_ERROR("HNEMA f_bin_size must be a real number.\n");
     }
   } else {
@@ -843,10 +866,10 @@ void MODAL_ANALYSIS::parse_compute_hnema(
 
   // Hidden feature implementation
   if (num_param == 13) {
-    if (strcmp(param[10], "atom_range") == 0) {
+    if (tokens[10] == "atom_range") {
       if (
-        !is_valid_int(param[11], &atom_begin) ||
-        !is_valid_int(param[12], &atom_end)) {
+        !is_valid_int(tokens[11], &atom_begin) ||
+        !is_valid_int(tokens[12], &atom_end)) {
         PRINT_INPUT_ERROR("HNEMA atom_begin & atom_end must be integers.\n");
       }
       if (atom_begin > atom_end) {
@@ -872,4 +895,3 @@ void MODAL_ANALYSIS::parse_compute_hnema(
     atom_end = number_of_types - 1;
   }
 }
-

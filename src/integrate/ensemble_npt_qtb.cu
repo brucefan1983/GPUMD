@@ -25,9 +25,6 @@ Equivalent to LAMMPS fix nph + fix qtb.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
-#include <cstring>
-
-/* PLACEHOLDER_KERNELS */
 
 namespace
 {
@@ -94,22 +91,9 @@ static __global__ void gpu_apply_qtb_half_step(
 }
 } // namespace
 
-/* PLACEHOLDER_CONSTRUCTOR */
-
-Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
+Ensemble_NPT_QTB::Ensemble_NPT_QTB(const std::vector<std::string>& tokens)
 {
-  // Initialize MTTK matrices to zero (same as parent constructor)
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
-          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
-            p_flag[i][j] = h_ref_inv[i][j] = 0;
-      p_period[i][j] = 1000;
-      need_scale[i][j] = true;
-    }
-  }
-
+  const int num_params = tokens.size();
   // NPT-QTB: barostat on, NHC thermostat off (QTB replaces it)
   ensemble_type = NPH;
   use_barostat = false;  // will be set true only when a pressure direction is parsed
@@ -122,43 +106,42 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
   // Parse parameters: npt_qtb <pressure_args> temp <T1> <T2> tperiod <tp> [f_max ...] [N_f ...] [seed ...]
   int i = 2; // skip "ensemble" and "npt_qtb"
   while (i < num_params) {
-    if (strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
-        strcmp(params[i], "tri") == 0) {
+    if (tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       if (i + 2 >= num_params) PRINT_INPUT_ERROR("iso/aniso/tri requires <p_start> <p_stop>.");
-      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start.");
       p_start[1][1] = p_start[2][2] = p_start[0][0];
-      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop.");
       p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
       use_barostat = true;
-      if (strcmp(params[i], "iso") == 0)
+      if (tokens[i] == "iso")
         couple_type = XYZ;
-      if (strcmp(params[i], "tri") == 0) {
+      if (tokens[i] == "tri") {
         for (int a = 0; a < 3; a++)
           for (int b = 0; b < 3; b++)
             if (a != b) { p_start[a][b] = 0; p_stop[a][b] = 0; p_flag[a][b] = true; need_scale[a][b] = false; }
       }
       i += 3;
-    } else if (strcmp(params[i], "x") == 0) {
+    } else if (tokens[i] == "x") {
       if (i + 2 >= num_params) PRINT_INPUT_ERROR("x requires <p_start> <p_stop>.");
-      if (!is_valid_real(params[i + 1], &p_start[0][0])) PRINT_INPUT_ERROR("Wrong p_start for x.");
-      if (!is_valid_real(params[i + 2], &p_stop[0][0])) PRINT_INPUT_ERROR("Wrong p_stop for x.");
+      if (!is_valid_real(tokens[i + 1], &p_start[0][0])) PRINT_INPUT_ERROR("Wrong p_start for x.");
+      if (!is_valid_real(tokens[i + 2], &p_stop[0][0])) PRINT_INPUT_ERROR("Wrong p_stop for x.");
       p_flag[0][0] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
-    } else if (strcmp(params[i], "y") == 0) {
+    } else if (tokens[i] == "y") {
       if (i + 2 >= num_params) PRINT_INPUT_ERROR("y requires <p_start> <p_stop>.");
-      if (!is_valid_real(params[i + 1], &p_start[1][1])) PRINT_INPUT_ERROR("Wrong p_start for y.");
-      if (!is_valid_real(params[i + 2], &p_stop[1][1])) PRINT_INPUT_ERROR("Wrong p_stop for y.");
+      if (!is_valid_real(tokens[i + 1], &p_start[1][1])) PRINT_INPUT_ERROR("Wrong p_start for y.");
+      if (!is_valid_real(tokens[i + 2], &p_stop[1][1])) PRINT_INPUT_ERROR("Wrong p_stop for y.");
       p_flag[1][1] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
-    } else if (strcmp(params[i], "z") == 0) {
+    } else if (tokens[i] == "z") {
       if (i + 2 >= num_params) PRINT_INPUT_ERROR("z requires <p_start> <p_stop>.");
-      if (!is_valid_real(params[i + 1], &p_start[2][2])) PRINT_INPUT_ERROR("Wrong p_start for z.");
-      if (!is_valid_real(params[i + 2], &p_stop[2][2])) PRINT_INPUT_ERROR("Wrong p_stop for z.");
+      if (!is_valid_real(tokens[i + 1], &p_start[2][2])) PRINT_INPUT_ERROR("Wrong p_start for z.");
+      if (!is_valid_real(tokens[i + 2], &p_stop[2][2])) PRINT_INPUT_ERROR("Wrong p_stop for z.");
       p_flag[2][2] = 1; non_hydrostatic = 1; use_barostat = true; i += 3;
-    } else if (strcmp(params[i], "pperiod") == 0) {
+    } else if (tokens[i] == "pperiod") {
       if (i + 1 >= num_params) PRINT_INPUT_ERROR("pperiod requires a value.");
-      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+      if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pperiod.");
       if (p_period[0][0] < 200)
         PRINT_INPUT_ERROR("pperiod should >= 200 timestep.");
@@ -166,27 +149,27 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
         for (int b = 0; b < 3; b++)
           p_period[a][b] = p_period[0][0];
       i += 2;
-    } else if (strcmp(params[i], "temp") == 0) {
+    } else if (tokens[i] == "temp") {
       if (i + 2 >= num_params) PRINT_INPUT_ERROR("temp requires two values: <T_start> <T_stop>.");
-      if (!is_valid_real(params[i + 1], &t_start)) PRINT_INPUT_ERROR("Wrong t_start.");
-      if (!is_valid_real(params[i + 2], &t_stop)) PRINT_INPUT_ERROR("Wrong t_stop.");
+      if (!is_valid_real(tokens[i + 1], &t_start)) PRINT_INPUT_ERROR("Wrong t_start.");
+      if (!is_valid_real(tokens[i + 2], &t_stop)) PRINT_INPUT_ERROR("Wrong t_stop.");
       if (t_start <= 0) PRINT_INPUT_ERROR("t_start should > 0.");
       if (t_stop <= 0) PRINT_INPUT_ERROR("t_stop should > 0.");
       t_target = t_start;
       i += 3;
-    } else if (strcmp(params[i], "tperiod") == 0) {
+    } else if (tokens[i] == "tperiod") {
       if (i + 1 >= num_params) PRINT_INPUT_ERROR("tperiod requires a value.");
-      if (!is_valid_real(params[i + 1], &t_period)) PRINT_INPUT_ERROR("Wrong tperiod.");
+      if (!is_valid_real(tokens[i + 1], &t_period)) PRINT_INPUT_ERROR("Wrong tperiod.");
       if (t_period <= 0) PRINT_INPUT_ERROR("tperiod should > 0.");
       i += 2;
-    } else if (strcmp(params[i], "f_max") == 0) {
+    } else if (tokens[i] == "f_max") {
       if (i + 1 >= num_params) PRINT_INPUT_ERROR("f_max requires a value.");
-      if (!is_valid_real(params[i + 1], &qtb_f_max)) PRINT_INPUT_ERROR("f_max should be a number.");
+      if (!is_valid_real(tokens[i + 1], &qtb_f_max)) PRINT_INPUT_ERROR("f_max should be a number.");
       if (qtb_f_max <= 0) PRINT_INPUT_ERROR("f_max should > 0.");
       i += 2;
-    } else if (strcmp(params[i], "N_f") == 0) {
+    } else if (tokens[i] == "N_f") {
       if (i + 1 >= num_params) PRINT_INPUT_ERROR("N_f requires a value.");
-      if (!is_valid_int(params[i + 1], &qtb_n_f_input)) PRINT_INPUT_ERROR("N_f should be an integer.");
+      if (!is_valid_int(tokens[i + 1], &qtb_n_f_input)) PRINT_INPUT_ERROR("N_f should be an integer.");
       if (qtb_n_f_input <= 0) PRINT_INPUT_ERROR("N_f should > 0.");
       i += 2;
     } else {
@@ -215,22 +198,22 @@ Ensemble_NPT_QTB::Ensemble_NPT_QTB(const char** params, int num_params)
         printf("    %s: p_start=%g, p_stop=%g, pperiod=%g\n", sc[a][b], p_start[a][b], p_stop[a][b], p_period[a][b]);
 }
 
-Ensemble_NPT_QTB::~Ensemble_NPT_QTB(void) {}
-
-/* PLACEHOLDER_INIT */
-
-void Ensemble_NPT_QTB::init_mttk()
+void Ensemble_NPT_QTB::init_mttk(
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
   // Call parent init for barostat setup
-  Ensemble_MTTK::init_mttk();
+  Ensemble_MTTK::init_mttk(group, box, atom, thermo);
   // Then initialize QTB
-  init_qtb();
+  init_qtb(atom);
 }
 
-void Ensemble_NPT_QTB::init_qtb()
+void Ensemble_NPT_QTB::init_qtb(const Atom& atom)
 {
-  qtb_number_of_atoms = atom->number_of_atoms;
-  qtb_dt = time_step;
+  qtb_number_of_atoms = atom.number_of_atoms;
+  qtb_dt = dt;
   qtb_nfreq2 = 2 * qtb_N_f;
 
   qtb_f_max_natural = qtb_f_max * TIME_UNIT_CONVERSION / 1000.0;
@@ -262,9 +245,15 @@ void Ensemble_NPT_QTB::init_qtb()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPT_QTB::get_target_temp()
+void Ensemble_NPT_QTB::get_target_temp(
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  const Box& box,
+  const Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-  t_target = t_start + (t_stop - t_start) * get_delta();
+  t_target = t_start + (t_stop - t_start) * get_delta(step, number_of_steps);
 }
 
 void Ensemble_NPT_QTB::qtb_update_time_filter(const double target_temperature)
@@ -300,46 +289,44 @@ void Ensemble_NPT_QTB::qtb_update_time_filter(const double target_temperature)
   qtb_last_filter_temperature = target_temperature;
 }
 
-void Ensemble_NPT_QTB::qtb_refresh_colored_random_force()
+void Ensemble_NPT_QTB::qtb_refresh_colored_random_force(const Atom& atom)
 {
   const double g3p = sqrt(2.0 * qtb_fric_coef * 12.0 / qtb_h_timestep);
   gpu_refresh_qtb_random_force<<<(qtb_number_of_atoms - 1) / 128 + 1, 128>>>(
     qtb_curand_states.data(), qtb_number_of_atoms, qtb_nfreq2,
-    qtb_time_H_device.data(), g3p, atom->mass.data(),
+    qtb_time_H_device.data(), g3p, atom.mass.data(),
     qtb_random_array_0.data(), qtb_random_array_1.data(), qtb_random_array_2.data(),
     qtb_fran.data(), qtb_fran.data() + qtb_number_of_atoms,
     qtb_fran.data() + qtb_number_of_atoms * 2);
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_NPT_QTB::qtb_apply_half_step()
+void Ensemble_NPT_QTB::qtb_apply_half_step(Atom& atom)
 {
   const int N = qtb_number_of_atoms;
   const double dt_half = 0.5 * qtb_dt;
 
   gpu_apply_qtb_half_step<<<(N - 1) / 128 + 1, 128>>>(
-    N, dt_half, qtb_fric_coef, atom->mass.data(),
+    N, dt_half, qtb_fric_coef, atom.mass.data(),
     qtb_fran.data(), qtb_fran.data() + N, qtb_fran.data() + 2 * N,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
-    N, atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    N, atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 
   gpu_correct_momentum<<<(N - 1) / 128 + 1, 128>>>(
-    N, atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + N,
-    atom->velocity_per_atom.data() + 2 * N);
+    N, atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + N,
+    atom.velocity_per_atom.data() + 2 * N);
   GPU_CHECK_KERNEL
 }
-
-/* PLACEHOLDER_COMPUTE */
 
 // Integration scheme:
 // compute1: press_chain -> QTB_half_kick -> barostat_v -> verlet_v -> box -> verlet_x -> box
@@ -347,68 +334,69 @@ void Ensemble_NPT_QTB::qtb_apply_half_step()
 
 void Ensemble_NPT_QTB::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (*current_step == 0) {
-    init_mttk();
-  }
-
   // 1. Pressure chain thermostat (for barostat DOF)
-  nhc_press_integrate();
+  nhc_press_integrate(atom);
 
   // 2. QTB thermostat half-kick (replaces nhc_temp_integrate)
-  get_target_temp();
+  get_target_temp(step, number_of_steps, group, box, atom, thermo);
   if (qtb_counter_mu == 0) {
     qtb_update_time_filter(t_target);
-    qtb_refresh_colored_random_force();
+    qtb_refresh_colored_random_force(atom);
   }
-  qtb_apply_half_step();
+  qtb_apply_half_step(atom);
 
   // 3. Barostat: update omega_dot and scale velocities
-  get_h_matrix_from_box();
-  get_target_pressure();
-  nh_omega_dot();
-  nh_v_press();
+  get_h_matrix_from_box(box);
+  get_target_pressure(step, number_of_steps, group, box, atom, thermo);
+  nh_omega_dot(group, box, atom, thermo);
+  nh_v_press(atom);
 
   // 4. Velocity Verlet half-step (velocity)
-  velocity_verlet_v();
+  velocity_verlet_v(dt, group, atom);
 
   // 5. Propagate box
-  propagate_box();
+  propagate_box(box, atom);
 
   // 6. Velocity Verlet (position)
-  velocity_verlet_x();
+  velocity_verlet_x(dt, group, atom);
 
   // 7. Propagate box again
-  propagate_box();
+  propagate_box(box, atom);
 }
 
 void Ensemble_NPT_QTB::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
   // 1. Velocity Verlet half-step (velocity)
-  velocity_verlet_v();
+  velocity_verlet_v(dt, group, atom);
 
   // 2. Barostat: scale velocities and update omega_dot
-  get_h_matrix_from_box();
-  nh_v_press();
-  nh_omega_dot();
+  get_h_matrix_from_box(box);
+  nh_v_press(atom);
+  nh_omega_dot(group, box, atom, thermo);
 
   // 3. QTB thermostat half-kick (replaces nhc_temp_integrate)
-  qtb_apply_half_step();
+  qtb_apply_half_step(atom);
 
   // 4. Pressure chain thermostat
-  nhc_press_integrate();
+  nhc_press_integrate(atom);
 
   // 5. Compute thermodynamic quantities
-  find_thermo();
+  find_thermo(group, box, atom, thermo);
 
   // 6. Update QTB counter
   qtb_counter_mu = (qtb_counter_mu + 1) % qtb_alpha;

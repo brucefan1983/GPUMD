@@ -22,12 +22,14 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+#include <string>
 #include <vector>
 
 class MC_Ensemble
 {
 public:
-  MC_Ensemble(const char** param, int num_param);
+  MC_Ensemble(
+    const std::vector<std::string>& tokens, const std::string& potential_file_name);
   virtual ~MC_Ensemble(void);
 
   virtual void compute(

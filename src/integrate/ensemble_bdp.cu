@@ -21,7 +21,9 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "ensemble_bdp.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <chrono>
 #include <cstring>
 #define DIM 3
@@ -35,38 +37,140 @@ void Ensemble_BDP::initialize_rng()
 #endif
 };
 
-Ensemble_BDP::Ensemble_BDP(int t, int mg, double* mv, double T, double Tc)
-{
-  type = t;
-  move_group = mg;
-  move_velocity[0] = mv[0];
-  move_velocity[1] = mv[1];
-  move_velocity[2] = mv[2];
-  temperature = T;
-  temperature_coupling = Tc;
-  initialize_rng();
-}
-
 Ensemble_BDP::Ensemble_BDP(
-  int t, int source_input, int sink_input, int number_of_groups, double T, double Tc, double dT)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  type = t;
-  temperature = T;
-  temperature_coupling = Tc;
-  delta_temperature = dT;
-  source = source_input;
-  sink = sink_input;
-  // initialize the energies transferred from the system to the baths
-  energy_transferred[0] = 0.0;
-  energy_transferred[1] = 0.0;
-  initialize_rng();
-  initialize_group_kinetic_energy_workspace(number_of_groups);
-  initialize_group_com_velocity_workspace(number_of_groups);
+  parse(tokens, group);
 }
 
-Ensemble_BDP::~Ensemble_BDP(void)
+void Ensemble_BDP::parse_heat_groups(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  // nothing now
+  if (!is_valid_int(tokens[5], &source)) {
+    PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
+  }
+  if (!is_valid_int(tokens[6], &sink)) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+  }
+  if (group.size() < 1) {
+    PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+  }
+  if (source == sink) {
+    PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+  }
+  if (source < 0) {
+    PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+  }
+  if (source >= group[0].number) {
+    PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+  }
+  if (sink < 0) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+  }
+  if (sink >= group[0].number) {
+    PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
+  }
+}
+
+void Ensemble_BDP::parse(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+{
+  const int num_param = tokens.size();
+  if (tokens[1] == "nvt_bdp") {
+    type = EnsembleType::NVT_BDP;
+    if (num_param != 5) {
+      PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters.");
+    }
+
+    if (!is_valid_real(tokens[2], &temperature1_)) {
+      PRINT_INPUT_ERROR("Initial temperature should be a number.");
+    }
+    if (temperature1_ <= 0.0) {
+      PRINT_INPUT_ERROR("Initial temperature should > 0.");
+    }
+    if (!is_valid_real(tokens[3], &temperature2_)) {
+      PRINT_INPUT_ERROR("Final temperature should be a number.");
+    }
+    if (temperature2_ <= 0.0) {
+      PRINT_INPUT_ERROR("Final temperature should > 0.");
+    }
+    temperature = temperature1_;
+    if (!is_valid_real(tokens[4], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    printf("Use NVT ensemble for this run.\n");
+    printf("    choose the Bussi-Donadio-Parrinello method.\n");
+    printf("    initial temperature is %g K.\n", temperature1_);
+    printf("    final temperature is %g K.\n", temperature2_);
+    printf("    tau_T is %g time_step.\n", temperature_coupling);
+    return;
+  }
+
+  if (tokens[1] != "heat_bdp") {
+    PRINT_INPUT_ERROR("Invalid Bussi-Donadio-Parrinello ensemble type.");
+  }
+  type = EnsembleType::HEAT_BDP;
+  if (num_param != 7) {
+    PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
+  }
+
+  if (!is_valid_real(tokens[2], &temperature)) {
+    PRINT_INPUT_ERROR("Temperature should be a number.");
+  }
+  if (temperature <= 0.0) {
+    PRINT_INPUT_ERROR("Temperature should > 0.");
+  }
+  if (!is_valid_real(tokens[3], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
+  if (!is_valid_real(tokens[4], &delta_temperature)) {
+    PRINT_INPUT_ERROR("Temperature difference should be a number.");
+  }
+  if (delta_temperature >= temperature || delta_temperature <= -temperature) {
+    PRINT_INPUT_ERROR("|Temperature difference| is too large.");
+  }
+
+  parse_heat_groups(tokens, group);
+
+  printf("Integrate with heating and cooling for this run.\n");
+  printf("    choose the Bussi-Donadio-Parrinello method.\n");
+  printf("    average temperature is %g K.\n", temperature);
+  printf("    tau_T is %g time_step.\n", temperature_coupling);
+  printf("    delta_T is %g K.\n", delta_temperature);
+  printf("    T_hot is %g K.\n", temperature + delta_temperature);
+  printf("    T_cold is %g K.\n", temperature - delta_temperature);
+  printf("    heat source is group %d in grouping method 0.\n", source);
+  printf("    heat sink is group %d in grouping method 0.\n", sink);
+}
+
+double Ensemble_BDP::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_BDP::get_temperature2() const
+{
+  return temperature2_;
+}
+
+void Ensemble_BDP::initialize_run(
+  const double, Atom&, Box&, const std::vector<Group>& group)
+{
+  initialize_rng();
+  if (type == EnsembleType::HEAT_BDP) {
+    // initialize the energies transferred from the system to the baths
+    energy_transferred[0] = 0.0;
+    energy_transferred[1] = 0.0;
+    initialize_group_kinetic_energy_workspace(group[0].number);
+    initialize_group_com_velocity_workspace(group[0].number);
+  }
 }
 
 void Ensemble_BDP::integrate_nvt_bdp_2(
@@ -152,6 +256,8 @@ void Ensemble_BDP::integrate_heat_bdp_2(
 
 void Ensemble_BDP::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -169,12 +275,15 @@ void Ensemble_BDP::compute1(
 
 void Ensemble_BDP::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
-  if (type == 4) {
+  if (type == EnsembleType::NVT_BDP) {
     integrate_nvt_bdp_2(
       time_step,
       box.get_volume(),

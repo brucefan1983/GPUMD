@@ -14,19 +14,20 @@
 */
 
 #pragma once
+#include <string>
 #include <vector>
 class Group;
 
 void parse_group(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   const bool allow_all_groups,
   const std::vector<Group>& groups,
   int& k,
   int& grouping_method,
   int& group_id);
 
-void parse_precision(const char** param, const int num_param, int& k, int& precision);
+void parse_precision(
+  const std::vector<std::string>& tokens, int& k, int& precision);
 
 // The per-atom quantities that dump_xyz and dump_netcdf can write. Shared so that the two
 // keywords accept the same names and cannot drift apart.
@@ -45,7 +46,7 @@ struct DumpQuantities {
 // Returns false when the token is not a quantity at all, leaving the caller free to try its own
 // options before rejecting it. `keyword` only names the keyword in error messages.
 bool parse_dump_quantity(
-  const char* token,
+  const std::string& token,
   DumpQuantities& quantities,
   const bool is_nep_charge,
   const std::vector<Group>& groups,

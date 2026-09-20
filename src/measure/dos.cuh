@@ -16,6 +16,7 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Group;
 
@@ -30,9 +31,9 @@ public:
   int group_id_ = -1;
   int num_dos_points_ = -1;
 
-  void parse(const char** param, const int num_param, const std::vector<Group>& groups);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
 
-  DOS(const char** param, const int num_param, const std::vector<Group>& groups);
+  DOS(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -79,7 +80,7 @@ private:
   std::vector<double> dosy_;
   std::vector<double> dosz_;
 
-  void parse_num_dos_points(const char** param, int& k);
+  void parse_num_dos_points(const std::vector<std::string>& tokens, int& k);
   void initialize_parameters(
     const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass);
   void allocate_memory();

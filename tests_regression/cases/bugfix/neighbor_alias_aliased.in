@@ -1,0 +1,5 @@
+potential potential.txt
+ensemble nve
+time_step 1e-20
+dump_thermo 1
+run 1

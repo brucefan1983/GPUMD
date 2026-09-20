@@ -14,8 +14,10 @@
 */
 
 #pragma once
+#include <string>
 
 int is_valid_int(const char*, int*);
+int is_valid_int(const std::string&, int*);
 int is_valid_real(const char*, double*);
-bool check_is_nep_charge();
-bool check_need_peratom_virial();
+int is_valid_real(const std::string&, double*);
+bool is_nep_charge_potential(const std::string& potential_file_name);
