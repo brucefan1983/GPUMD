@@ -9,16 +9,11 @@ gpumd binary (conftest.py's compare_or_update_golden), regenerated only via --up
 
 TNEP models are "observer" models: they run *alongside* a separate PES model rather than
 replacing it. The PES model is supplied with `potential`, while the TNEP response model is
-passed directly to `dump_dipole` or `dump_polarizability` -- see gpumd_pytest_suite_spec.md's
-"TNEP fixtures" section. This doesn't fit the calculator/model_type
-fixture pattern used elsewhere in this suite (no single model file, no CPUNEP/GPUNEP A/B
-comparison to make), so each case wires up its own fixed (structure, PES model, TNEP model)
-triple directly rather than sweeping the structure x model_type matrix -- the same reasoning
-test_regression.py already applies to bulk_bazro3. The run.in construction pattern (one explicit PES `potential` line plus the response model on
-the dump command) mirrors
-the existing manual tests at tests/gpumd/dump_dipole/test_dump_dipole.py and
-tests/gpumd/dump_polarizability/test_dump_polarizability.py, which remain the reference for
-run.in syntax, not for numeric values.
+passed directly to `dump_dipole` or `dump_polarizability`. This doesn't fit the
+calculator/model_type fixture pattern used elsewhere in this suite (no single model file, no
+CPUNEP/GPUNEP A/B comparison to make), so each case wires up its own fixed (structure, PES
+model, TNEP model) triple directly rather than sweeping the structure x model_type matrix --
+the same reasoning test_regression.py already applies to bulk_bazro3.
 """
 import numpy as np
 import pytest

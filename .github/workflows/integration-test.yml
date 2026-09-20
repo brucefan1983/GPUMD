@@ -2,17 +2,14 @@ name: Integration tests
 
 on: [pull_request]
 
-# The suite lives in tests_pytest and drives the real gpumd binary, so all 1038 of its tests
-# need an NVIDIA card. GitHub's ubuntu-latest runners have none. The build job therefore stops
-# at collection, which still catches a broken build and a suite that no longer imports. The
-# pytest job runs the suite and starts only on a runner that has a card.
+# The suite lives in tests_pytest and drives the real gpumd binary, so it needs an NVIDIA card.
+# GitHub's ubuntu-latest runners have none. The build job therefore stops at collection, which
+# still catches a broken build and a suite that no longer imports. The pytest job runs the suite
+# and starts only on a runner that has a card.
 #
 # Both jobs build with -DUSE_NETCDF, install netCDF4 and MDAnalysis, and check for all three
-# afterwards, because each one is optional to the suite and absent support turns into skipped
-# tests and a green run:
-#   - a gpumd built without -DUSE_NETCDF skips all 325 dump_netcdf tests
-#   - a missing netCDF4 module skips 145 of those
-#   - a missing MDAnalysis module skips 9 of those
+# afterwards, because each one is optional to the suite: without them the dump_netcdf tests skip
+# and the run still reports success.
 #
 # -DDEBUG fixes the PRNG seed, which keeps a run reproducible.
 #
