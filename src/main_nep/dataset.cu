@@ -77,7 +77,7 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0 || para.train_mode == 3) {
+  if (para.model_type == 0 || para.model_type == 3) {
     printf("Number of configurations having virial = %d.\n", num_virial_configurations);
   }
 
@@ -955,7 +955,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   const int block_size = 256;
 
   float shear_weight =
-    (para.train_mode != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
+    (para.model_type != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
     N,
     shear_weight,
@@ -971,7 +971,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
           rmse_array[t] += rmse_temp;
-          count_array[t] += (para.train_mode != 1) ? 6 : 3;
+          count_array[t] += (para.model_type != 1) ? 6 : 3;
         }
       }
     }

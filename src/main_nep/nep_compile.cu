@@ -198,8 +198,8 @@ bool validate_config(const NEP_Compile_Config& c)
     warning_compile("vdW specialization requires C6 reference values.");
     return false;
   }
-  if (c.mode == NEP_Compile_Mode::TNEP && c.train_mode != 1 && c.train_mode != 2) {
-    warning_compile("TNEP specialization requires train_mode 1 or 2.");
+  if (c.mode == NEP_Compile_Mode::TNEP && c.model_type != 1 && c.model_type != 2) {
+    warning_compile("TNEP specialization requires model_type 1 or 2.");
     return false;
   }
   return true;
@@ -225,7 +225,7 @@ std::string make_config_text(const NEP_Compile_Config& c)
   output << "#define NEP_MODEL_CHARGE_VDW 3\n";
   output << "#define NEP_MODEL_TNEP 4\n";
   output << "#define NEP_MODEL_MODE_JIT " << static_cast<int>(c.mode) << "\n";
-  output << "#define TRAIN_MODE_JIT " << c.train_mode << "\n";
+  output << "#define MODEL_TYPE_JIT " << c.model_type << "\n";
   output << "#define NUM_TYPES_JIT " << c.num_types << "\n";
   output << "#define ANN_DIM_JIT " << c.ann_dim << "\n";
   output << "#define NUM_NEURONS1_JIT " << c.num_neurons1 << "\n";
@@ -305,7 +305,7 @@ NEP_Compile_Config make_nep_compile_config(
 
   NEP_Compile_Config c;
   c.mode = mode;
-  c.train_mode = para.train_mode;
+  c.model_type = para.model_type;
   c.num_types = para.num_types;
   c.ann_dim = para.dim;
   c.num_neurons1 = para.num_neurons1;
@@ -317,7 +317,7 @@ NEP_Compile_Config make_nep_compile_config(
   // All NEP-family parameter vectors place descriptor cij immediately after
   // the ANN parameter block. TNEP polarizability has two ANN parameter sets.
   c.c_offset = para.number_of_variables_ann;
-  if (mode == NEP_Compile_Mode::TNEP && para.train_mode == 2) {
+  if (mode == NEP_Compile_Mode::TNEP && para.model_type == 2) {
     c.c_offset *= 2;
   }
 

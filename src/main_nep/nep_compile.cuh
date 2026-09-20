@@ -30,7 +30,7 @@ enum class NEP_Compile_Mode {
 
 struct NEP_Compile_Config {
   NEP_Compile_Mode mode = NEP_Compile_Mode::NEP;
-  int train_mode = 0;
+  int model_type = 0;
 
   int num_types = 0;
   int ann_dim = 0;

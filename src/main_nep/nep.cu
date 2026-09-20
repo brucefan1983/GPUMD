@@ -833,7 +833,7 @@ void NEP::find_force(
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
     GPU_CHECK_KERNEL
 
-    if (para.train_mode == 3) {
+    if (para.model_type == 3) {
       if (compiled_kernel_) {
         compiled_kernel_->launch_ann_temperature(
           dataset[device_id].N,

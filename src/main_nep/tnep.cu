@@ -235,7 +235,7 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   ann.b = pointer;
   pointer += 1;
 
-  if (para.train_mode == 2) {
+  if (para.model_type == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
       ann.wb_pol[t] = pointer;
       pointer += ann.one_ann_no_bias;
@@ -747,7 +747,7 @@ void TNEP::find_force(
     GPU_CHECK_KERNEL
 
     if (compiled_kernel_) {
-      if (para.train_mode == 2) {
+      if (para.model_type == 2) {
         compiled_kernel_->launch_ann_tnep_pol(
           dataset[device_id].N,
           dataset[device_id].type.data(),
@@ -767,7 +767,7 @@ void TNEP::find_force(
           nep_data[device_id].Fp.data());
       }
     } else {
-      if (para.train_mode == 2) {
+      if (para.model_type == 2) {
         apply_ann_pol<<<grid_size, block_size>>>(
           dataset[device_id].N,
           paramb,
@@ -792,7 +792,7 @@ void TNEP::find_force(
       }
     }
 
-    bool is_dipole = para.train_mode == 1;
+    bool is_dipole = para.model_type == 1;
     if (compiled_kernel_) {
       compiled_kernel_->launch_force_tnep_radial(
         is_dipole,

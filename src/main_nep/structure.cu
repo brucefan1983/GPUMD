@@ -103,7 +103,7 @@ static void read_force(
   Structure& structure,
   std::string& xyz_filename,
   int& line_number,
-  int train_mode)
+  int model_type)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -138,7 +138,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && (train_mode == 0 || train_mode == 3)) {
+    if (num_columns > 4 && (model_type == 0 || model_type == 3)) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -253,7 +253,7 @@ static void read_one_structure(
       structure.energy /= structure.num_atom;
     }
   }
-  if ((para.train_mode == 0 || para.train_mode == 3) && !has_energy_in_exyz) {
+  if ((para.model_type == 0 || para.model_type == 3) && !has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
@@ -277,7 +277,7 @@ static void read_one_structure(
         line_number);
     }
   }
-  if (para.train_mode == 3 && !structure.has_temperature) {
+  if (para.model_type == 3 && !structure.has_temperature) {
     PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
   }
   if (!structure.has_temperature) {
@@ -382,7 +382,7 @@ static void read_one_structure(
   }
 
   // use the virial variable to keep the dipole data
-  if (para.train_mode == 1) {
+  if (para.model_type == 1) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string dipole_string = "dipole=";
@@ -414,7 +414,7 @@ static void read_one_structure(
   }
 
   // use the virial variable to keep the polarizability data
-  if (para.train_mode == 2) {
+  if (para.model_type == 2) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string pol_string = "pol=";
@@ -499,13 +499,13 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && (para.train_mode == 0 || para.train_mode == 3)) {
+      if (force_position < 0 && (para.model_type == 0 || para.model_type == 3)) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
-      if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 1 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
       }
-      if (avirial_position < 0 && para.train_mode == 2 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 2 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
@@ -546,7 +546,7 @@ static void read_one_structure(
     structure,
     xyz_filename,
     line_number,
-    para.train_mode);
+    para.model_type);
 }
 
 static void read_exyz(
