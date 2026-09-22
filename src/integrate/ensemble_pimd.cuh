@@ -97,6 +97,8 @@ protected:
   GPU_Vector<double*> force_beads;
   GPU_Vector<double*> virial_beads;
   GPU_Vector<double> transformation_matrix;
+  GPU_Vector<double> position_normal;
+  GPU_Vector<double> velocity_normal;
   GPU_Vector<double> eco_mode_factors;
   GPU_Vector<double> kinetic_energy_virial_part;
   std::vector<double> eco_independent_frequencies;
