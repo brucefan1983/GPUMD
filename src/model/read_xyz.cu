@@ -148,7 +148,7 @@ static void read_xyz_line_1(std::ifstream& input, int& N, const bool allow_singl
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
   if (N < 1 || (N == 1 && !allow_single_atom)) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2 (1 only if replicate is used in run.in).");
+    PRINT_INPUT_ERROR("Number of atoms should >= 2 (1 only if replicate and compute_phonon are used in run.in).");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -428,19 +428,24 @@ void find_type_size(
 
 static bool has_effective_replicate(const RunInput& run_input)
 {
-  for (const auto& line : run_input.lines()) {
-    if (line.tokens.empty() || line.tokens[0] != "replicate") {
-      continue;
-    }
-    if (line.tokens.size() < 4) {
-      return false;
-    }
-    const int nx = get_int_from_token(line.tokens[1], __FILE__, __LINE__);
-    const int ny = get_int_from_token(line.tokens[2], __FILE__, __LINE__);
-    const int nz = get_int_from_token(line.tokens[3], __FILE__, __LINE__);
-    return nx * ny * nz > 1;
+  const auto& lines = run_input.lines();
+  int i = 0;
+  while (i < lines.size() && lines[i].tokens.empty()) {
+    ++i;
   }
-  return false;
+
+  const auto& line = lines[i];
+  if (line.tokens[0] != "replicate") {
+    return false;
+  }
+  if (line.tokens.size() < 4) {
+    return false;
+  }
+
+  const int nx = get_int_from_token(line.tokens[1], __FILE__, __LINE__);
+  const int ny = get_int_from_token(line.tokens[2], __FILE__, __LINE__);
+  const int nz = get_int_from_token(line.tokens[3], __FILE__, __LINE__);
+  return nx * ny * nz > 1;
 }
 
 std::string get_filename_potential(const RunInput& run_input)
