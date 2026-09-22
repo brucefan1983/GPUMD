@@ -16,7 +16,6 @@
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "parameters.cuh"
-#include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
