@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run strict, two-executable GPUMD regression tests.
+"""Run strict baseline/candidate GPUMD/NEP regression tests.
 
 Each selected case is run exactly once with the baseline executable and once
 with the candidate executable. The runner uses the Python standard library
@@ -42,6 +42,7 @@ NUMBER_RE = re.compile(
 NONFINITE_RE = re.compile(r"(?<![A-Za-z_])[-+]?(?:nan|inf(?:inity)?)(?![A-Za-z_])", re.I)
 IGNORED_STDOUT_LINES = (
     re.compile(rb"^\s*Time used(?: for this run)?\s*=.*$"),
+    re.compile(rb"^\s*Time used for (?:initialization|training|predicting)\s*=.*$"),
     re.compile(rb"^\s*Speed of this run\s*=.*$"),
 )
 IGNORED_STDERR_LINES = (
@@ -505,6 +506,7 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         raise ConfigurationError("cases must be a non-empty list")
     allowed_case = {
         "id",
+        "program",
         "description",
         "suites",
         "fixture",
@@ -543,6 +545,12 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Duplicate case id: {case_id}")
         ids.add(case_id)
 
+        program = case.get("program", "gpumd")
+        if program not in ("gpumd", "nep"):
+            raise ConfigurationError(
+                f"Case {case_id} program must be gpumd or nep"
+            )
+
         description = case.get("description")
         if not isinstance(description, str) or not description.strip():
             raise ConfigurationError(f"Case {case_id} description must be non-empty")
@@ -575,14 +583,19 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Case {case_id} covers must be unique valid tags")
 
         style = case.get("input_style", "canonical")
-        if style not in ("canonical", "compatibility", "intentional_invalid"):
+        if program == "gpumd":
+            if style not in ("canonical", "compatibility", "intentional_invalid"):
+                raise ConfigurationError(
+                    f"Case {case_id} input_style must be canonical, compatibility, "
+                    "or intentional_invalid"
+                )
+            if style == "intentional_invalid" and case.get("expect") != "failure":
+                raise ConfigurationError(
+                    f"Case {case_id} intentional_invalid input must expect failure"
+                )
+        elif "input_style" in case:
             raise ConfigurationError(
-                f"Case {case_id} input_style must be canonical, compatibility, "
-                "or intentional_invalid"
-            )
-        if style == "intentional_invalid" and case.get("expect") != "failure":
-            raise ConfigurationError(
-                f"Case {case_id} intentional_invalid input must expect failure"
+                f"Case {case_id} input_style is only valid for gpumd cases"
             )
         candidate_only = case.get("candidate_only", False)
         if "candidate_only" in case and candidate_only is not True:
@@ -620,9 +633,10 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         input_path = resolve_source(case.get("input"), repo_root, f"case {case_id} input")
         if not input_path.is_file():
             raise ConfigurationError(f"Case {case_id} input is not a file: {input_path}")
-        validate_input_command_order(input_path, case_id, style)
-        if "full" in suites:
-            full_coverage.update(ensemble_keywords(input_path, case_id))
+        if program == "gpumd":
+            validate_input_command_order(input_path, case_id, style)
+            if "full" in suites:
+                full_coverage.update(ensemble_keywords(input_path, case_id))
 
         expectation_keys = (
             "expect",
@@ -807,26 +821,27 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
                 item["source"], repo_root, f"case {case_id} potential source"
             ).is_dir()
         }
-        for fields in effective_commands(input_path, case_id):
-            if fields[0] != "potential":
-                continue
-            if len(fields) < 2:
-                raise ConfigurationError(
-                    f"Case {case_id} potential command must name a staged file"
+        if program == "gpumd":
+            for fields in effective_commands(input_path, case_id):
+                if fields[0] != "potential":
+                    continue
+                if len(fields) < 2:
+                    raise ConfigurationError(
+                        f"Case {case_id} potential command must name a staged file"
+                    )
+                potential_path = fields[1]
+                validate_relative_target(
+                    potential_path, f"Case {case_id} potential file"
                 )
-            potential_path = fields[1]
-            validate_relative_target(
-                potential_path, f"Case {case_id} potential file"
-            )
-            is_staged = potential_path in combined_targets or any(
-                Path(potential_path).is_relative_to(Path(directory_target))
-                for directory_target in staged_directory_targets
-            )
-            if not is_staged:
-                raise ConfigurationError(
-                    f"Case {case_id} potential file is not staged: {potential_path!r}"
+                is_staged = potential_path in combined_targets or any(
+                    Path(potential_path).is_relative_to(Path(directory_target))
+                    for directory_target in staged_directory_targets
                 )
-        reserved = {"run.in", "stdout.txt", "stderr.txt"}
+                if not is_staged:
+                    raise ConfigurationError(
+                        f"Case {case_id} potential file is not staged: {potential_path!r}"
+                    )
+        reserved = {"run.in", "nep.in", "stdout.txt", "stderr.txt"}
         if set(combined_targets) & reserved:
             raise ConfigurationError(f"Case {case_id} stages a runner-reserved filename")
         if set(outputs) & reserved:
@@ -856,17 +871,23 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(
                 f"Case {case_id} candidate_only cannot declare mutable inputs"
             )
-        if mutable_inputs and "command:deposit" not in covers:
+        if program != "gpumd" and mutable_inputs:
             raise ConfigurationError(
-                f"Case {case_id} mutable_inputs is only allowed for command:deposit"
+                f"Case {case_id} mutable_inputs is only supported for gpumd cases"
             )
-        if mutable_inputs and not any(
-            fields[0] == "deposit" for fields in effective_commands(input_path, case_id)
-        ):
-            raise ConfigurationError(
-                f"Case {case_id} mutable_inputs requires an actual deposit command"
-            )
-        available_inputs = {"run.in"} | set(combined_targets)
+        if program == "gpumd":
+            if mutable_inputs and "command:deposit" not in covers:
+                raise ConfigurationError(
+                    f"Case {case_id} mutable_inputs is only allowed for command:deposit"
+                )
+            if mutable_inputs and not any(
+                fields[0] == "deposit" for fields in effective_commands(input_path, case_id)
+            ):
+                raise ConfigurationError(
+                    f"Case {case_id} mutable_inputs requires an actual deposit command"
+                )
+        input_filename = "nep.in" if program == "nep" else "run.in"
+        available_inputs = {input_filename} | set(combined_targets)
         undeclared_inputs = set(mutable_inputs) - available_inputs
         if undeclared_inputs:
             raise ConfigurationError(
@@ -917,6 +938,8 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
     )
     parser.add_argument("--baseline", help="Baseline executable path")
     parser.add_argument("--candidate", help="Candidate executable path")
+    parser.add_argument("--baseline-nep", help="Baseline nep executable path")
+    parser.add_argument("--candidate-nep", help="Candidate nep executable path")
     parser.add_argument(
         "--device",
         help="CUDA/HIP visible device id; defaults to the first already-visible device",
@@ -931,9 +954,6 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
     suites = available_suites(manifest)
     if args.suite not in suites:
         parser.error(f"unknown suite {args.suite!r}; choose from {', '.join(suites)}")
-    if not args.check_manifest and not args.list:
-        if args.baseline is None or args.candidate is None:
-            parser.error("--baseline and --candidate are required when running cases")
     return args
 
 
@@ -1004,7 +1024,8 @@ def prepare_workdir(
         copy_stage_item(source, target)
 
     input_path = resolve_source(case["input"], repo_root, f"case {case['id']} input")
-    shutil.copy2(input_path, workdir / "run.in")
+    input_filename = "nep.in" if case.get("program", "gpumd") == "nep" else "run.in"
+    shutil.copy2(input_path, workdir / input_filename)
     staged_files, unsafe = inspect_workdir(workdir)
     if unsafe:
         raise ConfigurationError(
@@ -1936,13 +1957,51 @@ def main() -> int:
             print(f"{len(selected)} case(s)")
             return 0
 
-        baseline = resolve_command_path(args.baseline, repo_root)
-        candidate = resolve_command_path(args.candidate, repo_root)
-        for role, executable in (("baseline", baseline), ("candidate", candidate)):
-            if not executable.is_file():
-                raise ConfigurationError(f"{role} executable does not exist: {executable}")
-            if not os.access(executable, os.X_OK):
-                raise ConfigurationError(f"{role} executable is not executable: {executable}")
+        requested_programs = {
+            case.get("program", "gpumd") for case in selected
+        }
+        program_arguments = {
+            "gpumd": (
+                args.baseline,
+                args.candidate,
+                "--baseline",
+                "--candidate",
+            ),
+            "nep": (
+                args.baseline_nep,
+                args.candidate_nep,
+                "--baseline-nep",
+                "--candidate-nep",
+            ),
+        }
+        executables: Dict[str, Dict[str, Path]] = {}
+        for program in sorted(requested_programs):
+            baseline_value, candidate_value, baseline_option, candidate_option = (
+                program_arguments[program]
+            )
+            if baseline_value is None or candidate_value is None:
+                raise ConfigurationError(
+                    f"{baseline_option} and {candidate_option} are required "
+                    f"for selected {program} cases"
+                )
+            baseline_path = resolve_command_path(baseline_value, repo_root)
+            candidate_path = resolve_command_path(candidate_value, repo_root)
+            for role, executable in (
+                (f"{program} baseline", baseline_path),
+                (f"{program} candidate", candidate_path),
+            ):
+                if not executable.is_file():
+                    raise ConfigurationError(
+                        f"{role} executable does not exist: {executable}"
+                    )
+                if not os.access(executable, os.X_OK):
+                    raise ConfigurationError(
+                        f"{role} executable is not executable: {executable}"
+                    )
+            executables[program] = {
+                "baseline": baseline_path,
+                "candidate": candidate_path,
+            }
 
         if WORK_ROOT.exists():
             if WORK_ROOT.is_symlink():
@@ -1969,19 +2028,31 @@ def main() -> int:
             "run_id": run_id,
             "work_root": str(invocation_root),
             "repo_root": str(repo_root),
-            "baseline": executable_metadata(baseline),
-            "candidate": executable_metadata(candidate),
+            "executables": {
+                program: {
+                    role: executable_metadata(path)
+                    for role, path in pair.items()
+                }
+                for program, pair in executables.items()
+            },
             "manifest_sha256": sha256_file(MANIFEST_PATH),
             "cases": [],
         }
+        if "gpumd" in executables:
+            report["baseline"] = executable_metadata(executables["gpumd"]["baseline"])
+            report["candidate"] = executable_metadata(executables["gpumd"]["candidate"])
+        if "nep" in executables:
+            report["baseline_nep"] = executable_metadata(executables["nep"]["baseline"])
+            report["candidate_nep"] = executable_metadata(executables["nep"]["candidate"])
         recorder = DifferenceRecorder(invocation_root)
         for case in selected:
+            program = case.get("program", "gpumd")
             report["cases"].append(
                 execute_case(
                     case,
                     manifest,
-                    baseline,
-                    candidate,
+                    executables[program]["baseline"],
+                    executables[program]["candidate"],
                     invocation_root,
                     repo_root,
                     device_environment,

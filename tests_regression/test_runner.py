@@ -176,6 +176,47 @@ class RelationRunnerTests(unittest.TestCase):
                 self.recorder,
             )
 
+    def test_nep_timing_lines_are_the_only_extra_stdout_noise(self):
+        data = (
+            b"Time used for initialization = 0.123 s.\n"
+            b"kept line\n"
+            b"Time used for training = 1.234 s.\n"
+            b"Time used for predicting = 2.345 s.\n"
+        )
+        self.assertEqual(runner.normalize_stdout(data), b"kept line\n")
+
+    def test_nep_program_stages_input_as_nep_in(self):
+        source_dir = self.invocation_root / "sources" / "nep_input"
+        source_dir.mkdir(parents=True)
+        train = source_dir / "train.xyz"
+        train.write_text("1\nminimal\nH 0 0 0\n", encoding="utf-8")
+        nep_input = source_dir / "training.in"
+        nep_input.write_text("type 1 H\n", encoding="utf-8")
+        case = {
+            "id": "nep_input",
+            "program": "nep",
+            "fixture": "minimal_nep",
+            "input": self.package_source(nep_input),
+        }
+        manifest = {
+            "fixtures": {
+                "minimal_nep": {
+                    "stage": [
+                        {"source": self.package_source(train), "target": "train.xyz"}
+                    ]
+                }
+            }
+        }
+        workdir, _ = runner.prepare_workdir(
+            case,
+            manifest,
+            "baseline",
+            self.invocation_root,
+            runner.PACKAGE_ROOT,
+        )
+        self.assertTrue((workdir / "nep.in").is_file())
+        self.assertFalse((workdir / "run.in").exists())
+
     def test_numeric_comparison_preserves_structure_and_reports_all_outputs(self):
         runner.compare_numeric_text(
             "value 1.0000000\n",

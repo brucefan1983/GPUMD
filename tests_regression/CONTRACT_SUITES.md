@@ -1,13 +1,13 @@
 # Durable behavior-contract diagnostics
 
-`full` is the only acceptance suite. It runs all 195 manifest cases and then
+`full` is the only acceptance suite. It runs all 217 manifest cases and then
 evaluates all 23 cross-case relations for both the baseline and candidate:
 
 ```text
-Summary: 195 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
+Summary: 217 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
 ```
 
-The 20 focused suites are diagnostic views of the same manifest. They may skip
+The 21 focused suites are diagnostic views of the same manifest. They may skip
 relations when not all members are selected and therefore do not replace the
 `full` acceptance run.
 
@@ -35,6 +35,7 @@ relations when not all members are selected and therefore do not replace the
 | `first_step_init` | initialization consumed by the first integration step |
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
+| `training` | NEP-family training with TTT, FFF, and mixed boundary conditions |
 
 ## Cross-case relation oracles
 
@@ -87,4 +88,5 @@ python3 run_regression.py \
   --keep-all
 ```
 
-Acceptance always uses `--suite full`.
+Acceptance always uses `--suite full` with both the GPUMD and NEP
+baseline/candidate executable pairs.
