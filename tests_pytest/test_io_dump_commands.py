@@ -397,6 +397,13 @@ def test_dump_xyz_writes_one_file_per_frame_for_a_starred_name(
         assert len(frames[0]) == len(structure)
 
 
+def _deposition_slab():
+    """A diamond slab with vacuum along z, for the deposited atoms to land on."""
+    slab = bulk('C', 'diamond', 3.57, cubic=True).repeat((2, 2, 3))
+    slab.center(vacuum=6, axis=2)
+    return slab
+
+
 def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
     """main_gpumd/deposition.cu builds a dump_xyz line as a runtime string, one per subrun, and
     appends `group_labels` when the model carries groupings. Nothing else covers it, so a stale
@@ -405,11 +412,10 @@ def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
 
     A slab with vacuum along z is built here rather than reusing the shared structure fixtures,
     since deposition needs somewhere to deposit into."""
-    slab = bulk('C', 'diamond', 3.57, cubic=True).repeat((2, 2, 3))
-    slab.center(vacuum=6, axis=2)
+    slab = _deposition_slab()
     case = CommandIOCase(
         name='deposition',
-        run_in_lines=[('deposit', [5, 2, 20, 'atom', 0, 2, -0.05])],
+        run_in_lines=[('deposit', [5, 2, 20, 'atom', 'C', 2, -0.05])],
         expected_output_files=[], n_groups=2)
     result = run_command_io_case(
         tmp_path, slab, MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
@@ -436,6 +442,20 @@ def test_deposition_generates_a_usable_dump_xyz_line(tmp_path, gpumd_command):
         atom_counts.append(len(frame))
     assert atom_counts == sorted(atom_counts) and atom_counts[-1] > atom_counts[0], (
         f'atom count should grow as atoms are deposited, got {atom_counts}')
+
+
+def test_deposit_rejects_a_numeric_species(tmp_path, gpumd_command):
+    """deposit names the deposited species by element symbol. A type index is refused rather
+    than read as one of the numbers that follow it, so the message is what is asserted."""
+    case = CommandIOCase(
+        name='deposition_numeric_species',
+        run_in_lines=[('deposit', [5, 2, 20, 'atom', 0, 2, -0.05])],
+        expected_output_files=[], n_groups=2)
+    result = run_command_io_case(
+        tmp_path, _deposition_slab(), MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, 'a numeric deposit species was accepted'
+    assert 'should be specified using an element symbol' in output, output
 
 
 INVALID_DUMP_XYZ_ARGUMENTS = [
@@ -529,13 +549,15 @@ def _check_netcdf_result(result):
 def test_dump_netcdf_appends_across_run_commands(
         tmp_path, structure, model_path, model_type, gpumd_command):
     """Two dump_netcdf commands writing the same file in one execution extend it, since the
-    keyword does not propagate and each run needs its own command."""
+    keyword does not propagate and each run needs its own command. The second run block repeats
+    `ensemble`, which GPUMD requires before every run."""
     netcdf4 = pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf',
         run_in_lines=[
             ('dump_netcdf', [1, 'sed.nc', 'velocity']),
             ('run', BASE_N_STEPS),
+            ('ensemble', 'nve'),
             ('dump_netcdf', [1, 'sed.nc', 'velocity']),
         ],
         expected_output_files=['sed.nc'],
