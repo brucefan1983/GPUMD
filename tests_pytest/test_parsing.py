@@ -1,10 +1,9 @@
 """I/O round-trip and malformed-input tests for GPUMD/calorine parsers.
 
-No calculator invocation here, and no GPU required — the one file in this suite that could in
-principle run without one (see gpumd_pytest_suite_spec.md), though the overall suite makes no
-such distinction elsewhere. thermo.out/dpdt.out round-trips against files actually produced by
-`gpumd` are exercised indirectly in test_md_conservation.py; here we only need representative
-well-formed content to validate the readers' own contract.
+No calculator invocation here, and no GPU required -- the one file in this suite that runs
+without one. thermo.out/dpdt.out round-trips against files actually produced by `gpumd` are
+exercised indirectly in test_md_conservation.py; here we only need representative well-formed
+content to validate the readers' own contract.
 """
 import tempfile
 from pathlib import Path

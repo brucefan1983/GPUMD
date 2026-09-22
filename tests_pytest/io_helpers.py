@@ -61,9 +61,8 @@ class CommandIOCase:
 
 def run_command_io_case(tmp_path, atoms, model_path, model_type, gpumd_command, case):
     """Writes run.in (+ model.xyz with groupings if needed) for one CommandIOCase and executes
-    gpumd directly (mirroring the pattern in tests/gpumd/dump_dipole/test_dump_dipole.py),
-    rather than run_custom_md(..., only_prepare=False), since several cases need model.xyz
-    rewritten with group information after GPUNEP's automatic (group-less) write.
+    gpumd directly rather than run_custom_md(..., only_prepare=False), since several cases need
+    model.xyz rewritten with group information after GPUNEP's automatic (group-less) write.
 
     Returns the completed subprocess (caller checks returncode and expected_output_files).
     """

@@ -1,18 +1,18 @@
 # GPUMD pytest suite
 
-An automated pytest-based test suite for `gpumd`/`nep`, living alongside the existing manual
-`tests/` directory (which this suite does not touch or replace). See
-`gpumd_pytest_suite_spec.md` at the repo root for the full design rationale, fixture
-architecture, and numeric-validation strategy; this file only covers setup and how to run things.
+An automated pytest suite for `gpumd` and `nep`.
 
 ## Prerequisites
 
-- A GPU-equipped machine — every test in this suite drives the real `gpumd` binary.
-- Python packages: `ase`, `calorine`, `numpy`, `pytest`, `hypothesis`. Install with:
+Every test except those in `test_parsing.py` drives the real `gpumd` binary, so the suite needs
+a GPU-equipped machine.
 
-  ```bash
-  pip install ase calorine numpy pytest hypothesis
-  ```
+```bash
+pip install ase calorine numpy pytest hypothesis netCDF4 MDAnalysis
+```
+
+`netCDF4` and `MDAnalysis` are read by the `dump_netcdf` tests. Without them those tests skip
+and the run still reports success.
 
 ## Building `gpumd` and `nep`
 
@@ -21,47 +21,40 @@ cd src
 make
 ```
 
-This produces `src/gpumd` and `src/nep`. See `doc/installation.rst` at the repo root for full
-build prerequisites.
+This produces `src/gpumd` and `src/nep`. Add `-DUSE_NETCDF` to cover the `dump_netcdf` tests,
+which otherwise skip; see `doc/installation.rst` for the NetCDF setup and the rest of the build
+prerequisites.
 
-### How the suite finds the executables
-
-`conftest.py` looks for each executable at `<repo root>/src/gpumd` and `<repo root>/src/nep`
-first — where the build above puts them, so a normal build needs no extra setup — and falls back
-to `<repo root>/gpumd` and `<repo root>/nep` if nothing exists at the default location (e.g. a
-manually placed copy or symlink).
-
-`nep` is used only by `test_nep_model_consistency.py`; every other module drives `gpumd`.
+`conftest.py` takes each executable from `<repo root>/src/` and falls back to `<repo root>/`.
+`nep` is used only by `test_nep_model_consistency.py`.
 
 ## Running the tests
 
-From this directory (`tests_pytest/`):
+From this directory:
 
 ```bash
 pytest -q                 # everything
-pytest -m "not slow" -q   # excludes MD-conservation-scale tests (the expensive tier)
-pytest -m fast -q         # single-point-evaluation / quick-command subset only
+pytest -m "not slow" -q   # excludes the MD-conservation tests, which are the expensive tier
+pytest -m fast -q         # single-point evaluations and quick commands only
 ```
 
-Two extra flags control fixture regeneration, both deliberate/manual (never automatic):
+Two flags regenerate fixtures:
 
 ```bash
-pytest --update-golden     # regenerate the frozen reference files under fixtures/golden/
-pytest --dump-fixtures     # write representative run.in/model.xyz pairs into
-                            # fixtures/sanitizer_inputs/, then exit without running tests --
-                            # consumed by run_sanitizer_checks.sh (compute-sanitizer, run
-                            # manually and separately, not part of the pytest run)
+pytest --update-golden    # rewrite the reference files under fixtures/golden/
+pytest --dump-fixtures    # write run.in/model.xyz pairs into fixtures/sanitizer_inputs/, then
+                          # exit; read by run_sanitizer_checks.sh, which drives
+                          # compute-sanitizer separately from the pytest run
 ```
 
 ## Fixture layout
 
 ```
 fixtures/
-  models/       # NEP/qNEP/TNEP model files (nep.txt format)
-  structures/   # pre-rattled structure files (extended XYZ)
-  golden/       # frozen reference outputs (energy/force/virial/BEC/TNEP arrays)
-  training/     # small labelled training set for the `nep` training runs, plus the script
-                # that generates it
+  models/       # NEP, qNEP and TNEP model files in nep.txt format
+  structures/   # pre-rattled structures in extended XYZ
+  golden/       # frozen reference outputs
+  training/     # small labelled training set for the nep runs, and the script that writes it
 ```
 
-`fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above, not checked in.
+`fixtures/sanitizer_inputs/` is written by `--dump-fixtures` and is not committed.
