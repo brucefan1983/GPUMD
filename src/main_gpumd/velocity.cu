@@ -44,6 +44,9 @@ void Velocity::scale(
     temperature += cpu_mass[n] * v2;
   }
   temperature /= 3.0 * K_B * N;
+  if (temperature < 1.0e-12) {
+    return;
+  }
   double factor = sqrt(initial_temperature / temperature);
   for (int n = 0; n < N; ++n) {
     cpu_vx[n] *= factor;
@@ -334,7 +337,9 @@ void Velocity::initialize(
         atom.cpu_velocity_per_atom.data() + N,
         atom.cpu_velocity_per_atom.data() + N * 2);
     }
-    correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    if (N > 1) {
+      correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    }
     scale(
       initial_temperature,
       atom.cpu_mass,

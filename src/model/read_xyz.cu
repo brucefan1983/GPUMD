@@ -140,15 +140,15 @@ const std::map<std::string, double> MASS_TABLE{
   {"No", 259},
   {"Lr", 262}};
 
-static void read_xyz_line_1(std::ifstream& input, int& N)
+static void read_xyz_line_1(std::ifstream& input, int& N, const bool allow_single_atom)
 {
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 1) {
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  if (N < 1 || (N == 1 && !allow_single_atom)) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 2 (1 only if replicate is used in run.in).");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -426,6 +426,23 @@ void find_type_size(
   }
 }
 
+static bool has_effective_replicate(const RunInput& run_input)
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.empty() || line.tokens[0] != "replicate") {
+      continue;
+    }
+    if (line.tokens.size() < 4) {
+      return false;
+    }
+    const int nx = get_int_from_token(line.tokens[1], __FILE__, __LINE__);
+    const int ny = get_int_from_token(line.tokens[2], __FILE__, __LINE__);
+    const int nz = get_int_from_token(line.tokens[3], __FILE__, __LINE__);
+    return nx * ny * nz > 1;
+  }
+  return false;
+}
+
 std::string get_filename_potential(const RunInput& run_input)
 {
   std::string filename_potential;
@@ -492,7 +509,7 @@ void initialize_position(
   auto filename_potential = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(filename_potential);
 
-  read_xyz_line_1(input, atom.number_of_atoms);
+  read_xyz_line_1(input, atom.number_of_atoms, has_effective_replicate(run_input));
   int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
