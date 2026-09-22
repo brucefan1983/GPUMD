@@ -776,8 +776,9 @@ static __global__ void gpu_average(
   }
 }
 
+constexpr int PIMD_VIRIAL_ATOM_TILE = 8;
+
 static __global__ void gpu_find_kinetic_energy_virial_part(
-  const Box box,
   const int number_of_atoms,
   const int number_of_beads,
   double** position,
@@ -786,33 +787,60 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
   double* kinetic_energy_virial_part,
   double* virial_averaged)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    double temp_sum[9] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      int index_x = 0 * number_of_atoms + n;
-      int index_y = 1 * number_of_atoms + n;
-      int index_z = 2 * number_of_atoms + n;
-      // the virial tensor:
-      // xx xy xz    0 3 4
-      // yx yy yz    6 1 5
-      // zx zy zz    7 8 2
-      temp_sum[0] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_x];
-      temp_sum[1] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_y];
-      temp_sum[2] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_z];
-      temp_sum[3] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_y];
-      temp_sum[4] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_z];
-      temp_sum[5] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_z];
-      temp_sum[6] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_x];
-      temp_sum[7] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_x];
-      temp_sum[8] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_y];
+  __shared__ double s_value[3][MAX_NUM_BEADS][PIMD_VIRIAL_ATOM_TILE];
+  int local_atom = threadIdx.x;
+  int k = threadIdx.y;
+  int n = blockIdx.x * PIMD_VIRIAL_ATOM_TILE + local_atom;
+  bool valid = n < number_of_atoms;
+  double number_of_beads_inverse = 1.0 / number_of_beads;
+  double diagonal_sum = 0.0;
+
+  double contribution[9] = {0.0};
+  if (valid) {
+    int index_x = n;
+    int index_y = number_of_atoms + n;
+    int index_z = 2 * number_of_atoms + n;
+    double dx = position[k][index_x] - position_averaged[index_x];
+    double dy = position[k][index_y] - position_averaged[index_y];
+    double dz = position[k][index_z] - position_averaged[index_z];
+    double fx = force[k][index_x];
+    double fy = force[k][index_y];
+    double fz = force[k][index_z];
+    contribution[0] = -dx * fx;
+    contribution[1] = -dy * fy;
+    contribution[2] = -dz * fz;
+    contribution[3] = -dx * fy;
+    contribution[4] = -dx * fz;
+    contribution[5] = -dy * fz;
+    contribution[6] = -dy * fx;
+    contribution[7] = -dz * fx;
+    contribution[8] = -dz * fy;
+  }
+
+  for (int group = 0; group < 3; ++group) {
+    for (int lane = 0; lane < 3; ++lane) {
+      s_value[lane][k][local_atom] = contribution[group * 3 + lane];
     }
-    double number_of_beads_inverse = 1.0 / number_of_beads;
-    for (int d = 0; d < 9; ++d) {
-      virial_averaged[d * number_of_atoms + n] += temp_sum[d] * number_of_beads_inverse;
+    __syncthreads();
+    if (k == 0 && valid) {
+      for (int lane = 0; lane < 3; ++lane) {
+        int d = group * 3 + lane;
+        double sum = 0.0;
+        for (int bead = 0; bead < number_of_beads; ++bead) {
+          sum += s_value[lane][bead][local_atom];
+        }
+        virial_averaged[d * number_of_atoms + n] += sum * number_of_beads_inverse;
+        if (group == 0) {
+          diagonal_sum += sum;
+        }
+      }
     }
+    __syncthreads();
+  }
+
+  if (k == 0 && valid) {
     kinetic_energy_virial_part[n] =
-      0.5f * (temp_sum[0] + temp_sum[1] + temp_sum[2]) * number_of_beads_inverse;
+      0.5f * diagonal_sum * number_of_beads_inverse;
   }
 }
 
@@ -1204,8 +1232,9 @@ void Ensemble_PIMD::compute2(
     atom.virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box,
+  const dim3 virial_block(PIMD_VIRIAL_ATOM_TILE, number_of_beads);
+  const dim3 virial_grid((number_of_atoms - 1) / PIMD_VIRIAL_ATOM_TILE + 1);
+  gpu_find_kinetic_energy_virial_part<<<virial_grid, virial_block>>>(
     number_of_atoms,
     number_of_beads,
     position_beads.data(),
