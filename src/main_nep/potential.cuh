@@ -14,9 +14,8 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
+#include "dataset.cuh"
 #include <vector>
-class Dataset;
 class Parameters;
 
 class Potential
@@ -29,4 +28,7 @@ public:
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int DeviceCount) = 0;
+
+protected:
+  NEP_Neighbor neighbor[16];
 };

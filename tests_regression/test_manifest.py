@@ -76,10 +76,16 @@ def test_manifest_suite_and_input_style_contract():
     }
     assert focused_suites
 
-    styles = {case["input_style"] for case in cases}
+    gpumd_cases = [case for case in cases if case.get("program", "gpumd") == "gpumd"]
+    nep_cases = [case for case in cases if case.get("program", "gpumd") == "nep"]
+    assert gpumd_cases
+    assert nep_cases
+    assert all("input_style" not in case for case in nep_cases)
+
+    styles = {case["input_style"] for case in gpumd_cases}
     assert {"canonical", "compatibility"} <= styles
     assert styles <= {"canonical", "compatibility", "intentional_invalid"}
-    for case in cases:
+    for case in gpumd_cases:
         if case["input_style"] != "intentional_invalid":
             continue
         assert case["expect"] == "failure"
@@ -157,6 +163,8 @@ def test_runner_exposes_explicit_external_paths():
         "--repo-root",
         "--baseline",
         "--candidate",
+        "--baseline-nep",
+        "--candidate-nep",
         "--suite",
         "--case",
         "--check-manifest",
@@ -214,6 +222,14 @@ def test_package_fixture_hashes_are_pinned():
             "389896b88a0a901a82160f407d3b7d2146c3e0c5972c1632dcb8fd88b43d33d2",
         "fixtures/potentials/graphene_tersoff_1988_params.txt":
             "baf64d6b7f5bbfc32f7af38b64b601af9ce4b4417e8e6c2af320d00610f4f9ef",
+        "fixtures/training/pbte.xyz":
+            "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c",
+        "fixtures/training/pbte_water_mixed.xyz":
+            "78cda019ae1243eda4764afc98b53abe287e4a84f2aeaf2c53d37a01b0c04743",
+        "fixtures/training/tnep_120.xyz":
+            "0d98711fcbae5cc0af3df245fb6dd3117d7b1213289790152d039c1a81ad8aee",
+        "fixtures/training/water_12_fff.xyz":
+            "27a92bdbb864c8c1455eb770666283c9e77c1ee663cb02f9ed1b75beb950692a",
     }
     for relative_path, expected_digest in expected.items():
         digest = hashlib.sha256((PACKAGE_ROOT / relative_path).read_bytes()).hexdigest()
@@ -231,6 +247,8 @@ def test_successful_nep_cases_declare_neighbor_output():
         "potential:nep-ilp",
     }
     for case in manifest["cases"]:
+        if case.get("program", "gpumd") != "gpumd":
+            continue
         if not nep_tags.intersection(case.get("covers", [])):
             continue
         default_expectation = case.get("expect", "success")
@@ -241,6 +259,60 @@ def test_successful_nep_cases_declare_neighbor_output():
         )
         if success_capable:
             assert "neighbor.out" in case["outputs"], case["id"]
+
+
+def test_training_cases_use_nep_program_and_minimal_inputs():
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    training_cases = [
+        case for case in manifest["cases"] if "training" in case["suites"]
+    ]
+    assert len(training_cases) == 22
+    assert all(case.get("program") == "nep" for case in training_cases)
+    assert all("full" in case["suites"] for case in training_cases)
+    assert all(
+        case["outputs"] == ["loss.out", "nep.txt", "nep.restart"]
+        for case in training_cases
+    )
+    assert all("stage" not in case for case in training_cases)
+    assert all("mutable_inputs" not in case for case in training_cases)
+
+    forbidden = {"population", "nep_compile"}
+    for case in training_cases:
+        input_path = PACKAGE_ROOT / case["input"].removeprefix("package:")
+        commands = []
+        for raw_line in input_path.read_text(encoding="utf-8").splitlines():
+            fields = raw_line.split("#", 1)[0].split()
+            if fields:
+                commands.append(fields)
+        keywords = [fields[0] for fields in commands]
+        assert keywords.count("type") == 1, case["id"]
+        assert keywords.count("batch") == 1, case["id"]
+        assert keywords.count("generation") == 1, case["id"]
+        assert keywords.count("output_interval") == 1, case["id"]
+        assert not forbidden.intersection(keywords), case["id"]
+        generation = next(fields for fields in commands if fields[0] == "generation")
+        output_interval = next(
+            fields for fields in commands if fields[0] == "output_interval"
+        )
+        assert generation == ["generation", "10"], case["id"]
+        assert output_interval == ["output_interval", "10"], case["id"]
+
+    mixed_cases = [case for case in training_cases if case["id"].endswith("_mixed")]
+    assert len(mixed_cases) == 4
+    for case in mixed_cases:
+        input_path = PACKAGE_ROOT / case["input"].removeprefix("package:")
+        text = input_path.read_text(encoding="utf-8")
+        assert "type 4 Pb Te H O" in text, case["id"]
+
+    tnep_batch_cases = {
+        "train_tnep_dipole_batch",
+        "train_tnep_pol_batch",
+    }
+    for case in training_cases:
+        if case["id"] not in tnep_batch_cases:
+            continue
+        input_path = PACKAGE_ROOT / case["input"].removeprefix("package:")
+        assert "batch 61" in input_path.read_text(encoding="utf-8"), case["id"]
 
 
 def test_behavior_contract_cases_are_full_differential_cases():
@@ -421,6 +493,7 @@ if __name__ == "__main__":
         test_manifest_accounts_for_every_case_input,
         test_package_fixture_hashes_are_pinned,
         test_successful_nep_cases_declare_neighbor_output,
+        test_training_cases_use_nep_program_and_minimal_inputs,
         test_behavior_contract_cases_are_full_differential_cases,
         test_default_runtime_consumers_are_full_cases,
         test_parsing_validation_cases_match_the_accepted_baseline,

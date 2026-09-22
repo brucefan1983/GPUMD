@@ -92,15 +92,11 @@ Fitness::Fitness(Parameters& para)
 
   int N = -1;
   int Nc = -1;
-  int N_times_max_NN_radial = -1;
-  int N_times_max_NN_angular = -1;
   max_NN_radial = -1;
   max_NN_angular = -1;
   if (has_test_set) {
     N = test_set[0].N;
     Nc = test_set[0].Nc;
-    N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
-    N_times_max_NN_angular = test_set[0].N * test_set[0].max_NN_angular;
     max_NN_radial = test_set[0].max_NN_radial;
     max_NN_angular = test_set[0].max_NN_angular;
   }
@@ -110,12 +106,6 @@ Fitness::Fitness(Parameters& para)
     };
     if (train_set[n][0].Nc > Nc) {
       Nc = train_set[n][0].Nc;
-    };
-    if (train_set[n][0].N * train_set[n][0].max_NN_radial > N_times_max_NN_radial) {
-      N_times_max_NN_radial = train_set[n][0].N * train_set[n][0].max_NN_radial;
-    };
-    if (train_set[n][0].N * train_set[n][0].max_NN_angular > N_times_max_NN_angular) {
-      N_times_max_NN_angular = train_set[n][0].N * train_set[n][0].max_NN_angular;
     };
 
     if (train_set[n][0].max_NN_radial > max_NN_radial) {
