@@ -214,7 +214,6 @@ static __global__ void gpu_find_neighbor_number(
   const int* Na,
   const int* Na_sum,
   const int* g_type,
-  const int* g_atomic_numbers,
   const float* g_rc_radial,
   const float* g_rc_angular,
   const float* __restrict__ g_box,
@@ -280,7 +279,6 @@ static __global__ void gpu_find_neighbor_list(
   const int* Na,
   const int* Na_sum,
   const int* g_type,
-  const int* g_atomic_numbers,
   const float* g_rc_radial,
   const float* g_rc_angular,
   const float* __restrict__ g_box,
@@ -370,36 +368,25 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
 
   CHECK(gpuSetDevice(device_id));
 
-  if (atomic_numbers.size() == 0) {
-    std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
-    for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-      atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
-    }
-    atomic_numbers.resize(para.atomic_numbers.size());
-    atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
-
+  if (rc_radial.size() == 0) {
     rc_radial.resize(para.rc_radial.size());
     rc_radial.copy_from_host(para.rc_radial.data());
     rc_angular.resize(para.rc_angular.size());
     rc_angular.copy_from_host(para.rc_angular.data());
   }
 
-  const int required_radial =
-    dataset.num_neighbors_radial > 0 ? dataset.num_neighbors_radial : 1;
-  if (required_radial > static_cast<int>(NL_radial.size())) {
-    NL_radial.resize(required_radial);
-    x12_radial.resize(required_radial);
-    y12_radial.resize(required_radial);
-    z12_radial.resize(required_radial);
+  if (dataset.num_neighbors_radial > static_cast<int>(NL_radial.size())) {
+    NL_radial.resize(dataset.num_neighbors_radial);
+    x12_radial.resize(dataset.num_neighbors_radial);
+    y12_radial.resize(dataset.num_neighbors_radial);
+    z12_radial.resize(dataset.num_neighbors_radial);
   }
 
-  const int required_angular =
-    dataset.num_neighbors_angular > 0 ? dataset.num_neighbors_angular : 1;
-  if (required_angular > static_cast<int>(NL_angular.size())) {
-    NL_angular.resize(required_angular);
-    x12_angular.resize(required_angular);
-    y12_angular.resize(required_angular);
-    z12_angular.resize(required_angular);
+  if (dataset.num_neighbors_angular > static_cast<int>(NL_angular.size())) {
+    NL_angular.resize(dataset.num_neighbors_angular);
+    x12_angular.resize(dataset.num_neighbors_angular);
+    y12_angular.resize(dataset.num_neighbors_angular);
+    z12_angular.resize(dataset.num_neighbors_angular);
   }
 
   gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
@@ -407,7 +394,6 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
     dataset.Na.data(),
     dataset.Na_sum.data(),
     dataset.type.data(),
-    atomic_numbers.data(),
     rc_radial.data(),
     rc_angular.data(),
     dataset.box.data(),
@@ -441,13 +427,6 @@ void Dataset::find_neighbor(Parameters& para)
   std::vector<int> NN_radial_cpu(N);
   std::vector<int> NN_angular_cpu(N);
 
-  std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
-  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
-  }
-  GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
-  atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
-
   GPU_Vector<float> rc_radial(para.rc_radial.size());
   rc_radial.copy_from_host(para.rc_radial.data());
   GPU_Vector<float> rc_angular(para.rc_angular.size());
@@ -458,7 +437,6 @@ void Dataset::find_neighbor(Parameters& para)
     Na.data(),
     Na_sum.data(),
     type.data(),
-    atomic_numbers.data(),
     rc_radial.data(),
     rc_angular.data(),
     box.data(),

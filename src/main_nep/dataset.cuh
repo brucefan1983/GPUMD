@@ -125,7 +125,6 @@ public:
   void prepare(Parameters& para, Dataset& dataset, int device_id);
 
 private:
-  GPU_Vector<int> atomic_numbers;
   GPU_Vector<float> rc_radial;
   GPU_Vector<float> rc_angular;
   const Dataset* neighbor_dataset = nullptr;
