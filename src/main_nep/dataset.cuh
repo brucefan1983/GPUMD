@@ -27,8 +27,8 @@ public:
   int max_Na;         // number of atoms in the largest configuration
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
-  int num_neighbors_radial;  // total number of radial neighbors
-  int num_neighbors_angular; // total number of angular neighbors
+  int total_NN_radial;  // total number of radial neighbors
+  int total_NN_angular; // total number of angular neighbors
 
   GPU_Vector<int> Na;          // number of atoms in each configuration
   GPU_Vector<int> Na_sum;      // prefix sum of Na

@@ -375,18 +375,18 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
     rc_angular.copy_from_host(para.rc_angular.data());
   }
 
-  if (dataset.num_neighbors_radial > static_cast<int>(NL_radial.size())) {
-    NL_radial.resize(dataset.num_neighbors_radial);
-    x12_radial.resize(dataset.num_neighbors_radial);
-    y12_radial.resize(dataset.num_neighbors_radial);
-    z12_radial.resize(dataset.num_neighbors_radial);
+  if (dataset.total_NN_radial > static_cast<int>(NL_radial.size())) {
+    NL_radial.resize(dataset.total_NN_radial);
+    x12_radial.resize(dataset.total_NN_radial);
+    y12_radial.resize(dataset.total_NN_radial);
+    z12_radial.resize(dataset.total_NN_radial);
   }
 
-  if (dataset.num_neighbors_angular > static_cast<int>(NL_angular.size())) {
-    NL_angular.resize(dataset.num_neighbors_angular);
-    x12_angular.resize(dataset.num_neighbors_angular);
-    y12_angular.resize(dataset.num_neighbors_angular);
-    z12_angular.resize(dataset.num_neighbors_angular);
+  if (dataset.total_NN_angular > static_cast<int>(NL_angular.size())) {
+    NL_angular.resize(dataset.total_NN_angular);
+    x12_angular.resize(dataset.total_NN_angular);
+    y12_angular.resize(dataset.total_NN_angular);
+    z12_angular.resize(dataset.total_NN_angular);
   }
 
   gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
@@ -453,11 +453,11 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial.copy_to_host(NN_radial_cpu.data());
   NN_angular.copy_to_host(NN_angular_cpu.data());
 
-  num_neighbors_radial = 0;
+  total_NN_radial = 0;
   int min_NN_radial = 10000;
   max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
-    num_neighbors_radial += NN_radial_cpu[n];
+    total_NN_radial += NN_radial_cpu[n];
     if (NN_radial_cpu[n] < min_NN_radial) {
       min_NN_radial = NN_radial_cpu[n];
     }
@@ -466,11 +466,11 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  num_neighbors_angular = 0;
+  total_NN_angular = 0;
   int min_NN_angular = 10000;
   max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
-    num_neighbors_angular += NN_angular_cpu[n];
+    total_NN_angular += NN_angular_cpu[n];
     if (NN_angular_cpu[n] < min_NN_angular) {
       min_NN_angular = NN_angular_cpu[n];
     }
@@ -493,11 +493,11 @@ void Dataset::find_neighbor(Parameters& para)
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("    Average number of neighbors for one atom = %g.\n", num_neighbors_radial / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", total_NN_radial / float(N));
   printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
-  printf("    Average number of neighbors for one atom = %g.\n", num_neighbors_angular / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", total_NN_angular / float(N));
 #ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
   FILE* fid = fopen("neighbor.txt", "a");
   for (int nc = 0; nc < Nc; ++nc) {
