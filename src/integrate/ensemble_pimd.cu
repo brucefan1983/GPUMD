@@ -637,13 +637,25 @@ static __global__ void gpu_correct_momentum_beads(
   const int number_of_atoms, const int number_of_beads, double** g_velocity)
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_atoms) {
+  int k = blockIdx.y;
+  if (i < number_of_atoms && k < number_of_beads) {
     double inverse_of_total_mass = 1.0 / device_momentum_beads[0][3];
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        g_velocity[k][i + d * number_of_atoms] -=
-          device_momentum_beads[k][d] * inverse_of_total_mass;
-      }
+    for (int d = 0; d < 3; ++d) {
+      g_velocity[k][i + d * number_of_atoms] -=
+        device_momentum_beads[k][d] * inverse_of_total_mass;
+    }
+  }
+}
+
+static __global__ void gpu_quantize_reference_position(
+  const int number_of_atoms, double** position)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    for (int d = 0; d < 3; ++d) {
+      int index_dn = d * number_of_atoms + n;
+      float reference = position[0][index_dn];
+      position[0][index_dn] = reference;
     }
   }
 }
@@ -652,28 +664,42 @@ static __global__ void gpu_apply_pbc(
   const Box box, const int number_of_atoms, const int number_of_beads, double** position)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    float pos_temp[3][MAX_NUM_BEADS] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        pos_temp[d][k] = position[k][d * number_of_atoms + n];
-      }
-      if (k > 0) {
-        double pos_diff[3] = {0.0};
-        for (int d = 0; d < 3; ++d) {
-          pos_diff[d] = pos_temp[d][k] - pos_temp[d][0];
-        }
-        apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-        for (int d = 0; d < 3; ++d) {
-          pos_temp[d][k] = pos_temp[d][0] + pos_diff[d];
-        }
-      }
-      for (int d = 0; d < 3; ++d) {
-        position[k][d * number_of_atoms + n] = pos_temp[d][k];
-      }
+  int k = blockIdx.y + 1;
+  if (n < number_of_atoms && k < number_of_beads) {
+    float reference[3];
+    float current[3];
+    for (int d = 0; d < 3; ++d) {
+      int index_dn = d * number_of_atoms + n;
+      reference[d] = position[0][index_dn];
+      current[d] = position[k][index_dn];
     }
+    float dx_float = current[0] - reference[0];
+    float dy_float = current[1] - reference[1];
+    float dz_float = current[2] - reference[2];
+    double dx = dx_float;
+    double dy = dy_float;
+    double dz = dz_float;
+    apply_mic(box, dx, dy, dz);
+    position[k][n] = static_cast<float>(reference[0] + dx);
+    position[k][number_of_atoms + n] = static_cast<float>(reference[1] + dy);
+    position[k][2 * number_of_atoms + n] = static_cast<float>(reference[2] + dz);
   }
 }
+
+static void apply_pbc(
+  const Box& box, const int number_of_atoms, const int number_of_beads, double** position)
+{
+  int grid_size = (number_of_atoms - 1) / 64 + 1;
+  gpu_quantize_reference_position<<<grid_size, 64>>>(number_of_atoms, position);
+  GPU_CHECK_KERNEL
+  if (number_of_beads > 1) {
+    const dim3 grid(grid_size, number_of_beads - 1);
+    gpu_apply_pbc<<<grid, 64>>>(box, number_of_atoms, number_of_beads, position);
+    GPU_CHECK_KERNEL
+  }
+}
+
+constexpr int PIMD_ATOM_TILE = 8;
 
 static __global__ void gpu_average(
   const int number_of_atoms,
@@ -689,33 +715,64 @@ static __global__ void gpu_average(
   double* force_averaged,
   double* virial_averaged)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    double pos_ave[3] = {0.0}, vel_ave[3] = {0.0}, pot_ave = 0.0, for_ave[3] = {0.0},
-           vir_ave[9] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        int index_dn = d * number_of_atoms + n;
-        pos_ave[d] += position[k][index_dn];
-        vel_ave[d] += velocity[k][index_dn];
-        for_ave[d] += force[k][index_dn];
+  __shared__ double s_value[3][MAX_NUM_BEADS][PIMD_ATOM_TILE];
+  int local_atom = threadIdx.x;
+  int k = threadIdx.y;
+  int n = blockIdx.x * PIMD_ATOM_TILE + local_atom;
+  bool valid = n < number_of_atoms;
+  double number_of_beads_inverse = 1.0 / number_of_beads;
+
+  for (int d = 0; d < 3; ++d) {
+    int index_dn = d * number_of_atoms + n;
+    s_value[0][k][local_atom] = valid ? position[k][index_dn] : 0.0;
+    s_value[1][k][local_atom] = valid ? velocity[k][index_dn] : 0.0;
+    s_value[2][k][local_atom] = valid ? force[k][index_dn] : 0.0;
+    __syncthreads();
+    if (k == 0 && valid) {
+      double pos_ave = 0.0;
+      double vel_ave = 0.0;
+      double for_ave = 0.0;
+      for (int bead = 0; bead < number_of_beads; ++bead) {
+        pos_ave += s_value[0][bead][local_atom];
+        vel_ave += s_value[1][bead][local_atom];
+        for_ave += s_value[2][bead][local_atom];
       }
-      pot_ave += potential[k][n];
-      for (int d = 0; d < 9; ++d) {
-        vir_ave[d] += virial[k][d * number_of_atoms + n];
-      }
+      position_averaged[index_dn] = pos_ave * number_of_beads_inverse;
+      velocity_averaged[index_dn] = vel_ave * number_of_beads_inverse;
+      force_averaged[index_dn] = for_ave * number_of_beads_inverse;
     }
-    double number_of_beads_inverse = 1.0 / number_of_beads;
-    for (int d = 0; d < 3; ++d) {
-      int index_dn = d * number_of_atoms + n;
-      position_averaged[index_dn] = pos_ave[d] * number_of_beads_inverse;
-      velocity_averaged[index_dn] = vel_ave[d] * number_of_beads_inverse;
-      force_averaged[index_dn] = for_ave[d] * number_of_beads_inverse;
+    __syncthreads();
+  }
+
+  s_value[0][k][local_atom] = valid ? potential[k][n] : 0.0;
+  __syncthreads();
+  if (k == 0 && valid) {
+    double pot_ave = 0.0;
+    for (int bead = 0; bead < number_of_beads; ++bead) {
+      pot_ave += s_value[0][bead][local_atom];
     }
     potential_averaged[n] = pot_ave * number_of_beads_inverse;
-    for (int d = 0; d < 9; ++d) {
-      virial_averaged[d * number_of_atoms + n] = vir_ave[d] * number_of_beads_inverse;
+  }
+  __syncthreads();
+
+  for (int group = 0; group < 3; ++group) {
+    for (int lane = 0; lane < 3; ++lane) {
+      int d = group * 3 + lane;
+      int index_dn = d * number_of_atoms + n;
+      s_value[lane][k][local_atom] = valid ? virial[k][index_dn] : 0.0;
     }
+    __syncthreads();
+    if (k == 0 && valid) {
+      for (int lane = 0; lane < 3; ++lane) {
+        int d = group * 3 + lane;
+        double vir_ave = 0.0;
+        for (int bead = 0; bead < number_of_beads; ++bead) {
+          vir_ave += s_value[lane][bead][local_atom];
+        }
+        virial_averaged[d * number_of_atoms + n] = vir_ave * number_of_beads_inverse;
+      }
+    }
+    __syncthreads();
   }
 }
 
@@ -1067,7 +1124,8 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
       number_of_atoms, atom.mass.data(), velocity_beads.data());
     GPU_CHECK_KERNEL
 
-    gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    const dim3 momentum_grid((number_of_atoms - 1) / 64 + 1, number_of_beads);
+    gpu_correct_momentum_beads<<<momentum_grid, 64>>>(
       number_of_atoms, number_of_beads, velocity_beads.data());
     GPU_CHECK_KERNEL
   }
@@ -1087,9 +1145,7 @@ void Ensemble_PIMD::compute1(
 
   langevin(time_step, atom);
 
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box, number_of_atoms, number_of_beads, position_beads.data());
-  GPU_CHECK_KERNEL
+  apply_pbc(box, number_of_atoms, number_of_beads, position_beads.data());
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms,
@@ -1129,11 +1185,11 @@ void Ensemble_PIMD::compute2(
 
   langevin(time_step, atom);
 
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box, number_of_atoms, number_of_beads, position_beads.data());
-  GPU_CHECK_KERNEL
+  apply_pbc(box, number_of_atoms, number_of_beads, position_beads.data());
 
-  gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+  const dim3 average_block(PIMD_ATOM_TILE, number_of_beads);
+  const dim3 average_grid((number_of_atoms - 1) / PIMD_ATOM_TILE + 1);
+  gpu_average<<<average_grid, average_block>>>(
     number_of_atoms,
     number_of_beads,
     position_beads.data(),
