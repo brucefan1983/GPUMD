@@ -1,0 +1,12 @@
+# Leading comments and blank lines are intentionally part of this parser case.
+
+	replicate	6	6	6       # first effective command
+potential potential.txt        # inline comment
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+dump_thermo 1
+dump_restart 2
+run 0x2
+
