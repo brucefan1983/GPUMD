@@ -148,7 +148,7 @@ static void read_xyz_line_1(std::ifstream& input, int& N, const bool allow_singl
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
   if (N < 1 || (N == 1 && !allow_single_atom)) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2 (1 only if replicate and compute_phonon are used in run.in).");
+    PRINT_INPUT_ERROR("Number of atoms should >= 2 (1 only if replicate is used in run.in).");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
