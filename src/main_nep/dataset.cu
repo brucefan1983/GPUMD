@@ -16,6 +16,7 @@
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "parameters.cuh"
+#include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -361,6 +362,79 @@ static __global__ void gpu_find_neighbor_list(
   }
 }
 
+void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
+{
+  // Training datasets and their positions are immutable after construction.
+  if (neighbor_dataset == &dataset) {
+    return;
+  }
+
+  CHECK(gpuSetDevice(device_id));
+
+  if (atomic_numbers.size() == 0) {
+    std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
+    for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+      atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
+    }
+    atomic_numbers.resize(para.atomic_numbers.size());
+    atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
+
+    rc_radial.resize(para.rc_radial.size());
+    rc_radial.copy_from_host(para.rc_radial.data());
+    rc_angular.resize(para.rc_angular.size());
+    rc_angular.copy_from_host(para.rc_angular.data());
+  }
+
+  const int required_radial =
+    dataset.num_neighbors_radial > 0 ? dataset.num_neighbors_radial : 1;
+  if (required_radial > static_cast<int>(NL_radial.size())) {
+    NL_radial.resize(required_radial);
+    x12_radial.resize(required_radial);
+    y12_radial.resize(required_radial);
+    z12_radial.resize(required_radial);
+  }
+
+  const int required_angular =
+    dataset.num_neighbors_angular > 0 ? dataset.num_neighbors_angular : 1;
+  if (required_angular > static_cast<int>(NL_angular.size())) {
+    NL_angular.resize(required_angular);
+    x12_angular.resize(required_angular);
+    y12_angular.resize(required_angular);
+    z12_angular.resize(required_angular);
+  }
+
+  gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
+    dataset.N,
+    dataset.Na.data(),
+    dataset.Na_sum.data(),
+    dataset.type.data(),
+    atomic_numbers.data(),
+    rc_radial.data(),
+    rc_angular.data(),
+    dataset.box.data(),
+    dataset.box_original.data(),
+    dataset.num_cell.data(),
+    dataset.pbc.data(),
+    dataset.r.data(),
+    dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2,
+    dataset.NN_radial_sum.data(),
+    dataset.NN_angular_sum.data(),
+    dataset.NN_radial.data(),
+    NL_radial.data(),
+    dataset.NN_angular.data(),
+    NL_angular.data(),
+    x12_radial.data(),
+    y12_radial.data(),
+    z12_radial.data(),
+    x12_angular.data(),
+    y12_angular.data(),
+    z12_angular.data());
+  GPU_CHECK_KERNEL
+
+  neighbor_dataset = &dataset;
+}
+
 void Dataset::find_neighbor(Parameters& para)
 {
   NN_radial.resize(N);
@@ -402,11 +476,11 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial.copy_to_host(NN_radial_cpu.data());
   NN_angular.copy_to_host(NN_angular_cpu.data());
 
-  int sum_NN_radial = 0;
+  num_neighbors_radial = 0;
   int min_NN_radial = 10000;
   max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
-    sum_NN_radial += NN_radial_cpu[n];
+    num_neighbors_radial += NN_radial_cpu[n];
     if (NN_radial_cpu[n] < min_NN_radial) {
       min_NN_radial = NN_radial_cpu[n];
     }
@@ -415,11 +489,11 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  int sum_NN_angular = 0;
+  num_neighbors_angular = 0;
   int min_NN_angular = 10000;
   max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
-    sum_NN_angular += NN_angular_cpu[n];
+    num_neighbors_angular += NN_angular_cpu[n];
     if (NN_angular_cpu[n] < min_NN_angular) {
       min_NN_angular = NN_angular_cpu[n];
     }
@@ -439,53 +513,14 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial_sum.copy_from_host(NN_radial_sum_cpu.data());
   NN_angular_sum.copy_from_host(NN_angular_sum_cpu.data());
 
-  NL_radial.resize(sum_NN_radial);
-  x12_radial.resize(sum_NN_radial);
-  y12_radial.resize(sum_NN_radial);
-  z12_radial.resize(sum_NN_radial);
-
-  NL_angular.resize(sum_NN_angular);
-  x12_angular.resize(sum_NN_angular);
-  y12_angular.resize(sum_NN_angular);
-  z12_angular.resize(sum_NN_angular);
-
-  gpu_find_neighbor_list<<<Nc, 256>>>(
-    N,
-    Na.data(),
-    Na_sum.data(),
-    type.data(),
-    atomic_numbers.data(),
-    rc_radial.data(),
-    rc_angular.data(),
-    box.data(),
-    box_original.data(),
-    num_cell.data(),
-    pbc.data(),
-    r.data(),
-    r.data() + N,
-    r.data() + N * 2,
-    NN_radial_sum.data(),
-    NN_angular_sum.data(),
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
-    x12_radial.data(),
-    y12_radial.data(),
-    z12_radial.data(),
-    x12_angular.data(),
-    y12_angular.data(),
-    z12_angular.data());
-  GPU_CHECK_KERNEL
-
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("    Average number of neighbors for one atom = %g.\n", sum_NN_radial / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", num_neighbors_radial / float(N));
   printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
-  printf("    Average number of neighbors for one atom = %g.\n", sum_NN_angular / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", num_neighbors_angular / float(N));
 #ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
   FILE* fid = fopen("neighbor.txt", "a");
   for (int nc = 0; nc < Nc; ++nc) {

@@ -19,6 +19,27 @@
 class Dataset;
 class Parameters;
 
+class NEP_Neighbor
+{
+public:
+  GPU_Vector<int> NL_radial;
+  GPU_Vector<int> NL_angular;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+
+  void prepare(Parameters& para, Dataset& dataset, int device_id);
+
+private:
+  GPU_Vector<int> atomic_numbers;
+  GPU_Vector<float> rc_radial;
+  GPU_Vector<float> rc_angular;
+  const Dataset* neighbor_dataset = nullptr;
+};
+
 class Potential
 {
 public:
@@ -29,4 +50,7 @@ public:
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int DeviceCount) = 0;
+
+protected:
+  NEP_Neighbor neighbor[16];
 };
