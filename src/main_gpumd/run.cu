@@ -143,21 +143,12 @@ Run::Run(const RunInput& run_input)
     atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
-  const bool single_atom_primitive = atom.number_of_atoms == 1;
-
-  if (!single_atom_primitive) {
-    velocity.initialize_cpu(
-      has_velocity_in_xyz, 300, atom, false, 123);
-  }
-
   if (has_replicate_) {
     Replicate(replicate_size_, box, atom, group);
   }
 
-  if (single_atom_primitive) {
-    velocity.initialize_cpu(
-      has_velocity_in_xyz, 300, atom, false, 123);
-  }
+  velocity.initialize_cpu(
+    has_velocity_in_xyz, 300, atom, false, 123);
 
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
