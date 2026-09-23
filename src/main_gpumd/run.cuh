@@ -38,7 +38,7 @@ public:
   Run(const RunInput& run_input);
 
 private:
-  void execute_run_in(const RunInput& run_input);
+  void execute_run_in(const RunInput& run_input, const bool initial_replicate_prepared);
   void perform_a_run(const int number_of_steps);
   void compute_force();
   void parse_one_keyword(
@@ -58,7 +58,6 @@ private:
   bool has_seen_dftd3_command = false;
   bool has_seen_kspace_command = false;
   bool has_replicate_ = false;
-  bool initial_replicate_prepared_ = false;
   int replicate_size_[3] = {1, 1, 1};
   std::string first_potential_filename_;
   double global_time = 0.0; // run time of entire simulation (fs)

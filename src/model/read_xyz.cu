@@ -531,7 +531,8 @@ void initialize_position(
   }
 
   for (int m = 0; m < group.size(); ++m) {
-    group[m].find_size(atom.number_of_atoms, m);
+    group[m].find_size(atom.number_of_atoms);
+    group[m].print_size(m);
     group[m].find_contents(atom.number_of_atoms);
   }
 

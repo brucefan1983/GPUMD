@@ -35,7 +35,7 @@ void Group::print_size(const int k) const
   }
 }
 
-void Group::find_size(const int N, const int k, bool print_info)
+void Group::find_size(const int N)
 {
   cpu_size.resize(number);
   cpu_size_sum.resize(number);
@@ -48,10 +48,6 @@ void Group::find_size(const int N, const int k, bool print_info)
 
   for (int n = 0; n < N; n++) {
     cpu_size[cpu_label[n]]++;
-  }
-
-  if (print_info) {
-    print_size(k);
   }
 
   for (int m = 1; m < number; m++) {

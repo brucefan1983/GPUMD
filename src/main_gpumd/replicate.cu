@@ -33,15 +33,9 @@ void print_replicate(const int r[3], const Atom& atoms)
   print_line_2();
 }
 
-void Replicate(
-  const std::vector<std::string>& tokens,
-  Box& box,
-  Atom& atoms,
-  std::vector<Group>& groups,
-  bool print_info)
+void parse_replicate(const std::vector<std::string>& tokens, int r[3])
 {
   const int num_param = tokens.size();
-  int r[3]; // the number of replicates
   if (num_param != 4) {
     PRINT_INPUT_ERROR(
       "Replicate should have 3 parameters: number of replications in a, b and c directions.");
@@ -52,6 +46,14 @@ void Replicate(
     if (r[i] <= 0)
       PRINT_INPUT_ERROR("Number of replications should be positive.");
   }
+}
+
+void Replicate(
+  const int r[3],
+  Box& box,
+  Atom& atoms,
+  std::vector<Group>& groups)
+{
   // repeat atom and group
   Atom new_atoms;
   int n = atoms.number_of_atoms;
@@ -104,7 +106,7 @@ void Replicate(
   for (int m = 0; m < groups.size(); m++) {
     groups[m].number = new_groups[m].number;
     groups[m].cpu_label.assign(new_groups[m].cpu_label.begin(), new_groups[m].cpu_label.end());
-    groups[m].find_size(N, m, print_info);
+    groups[m].find_size(N);
     groups[m].find_contents(N);
   }
   atoms.number_of_atoms = N;
@@ -119,8 +121,4 @@ void Replicate(
   atoms.cpu_type_size.assign(atoms.cpu_type_size.begin(), atoms.cpu_type_size.end());
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
-
-  if (print_info) {
-    print_replicate(r, atoms);
-  }
 }

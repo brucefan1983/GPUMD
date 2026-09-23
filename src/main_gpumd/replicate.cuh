@@ -24,11 +24,12 @@
 #include <string>
 #include <vector>
 
+void parse_replicate(const std::vector<std::string>& tokens, int replicate_size[3]);
+
 void Replicate(
-  const std::vector<std::string>& tokens,
+  const int replicate_size[3],
   Box& box,
   Atom& atoms,
-  std::vector<Group>& groups,
-  bool print_info = true);
+  std::vector<Group>& groups);
 
 void print_replicate(const int replicate_size[3], const Atom& atoms);
