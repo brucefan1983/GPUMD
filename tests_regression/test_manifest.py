@@ -331,6 +331,7 @@ def test_behavior_contract_cases_are_full_differential_cases():
         "hnemdec_before_ensemble",
         "hnemdec_invalid_type",
         "observer_average_two_runs",
+        "replicate_default_velocity",
         "replicate_velocity_unseeded",
         "replicate_model_velocity",
         "replicate_after_potential",

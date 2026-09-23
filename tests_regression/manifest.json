@@ -3805,8 +3805,32 @@
       "input_style": "canonical"
     },
     {
+      "id": "replicate_default_velocity",
+      "description": "Replicate initializes the default 300 K velocity on the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_default_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-default-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
       "id": "replicate_velocity_unseeded",
-      "description": "Replicate preserves the random-number stream before an explicit unseeded velocity reset",
+      "description": "Unseeded velocity reset follows default initialization of the final replicated system",
       "suites": [
         "first_step_init",
         "full"
@@ -3818,7 +3842,7 @@
         "potential:eam",
         "command:replicate",
         "command:velocity",
-        "contract:replicate-unseeded-velocity-rng-order",
+        "contract:replicate-unseeded-velocity-final-system",
         "contract:first-step-initialization"
       ],
       "expect": "success",
