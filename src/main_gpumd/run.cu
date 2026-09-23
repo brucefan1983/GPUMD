@@ -104,31 +104,25 @@ static void calculate_time_step(
   }
 }
 
-static const RunInputLine* find_initial_replicate(
+static bool can_prepare_initial_replicate(
   const RunInput& run_input, int replicate_size[3])
 {
+  bool has_initial_replicate = false;
   for (const auto& line : run_input.lines()) {
     if (line.tokens.empty()) {
       continue;
     }
-    if (line.tokens[0] != "replicate" || line.tokens.size() != 4) {
-      return nullptr;
-    }
-    for (int i = 0; i < 3; ++i) {
-      if (!is_valid_int(line.tokens[i + 1], replicate_size + i) ||
-          replicate_size[i] <= 0) {
-        return nullptr;
+    if (!has_initial_replicate) {
+      if (line.tokens[0] != "replicate" || line.tokens.size() != 4) {
+        return false;
       }
-    }
-    return &line;
-  }
-  return nullptr;
-}
-
-static bool has_velocity_before_first_run(const RunInput& run_input)
-{
-  for (const auto& line : run_input.lines()) {
-    if (line.tokens.empty()) {
+      for (int i = 0; i < 3; ++i) {
+        if (!is_valid_int(line.tokens[i + 1], replicate_size + i) ||
+            replicate_size[i] <= 0) {
+          return false;
+        }
+      }
+      has_initial_replicate = true;
       continue;
     }
     if (line.tokens[0] == "velocity") {
@@ -151,12 +145,11 @@ Run::Run(const RunInput& run_input)
   initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
-  const RunInputLine* initial_replicate = find_initial_replicate(run_input, replicate_size_);
-  const bool prepare_initial_replicate =
-    initial_replicate != nullptr && !has_velocity_in_xyz &&
-    has_velocity_before_first_run(run_input);
+  const bool should_pre_replicate =
+    can_prepare_initial_replicate(run_input, replicate_size_) &&
+    !has_velocity_in_xyz;
 
-  if (!prepare_initial_replicate) {
+  if (!should_pre_replicate) {
     allocate_memory_gpu(group, atom, thermo);
   } else {
     atom.velocity_per_atom.resize(atom.number_of_atoms * 3);
@@ -174,7 +167,7 @@ Run::Run(const RunInput& run_input)
     printf("Initialized velocities with default T = 300 K.\n");
   }
 
-  if (prepare_initial_replicate) {
+  if (should_pre_replicate) {
     Replicate(replicate_size_, box, atom, group);
     allocate_memory_gpu(group, atom, thermo);
   }
@@ -184,10 +177,10 @@ Run::Run(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
-  execute_run_in(run_input, prepare_initial_replicate);
+  execute_run_in(run_input, should_pre_replicate);
 }
 
-void Run::execute_run_in(const RunInput& run_input, const bool initial_replicate_prepared)
+void Run::execute_run_in(const RunInput& run_input, const bool pre_replicated)
 {
   print_line_1();
   printf("Started executing the commands in run.in.\n");
@@ -200,14 +193,11 @@ void Run::execute_run_in(const RunInput& run_input, const bool initial_replicate
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
-      if (initial_replicate_prepared &&
+      if (pre_replicated &&
           !has_seen_effective_command &&
           tokens[0] == "replicate") {
         has_seen_effective_command = true;
-        for (int m = 0; m < group.size(); ++m) {
-          group[m].print_size(m);
-        }
-        print_replicate(replicate_size_, atom);
+        print_replicate(replicate_size_, atom, group);
         has_replicate_ = true;
         continue;
       }
@@ -350,10 +340,7 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "replicate") {
     parse_replicate(tokens, replicate_size_);
     Replicate(replicate_size_, box, atom, group);
-    for (int m = 0; m < group.size(); ++m) {
-      group[m].print_size(m);
-    }
-    print_replicate(replicate_size_, atom);
+    print_replicate(replicate_size_, atom, group);
     has_replicate_ = true;
     allocate_memory_gpu(group, atom, thermo);
   } else if (tokens[0] == "minimize") {

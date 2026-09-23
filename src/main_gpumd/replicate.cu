@@ -16,8 +16,15 @@
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
 
-void print_replicate(const int r[3], const Atom& atoms)
+void print_replicate(
+  const int r[3],
+  const Atom& atoms,
+  const std::vector<Group>& groups)
 {
+  for (int m = 0; m < groups.size(); ++m) {
+    groups[m].print_size(m);
+  }
+
   print_line_1();
   printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
   printf("Number of atoms is %d.\n", atoms.number_of_atoms);

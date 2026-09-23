@@ -32,4 +32,7 @@ void Replicate(
   Atom& atoms,
   std::vector<Group>& groups);
 
-void print_replicate(const int replicate_size[3], const Atom& atoms);
+void print_replicate(
+  const int replicate_size[3],
+  const Atom& atoms,
+  const std::vector<Group>& groups);

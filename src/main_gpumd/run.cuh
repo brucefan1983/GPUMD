@@ -38,7 +38,7 @@ public:
   Run(const RunInput& run_input);
 
 private:
-  void execute_run_in(const RunInput& run_input, const bool initial_replicate_prepared);
+  void execute_run_in(const RunInput& run_input, const bool pre_replicated);
   void perform_a_run(const int number_of_steps);
   void compute_force();
   void parse_one_keyword(
