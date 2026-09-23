@@ -127,11 +127,10 @@ Run::Run(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
-  const bool has_initial_replicate =
-    parse_initial_replicate(run_input, replicate_size_);
+  has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
 
   const bool allow_single_atom =
-    has_initial_replicate &&
+    has_replicate_ &&
     (replicate_size_[0] > 1 || replicate_size_[1] > 1 || replicate_size_[2] > 1);
 
   initialize_position(
@@ -144,31 +143,26 @@ Run::Run(const RunInput& run_input)
     atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
-  const bool initialize_velocity_after_replicate = atom.number_of_atoms == 1;
+  const bool single_atom_primitive = atom.number_of_atoms == 1;
 
-  if (!initialize_velocity_after_replicate) {
+  if (!single_atom_primitive) {
     velocity.initialize_cpu(
       has_velocity_in_xyz, 300, atom, false, 123);
-    if (has_velocity_in_xyz) {
-      printf("Initialized velocities with data in model.xyz.\n");
-    } else {
-      printf("Initialized velocities with default T = 300 K.\n");
-    }
   }
 
-  if (has_initial_replicate) {
+  if (has_replicate_) {
     Replicate(replicate_size_, box, atom, group);
-    has_replicate_ = true;
   }
 
-  if (initialize_velocity_after_replicate) {
+  if (single_atom_primitive) {
     velocity.initialize_cpu(
       has_velocity_in_xyz, 300, atom, false, 123);
-    if (has_velocity_in_xyz) {
-      printf("Initialized velocities with data in model.xyz.\n");
-    } else {
-      printf("Initialized velocities with default T = 300 K.\n");
-    }
+  }
+
+  if (has_velocity_in_xyz) {
+    printf("Initialized velocities with data in model.xyz.\n");
+  } else {
+    printf("Initialized velocities with default T = 300 K.\n");
   }
 
   allocate_memory_gpu(group, atom, thermo);
