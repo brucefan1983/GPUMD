@@ -59,6 +59,31 @@ Compilation
         -D CMAKE_CUDA_ARCHITECTURES=value   # 80, 90, ... (default native)
 
 
+.. _build_gpumd_replica:
+
+Building the replica executable
+===============================
+
+To compile the :ref:`gpumd_replica executable <gpumd_replica_executable>`, run the following command in the ``src`` directory::
+
+  make gpumd_replica -j
+
+This generates ``gpumd_replica`` in the ``src`` directory.
+From the project root, the equivalent command is ``make -C src gpumd_replica -j``.
+The Linux build requires the CUDA toolkit, including ``nvcc`` and cuFFT, and a compatible C++14 compiler.
+The default GPU architecture is ``sm_60``.
+Set :attr:`!CUDA_ARCH` to an architecture supported by both the GPU and the installed CUDA toolkit, for example::
+
+  make gpumd_replica -j CUDA_ARCH="-arch=sm_80"
+
+If changing compiler flags after an earlier build, first run ``make clean_replica`` in ``src``.
+The ``gpumd_replica`` target invokes the CUDA makefile in ``src/main_replica``, keeping replica object files separate from the ordinary GPUMD build.
+It uses the compiler and GPU architecture selected in ``src/makefile`` or on the command line.
+The default ``make`` command still builds only ``gpumd`` and ``nep``; ``make clean`` also cleans the replica build.
+The CMake build does not provide this executable.
+There is currently no HIP build for the standalone replica executable.
+
+
 .. _build_amd_hip:
 
 Building for AMD GPUs (ROCm/HIP)
