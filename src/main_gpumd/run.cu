@@ -340,6 +340,7 @@ void Run::parse_one_keyword(
     Replicate(replicate_size_, box, atom, group);
     has_replicate_ = true;
     allocate_memory_gpu(group, atom, thermo);
+    atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(
