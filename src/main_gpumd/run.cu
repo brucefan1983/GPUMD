@@ -363,14 +363,7 @@ void Run::parse_velocity(const std::vector<std::string>& tokens)
   int seed = 0;
   bool use_seed = false;
   if (!(num_param == 2 || num_param == 4)) {
-    PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
-  } else if (num_param == 4) {
-    // See https://github.com/brucefan1983/GPUMD/pull/768
-    // for the reason for putting this branch here.
-    use_seed = true;
-    if (!is_valid_int(tokens[3], &seed)) {
-      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
-    }
+    PRINT_INPUT_ERROR("velocity should have 1 or 3 parameters.\n");
   }
 
   if (!is_valid_real(tokens[1], &initial_temperature)) {
@@ -378,6 +371,16 @@ void Run::parse_velocity(const std::vector<std::string>& tokens)
   }
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
+  }
+
+  if (num_param == 4) {
+    if (tokens[2] != "seed") {
+      PRINT_INPUT_ERROR("The second parameter for velocity should be 'seed'.\n");
+    }
+    use_seed = true;
+    if (!is_valid_int(tokens[3], &seed) || seed <= 0) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
   }
 
   velocity.initialize(
