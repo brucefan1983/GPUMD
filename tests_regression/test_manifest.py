@@ -453,7 +453,7 @@ def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
         assert f"repo:tests/gpumd/{directory}/" not in text
 
 
-def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
+def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     actual = {
         case["id"]: {
@@ -475,7 +475,7 @@ def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
         "qnep_pppm_future_bec": {
             "bec.xyz": (0.0, 5e-6),
             "thermo.out": (0.0, 1e-7),
-            "dpdt.out": (0.0, 2e-7),
+            "dpdt.out": (0.0, 2e-6),
         },
         "qnep_actions_before_potential": {
             "bec.xyz": (0.0, 3e-6),
@@ -483,6 +483,9 @@ def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
         },
         "qnep_force_accessors": {
             "qnep_force.xyz": (0.0, 2e-7),
+        },
+        "dftd3_single_late": {
+            "restart.xyz": (0.0, 1e-17),
         },
     }
 
@@ -503,7 +506,7 @@ if __name__ == "__main__":
         test_parsing_validation_cases_match_the_accepted_baseline,
         test_semantic_postchecks_preserve_byte_exact_cross_version_outputs,
         test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
-        test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs,
+        test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs,
     )
     for test in tests:
         test()

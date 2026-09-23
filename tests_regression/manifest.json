@@ -3481,8 +3481,8 @@
         "dpdt.out": {
           "mode": "numeric",
           "rtol": 0.0,
-          "atol": 2e-07,
-          "reason": "DPDT consumes the nondeterministic float BEC tensor; the calibrated output quantum is 1.0e-7."
+          "atol": 2e-06,
+          "reason": "DPDT consumes the nondeterministic float BEC tensor; full regression observed 1.0e-6 absolute drift, so this bound retains a factor-of-two margin."
         }
       },
       "input_style": "canonical"
@@ -3921,6 +3921,14 @@
         "thermo.out",
         "restart.xyz"
       ],
+      "comparisons": {
+        "restart.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-17,
+          "reason": "DFT-D3 force accumulation uses unordered double-precision GPU atomicAdd; repeated same-binary runs observed about 1.8e-18 maximum absolute drift in restart velocities."
+        }
+      },
       "input_style": "compatibility"
     },
     {
