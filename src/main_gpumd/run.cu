@@ -129,13 +129,8 @@ Run::Run(const RunInput& run_input)
 
   has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
 
-  const bool allow_single_atom =
-    has_replicate_ &&
-    (replicate_size_[0] > 1 || replicate_size_[1] > 1 || replicate_size_[2] > 1);
-
   initialize_position(
     run_input,
-    allow_single_atom,
     has_velocity_in_xyz,
     number_of_types,
     box,
@@ -145,6 +140,10 @@ Run::Run(const RunInput& run_input)
 
   if (has_replicate_) {
     Replicate(replicate_size_, box, atom, group);
+  }
+
+  if (atom.number_of_atoms < 2) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   }
 
   velocity.initialize_cpu(
