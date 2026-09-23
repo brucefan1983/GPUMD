@@ -101,7 +101,6 @@ void Replicate(
     new_atoms.cpu_position_per_atom.begin(), new_atoms.cpu_position_per_atom.end());
   atoms.cpu_velocity_per_atom.assign(
     new_atoms.cpu_velocity_per_atom.begin(), new_atoms.cpu_velocity_per_atom.end());
-  atoms.cpu_type_size.assign(atoms.cpu_type_size.begin(), atoms.cpu_type_size.end());
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
 
