@@ -151,7 +151,6 @@ Run::Run(const RunInput& run_input)
   }
 
   allocate_memory_gpu(group, atom, thermo);
-  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
