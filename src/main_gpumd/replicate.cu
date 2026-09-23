@@ -16,11 +16,29 @@
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
 
+void print_replicate(const int r[3], const Atom& atoms)
+{
+  print_line_1();
+  printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
+  printf("Number of atoms is %d.\n", atoms.number_of_atoms);
+  int number_of_types = atoms.cpu_type_size.size();
+  if (number_of_types == 1) {
+    printf("There is only one atom type.\n");
+  } else {
+    printf("There are %d atom types.\n", number_of_types);
+  }
+  for (int m = 0; m < number_of_types; m++) {
+    printf("    %d atoms of type %d.\n", atoms.cpu_type_size[m], m);
+  }
+  print_line_2();
+}
+
 void Replicate(
   const std::vector<std::string>& tokens,
   Box& box,
   Atom& atoms,
-  std::vector<Group>& groups)
+  std::vector<Group>& groups,
+  bool print_info)
 {
   const int num_param = tokens.size();
   int r[3]; // the number of replicates
@@ -86,7 +104,7 @@ void Replicate(
   for (int m = 0; m < groups.size(); m++) {
     groups[m].number = new_groups[m].number;
     groups[m].cpu_label.assign(new_groups[m].cpu_label.begin(), new_groups[m].cpu_label.end());
-    groups[m].find_size(N, m);
+    groups[m].find_size(N, m, print_info);
     groups[m].find_contents(N);
   }
   atoms.number_of_atoms = N;
@@ -102,17 +120,7 @@ void Replicate(
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
 
-  print_line_1();
-  printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
-  printf("Number of atoms is %d.\n", atoms.number_of_atoms);
-  int number_of_types = atoms.cpu_type_size.size();
-  if (number_of_types == 1) {
-    printf("There is only one atom type.\n");
-  } else {
-    printf("There are %d atom types.\n", number_of_types);
+  if (print_info) {
+    print_replicate(r, atoms);
   }
-  for (int m = 0; m < number_of_types; m++) {
-    printf("    %d atoms of type %d.\n", atoms.cpu_type_size[m], m);
-  }
-  print_line_2();
 }

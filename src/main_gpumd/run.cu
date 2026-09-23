@@ -35,6 +35,7 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/run_input.cuh"
 #include "velocity.cuh"
 #include <chrono>
+#include <cstdlib>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -104,6 +105,52 @@ static void calculate_time_step(
   }
 }
 
+static const RunInputLine* find_initial_replicate(
+  const RunInput& run_input, int replicate_size[3])
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.empty()) {
+      continue;
+    }
+    if (line.tokens[0] != "replicate" || line.tokens.size() != 4) {
+      return nullptr;
+    }
+    for (int i = 0; i < 3; ++i) {
+      if (!is_valid_int(line.tokens[i + 1], replicate_size + i) ||
+          replicate_size[i] <= 0) {
+        return nullptr;
+      }
+    }
+    return &line;
+  }
+  return nullptr;
+}
+
+static bool has_velocity_before_first_run(const RunInput& run_input)
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.empty()) {
+      continue;
+    }
+    if (line.tokens[0] == "velocity") {
+      return true;
+    }
+    if (line.tokens[0] == "run") {
+      return false;
+    }
+  }
+  return false;
+}
+
+static void advance_default_velocity_rng(const int number_of_atoms)
+{
+  for (int n = 0; n < number_of_atoms; ++n) {
+    rand();
+    rand();
+    rand();
+  }
+}
+
 Run::Run(const RunInput& run_input)
 {
   print_line_1();
@@ -114,18 +161,32 @@ Run::Run(const RunInput& run_input)
   initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
-  allocate_memory_gpu(group, atom, thermo);
+  const RunInputLine* initial_replicate = find_initial_replicate(run_input, replicate_size_);
+  const bool prepare_initial_replicate =
+    initial_replicate != nullptr && !has_velocity_in_xyz &&
+    has_velocity_before_first_run(run_input);
 
-  velocity.initialize(
-    has_velocity_in_xyz,
-    300,
-    atom,
-    false,
-    123);
+  if (prepare_initial_replicate) {
+    advance_default_velocity_rng(atom.number_of_atoms);
+  } else {
+    allocate_memory_gpu(group, atom, thermo);
+    velocity.initialize(
+      has_velocity_in_xyz,
+      300,
+      atom,
+      false,
+      123);
+  }
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
   } else {
     printf("Initialized velocities with default T = 300 K.\n");
+  }
+
+  if (prepare_initial_replicate) {
+    Replicate(initial_replicate->tokens, box, atom, group, false);
+    initial_replicate_prepared_ = true;
+    allocate_memory_gpu(group, atom, thermo);
   }
 
   print_line_1();
@@ -286,12 +347,20 @@ void Run::parse_one_keyword(
   if (tokens[0] == "potential") {
     force.parse_potential(tokens, box, atom.type.size(), run_input);
   } else if (tokens[0] == "replicate") {
-    Replicate(tokens, box, atom, group);
-    for (int i = 0; i < 3; ++i) {
-      replicate_size_[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
+    if (initial_replicate_prepared_) {
+      for (int m = 0; m < group.size(); ++m) {
+        group[m].print_size(m);
+      }
+      print_replicate(replicate_size_, atom);
+      initial_replicate_prepared_ = false;
+    } else {
+      Replicate(tokens, box, atom, group);
+      for (int i = 0; i < 3; ++i) {
+        replicate_size_[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
+      }
+      allocate_memory_gpu(group, atom, thermo);
     }
     has_replicate_ = true;
-    allocate_memory_gpu(group, atom, thermo);
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(

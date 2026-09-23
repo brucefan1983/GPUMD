@@ -28,4 +28,7 @@ void Replicate(
   const std::vector<std::string>& tokens,
   Box& box,
   Atom& atoms,
-  std::vector<Group>& groups);
+  std::vector<Group>& groups,
+  bool print_info = true);
+
+void print_replicate(const int replicate_size[3], const Atom& atoms);
