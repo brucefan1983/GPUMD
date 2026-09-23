@@ -180,6 +180,22 @@
         }
       ]
     },
+    "phonon_cu_single_atom": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/cu_fcc_single_atom.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/phonon/si_kpoints.in",
+          "target": "kpoints.in"
+        },
+        {
+          "source": "repo:potentials/eam/Cu_Zhou_2004.txt",
+          "target": "Cu_Zhou_2004.txt"
+        }
+      ]
+    },
     "qnep_batio3": {
       "stage": [
         {
@@ -3391,6 +3407,28 @@
         "potential:tersoff",
         "command:compute_phonon",
         "contract:comments-before-replicate"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "phonon_single_atom_replicate",
+      "description": "Phonon calculation accepts a one-atom primitive cell when replicate expands it before GPU initialization",
+      "suites": [
+        "static",
+        "full"
+      ],
+      "fixture": "phonon_cu_single_atom",
+      "input": "package:cases/bugfix/phonon_single_atom_replicate.in",
+      "covers": [
+        "potential:eam",
+        "command:replicate",
+        "command:compute_phonon",
+        "contract:single-atom-primitive"
       ],
       "expect": "success",
       "outputs": [

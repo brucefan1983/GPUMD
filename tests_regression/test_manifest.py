@@ -204,6 +204,8 @@ def test_package_fixture_hashes_are_pinned():
             "a3ab3c1eff0e29c96fdb5e706d3ae9412e9c79a7b2ac6adbf86faef27a96cfdb",
         "fixtures/systems/replicate_lj_with_velocity.xyz":
             "de3338e0caf391f62d51bb86b242f7fb7eaaec53e78e73cb2e5a764a43e3ebcd",
+        "fixtures/phonon/cu_fcc_single_atom.xyz":
+            "d1e93d2300c56307dee18b8a567f5f0e8b8ec38420066ad810bef5b8e3eab91d",
         "fixtures/systems/deposition_lj_no_velocity.xyz":
             "a118421c14ee9d872af2c7d7e8aea0a2855c27f491eed0147eeb4b9f06ae0f67",
         "fixtures/systems/deposition_lj_with_velocity.xyz":
@@ -325,6 +327,7 @@ def test_behavior_contract_cases_are_full_differential_cases():
         "neighbor_alias_control",
         "compute_chunk_multiple",
         "phonon_comments_before_replicate",
+        "phonon_single_atom_replicate",
         "hnemdec_before_ensemble",
         "hnemdec_invalid_type",
         "observer_average_two_runs",
