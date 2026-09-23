@@ -216,6 +216,18 @@
         }
       ]
     },
+    "replicate_lj_with_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/replicate_lj_with_velocity.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
     "qnep_batio3_grouped": {
       "stage": [
         {
@@ -3750,6 +3762,55 @@
       "expect": "success",
       "outputs": [
         "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_velocity_unseeded",
+      "description": "Replicate preserves the random-number stream before an explicit unseeded velocity reset",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_velocity_unseeded.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "command:velocity",
+        "contract:replicate-unseeded-velocity-rng-order",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_model_velocity",
+      "description": "Replicate preserves explicit model.xyz velocities before device initialization",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "replicate_lj_with_velocity",
+      "input": "package:cases/bugfix/replicate_model_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:replicate",
+        "contract:replicate-model-velocity",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
         "restart.xyz"
       ],
       "input_style": "canonical"

@@ -34,12 +34,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 217 cases and evaluates
+`full` is the only acceptance suite. It contains all 219 cases and evaluates
 all 23 cross-case relations after the cases pass. Every case and relation runs
 for both the baseline and candidate. A successful run ends with:
 
 ```text
-Summary: 217 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
+Summary: 219 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -134,7 +134,7 @@ suites exist only to isolate a failure:
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
 | `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
-| `full` | all 217 cases and all 23 relations |
+| `full` | all 219 cases and all 23 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 

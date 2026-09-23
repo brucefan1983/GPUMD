@@ -202,6 +202,8 @@ def test_package_fixture_hashes_are_pinned():
             "3a86e6e3b62bc15935e3e253be232dc6f2c44719d67b89823f6e019f4946e5a6",
         "fixtures/systems/neighbor_alias_control.xyz":
             "a3ab3c1eff0e29c96fdb5e706d3ae9412e9c79a7b2ac6adbf86faef27a96cfdb",
+        "fixtures/systems/replicate_lj_with_velocity.xyz":
+            "de3338e0caf391f62d51bb86b242f7fb7eaaec53e78e73cb2e5a764a43e3ebcd",
         "fixtures/systems/deposition_lj_no_velocity.xyz":
             "a118421c14ee9d872af2c7d7e8aea0a2855c27f491eed0147eeb4b9f06ae0f67",
         "fixtures/systems/deposition_lj_with_velocity.xyz":
@@ -326,6 +328,8 @@ def test_behavior_contract_cases_are_full_differential_cases():
         "hnemdec_before_ensemble",
         "hnemdec_invalid_type",
         "observer_average_two_runs",
+        "replicate_velocity_unseeded",
+        "replicate_model_velocity",
         "replicate_after_potential",
         "replicate_after_velocity",
         "replicate_after_run",
