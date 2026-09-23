@@ -473,7 +473,7 @@ def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
             "dpdt.out": (0.0, 2e-7),
         },
         "qnep_pppm_future_bec": {
-            "bec.xyz": (0.0, 5e-6),
+            "bec.xyz": (0.0, 1e-5),
             "thermo.out": (0.0, 1e-7),
             "dpdt.out": (0.0, 2e-6),
         },

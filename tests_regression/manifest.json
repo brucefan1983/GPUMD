@@ -3469,8 +3469,8 @@
         "bec.xyz": {
           "mode": "numeric",
           "rtol": 0.0,
-          "atol": 5e-06,
-          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; same-binary calibration observed 3.49e-6 maximum whole-file drift."
+          "atol": 1e-05,
+          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; repeated regression observed 6.07e-6 absolute drift, so this bound retains margin."
         },
         "thermo.out": {
           "mode": "numeric",
