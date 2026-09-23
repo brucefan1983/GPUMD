@@ -16,30 +16,6 @@
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
 
-void print_replicate(
-  const int r[3],
-  const Atom& atoms,
-  const std::vector<Group>& groups)
-{
-  for (int m = 0; m < groups.size(); ++m) {
-    groups[m].print_size(m);
-  }
-
-  print_line_1();
-  printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
-  printf("Number of atoms is %d.\n", atoms.number_of_atoms);
-  int number_of_types = atoms.cpu_type_size.size();
-  if (number_of_types == 1) {
-    printf("There is only one atom type.\n");
-  } else {
-    printf("There are %d atom types.\n", number_of_types);
-  }
-  for (int m = 0; m < number_of_types; m++) {
-    printf("    %d atoms of type %d.\n", atoms.cpu_type_size[m], m);
-  }
-  print_line_2();
-}
-
 void parse_replicate(const std::vector<std::string>& tokens, int r[3])
 {
   const int num_param = tokens.size();
@@ -113,7 +89,7 @@ void Replicate(
   for (int m = 0; m < groups.size(); m++) {
     groups[m].number = new_groups[m].number;
     groups[m].cpu_label.assign(new_groups[m].cpu_label.begin(), new_groups[m].cpu_label.end());
-    groups[m].find_size(N);
+    groups[m].find_size(N, m);
     groups[m].find_contents(N);
   }
   atoms.number_of_atoms = N;
@@ -128,4 +104,18 @@ void Replicate(
   atoms.cpu_type_size.assign(atoms.cpu_type_size.begin(), atoms.cpu_type_size.end());
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
+
+  print_line_1();
+  printf("Replicate cell by %d * %d * %d.\n", r[0], r[1], r[2]);
+  printf("Number of atoms is %d.\n", atoms.number_of_atoms);
+  int number_of_types = atoms.cpu_type_size.size();
+  if (number_of_types == 1) {
+    printf("There is only one atom type.\n");
+  } else {
+    printf("There are %d atom types.\n", number_of_types);
+  }
+  for (int m = 0; m < number_of_types; m++) {
+    printf("    %d atoms of type %d.\n", atoms.cpu_type_size[m], m);
+  }
+  print_line_2();
 }

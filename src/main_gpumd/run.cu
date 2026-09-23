@@ -169,6 +169,7 @@ Run::Run(const RunInput& run_input)
 
   if (should_pre_replicate) {
     Replicate(replicate_size_, box, atom, group);
+    has_replicate_ = true;
     allocate_memory_gpu(group, atom, thermo);
   }
 
@@ -177,10 +178,10 @@ Run::Run(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
-  execute_run_in(run_input, should_pre_replicate);
+  execute_run_in(run_input);
 }
 
-void Run::execute_run_in(const RunInput& run_input, const bool pre_replicated)
+void Run::execute_run_in(const RunInput& run_input)
 {
   print_line_1();
   printf("Started executing the commands in run.in.\n");
@@ -193,12 +194,9 @@ void Run::execute_run_in(const RunInput& run_input, const bool pre_replicated)
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
-      if (pre_replicated &&
-          !has_seen_effective_command &&
+      if (has_replicate_ && !has_seen_effective_command &&
           tokens[0] == "replicate") {
         has_seen_effective_command = true;
-        print_replicate(replicate_size_, atom, group);
-        has_replicate_ = true;
         continue;
       }
       parse_one_keyword(tokens, run_input);
@@ -340,7 +338,6 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "replicate") {
     parse_replicate(tokens, replicate_size_);
     Replicate(replicate_size_, box, atom, group);
-    print_replicate(replicate_size_, atom, group);
     has_replicate_ = true;
     allocate_memory_gpu(group, atom, thermo);
   } else if (tokens[0] == "minimize") {

@@ -31,8 +31,3 @@ void Replicate(
   Box& box,
   Atom& atoms,
   std::vector<Group>& groups);
-
-void print_replicate(
-  const int replicate_size[3],
-  const Atom& atoms,
-  const std::vector<Group>& groups);
