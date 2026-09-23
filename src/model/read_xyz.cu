@@ -140,14 +140,15 @@ const std::map<std::string, double> MASS_TABLE{
   {"No", 259},
   {"Lr", 262}};
 
-static void read_xyz_line_1(std::ifstream& input, int& N)
+static void read_xyz_line_1(
+  std::ifstream& input, const bool allow_single_atom, int& N)
 {
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 1) {
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
+  if (N < 2 && !(allow_single_atom && N == 1)) {
     PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   } else {
     printf("Number of atoms is %d.\n", N);
@@ -479,6 +480,7 @@ std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 
 void initialize_position(
   const RunInput& run_input,
+  const bool allow_single_atom,
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   std::string filename("model.xyz");
@@ -492,7 +494,7 @@ void initialize_position(
   auto filename_potential = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(filename_potential);
 
-  read_xyz_line_1(input, atom.number_of_atoms);
+  read_xyz_line_1(input, allow_single_atom, atom.number_of_atoms);
   int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
@@ -542,7 +544,7 @@ void initialize_position(
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   RunInput run_input("run.in");
-  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
+  initialize_position(run_input, false, has_velocity_in_xyz, number_of_types, box, group, atom);
 }
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)

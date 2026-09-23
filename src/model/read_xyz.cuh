@@ -26,6 +26,7 @@ class RunInput;
 
 void initialize_position(
   const RunInput& run_input,
+  const bool allow_single_atom,
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
 
 void initialize_position(
