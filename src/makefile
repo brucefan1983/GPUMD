@@ -100,7 +100,14 @@ HEADERS =                         \
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep 
+all: gpumd nep gpumd_replica
+
+.PHONY: all gpumd_replica clean_replica clean
+
+# Keep replica objects separate and share the selected compiler and architecture.
+gpumd_replica:
+	$(MAKE) -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
+
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
@@ -173,7 +180,10 @@ endif
 ###########################################################
 # clean up
 ###########################################################
-clean:
+clean_replica:
+	$(MAKE) -C main_replica clean
+
+clean: clean_replica
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
