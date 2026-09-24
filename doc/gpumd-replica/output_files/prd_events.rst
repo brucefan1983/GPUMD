@@ -20,4 +20,5 @@ One row is written per accepted transition, with columns::
 * The final three columns give the selected quenched configuration's total potential energy (eV), maximum force (eV/Angstrom), and minimization steps.
 
 For R replicas, a parallel block of s steps adds R*s clock steps if there is no escape, or R*(s-1)+r+1 if replica r escapes at step s.
+The escape increment follows the discrete-time ParRep formula in [Aristoff2014]_, with the one-based replica index K=r+1.
 Correlation adds one clock step per MD step; dephasing adds none.

@@ -5,6 +5,8 @@
 :attr:`!multi_replica remd`
 ===========================
 
+This command selects temperature replica-exchange molecular dynamics (REMD) [Sugita1999]_.
+
 Syntax
 ------
 

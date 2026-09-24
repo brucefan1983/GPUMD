@@ -13,6 +13,7 @@ Syntax
   ensemble nvt_bdp <T_start> <T_end> <T_coup>
 
 Only ``nvt_bdp`` with a fixed simulation box is supported.
+It uses the stochastic velocity-rescaling thermostat of Bussi, Donadio, and Parrinello [Bussi2007b]_.
 Temperatures are in K and must be positive.
 ``T_coup`` is the thermostat relaxation time divided by the time step and must be at least 1.
 

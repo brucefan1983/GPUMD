@@ -5,6 +5,9 @@
 :attr:`!multi_replica prd`
 ==========================
 
+This command selects parallel replica dynamics (PRD) [Voter1998]_.
+The discrete-time clock update follows [Aristoff2014]_; see :ref:`replica_prd_events`.
+
 Syntax
 ------
 
