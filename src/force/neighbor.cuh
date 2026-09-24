@@ -73,6 +73,19 @@ void find_neighbor_SW(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL);
 
+static __device__ void get_neighbor_cell_offset_range(
+  const int pbc, const int num_bins, int& begin, int& end)
+{
+  if (pbc) {
+    const int count = num_bins < 5 ? num_bins : 5;
+    begin = -(count / 2);
+    end = begin + count;
+  } else {
+    begin = 0;
+    end = 1;
+  }
+}
+
 static __device__ void find_cell_id(
   const Box& box,
   const double x,
@@ -109,6 +122,7 @@ static __device__ void find_cell_id(
   cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
 }
 
+// The rank-based sort requires unique atom indices in each neighbor list.
 static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
 {
   int bid = blockIdx.x;
@@ -138,6 +152,8 @@ class Neighbor
 public:
   GPU_Vector<int> NN, NL; // global neighbor list
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  double get_skin() const;
+  int get_capacity() const;
   void find_neighbor_global(
     const double rc,
     Box& box, 
@@ -157,4 +173,39 @@ private:
   GPU_Vector<int> cell_contents;  // for cell list
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
+};
+
+struct NeighborRequirement
+{
+  double rc;
+  double skin;
+  int num_atoms;
+  int capacity;
+};
+
+class NeighborManager
+{
+public:
+  NeighborManager();
+  void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  void update(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom);
+  const GPU_Vector<int>& get_candidate_NN() const;
+  const GPU_Vector<int>& get_candidate_NL() const;
+  void set_candidate_capacity(const int capacity);
+  void find_local_neighbor(
+    const double rc,
+    Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN_local,
+    GPU_Vector<int>& NL_local);
+  double get_supported_cutoff() const;
+  void check_cutoff(const double requested_cutoff) const;
+
+private:
+  Neighbor neighbor;
+  NeighborRequirement requirement;
+  bool initialized;
 };

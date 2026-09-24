@@ -28,7 +28,6 @@ Then calculate the dynamical matrices with different k points.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <vector>
 #include <array>
 
@@ -66,8 +65,12 @@ void Hessian::compute(
   Force& force,
   Box& box,
   Atom& atom,
-  std::vector<Group>& group)
+  std::vector<Group>& group,
+  const int replicate_size[3])
 {
+  for (int i = 0; i < 3; ++i) {
+    cxyz[i] = replicate_size[i];
+  }
   initialize(atom.cpu_mass, box, force, atom.number_of_atoms);
   find_H(force, box, atom, group);
 
@@ -82,8 +85,8 @@ void Hessian::compute(
 
 void Hessian::get_cutoff_from_potential(Force& force)
 {
-  for (const auto& potential : force.potentials) {
-    cutoff = std::max(cutoff, potential->rc);
+  for (int i = 0; i < force.get_number_of_potentials(); ++i) {
+    cutoff = std::max(cutoff, force.get_potential(i).rc);
   }
   phonon_cutoff = cutoff * 2.0;
   printf("Using cutoff for phonon calculations: %g A.\n", phonon_cutoff);
@@ -201,24 +204,6 @@ void Hessian::initialize(
   const std::vector<double>& cpu_mass, Box& box, Force& force, int N)
 {
   get_cutoff_from_potential(force);
-
-  std::ifstream fin("run.in");
-  std::string line;
-  bool has_rep = false;
-  while (std::getline(fin, line)) {
-    auto tokens = get_tokens(line);
-    if (!tokens.empty() && tokens[0][0] != '#' && tokens[0] == "replicate") {  // 跳过空行和注释行
-      has_rep = true;
-      for (int i = 0; i < 3; ++i) {
-        cxyz[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
-      }
-    }
-    break;
-  }
-  fin.close();
-  if (!has_rep) {
-    PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
-  }
 
   int s_c[3] = {1, 1, 1};
   int stru_pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
@@ -491,13 +476,14 @@ void Hessian::find_eigenvectors()
   eigfile.close();
 }
 
-void Hessian::parse(const char** param, int num_param)
+void Hessian::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &displacement)) {
+  if (!is_valid_real(tokens[1], &displacement)) {
     PRINT_INPUT_ERROR("displacement for compute_phonon should be a number.\n");
   }
   if (displacement <= 0) {

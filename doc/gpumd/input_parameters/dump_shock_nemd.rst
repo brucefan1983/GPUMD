@@ -24,6 +24,8 @@ Syntax
 Output files
 ------------
 
+.. _shock_nemd_hist_out:
+
 The following files are created. Each line corresponds to one output time, and the values on that line correspond to consecutive bins along the *x* direction.
 
 * ``temperature_hist.txt``: temperature in K.

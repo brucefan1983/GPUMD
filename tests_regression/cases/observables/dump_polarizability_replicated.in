@@ -1,0 +1,8 @@
+replicate 2 2 2
+potential nep.txt
+time_step 1
+velocity 300 seed 20260919
+ensemble nve
+dump_polarizability 1 polar.txt
+dump_thermo 1
+run 10

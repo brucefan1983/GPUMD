@@ -17,6 +17,7 @@
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
+#include <string>
 #include <vector>
 
 class Atom;
@@ -28,6 +29,16 @@ class Ensemble;
 class Measure
 {
 public:
+  bool parse_action(
+    const std::vector<std::string>& tokens,
+    const int number_of_types,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force,
+    const std::string& first_potential_filename);
+
   void pre_run(
     const int number_of_steps,
     const double time_step,
@@ -94,6 +105,6 @@ public:
     Box& box,
     Force& force);
 
-
-  std::vector<std::unique_ptr<Action>> actions;
+private:
+  std::vector<std::unique_ptr<Action>> actions_;
 };

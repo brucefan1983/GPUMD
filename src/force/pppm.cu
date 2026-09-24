@@ -20,7 +20,6 @@ The k-space part of the PPPM method.
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/read_file.cuh"
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -576,9 +575,9 @@ void PPPM::allocate_memory()
   }
 }
 
-void PPPM::initialize(const float alpha_input)
+void PPPM::initialize(const float alpha_input, const bool need_peratom_virial_input)
 {
-  need_peratom_virial = check_need_peratom_virial();
+  need_peratom_virial = need_peratom_virial_input;
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
   para.K[0] = 16;

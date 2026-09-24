@@ -114,14 +114,17 @@ static __global__ void gpu_find_neighbor_ON1(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -386,14 +389,17 @@ static __global__ void gpu_find_neighbor_ON1_ilp(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -539,14 +545,17 @@ static __global__ void gpu_find_neighbor_ON1_SW(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -832,3 +841,86 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
 }
+
+double Neighbor::get_skin() const
+{
+  return skin;
+}
+
+int Neighbor::get_capacity() const
+{
+  if (NN.size() == 0) {
+    return 0;
+  }
+  return static_cast<int>(NL.size() / NN.size());
+}
+
+NeighborManager::NeighborManager()
+{
+  requirement.rc = 0.0;
+  requirement.skin = 0.0;
+  requirement.num_atoms = 0;
+  requirement.capacity = 0;
+  initialized = false;
+}
+
+void NeighborManager::initialize(const double rc, const int num_atoms, const int num_neighbors)
+{
+  neighbor.initialize(rc, num_atoms, num_neighbors);
+  requirement.rc = rc;
+  requirement.skin = neighbor.get_skin();
+  requirement.num_atoms = num_atoms;
+  requirement.capacity = neighbor.get_capacity();
+  initialized = true;
+}
+
+void NeighborManager::update(
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom)
+{
+  neighbor.find_neighbor_global(requirement.rc, box, type, position_per_atom);
+}
+
+const GPU_Vector<int>& NeighborManager::get_candidate_NN() const
+{
+  return neighbor.NN;
+}
+
+const GPU_Vector<int>& NeighborManager::get_candidate_NL() const
+{
+  return neighbor.NL;
+}
+
+void NeighborManager::set_candidate_capacity(const int capacity)
+{
+  neighbor.NL.resize(static_cast<size_t>(requirement.num_atoms) * capacity);
+  requirement.capacity = capacity;
+}
+
+void NeighborManager::find_local_neighbor(
+  const double rc,
+  Box& box,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& NN_local,
+  GPU_Vector<int>& NL_local)
+{
+  check_cutoff(rc);
+  neighbor.find_local_neighbor_from_global(rc, box, position_per_atom, NN_local, NL_local);
+}
+
+double NeighborManager::get_supported_cutoff() const
+{
+  return requirement.rc;
+}
+
+void NeighborManager::check_cutoff(const double requested_cutoff) const
+{
+  if (!initialized) {
+    PRINT_INPUT_ERROR("Neighbor manager has not been initialized.");
+  }
+  if (requested_cutoff > requirement.rc) {
+    PRINT_INPUT_ERROR("Requested neighbor cutoff exceeds the supported candidate cutoff.");
+  }
+}
+

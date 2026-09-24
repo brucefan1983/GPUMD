@@ -64,63 +64,44 @@ struct TTM_Parameters
   double source = 0.0;
 };
 
-void parse_ttm_parameters(
-  const int type,
-  const char** param,
-  const int num_param,
-  const Atom& atom,
-  const Box& box,
-  const std::vector<Group>& group,
-  const int source,
-  const int sink,
-  TTM_Parameters& ttm_parameters);
-
-void print_ttm_settings(const TTM_Parameters& ttm_parameters);
-
 class Ensemble_TTM : public Ensemble
 {
 public:
   Ensemble_TTM(
-    int type_input,
-    int source_input,
-    int sink_input,
-    int source_size,
-    int sink_size,
-    int source_offset,
-    int sink_offset,
-    int ttm_group_size,
-    int ttm_group_offset,
-    double T,
-    double Tc,
-    double dT,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
+    const std::vector<std::string>& tokens,
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
 
-  Ensemble_TTM(
-    int type_input,
-    int ttm_group_size,
-    int ttm_group_offset,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
+  ~Ensemble_TTM(void) override;
 
-  virtual ~Ensemble_TTM(void);
+  void finalize_run(const Atom& atom, const Box& box) override;
 
-  virtual void compute1(
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   bool use_heat_lan;
+  TTM_Parameters parameters_;
 
   int N_source, N_sink, offset_source, offset_sink;
   double c1, c2_source, c2_sink;
@@ -170,7 +151,7 @@ private:
   double box_length[3];
 
   void initialize_ttm_common(
-    int type_input,
+    EnsembleType type_input,
     int ttm_group_size,
     int ttm_group_offset,
     const TTM_Parameters& ttm_parameters,
@@ -212,5 +193,5 @@ private:
     const std::vector<Group>& group,
     GPU_Vector<double>& velocity_per_atom);
 
-  void update_electron_temperature(const double time_step);
+  void update_electron_temperature(const double time_step, const int step);
 };

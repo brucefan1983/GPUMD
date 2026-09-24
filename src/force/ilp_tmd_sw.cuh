@@ -97,7 +97,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    std::vector<Group> &group);
+    const std::vector<Group>& group) override;
   
   // sw term
   void initialize_sw_1985_1(FILE*); // called by the constructor

@@ -1,0 +1,12 @@
+replicate 3 3 3
+potential qnep_mode1_BaTiO3.txt
+kspace ewald
+velocity 300 seed 20260918
+time_step 1e-20
+
+ensemble nve
+add_efield 0 0 0.01 0 0 charge
+add_efield 0 0 0 0.02 0 bec
+dump_xyz 1 qnep_charge.xyz precision double charge
+dump_xyz 1 qnep_force.xyz precision double force
+run 1

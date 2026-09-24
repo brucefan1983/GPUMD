@@ -24,10 +24,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_charge.cuh"
 #include "nep_charge_small_box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -44,70 +46,121 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP_Charge::check_ewald_pppm()
+void NEP_Charge::check_ewald_pppm(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
   use_pppm = true;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "kspace") {
-        if (tokens.size() != 2) {
-          std::cout << "kspace must have 1 parameter\n";
-          exit(1);
-        }
-        std::string kspace_method = tokens[1];
-        if (kspace_method == "ewald") {
-          use_pppm = false;
-        } else if (kspace_method == "pppm") {
-          use_pppm = true;
-        } else {
-          std::cout << "kspace method can only be ewald or pppm\n";
-          exit(1);
-        }
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty() && tokens[0] == "kspace") {
+      if (tokens.size() != 2) {
+        std::cout << "kspace must have 1 parameter\n";
+        exit(1);
+      }
+      std::string kspace_method = tokens[1];
+      if (kspace_method == "ewald") {
+        use_pppm = false;
+      } else if (kspace_method == "pppm") {
+        use_pppm = true;
+      } else {
+        std::cout << "kspace method can only be ewald or pppm\n";
+        exit(1);
       }
     }
   }
-
-  input_run.close();
 }
 
-void NEP_Charge::initialize_dftd3()
+void NEP_Charge::check_need_bec(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
-  has_dftd3 = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        has_dftd3 = true;
-        if (tokens.size() != 4) {
-          std::cout << "dftd3 must have 3 parameters\n";
-          exit(1);
-        }
-        std::string xc_functional = tokens[1];
-        float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-        float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
+  need_bec = false;
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty()) {
+      if (tokens[0] == "compute_dpdt") {
+        need_bec = true;
         break;
       }
+
+      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
+        for (int n = 3; n < tokens.size(); ++n) {
+          if (tokens[n] == "bec") {
+            need_bec = true;
+            break;
+          }
+        }
+        if (need_bec) {
+          break;
+        }
+      }
+
+      if (tokens[0] == "add_efield") {
+        if (
+          tokens.size() == 4 || tokens.size() == 6 ||
+          ((tokens.size() == 5 || tokens.size() == 7) && tokens.back() == "bec")) {
+          need_bec = true;
+          break;
+        }
+      }
     }
   }
-
-  input_run.close();
 }
 
-NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
+static bool check_need_peratom_virial(const RunInput& run_input)
+{
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (tokens.empty()) {
+      continue;
+    }
+    if (
+      tokens[0] == "compute_hac" || tokens[0] == "compute_hnemd" ||
+      tokens[0] == "compute_hnemdec" || tokens[0] == "compute_shc" ||
+      tokens[0] == "compute_gkma" || tokens[0] == "compute_hnema") {
+      return true;
+    }
+    if (tokens[0] == "compute") {
+      for (const auto& token : tokens) {
+        if (token == "virial" || token == "jp") {
+          return true;
+        }
+      }
+    }
+    if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
+      for (const auto& token : tokens) {
+        if (token == "virial") {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+void NEP_Charge::initialize_dftd3(const RunInput& run_input)
+{
+  has_dftd3 = false;
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty() && tokens[0] == "dftd3") {
+      has_dftd3 = true;
+      if (tokens.size() != 4) {
+        std::cout << "dftd3 must have 3 parameters\n";
+        exit(1);
+      }
+      std::string xc_functional = tokens[1];
+      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
+      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
+      dftd3.initialize(
+        xc_functional,
+        rc_potential,
+        rc_coordination_number,
+        get_first_potential_filename(run_input));
+      break;
+    }
+  }
+}
+
+NEP_Charge::NEP_Charge(
+  const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -175,7 +228,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
+      zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {
       if (tokens.size() == 4) {
@@ -343,7 +396,7 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.flexible) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -354,9 +407,10 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
-  check_ewald_pppm();
+  check_ewald_pppm(run_input);
+  check_need_bec(run_input);
   if (use_pppm) {
-    pppm.initialize(charge_para.alpha);
+    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input));
   } else {
     ewald.initialize(charge_para.alpha);
   }
@@ -367,7 +421,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
-  nep_data.bec.resize(num_atoms * 9);
+  if (need_bec) {
+    nep_data.bec.resize(num_atoms * 9);
+  }
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
@@ -381,9 +437,9 @@ NEP_Charge::NEP_Charge(const char* file_potential, const int num_atoms)
     num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 NEP_Charge::~NEP_Charge(void)
@@ -510,9 +566,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
@@ -538,10 +593,13 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -554,7 +612,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
     }
@@ -711,9 +769,8 @@ static __global__ void find_bec_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
         const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
@@ -812,10 +869,13 @@ static __global__ void find_bec_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
@@ -939,12 +999,10 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index_12 = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          int c_index_21 = (t2 * paramb.num_types + t1) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index_12 += n * (paramb.basis_size_radial + 1) + k;
-          c_index_21 += n * (paramb.basis_size_radial + 1) + k;
+          int c_index_12 = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index_21 = get_c_index(
+            t2 * paramb.num_types + t1, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
           gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
         }
@@ -1054,10 +1112,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
@@ -1136,7 +1197,7 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.flexible) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;
@@ -1299,8 +1360,7 @@ void NEP_Charge::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1315,8 +1375,8 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1372,7 +1432,7 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
+  if (need_bec) {
     // get BEC (the diagonal part)
     find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
       N,
@@ -1648,7 +1708,7 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
+  if (need_bec) {
     // get BEC (the diagonal part)
     find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
       N,

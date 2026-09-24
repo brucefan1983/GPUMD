@@ -40,6 +40,11 @@ int is_valid_int(const char* s, int* result)
   }
 }
 
+int is_valid_int(const std::string& s, int* result)
+{
+  return is_valid_int(s.c_str(), result);
+}
+
 int is_valid_real(const char* s, double* result)
 {
   if (s == NULL) {
@@ -57,32 +62,14 @@ int is_valid_real(const char* s, double* result)
   }
 }
 
-static std::string get_potential_file_name()
+int is_valid_real(const std::string& s, double* result)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return potential_file_name;
+  return is_valid_real(s.c_str(), result);
 }
 
-bool check_is_nep_charge()
+bool is_nep_charge_potential(const std::string& potential_file_name)
 {
   bool is_nep_charge = false;
-  std::string potential_file_name = get_potential_file_name();
 
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -95,7 +82,7 @@ bool check_is_nep_charge()
     if (tokens[0].substr(0, 11) == "nep4_charge") {
       is_nep_charge = true;
     }
-  } 
+  }
   if (tokens[0].size() >= 16) {
     if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
       is_nep_charge = true;
@@ -104,52 +91,4 @@ bool check_is_nep_charge()
   input_potential.close();
 
   return is_nep_charge;
-}
-
-bool check_need_peratom_virial()
-{
-  bool need_peratom_virial = false;
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "compute_hac" || 
-        tokens[0] == "compute_hnemd" || 
-        tokens[0] == "compute_hnemdec" || 
-        tokens[0] == "compute_shc" ||
-        tokens[0] == "compute_gkma" ||
-        tokens[0] == "compute_hnema") {
-        need_peratom_virial = true;
-        break;
-      }
-      if (tokens[0] == "compute") {
-        for (const auto& token : tokens) {
-          if (token == "virial" || token == "jp") {
-            need_peratom_virial = true;
-            break;
-          }
-        }
-        if (need_peratom_virial) {
-          break;
-        }
-      }
-      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
-        for (const auto& token : tokens) {
-          if (token == "virial") {
-            need_peratom_virial = true;
-            break;
-          }
-        }
-        if (need_peratom_virial) {
-          break;
-        }
-      }
-    }
-  }
-  input_run.close();
-  return need_peratom_virial;
 }

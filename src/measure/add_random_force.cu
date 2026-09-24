@@ -60,28 +60,28 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   //<<<3, 1024>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  int number_of_patches = (N - 1) / 1024 + 1;
+  int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_f[1024];
   double f = 0.0;
 
   switch (bid) {
     case 0:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fx[n];
       }
       break;
     case 1:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fy[n];
       }
       break;
     case 2:
-      for (int patch = 0; patch < number_of_patches; ++patch) {
-        int n = tid + patch * 1024;
+      for (int batch = 0; batch < number_of_batches; ++batch) {
+        int n = tid + batch * 1024;
         if (n < N)
           f += g_fz[n];
       }
@@ -165,8 +165,10 @@ void Add_Random_Force::post_force(
   apply_random_force(atom);
 }
 
-Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)
+Add_Random_Force::Add_Random_Force(
+  const std::vector<std::string>& tokens, int number_of_atoms)
 {
+  const int num_param = tokens.size();
   action_name = "add_random_force";
   printf("Add force.\n");
 
@@ -176,7 +178,7 @@ Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number
   }
 
   // parse force variance
-  if (!is_valid_real(param[1], &force_variance_)) {
+  if (!is_valid_real(tokens[1], &force_variance_)) {
     PRINT_INPUT_ERROR("force variance should be a number.\n");
   }
   if (force_variance_ < 0) {

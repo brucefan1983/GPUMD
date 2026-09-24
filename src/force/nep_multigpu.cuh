@@ -18,6 +18,8 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
+class RunInput;
+
 struct NEP_MULTIGPU_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
@@ -116,7 +118,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     float para[550];
@@ -128,7 +130,8 @@ public:
     const int num_gpus,
     const char* file_potential,
     const int num_atoms,
-    const int partition_direction);
+    const int partition_direction,
+    const RunInput& run_input);
   virtual ~NEP_MULTIGPU(void);
   virtual void compute(
     Box& box,
@@ -158,5 +161,5 @@ private:
 
   void allocate_memory();
   void update_potential(float* parameters, ANN& ann);
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

@@ -21,7 +21,9 @@ The QTB thermostat based on a colored noise filter:
 #include "ensemble_qtb.cuh"
 #include "langevin_utilities.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstdlib>
 
@@ -119,7 +121,88 @@ static __global__ void gpu_apply_qtb_half_step(
 
 } // namespace
 
-// PLACEHOLDER_METHODS
+Ensemble_QTB::Ensemble_QTB(const std::vector<std::string>& tokens)
+{
+  const int num_param = tokens.size();
+  type = EnsembleType::NVT_QTB;
+  num_target_pressure_components = 0;
+  if (num_param < 5 || num_param % 2 == 0) {
+    PRINT_INPUT_ERROR(
+      "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.");
+  }
+
+  if (!is_valid_real(tokens[2], &temperature1_)) {
+    PRINT_INPUT_ERROR("Initial temperature should be a number.");
+  }
+  if (temperature1_ <= 0.0) {
+    PRINT_INPUT_ERROR("Initial temperature should > 0.");
+  }
+  if (!is_valid_real(tokens[3], &temperature2_)) {
+    PRINT_INPUT_ERROR("Final temperature should be a number.");
+  }
+  if (temperature2_ <= 0.0) {
+    PRINT_INPUT_ERROR("Final temperature should > 0.");
+  }
+  temperature = temperature1_;
+  if (!is_valid_real(tokens[4], &temperature_coupling)) {
+    PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+  }
+  if (temperature_coupling < 1.0) {
+    PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+  }
+
+  int i = 5;
+  while (i < num_param) {
+    if (tokens[i] == "f_max") {
+      if (!is_valid_real(tokens[i + 1], &f_max_input_)) {
+        PRINT_INPUT_ERROR("f_max should be a number.");
+      }
+      if (f_max_input_ <= 0.0) {
+        PRINT_INPUT_ERROR("f_max should > 0.");
+      }
+    } else if (tokens[i] == "N_f") {
+      if (!is_valid_int(tokens[i + 1], &n_f_input_)) {
+        PRINT_INPUT_ERROR("N_f should be an integer.");
+      }
+      if (n_f_input_ <= 0) {
+        PRINT_INPUT_ERROR("N_f should > 0.");
+      }
+    } else {
+      PRINT_INPUT_ERROR("Unknown nvt_qtb optional keyword.");
+    }
+    i += 2;
+  }
+
+  printf("Use NVT ensemble for this run.\n");
+  printf("    choose the quantum thermal bath method.\n");
+  printf("    initial temperature is %g K.\n", temperature1_);
+  printf("    final temperature is %g K.\n", temperature2_);
+  printf("    tau_T is %g time_step.\n", temperature_coupling);
+  printf("    f_max is %g ps^-1.\n", f_max_input_);
+  printf("    N_f is %d.\n", n_f_input_);
+}
+
+double Ensemble_QTB::get_temperature1() const
+{
+  return temperature1_;
+}
+
+double Ensemble_QTB::get_temperature2() const
+{
+  return temperature2_;
+}
+
+void Ensemble_QTB::initialize_run(
+  const double time_step, Atom& atom, Box&, const std::vector<Group>&)
+{
+  init_qtb_common(
+    atom.number_of_atoms,
+    temperature,
+    temperature_coupling,
+    time_step,
+    f_max_input_,
+    n_f_input_);
+}
 
 void Ensemble_QTB::init_qtb_common(
   int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input)
@@ -168,22 +251,6 @@ void Ensemble_QTB::init_qtb_common(
   GPU_CHECK_KERNEL
 }
 
-// NVT-QTB constructor
-Ensemble_QTB::Ensemble_QTB(
-  int t, int N, double T, double Tc, double dt_input, double f_max, int N_f)
-{
-  type = t;
-  num_target_pressure_components = 0;
-  init_qtb_common(N, T, Tc, dt_input, f_max, N_f);
-}
-
-Ensemble_QTB::~Ensemble_QTB(void)
-{
-  // nothing
-}
-
-// PLACEHOLDER_FILTER
-
 void Ensemble_QTB::update_time_filter(const double target_temperature)
 {
   if (fabs(target_temperature - last_filter_temperature) < 1.0e-12) {
@@ -228,7 +295,7 @@ void Ensemble_QTB::update_time_filter(const double target_temperature)
   last_filter_temperature = target_temperature;
 }
 
-void Ensemble_QTB::refresh_colored_random_force()
+void Ensemble_QTB::refresh_colored_random_force(const Atom& atom)
 {
   const double gamma3_prefactor = sqrt(2.0 * fric_coef * 12.0 / h_timestep);
   gpu_refresh_qtb_random_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -237,7 +304,7 @@ void Ensemble_QTB::refresh_colored_random_force()
     nfreq2,
     time_H_device.data(),
     gamma3_prefactor,
-    atom->mass.data(),
+    atom.mass.data(),
     random_array_0.data(),
     random_array_1.data(),
     random_array_2.data(),
@@ -247,7 +314,7 @@ void Ensemble_QTB::refresh_colored_random_force()
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_QTB::apply_qtb_half_step()
+void Ensemble_QTB::apply_qtb_half_step(Atom& atom)
 {
   const double dt_half = 0.5 * dt;
 
@@ -255,33 +322,35 @@ void Ensemble_QTB::apply_qtb_half_step()
     number_of_atoms,
     dt_half,
     fric_coef,
-    atom->mass.data(),
+    atom.mass.data(),
     fran.data(),
     fran.data() + number_of_atoms,
     fran.data() + 2 * number_of_atoms,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
     number_of_atoms,
-    atom->mass.data(),
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
   gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
-    atom->velocity_per_atom.data(),
-    atom->velocity_per_atom.data() + number_of_atoms,
-    atom->velocity_per_atom.data() + 2 * number_of_atoms);
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + number_of_atoms,
+    atom.velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 }
 
 void Ensemble_QTB::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -289,10 +358,10 @@ void Ensemble_QTB::compute1(
 {
   if (counter_mu == 0) {
     update_time_filter(temperature);
-    refresh_colored_random_force();
+    refresh_colored_random_force(atom);
   }
 
-  apply_qtb_half_step();
+  apply_qtb_half_step(atom);
 
 #ifdef USE_NEPCG
   velocity_verlet_cg(
@@ -307,10 +376,13 @@ void Ensemble_QTB::compute1(
 
 void Ensemble_QTB::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
 #ifdef USE_NEPCG
   velocity_verlet_cg(
@@ -322,10 +394,9 @@ void Ensemble_QTB::compute2(
     atom.position_per_atom, atom.velocity_per_atom);
 #endif
 
-  apply_qtb_half_step();
+  apply_qtb_half_step(atom);
 
   find_thermo(
-    true,
     box.get_volume(),
     group,
     atom.mass,

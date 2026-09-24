@@ -16,6 +16,7 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Group;
@@ -72,18 +73,14 @@ public:
     const double temperature);
 
   void parse(
-    const char** param,
-    const int num_param,
+    const std::vector<std::string>& tokens,
     Box& box,
-    const std::vector<int>& cpu_type_size,
-    const int number_of_steps);
+    const std::vector<int>& cpu_type_size);
 
   RDF(
-    const char** param,
-    const int num_param,
+    const std::vector<std::string>& tokens,
     Box& box,
-    const std::vector<int>& cpu_type_size,
-    const int number_of_steps);
+    const std::vector<int>& cpu_type_size);
 
 private:
   int sampling_interval_ = 100;

@@ -22,6 +22,6 @@ Example
 
 .. code-block:: rst
 
-    ensemble ti_spring temp 300 lambda 0.3 spring Si 6 O 5
+    ensemble ti lambda 0.3 temp 300 spring Si 6 O 5
 
 This command uses lambda value 0.3 (30% spring force and 70% original force field). The spring constant is 6 eV/A^2 for Si and 5 eV/A^2 for O.

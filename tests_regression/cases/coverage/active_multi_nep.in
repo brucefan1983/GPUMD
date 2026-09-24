@@ -1,0 +1,9 @@
+potential C_2022_NEP4.txt
+potential C_2022_NEP4_MODIFIED.txt
+velocity 300 seed 20260918
+time_step 0.1
+
+ensemble nve
+active 1 1 1 1 0.0
+dump_restart 1
+run 1

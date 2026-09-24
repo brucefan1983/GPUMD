@@ -15,12 +15,42 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from io_helpers import CommandIOCase, run_and_check
+from conftest import MODELS_DIR, make_bulk_C, make_bulk_perovskite
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check, run_command_io_case
 
 pytestmark = pytest.mark.fast
 
 _POTENTIAL_SENTINEL = '__MODEL_PATH__'
 _NPT_BER_PARAMS_SENTINEL = '__NPT_BER_AUTO__'
+
+# add_spring writes one row every `output_stride_` steps (src/measure/add_spring.cuh), counting
+# from step 0, so a BASE_N_STEPS run writes the multiples of the stride below BASE_N_STEPS.
+_SPRING_OUTPUT_STRIDE = 100
+_SPRING_COLUMNS = ('step', 'mode', 'Fx', 'Fy', 'Fz', 'Ftotal', 'energy')
+
+
+def _check_spring_output(path):
+    """Checks the spring force file: a comment header naming the seven columns, then one row of
+    seven fields per output stride. The companion `.restart` file, which ghost_com saves at the
+    end of a run, is covered by the existence check in run_and_check and not parsed here."""
+    if path.suffix == '.restart':
+        return
+
+    lines = [line for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+    assert lines, f'{path.name} is empty'
+
+    header = lines[0]
+    assert header.startswith('#'), f'{path.name} lacks a comment header: {header!r}'
+    for column in _SPRING_COLUMNS:
+        assert column in header, f'{path.name} header lacks the {column!r} column: {header!r}'
+
+    rows = [line.split() for line in lines[1:]]
+    assert [int(row[0]) for row in rows] == list(range(0, BASE_N_STEPS, _SPRING_OUTPUT_STRIDE)), \
+        f'{path.name} does not hold one row per output stride: {rows}'
+    for row in rows:
+        assert len(row) == len(_SPRING_COLUMNS), f'{path.name} row has {len(row)} fields: {row}'
+        for field in row:
+            float(field)  # raises ValueError if the run wrote a field that is not a number
 
 
 def _npt_ber_params(cell):
@@ -54,11 +84,17 @@ BASIC_SETUP_CASES = [
     CommandIOCase(
         name='add_spring', n_groups=1,
         run_in_lines=[('add_spring', ['ghost_com', 0, 0, 0, 0, 0, 'couple', 1.0, 0, 0, 0, 0])],
-        expected_output_files=['spring_force_0.out']),
+        # The file names carry the group method, the group ID, and the spring ID, all 0 here:
+        # method 0 group 0 is the single group n_groups=1 writes, and spring ID 0 is the lowest
+        # unused ID in a fresh run directory. See doc/gpumd/input_parameters/add_spring.rst.
+        expected_output_files=['spring_gm0_g0_s0.out', 'spring_gm0_g0_s0.restart'],
+        parse_check=_check_spring_output),
     CommandIOCase(name='change_box', run_in_lines=[('change_box', 0.01)]),
     CommandIOCase(
+        # The general component form, which applies to any box shape. The legacy numeric form
+        # applies only to an orthogonal box.
         name='deform', ensemble='npt_ber', ensemble_params=_NPT_BER_PARAMS_SENTINEL,
-        run_in_lines=[('deform', [1e-5, 0, 0, 1, 0, 0])]),
+        run_in_lines=[('deform', ['xx', 1e-5])]),
     CommandIOCase(name='dftd3', run_in_lines=[('dftd3', ['pbe', 12, 6])]),
     CommandIOCase(name='kspace', run_in_lines=[('kspace', 'ewald')]),
     CommandIOCase(
@@ -105,3 +141,35 @@ def test_command_io(tmp_path, structure, structure_name, model_path, model_type,
                     'upstream bug.')
     case = _resolve_case(case, structure, model_path)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+# The legacy numeric deform form sets box lengths, which are defined only for an orthogonal box,
+# so GPUMD accepts it for bulk_perovskite and refuses it for bulk_C's triclinic cell.
+_DEFORM_LEGACY_CASES = [
+    ('orthogonal', make_bulk_perovskite, 'nep_BaTiO3.txt', None),
+    ('triclinic', make_bulk_C, 'nep_C.txt',
+     'The legacy deform format only supports orthogonal boxes'),
+]
+
+
+@pytest.mark.parametrize(
+    'builder, model_file, expected_message', [case[1:] for case in _DEFORM_LEGACY_CASES],
+    ids=[case[0] for case in _DEFORM_LEGACY_CASES])
+def test_deform_legacy_format_requires_an_orthogonal_box(
+        tmp_path, gpumd_command, builder, model_file, expected_message):
+    structure = builder()
+    model_path = MODELS_DIR / model_file
+    case = CommandIOCase(
+        name='deform_legacy', ensemble='npt_ber',
+        ensemble_params=_npt_ber_params(np.array(structure.cell)),
+        run_in_lines=[('deform', [1e-5, 0, 0, 1, 0, 0])])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, 'nep', gpumd_command, case)
+    output = result.stdout + result.stderr
+
+    if expected_message is None:
+        assert result.returncode == 0, f'the legacy deform form failed\n{output}'
+        assert (tmp_path / 'thermo.out').exists(), 'thermo.out was not produced'
+    else:
+        assert result.returncode != 0, 'the legacy deform form was accepted on a triclinic box'
+        assert expected_message in output, f'did not report {expected_message!r}\n{output}'

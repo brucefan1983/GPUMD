@@ -23,13 +23,12 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 #include "compute_heat.cuh"
 #include "hnemd_kappa.cuh"
-#include "force/force.cuh"
+#include "hnemd_force.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
-#include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
@@ -47,6 +46,29 @@ void HNEMD::pre_run(
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
   atom.heat_per_atom.resize(atom.number_of_atoms * 5);
+  force_sum_.resize(3);
+}
+
+void HNEMD::post_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute)
+    return;
+
+  apply_hnemd_force(
+    atom.number_of_atoms,
+    fe_x,
+    fe_y,
+    fe_z,
+    atom.virial_per_atom,
+    atom.force_per_atom,
+    force_sum_);
 }
 
 static __global__ void
@@ -55,11 +77,11 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
   // <<<5, 1024>>>
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
+  const int number_of_batches = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
   s_data[tid] = 0.0;
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    const int n = tid + patch * 1024;
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    const int n = tid + batch * 1024;
     if (n < N) {
       s_data[tid] += g_heat[n + N * bid];
     }
@@ -139,15 +161,15 @@ void HNEMD::post_run(
   const double time_step,
   const double temperature) { compute = 0; }
 
-HNEMD::HNEMD(const char** param, int num_param, Force& force)
+HNEMD::HNEMD(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_hnemd";
-  force.set_hnemd_parameters(fe_x, fe_y, fe_z);
 }
 
-void HNEMD::parse(const char** param, int num_param)
+void HNEMD::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   compute = 1;
 
   printf("Compute thermal conductivity using the HNEMD method.\n");
@@ -156,22 +178,22 @@ void HNEMD::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_hnemd should have 4 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &output_interval)) {
+  if (!is_valid_int(tokens[1], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HNEMD should be an integer number.\n");
   }
   printf("    output_interval = %d\n", output_interval);
   if (output_interval < 1) {
     PRINT_INPUT_ERROR("output_interval for HNEMD should be larger than 0.\n");
   }
-  if (!is_valid_real(param[2], &fe_x)) {
+  if (!is_valid_real(tokens[2], &fe_x)) {
     PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
   }
   printf("    fe_x = %g /A\n", fe_x);
-  if (!is_valid_real(param[3], &fe_y)) {
+  if (!is_valid_real(tokens[3], &fe_y)) {
     PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
   }
   printf("    fe_y = %g /A\n", fe_y);
-  if (!is_valid_real(param[4], &fe_z)) {
+  if (!is_valid_real(tokens[4], &fe_z)) {
     PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
   }
   printf("    fe_z = %g /A\n", fe_z);

@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -26,24 +27,33 @@ class Ensemble_LAN : public Ensemble
 {
 public:
   Ensemble_LAN();
-  Ensemble_LAN(int, int, double, double);
-  Ensemble_LAN(int, int, double*, int, int, int, int, int, int, double, double, double);
-  Ensemble_LAN(int, int, double*, int, double*, double*, double, double, double);
-  virtual ~Ensemble_LAN(void);
+  Ensemble_LAN(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   int N_source, N_sink, offset_source, offset_sink;
@@ -68,4 +78,23 @@ protected:
     const GPU_Vector<double>& position_per_atom,
     const GPU_Vector<double>& mass,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  enum class RunMode
+  {
+    NONE,
+    NVT,
+    HEAT_GROUP,
+    HEAT_REGION
+  };
+
+  void parse(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_groups(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_regions(const std::vector<std::string>& tokens);
+
+  RunMode run_mode_ = RunMode::NONE;
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

@@ -30,7 +30,7 @@ Dump dipole at a given interval.
 #include <cstring>
 
 static __global__ void sum_dipole(
-  const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_dipole)
+  const int N, const int number_of_batches, const double* g_virial_per_atom, double* g_dipole)
 {
   //<<<3, 1024>>>
   int tid = threadIdx.x;
@@ -40,18 +40,18 @@ static __global__ void sum_dipole(
 
   const unsigned int componentIdx = blockIdx.x * N;
 
-  // 1024 threads, each summing a patch of N/1024 atoms
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int atomIdx = tid + patch * 1024;
+  // Each thread accumulates one atom from each batch.
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int atomIdx = tid + batch * 1024;
     if (atomIdx < N)
       d += g_virial_per_atom[componentIdx + atomIdx];
   }
 
-  // save the sum for this patch
+  // Store the per-thread partial sum.
   s_d[tid] = d;
   __syncthreads();
 
-  // aggregate the patches in parallel
+  // Reduce the partial sums in parallel.
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
@@ -66,24 +66,28 @@ static __global__ void sum_dipole(
   }
 }
 
-Dump_Dipole::Dump_Dipole(const char** param, int num_param)
+Dump_Dipole::Dump_Dipole(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_dipole";
 }
 
-void Dump_Dipole::parse(const char** param, int num_param)
+void Dump_Dipole::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump dipole\n");
 
   if (num_param != 3) {
     PRINT_INPUT_ERROR("dump_dipole should have 2 parameters.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
-  file_potential_ = param[2];
+  if (dump_interval_ <= 0) {
+    PRINT_INPUT_ERROR("dump interval should be positive.");
+  }
+  file_potential_ = tokens[2];
   printf("   every %d steps.\n", dump_interval_);
   printf("   response potential: %s.\n", file_potential_.c_str());
 }
@@ -144,10 +148,10 @@ void Dump_Dipole::end_of_step(
   const GPU_Vector<double>& response = nep_response_->compute(box, atom.position_per_atom);
 
   const int number_of_threads = 1024;
-  const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
+  const int number_of_batches = (number_of_atoms - 1) / number_of_threads + 1;
   sum_dipole<<<3, number_of_threads>>>(
     number_of_atoms,
-    number_of_atoms_per_thread,
+    number_of_batches,
     response.data(),
     gpu_dipole_.data());
   GPU_CHECK_KERNEL

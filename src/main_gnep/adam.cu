@@ -22,6 +22,7 @@
 ------------------------------------------------------------------------------*/
  
 #include "adam.cuh"
+#include "device_guard.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include <chrono>
@@ -129,12 +130,10 @@ __global__ void apply_gradient_clipping(float* grad, int n, float norm, float ma
   }
 }
 
-void clip_gradients(int step, float* d_grad, int size) 
+void clip_gradients(float* d_grad, int size, float* d_norm)
 {
   static float avg_norm = -1.0f; 
 
-  float* d_norm;
-  CHECK(cudaMalloc(&d_norm, sizeof(float)));
   CHECK(cudaMemset(d_norm, 0, sizeof(float)));
   
   // calculate the norm of the gradient
@@ -160,11 +159,11 @@ void clip_gradients(int step, float* d_grad, int size)
   
   apply_gradient_clipping<<<grid_size, block_size>>>(d_grad, size, h_norm, max_norm);
   
-  CHECK(cudaFree(d_norm));
 }
 
 Adam::Adam(Parameters& para)
 {
+  DeviceGuard guard(0);
   // initialize the parameters
   number_of_variables = para.number_of_variables;
   weight_decay = para.weight_decay;
@@ -175,13 +174,20 @@ Adam::Adam(Parameters& para)
   v.resize(number_of_variables, 0.0f);
 
   // initialize the GPU vectors
-  cudaSetDevice(0);
   gpu_parameters.resize(number_of_variables);
-  gpu_m.resize(number_of_variables);
-  gpu_v.resize(number_of_variables);
+  gpu_m.resize(number_of_variables, 0.0f);
+  gpu_v.resize(number_of_variables, 0.0f);
+  gpu_gradient.resize(number_of_variables);
+  gpu_gradient_norm.resize(1);
   curand_states.resize(number_of_variables);
-  initialize_curand_states<<<(number_of_variables - 1) / 128 + 1, 128>>>(curand_states.data(), number_of_variables, 1234567);
+  initialize_curand_states<<<(number_of_variables - 1) / 128 + 1, 128>>>(
+    curand_states.data(), number_of_variables, para.seed);
   GPU_CHECK_KERNEL
+}
+
+Adam::~Adam()
+{
+  cudaSetDevice(0);
 }
 
 static __global__ void gpu_create_paramters(
@@ -222,9 +228,9 @@ static __global__ void gpu_create_paramters(
 
 void Adam::initialize_parameters(Parameters& para)
 {
+  DeviceGuard guard(0);
   FILE* fid_restart = fopen("gnep.restart", "r");
   if (fid_restart == NULL) {
-    cudaSetDevice(0); // normally use GPU-0
     gpu_create_paramters<<<(number_of_variables - 1) / 128 + 1, 128>>>(
       para.dim,
       para.num_types,
@@ -242,21 +248,25 @@ void Adam::initialize_parameters(Parameters& para)
         PRINT_SCANF_ERROR(count, 1, "Reading error for gnep.restart.");
     }
     fclose(fid_restart);
-    cudaSetDevice(0); // normally use GPU-0
     gpu_parameters.copy_from_host(parameters.data());
   }
 }
 
-void Adam::update(float lr, float* gradients) {
+void Adam::update(float lr, const std::vector<float>& gradients) {
+  DeviceGuard guard(0);
+  if (static_cast<int>(gradients.size()) != number_of_variables) {
+    PRINT_INPUT_ERROR("Global gradient size does not match the number of variables.");
+  }
   const int block_size = 256;
   const int grid_size = (number_of_variables + block_size - 1) / block_size + 1;
 
-  clip_gradients(step, gradients, number_of_variables);
+  gpu_gradient.copy_from_host(gradients.data());
+  clip_gradients(gpu_gradient.data(), number_of_variables, gpu_gradient_norm.data());
   update_moments<<<grid_size, block_size>>>(
     number_of_variables,
     beta1,
     beta2,
-    gradients,
+    gpu_gradient.data(),
     gpu_m.data(),
     gpu_v.data()
   );
@@ -285,7 +295,7 @@ void Adam::update(float lr, float* gradients) {
 }
 
 void Adam::output_parameters(Parameters& para) {
-  cudaSetDevice(0); 
+  DeviceGuard guard(0);
   gpu_parameters.copy_to_host(parameters.data());
   FILE* fid = fopen("gnep.restart", "w");
   for (int i = 0; i < number_of_variables; ++i) {
@@ -296,5 +306,17 @@ void Adam::output_parameters(Parameters& para) {
 
 float* Adam::get_parameters()
 {
+  CHECK(cudaSetDevice(0));
   return parameters.data();
 }
+
+#ifdef GNEP_TEST_DIAGNOSTICS
+void Adam::copy_moments_to_host(std::vector<float>& first, std::vector<float>& second)
+{
+  DeviceGuard guard(0);
+  first.resize(number_of_variables);
+  second.resize(number_of_variables);
+  gpu_m.copy_to_host(first.data());
+  gpu_v.copy_to_host(second.data());
+}
+#endif

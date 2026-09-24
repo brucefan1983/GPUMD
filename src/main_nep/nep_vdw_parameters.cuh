@@ -19,6 +19,42 @@ namespace
 {
 const int max_elem_vdw = 94;
 
+// Long-range part of the attractive -1/r^6 interaction.
+// The series avoids cancellation when alpha^2*r^2 is small.
+static __device__ void find_vdw_long_range(
+  const float alpha_squared,
+  const float alpha_sixth,
+  const float distance_square,
+  float& potential,
+  float& force_factor)
+{
+  const float x = alpha_squared * distance_square;
+  if (x < 0.5f) {
+    const float potential_series =
+      1.0f / 6.0f + x * (-1.0f / 8.0f + x * (1.0f / 20.0f +
+      x * (-1.0f / 72.0f + x * (1.0f / 336.0f +
+      x * (-1.0f / 1920.0f + x * (1.0f / 12960.0f -
+      x / 100800.0f))))));
+    const float force_series =
+      1.0f / 4.0f + x * (-1.0f / 5.0f + x * (1.0f / 12.0f +
+      x * (-1.0f / 42.0f + x * (1.0f / 192.0f +
+      x * (-1.0f / 1080.0f + x / 7200.0f)))));
+    potential = -alpha_sixth * potential_series;
+    force_factor = alpha_sixth * alpha_squared * force_series;
+  } else {
+    const float x_squared = x * x;
+    const float exp_x = exp(-x);
+    const float screening = 1.0f - exp_x * (1.0f + x + 0.5f * x_squared);
+    const float distance_inv_squared = 1.0f / distance_square;
+    const float distance_inv_sixth =
+      distance_inv_squared * distance_inv_squared * distance_inv_squared;
+    potential = -screening * distance_inv_sixth;
+    force_factor =
+      (6.0f * screening - x * x_squared * exp_x) *
+      distance_inv_sixth * distance_inv_squared;
+  }
+}
+
 // Free-atom C6 reference values are based on the TS parameter set distributed with libMBD.
 // See also: A. Tkatchenko and M. Scheffler, Phys. Rev. Lett. 102, 073005 (2009).
 // Values are converted and stored as sqrt(C6) in sqrt(eV * Angstrom^6).

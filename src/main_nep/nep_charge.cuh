@@ -15,8 +15,10 @@
 
 #pragma once
 #include "potential.cuh"
+#include "nep_compile.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
 class Parameters;
 class Dataset;
 
@@ -73,11 +75,11 @@ public:
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
     GPU_Vector<float> D_real;
-    GPU_Vector<int> num_kpoints;
+    GPU_Vector<int> kpoint_offset;
+    const Dataset* kpoint_dataset = nullptr;
   };
 
   struct Charge_Para {
-    int num_kpoints_max = 50000;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
@@ -87,7 +89,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     int num_types;
@@ -115,5 +117,7 @@ private:
   NEP_Charge_Data nep_data[16];
   ZBL zbl;
   Charge_Para charge_para;
+  std::unique_ptr<NEP_Compile> compiled_kernel_;
   void update_potential(float* parameters, ANN& ann);
+  void prepare_kpoints(Dataset& dataset, int device_id);
 };

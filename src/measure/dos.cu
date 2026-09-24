@@ -144,16 +144,17 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
-DOS::DOS(const char** param, const int num_param, const std::vector<Group>& groups)
+DOS::DOS(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
-  parse(param, num_param, groups);
+  parse(tokens, groups);
   action_name = "compute_dos";
 }
 
-void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)
+void DOS::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 4) {
     PRINT_INPUT_ERROR("compute_dos should have at least 3 parameters.\n");
@@ -162,7 +163,7 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
     PRINT_INPUT_ERROR("compute_dos has too many parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -170,7 +171,7 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    sample interval is %d.\n", sample_interval_);
 
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -178,7 +179,7 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
-  if (!is_valid_real(param[3], &omega_max_)) {
+  if (!is_valid_real(tokens[3], &omega_max_)) {
     PRINT_INPUT_ERROR("maximal angular frequency should be a number.\n");
   }
   if (omega_max_ <= 0) {
@@ -187,13 +188,13 @@ void DOS::parse(const char** param, const int num_param, const std::vector<Group
   printf("    maximal angular frequency is %g THz.\n", omega_max_);
 
   for (int k = 4; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, true, groups, k, grouping_method_, group_id_);
-    } else if (strcmp(param[k], "num_dos_points") == 0) {
+    if (tokens[k] == "group") {
+      parse_group(tokens, true, groups, k, grouping_method_, group_id_);
+    } else if (tokens[k] == "num_dos_points") {
       if (k + 2 > num_param) {
         PRINT_INPUT_ERROR("Not enough arguments for option 'num_dos_points'.\n");
       }
-      parse_num_dos_points(param, k);
+      parse_num_dos_points(tokens, k);
       printf("    num_dos_points is %d.\n", num_dos_points_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_dos.\n");
@@ -212,6 +213,10 @@ void DOS::pre_run(
 {
   if (!compute_)
     return;
+  if (num_correlation_steps_ > number_of_steps / sample_interval_) {
+    PRINT_INPUT_ERROR(
+      "The number of DOS correlation steps should not exceed the number of sampled frames.\n");
+  }
   initialize_parameters(time_step, group, atom.mass);
   allocate_memory();
   copy_mass(atom.mass);
@@ -267,9 +272,9 @@ void DOS::post_run(
   num_dos_points_ = -1;
 }
 
-void DOS::parse_num_dos_points(const char** param, int& k)
+void DOS::parse_num_dos_points(const std::vector<std::string>& tokens, int& k)
 {
-  if (!is_valid_int(param[k + 1], &num_dos_points_)) {
+  if (!is_valid_int(tokens[k + 1], &num_dos_points_)) {
     PRINT_INPUT_ERROR("number of DOS points should be an integer.\n");
   }
   if (num_dos_points_ < 1) {

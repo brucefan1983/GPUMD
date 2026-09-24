@@ -16,6 +16,7 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Group;
 class Atom;
@@ -63,8 +64,8 @@ public:
 
   virtual void write(const char* filename);
 
-  MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom);
-  void parse(const char** param, const int num_param, const std::vector<Group>& groups);
+  MSD(const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
 
 private:
   int num_atoms_;

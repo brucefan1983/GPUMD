@@ -55,13 +55,13 @@ void pairwise_product(GPU_Vector<double>& a, GPU_Vector<double>& b, GPU_Vector<d
 
 __global__ void gpu_sum(const int size, double* a, double* result)
 {
-  int number_of_patches = (size - 1) / 1024 + 1;
+  int number_of_batches = (size - 1) / 1024 + 1;
   int tid = threadIdx.x;
-  int n, patch;
+  int n, batch;
   __shared__ double data[1024];
   data[tid] = 0.0;
-  for (patch = 0; patch < number_of_patches; ++patch) {
-    n = tid + patch * 1024;
+  for (batch = 0; batch < number_of_batches; ++batch) {
+    n = tid + batch * 1024;
     if (n < size)
       data[tid] += a[n];
   }

@@ -29,6 +29,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -45,32 +46,19 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP_MULTIGPU::initialize_dftd3()
+void NEP_MULTIGPU::initialize_dftd3(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
+  if (run_input.contains("dftd3")) {
+    PRINT_INPUT_ERROR("dftd3 has not been implemented for multi-GPU version.");
   }
-
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        input_run.close();
-        PRINT_INPUT_ERROR("dftd3 has not been implemented for multi-GPU version.");
-      }
-    }
-  }
-
-  input_run.close();
 }
 
 NEP_MULTIGPU::NEP_MULTIGPU(
   const int num_gpus,
   const char* file_potential,
   const int num_atoms,
-  const int partition_direction_input)
+  const int partition_direction_input,
+  const RunInput& run_input)
 {
 
   printf("Try to use %d GPUs for the NEP part.\n", num_gpus);
@@ -138,7 +126,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
+      zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {
       if (tokens.size() == 4) {
@@ -321,7 +309,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     paramb.basis_size_angular);
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.flexible) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -370,7 +358,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
 
   allocate_memory();
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 void NEP_MULTIGPU::allocate_memory()
@@ -811,9 +799,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
@@ -840,10 +827,13 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -855,7 +845,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
     }
@@ -942,12 +932,10 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index_12 = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          int c_index_21 = (t2 * paramb.num_types + t1) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index_12 += n * (paramb.basis_size_radial + 1) + k;
-          c_index_21 += n * (paramb.basis_size_radial + 1) + k;
+          int c_index_12 = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index_21 = get_c_index(
+            t2 * paramb.num_types + t1, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
           gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
         }
@@ -1051,10 +1039,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
@@ -1122,7 +1113,7 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.flexible) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;
@@ -1786,9 +1777,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
@@ -1815,10 +1805,13 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -1830,7 +1823,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];

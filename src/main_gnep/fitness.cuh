@@ -24,6 +24,16 @@
 
 class Parameters;
 
+struct GNEPTrainingBatch
+{
+  std::vector<Dataset> shards;
+  std::vector<Structure> output_structures;
+  std::vector<std::vector<int>> configuration_indices;
+  int num_configurations = 0;
+  int num_atoms = 0;
+  int virial_components = 0;
+};
+
 class Fitness
 {
 public:
@@ -60,7 +70,7 @@ protected:
   Adam* optimizer;
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
-  std::vector<std::vector<Dataset>> train_set;
+  std::vector<GNEPTrainingBatch> train_set;
   std::vector<Dataset> test_set;
   std::vector<int> batch_indices;
   std::vector<std::vector<int>> batch_type_sums;

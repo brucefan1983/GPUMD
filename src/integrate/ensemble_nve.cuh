@@ -15,24 +15,32 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 
 class Ensemble_NVE : public Ensemble
 {
 public:
-  Ensemble_NVE(int);
-  virtual ~Ensemble_NVE(void);
+  explicit Ensemble_NVE(const std::vector<std::string>& tokens);
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+private:
+  void parse(const std::vector<std::string>& tokens);
 };

@@ -188,12 +188,12 @@ static __global__ void find_group_sum_1(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 256 + 1;
+  int number_of_batches = (group_size - 1) / 256 + 1;
   __shared__ double s_data[256];
   s_data[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 256;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 256;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_data[tid] += g_in[n];
@@ -227,7 +227,7 @@ static __global__ void find_group_sum_3(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 256 + 1;
+  int number_of_batches = (group_size - 1) / 256 + 1;
   __shared__ double s_fx[256];
   __shared__ double s_fy[256];
   __shared__ double s_fz[256];
@@ -235,8 +235,8 @@ static __global__ void find_group_sum_3(
   s_fy[tid] = 0.0;
   s_fz[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 256;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 256;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_fx[tid] += g_fx[n];
@@ -282,7 +282,7 @@ static __global__ void find_group_sum_9(
   int bid = blockIdx.x;
   int group_size = g_group_size[bid];
   int offset = g_group_size_sum[bid];
-  int number_of_patches = (group_size - 1) / 128 + 1;
+  int number_of_batches = (group_size - 1) / 128 + 1;
   __shared__ double s_xx[128];
   __shared__ double s_xy[128];
   __shared__ double s_xz[128];
@@ -302,8 +302,8 @@ static __global__ void find_group_sum_9(
   s_zy[tid] = 0.0;
   s_zz[tid] = 0.0;
 
-  for (int patch = 0; patch < number_of_patches; patch++) {
-    int k = tid + patch * 128;
+  for (int batch = 0; batch < number_of_batches; batch++) {
+    int k = tid + batch * 128;
     if (k < group_size) {
       int n = g_group_contents[offset + k]; // particle index
       s_xx[tid] += g_xx[n];
@@ -523,13 +523,14 @@ void Compute::end_of_step(
     cpu_group_sum_ave[n] += cpu_group_sum[n];
 
   if (output_flag) {
-    if (integrate.type == 26) {
+    if (integrate.get_type() == EnsembleType::HEAT_HYBRID) {
       //  Extract energy from multiple thermal reservoirs
-      int num_thermostats = integrate.ensemble->energy_transferred_n.size();
-      output_results_n(integrate.ensemble->energy_transferred_n.data(), group, num_thermostats);
+      const std::vector<double>& energy_transferred = integrate.get_energy_transferred_n();
+      int num_thermostats = energy_transferred.size();
+      output_results_n(energy_transferred.data(), group, num_thermostats);
     } else {
       // Use legacy version for other ensemble types
-      output_results(integrate.ensemble->energy_transferred, group);
+      output_results(integrate.get_energy_transferred(), group);
     }
 
     for (int n = 0; n < Ng * number_of_scalars; ++n)
@@ -586,21 +587,22 @@ void Compute::output_results_n(
   fflush(fid);
 }
 
-Compute::Compute(const char** param, int num_param, const std::vector<Group>& group)
+Compute::Compute(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
-  parse(param, num_param, group);
+  parse(tokens, group);
   action_name = "compute";
 }
 
-void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)
+void Compute::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   printf("Compute space and/or time average of:\n");
+  const int num_param = tokens.size();
   if (num_param < 5) {
     PRINT_INPUT_ERROR("compute should have at least 4 parameters.");
   }
 
   // grouping_method
-  if (!is_valid_int(param[1], &grouping_method)) {
+  if (!is_valid_int(tokens[1], &grouping_method)) {
     PRINT_INPUT_ERROR("grouping method of compute should be integer.");
   }
   if (grouping_method < 0) {
@@ -611,7 +613,7 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
   }
 
   // sample_interval
-  if (!is_valid_int(param[2], &sample_interval)) {
+  if (!is_valid_int(tokens[2], &sample_interval)) {
     PRINT_INPUT_ERROR("sampling interval of compute should be integer.");
   }
   if (sample_interval <= 0) {
@@ -619,7 +621,7 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
   }
 
   // output_interval
-  if (!is_valid_int(param[3], &output_interval)) {
+  if (!is_valid_int(tokens[3], &output_interval)) {
     PRINT_INPUT_ERROR("output interval of compute should be integer.");
   }
   if (output_interval <= 0) {
@@ -628,25 +630,25 @@ void Compute::parse(const char** param, int num_param, const std::vector<Group>&
 
   // temperature potential force virial jp jk (order is not important)
   for (int k = 0; k < num_param - 4; ++k) {
-    if (strcmp(param[k + 4], "temperature") == 0) {
+    if (tokens[k + 4] == "temperature") {
       compute_temperature = 1;
       printf("    temperature\n");
-    } else if (strcmp(param[k + 4], "potential") == 0) {
+    } else if (tokens[k + 4] == "potential") {
       compute_potential = 1;
       printf("    potential energy\n");
-    } else if (strcmp(param[k + 4], "force") == 0) {
+    } else if (tokens[k + 4] == "force") {
       compute_force = 1;
       printf("    force\n");
-    } else if (strcmp(param[k + 4], "virial") == 0) {
+    } else if (tokens[k + 4] == "virial") {
       compute_virial = 1;
       printf("    virial\n");
-    } else if (strcmp(param[k + 4], "jp") == 0) {
+    } else if (tokens[k + 4] == "jp") {
       compute_jp = 1;
       printf("    potential part of heat current\n");
-    } else if (strcmp(param[k + 4], "jk") == 0) {
+    } else if (tokens[k + 4] == "jk") {
       compute_jk = 1;
       printf("    kinetic part of heat current\n");
-    } else if (strcmp(param[k + 4], "momentum") == 0) {
+    } else if (tokens[k + 4] == "momentum") {
       compute_momentum = 1;
       printf("    momentum\n");
     } else {

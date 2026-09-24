@@ -21,21 +21,27 @@
 #include "utilities/common.cuh"
 #include <memory>
 #include <stdio.h>
+#include <string>
 #include <vector>
+
+class RunInput;
 
 class Force
 {
 public:
   Force(void);
 
-  void
-  parse_potential(const char** param, int num_param, const Box& box, const int number_of_atoms);
+  void parse_potential(
+    const std::vector<std::string>& tokens,
+    const Box& box,
+    const int number_of_atoms,
+    const RunInput& run_input);
 
   void compute(
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
-    std::vector<Group>& group,
+    const std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
@@ -44,7 +50,7 @@ public:
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
-    std::vector<Group>& group,
+    const std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
@@ -55,32 +61,57 @@ public:
   void finalize();
 
   int get_number_of_types(FILE* fid_potential);
-  void set_hnemd_parameters(const double, const double, const double);
-  void set_hnemdec_parameters(
-    const int compute_hnemdec,
-    const double hnemd_fe_x,
-    const double hnemd_fe_y,
-    const double hnemd_fe_z,
-    const std::vector<double>& mass,
-    const std::vector<int>& type,
-    const std::vector<int>& type_size,
-    const double T);
   void set_multiple_potentials_mode(std::string mode);
-
-  bool compute_hnemd_ = false;
-  int compute_hnemdec_ = -1;
-  double hnemd_fe_[3];
-  double temperature = 0;
-  double delta_T;
-  GPU_Vector<double> coefficient;
-  std::vector<std::unique_ptr<Potential>> potentials;
+  void set_temperature_range(
+    const double temperature1, const double temperature2, const int number_of_steps);
+  void advance_temperature();
+  int get_number_of_potentials() const;
+  Potential& get_potential(const int index);
 
 private:
-  int number_of_atoms_ = -1;
+  std::unique_ptr<Potential> create_potential(
+    const std::vector<std::string>& tokens,
+    FILE* fid_potential,
+    char* potential_name,
+    const int num_types,
+    const Box& box,
+    const int number_of_atoms,
+    const RunInput& run_input,
+    bool& is_nep);
+
+  double temperature = 0;
+  double delta_T;
+  std::vector<std::unique_ptr<Potential>> potentials;
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
   std::string atom_types[NUM_ELEMENTS];
 
-  void check_types(const char* file_potential);
+  void check_types(const std::string& file_potential);
+  void prepare_compute(
+    const int number_of_atoms,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    int* position_image);
+  void compute_potentials(
+    const int number_of_atoms,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+  void compute_single_potential(
+    Potential& potential,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 };

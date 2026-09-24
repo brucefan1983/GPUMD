@@ -100,7 +100,7 @@ void NEP_Energy::initialize(const char* file_potential)
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
+      zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {
       if (tokens.size() == 4) {
@@ -291,7 +291,7 @@ void NEP_Energy::initialize(const char* file_potential)
   }
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.flexible) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -364,9 +364,8 @@ static __global__ void find_energy_nep(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -390,10 +389,13 @@ static __global__ void find_energy_nep(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-            ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
@@ -402,7 +404,7 @@ static __global__ void find_energy_nep(
         paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * paramb.q_scaler[d];
     }
@@ -443,7 +445,7 @@ static __global__ void find_energy_zbl(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.flexible) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;

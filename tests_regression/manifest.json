@@ -1,0 +1,6210 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "timeout_s": 120
+  },
+  "required_ensemble_keywords": [
+    "nve",
+    "nvt_ber",
+    "nvt_nhc",
+    "nvt_lan",
+    "nvt_bdp",
+    "nvt_bao",
+    "nvt_qtb",
+    "npt_ber",
+    "npt_scr",
+    "nvt_mttk",
+    "npt_mttk",
+    "nph_mttk",
+    "npt_qtb",
+    "heat_nhc",
+    "heat_lan",
+    "heat_bdp",
+    "heat_nhc_power",
+    "heat_hybrid",
+    "ttm",
+    "heat_ttm",
+    "rpmd",
+    "trpmd",
+    "pimd",
+    "pimd_scr",
+    "msst",
+    "nphug",
+    "wall_piston",
+    "wall_mirror",
+    "wall_harmonic",
+    "ti",
+    "ti_spring",
+    "ti_rs",
+    "ti_as",
+    "ti_liquid"
+  ],
+  "fixtures": {
+    "cu": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/cu_grouped.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/eam/Cu_Zhou_2004.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "unep_cu": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/cu_grouped.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/Song-2024-UNEP-v1-AgAlAuCrCuMgMoNiPbPdPtTaTiVWZr.txt",
+          "target": "unep_first.txt"
+        },
+        {
+          "source": "repo:potentials/nep/Song-2024-UNEP-v1-AgAlAuCrCuMgMoNiPbPdPtTaTiVWZr.txt",
+          "target": "unep_last.txt"
+        }
+      ]
+    },
+    "deposition_lj_no_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/deposition_lj_no_velocity.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        },
+        {
+          "source": "package:fixtures/deposition/add_atoms_ar.txt",
+          "target": "add_atoms.txt"
+        }
+      ]
+    },
+    "deposition_lj_with_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/deposition_lj_with_velocity.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        },
+        {
+          "source": "package:fixtures/deposition/add_atoms_ar.txt",
+          "target": "add_atoms.txt"
+        }
+      ]
+    },
+    "si": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/si_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/Si_2022_NEP4_3body.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "graphene_nemd": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/graphene_grouped_40400.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/tersoff/Graphene_Lindsay_2010_modified.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "temperature_f_nep": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/temperature_F_512.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/temperature_F_nep.txt",
+          "target": "temperature_F_nep.txt"
+        }
+      ]
+    },
+    "nep89_carbon": {
+      "stage": [
+        {
+          "source": "repo:tests_pytest/fixtures/structures/C-nat16-rattled.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/nep89_20250409/nep89_20250409.txt",
+          "target": "nep89_20250409.txt"
+        }
+      ]
+    },
+    "dual_nep_carbon": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/observer_carbon_159.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/C_2022_NEP4.txt",
+          "target": "C_2022_NEP4.txt"
+        },
+        {
+          "source": "package:fixtures/potentials/C_2022_NEP4_MODIFIED.txt",
+          "target": "C_2022_NEP4_MODIFIED.txt"
+        }
+      ]
+    },
+    "phonon_si_tersoff": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/si_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/phonon/si_kpoints.in",
+          "target": "kpoints.in"
+        },
+        {
+          "source": "repo:potentials/tersoff/Si_Tersoff_1989.txt",
+          "target": "Si_Tersoff_1989.txt"
+        }
+      ]
+    },
+    "phonon_cu_single_atom": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/cu_fcc_single_atom.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/phonon/si_kpoints.in",
+          "target": "kpoints.in"
+        },
+        {
+          "source": "repo:potentials/eam/Cu_Zhou_2004.txt",
+          "target": "Cu_Zhou_2004.txt"
+        }
+      ]
+    },
+    "qnep_batio3": {
+      "stage": [
+        {
+          "source": "repo:tests_pytest/fixtures/structures/BaTiO3-nat40-rattled.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "qnep_mode1_BaTiO3.txt"
+        }
+      ]
+    },
+    "neighbor_alias_aliased": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/neighbor_alias_aliased.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "neighbor_alias_control": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/neighbor_alias_control.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "replicate_lj_with_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/replicate_lj_with_velocity.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "qnep_batio3_grouped": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/qnep_batio3_group0.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "qnep_mode1_BaTiO3.txt"
+        }
+      ]
+    },
+    "dual_nep_carbon_grouped": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/carbon_grouped.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/C_2022_NEP4.txt",
+          "target": "C_2022_NEP4.txt"
+        },
+        {
+          "source": "package:fixtures/potentials/C_2022_NEP4_MODIFIED.txt",
+          "target": "C_2022_NEP4_MODIFIED.txt"
+        }
+      ]
+    },
+    "ilp_nep_graphene": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/bilayer_graphene_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/graphene_nep_ilp.txt",
+          "target": "ilp_nep.txt"
+        },
+        {
+          "source": "repo:potentials/hybrid_nep_ilp/bilayer_graphene_map_nep.txt",
+          "target": "bilayer_graphene_map_nep.txt"
+        },
+        {
+          "source": "repo:potentials/hybrid_nep_ilp/C_2024_NEP4.txt",
+          "target": "C_2024_NEP4.txt"
+        }
+      ]
+    },
+    "ilp_tersoff_graphene": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/bilayer_graphene_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/graphene_tersoff_ilp.txt",
+          "target": "ilp_tersoff.txt"
+        },
+        {
+          "source": "package:fixtures/potentials/graphene_tersoff_1988_params.txt",
+          "target": "tersoff_params.txt"
+        }
+      ]
+    },
+    "ilp_tmd_sw_mos2": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/bilayer_mos2_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/hybrid_sw_ilp/sw_ilp_mos2_ILP_oywg_2018.txt",
+          "target": "sw_ilp.txt"
+        },
+        {
+          "source": "repo:potentials/hybrid_sw_ilp/sw_ilp_mos2_SW_jjw_2018.txt",
+          "target": "sw_params.txt"
+        }
+      ]
+    },
+    "graphene_hac": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/graphene_emd_8640.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/tersoff/Graphene_Lindsay_2010_modified.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "graphene_hnemd_shc": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/graphene_grouped_40400.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/tersoff/Graphene_Lindsay_2010_modified.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "silicon_liquid_transport": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/silicon_liquid_8000.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:potentials/nep/Si_2022_NEP4_3body.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "active_six_nep": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/active_carbon_192.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_full.txt",
+          "target": "nep_full.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split1.txt",
+          "target": "nep_split1.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split2.txt",
+          "target": "nep_split2.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split3.txt",
+          "target": "nep_split3.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split4.txt",
+          "target": "nep_split4.txt"
+        },
+        {
+          "source": "package:fixtures/models/active_nep4_split5.txt",
+          "target": "nep_split5.txt"
+        }
+      ]
+    },
+    "tnep_dipole": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/tnep_dipole_27.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_base_27.txt",
+          "target": "nep.txt"
+        },
+        {
+          "source": "package:fixtures/models/tnep_dipole.txt",
+          "target": "dipole.txt"
+        }
+      ]
+    },
+    "observer_pbte_species": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/observer_pbte_250.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/observer_PbTe.txt",
+          "target": "PbTe.txt"
+        },
+        {
+          "source": "package:fixtures/models/observer_PbTe_modified.txt",
+          "target": "PbTe_modified.txt"
+        }
+      ]
+    },
+    "tnep_polarizability": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/tnep_polarizability_320.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_polar_base_nep4.txt",
+          "target": "nep.txt"
+        },
+        {
+          "source": "package:fixtures/models/tnep_polarizability_nep4.txt",
+          "target": "polar.txt"
+        }
+      ]
+    },
+    "msd_reference": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/msd_grouped_27.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/models/tnep_base_27.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "training_pbte": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_tnep": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/tnep_120.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_water_fff": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/water_12_fff.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_mixed": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte_water_mixed.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    }
+  },
+  "known_manual_gaps": [
+    "heat_nhc_power and heat_hybrid are implemented but absent from the manual",
+    "the fractional-region form of heat_lan is absent from the manual",
+    "MTTK couple xyz, xy, yz, and xz are absent from the manual",
+    "dump_beads argument syntax is absent from the manual",
+    "the TTM orthogonal fully-periodic box constraint is absent from the manual",
+    "heat_ttm requires the TTM metal group not to overlap either heat-bath group",
+    "ti_liquid implicitly requires the first potential to provide NEP radial neighbor data",
+    "the ti_as manual example gives tswitch without the required matching tequil"
+  ],
+  "relations": [
+    {
+      "id": "neighbor_alias_translation_invariance",
+      "description": "The fixed neighbor search gives byte-identical thermodynamics after translating the two-atom system",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "neighbor_alias_aliased",
+          "output": "thermo.out"
+        },
+        {
+          "case": "neighbor_alias_control",
+          "output": "thermo.out"
+        }
+      ]
+    },
+    {
+      "id": "compute_chunk_output_concatenation",
+      "description": "The two-Action chunk output is the ordered concatenation of both controls",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "concat",
+      "parts": [
+        {
+          "case": "compute_chunk_single_1d",
+          "output": "compute_chunk.out"
+        },
+        {
+          "case": "compute_chunk_single_2d",
+          "output": "compute_chunk.out"
+        }
+      ],
+      "result": {
+        "case": "compute_chunk_multiple",
+        "output": "compute_chunk.out"
+      }
+    },
+    {
+      "id": "compute_chunk_restart_equality",
+      "description": "Standalone and multiple chunk Actions leave identical restart states",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "compute_chunk_single_1d",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "compute_chunk_single_2d",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "compute_chunk_multiple",
+          "output": "restart.xyz"
+        }
+      ]
+    },
+    {
+      "id": "dos_output_equality",
+      "description": "DOS output is independent of SDC presence and Action order",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dos_only",
+          "output": "dos.out"
+        },
+        {
+          "case": "dos_then_sdc",
+          "output": "dos.out"
+        },
+        {
+          "case": "sdc_then_dos",
+          "output": "dos.out"
+        }
+      ]
+    },
+    {
+      "id": "mvac_output_equality",
+      "description": "MVAC output is independent of SDC presence and Action order",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dos_only",
+          "output": "mvac.out"
+        },
+        {
+          "case": "dos_then_sdc",
+          "output": "mvac.out"
+        },
+        {
+          "case": "sdc_then_dos",
+          "output": "mvac.out"
+        }
+      ]
+    },
+    {
+      "id": "sdc_output_equality",
+      "description": "SDC output is independent of DOS presence and Action order",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "sdc_only",
+          "output": "sdc.out"
+        },
+        {
+          "case": "dos_then_sdc",
+          "output": "sdc.out"
+        },
+        {
+          "case": "sdc_then_dos",
+          "output": "sdc.out"
+        }
+      ]
+    },
+    {
+      "id": "dos_sdc_thermo_equality",
+      "description": "DOS and SDC analysis choices do not change the thermodynamic trajectory",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dos_only",
+          "output": "thermo.out"
+        },
+        {
+          "case": "sdc_only",
+          "output": "thermo.out"
+        },
+        {
+          "case": "dos_then_sdc",
+          "output": "thermo.out"
+        },
+        {
+          "case": "sdc_then_dos",
+          "output": "thermo.out"
+        }
+      ]
+    },
+    {
+      "id": "dos_sdc_restart_equality",
+      "description": "DOS and SDC analysis choices leave identical restart states",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dos_only",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "sdc_only",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "dos_then_sdc",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "sdc_then_dos",
+          "output": "restart.xyz"
+        }
+      ]
+    },
+    {
+      "id": "phonon_d_output_equality",
+      "description": "Leading comments before replicate do not change the phonon matrix",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "phonon_clean",
+          "output": "D.out"
+        },
+        {
+          "case": "phonon_comments_before_replicate",
+          "output": "D.out"
+        }
+      ]
+    },
+    {
+      "id": "phonon_omega2_output_equality",
+      "description": "Leading comments before replicate do not change phonon frequencies",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "phonon_clean",
+          "output": "omega2.out"
+        },
+        {
+          "case": "phonon_comments_before_replicate",
+          "output": "omega2.out"
+        }
+      ]
+    },
+    {
+      "id": "hnemdec_onsager_placement_equality",
+      "description": "Moving HNEMDEC before ensemble does not change Onsager output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "hnemdec_standard",
+          "output": "onsager.out"
+        },
+        {
+          "case": "hnemdec_before_ensemble",
+          "output": "onsager.out"
+        }
+      ]
+    },
+    {
+      "id": "hnemdec_thermo_placement_equality",
+      "description": "Moving HNEMDEC before ensemble does not change thermodynamics",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "hnemdec_standard",
+          "output": "thermo.out"
+        },
+        {
+          "case": "hnemdec_before_ensemble",
+          "output": "thermo.out"
+        }
+      ]
+    },
+    {
+      "id": "hnemdec_restart_placement_equality",
+      "description": "Moving HNEMDEC before ensemble leaves the same restart state",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "hnemdec_standard",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "hnemdec_before_ensemble",
+          "output": "restart.xyz"
+        }
+      ]
+    },
+    {
+      "id": "observer_first_run_output_equality",
+      "description": "Observer reset and explicit control have the same first-run scalar output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "observer_average_two_runs",
+          "output": "observer.out"
+        },
+        {
+          "case": "observer_average_then_observe_control",
+          "output": "observer.out"
+        }
+      ]
+    },
+    {
+      "id": "observer_first_run_xyz_equality",
+      "description": "Observer reset and explicit control have the same first-run XYZ output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "observer_average_two_runs",
+          "output": "observer.xyz"
+        },
+        {
+          "case": "observer_average_then_observe_control",
+          "output": "observer.xyz"
+        }
+      ]
+    },
+    {
+      "id": "observer_reset_second_run_equality",
+      "description": "The implicit observer reset matches an explicit observe-mode control",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "observer_average_two_runs",
+          "output": "second.xyz"
+        },
+        {
+          "case": "observer_average_then_observe_control",
+          "output": "second.xyz"
+        }
+      ]
+    },
+    {
+      "id": "observer_reset_restart_equality",
+      "description": "The implicit observer reset leaves the explicit-control restart state",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "observer_average_two_runs",
+          "output": "restart.xyz"
+        },
+        {
+          "case": "observer_average_then_observe_control",
+          "output": "restart.xyz"
+        }
+      ]
+    },
+    {
+      "id": "msd_option_order_equality",
+      "description": "MSD tagged options produce identical output in either order",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "msd_options_canonical",
+          "output": "msd.out"
+        },
+        {
+          "case": "msd_options_reversed",
+          "output": "msd.out"
+        }
+      ]
+    },
+    {
+      "id": "active_observer_independence_out",
+      "description": "dump_observer does not change active uncertainty output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "active_no_threshold",
+          "output": "active.out"
+        },
+        {
+          "case": "active_without_observer",
+          "output": "active.out"
+        }
+      ]
+    },
+    {
+      "id": "active_observer_independence_xyz",
+      "description": "dump_observer does not change selected active structures",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "active_no_threshold",
+          "output": "active.xyz"
+        },
+        {
+          "case": "active_without_observer",
+          "output": "active.xyz"
+        }
+      ]
+    },
+    {
+      "id": "dump_dipole_thermo_side_effect",
+      "description": "dump_dipole does not change thermodynamic output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_dipole",
+          "output": "thermo.out"
+        },
+        {
+          "case": "dump_dipole_control",
+          "output": "thermo.out"
+        }
+      ]
+    },
+    {
+      "id": "dump_dipole_xyz_side_effect",
+      "description": "dump_dipole does not change trajectory output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_dipole",
+          "output": "dump.xyz"
+        },
+        {
+          "case": "dump_dipole_control",
+          "output": "dump.xyz"
+        }
+      ]
+    },
+    {
+      "id": "dump_polarizability_thermo_side_effect",
+      "description": "dump_polarizability does not change thermodynamic output",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "equal",
+      "members": [
+        {
+          "case": "dump_polarizability",
+          "output": "thermo.out"
+        },
+        {
+          "case": "dump_polarizability_control",
+          "output": "thermo.out"
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "neighbor_alias_aliased",
+      "description": "Periodic cell aliases do not duplicate a neighbor candidate",
+      "suites": [
+        "full"
+      ],
+      "fixture": "neighbor_alias_aliased",
+      "input": "package:cases/bugfix/neighbor_alias_aliased.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "contract:neighbor-cell-alias",
+        "contract:translation-invariance"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "neighbor_alias_control",
+      "description": "Translated coordinates provide a control without periodic cell aliasing",
+      "suites": [
+        "full"
+      ],
+      "fixture": "neighbor_alias_control",
+      "input": "package:cases/bugfix/neighbor_alias_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "contract:neighbor-cell-alias-control",
+        "contract:translation-invariance"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nve",
+      "description": "NVE reference trajectory",
+      "suites": [
+        "quick",
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nve.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_ber",
+      "description": "Berendsen NVT with a temperature ramp",
+      "suites": [
+        "quick",
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_ber.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_nhc",
+      "description": "Nose-Hoover-chain NVT with a temperature ramp",
+      "suites": [
+        "quick",
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_nhc.in",
+      "covers": [
+        "ensemble:nvt_nhc",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_lan",
+      "description": "Langevin NVT with a temperature ramp",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_lan.in",
+      "covers": [
+        "ensemble:nvt_lan",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_bdp",
+      "description": "Bussi-Donadio-Parrinello NVT with a temperature ramp",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_bdp.in",
+      "covers": [
+        "ensemble:nvt_bdp",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_bao",
+      "description": "BAOAB Langevin NVT with a temperature ramp",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_bao.in",
+      "covers": [
+        "ensemble:nvt_bao",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_qtb",
+      "description": "Quantum thermal bath NVT",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/nvt_qtb.in",
+      "covers": [
+        "ensemble:nvt_qtb",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_ber_iso",
+      "description": "Berendsen NPT with isotropic pressure control",
+      "suites": [
+        "quick",
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/npt_ber_iso.in",
+      "covers": [
+        "ensemble:npt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_ber_ortho",
+      "description": "Berendsen NPT with three orthogonal pressure components",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/npt_ber_ortho.in",
+      "covers": [
+        "ensemble:npt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_ber_tri",
+      "description": "Berendsen NPH limit with all six triclinic pressure components",
+      "suites": [
+        "standard",
+        "full"
+      ],
+      "fixture": "si",
+      "input": "package:cases/standard/npt_ber_tri.in",
+      "covers": [
+        "ensemble:npt_ber",
+        "potential:nep"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_scr_iso",
+      "description": "Stochastic cell rescaling with isotropic pressure control",
+      "suites": [
+        "quick",
+        "standard",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/standard/npt_scr_iso.in",
+      "covers": [
+        "ensemble:npt_scr",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_mttk",
+      "description": "MTTK NVT with explicit thermostat period",
+      "suites": [
+        "quick",
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/nvt_mttk.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:nvt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_mttk_iso",
+      "description": "MTTK NPT with isotropic pressure control",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/npt_mttk_iso.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_mttk_aniso",
+      "description": "MTTK NPT with anisotropic orthogonal pressure control",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/npt_mttk_aniso.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_mttk_tri",
+      "description": "MTTK NPT with triclinic pressure control",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "si",
+      "input": "package:cases/mttk/npt_mttk_tri.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:nep"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nph_mttk",
+      "description": "MTTK NPH with isotropic pressure control",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/nph_mttk.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:nph_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "mttk_couple_xyz",
+      "description": "MTTK NPT with xyz pressure coupling",
+      "suites": [
+        "quick",
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/couple_xyz.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "mttk_couple_xy",
+      "description": "MTTK NPT with xy pressure coupling",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/couple_xy.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "mttk_couple_yz",
+      "description": "MTTK NPT with yz pressure coupling",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/couple_yz.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "mttk_couple_xz",
+      "description": "MTTK NPT with xz pressure coupling",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/couple_xz.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_qtb",
+      "description": "Quantum thermal bath NPT",
+      "suites": [
+        "mttk",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/mttk/npt_qtb.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:npt_qtb",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "adaptive_npt_mttk",
+      "description": "MTTK NPT with displacement-limited adaptive time stepping",
+      "suites": [
+        "adaptive_time_step",
+        "mttk",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/adaptive_time_step/adaptive_npt_mttk.in",
+      "covers": [
+        "contract:adaptive-time-step",
+        "ensemble:npt_mttk",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "adaptive_npt_qtb",
+      "description": "Quantum thermal bath NPT with displacement-limited adaptive time stepping",
+      "suites": [
+        "adaptive_time_step",
+        "mttk",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/adaptive_time_step/adaptive_npt_qtb.in",
+      "covers": [
+        "contract:adaptive-time-step",
+        "ensemble:npt_qtb",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "adaptive_nphug",
+      "description": "NPHug with displacement-limited adaptive time stepping",
+      "suites": [
+        "adaptive_time_step",
+        "special",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/adaptive_time_step/adaptive_nphug.in",
+      "covers": [
+        "contract:adaptive-time-step",
+        "ensemble:nphug",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "adaptive_msst",
+      "description": "MSST with displacement-limited adaptive time stepping",
+      "suites": [
+        "adaptive_time_step",
+        "special",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/adaptive_time_step/adaptive_msst.in",
+      "covers": [
+        "contract:adaptive-time-step",
+        "ensemble:msst",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_nhc",
+      "description": "Nose-Hoover-chain heat transport in the graphene NEMD system",
+      "suites": [
+        "quick",
+        "heat",
+        "full"
+      ],
+      "fixture": "graphene_nemd",
+      "input": "package:cases/heat/heat_nhc.in",
+      "covers": [
+        "ensemble:heat_nhc",
+        "potential:tersoff"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_lan_group",
+      "description": "Langevin heat transport in the graphene NEMD system",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "graphene_nemd",
+      "input": "package:cases/heat/heat_lan_group.in",
+      "covers": [
+        "ensemble:heat_lan",
+        "potential:tersoff"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_lan_region",
+      "description": "Langevin source and sink selected by fractional regions",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/heat/heat_lan_region.in",
+      "covers": [
+        "ensemble:heat_lan",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_bdp",
+      "description": "BDP heat transport in the graphene NEMD system",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "graphene_nemd",
+      "input": "package:cases/heat/heat_bdp.in",
+      "covers": [
+        "ensemble:heat_bdp",
+        "potential:tersoff"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_nhc_power",
+      "description": "Fixed-power source and sink velocity scaling",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/heat/heat_nhc_power.in",
+      "covers": [
+        "ensemble:heat_nhc_power",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_hybrid",
+      "description": "Hybrid NHC and Langevin thermostats on three groups",
+      "suites": [
+        "quick",
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/heat/heat_hybrid.in",
+      "covers": [
+        "ensemble:heat_hybrid",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ttm_uniform",
+      "description": "Two-temperature model with a uniform initial electron temperature",
+      "suites": [
+        "quick",
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/heat/ttm_uniform.in",
+      "covers": [
+        "ensemble:ttm",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ttm_electron_temperature.out",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ttm_profile",
+      "description": "TTM file input, active cells, source term, and per-cell properties",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "stage": [
+        {
+          "source": "package:cases/heat/te_init.dat",
+          "target": "te_init.dat"
+        },
+        {
+          "source": "package:cases/heat/properties.dat",
+          "target": "properties.dat"
+        }
+      ],
+      "input": "package:cases/heat/ttm_profile.in",
+      "covers": [
+        "command:ttm-input-files",
+        "ensemble:ttm",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ttm_electron_temperature.out",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "heat_ttm",
+      "description": "Non-overlapping Langevin heat baths and two-temperature metal group",
+      "suites": [
+        "heat",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/heat/heat_ttm.in",
+      "covers": [
+        "ensemble:heat_ttm",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute.out",
+        "ttm_electron_temperature.out",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "pimd_nvt",
+      "description": "Four-bead canonical PIMD",
+      "suites": [
+        "quick",
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/pimd_nvt.in",
+      "covers": [
+        "ensemble:pimd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "pimd_eco",
+      "description": "Four-bead canonical PIMD with economised internal-mode frequencies",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/pimd_eco.in",
+      "covers": [
+        "ensemble:pimd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "pimd_npt",
+      "description": "Four-bead PIMD with pressure control",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/pimd_npt.in",
+      "covers": [
+        "ensemble:pimd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "pimd_scr",
+      "description": "Four-bead PIMD with stochastic cell rescaling",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/pimd_scr.in",
+      "covers": [
+        "ensemble:pimd_scr",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "rpmd_after_pimd",
+      "description": "RPMD after initialization by PIMD with the same bead count",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/rpmd_after_pimd.in",
+      "covers": [
+        "ensemble:pimd",
+        "ensemble:rpmd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "trpmd_after_pimd",
+      "description": "TRPMD after initialization by PIMD with the same bead count",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/trpmd_after_pimd.in",
+      "covers": [
+        "ensemble:pimd",
+        "ensemble:trpmd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "pimd_bead_dump",
+      "description": "PIMD bead trajectory dump",
+      "suites": [
+        "pimd",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/pimd/pimd_bead_dump.in",
+      "covers": [
+        "command:dump_beads",
+        "ensemble:pimd",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "beads_dump_0.xyz",
+        "beads_dump_1.xyz",
+        "beads_dump_2.xyz",
+        "beads_dump_3.xyz",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "msst_short",
+      "description": "Short-run MSST regression",
+      "suites": [
+        "quick",
+        "special",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/special/msst_short.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:msst",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nphug_short",
+      "description": "Short-run NPHug regression",
+      "suites": [
+        "quick",
+        "special",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/special/nphug_short.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:nphug",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "wall_piston",
+      "description": "Moving piston wall with explicit velocity and thickness",
+      "suites": [
+        "special",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/special/wall_piston.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:wall_piston",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "wall_mirror",
+      "description": "Moving mirror wall with explicit velocity",
+      "suites": [
+        "special",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/special/wall_mirror.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:wall_mirror",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "wall_harmonic",
+      "description": "Moving harmonic wall with explicit velocity and spring constant",
+      "suites": [
+        "special",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/special/wall_harmonic.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:wall_harmonic",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_fixed",
+      "description": "Fixed-lambda thermodynamic integration against Einstein springs",
+      "suites": [
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/ti/ti_fixed.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:ti",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti.csv",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_spring_explicit",
+      "description": "Einstein-spring TI followed by Berendsen NVT replacement",
+      "suites": [
+        "quick",
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/ti/ti_spring_explicit.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:nvt_ber",
+        "ensemble:ti_spring",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti_spring.csv",
+        "ti_spring.yaml",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_spring_auto_k",
+      "description": "Switching TI to Einstein springs with automatic spring constants",
+      "suites": [
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/ti/ti_spring_auto_k.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:ti_spring",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti_spring.csv",
+        "ti_spring.yaml",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_rs",
+      "description": "Reversible-scaling temperature integration",
+      "suites": [
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/ti/ti_rs.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:ti_rs",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti_rs.csv",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_as",
+      "description": "Adiabatic-switching pressure integration",
+      "suites": [
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/ti/ti_as.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:ti_as",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti_as.csv",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ti_liquid",
+      "description": "Liquid reference TI using NEP radial neighbor data",
+      "suites": [
+        "ti",
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "si",
+      "input": "package:cases/ti/ti_liquid.in",
+      "covers": [
+        "contract:first-step-initialization",
+        "ensemble:ti_liquid",
+        "potential:nep"
+      ],
+      "expect": "success",
+      "outputs": [
+        "ti_liquid.csv",
+        "ti_liquid.yaml",
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "same_nvt_two_runs",
+      "description": "Create a fresh Berendsen NVT for each run and clear late fix/move settings",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/same_nvt_two_runs.in",
+      "covers": [
+        "command:fix",
+        "command:move",
+        "contract:actions-cleared-after-run",
+        "contract:multiple-runs",
+        "contract:run-lifecycle",
+        "ensemble:nvt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "first.xyz",
+        "second.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nvt_ber_fix_move_before",
+      "description": "Apply fixed and moving groups specified before Berendsen NVT",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/nvt_ber_fix_move_before.in",
+      "covers": [
+        "command:fix",
+        "command:move",
+        "contract:run-lifecycle",
+        "contract:settings-before-ensemble",
+        "ensemble:nvt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "switch_nvt_nve",
+      "description": "Destroy and replace NVT with NVE across run blocks",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/switch_nvt_nve.in",
+      "covers": [
+        "contract:multiple-runs",
+        "contract:run-lifecycle",
+        "ensemble:nve",
+        "ensemble:nvt_nhc",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "nvt.xyz",
+        "nve.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "fix_move",
+      "description": "Integrator interaction with fixed and externally moved groups",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/fix_move.in",
+      "covers": [
+        "command:fix",
+        "command:move",
+        "contract:run-lifecycle",
+        "ensemble:nvt_nhc",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "deform_nve_shear",
+      "description": "NVE interaction with xy box deformation",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/deform_nve_shear.in",
+      "covers": [
+        "command:deform",
+        "contract:run-lifecycle",
+        "ensemble:nve",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "deform_npt_ortho",
+      "description": "Orthogonal NPT interaction with xx deformation",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/deform_npt_ortho.in",
+      "covers": [
+        "command:deform",
+        "contract:run-lifecycle",
+        "ensemble:npt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "npt_ber_deform_before",
+      "description": "Apply xx deformation specified before Berendsen NPT",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/npt_ber_deform_before.in",
+      "covers": [
+        "command:deform",
+        "contract:run-lifecycle",
+        "contract:settings-before-ensemble",
+        "ensemble:npt_ber",
+        "potential:eam"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "deform_npt_tri",
+      "description": "Triclinic stochastic-cell-rescaling interaction with xy deformation",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "si",
+      "input": "package:cases/lifecycle/deform_npt_tri.in",
+      "covers": [
+        "command:deform",
+        "contract:run-lifecycle",
+        "ensemble:npt_scr",
+        "potential:nep"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_unknown_ensemble",
+      "description": "Reject an unknown ensemble keyword",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/unknown_ensemble.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-unknown-ensemble",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Invalid ensemble type.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_mttk_couple",
+      "description": "Reject an invalid MTTK pressure-coupling value",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/mttk_couple.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-mttk-couple",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Wrong inputs for couple keyword.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_heat_same_group",
+      "description": "Reject identical heat source and sink groups",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/heat_same_group.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-heat-same-group",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Source and sink cannot be the same group.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_pimd_odd_beads",
+      "description": "Reject an odd PIMD bead count",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/pimd_odd_beads.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-pimd-odd-beads",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "number of beads should be an even number.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_move_without_fix",
+      "description": "Reject moving a group that is not fixed",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/move_without_fix.in",
+      "covers": [
+        "command:ensemble",
+        "command:fix",
+        "command:move",
+        "contract:invalid-input",
+        "contract:reject-move-without-fix",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "It is not allowed to have moving group but no fixed group.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_ttm_overlap",
+      "description": "Reject overlap between a heat bath and the TTM metal group",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/ttm_overlap.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-ttm-overlap",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "TTM metal group cannot overlap with the heat source or sink group.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nve_parameter",
+      "description": "Reject an extra NVE parameter",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nve_parameter.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nve-parameter",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nve should have 0 parameter.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_ber_parameter_count",
+      "description": "Reject an invalid NVT-Berendsen parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_ber_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-ber-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_ber should have 3 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_ber_coupling",
+      "description": "Reject an invalid NVT-Berendsen temperature coupling",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_ber_coupling.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-ber-coupling",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Temperature coupling should >= 1.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_npt_ber_parameter_count",
+      "description": "Reject an invalid NPT-Berendsen parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/npt_ber_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-npt-ber-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble npt_ber should have 6, 10, or 16 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_npt_ber_modulus",
+      "description": "Reject a non-positive NPT-Berendsen elastic modulus",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/npt_ber_modulus.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-npt-ber-modulus",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "elastic modulus should > 0.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_nhc_parameter_count",
+      "description": "Reject an invalid NVT-NHC parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_nhc_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-nhc-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_nhc should have 3 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_bdp_parameter_count",
+      "description": "Reject an invalid NVT-BDP parameter count",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_bdp_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-bdp-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_bdp should have 3 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_lan_parameter_count",
+      "description": "Reject an invalid NVT-Langevin parameter count",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_lan_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-lan-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_lan should have 3 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_bao_parameter_count",
+      "description": "Reject an invalid NVT-BAOAB parameter count",
+      "suites": [
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_bao_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-bao-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_bao should have 3 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_heat_lan_region_overlap",
+      "description": "Reject overlapping Langevin heat-source and heat-sink regions",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/heat_lan_region_overlap.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-heat-lan-region-overlap",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Heat source and sink regions cannot overlap.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_nvt_qtb_parameter_count",
+      "description": "Reject an invalid NVT-QTB parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/nvt_qtb_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-nvt-qtb-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble nvt_qtb should have 3 required parameters plus optional key-value pairs.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_npt_scr_parameter_count",
+      "description": "Reject an invalid NPT-SCR parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/npt_scr_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-npt-scr-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble npt_scr should have 6, 10, or 16 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_heat_hybrid_parameter_count",
+      "description": "Reject an invalid hybrid-heat parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/heat_hybrid_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-heat-hybrid-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble heat_hybrid needs at least 7 parameters.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_ttm_parameter_count",
+      "description": "Reject an invalid TTM parameter count",
+      "suites": [
+        "quick",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/ttm_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-ttm-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble ttm should have 12 required parameters plus optional key-value pairs.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_pimd_parameter_count",
+      "description": "Reject an invalid PIMD parameter count",
+      "suites": [
+        "quick",
+        "pimd",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/pimd_parameter_count.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-pimd-parameter-count",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble pimd should have 4, 7, 11, or 17 parameters, optionally followed by eco omega_max_cm1.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_rpmd_before_pimd",
+      "description": "Reject RPMD before bead state has been initialized by PIMD",
+      "suites": [
+        "pimd",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/rpmd_before_pimd.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-rpmd-before-pimd",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Cannot use RPMD or TRPMD before PIMD",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_pimd_change_beads",
+      "description": "Reject changing the bead count between PIMD runs",
+      "suites": [
+        "pimd",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/pimd_change_beads.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:multiple-runs",
+        "contract:reject-pimd-change-beads",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Cannot change the number of beads for PIMD runs",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_run_without_ensemble",
+      "description": "Require an ensemble before every run",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "lifecycle_contract",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/run_without_ensemble.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-run-without-ensemble",
+        "contract:run-lifecycle",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "An ensemble must be specified before each run.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_second_run_without_ensemble",
+      "description": "Do not reuse an ensemble for a second run",
+      "suites": [
+        "lifecycle",
+        "lifecycle_contract",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/second_run_without_ensemble.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:multiple-runs",
+        "contract:reject-second-run-without-ensemble",
+        "contract:run-lifecycle",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "An ensemble must be specified before each run.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_duplicate_ensemble",
+      "description": "Reject two ensemble commands before one run",
+      "suites": [
+        "lifecycle",
+        "lifecycle_contract",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/duplicate_ensemble.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-duplicate-ensemble",
+        "contract:run-lifecycle",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Only one ensemble can be specified before each run.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "invalid_ensemble_without_run",
+      "description": "Reject an ensemble not followed by a run",
+      "suites": [
+        "lifecycle",
+        "lifecycle_contract",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/invalid/ensemble_without_run.in",
+      "covers": [
+        "command:ensemble",
+        "contract:invalid-input",
+        "contract:reject-ensemble-without-run",
+        "contract:run-lifecycle",
+        "potential:eam"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "The last ensemble is not followed by a run.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parser_comments_whitespace",
+      "description": "Leading comments, blank lines, tabs, trailing comments, and base-zero integer parsing",
+      "suites": [
+        "quick",
+        "parser",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/core/parser_comments_whitespace.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "contract:comments-whitespace",
+        "contract:integer-base-zero",
+        "contract:replicate-first-effective"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parser_invalid_integer_tail",
+      "description": "Integer parser rejects a valid prefix followed by trailing characters",
+      "suites": [
+        "parser",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/core/parser_invalid_integer_tail.in",
+      "covers": [
+        "contract:integer-full-consumption"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "number of steps should be an integer.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parser_invalid_real_tail",
+      "description": "Real parser rejects a valid prefix followed by trailing characters",
+      "suites": [
+        "parser",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/core/parser_invalid_real_tail.in",
+      "covers": [
+        "contract:real-full-consumption"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "time_step should be a real number.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parser_32_tokens_dispatches",
+      "description": "A command containing exactly 32 tokens reaches normal keyword dispatch",
+      "suites": [
+        "parser",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/core/parser_32_tokens.in",
+      "covers": [
+        "contract:32-token-command-accepted-by-dispatch"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "'unknown_32' is an invalid keyword.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parser_33_tokens_rejected",
+      "description": "A command containing 33 tokens is rejected by the top-level token limit",
+      "suites": [
+        "parser",
+        "invalid",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/core/parser_33_tokens.in",
+      "covers": [
+        "contract:32-token-command-limit"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "The number of parameters should be less than 32.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "nep89_two_runs",
+      "description": "NEP89 large-box trajectory across two run blocks",
+      "suites": [
+        "quick",
+        "potential",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "nep89_carbon",
+      "input": "package:cases/core/nep89_two_runs.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "ensemble:nve",
+        "potential:nep89",
+        "contract:large-box",
+        "contract:multiple-runs"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "multi_nep_observer",
+      "description": "Two NEP potentials with average observer mode",
+      "suites": [
+        "quick",
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/actions/multi_nep_observer.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:multiple-nep",
+        "command:dump_observer",
+        "contract:action-order"
+      ],
+      "expect": "success",
+      "outputs": [
+        "observer.out",
+        "observer.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "action_before_ensemble",
+      "description": "Actions appearing before ensemble are collected for the following run",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/action_before_ensemble.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_chunk",
+        "command:dump_thermo",
+        "contract:action-before-ensemble"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute_chunk.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "two_run_state_contract",
+      "description": "Actions clear after run while time step and global time propagate",
+      "suites": [
+        "quick",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/lifecycle/two_run_state_contract.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "contract:actions-cleared-after-run",
+        "contract:time-step-propagates",
+        "contract:global-time-continuity",
+        "contract:settings-before-ensemble"
+      ],
+      "expect": "success",
+      "outputs": [
+        "first.xyz",
+        "second.xyz",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "compute_chunk_single_1d",
+      "description": "First standalone control for the multiple compute_chunk contract",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/compute_chunk_single_1d.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_chunk"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute_chunk.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "compute_chunk_single_2d",
+      "description": "Second standalone control for the multiple compute_chunk contract",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/compute_chunk_single_2d.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_chunk"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute_chunk.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "compute_chunk_multiple",
+      "description": "Two compute_chunk Actions execute in input order within one run",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/compute_chunk_multiple.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_chunk",
+        "contract:multiple-compute-chunk",
+        "contract:action-order"
+      ],
+      "expect": "success",
+      "outputs": [
+        "compute_chunk.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dos_only",
+      "description": "Standalone DOS control for DOS and SDC coexistence",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/dos_only.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_dos"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dos.out",
+        "mvac.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "sdc_only",
+      "description": "Standalone SDC control for DOS and SDC coexistence",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/sdc_only.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_sdc"
+      ],
+      "expect": "success",
+      "outputs": [
+        "sdc.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dos_then_sdc",
+      "description": "DOS and SDC coexist with DOS first",
+      "suites": [
+        "quick",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/dos_then_sdc.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_dos",
+        "command:compute_sdc",
+        "contract:dos-sdc-coexist"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dos.out",
+        "mvac.out",
+        "sdc.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "sdc_then_dos",
+      "description": "DOS and SDC coexist with SDC first",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/actions/sdc_then_dos.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:compute_dos",
+        "command:compute_sdc",
+        "contract:dos-sdc-coexist",
+        "contract:action-order"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dos.out",
+        "mvac.out",
+        "sdc.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "temperature_nep_two_run_ramp",
+      "description": "Temperature-dependent NEP follows the temperature ramp and resets between two runs",
+      "suites": [
+        "state",
+        "full"
+      ],
+      "fixture": "temperature_f_nep",
+      "input": "package:cases/state/temperature_nep_two_runs.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:nep4-temperature",
+        "contract:force-temperature-ramp",
+        "contract:force-temperature-reset"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "phonon_clean",
+      "description": "Canonical phonon control with replicate as the first effective command",
+      "suites": [
+        "static",
+        "full"
+      ],
+      "fixture": "phonon_si_tersoff",
+      "input": "package:cases/static/phonon_clean.in",
+      "covers": [
+        "potential:tersoff",
+        "command:compute_phonon",
+        "contract:replicate-first-effective"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "phonon_comments_before_replicate",
+      "description": "Phonon finds replicate after leading blank and comment lines",
+      "suites": [
+        "full"
+      ],
+      "fixture": "phonon_si_tersoff",
+      "input": "package:cases/bugfix/phonon_comments_before_replicate.in",
+      "covers": [
+        "potential:tersoff",
+        "command:compute_phonon",
+        "contract:comments-before-replicate"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "phonon_single_atom_replicate",
+      "description": "Phonon calculation accepts a one-atom primitive cell when replicate expands it before GPU initialization",
+      "suites": [
+        "static",
+        "full"
+      ],
+      "fixture": "phonon_cu_single_atom",
+      "input": "package:cases/bugfix/phonon_single_atom_replicate.in",
+      "covers": [
+        "potential:eam",
+        "command:replicate",
+        "command:compute_phonon",
+        "contract:single-atom-primitive"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "qnep_ewald_future_bec",
+      "description": "qNEP Ewald with BEC and virial consumers appearing only in a later run",
+      "suites": [
+        "snapshot",
+        "potential",
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/snapshots/qnep_ewald_future_bec.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:kspace-ewald",
+        "command:compute_dpdt",
+        "snapshot:future-bec",
+        "snapshot:future-virial"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "bec.xyz",
+        "dpdt.out",
+        "neighbor.out"
+      ],
+      "comparisons": {
+        "bec.xyz": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 3e-06,
+          "reason": "qNEP accumulates float BEC tensors with unordered GPU atomicAdd; same-binary calibration observed 1.91e-6 maximum absolute drift."
+        },
+        "dpdt.out": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 2e-07,
+          "reason": "DPDT consumes the nondeterministic float BEC tensor; same-binary calibration observed 1.0e-7 output drift."
+        }
+      },
+      "input_style": "canonical"
+    },
+    {
+      "id": "qnep_pppm_future_bec",
+      "description": "qNEP PPPM with BEC and virial consumers appearing only in a later run",
+      "suites": [
+        "snapshot",
+        "potential",
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/snapshots/qnep_pppm_future_bec.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:kspace-pppm",
+        "command:compute_dpdt",
+        "snapshot:future-bec",
+        "snapshot:future-virial"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "bec.xyz",
+        "dpdt.out",
+        "neighbor.out"
+      ],
+      "comparisons": {
+        "bec.xyz": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 1e-05,
+          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; repeated regression observed 6.07e-6 absolute drift, so this bound retains margin."
+        },
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 1e-07,
+          "reason": "PPPM float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
+        },
+        "dpdt.out": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 2e-06,
+          "reason": "DPDT consumes the nondeterministic float BEC tensor; full regression observed 1.0e-6 absolute drift, so this bound retains a factor-of-two margin."
+        }
+      },
+      "input_style": "canonical"
+    },
+    {
+      "id": "compact_mc_before_potential",
+      "description": "MC and electric-field Actions before a two-UNEP potential block honor the complete potential setup",
+      "suites": [
+        "snapshot",
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "unep_cu",
+      "input": "package:cases/snapshots/compact_mc_before_potential.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:multiple-nep",
+        "command:mc",
+        "command:add-efield",
+        "contract:action-before-potential",
+        "snapshot:compact-mc-species",
+        "snapshot:multiple-potential-files"
+      ],
+      "expect": "success",
+      "outputs": [
+        "mcmd.out",
+        "neighbor.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "qnep_actions_before_potential",
+      "description": "qNEP BEC and virial Actions before potential use the first configured potential",
+      "suites": [
+        "snapshot",
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/snapshots/qnep_actions_before_potential.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:kspace-ewald",
+        "command:dump-xyz",
+        "command:compute_dpdt",
+        "contract:action-before-potential",
+        "snapshot:bec",
+        "snapshot:virial"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "bec.xyz",
+        "dpdt.out",
+        "neighbor.out"
+      ],
+      "comparisons": {
+        "bec.xyz": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 3e-06,
+          "reason": "This case uses the same qNEP Ewald BEC path and calibrated atomicAdd envelope as qnep_ewald_future_bec."
+        },
+        "dpdt.out": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 2e-07,
+          "reason": "This case uses the same DPDT path and calibrated BEC-derived output envelope as qnep_ewald_future_bec."
+        }
+      },
+      "input_style": "compatibility"
+    },
+    {
+      "id": "deposition_no_initial_velocity",
+      "description": "File deposition builds a pristine subrun before deposition when the initial model has no velocities",
+      "suites": [
+        "snapshot",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "deposition_lj_no_velocity",
+      "input": "package:cases/snapshots/deposition_file_snapshot.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:deposit",
+        "contract:mutable-inputs",
+        "contract:deposition-no-initial-velocity",
+        "snapshot:deposition-subruns"
+      ],
+      "expect": "success",
+      "stdout_contains": "Split run.in into 2 sub-runs.",
+      "outputs": [
+        "run.in.original",
+        "model.xyz.original",
+        "deposited_0.xyz",
+        "deposited_1.xyz"
+      ],
+      "mutable_inputs": [
+        "run.in",
+        "model.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "deposition_with_initial_velocity",
+      "description": "File deposition occurs before the only subrun when the initial model already has velocities",
+      "suites": [
+        "snapshot",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "deposition_lj_with_velocity",
+      "input": "package:cases/snapshots/deposition_file_snapshot.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:deposit",
+        "contract:mutable-inputs",
+        "contract:deposition-with-initial-velocity",
+        "snapshot:deposition-subruns"
+      ],
+      "expect": "success",
+      "stdout_contains": "Split run.in into 1 sub-runs.",
+      "outputs": [
+        "run.in.original",
+        "model.xyz.original",
+        "deposited_1.xyz"
+      ],
+      "mutable_inputs": [
+        "run.in",
+        "model.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "hnemdec_standard",
+      "description": "HNEMDEC configured after its NVT ensemble",
+      "suites": [
+        "transport",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/hnemdec_standard.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:eam",
+        "command:compute_hnemdec",
+        "contract:hnemdec-init"
+      ],
+      "expect": "success",
+      "outputs": [
+        "onsager.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "hnemdec_before_ensemble",
+      "description": "HNEMDEC before ensemble uses the following run temperature",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/hnemdec_before_ensemble.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:eam",
+        "command:compute_hnemdec",
+        "contract:action-before-ensemble",
+        "contract:hnemdec-init"
+      ],
+      "expect": "success",
+      "outputs": [
+        "onsager.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "hnemdec_invalid_type",
+      "description": "HNEMDEC rejects a positive type index above the actual type count",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/hnemdec_invalid_type.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:eam",
+        "command:compute_hnemdec",
+        "contract:hnemdec-type-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "compute for HNEMDEC should be an integer between 0 and number_of_types.",
+      "outputs": [],
+      "input_style": "canonical"
+    },
+    {
+      "id": "observer_average_two_runs",
+      "description": "Average observer mode does not leak into the following run",
+      "suites": [
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/bugfix/observer_average_two_runs.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:multiple-nep",
+        "command:dump_observer",
+        "contract:observer-mode-reset",
+        "contract:multiple-runs"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "observer.out",
+        "observer.xyz",
+        "second.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "observer_average_then_observe_control",
+      "description": "Explicit observe mode controls the second run after an average-observer run",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/bugfix/observer_average_then_observe_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:multiple-nep",
+        "command:dump_observer",
+        "contract:observer-mode-reset-control",
+        "contract:multiple-runs"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "observer.out",
+        "observer.xyz",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "second.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_first_after_comments",
+      "description": "Replicate is accepted as the first command after ignored blank and comment lines",
+      "suites": [
+        "parser",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_first_comments.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-first-effective"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_default_velocity",
+      "description": "Replicate initializes the default 300 K velocity on the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_default_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-default-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_velocity_unseeded",
+      "description": "Unseeded velocity reset follows default initialization of the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_velocity_unseeded.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "command:velocity",
+        "contract:replicate-unseeded-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_model_velocity",
+      "description": "Replicate preserves explicit model.xyz velocities before device initialization",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "replicate_lj_with_velocity",
+      "input": "package:cases/bugfix/replicate_model_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:replicate",
+        "contract:replicate-model-velocity",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_after_potential",
+      "description": "Reject replicate after potential when that command is reached",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_after_potential.in",
+      "covers": [
+        "command:replicate",
+        "contract:replicate-first-effective",
+        "contract:sequential-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "replicate must be the first effective command.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "replicate_after_velocity",
+      "description": "Reject replicate after velocity when that command is reached",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_after_velocity.in",
+      "covers": [
+        "command:replicate",
+        "command:velocity",
+        "contract:replicate-first-effective",
+        "contract:sequential-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "replicate must be the first effective command.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "replicate_after_run",
+      "description": "A late replicate is rejected only after the preceding run completes",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_after_run.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-first-effective",
+        "contract:sequential-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stdout_contains": "1 steps completed.",
+      "stderr_contains": "replicate must be the first effective command.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "replicate_duplicate",
+      "description": "Reject a second replicate while accepting the first",
+      "suites": [
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_duplicate.in",
+      "covers": [
+        "command:replicate",
+        "contract:replicate-once",
+        "contract:replicate-first-effective",
+        "contract:sequential-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stdout_contains": "Replicate cell by 1 * 1 * 1.",
+      "stderr_contains": "replicate must be the first effective command.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dftd3_single_late",
+      "description": "A DFT-D3 setting after a run applies to the configured NEP potential",
+      "suites": [
+        "potential",
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/bugfix/dftd3_single_late.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dftd3",
+        "snapshot:future-dftd3",
+        "contract:dftd3-once",
+        "contract:consumer-validation"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "comparisons": {
+        "restart.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-17,
+          "reason": "DFT-D3 force accumulation uses unordered double-precision GPU atomicAdd; repeated same-binary runs observed about 1.8e-18 maximum absolute drift in restart velocities."
+        }
+      },
+      "input_style": "compatibility"
+    },
+    {
+      "id": "kspace_single_late",
+      "description": "A kspace setting after a run applies to the configured qNEP potential",
+      "suites": [
+        "potential",
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/bugfix/kspace_single_late.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:kspace-ewald",
+        "snapshot:future-kspace",
+        "contract:kspace-once",
+        "contract:consumer-validation"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "compatibility"
+    },
+    {
+      "id": "dftd3_kspace_one_each",
+      "description": "One DFT-D3 setting and one kspace setting may coexist",
+      "suites": [
+        "potential",
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/bugfix/dftd3_kspace_one_each.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:dftd3",
+        "command:kspace-pppm",
+        "contract:dftd3-once",
+        "contract:kspace-once",
+        "contract:consumer-validation"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dftd3_duplicate",
+      "description": "Reject a second global DFT-D3 setting",
+      "suites": [
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/bugfix/dftd3_duplicate.in",
+      "covers": [
+        "potential:nep",
+        "command:dftd3",
+        "contract:dftd3-once"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dftd3 can only appear once.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "kspace_duplicate",
+      "description": "Reject a second global kspace setting",
+      "suites": [
+        "full"
+      ],
+      "fixture": "qnep_batio3",
+      "input": "package:cases/bugfix/kspace_duplicate.in",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-ewald",
+        "command:kspace-pppm",
+        "contract:kspace-once"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "kspace can only appear once.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "qnep_force_accessors",
+      "description": "qNEP charge and BEC data drive electric-field forces and XYZ output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "qnep_batio3_grouped",
+      "input": "package:cases/coverage/qnep_force_accessors.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:qnep",
+        "command:kspace-ewald",
+        "command:add-efield-charge",
+        "command:add-efield-bec",
+        "command:dump-xyz-charge",
+        "contract:force-potential-access"
+      ],
+      "expect": "success",
+      "outputs": [
+        "qnep_charge.xyz",
+        "qnep_force.xyz",
+        "neighbor.out"
+      ],
+      "comparisons": {
+        "qnep_force.xyz": {
+          "mode": "numeric",
+          "rtol": 0.0,
+          "atol": 2e-07,
+          "reason": "The BEC electric-field contribution consumes a float BEC tensor accumulated with unordered GPU atomicAdd; this bound scales the calibrated qNEP BEC envelope by the applied field and retains margin."
+        }
+      },
+      "input_style": "canonical"
+    },
+    {
+      "id": "rdf_angular_classical",
+      "description": "Classical RDF and angular RDF are produced during NVE dynamics",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/coverage/rdf_angular_classical.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute_rdf",
+        "command:compute_angular_rdf",
+        "contract:integrate-type-access"
+      ],
+      "expect": "success",
+      "outputs": [
+        "rdf.out",
+        "angular_rdf.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "active_multi_nep",
+      "description": "Active learning evaluates every NEP potential in a multiple-potential calculation",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "dual_nep_carbon",
+      "input": "package:cases/coverage/active_multi_nep.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:force-potential-access"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "observer_fix_move_grouping",
+      "description": "Observer thermodynamics excludes atoms in fixed and moving groups",
+      "suites": [
+        "actions",
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "dual_nep_carbon_grouped",
+      "input": "package:cases/coverage/observer_fix_move_grouping.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:fix",
+        "command:move",
+        "command:dump_observer",
+        "contract:integrate-grouping-access",
+        "contract:force-potential-access"
+      ],
+      "expect": "success",
+      "outputs": [
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "minimize_fixed_group",
+      "description": "Minimization honors the fixed atom group",
+      "suites": [
+        "lifecycle",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/coverage/minimize_fixed_group.in",
+      "covers": [
+        "ensemble:nve",
+        "command:fix",
+        "command:minimize",
+        "contract:integrate-fixed-group-access"
+      ],
+      "expect": "success",
+      "outputs": [
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ilp_nep_compute",
+      "description": "Hybrid NEP+ILP forces produce a one-step NVE trajectory",
+      "suites": [
+        "potential",
+        "full"
+      ],
+      "fixture": "ilp_nep_graphene",
+      "input": "package:cases/coverage/ilp_nep_compute.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep-ilp",
+        "contract:force-const-group"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ilp_tersoff_compute",
+      "description": "Hybrid Tersoff+ILP forces produce a one-step NVE trajectory",
+      "suites": [
+        "potential",
+        "full"
+      ],
+      "fixture": "ilp_tersoff_graphene",
+      "input": "package:cases/coverage/ilp_tersoff_compute.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:tersoff-ilp",
+        "contract:force-const-group"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "ilp_tmd_sw_compute",
+      "description": "Hybrid SW+ILP forces produce a one-step NVE trajectory",
+      "suites": [
+        "potential",
+        "full"
+      ],
+      "fixture": "ilp_tmd_sw_mos2",
+      "input": "package:cases/coverage/ilp_tmd_sw_compute.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:sw-ilp",
+        "contract:force-const-group"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "parsing_bare_ensemble",
+      "description": "Reject a bare ensemble keyword without indexing beyond its tokens",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/bare_ensemble.in",
+      "covers": [
+        "command:ensemble",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Keyword 'ensemble' requires an ensemble type.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_msst_required",
+      "description": "Reject MSST without its required direction and shock velocity",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_msst_required.in",
+      "covers": [
+        "ensemble:msst",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "ensemble msst requires a direction and a shock velocity.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_msst_qmass",
+      "description": "Reject an MSST qmass option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_msst_qmass.in",
+      "covers": [
+        "ensemble:msst",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for qmass keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_mttk_tperiod",
+      "description": "Reject an MTTK tperiod option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_mttk_tperiod.in",
+      "covers": [
+        "ensemble:nvt_mttk",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for tperiod keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_mttk_temp_pair",
+      "description": "Reject an incomplete MTTK temperature pair",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_mttk_temp_pair.in",
+      "covers": [
+        "ensemble:nvt_mttk",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Keyword temp requires two values.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_ti_as_tswitch",
+      "description": "Reject a TI adiabatic-switching tswitch option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_ti_as_tswitch.in",
+      "covers": [
+        "ensemble:ti_as",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for tswitch keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_ti_rs_tequil",
+      "description": "Reject a TI reversible-scaling tequil option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_ti_rs_tequil.in",
+      "covers": [
+        "ensemble:ti_rs",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for tequil keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_nphug_p0",
+      "description": "Reject an NPHUG p0 option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_nphug_p0.in",
+      "covers": [
+        "ensemble:nphug",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for p0 keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_ti_spring_pair",
+      "description": "Reject a TI spring element without its force constant",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_ti_spring_pair.in",
+      "covers": [
+        "ensemble:ti",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Spring type requires a force constant.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_empty_ti_spring_alias",
+      "description": "Reject a TI-spring keyword without any type and force-constant pair",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_ti_spring_alias_pair.in",
+      "covers": [
+        "ensemble:ti_spring",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Spring keyword requires at least one type and force constant pair.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_ti_liquid_sigmasqrd",
+      "description": "Reject a TI-liquid sigmasqrd option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_ti_liquid_sigmasqrd.in",
+      "covers": [
+        "ensemble:ti_liquid",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for sigmasqrd keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_wall_mirror_vp",
+      "description": "Reject a mirror-wall vp option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_wall_mirror_vp.in",
+      "covers": [
+        "ensemble:wall_mirror",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for vp keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_wall_piston_thickness",
+      "description": "Reject a piston-wall thickness option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_wall_piston_thickness.in",
+      "covers": [
+        "ensemble:wall_piston",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for thickness keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_wall_harmonic_k",
+      "description": "Reject a harmonic-wall k option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_wall_harmonic_k.in",
+      "covers": [
+        "ensemble:wall_harmonic",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for k keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dangling_extrapolation_nep_file",
+      "description": "Reject an extrapolation nep_file option without a value",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dangling_extrapolation_nep_file.in",
+      "covers": [
+        "command:compute-extrapolation",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Missing value for nep_file keyword.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dump_dipole_zero",
+      "description": "Reject a zero dipole dump interval before modulo evaluation",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dump_dipole_zero.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dump_dipole_negative",
+      "description": "Reject a negative dipole dump interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dump_dipole_negative.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dump_polarizability_zero",
+      "description": "Reject a zero polarizability dump interval before modulo evaluation",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dump_polarizability_zero.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_dump_polarizability_negative",
+      "description": "Reject a negative polarizability dump interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/dump_polarizability_negative.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_extrapolation_check_zero",
+      "description": "Reject a zero extrapolation check interval before modulo evaluation",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/extrapolation_check_zero.in",
+      "covers": [
+        "command:compute-extrapolation",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "check_interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_extrapolation_check_negative",
+      "description": "Reject a negative extrapolation check interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/extrapolation_check_negative.in",
+      "covers": [
+        "command:compute-extrapolation",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "check_interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_extrapolation_dump_zero",
+      "description": "Reject a zero extrapolation dump interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/extrapolation_dump_zero.in",
+      "covers": [
+        "command:compute-extrapolation",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "parsing_extrapolation_dump_negative",
+      "description": "Reject a negative extrapolation dump interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/extrapolation_dump_negative.in",
+      "covers": [
+        "command:compute-extrapolation",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_interval should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_options_canonical",
+      "description": "MSD accepts all_groups followed by save_every",
+      "suites": [
+        "actions",
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_options_canonical.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:option-order"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "msd_options_reversed",
+      "description": "MSD accepts save_every followed by all_groups",
+      "suites": [
+        "actions",
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_options_reversed.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:option-order"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "msd_missing_group_value",
+      "description": "Reject an MSD group option missing its group id",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_missing_group_value.in",
+      "covers": [
+        "command:compute-msd",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Not enough arguments for option 'group'.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_missing_all_groups_value",
+      "description": "Reject an MSD all_groups option missing its grouping method",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_missing_all_groups_value.in",
+      "covers": [
+        "command:compute-msd",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Not enough arguments for option 'all_groups'.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_missing_save_every_value",
+      "description": "Reject an MSD save_every option missing its interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_missing_save_every_value.in",
+      "covers": [
+        "command:compute-msd",
+        "contract:parse-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Not enough arguments for option 'save_every'.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_duplicate_all_groups",
+      "description": "Reject a repeated MSD all_groups option",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_duplicate_all_groups.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:option-unique"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Option 'all_groups' cannot be specified more than once.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_duplicate_save_every",
+      "description": "Reject a repeated MSD save_every option",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_duplicate_save_every.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:option-unique"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Option 'save_every' cannot be specified more than once.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_group_all_groups_conflict",
+      "description": "Reject MSD group followed by all_groups",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_group_all_groups_conflict.in",
+      "covers": [
+        "command:compute-msd",
+        "contract:option-conflict"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Options 'group' and 'all_groups' cannot be used together.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_all_groups_group_conflict",
+      "description": "Reject MSD all_groups followed by group",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_all_groups_group_conflict.in",
+      "covers": [
+        "command:compute-msd",
+        "contract:option-conflict"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "Options 'group' and 'all_groups' cannot be used together.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_save_every_zero",
+      "description": "Reject a zero MSD save_every interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_save_every_zero.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "save_every should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_save_every_negative",
+      "description": "Reject a negative MSD save_every interval",
+      "suites": [
+        "parsing_validation",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/parsing/msd_save_every_negative.in",
+      "covers": [
+        "ensemble:nve",
+        "command:compute-msd",
+        "contract:positive-interval"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "save_every should be positive.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "graphene_hac",
+      "description": "HAC measurement on the established 8640-atom TTF graphene system",
+      "suites": [
+        "full"
+      ],
+      "fixture": "graphene_hac",
+      "input": "package:cases/transport/graphene_hac.in",
+      "covers": [
+        "ensemble:npt_ber",
+        "ensemble:nve",
+        "potential:tersoff",
+        "command:compute_hac",
+        "boundary:ttf"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "hac.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "graphene_nemd_shc",
+      "description": "SHC measurement during Langevin NEMD on the established grouped TTF graphene system",
+      "suites": [
+        "full"
+      ],
+      "fixture": "graphene_nemd",
+      "input": "package:cases/transport/graphene_nemd_shc.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "ensemble:heat_lan",
+        "potential:tersoff",
+        "command:fix",
+        "command:compute",
+        "command:compute_shc",
+        "boundary:ttf"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "compute.out",
+        "shc.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "graphene_hnemd_shc",
+      "description": "HNEMD and SHC on the established grouped TTF graphene system",
+      "suites": [
+        "full"
+      ],
+      "fixture": "graphene_hnemd_shc",
+      "input": "package:cases/transport/graphene_hnemd_shc.in",
+      "covers": [
+        "ensemble:nvt_nhc",
+        "potential:tersoff",
+        "command:compute_hnemd",
+        "command:compute_shc",
+        "boundary:ttf"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "kappa.out",
+        "shc.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "silicon_liquid_transport",
+      "description": "SDC, MSD, viscosity, RDF, and ADF on the established 8000-atom liquid-Si system",
+      "suites": [
+        "full"
+      ],
+      "fixture": "silicon_liquid_transport",
+      "input": "package:cases/transport/silicon_liquid_transport.in",
+      "covers": [
+        "ensemble:npt_scr",
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute_sdc",
+        "command:compute_msd",
+        "command:compute_viscosity",
+        "command:compute_rdf",
+        "command:compute_adf"
+      ],
+      "expect": "success",
+      "outputs": [
+        "restart.xyz",
+        "rdf.out",
+        "adf.out",
+        "sdc.out",
+        "msd.out",
+        "viscosity.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "active_no_threshold",
+      "description": "Active uncertainty matches six observer-force predictions and dumps every checked structure",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_no_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_interval_10",
+      "description": "Active uncertainty sampling every tenth step matches observer-force predictions",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_interval_10.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 10,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_low_threshold",
+      "description": "Active threshold writes only structures above the low uncertainty threshold",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_low_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.015,
+          "expected_selection": "partial",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_high_threshold",
+      "description": "Active high threshold writes no selected structures",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_high_threshold.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 1.0,
+          "expected_selection": "none",
+          "has_velocity": true,
+          "has_force": true,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ],
+      "allow_empty_outputs": [
+        "active.xyz"
+      ]
+    },
+    {
+      "id": "active_no_fields",
+      "description": "Active output can omit velocities and forces while retaining uncertainty",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_no_fields.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-uncertainty"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out",
+        "observer0.out",
+        "observer0.xyz",
+        "observer1.out",
+        "observer1.xyz",
+        "observer2.out",
+        "observer2.xyz",
+        "observer3.out",
+        "observer3.xyz",
+        "observer4.out",
+        "observer4.xyz",
+        "observer5.out",
+        "observer5.xyz"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "active_uncertainty",
+          "observers": 6,
+          "check_interval": 1,
+          "threshold": 0.0,
+          "expected_selection": "all",
+          "has_velocity": false,
+          "has_force": false,
+          "has_atom_uncertainty": true,
+          "rtol": 1e-07,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "active_without_observer",
+      "description": "Active uncertainty is unchanged when dump_observer is absent",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "active_six_nep",
+      "input": "package:cases/active/active_without_observer.in",
+      "covers": [
+        "ensemble:nvt_ber",
+        "potential:multiple-nep",
+        "command:active",
+        "contract:active-observer-independence"
+      ],
+      "expect": "success",
+      "outputs": [
+        "active.out",
+        "active.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole",
+      "description": "Dipole response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-dipole",
+        "contract:response-output"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dipole.out",
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_control",
+      "description": "Control trajectory without dipole response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "contract:response-side-effect-control"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_replicated",
+      "description": "Dipole response remains valid on a replicated system",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_replicated.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-dipole",
+        "command:replicate"
+      ],
+      "expect": "success",
+      "outputs": [
+        "dipole.out",
+        "dump.xyz",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_dipole_invalid_model",
+      "description": "Reject a non-dipole response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_invalid_model.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:model-type-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "NEP_Response only supports nep4_dipole and nep4_polarizability models.",
+      "outputs": [
+        "dipole.out"
+      ],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_dipole_missing_model",
+      "description": "Reject dump_dipole without a response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_dipole",
+      "input": "package:cases/observables/dump_dipole_missing_model.in",
+      "covers": [
+        "command:dump-dipole",
+        "contract:parameter-count"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_dipole should have 2 parameters.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_observer_species_mismatch",
+      "description": "Reject multiple potentials with inconsistent atomic species ordering",
+      "suites": [
+        "invalid",
+        "potential",
+        "full"
+      ],
+      "fixture": "observer_pbte_species",
+      "input": "package:cases/observables/dump_observer_species_mismatch.in",
+      "covers": [
+        "potential:multiple-nep",
+        "command:dump-observer",
+        "contract:species-order-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "The atomic species and/or the order of the species are not consistent between the multiple potential",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_polarizability",
+      "description": "Polarizability response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-polarizability",
+        "contract:response-output"
+      ],
+      "expect": "success",
+      "outputs": [
+        "polarizability.out",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_control",
+      "description": "Control trajectory without polarizability response output",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_control.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "contract:response-side-effect-control"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_replicated",
+      "description": "Polarizability reduction is exercised on a 2560-atom replicated system",
+      "suites": [
+        "actions",
+        "potential",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_replicated.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:dump-polarizability",
+        "command:replicate",
+        "contract:large-reduction"
+      ],
+      "expect": "success",
+      "outputs": [
+        "polarizability.out",
+        "thermo.out",
+        "neighbor.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "dump_polarizability_invalid_model",
+      "description": "Reject a non-polarizability response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_invalid_model.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:model-type-validation"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "NEP_Response only supports nep4_dipole and nep4_polarizability models.",
+      "outputs": [
+        "polarizability.out"
+      ],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "dump_polarizability_missing_model",
+      "description": "Reject dump_polarizability without a response model",
+      "suites": [
+        "invalid",
+        "actions",
+        "full"
+      ],
+      "fixture": "tnep_polarizability",
+      "input": "package:cases/observables/dump_polarizability_missing_model.in",
+      "covers": [
+        "command:dump-polarizability",
+        "contract:parameter-count"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "dump_polarizability should have 2 parameters.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
+    },
+    {
+      "id": "msd_all_groups_numpy",
+      "description": "All-groups MSD agrees with a NumPy calculation from dumped unwrapped positions",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_all_groups.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:all-groups-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "msd_step10.out",
+        "msd_step20.out",
+        "msd_step30.out",
+        "group_0.xyz",
+        "group_1.xyz",
+        "group_2.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "group_0.xyz",
+              "column_start": 1
+            },
+            {
+              "xyz": "group_1.xyz",
+              "column_start": 7
+            },
+            {
+              "xyz": "group_2.xyz",
+              "column_start": 13
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "msd_group_0_numpy",
+      "description": "Single-group MSD agrees with a NumPy calculation",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_group_0.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:group-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "group_0.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "group_0.xyz",
+              "column_start": 1
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "msd_all_atoms_numpy",
+      "description": "Whole-system MSD agrees with a NumPy calculation",
+      "suites": [
+        "actions",
+        "full"
+      ],
+      "fixture": "msd_reference",
+      "input": "package:cases/msd_reference/msd_all_atoms.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:nep",
+        "command:compute-msd",
+        "contract:all-atoms-numeric-reference"
+      ],
+      "expect": "success",
+      "outputs": [
+        "msd.out",
+        "all_atoms.xyz",
+        "neighbor.out"
+      ],
+      "input_style": "canonical",
+      "post_checks": [
+        {
+          "name": "msd_from_xyz",
+          "output": "msd.out",
+          "window": 5,
+          "trajectories": [
+            {
+              "xyz": "all_atoms.xyz",
+              "column_start": 1
+            }
+          ],
+          "rtol": 1e-05,
+          "atol": 1e-08
+        }
+      ]
+    },
+    {
+      "id": "train_nep_pbte_full",
+      "program": "nep",
+      "description": "NEP training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/nep_pbte_full.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/nep_pbte_batch.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep1_pbte_full.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep1_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep2_pbte_full.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep2_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_full",
+      "program": "nep",
+      "description": "NEP-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/vdw_pbte_full.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_batch",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/vdw_pbte_batch.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_full",
+      "program": "nep",
+      "description": "charge-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/charge_vdw_pbte_full.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_batch",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/charge_vdw_pbte_batch.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_full",
+      "program": "nep",
+      "description": "TNEP dipole training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_dipole_full.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_batch",
+      "program": "nep",
+      "description": "TNEP dipole training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_dipole_batch.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_full",
+      "program": "nep",
+      "description": "TNEP polarizability training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_pol_full.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_batch",
+      "program": "nep",
+      "description": "TNEP polarizability training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_pol_batch.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/qnep1_water_fff.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/qnep2_water_fff.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_water_fff",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/vdw_water_fff.in",
+      "covers": [
+        "training:vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_water_fff",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/charge_vdw_water_fff.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/qnep1_mixed.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/qnep2_mixed.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_mixed",
+      "program": "nep",
+      "description": "NEP-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/vdw_mixed.in",
+      "covers": [
+        "training:vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_mixed",
+      "program": "nep",
+      "description": "charge-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/charge_vdw_mixed.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    }
+  ]
+}

@@ -22,7 +22,7 @@
 struct NepTxtHeader {
   std::string model_token;
   int version;
-  int train_mode;
+  int model_type;
   int charge_mode;
   int vdw;
   int charge_vdw;
@@ -64,7 +64,6 @@ public:
   // parameters to be read in
   int version;            // NEP version; only NEP4 is supported
   int batch_size;         // number of configurations in one batch
-  int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
@@ -72,14 +71,14 @@ public:
   int save_potential_format;   // format of checkpoint nep.txt file name
   int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
   int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
-  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
-  int num_neurons2;       // number of nuerons in the 2nd hidden layer (only two hidden layers)
+  int num_neurons1;       // number of neurons in the first hidden layer
+  int num_neurons2;       // number of neurons in the second hidden layer; 0 if unused
   int num_hidden_layers;  // number of hidden layers
   int basis_size_radial;
   int basis_size_angular;
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the 3body spherical harmonics
+  int L_max;              // maximum order of the three-body spherical harmonics
   int has_q_222;          // has q_222
   int has_q_1111;         // has q_1111
   int has_q_112;          // has q_112
@@ -94,12 +93,12 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float lambda_q;         // weight for global charge
   float lambda_z;         // weight for BEC
-  float force_delta;      // a parameters used to modify the force loss
-  bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
+  float force_delta;      // a parameter used to modify the force loss
+  bool enable_zbl;        // true for including the universal ZBL potential
+  bool flexible_zbl;      // true for including the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
+  int model_type; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
@@ -117,9 +116,10 @@ public:
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
+  bool nep_compile = true; // runtime-specialize NEP-family training kernels
 
   // check if a parameter has been set:
-  bool is_train_mode_set;
+  bool is_model_type_set;
   bool is_prediction_set;
   bool is_version_set;
   bool is_type_set;
@@ -188,7 +188,7 @@ private:
 
   void parse_one_keyword(std::vector<std::string>& tokens);
 
-  void parse_mode(const char** param, int num_param);
+  void parse_model_type(const char** param, int num_param);
   void parse_prediction(const char** param, int num_param);
   void parse_version(const char** param, int num_param);
   void parse_type(const char** param, int num_param);
@@ -223,4 +223,5 @@ private:
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
   void parse_import_q_scaler(const char** param, int num_param);
+  void parse_nep_compile(const char** param, int num_param);
 };

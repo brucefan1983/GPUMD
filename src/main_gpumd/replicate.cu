@@ -15,19 +15,28 @@
 
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
-void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups)
+void parse_replicate(const std::vector<std::string>& tokens, int r[3])
 {
-  int r[3]; // the number of replicates
+  const int num_param = tokens.size();
   if (num_param != 4) {
     PRINT_INPUT_ERROR(
       "Replicate should have 3 parameters: number of replications in a, b and c directions.");
   }
   for (int i = 0; i < 3; i++) {
-    if (!is_valid_int(param[i + 1], r + i))
+    if (!is_valid_int(tokens[i + 1], r + i))
       PRINT_INPUT_ERROR("Number of replications should be an integer.");
+    if (r[i] <= 0)
+      PRINT_INPUT_ERROR("Number of replications should be positive.");
   }
+}
+
+void Replicate(
+  const int r[3],
+  Box& box,
+  Atom& atoms,
+  std::vector<Group>& groups)
+{
   // repeat atom and group
   Atom new_atoms;
   int n = atoms.number_of_atoms;
@@ -92,7 +101,6 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
     new_atoms.cpu_position_per_atom.begin(), new_atoms.cpu_position_per_atom.end());
   atoms.cpu_velocity_per_atom.assign(
     new_atoms.cpu_velocity_per_atom.begin(), new_atoms.cpu_velocity_per_atom.end());
-  atoms.cpu_type_size.assign(atoms.cpu_type_size.begin(), atoms.cpu_type_size.end());
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
 

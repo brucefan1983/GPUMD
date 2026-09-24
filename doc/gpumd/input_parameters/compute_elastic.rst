@@ -6,6 +6,9 @@
 =======================
 
 This keyword is used to compute the elastic constants.
+
+.. _elastic_out:
+
 The results are written to the file ``elastic.out``.
 
 Syntax

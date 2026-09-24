@@ -15,13 +15,26 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <memory>
 #include <string>
 #include <vector>
+
+struct GNEPDeviceScaler
+{
+  explicit GNEPDeviceScaler(const int id) : device_id(id) {}
+  ~GNEPDeviceScaler() { cudaSetDevice(device_id); }
+
+  int device_id;
+  GPU_Vector<float> q_scaler;
+  GPU_Vector<float> s_max;
+  GPU_Vector<float> s_min;
+};
 
 class Parameters
 {
 public:
   Parameters();
+  ~Parameters();
 
   // parameters to be read in
   int batch_size;         // number of configurations in one batch
@@ -52,6 +65,7 @@ public:
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
+  int seed;
 
   // learning rate scheduler (cosine annealing with warmup restarts)
   int lr_restart_enable;                 // 0=off(use cosine), 1=on(use cosine with restarts)
@@ -84,6 +98,7 @@ public:
   bool is_use_typewise_cutoff_zbl_set;
   bool is_energy_shift_set;
   bool is_lr_cos_restart_set;
+  bool is_seed_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -106,10 +121,18 @@ public:
   float rc_angular_max = 0.0f;        // maximal angular cutoff
   bool has_multiple_cutoffs = false;
 
-  GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
-  GPU_Vector<float> s_max[16];        // used to scale some descriptor components (GPU)
-  GPU_Vector<float> s_min[16];        // used to scale some descriptor components (GPU)
+private:
+  // Declared before the GPU-0-only buffer so the latter is destroyed first.
+  std::vector<std::unique_ptr<GNEPDeviceScaler>> device_scalers;
+
+public:
   GPU_Vector<float> energy_shift_gpu; // Energy shift for biased initialization of neural networks (GPU)
+
+  GPU_Vector<float>& q_scaler_gpu(int device_id);
+  GPU_Vector<float>& s_max_gpu(int device_id);
+  GPU_Vector<float>& s_min_gpu(int device_id);
+  int num_devices() const;
+  void reduce_and_broadcast_scaler();
 
 private:
   void set_default_parameters();
@@ -143,4 +166,5 @@ private:
   void parse_energy_shift(const char** param, int num_param);
   void parse_output_descriptor(const char** param, int num_param);
   void parse_lr_cos_restart(const char** param, int num_param);
+  void parse_seed(const char** param, int num_param);
 };

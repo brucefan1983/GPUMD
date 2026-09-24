@@ -1,0 +1,9 @@
+potential nep.txt
+time_step 1
+velocity 300 seed 20260919
+ensemble nve
+compute_msd 1 5 all_groups 0 save_every 10
+dump_xyz 1 group_0.xyz group 0 0 unwrapped_position
+dump_xyz 1 group_1.xyz group 0 1 unwrapped_position
+dump_xyz 1 group_2.xyz group 0 2 unwrapped_position
+run 30

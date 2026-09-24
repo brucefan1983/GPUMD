@@ -21,7 +21,13 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <stdio.h>
+#include <string>
 #include <vector>
 
+void parse_replicate(const std::vector<std::string>& tokens, int replicate_size[3]);
+
 void Replicate(
-  const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups);
+  const int replicate_size[3],
+  Box& box,
+  Atom& atoms,
+  std::vector<Group>& groups);

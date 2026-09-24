@@ -18,18 +18,28 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nve.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
-Ensemble_NVE::Ensemble_NVE(int t) { type = t; }
-
-Ensemble_NVE::~Ensemble_NVE(void)
+Ensemble_NVE::Ensemble_NVE(const std::vector<std::string>& tokens)
 {
-  // nothing now
+  type = EnsembleType::NVE;
+  parse(tokens);
+}
+
+void Ensemble_NVE::parse(const std::vector<std::string>& tokens)
+{
+  const int num_param = tokens.size();
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
+  }
+  printf("Use NVE ensemble for this run.\n");
 }
 
 void Ensemble_NVE::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -58,10 +68,13 @@ void Ensemble_NVE::compute1(
 
 void Ensemble_NVE::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
 #ifdef USE_NEPCG
   velocity_verlet_cg(
@@ -84,7 +97,6 @@ void Ensemble_NVE::compute2(
 #endif
 
   find_thermo(
-    false,
     box.get_volume(),
     group,
     atom.mass,

@@ -18,6 +18,7 @@
 class Force;
 class Integrate;
 class Measure;
+class RunInput;
 
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -28,32 +29,37 @@ class Measure;
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
+#include <string>
 #include <vector>
 
 class Run
 {
 public:
-  Run();
+  Run(const RunInput& run_input);
 
 private:
-  void execute_run_in();
-  void perform_a_run();
+  void execute_run_in(const RunInput& run_input);
+  void perform_a_run(const int number_of_steps);
   void compute_force();
-  void parse_one_keyword(std::vector<std::string>& tokens);
+  void parse_one_keyword(
+    const std::vector<std::string>& tokens, const RunInput& run_input);
 
   // keyword parsing functions
-  void parse_neighbor(const char** param, int num_param);
-  void parse_velocity(const char** param, int num_param);
-  void parse_change_box(const char** param, int num_param);
-  void parse_correct_velocity(const char** param, int num_param, const std::vector<Group>& group);
-  void parse_time_step(const char** param, int num_param);
-  void parse_run(const char** param, int num_param);
+  void parse_velocity(const std::vector<std::string>& tokens);
+  void parse_change_box(const std::vector<std::string>& tokens);
+  void parse_correct_velocity(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_time_step(const std::vector<std::string>& tokens);
+  void parse_run(const std::vector<std::string>& tokens);
 
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
-  int number_of_steps;        // number of steps in a specific run
-  double global_time = 0.0;   // run time of entire simulation (fs)
-  double initial_temperature; // initial temperature for velocity
+  bool has_seen_dftd3_command = false;
+  bool has_seen_kspace_command = false;
+  bool has_replicate_ = false;
+  int replicate_size_[3] = {1, 1, 1};
+  std::string first_potential_filename_;
+  double global_time = 0.0; // run time of entire simulation (fs)
   double time_step = 1.0 / TIME_UNIT_CONVERSION;
   double max_distance_per_step = -1.0;
   Atom atom;

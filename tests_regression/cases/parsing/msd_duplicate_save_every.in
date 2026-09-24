@@ -1,0 +1,6 @@
+potential potential.txt
+velocity 300 seed 20260918
+
+ensemble nve
+compute_msd 1 2 save_every 100 save_every 200
+run 2

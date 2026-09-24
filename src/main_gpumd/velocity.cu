@@ -309,7 +309,7 @@ void Velocity::correct_velocity(const int step, const std::vector<Group>& group,
   }
 }
 
-void Velocity::initialize(
+void Velocity::initialize_cpu(
   const bool has_velocity_in_xyz,
   const double initial_temperature,
   Atom& atom,
@@ -342,8 +342,6 @@ void Velocity::initialize(
       atom.cpu_velocity_per_atom.data() + N,
       atom.cpu_velocity_per_atom.data() + N * 2);
   }
-
-  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
 }
 
 void Velocity::finalize()

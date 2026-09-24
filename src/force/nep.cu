@@ -24,10 +24,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -43,37 +45,31 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP::initialize_dftd3()
+void NEP::initialize_dftd3(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
   has_dftd3 = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        has_dftd3 = true;
-        if (tokens.size() != 4) {
-          std::cout << "dftd3 must have 3 parameters\n";
-          exit(1);
-        }
-        std::string xc_functional = tokens[1];
-        float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-        float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
-        break;
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty() && tokens[0] == "dftd3") {
+      has_dftd3 = true;
+      if (tokens.size() != 4) {
+        std::cout << "dftd3 must have 3 parameters\n";
+        exit(1);
       }
+      std::string xc_functional = tokens[1];
+      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
+      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
+      dftd3.initialize(
+        xc_functional,
+        rc_potential,
+        rc_coordination_number,
+        get_first_potential_filename(run_input));
+      break;
     }
   }
-
-  input_run.close();
 }
 
-NEP::NEP(const char* file_potential, const int num_atoms)
+NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -136,7 +132,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
+      zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {
       if (tokens.size() == 4) {
@@ -325,7 +321,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.flexible) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -337,7 +333,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
@@ -348,7 +344,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 NEP::~NEP(void)
@@ -472,9 +468,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
@@ -500,10 +495,13 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -516,7 +514,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
     }
@@ -602,10 +600,12 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int basis_count = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-          int basis = n * (paramb.basis_size_radial + 1) + k;
-          gnp12 += fnp12[k] * annmb.c_type_pair[(t1 * paramb.num_types + t2) * basis_count + basis];
-          gnp21 += fnp12[k] * annmb.c_type_pair[(t2 * paramb.num_types + t1) * basis_count + basis];
+          int c_index_12 = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index_21 = get_c_index(
+            t2 * paramb.num_types + t1, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
+          gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
         }
         float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
         float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
@@ -707,10 +707,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
@@ -789,7 +792,7 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.flexible) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;
@@ -862,8 +865,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -878,8 +880,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1294,9 +1296,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (t1 * paramb.num_types + t2) *
-                        ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1));
-          c_index += n * (paramb.basis_size_radial + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         q[n] += gn12;
@@ -1322,10 +1323,13 @@ static __global__ void find_descriptor(
         find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = paramb.num_c_radial;
-          c_index += (t1 * paramb.num_types + t2) *
-                     ((paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-          c_index += n * (paramb.basis_size_angular + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
@@ -1338,7 +1342,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
@@ -1370,8 +1374,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1386,8 +1389,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),

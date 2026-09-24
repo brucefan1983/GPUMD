@@ -15,8 +15,10 @@
 
 #pragma once
 #include "potential.cuh"
+#include "nep_compile.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
 class Parameters;
 class Dataset;
 
@@ -34,7 +36,8 @@ struct NEP_VDW_Data {
   GPU_Vector<float> G_vdw_virial;
   GPU_Vector<float> S_real;
   GPU_Vector<float> S_imag;
-  GPU_Vector<int> num_kpoints;
+  GPU_Vector<int> kpoint_offset;
+  const Dataset* kpoint_dataset = nullptr;
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
@@ -69,24 +72,23 @@ public:
   struct ANN {
     int dim = 0;                    // dimension of the descriptor
     int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_neurons2 = 0;           // number of neurons in the output layer
+    int num_neurons2 = 0;           // number of neurons in the second hidden layer
     int num_hidden_layers = 0;      // number of hidden layers
     int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
     int num_para = 0;               // number of parameters
-    const float* wb[NUM_ELEMENTS];  // weigths and biases for the hidden layer
+    const float* wb[NUM_ELEMENTS];  // weights and biases for the hidden layer
     const float* b;                 // bias for the output layer
     const float* c;                 // for elements in descriptor
   };
 
   struct VDW_Para {
-    int num_kpoints_max = 50000;
     float alpha = 0.5f;
     float alpha_factor = 1.0f;
   };
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     int num_types;
@@ -113,5 +115,7 @@ private:
   NEP_VDW_Data nep_data[16];
   ZBL zbl;
   VDW_Para vdw_para;
+  std::unique_ptr<NEP_Compile> compiled_kernel_;
   void update_potential(float* parameters, ANN& ann);
+  void prepare_kpoints(Dataset& dataset, int device_id);
 };

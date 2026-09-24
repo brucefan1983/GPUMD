@@ -26,8 +26,8 @@
 class Dump_Shock_NEMD : public Action
 {
 public:
-  Dump_Shock_NEMD(const char** param, int num_param);
-  void parse(const char** param, int num_param);
+  Dump_Shock_NEMD(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,
@@ -66,10 +66,9 @@ private:
   int direction = 0;
   int bins;
   double slice_vol = 1;
-  double avg_window = 10;
+  double bin_size_ = 10.0;
   FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file;
   GPU_Vector<double> gpu_temp, gpu_pxx, gpu_pyy, gpu_pzz, gpu_density, gpu_com_vx, gpu_com_vy,
     gpu_com_vz, gpu_number;
-  std::vector<double> cpu_temp, cpu_pxx, cpu_pyy, cpu_pzz, cpu_density, cpu_com_vx, cpu_com_vy,
-    cpu_com_vz;
+  std::vector<double> cpu_temp, cpu_pxx, cpu_pyy, cpu_pzz, cpu_density, cpu_com_vx;
 };

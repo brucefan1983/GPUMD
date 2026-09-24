@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Box;
@@ -29,7 +30,7 @@ struct D {
 class Cohesive
 {
 public:
-  void parse(const char** param, int num_param, int type);
+  void parse(const std::vector<std::string>& tokens, int type);
   void compute(
     Box& box,
     Atom& atom,
@@ -37,8 +38,8 @@ public:
     Force& force);
 
 private:
-  void parse_cohesive(const char** param, int num_param);
-  void parse_elastic(const char** param, int num_param);
+  void parse_cohesive(const std::vector<std::string>& tokens);
+  void parse_elastic(const std::vector<std::string>& tokens);
   void allocate_memory(const int num_atoms);
   void compute_D();
   void output(Box& box);

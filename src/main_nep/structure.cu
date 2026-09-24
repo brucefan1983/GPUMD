@@ -52,9 +52,18 @@ static void change_box(const Parameters& para, Structure& structure)
   float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
   float det = get_det(structure.box_original);
   structure.volume = abs(det);
-  structure.num_cell[0] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
-  structure.num_cell[1] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
-  structure.num_cell[2] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+  if (structure.pbc) {
+    structure.num_cell[0] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
+    structure.num_cell[1] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
+    structure.num_cell[2] =
+      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+  } else {
+    structure.num_cell[0] = 1;
+    structure.num_cell[1] = 1;
+    structure.num_cell[2] = 1;
+  }
 
   structure.box[0] = structure.box_original[0] * structure.num_cell[0];
   structure.box[3] = structure.box_original[3] * structure.num_cell[0];
@@ -94,7 +103,7 @@ static void read_force(
   Structure& structure,
   std::string& xyz_filename,
   int& line_number,
-  int train_mode)
+  int model_type)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -129,7 +138,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && (train_mode == 0 || train_mode == 3)) {
+    if (num_columns > 4 && (model_type == 0 || model_type == 3)) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -201,6 +210,30 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
   }
 
+  // Read boundaries for long-range models. Keep PPP as the default for
+  // existing training data.
+  if (para.charge_mode || para.vdw || para.charge_vdw) {
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string pbc_string = "pbc=";
+      if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
+        if (n + 2 >= tokens.size()) {
+          PRINT_INPUT_ERROR("The pbc field should contain three values.");
+        }
+        const char pbc[3] = {
+          tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
+        for (int d = 0; d < 3; ++d) {
+          if (pbc[d] != 't' && pbc[d] != 'f') {
+            PRINT_INPUT_ERROR("Each pbc value should be T or F.");
+          }
+        }
+        if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
+          PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
+        }
+        structure.pbc = (pbc[0] == 't');
+      }
+    }
+  }
+
   // get energy_weight (optional)
   for (const auto& token : tokens) {
     const std::string energy_weight_string = "energy_weight=";
@@ -220,7 +253,7 @@ static void read_one_structure(
       structure.energy /= structure.num_atom;
     }
   }
-  if ((para.train_mode == 0 || para.train_mode == 3) && !has_energy_in_exyz) {
+  if ((para.model_type == 0 || para.model_type == 3) && !has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
@@ -244,7 +277,7 @@ static void read_one_structure(
         line_number);
     }
   }
-  if (para.train_mode == 3 && !structure.has_temperature) {
+  if (para.model_type == 3 && !structure.has_temperature) {
     PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
   }
   if (!structure.has_temperature) {
@@ -348,8 +381,8 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the dipole data
-  if (para.train_mode == 1) {
+  // use the virial variable to keep the dipole data
+  if (para.model_type == 1) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string dipole_string = "dipole=";
@@ -380,8 +413,8 @@ static void read_one_structure(
     }
   }
 
-  // use the virial viriable to keep the polarizability data
-  if (para.train_mode == 2) {
+  // use the virial variable to keep the polarizability data
+  if (para.model_type == 2) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string pol_string = "pol=";
@@ -466,13 +499,13 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && (para.train_mode == 0 || para.train_mode == 3)) {
+      if (force_position < 0 && (para.model_type == 0 || para.model_type == 3)) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
-      if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 1 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
       }
-      if (avirial_position < 0 && para.train_mode == 2 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 2 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
@@ -513,7 +546,7 @@ static void read_one_structure(
     structure,
     xyz_filename,
     line_number,
-    para.train_mode);
+    para.model_type);
 }
 
 static void read_exyz(
@@ -543,6 +576,14 @@ static void read_exyz(
     ++Nc;
   }
   printf("Number of configurations = %d.\n", Nc);
+  if (para.charge_mode || para.vdw || para.charge_vdw) {
+    int num_fff = 0;
+    for (const auto& structure : structures) {
+      num_fff += 1 - structure.pbc;
+    }
+    printf("Number of PPP configurations = %d.\n", Nc - num_fff);
+    printf("Number of FFF configurations = %d.\n", num_fff);
+  }
 
   for (const auto& s : structures) {
     if (s.energy < -100.0f) {
@@ -592,95 +633,12 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
   std::vector<int> configuration_id(structures.size());
   find_permuted_indices(num_batches, structures, configuration_id);
 
-  std::vector<Structure> structures_copy(structures.size());
-
+  std::vector<Structure> structures_reordered;
+  structures_reordered.reserve(structures.size());
   for (int nc = 0; nc < structures.size(); ++nc) {
-    structures_copy[nc].num_atom = structures[nc].num_atom;
-    structures_copy[nc].weight = structures[nc].weight;
-    structures_copy[nc].has_virial = structures[nc].has_virial;
-    structures_copy[nc].has_bec = structures[nc].has_bec;
-    structures_copy[nc].energy = structures[nc].energy;
-    structures_copy[nc].energy_weight = structures[nc].energy_weight;
-    structures_copy[nc].has_temperature = structures[nc].has_temperature;
-    structures_copy[nc].temperature = structures[nc].temperature;
-    structures_copy[nc].volume = structures[nc].volume;
-    for (int k = 0; k < 6; ++k) {
-      structures_copy[nc].virial[k] = structures[nc].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures_copy[nc].box[k] = structures[nc].box[k];
-    }
-    for (int k = 0; k < 9; ++k) {
-      structures_copy[nc].box_original[k] = structures[nc].box_original[k];
-    }
-    for (int k = 0; k < 3; ++k) {
-      structures_copy[nc].num_cell[k] = structures[nc].num_cell[k];
-    }
-    structures_copy[nc].type.resize(structures[nc].num_atom);
-    structures_copy[nc].x.resize(structures[nc].num_atom);
-    structures_copy[nc].y.resize(structures[nc].num_atom);
-    structures_copy[nc].z.resize(structures[nc].num_atom);
-    structures_copy[nc].fx.resize(structures[nc].num_atom);
-    structures_copy[nc].fy.resize(structures[nc].num_atom);
-    structures_copy[nc].fz.resize(structures[nc].num_atom);
-    structures_copy[nc].bec.resize(structures[nc].num_atom * 9);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures_copy[nc].type[na] = structures[nc].type[na];
-      structures_copy[nc].x[na] = structures[nc].x[na];
-      structures_copy[nc].y[na] = structures[nc].y[na];
-      structures_copy[nc].z[na] = structures[nc].z[na];
-      structures_copy[nc].fx[na] = structures[nc].fx[na];
-      structures_copy[nc].fy[na] = structures[nc].fy[na];
-      structures_copy[nc].fz[na] = structures[nc].fz[na];
-      for (int d = 0; d < 9; ++d) {
-        structures_copy[nc].bec[na * 9 + d] = structures[nc].bec[na * 9 + d];
-      }
-    }
+    structures_reordered.push_back(structures[configuration_id[nc]]);
   }
-
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
-    structures[nc].weight = structures_copy[configuration_id[nc]].weight;
-    structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
-    structures[nc].has_bec = structures_copy[configuration_id[nc]].has_bec;
-    structures[nc].energy = structures_copy[configuration_id[nc]].energy;
-    structures[nc].energy_weight = structures_copy[configuration_id[nc]].energy_weight;
-    structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
-    structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
-    structures[nc].volume = structures_copy[configuration_id[nc]].volume;
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
-    }
-    for (int k = 0; k < 9; ++k) {
-      structures[nc].box_original[k] = structures_copy[configuration_id[nc]].box_original[k];
-    }
-    for (int k = 0; k < 3; ++k) {
-      structures[nc].num_cell[k] = structures_copy[configuration_id[nc]].num_cell[k];
-    }
-    structures[nc].type.resize(structures[nc].num_atom);
-    structures[nc].x.resize(structures[nc].num_atom);
-    structures[nc].y.resize(structures[nc].num_atom);
-    structures[nc].z.resize(structures[nc].num_atom);
-    structures[nc].fx.resize(structures[nc].num_atom);
-    structures[nc].fy.resize(structures[nc].num_atom);
-    structures[nc].fz.resize(structures[nc].num_atom);
-    structures[nc].bec.resize(structures[nc].num_atom * 9);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures[nc].type[na] = structures_copy[configuration_id[nc]].type[na];
-      structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
-      structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
-      structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];
-      structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
-      structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
-      structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
-      for (int d = 0; d < 9; ++d) {
-        structures[nc].bec[na * 9 + d] = structures_copy[configuration_id[nc]].bec[na * 9 + d];
-      }
-    }
-  }
+  structures.swap(structures_reordered);
 }
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)

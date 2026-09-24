@@ -150,6 +150,26 @@ std::vector<std::string> get_tokens(std::ifstream& input)
   return tokens;
 }
 
+std::vector<std::string> get_tokens_without_comments(const std::string& line)
+{
+  std::vector<std::string> tokens = get_tokens(line);
+  for (int n = 0; n < tokens.size(); ++n) {
+    // A token beginning with '#' starts a comment.
+    if (tokens[n][0] == '#') {
+      tokens.resize(n);
+      break;
+    }
+  }
+  return tokens;
+}
+
+std::vector<std::string> get_tokens_without_comments(std::ifstream& input)
+{
+  std::string line;
+  std::getline(input, line);
+  return get_tokens_without_comments(line);
+}
+
 int get_int_from_token(const std::string& token, const char* filename, const int line)
 {
   int value = 0;

@@ -28,18 +28,19 @@ Dump a restart file
 #include <vector>
 #include <cstring>
 
-Dump_Restart::Dump_Restart(const char** param, int num_param)
+Dump_Restart::Dump_Restart(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_restart";
 }
 
-void Dump_Restart::parse(const char** param, int num_param)
+void Dump_Restart::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_restart should have 1 parameter.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("restart dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -96,7 +97,7 @@ void Dump_Restart::end_of_step(
 
   fprintf(
     fid,
-    "Lattice=\"%g %g %g %g %g %g %g %g %g\" ",
+    "Lattice=\"%.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\" ",
     box.cpu_h[0],
     box.cpu_h[3],
     box.cpu_h[6],
@@ -117,7 +118,7 @@ void Dump_Restart::end_of_step(
     const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
     fprintf(
       fid,
-      "%s %g %g %g %g %g %g %g ",
+      "%s %.17g %.17g %.17g %.17g %.17g %.17g %.17g ",
       atom.cpu_atom_symbol[n].c_str(),
       atom.cpu_position_per_atom[n],
       atom.cpu_position_per_atom[n + number_of_atoms],

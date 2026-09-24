@@ -670,14 +670,17 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -1268,7 +1271,7 @@ static __device__ void calc_normal_tmd(
         pvet[k][ip] = vect[k][modulo(ip + 1, 3)] * vect[k + 1][modulo(ip + 2, 3)] -
                 vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -1283,7 +1286,7 @@ static __device__ void calc_normal_tmd(
       dpvet1[k][2][1] = -vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -1315,7 +1318,7 @@ static __device__ void calc_normal_tmd(
     normal[2] = Nave[2] * nninv;
 
     // derivatives of non-normalized normal vector, dNave:3xcontx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         for (m = 0; m < cont; m++) {
@@ -1376,7 +1379,7 @@ static __device__ void calc_normal_tmd(
             vect[modulo(k, MAX_ILP_NEIGHBOR_TMD)][modulo(ip + 2, 3)] *
                 vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -1391,7 +1394,7 @@ static __device__ void calc_normal_tmd(
       dpvet1[k][2][1] = -vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -1431,7 +1434,7 @@ static __device__ void calc_normal_tmd(
     }
 
     // derivatives of non-normalized normal vector, dNave:3xMAX_ILP_NEIGHBOR_TMDx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; ++id) {
       for (ip = 0; ip < 3; ++ip) {
         for (
@@ -1557,7 +1560,7 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12d, y12d, z12d;
     float x12f, y12f, z12f;
-    int neighor_number = g_neighbor_number[n1];
+    int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -1611,7 +1614,7 @@ static __global__ void gpu_find_force(
 
 
     // calculate energy and force
-    for (int i1 = 0; i1 < neighor_number; ++i1) {
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
@@ -1725,7 +1728,7 @@ static __global__ void gpu_find_force(
       float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
-      // derivatives of the product of rij and ni, the resutl is a vector
+      // derivatives of the product of rij and ni, the result is a vector
       dprodnorm1[0] = 
         dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
       dprodnorm1[1] = 
@@ -1937,7 +1940,7 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_ilp_neighbor_list[index];
-      int ilp_neighor_number_2 = g_ilp_neighbor_number[n2];
+      int ilp_neighbor_number_2 = g_ilp_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
@@ -1948,7 +1951,7 @@ static __global__ void reduce_force_many_body(
       z12f = float(z12d);
 
       int offset = 0;
-      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+      for (int k = 0; k < ilp_neighbor_number_2; ++k) {
         if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
           offset = k;
           break;
@@ -2065,9 +2068,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          c_index += n * (paramb_int[BSR] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
           gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
@@ -2103,10 +2105,13 @@ static __global__ void find_descriptor(
         find_fn(paramb_int[BSA], rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = paramb_int[NCR];
-          c_index += (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
-          c_index += n * (paramb_int[BSA] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
@@ -2118,7 +2123,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     float* q_scaler = FLT_PTR(paramb + PTRQS);
     int ann_dim = *((int*)annmb + ANNDIM);
     for (int d = 0; d < ann_dim; ++d) {
@@ -2236,12 +2241,10 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index_12 = (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          int c_index_21 = (t2 * paramb_int[NT] + t1) *
-            ((paramb_int[NMAXR] + 1) * (paramb_int[BSR] + 1));
-          c_index_12 += n * (paramb_int[BSR] + 1) + k;
-          c_index_21 += n * (paramb_int[BSR] + 1) + k;
+          int c_index_12 = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
+          int c_index_21 = get_c_index(
+            t2 * paramb_int[NT] + t1, n, k, paramb_int[NMAXR], paramb_int[BSR]);
           gnp12 += fnp12[k] * c[c_index_12];
           gnp21 += fnp12[k] * c[c_index_21];
         }
@@ -2368,10 +2371,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = paramb_int[NCR];
-          c_index += (t1 * paramb_int[NT] + t2) *
-            ((paramb_int[NMAXA] + 1) * (paramb_int[BSA] + 1));
-          c_index += n * (paramb_int[BSA] + 1) + k;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
@@ -2590,7 +2596,7 @@ void ILP_NEP::compute_ilp(
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
   GPU_Vector<double> &virial_per_atom,
-  std::vector<Group> &group)
+  const std::vector<Group> &group)
 {
 
   const int number_of_atoms = type.size();

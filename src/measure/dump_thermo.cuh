@@ -16,14 +16,16 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
+#include <vector>
 class Box;
 
 class Dump_Thermo : public Action
 {
 public:
-  void parse(const char** param, int num_param);
+  void parse(const std::vector<std::string>& tokens);
 
-  Dump_Thermo(const char** param, int num_param);
+  Dump_Thermo(const std::vector<std::string>& tokens);
 
   virtual void pre_run(
     const int number_of_steps,

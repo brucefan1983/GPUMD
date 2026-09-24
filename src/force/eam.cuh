@@ -78,5 +78,5 @@ protected:
   EAM2004Zhou eam2004zhou;
   EAM2006Dai eam2006dai;
   EAM_Data eam_data;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 };

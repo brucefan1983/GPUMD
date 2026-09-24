@@ -27,6 +27,8 @@ public:
   int max_Na;         // number of atoms in the largest configuration
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
+  int total_NN_radial;  // total number of radial neighbors
+  int total_NN_angular; // total number of angular neighbors
 
   GPU_Vector<int> Na;          // number of atoms in each configuration
   GPU_Vector<int> Na_sum;      // prefix sum of Na
@@ -38,19 +40,12 @@ public:
   GPU_Vector<float> box;          // (expanded) box and inverse box (18 components)
   GPU_Vector<float> box_original; // (original) box (9 components)
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
+  GPU_Vector<int> pbc;            // 1 for PPP and 0 for FFF (one value per configuration)
 
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
-  GPU_Vector<int> NN_angular; // angular neighbor number
-  GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<int> NN_radial_sum; // prefix sum of NN_radial
+  GPU_Vector<int> NN_radial;      // radial neighbor number
+  GPU_Vector<int> NN_angular;     // angular neighbor number
+  GPU_Vector<int> NN_radial_sum;  // prefix sum of NN_radial
   GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
 
   GPU_Vector<float> charge;      // calculated charge in GPU
   GPU_Vector<float> charge_shifted;      // shifted charge in GPU
@@ -82,7 +77,7 @@ public:
   std::vector<float> bec_ref_cpu;         // reference BEC in CPU
   std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
   std::vector<float> weight_cpu;          // configuration weight in CPU
-  std::vector<float> temperature_ref_cpu; // reference temeprature in CPU
+  std::vector<float> temperature_ref_cpu; // reference temperature in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
@@ -113,4 +108,24 @@ private:
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
   void find_neighbor(Parameters& para);
+};
+
+class NEP_Neighbor
+{
+public:
+  GPU_Vector<int> NL_radial;
+  GPU_Vector<int> NL_angular;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+
+  void prepare(Parameters& para, Dataset& dataset, int device_id);
+
+private:
+  GPU_Vector<float> rc_radial;
+  GPU_Vector<float> rc_angular;
+  const Dataset* neighbor_dataset = nullptr;
 };
