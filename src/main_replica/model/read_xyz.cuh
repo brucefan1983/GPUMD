@@ -16,7 +16,6 @@
 #pragma once
 
 class Box;
-class Neighbor;
 class Group;
 class Atom;
 #include "utilities/gpu_vector.cuh"

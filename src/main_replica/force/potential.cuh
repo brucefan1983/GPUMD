@@ -32,7 +32,6 @@ public:
   double rc; // maximum cutoff distance
   int nep_model_type =
     -1; // -1 for non_nep, 0 for potential, 1 for dipole, 2 for polarizability, 3 for temperature
-  int ilp_flag = 0; // 0 for non_ilp, 1 for ilp
   Potential(void);
   virtual ~Potential(void);
 
@@ -52,40 +51,6 @@ public:
     GPU_Vector<double>& /* potential */,
     GPU_Vector<double>& /* force */,
     GPU_Vector<double>& /* virial */){}
-
-  // add group message for ILPs
-  virtual void compute_ilp(
-    Box& /* box */,
-    const GPU_Vector<int>& /* type */,
-    const GPU_Vector<double>& /* position */,
-    GPU_Vector<double>& /* potential */,
-    GPU_Vector<double>& /* force */,
-    GPU_Vector<double>& /* virial */,
-    std::vector<Group>& /* group */){}
-
-  virtual const GPU_Vector<int>& get_NN_radial_ptr()
-  {
-    static GPU_Vector<int> dummy_NN;
-    return dummy_NN; // Return the const reference to NN_radial
-  }
-
-  virtual const GPU_Vector<int>& get_NL_radial_ptr()
-  {
-    static GPU_Vector<int> dummy_NL;
-    return dummy_NL; // Return the const reference to NL_radial
-  }
-
-  virtual GPU_Vector<float>& get_charge_reference()
-  {
-    static GPU_Vector<float> dummy_charge;
-    return dummy_charge;
-  }
-
-  virtual GPU_Vector<float>& get_bec_reference()
-  {
-    static GPU_Vector<float> dummy_bec;
-    return dummy_bec;
-  }
 
 protected:
   void find_properties_many_body(

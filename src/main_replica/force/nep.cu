@@ -2059,15 +2059,3 @@ void NEP::compute(
       stream);
   }
 }
-
-const GPU_Vector<int>& NEP::get_NN_radial_ptr()
-{
-  validate_default_workspace();
-  return nep_data.NN_radial;
-}
-
-const GPU_Vector<int>& NEP::get_NL_radial_ptr()
-{
-  validate_default_workspace();
-  return nep_data.NL_radial;
-}

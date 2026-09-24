@@ -63,10 +63,7 @@ Ensemble_BDP::Ensemble_BDP(int t, int source_input, int sink_input, double T, do
   initialize_rng();
 }
 
-Ensemble_BDP::~Ensemble_BDP(void)
-{
-  // nothing now
-}
+Ensemble_BDP::~Ensemble_BDP(void) = default;
 
 void Ensemble_BDP::seed_rng(unsigned int seed)
 {

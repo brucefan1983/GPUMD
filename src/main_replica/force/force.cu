@@ -118,7 +118,6 @@ void Force::parse_potential(
   const char** param, const int num_param, const Box& box,
   const int number_of_atoms, const bool use_pppm)
 {
-  (void)box;
   if (num_param != 2)
     PRINT_INPUT_ERROR("potential should have one parameter.\n");
   if (model_type_ != Model_Type::none)

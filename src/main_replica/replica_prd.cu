@@ -60,7 +60,6 @@ using replica::values_match;
 
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
-// Version 5 uses canonical velocities and excludes the three COM degrees of freedom.
 constexpr int restart_format_version = 6;
 
 void validate_append_event_file(const std::string& filename)
@@ -193,11 +192,11 @@ void PRD_Config::parse(
         PRINT_INPUT_ERROR(
           "PRD dephase requires one non-negative step count.");
       ++i;
-      int obsolete_steps = 0;
+      int extra_steps = 0;
       if (i < command.size() &&
-          is_valid_int(command[i].c_str(), &obsolete_steps))
+          is_valid_int(command[i].c_str(), &extra_steps))
         PRINT_INPUT_ERROR(
-          "PRD dephase accepts one step count; the iteration count is no longer supported.");
+          "PRD dephase accepts exactly one step count.");
     } else if (
       command[i] == "correlate" || command[i] == "correlation") {
       if (++i >= command.size() ||

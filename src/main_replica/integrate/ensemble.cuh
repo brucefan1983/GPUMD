@@ -21,8 +21,6 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-#define NOSE_HOOVER_CHAIN_LENGTH 4
-
 class Ensemble
 {
 public:
@@ -42,15 +40,6 @@ public:
     Box& box,
     Atom& atom,
     GPU_Vector<double>& thermo) = 0;
-
-  virtual void compute3(
-    const double /* time_step */,
-    const std::vector<Group>& /* group */,
-    Box& /* box */,
-    Atom& /* atom */,
-    GPU_Vector<double>& /* thermo */,
-    Force& /* force */){
-  }
 
   void find_thermo(
     const bool use_target_temperature,
@@ -73,14 +62,6 @@ public:
     GPU_Vector<double>& thermo,
     const gpuStream_t stream);
 
-  int* current_step;
-  int* total_steps;
-  double time_step;
-  const std::vector<Group>* group;
-  Box* box;
-  Atom* atom;
-  GPU_Vector<double>* thermo;
-
   int type; // ensemble type in a specific run
   int source;
   int sink;
@@ -92,35 +73,8 @@ public:
   int removed_degrees_of_freedom = 0; // e.g. three for PRD's zero COM momentum
   double temperature; // target temperature at a specific time
   double delta_temperature;
-  double target_pressure[6];
-  int num_target_pressure_components;
   double temperature_coupling;
-  double pressure_coupling[6];
-  int deform_x = 0;
-  int deform_y = 0;
-  int deform_z = 0;
-  double deform_rate[3];
-
   double energy_transferred[2]; // energy transferred from system to heat baths
-
-  std::vector<double> energy_transferred_n; // energy transferred from system to multiple heat baths
-  // addtional function for scaling velocities in multiple groups
-  virtual void scale_velocity_groups(
-    const std::vector<double>& factors,
-    const std::vector<int>& labels,
-    const double* vcx,
-    const double* vcy,
-    const double* vcz,
-    const double* ke,
-    const std::vector<Group>& group,
-    GPU_Vector<double>& velocity_per_atom);
-
-  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
   void velocity_verlet(
@@ -152,9 +106,6 @@ protected:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 #endif
-
-  void velocity_verlet_v();
-  void velocity_verlet_x();
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

@@ -54,7 +54,7 @@ private:
 
 public:
   Minimizer_FIRE(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
-    : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(number_of_steps, force_tolerance)
     , velocity_(static_cast<size_t>(number_of_atoms) * 3)
     , temp1_(static_cast<size_t>(number_of_atoms) * 3)
     , temp2_(static_cast<size_t>(number_of_atoms) * 3)

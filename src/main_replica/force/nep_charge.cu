@@ -1335,58 +1335,56 @@ void NEP_Charge::compute_large_box(
   zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
-    // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      nep_data.charge.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (the diagonal part)
+  find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    N,
+    nep_data.charge.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // get BEC (radial descriptor part)
-    find_bec_radial<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.NN_radial.data(),
-      nep_data.NL_radial.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (radial descriptor part)
+  find_bec_radial<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.charge_derivative.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // get BEC (angular descriptor part)
-    find_bec_angular<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.NN_angular.data(),
-      nep_data.NL_angular.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.sum_fxyz.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (angular descriptor part)
+  find_bec_angular<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.charge_derivative.data(),
+    nep_data.sum_fxyz.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      annmb.sqrt_epsilon_inf,
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-  }
+  // scale q to q * sqrt(epsilon_inf)
+  scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    N,
+    annmb.sqrt_epsilon_inf,
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
   if (use_pppm) {
     pppm.find_force(
@@ -1615,56 +1613,54 @@ void NEP_Charge::compute_small_box(
   zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (true) { // TODO
-    // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      nep_data.charge.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (the diagonal part)
+  find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    N,
+    nep_data.charge.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // get BEC (radial descriptor part)
-    find_bec_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      small_box_data.NN_radial.data(),
-      small_box_data.NL_radial.data(),
-      type.data(),
-      small_box_data.r12.data(),
-      small_box_data.r12.data() + size_x12,
-      small_box_data.r12.data() + size_x12 * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (radial descriptor part)
+  find_bec_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    small_box_data.NN_radial.data(),
+    small_box_data.NL_radial.data(),
+    type.data(),
+    small_box_data.r12.data(),
+    small_box_data.r12.data() + size_x12,
+    small_box_data.r12.data() + size_x12 * 2,
+    nep_data.charge_derivative.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // get BEC (angular descriptor part)
-    find_bec_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      small_box_data.NN_angular.data(),
-      small_box_data.NL_angular.data(),
-      type.data(),
-      small_box_data.r12.data() + size_x12 * 3,
-      small_box_data.r12.data() + size_x12 * 4,
-      small_box_data.r12.data() + size_x12 * 5,
-      nep_data.charge_derivative.data(),
-      nep_data.sum_fxyz.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
+  // get BEC (angular descriptor part)
+  find_bec_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    small_box_data.NN_angular.data(),
+    small_box_data.NL_angular.data(),
+    type.data(),
+    small_box_data.r12.data() + size_x12 * 3,
+    small_box_data.r12.data() + size_x12 * 4,
+    small_box_data.r12.data() + size_x12 * 5,
+    nep_data.charge_derivative.data(),
+    nep_data.sum_fxyz.data(),
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
-    // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      annmb.sqrt_epsilon_inf,
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-  }
+  // scale q to q * sqrt(epsilon_inf)
+  scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
+    N,
+    annmb.sqrt_epsilon_inf,
+    nep_data.bec.data());
+  GPU_CHECK_KERNEL
 
   if (use_pppm) {
     pppm.find_force(
@@ -1879,11 +1875,3 @@ void NEP_Charge::compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }
-
-const GPU_Vector<int>& NEP_Charge::get_NN_radial_ptr() { return nep_data.NN_radial; }
-
-const GPU_Vector<int>& NEP_Charge::get_NL_radial_ptr() { return nep_data.NL_radial; }
-
-GPU_Vector<float>& NEP_Charge::get_charge_reference() { return nep_data.charge; }
-
-GPU_Vector<float>& NEP_Charge::get_bec_reference() { return nep_data.bec; }

@@ -14,21 +14,16 @@
 */
 
 /*----------------------------------------------------------------------------80
-Initialize the velocities of the system:
-    total linear momentum is zero
-    total angular momentum is zero
-If DEBUG is on in the makefile, the velocities are the same from run to run.
-If DEBUG is off, the velocities are different in different runs.
+Velocity initialization for REMD and canonical velocity sampling for PRD.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"
-#include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "velocity.cuh"
 #include <vector>
-#include <cstring>
+#include <cstdlib>
 #include <cmath>
 #include <random>
 
@@ -51,15 +46,6 @@ void Velocity::scale(
     cpu_vx[n] *= factor;
     cpu_vy[n] *= factor;
     cpu_vz[n] *= factor;
-  }
-}
-
-static void get_random_velocities(const int N, double* vx, double* vy, double* vz)
-{
-  for (int n = 0; n < N; ++n) {
-    vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
-    vy[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
-    vz[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
   }
 }
 
@@ -301,84 +287,22 @@ void Velocity::correct_velocity(
     cpu_velocity_per_atom.data() + N * 2);
 }
 
-void Velocity::correct_velocity(const int step, const std::vector<Group>& group, Atom& atom)
+void Velocity::initialize(const double initial_temperature, Atom& atom, int seed)
 {
   const int N = atom.number_of_atoms;
-
-  if (do_velocity_correction) {
-    if (step % velocity_correction_interval == 0) {
-      atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-      atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-      if (velocity_correction_group_method < 0) {
-        correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
-      } else {
-        for (int g = 0; g < group[velocity_correction_group_method].number; ++g) {
-          int cpu_size = group[velocity_correction_group_method].cpu_size[g];
-          int cpu_size_sum = group[velocity_correction_group_method].cpu_size_sum[g];
-          std::vector<double> mass(cpu_size);
-          std::vector<double> position(cpu_size * 3);
-          std::vector<double> velocity(cpu_size * 3);
-          for (int m = 0; m < cpu_size; ++m) {
-            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
-            mass[m] = atom.cpu_mass[n];
-            for (int d = 0; d < 3; ++d) {
-              position[m + d * cpu_size] = atom.cpu_position_per_atom[n + d * N];
-              velocity[m + d * cpu_size] = atom.cpu_velocity_per_atom[n + d * N];
-            }
-          }
-          correct_velocity(mass.size(), mass, position, velocity);
-          for (int m = 0; m < cpu_size; ++m) {
-            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
-            for (int d = 0; d < 3; ++d) {
-              atom.cpu_velocity_per_atom[n + d * N] = velocity[m + d * cpu_size];
-            }
-          }
-        }
-      }
-      atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
-    }
-  }
-}
-
-void Velocity::initialize(
-  const bool has_velocity_in_xyz,
-  const double initial_temperature,
-  Atom& atom,
-  bool use_seed,
-  int seed)
-{
-  const int N = atom.number_of_atoms;
-
-  do_velocity_correction = false;
-  if (!has_velocity_in_xyz) {
-    if (use_seed) {
-      get_random_velocities_by_seed(
-        N,
-        atom.cpu_velocity_per_atom.data(),
-        atom.cpu_velocity_per_atom.data() + N,
-        atom.cpu_velocity_per_atom.data() + N * 2,
-        seed);
-    } else {
-      get_random_velocities(
-        N,
-        atom.cpu_velocity_per_atom.data(),
-        atom.cpu_velocity_per_atom.data() + N,
-        atom.cpu_velocity_per_atom.data() + N * 2);
-    }
-    correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
-    scale(
-      initial_temperature,
-      atom.cpu_mass,
-      atom.cpu_velocity_per_atom.data(),
-      atom.cpu_velocity_per_atom.data() + N,
-      atom.cpu_velocity_per_atom.data() + N * 2);
-  }
+  get_random_velocities_by_seed(
+    N,
+    atom.cpu_velocity_per_atom.data(),
+    atom.cpu_velocity_per_atom.data() + N,
+    atom.cpu_velocity_per_atom.data() + N * 2,
+    seed);
+  correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+  scale(
+    initial_temperature,
+    atom.cpu_mass,
+    atom.cpu_velocity_per_atom.data(),
+    atom.cpu_velocity_per_atom.data() + N,
+    atom.cpu_velocity_per_atom.data() + N * 2);
 
   atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
-}
-
-void Velocity::finalize()
-{
-  do_velocity_correction = false;
-  velocity_correction_group_method = -1;
 }

@@ -18,7 +18,7 @@
 #include "error.cuh"
 #include <type_traits>
 
-// Page-locked host storage for genuinely asynchronous host-device copies.
+// Page-locked host storage for asynchronous host-device copies.
 template <typename T>
 class GPU_Pinned_Vector
 {

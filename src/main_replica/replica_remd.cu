@@ -56,7 +56,6 @@ using replica::validate_xyz_box;
 using replica::values_match;
 
 constexpr double target_acceptance = 0.2;
-// Version 5 attempts two-replica exchanges at every exchange interval.
 constexpr int restart_format_version = 5;
 constexpr const char* exchange_output_marker =
   "# GPUMD REMD exchange output format 1";
@@ -138,7 +137,7 @@ void REMD_Config::parse(
   const std::vector<std::string>& dump_command)
 {
   if (command.size() < 3 || command[0] != "multi_replica" || command[1] != "remd")
-    PRINT_INPUT_ERROR("multi_replica currently supports only remd.");
+    PRINT_INPUT_ERROR("Expected multi_replica remd followed by its options.");
 
   enum Temperature_Source { unset, file, range };
   Temperature_Source source = unset;
@@ -199,7 +198,7 @@ void REMD_Config::parse(
         PRINT_INPUT_ERROR("spacing should be geometric or linear.");
       ++i;
     } else if (command[i] == "verbose" || command[i] == "verbose_output") {
-      // Retain compatibility with earlier REMD inputs. Diagnostics are always written.
+      // Diagnostics are always written; accept these optional flags as no-ops.
       ++i;
     } else if (command[i] == "resume") {
       if (++i >= command.size())
@@ -474,10 +473,8 @@ void REMD_Driver::initialize_slot(Replica_Slot& slot)
   } else {
     Velocity velocity;
     velocity.initialize(
-      false,
       config_.temperatures[slot.replica_id],
       slot.atom,
-      true,
       static_cast<int>(config_.internal_seed + 104729U * (slot.replica_id + 1U)));
   }
 

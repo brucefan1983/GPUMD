@@ -159,10 +159,6 @@ public:
     GPU_Vector<double>& virial,
     gpuStream_t stream);
 
-  const GPU_Vector<int>& get_NN_radial_ptr();
-
-  const GPU_Vector<int>& get_NL_radial_ptr();
-
 private:
   ParaMB paramb;
   ANN annmb;

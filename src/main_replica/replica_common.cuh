@@ -97,7 +97,6 @@ public:
 
   const GPU_Vector<double>& position() const { return position_; }
   GPU_Vector<double>& position() { return position_; }
-  bool stores_velocity() const { return store_velocity_; }
 
 private:
   int device_id_;

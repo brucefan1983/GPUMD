@@ -33,26 +33,16 @@ class Minimizer
 {
 public:
   Minimizer(
-    const int fixed_group,
-    const int fixed_grouping_method,
-    const int number_of_atoms,
     const int number_of_steps,
     const double force_tolerance)
-    : fixed_group_(fixed_group),
-      fixed_grouping_method_(fixed_grouping_method),
-      number_of_atoms_(number_of_atoms),
-      number_of_steps_(number_of_steps),
+    : number_of_steps_(number_of_steps),
       force_tolerance_(force_tolerance)
   {
-    position_per_atom_temp_.resize(number_of_atoms * 3);
-    potential_per_atom_temp_.resize(number_of_atoms, 0.0);
-    force_per_atom_temp_.resize(number_of_atoms * 3);
-
     force_square_max_.resize(1);
-    total_potential_.resize(2);
+    total_potential_.resize(1);
 
     cpu_force_square_max_.resize(1);
-    cpu_total_potential_.resize(2);
+    cpu_total_potential_.resize(1);
   }
 
   virtual ~Minimizer() = default;
@@ -73,15 +63,9 @@ protected:
   void calculate_force_square_max(
     const GPU_Vector<double>& force_per_atom, gpuStream_t stream);
 
-  int fixed_group_ = -1;
-  int fixed_grouping_method_ = 0;
   int number_of_steps_ = 1000;
-  int number_of_atoms_ = 0;
   double force_tolerance_ = 1.0e-6;
 
-  GPU_Vector<double> position_per_atom_temp_;
-  GPU_Vector<double> potential_per_atom_temp_;
-  GPU_Vector<double> force_per_atom_temp_;
   GPU_Vector<double> force_square_max_;
   GPU_Vector<double> total_potential_;
   GPU_Pinned_Vector<double> cpu_force_square_max_;

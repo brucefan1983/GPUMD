@@ -14,10 +14,9 @@
 */
 
 /*----------------------------------------------------------------------------80
-// The following functions are from Bussi's website
+// Adapted from the stochastic velocity rescaling implementation at
 // https://sites.google.com/site/giovannibussi/Research/algorithms
-// I have only added "static" in front of the functions, and changed ran1()
-// to C++ calls
+// with C++ random-number generation and per-replica Gaussian caches.
 // Reference:
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
 ------------------------------------------------------------------------------*/

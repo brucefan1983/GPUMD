@@ -19,7 +19,6 @@ The abstract base class (ABC) for the minimizer classes.
 
 #include "minimizer.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
 namespace
 {
@@ -28,40 +27,32 @@ __global__ void gpu_calculate_total_potential(
   const int size,
   const int number_of_rounds,
   const double* potential_per_atom,
-  const double* potential_per_atom_temp,
   double* total_potential)
 {
   __shared__ double s_potential[1024];
-  __shared__ double s_potential_temp[1024];
   s_potential[threadIdx.x] = 0.0;
-  s_potential_temp[threadIdx.x] = 0.0;
 
   double potential = 0.0;
-  double potential_temp = 0.0;
 
   for (int round = 0; round < number_of_rounds; ++round) {
     const int n = threadIdx.x + round * 1024;
     if (n < size) {
       potential += potential_per_atom[n];
-      potential_temp += potential_per_atom_temp[n];
     }
   }
 
   s_potential[threadIdx.x] = potential;
-  s_potential_temp[threadIdx.x] = potential_temp;
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (threadIdx.x < offset) {
       s_potential[threadIdx.x] += s_potential[threadIdx.x + offset];
-      s_potential_temp[threadIdx.x] += s_potential_temp[threadIdx.x + offset];
     }
     __syncthreads();
   }
 
   if (threadIdx.x == 0) {
     total_potential[0] = s_potential[0];
-    total_potential[1] = s_potential_temp[0];
   }
 }
 
@@ -114,7 +105,6 @@ void Minimizer::calculate_total_potential(const GPU_Vector<double>& potential_pe
     size,
     number_of_rounds,
     potential_per_atom.data(),
-    potential_per_atom_temp_.data(),
     total_potential_.data());
 
   total_potential_.copy_to_host(cpu_total_potential_.data());
@@ -125,12 +115,10 @@ void Minimizer::calculate_total_potential(
 {
   const int size = potential_per_atom.size();
   const int number_of_rounds = (size - 1) / 1024 + 1;
-  potential_per_atom_temp_.fill_async(0.0, stream);
   gpu_calculate_total_potential<<<1, 1024, 0, stream>>>(
     size,
     number_of_rounds,
     potential_per_atom.data(),
-    potential_per_atom_temp_.data(),
     total_potential_.data());
   GPU_CHECK_KERNEL
   total_potential_.copy_to_host_async(cpu_total_potential_.data(), stream);

@@ -46,8 +46,6 @@ Caveats
 
 * Choose the basin threshold, dephasing, and correlation times for the system of interest.
   The displacement test does not align translations, rotations, or atom permutations.
-* ``dephase`` accepts one step count. The former two-argument syntax is not supported.
-  A single longer segment is not equivalent to repeated shorter segments with velocity refreshes.
 * A detected escape triggers step-by-step block replay; simultaneous escapes select the lowest replica index.
   An escape followed by a return before a block-end check can be missed. Use ``event 1`` to check every step.
 * ``run`` counts correlation and parallel MD steps, not accelerated physical time; see :ref:`replica_kw_run`.

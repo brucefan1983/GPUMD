@@ -26,10 +26,7 @@ The abstract base class (ABC) for the potential classes.
 
 Potential::Potential(void) { rc = 0.0; }
 
-Potential::~Potential(void)
-{
-  // nothing
-}
+Potential::~Potential(void) = default;
 
 static __global__ void gpu_find_force_many_body(
   const int number_of_particles,
