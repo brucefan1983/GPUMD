@@ -40,7 +40,7 @@ where
 * :attr:`rmse_force_test` is the force RMSE (in units of eV/Å) for the test set.
 * :attr:`rmse_virial_test` is the virial RMSE (in units of eV/atom) for the test set.
 
-If a potential model with charges (:ref:`charge_mode <kw_charge_mode>`) is trained, the columns are::
+If a potential model with charges (:ref:`charge_mode <kw_charge_mode>` or ``charge_vdw``) is trained, the columns are::
 
   generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test
 
