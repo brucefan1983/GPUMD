@@ -88,9 +88,9 @@ HEADERS =                         \
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep 
+all: gpumd nep gpumd_replica
 
-.PHONY: gpumd_replica clean_replica clean
+.PHONY: all gpumd_replica clean_replica clean
 
 # Keep replica objects separate and share the selected compiler and architecture.
 gpumd_replica:

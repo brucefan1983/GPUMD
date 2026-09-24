@@ -22,4 +22,9 @@ jobs:
           apt-get install -y build-essential
 
       - name: Build with Make
-        run: cd src && make
+        run: make -C src gpumd nep -j2
+
+      - name: Build replica executable
+        run: |
+          make -C src gpumd_replica -j2
+          test -x src/gpumd_replica

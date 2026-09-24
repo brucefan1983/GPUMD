@@ -28,6 +28,7 @@ void print_compile_information(void)
   print_line_2();
 
 #ifdef DEBUG
+  srand(1);
   printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
   srand(std::chrono::system_clock::now().time_since_epoch().count());

@@ -8,7 +8,8 @@ Restart files
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
 Keep the complete set: it stores atomic states, method state, and random-number-generator states.
-Both methods currently require restart format version 5.
+REMD requires restart format version 5; PRD requires version 6, which records the single-segment dephasing step count.
+Older PRD restart files are rejected; start a fresh PRD run when upgrading.
 
 Example
 -------

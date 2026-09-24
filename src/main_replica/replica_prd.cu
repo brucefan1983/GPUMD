@@ -61,7 +61,7 @@ using replica::values_match;
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
 // Version 5 uses canonical velocities and excludes the three COM degrees of freedom.
-constexpr int restart_format_version = 5;
+constexpr int restart_format_version = 6;
 
 void validate_append_event_file(const std::string& filename)
 {
@@ -137,8 +137,7 @@ struct PRD_Config {
   int replicas = 0;
   int replicas_per_gpu = 0;
   int event_interval = 0;
-  int dephase_iterations = -1;
-  int dephase_steps = 0;
+  int dephase_steps = -1;
   int correlation_steps = -1;
   int quench_steps = 1000;
   int maximum_dephase_retries = 1000;
@@ -189,13 +188,16 @@ void PRD_Config::parse(
       ++i;
     } else if (command[i] == "dephase") {
       if (++i >= command.size() ||
-          !is_valid_int(command[i].c_str(), &dephase_iterations) ||
-          dephase_iterations < 0 || ++i >= command.size() ||
           !is_valid_int(command[i].c_str(), &dephase_steps) ||
-          dephase_steps <= 0)
+          dephase_steps < 0)
         PRINT_INPUT_ERROR(
-          "PRD dephase requires non-negative iterations and positive steps.");
+          "PRD dephase requires one non-negative step count.");
       ++i;
+      int obsolete_steps = 0;
+      if (i < command.size() &&
+          is_valid_int(command[i].c_str(), &obsolete_steps))
+        PRINT_INPUT_ERROR(
+          "PRD dephase accepts one step count; the iteration count is no longer supported.");
     } else if (
       command[i] == "correlate" || command[i] == "correlation") {
       if (++i >= command.size() ||
@@ -245,7 +247,7 @@ void PRD_Config::parse(
   }
 
   if (
-    replicas <= 0 || event_interval <= 0 || dephase_iterations < 0 ||
+    replicas <= 0 || event_interval <= 0 || dephase_steps < 0 ||
     correlation_steps < 0 || event_distance <= 0.0)
     PRINT_INPUT_ERROR(
       "PRD requires replicas, event, dephase, correlate, and distance.");
@@ -620,11 +622,8 @@ void PRD_Driver::validate_input()
       "    warning: transient exits between event checks can be missed; "
       "use event_interval 1 for step-resolved detection and test "
       "interval convergence.\n");
-  printf(
-    "    dephasing: %d iterations of %d steps.\n",
-    config_.dephase_iterations,
-    config_.dephase_steps);
-  if (config_.dephase_iterations == 0)
+  printf("    dephasing: one segment of %d steps.\n", config_.dephase_steps);
+  if (config_.dephase_steps == 0)
     printf(
       "    warning: dephasing is disabled; replicas are not guaranteed "
       "to sample the QSD.\n");
@@ -949,61 +948,59 @@ void PRD_Driver::randomize_velocities(
 
 void PRD_Driver::dephase()
 {
-  if (config_.dephase_iterations == 0)
+  if (config_.dephase_steps == 0)
     return;
   const std::vector<int> replicas = all_replicas();
 
-  for (int iteration = 0;
-       iteration < config_.dephase_iterations;
-       ++iteration) {
-    for (const int replica_id : replicas) {
-      Replica_Slot& slot = *runtime_.slots()[replica_id];
-      slot_data_[replica_id]->dephase_start.save(slot);
-    }
-    for (const int replica_id : replicas)
-      runtime_.slots()[replica_id]->stream.synchronize();
+  for (const int replica_id : replicas) {
+    Replica_Slot& slot = *runtime_.slots()[replica_id];
+    slot_data_[replica_id]->dephase_start.save(slot);
+  }
+  for (const int replica_id : replicas)
+    runtime_.slots()[replica_id]->stream.synchronize();
 
-    std::vector<int> pending = replicas;
-    int retries = 0;
-    while (!pending.empty()) {
-      if (++retries > config_.maximum_dephase_retries)
-        PRINT_INPUT_ERROR(
-          "PRD dephasing exceeded max_dephase_retries.");
-      randomize_velocities(pending);
-      std::vector<int> active = pending;
-      std::vector<int> retry;
-      int completed_steps = 0;
-      while (!active.empty() && completed_steps < config_.dephase_steps) {
-        const int block_steps = std::min(
-          config_.event_interval,
-          config_.dephase_steps - completed_steps);
-        runtime_.advance_selected(active, block_steps);
-        save_hot(active);
-        quench(active);
-        const std::vector<int> escaped = detect_events(active);
-        std::vector<unsigned char> has_escaped(config_.replicas, 0);
-        for (const int replica_id : escaped)
-          has_escaped[replica_id] = 1;
+  std::vector<int> pending = replicas;
+  int retries = 0;
+  while (!pending.empty()) {
+    if (++retries > config_.maximum_dephase_retries)
+      PRINT_INPUT_ERROR(
+        "PRD dephasing exceeded max_dephase_retries.");
+    // Refresh velocities once per attempt, then evolve continuously through
+    // the event checks. Only escaped replicas restart from dephase_start.
+    randomize_velocities(pending);
+    std::vector<int> active = pending;
+    std::vector<int> retry;
+    int completed_steps = 0;
+    while (!active.empty() && completed_steps < config_.dephase_steps) {
+      const int block_steps = std::min(
+        config_.event_interval,
+        config_.dephase_steps - completed_steps);
+      runtime_.advance_selected(active, block_steps);
+      save_hot(active);
+      quench(active);
+      const std::vector<int> escaped = detect_events(active);
+      std::vector<unsigned char> has_escaped(config_.replicas, 0);
+      for (const int replica_id : escaped)
+        has_escaped[replica_id] = 1;
 
-        std::vector<int> survivors;
-        survivors.reserve(active.size());
-        for (const int replica_id : active) {
-          Replica_Slot& slot = *runtime_.slots()[replica_id];
-          if (has_escaped[replica_id]) {
-            slot_data_[replica_id]->dephase_start.restore(slot);
-            retry.push_back(replica_id);
-          } else {
-            slot_data_[replica_id]->hot.restore(slot);
-            survivors.push_back(replica_id);
-          }
+      std::vector<int> survivors;
+      survivors.reserve(active.size());
+      for (const int replica_id : active) {
+        Replica_Slot& slot = *runtime_.slots()[replica_id];
+        if (has_escaped[replica_id]) {
+          slot_data_[replica_id]->dephase_start.restore(slot);
+          retry.push_back(replica_id);
+        } else {
+          slot_data_[replica_id]->hot.restore(slot);
+          survivors.push_back(replica_id);
         }
-        runtime_.compute_forces_selected(active);
-        dephase_rejections_ += static_cast<int>(escaped.size());
-        active.swap(survivors);
-        completed_steps += block_steps;
       }
-      pending.swap(retry);
+      runtime_.compute_forces_selected(active);
+      dephase_rejections_ += static_cast<int>(escaped.size());
+      active.swap(survivors);
+      completed_steps += block_steps;
     }
+    pending.swap(retry);
   }
 }
 
@@ -1295,7 +1292,6 @@ void PRD_Driver::write_restart_metadata() const
   fprintf(file, "potential_hash %llu\n", potential_hash_);
   fprintf(file, "kspace %s\n", kspace_method_.c_str());
   fprintf(file, "event_interval %d\n", config_.event_interval);
-  fprintf(file, "dephase_iterations %d\n", config_.dephase_iterations);
   fprintf(file, "dephase_steps %d\n", config_.dephase_steps);
   fprintf(file, "correlation_steps %d\n", config_.correlation_steps);
   fprintf(file, "event_distance %.17g\n", config_.event_distance);
@@ -1520,10 +1516,6 @@ void PRD_Driver::read_restart_metadata()
   read_restart_value(input, "event_interval", integer_value);
   if (integer_value != config_.event_interval)
     PRINT_INPUT_ERROR("PRD restart event_interval does not match the input.");
-  read_restart_value(input, "dephase_iterations", integer_value);
-  if (integer_value != config_.dephase_iterations)
-    PRINT_INPUT_ERROR(
-      "PRD restart dephase_iterations does not match the input.");
   read_restart_value(input, "dephase_steps", integer_value);
   if (integer_value != config_.dephase_steps)
     PRINT_INPUT_ERROR("PRD restart dephase_steps does not match the input.");

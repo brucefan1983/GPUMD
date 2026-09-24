@@ -19,7 +19,11 @@ endif
 INC = -I./ -I./integrate
 LDFLAGS =
 LIBS = -lcufft
+ifdef OS
+TARGET = ../gpumd_replica.exe
+else
 TARGET = ../gpumd_replica
+endif
 
 SOURCES =                         \
 	main.cu                         \

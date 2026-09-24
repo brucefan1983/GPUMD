@@ -37,7 +37,7 @@ Compilation
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates two executables, ``nep`` and ``gpumd``.
+      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``gpumd_replica``.
       Please check the comments in the beginning of the makefile for some compiling options.
 
    .. tab:: CMake (pre-release)
@@ -79,9 +79,17 @@ Set :attr:`!CUDA_ARCH` to an architecture supported by both the GPU and the inst
 If changing compiler flags after an earlier build, first run ``make clean_replica`` in ``src``.
 The ``gpumd_replica`` target invokes the CUDA makefile in ``src/main_replica``, keeping replica object files separate from the ordinary GPUMD build.
 It uses the compiler and GPU architecture selected in ``src/makefile`` or on the command line.
-The default ``make`` command still builds only ``gpumd`` and ``nep``; ``make clean`` also cleans the replica build.
+The default ``make`` command includes ``gpumd_replica``; ``make clean`` also cleans the replica build.
 The CMake build does not provide this executable.
 There is currently no HIP build for the standalone replica executable.
+
+To use fixed random seeds for regression tests, clean the replica build and compile with ``-DDEBUG``::
+
+  make clean_replica
+  make gpumd_replica -j CFLAGS="-std=c++14 -O3 -arch=sm_80 -DDEBUG"
+
+Replace ``sm_80`` with the appropriate GPU architecture.
+Builds without ``DEBUG`` initialize random seeds from the system clock.
 
 
 .. _build_amd_hip:

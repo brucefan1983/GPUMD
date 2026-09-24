@@ -28,5 +28,12 @@ jobs:
       run: |
         set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin
         nvcc --version
-        cd src && make
+        make -C src gpumd nep
 
+    - name: Build replica executable
+      shell: cmd
+      run: |
+        set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin
+        make -C src gpumd_replica -j2
+        if errorlevel 1 exit /b 1
+        if not exist src\gpumd_replica.exe exit /b 1
