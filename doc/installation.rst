@@ -40,8 +40,6 @@ Compilation
 
       In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``gpumd_replica``.
       Please check the comments in the beginning of the makefile for some compiling options.
-      For fixed random seeds, add ``-DDEBUG`` to ``CFLAGS``; otherwise the random seeds are initialized from the system clock.
-      Run ``make clean`` before rebuilding with different compiler flags.
 
    .. tab:: CMake (pre-release)
 
