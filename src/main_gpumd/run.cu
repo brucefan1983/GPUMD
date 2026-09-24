@@ -104,6 +104,22 @@ static void calculate_time_step(
   }
 }
 
+static bool parse_initial_replicate(
+  const RunInput& run_input, int replicate_size[3])
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.empty()) {
+      continue;
+    }
+    if (line.tokens[0] != "replicate") {
+      return false;
+    }
+    parse_replicate(line.tokens, replicate_size);
+    return true;
+  }
+  return false;
+}
+
 Run::Run(const RunInput& run_input)
 {
   print_line_1();
@@ -111,22 +127,35 @@ Run::Run(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
-  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
+  has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
+
+  initialize_position(
+    run_input,
+    has_velocity_in_xyz,
+    number_of_types,
+    box,
+    group,
+    atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
-  allocate_memory_gpu(group, atom, thermo);
+  if (has_replicate_) {
+    Replicate(replicate_size_, box, atom, group);
+  }
 
-  velocity.initialize(
-    has_velocity_in_xyz,
-    300,
-    atom,
-    false,
-    123);
+  if (atom.number_of_atoms < 2) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  }
+
+  velocity.initialize_cpu(
+    has_velocity_in_xyz, 300, atom, false, 123);
+
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
   } else {
     printf("Initialized velocities with default T = 300 K.\n");
   }
+
+  allocate_memory_gpu(group, atom, thermo);
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
@@ -143,12 +172,19 @@ void Run::execute_run_in(const RunInput& run_input)
   fflush(stdout);
   print_line_2();
 
+  bool first_effective_command = true;
   for (const auto& line : run_input.lines()) {
     if (!line.tokens.empty()) {
       std::vector<std::string> tokens = line.tokens;
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
+      if (has_replicate_ && first_effective_command &&
+          tokens[0] == "replicate") {
+        first_effective_command = false;
+        continue;
+      }
+      first_effective_command = false;
       parse_one_keyword(tokens, run_input);
     }
   }
@@ -273,10 +309,9 @@ void Run::perform_a_run(const int number_of_steps)
 void Run::parse_one_keyword(
   const std::vector<std::string>& tokens, const RunInput& run_input)
 {
-  if (tokens[0] == "replicate" && has_seen_effective_command) {
+  if (tokens[0] == "replicate") {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
-  has_seen_effective_command = true;
 
   const int num_param = tokens.size();
   const int max_num_param = 32;
@@ -285,13 +320,6 @@ void Run::parse_one_keyword(
 
   if (tokens[0] == "potential") {
     force.parse_potential(tokens, box, atom.type.size(), run_input);
-  } else if (tokens[0] == "replicate") {
-    Replicate(tokens, box, atom, group);
-    for (int i = 0; i < 3; ++i) {
-      replicate_size_[i] = get_int_from_token(tokens[i + 1], __FILE__, __LINE__);
-    }
-    has_replicate_ = true;
-    allocate_memory_gpu(group, atom, thermo);
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(
@@ -383,12 +411,13 @@ void Run::parse_velocity(const std::vector<std::string>& tokens)
     }
   }
 
-  velocity.initialize(
+  velocity.initialize_cpu(
     has_velocity_in_xyz,
     initial_temperature,
     atom,
     use_seed,
     seed);
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   if (!has_velocity_in_xyz) {
     printf("Initialized velocities with input T = %g K.\n", initial_temperature);
   }

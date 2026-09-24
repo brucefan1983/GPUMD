@@ -202,6 +202,10 @@ def test_package_fixture_hashes_are_pinned():
             "3a86e6e3b62bc15935e3e253be232dc6f2c44719d67b89823f6e019f4946e5a6",
         "fixtures/systems/neighbor_alias_control.xyz":
             "a3ab3c1eff0e29c96fdb5e706d3ae9412e9c79a7b2ac6adbf86faef27a96cfdb",
+        "fixtures/systems/replicate_lj_with_velocity.xyz":
+            "de3338e0caf391f62d51bb86b242f7fb7eaaec53e78e73cb2e5a764a43e3ebcd",
+        "fixtures/phonon/cu_fcc_single_atom.xyz":
+            "d1e93d2300c56307dee18b8a567f5f0e8b8ec38420066ad810bef5b8e3eab91d",
         "fixtures/systems/deposition_lj_no_velocity.xyz":
             "a118421c14ee9d872af2c7d7e8aea0a2855c27f491eed0147eeb4b9f06ae0f67",
         "fixtures/systems/deposition_lj_with_velocity.xyz":
@@ -323,9 +327,13 @@ def test_behavior_contract_cases_are_full_differential_cases():
         "neighbor_alias_control",
         "compute_chunk_multiple",
         "phonon_comments_before_replicate",
+        "phonon_single_atom_replicate",
         "hnemdec_before_ensemble",
         "hnemdec_invalid_type",
         "observer_average_two_runs",
+        "replicate_default_velocity",
+        "replicate_velocity_unseeded",
+        "replicate_model_velocity",
         "replicate_after_potential",
         "replicate_after_velocity",
         "replicate_after_run",
@@ -449,7 +457,7 @@ def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
         assert f"repo:tests/gpumd/{directory}/" not in text
 
 
-def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
+def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     actual = {
         case["id"]: {
@@ -469,9 +477,9 @@ def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
             "dpdt.out": (0.0, 2e-7),
         },
         "qnep_pppm_future_bec": {
-            "bec.xyz": (0.0, 5e-6),
+            "bec.xyz": (0.0, 1e-5),
             "thermo.out": (0.0, 1e-7),
-            "dpdt.out": (0.0, 2e-7),
+            "dpdt.out": (0.0, 2e-6),
         },
         "qnep_actions_before_potential": {
             "bec.xyz": (0.0, 3e-6),
@@ -479,6 +487,9 @@ def test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs():
         },
         "qnep_force_accessors": {
             "qnep_force.xyz": (0.0, 2e-7),
+        },
+        "dftd3_single_late": {
+            "restart.xyz": (0.0, 1e-17),
         },
     }
 
@@ -499,7 +510,7 @@ if __name__ == "__main__":
         test_parsing_validation_cases_match_the_accepted_baseline,
         test_semantic_postchecks_preserve_byte_exact_cross_version_outputs,
         test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
-        test_numeric_exceptions_are_limited_to_calibrated_qnep_outputs,
+        test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs,
     )
     for test in tests:
         test()

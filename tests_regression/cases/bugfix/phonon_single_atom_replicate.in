@@ -1,0 +1,3 @@
+replicate 6 6 6
+potential Cu_Zhou_2004.txt
+compute_phonon 0.005

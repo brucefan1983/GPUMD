@@ -180,6 +180,22 @@
         }
       ]
     },
+    "phonon_cu_single_atom": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/cu_fcc_single_atom.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/phonon/si_kpoints.in",
+          "target": "kpoints.in"
+        },
+        {
+          "source": "repo:potentials/eam/Cu_Zhou_2004.txt",
+          "target": "Cu_Zhou_2004.txt"
+        }
+      ]
+    },
     "qnep_batio3": {
       "stage": [
         {
@@ -208,6 +224,18 @@
       "stage": [
         {
           "source": "package:fixtures/systems/neighbor_alias_control.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "replicate_lj_with_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/replicate_lj_with_velocity.xyz",
           "target": "model.xyz"
         },
         {
@@ -3388,6 +3416,28 @@
       "input_style": "canonical"
     },
     {
+      "id": "phonon_single_atom_replicate",
+      "description": "Phonon calculation accepts a one-atom primitive cell when replicate expands it before GPU initialization",
+      "suites": [
+        "static",
+        "full"
+      ],
+      "fixture": "phonon_cu_single_atom",
+      "input": "package:cases/bugfix/phonon_single_atom_replicate.in",
+      "covers": [
+        "potential:eam",
+        "command:replicate",
+        "command:compute_phonon",
+        "contract:single-atom-primitive"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
       "id": "qnep_ewald_future_bec",
       "description": "qNEP Ewald with BEC and virial consumers appearing only in a later run",
       "suites": [
@@ -3457,8 +3507,8 @@
         "bec.xyz": {
           "mode": "numeric",
           "rtol": 0.0,
-          "atol": 5e-06,
-          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; same-binary calibration observed 3.49e-6 maximum whole-file drift."
+          "atol": 1e-05,
+          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; repeated regression observed 6.07e-6 absolute drift, so this bound retains margin."
         },
         "thermo.out": {
           "mode": "numeric",
@@ -3469,8 +3519,8 @@
         "dpdt.out": {
           "mode": "numeric",
           "rtol": 0.0,
-          "atol": 2e-07,
-          "reason": "DPDT consumes the nondeterministic float BEC tensor; the calibrated output quantum is 1.0e-7."
+          "atol": 2e-06,
+          "reason": "DPDT consumes the nondeterministic float BEC tensor; full regression observed 1.0e-6 absolute drift, so this bound retains a factor-of-two margin."
         }
       },
       "input_style": "canonical"
@@ -3755,6 +3805,79 @@
       "input_style": "canonical"
     },
     {
+      "id": "replicate_default_velocity",
+      "description": "Replicate initializes the default 300 K velocity on the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_default_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-default-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_velocity_unseeded",
+      "description": "Unseeded velocity reset follows default initialization of the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_velocity_unseeded.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "command:velocity",
+        "contract:replicate-unseeded-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_model_velocity",
+      "description": "Replicate preserves explicit model.xyz velocities before device initialization",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "replicate_lj_with_velocity",
+      "input": "package:cases/bugfix/replicate_model_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:replicate",
+        "contract:replicate-model-velocity",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
       "id": "replicate_after_potential",
       "description": "Reject replicate after potential when that command is reached",
       "suites": [
@@ -3860,6 +3983,14 @@
         "thermo.out",
         "restart.xyz"
       ],
+      "comparisons": {
+        "restart.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-17,
+          "reason": "DFT-D3 force accumulation uses unordered double-precision GPU atomicAdd; repeated same-binary runs observed about 1.8e-18 maximum absolute drift in restart velocities."
+        }
+      },
       "input_style": "compatibility"
     },
     {
