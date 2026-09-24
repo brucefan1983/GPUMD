@@ -1,0 +1,15 @@
+nep4 1 C
+cutoff 4 4 10 10
+n_max 0 0
+basis_size 0 0
+l_max 1 0 0
+ANN 1 0
+0
+0
+0
+0
+0
+0
+0
+1
+1
