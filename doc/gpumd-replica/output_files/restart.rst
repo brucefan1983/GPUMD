@@ -8,8 +8,6 @@ Restart files
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
 Keep the complete set: it stores atomic states, method state, and random-number-generator states.
-REMD requires restart format version 5; PRD requires version 6, which records the single-segment dephasing step count.
-Older PRD restart files are rejected; start a fresh PRD run when upgrading.
 
 Example
 -------
@@ -25,6 +23,7 @@ New output uses the usual filenames in the current working directory.
 Caveats
 -------
 
+* Restart files with an incompatible format are rejected.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, box, potential content, replica count, time step, thermostat, and method parameters.
 * REMD resume cannot request positive ``equilibrate``.

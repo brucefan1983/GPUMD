@@ -197,9 +197,6 @@ void REMD_Config::parse(
       else
         PRINT_INPUT_ERROR("spacing should be geometric or linear.");
       ++i;
-    } else if (command[i] == "verbose" || command[i] == "verbose_output") {
-      // Diagnostics are always written; accept these optional flags as no-ops.
-      ++i;
     } else if (command[i] == "resume") {
       if (++i >= command.size())
         PRINT_INPUT_ERROR("resume requires a restart prefix.");

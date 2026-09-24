@@ -266,6 +266,18 @@ class ReplicaRegression(unittest.TestCase):
         rows = data_rows(directory / "remd_exchange.out")
         self.assertEqual([int(row[0]) for row in rows], [2, 4, 6, 8, 10])
 
+    def test_verbose_options_are_rejected(self):
+        for mode in ("remd", "prd"):
+            options = ("replicas 2 exchange 2 temp 300 400" if mode == "remd" else
+                       self.prd_options())
+            error = ("Unknown multi_replica option." if mode == "remd" else
+                     "Unknown multi_replica prd option.")
+            for option in ("verbose", "verbose_output"):
+                with self.subTest(mode=mode, option=option):
+                    directory = self.prepare(f"{mode}_{option}", free=True)
+                    self.run_md(directory, mode, 1, f"{options} {option}",
+                                expected_error=error)
+
     def test_dephase_input_validation(self):
         cases = [
             ("dephase 2 5", "accepts exactly one step count"),

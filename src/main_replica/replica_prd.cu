@@ -237,9 +237,6 @@ void PRD_Config::parse(
         PRINT_INPUT_ERROR("PRD resume requires a restart prefix.");
       resume = true;
       resume_prefix = command[i++];
-    } else if (
-      command[i] == "verbose" || command[i] == "verbose_output") {
-      ++i;
     } else {
       PRINT_INPUT_ERROR("Unknown multi_replica prd option.");
     }

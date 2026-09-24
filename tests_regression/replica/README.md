@@ -1,6 +1,6 @@
 # Replica regression tests
 
-These 11 basic integration tests exercise the standalone `gpumd_replica`
+These 12 basic integration tests exercise the standalone `gpumd_replica`
 executable. They run independently of the parent directory's 221-case
 GPUMD/NEP differential suite and do not require a historical executable.
 
@@ -32,7 +32,8 @@ The tests check:
   every replica's thermostat RNG state;
 - rejection of unsupported restart versions and changed exchange/dephasing settings;
 - qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation;
-- single-segment dephasing syntax and the retry limit.
+- single-segment dephasing syntax and the retry limit;
+- rejection of the unsupported `verbose` and `verbose_output` options in both modes.
 
 The four-carbon fixture has a zero-energy NEP and is used to obtain predictable
 exchange and event-clock behavior. It is not a physical model. Force-bearing

@@ -25,6 +25,7 @@ Syntax
 * ``distance``: positive maximum atomic displacement threshold in Angstrom between quenched configurations, using periodic minimum images.
   Must be smaller than half the shortest periodic box thickness when periodic directions are present.
 * ``quench``: positive FIRE force tolerance in eV/Angstrom and positive step limit; defaults are ``1e-4 1000``.
+  Convergence requires the largest absolute force component among the :math:`3N` force components to be smaller than the tolerance.
   Unconverged quenches stop the run.
 * ``max_dephase_retries``: positive limit on dephasing trial rounds, including the first attempt; default 1000.
 * ``resume``: :ref:`restart prefix <replica_restart>`.
