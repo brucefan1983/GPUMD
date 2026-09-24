@@ -132,6 +132,27 @@ Fitness::Fitness(Parameters& para)
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
+    fprintf(fid_loss_out, "# format_version 1\n");
+    fprintf(fid_loss_out, "# output_interval %d\n", para.output_interval);
+    fprintf(fid_loss_out, "# columns generation total L1 L2");
+    if (para.model_type == 0 || para.model_type == 3) {
+      if (para.charge_mode || para.charge_vdw) {
+        fprintf(
+          fid_loss_out,
+          " rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train"
+          " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test\n");
+      } else {
+        fprintf(
+          fid_loss_out,
+          " rmse_energy_train rmse_force_train rmse_virial_train"
+          " rmse_energy_test rmse_force_test rmse_virial_test\n");
+      }
+    } else if (para.model_type == 1) {
+      fprintf(fid_loss_out, " rmse_dipole_train rmse_dipole_test\n");
+    } else {
+      fprintf(fid_loss_out, " rmse_polarizability_train rmse_polarizability_test\n");
+    }
+    fflush(fid_loss_out);
   }
 }
 
