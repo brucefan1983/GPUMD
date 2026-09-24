@@ -235,7 +235,7 @@ void TNEP::update_potential(Parameters& para, float* parameters, ANN& ann)
   ann.b = pointer;
   pointer += 1;
 
-  if (para.train_mode == 2) {
+  if (para.model_type == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
       ann.wb_pol[t] = pointer;
       pointer += ann.one_ann_no_bias;
@@ -665,6 +665,7 @@ void TNEP::find_force(
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(gpuSetDevice(device_id));
+    neighbor[device_id].prepare(para, dataset[device_id], device_id);
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
@@ -673,11 +674,11 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
+        neighbor[device_id].NL_radial.data(),
         dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
+        neighbor[device_id].x12_radial.data(),
+        neighbor[device_id].y12_radial.data(),
+        neighbor[device_id].z12_radial.data(),
         nep_data[device_id].parameters.data(),
         nep_data[device_id].descriptors.data());
     } else {
@@ -685,13 +686,13 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
+        neighbor[device_id].NL_radial.data(),
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
+        neighbor[device_id].x12_radial.data(),
+        neighbor[device_id].y12_radial.data(),
+        neighbor[device_id].z12_radial.data(),
         nep_data[device_id].descriptors.data());
       GPU_CHECK_KERNEL
     }
@@ -701,11 +702,11 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
+        neighbor[device_id].NL_angular.data(),
         dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
+        neighbor[device_id].x12_angular.data(),
+        neighbor[device_id].y12_angular.data(),
+        neighbor[device_id].z12_angular.data(),
         nep_data[device_id].parameters.data(),
         nep_data[device_id].descriptors.data(),
         nep_data[device_id].sum_fxyz.data());
@@ -714,13 +715,13 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
+        neighbor[device_id].NL_angular.data(),
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
+        neighbor[device_id].x12_angular.data(),
+        neighbor[device_id].y12_angular.data(),
+        neighbor[device_id].z12_angular.data(),
         nep_data[device_id].descriptors.data(),
         nep_data[device_id].sum_fxyz.data());
       GPU_CHECK_KERNEL
@@ -747,7 +748,7 @@ void TNEP::find_force(
     GPU_CHECK_KERNEL
 
     if (compiled_kernel_) {
-      if (para.train_mode == 2) {
+      if (para.model_type == 2) {
         compiled_kernel_->launch_ann_tnep_pol(
           dataset[device_id].N,
           dataset[device_id].type.data(),
@@ -767,7 +768,7 @@ void TNEP::find_force(
           nep_data[device_id].Fp.data());
       }
     } else {
-      if (para.train_mode == 2) {
+      if (para.model_type == 2) {
         apply_ann_pol<<<grid_size, block_size>>>(
           dataset[device_id].N,
           paramb,
@@ -792,18 +793,18 @@ void TNEP::find_force(
       }
     }
 
-    bool is_dipole = para.train_mode == 1;
+    bool is_dipole = para.model_type == 1;
     if (compiled_kernel_) {
       compiled_kernel_->launch_force_tnep_radial(
         is_dipole,
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
+        neighbor[device_id].NL_radial.data(),
         dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
+        neighbor[device_id].x12_radial.data(),
+        neighbor[device_id].y12_radial.data(),
+        neighbor[device_id].z12_radial.data(),
         nep_data[device_id].parameters.data(),
         nep_data[device_id].Fp.data(),
         dataset[device_id].force.data(),
@@ -816,13 +817,13 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
-        dataset[device_id].NL_radial.data(),
+        neighbor[device_id].NL_radial.data(),
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        dataset[device_id].x12_radial.data(),
-        dataset[device_id].y12_radial.data(),
-        dataset[device_id].z12_radial.data(),
+        neighbor[device_id].x12_radial.data(),
+        neighbor[device_id].y12_radial.data(),
+        neighbor[device_id].z12_radial.data(),
         nep_data[device_id].Fp.data(),
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
@@ -837,11 +838,11 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
+        neighbor[device_id].NL_angular.data(),
         dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
+        neighbor[device_id].x12_angular.data(),
+        neighbor[device_id].y12_angular.data(),
+        neighbor[device_id].z12_angular.data(),
         nep_data[device_id].parameters.data(),
         nep_data[device_id].Fp.data(),
         nep_data[device_id].sum_fxyz.data(),
@@ -855,13 +856,13 @@ void TNEP::find_force(
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
-        dataset[device_id].NL_angular.data(),
+        neighbor[device_id].NL_angular.data(),
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        dataset[device_id].x12_angular.data(),
-        dataset[device_id].y12_angular.data(),
-        dataset[device_id].z12_angular.data(),
+        neighbor[device_id].x12_angular.data(),
+        neighbor[device_id].y12_angular.data(),
+        neighbor[device_id].z12_angular.data(),
         nep_data[device_id].Fp.data(),
         nep_data[device_id].sum_fxyz.data(),
         dataset[device_id].force.data(),

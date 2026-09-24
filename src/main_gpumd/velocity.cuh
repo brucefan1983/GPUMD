@@ -27,7 +27,7 @@ public:
   int velocity_correction_interval = 1000;
   int velocity_correction_group_method = -1;
 
-  void initialize(
+  void initialize_cpu(
     const bool has_velocity_in_xyz,
     const double initial_temperature,
     Atom& atom,

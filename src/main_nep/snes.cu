@@ -129,7 +129,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
-    const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
     const int num_channels = para.num_types;
 #else
@@ -329,7 +329,7 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  int num_ann = (para.train_mode == 2) ? 2 : 1;
+  int num_ann = (para.model_type == 2) ? 2 : 1;
   for (int ann = 0; ann < num_ann; ++ann) {
     for (int t = 0; t < para.num_types; ++t) {
       for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
@@ -392,7 +392,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
   if (para.prediction == 0) {
 
-    if (para.train_mode == 0 || para.train_mode == 3) {
+    if (para.model_type == 0 || para.model_type == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         printf(
           "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
@@ -493,7 +493,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
     const int num_channels = para.num_types;
 #else
@@ -708,7 +708,7 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpu_sigma.copy_to_host(sigma.data());
   std::vector<float> mu_file = mu;
   std::vector<float> sigma_file = sigma;
-  const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
   const int num_channels = para.num_types;
 #else

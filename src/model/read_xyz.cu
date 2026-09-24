@@ -147,8 +147,8 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  if (N < 1) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 1.");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -538,13 +538,6 @@ void initialize_position(
   find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
 }
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
-{
-  RunInput run_input("run.in");
-  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
-}
-
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
   const int N = atom.number_of_atoms;
@@ -567,6 +560,7 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);

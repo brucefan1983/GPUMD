@@ -53,7 +53,7 @@ Parameters::Parameters()
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
+  is_model_type_set = false;
   is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
@@ -82,7 +82,7 @@ void Parameters::set_default_parameters()
   is_save_potential_set = false;
   is_output_interval_set = false;
 
-  train_mode = 0;              // potential
+  model_type = 0;              // potential
   prediction = 0;              // not prediction mode
   version = 4;                 // NEP4 is the best
   basis_size_radial = 6;       // large enough in most cases
@@ -188,7 +188,7 @@ void Parameters::calculate_parameters()
   }
 
   if (charge_mode || charge_vdw || vdw) {
-    if (train_mode != 0) {
+    if (model_type != 0) {
       PRINT_INPUT_ERROR("Charge/vdW is only supported for potential model.");
     }
     if (num_hidden_layers == 2) {
@@ -196,13 +196,13 @@ void Parameters::calculate_parameters()
     }
   }
 
-  if (train_mode == 0) {
+  if (model_type == 0) {
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
     }
   }
 
-  if (train_mode != 0 && train_mode != 3) {
+  if (model_type != 0 && model_type != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
@@ -236,7 +236,7 @@ void Parameters::calculate_parameters()
   }
 
   dim = dim_radial + dim_angular;
-  if (train_mode == 3) {
+  if (model_type == 3) {
     dim += 1; // concatenate temperature with descriptors
   }
 
@@ -269,7 +269,7 @@ void Parameters::calculate_parameters()
 #endif
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
+  if (model_type == 2) {
     number_of_variables += number_of_variables_ann;
   }
 
@@ -355,7 +355,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   }
   header.version = token[3] - '0';
   header.enable_zbl = false;
-  header.train_mode = 0;
+  header.model_type = 0;
   header.charge_mode = 0;
   header.vdw = 0;
   header.charge_vdw = 0;
@@ -365,7 +365,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
     rest = rest.substr(4);
   }
   if (rest.empty() || rest == "_temperature") {
-    header.train_mode = rest.empty() ? 0 : 3;
+    header.model_type = rest.empty() ? 0 : 3;
     return true;
   }
   if (rest == "_vdw") {
@@ -377,11 +377,11 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
     return true;
   }
   if (rest == "_dipole") {
-    header.train_mode = 1;
+    header.model_type = 1;
     return true;
   }
   if (rest == "_polarizability") {
-    header.train_mode = 2;
+    header.model_type = 2;
     return true;
   }
   if (
@@ -599,9 +599,9 @@ static void compare_with_nep_txt_fine_tune(
     "version", para.version, para.is_version_set, header.version, filename, mismatches);
   compare_int(
     "model_type",
-    para.train_mode,
-    para.is_train_mode_set,
-    header.train_mode,
+    para.model_type,
+    para.is_model_type_set,
+    header.model_type,
     filename,
     mismatches);
   compare_int(
@@ -779,7 +779,7 @@ void Parameters::compare_with_nep_txt(
   number_of_nep_txt_header_lines = header.number_of_header_lines;
 
   compare_int("version", version, is_version_set, header.version, filename, mismatches);
-  compare_int("model_type", train_mode, is_train_mode_set, header.train_mode, filename, mismatches);
+  compare_int("model_type", model_type, is_model_type_set, header.model_type, filename, mismatches);
   compare_int(
     "charge_mode", charge_mode, is_charge_mode_set, header.charge_mode, filename, mismatches);
   compare_int("vdw", vdw, is_vdw_set, header.vdw, filename, mismatches);
@@ -960,7 +960,7 @@ void Parameters::check_existing_model()
 
   if (import_q_scaler) {
     check_nep_txt("nep.txt", true, "Correct nep.in, or switch off import_q_scaler.");
-  } else if (train_mode == 0 && does_file_exist("nep.txt")) {
+  } else if (model_type == 0 && does_file_exist("nep.txt")) {
     // nep.txt is an input when predicting or when there is a nep.restart to resume from,
     // and merely a stale output otherwise
     if (prediction == 1) {
@@ -974,7 +974,7 @@ void Parameters::check_existing_model()
   }
 
   // nep.restart is read only when resuming a training run, not when predicting
-  if (train_mode == 0 && prediction == 0 && does_file_exist("nep.restart")) {
+  if (model_type == 0 && prediction == 0 && does_file_exist("nep.restart")) {
     check_nep_restart();
   }
 }
@@ -987,18 +987,18 @@ void Parameters::report_inputs()
 
   printf("Input or default parameters:\n");
 
-  std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
+  std::string model_type_name = "potential";
+  if (model_type == 1) {
+    model_type_name = "dipole";
+  } else if (model_type == 2) {
+    model_type_name = "polarizability";
+  } else if (model_type == 3) {
+    model_type_name = "temperature-dependent free energy";
   }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
+  if (is_model_type_set) {
+    printf("    (input)   model_type = %s.\n", model_type_name.c_str());
   } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
+    printf("    (default) model_type = %s.\n", model_type_name.c_str());
   }
 
   std::string calculation_mode_name = "train";
@@ -1218,7 +1218,7 @@ void Parameters::report_inputs()
   }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    number_of_variables_ann * (model_type == 2 ? 2 : 1));
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -1231,8 +1231,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
+  if (strcmp(param[0], "model_type") == 0) {
+    parse_model_type(param, num_param);
   } else if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
@@ -1322,17 +1322,17 @@ void Parameters::parse_nep_compile(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_mode(const char** param, int num_param)
+void Parameters::parse_model_type(const char** param, int num_param)
 {
-  is_train_mode_set = true;
+  is_model_type_set = true;
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
+  if (!is_valid_int(param[1], &model_type)) {
+    PRINT_INPUT_ERROR("model_type should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+  if (model_type != 0 && model_type != 1 && model_type != 2 && model_type != 3) {
     PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }

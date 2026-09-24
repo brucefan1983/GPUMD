@@ -1,0 +1,15 @@
+replicate 5 5 5
+potential nep89_20250409.txt
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nvt_ber 300 310 20
+dump_thermo 1
+dump_restart 2
+run 2
+
+ensemble nve
+dump_thermo 1
+dump_restart 2
+run 2
+

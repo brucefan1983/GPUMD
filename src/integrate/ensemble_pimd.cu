@@ -372,6 +372,9 @@ void Ensemble_PIMD::initialize(Atom& atom)
     eco_mode_factors.resize(number_of_beads);
   }
 
+  position_normal.resize(number_of_atoms * number_of_beads * 3);
+  velocity_normal.resize(number_of_atoms * number_of_beads * 3);
+
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
@@ -416,7 +419,26 @@ void Ensemble_PIMD::update_eco_modes()
   }
 }
 
-static __global__ void gpu_nve_1(
+static __global__ void gpu_half_kick(
+  const int number_of_atoms,
+  const int number_of_beads,
+  const double time_step,
+  const double* g_mass,
+  double** force,
+  double** velocity)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int k = blockIdx.y;
+  if (n < number_of_atoms && k < number_of_beads) {
+    const double factor = (time_step * 0.5) / g_mass[n];
+    for (int d = 0; d < 3; ++d) {
+      const int index_dn = d * number_of_atoms + n;
+      velocity[k][index_dn] += factor * force[k][index_dn];
+    }
+  }
+}
+
+static __global__ void gpu_nve_forward(
   const int number_of_atoms,
   const int number_of_beads,
   const double omega_n,
@@ -424,169 +446,203 @@ static __global__ void gpu_nve_1(
   const double* eco_mode_factors,
   const double time_step,
   const double* transformation_matrix,
-  const double* g_mass,
-  double** force,
   double** position,
-  double** velocity)
+  double** velocity,
+  double* position_normal,
+  double* velocity_normal)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    const double half_time_step = time_step * 0.5;
-    double factor = half_time_step / g_mass[n];
-    for (int k = 0; k < number_of_beads; ++k) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int k = blockIdx.y;
+  if (n < number_of_atoms && k < number_of_beads) {
+    double temp_velocity[3] = {0.0};
+    double temp_position[3] = {0.0};
+    for (int j = 0; j < number_of_beads; ++j) {
+      int index_jk = j * number_of_beads + k;
       for (int d = 0; d < 3; ++d) {
         int index_dn = d * number_of_atoms + n;
-        velocity[k][index_dn] += factor * force[k][index_dn];
+        temp_velocity[d] += velocity[j][index_dn] * transformation_matrix[index_jk];
+        temp_position[d] += position[j][index_dn] * transformation_matrix[index_jk];
       }
     }
 
-    double velocity_normal[MAX_NUM_BEADS * 3];
-    double position_normal[MAX_NUM_BEADS * 3];
-    for (int k = 0; k < number_of_beads; ++k) {
+    if (k == 0) {
       for (int d = 0; d < 3; ++d) {
-        double temp_velocity = 0.0;
-        double temp_position = 0.0;
-        for (int j = 0; j < number_of_beads; ++j) {
-          int index_dn = d * number_of_atoms + n;
-          int index_jk = j * number_of_beads + k;
-          temp_velocity += velocity[j][index_dn] * transformation_matrix[index_jk];
-          temp_position += position[j][index_dn] * transformation_matrix[index_jk];
-        }
-        int index_kd = k * 3 + d;
-        velocity_normal[index_kd] = temp_velocity;
-        position_normal[index_kd] = temp_position;
+        temp_position[d] += temp_velocity[d] * time_step; // special case of k=0
       }
-    }
-
-    for (int d = 0; d < 3; ++d) {
-      position_normal[d] += velocity_normal[d] * time_step; // special case of k=0
-    }
-
-    for (int k = 1; k < number_of_beads; ++k) {
-      double omega_k = use_eco_pimd ? omega_n * eco_mode_factors[k]
-                                     : 2.0 * omega_n * sin(k * PI / number_of_beads);
+    } else {
+      const double half_time_step = time_step * 0.5;
+      const double omega_k = use_eco_pimd ? omega_n * eco_mode_factors[k]
+                                          : 2.0 * omega_n * sin(k * PI / number_of_beads);
       // The exact solution is actually not very stable:
       // double cos_factor = cos(omega_k * time_step);
       // double sin_factor = sin(omega_k * time_step);
       // The approximate solution based on Cayley is more stable:
-      double cayley = 1.0 / (1 + (omega_k * half_time_step) * (omega_k * half_time_step));
-      double cos_factor = cayley * (1 - (omega_k * half_time_step) * (omega_k * half_time_step));
-      double sin_factor = cayley * omega_k * time_step;
-      double sin_factor_times_omega = sin_factor * omega_k;
-      double sin_factor_over_omega = sin_factor / omega_k;
+      const double cayley =
+        1.0 / (1 + (omega_k * half_time_step) * (omega_k * half_time_step));
+      const double cos_factor =
+        cayley * (1 - (omega_k * half_time_step) * (omega_k * half_time_step));
+      const double sin_factor = cayley * omega_k * time_step;
+      const double sin_factor_times_omega = sin_factor * omega_k;
+      const double sin_factor_over_omega = sin_factor / omega_k;
       for (int d = 0; d < 3; ++d) {
-        int index_kd = k * 3 + d;
-        double vel = velocity_normal[index_kd];
-        double pos = position_normal[index_kd];
-        velocity_normal[index_kd] = cos_factor * vel - sin_factor_times_omega * pos;
-        position_normal[index_kd] = sin_factor_over_omega * vel + cos_factor * pos;
+        const double old_velocity = temp_velocity[d];
+        const double old_position = temp_position[d];
+        temp_velocity[d] = cos_factor * old_velocity - sin_factor_times_omega * old_position;
+        temp_position[d] = sin_factor_over_omega * old_velocity + cos_factor * old_position;
       }
     }
 
-    for (int j = 0; j < number_of_beads; ++j) {
-      for (int d = 0; d < 3; ++d) {
-        double temp_velocity = 0.0;
-        double temp_position = 0.0;
-        for (int k = 0; k < number_of_beads; ++k) {
-          int index_jk = j * number_of_beads + k;
-          int index_kd = k * 3 + d;
-          temp_velocity += velocity_normal[index_kd] * transformation_matrix[index_jk];
-          temp_position += position_normal[index_kd] * transformation_matrix[index_jk];
-        }
-        int index_dn = d * number_of_atoms + n;
-        velocity[j][index_dn] = temp_velocity;
-        position[j][index_dn] = temp_position;
-      }
+    for (int d = 0; d < 3; ++d) {
+      size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+      velocity_normal[index_kdn] = temp_velocity[d];
+      position_normal[index_kdn] = temp_position[d];
     }
   }
 }
 
-static __global__ void gpu_nve_2(
+static __global__ void gpu_nve_inverse(
   const int number_of_atoms,
   const int number_of_beads,
-  const double time_step,
-  const double* g_mass,
-  double** force,
+  const double* transformation_matrix,
+  const double* position_normal,
+  const double* velocity_normal,
+  double** position,
   double** velocity)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    const double half_time_step = time_step * 0.5;
-    double factor = half_time_step / g_mass[n];
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int j = blockIdx.y;
+  if (n < number_of_atoms && j < number_of_beads) {
+    double temp_velocity[3] = {0.0};
+    double temp_position[3] = {0.0};
     for (int k = 0; k < number_of_beads; ++k) {
+      int index_jk = j * number_of_beads + k;
       for (int d = 0; d < 3; ++d) {
-        int index_dn = d * number_of_atoms + n;
-        velocity[k][index_dn] += factor * force[k][index_dn];
+        size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+        temp_velocity[d] += velocity_normal[index_kdn] * transformation_matrix[index_jk];
+        temp_position[d] += position_normal[index_kdn] * transformation_matrix[index_jk];
       }
+    }
+    for (int d = 0; d < 3; ++d) {
+      int index_dn = d * number_of_atoms + n;
+      velocity[j][index_dn] = temp_velocity[d];
+      position[j][index_dn] = temp_position[d];
     }
   }
 }
 
-static __global__ void gpu_langevin(
+static __global__ void gpu_langevin_forward(
+  const int number_of_atoms,
+  const int number_of_beads,
+  const double* transformation_matrix,
+  double** velocity,
+  double* velocity_normal)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int k = blockIdx.y;
+  if (n < number_of_atoms && k < number_of_beads) {
+    double temp_velocity[3] = {0.0};
+    for (int j = 0; j < number_of_beads; ++j) {
+      int index_jk = j * number_of_beads + k;
+      for (int d = 0; d < 3; ++d) {
+        int index_dn = d * number_of_atoms + n;
+        temp_velocity[d] += velocity[j][index_dn] * transformation_matrix[index_jk];
+      }
+    }
+    for (int d = 0; d < 3; ++d) {
+      size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+      velocity_normal[index_kdn] = temp_velocity[d];
+    }
+  }
+}
+
+static __global__ void gpu_langevin_generate_random(
   const bool thermostat_centroid,
   const int number_of_atoms,
   const int number_of_beads,
   gpurandState* g_state,
+  double* random_numbers)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    gpurandState state = g_state[n];
+    for (int k = 0; k < number_of_beads; ++k) {
+      if (k == 0 && !thermostat_centroid) {
+        continue;
+      }
+      for (int d = 0; d < 3; ++d) {
+        size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+        random_numbers[index_kdn] = CURAND_NORMAL(&state);
+      }
+    }
+    g_state[n] = state;
+  }
+}
+
+static __global__ void gpu_langevin_thermostat(
+  const bool thermostat_centroid,
+  const int number_of_atoms,
+  const int number_of_beads,
   const double temperature,
   const double temperature_coupling,
   const double omega_n,
   const bool use_eco_pimd,
   const double* eco_mode_factors,
   const double time_step,
-  const double* transformation_matrix,
   const double* g_mass,
+  const double* random_numbers,
+  double* velocity_normal)
+{
+  const int k = blockIdx.y;
+  if (k >= number_of_beads || (k == 0 && !thermostat_centroid)) {
+    return;
+  }
+
+  __shared__ double s_c1;
+  __shared__ double s_thermal_numerator;
+  if (threadIdx.x == 0) {
+    if (k == 0) {
+      s_c1 = exp(-0.5 / temperature_coupling);
+    } else if (use_eco_pimd) {
+      s_c1 = exp(-0.5 * time_step * omega_n * eco_mode_factors[k]);
+    } else {
+      s_c1 = exp(-time_step * omega_n * sin(k * PI / number_of_beads));
+    }
+    s_thermal_numerator =
+      (1 - s_c1 * s_c1) * K_B * temperature * number_of_beads;
+  }
+  __syncthreads();
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    const double c2 = sqrt(s_thermal_numerator / g_mass[n]);
+    for (int d = 0; d < 3; ++d) {
+      size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+      velocity_normal[index_kdn] =
+        s_c1 * velocity_normal[index_kdn] + c2 * random_numbers[index_kdn];
+    }
+  }
+}
+
+static __global__ void gpu_langevin_inverse(
+  const int number_of_atoms,
+  const int number_of_beads,
+  const double* transformation_matrix,
+  const double* velocity_normal,
   double** velocity)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-
-    double velocity_normal[MAX_NUM_BEADS * 3];
-
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int j = blockIdx.y;
+  if (n < number_of_atoms && j < number_of_beads) {
+    double temp_velocity[3] = {0.0};
     for (int k = 0; k < number_of_beads; ++k) {
+      int index_jk = j * number_of_beads + k;
       for (int d = 0; d < 3; ++d) {
-        double temp_velocity = 0.0;
-        for (int j = 0; j < number_of_beads; ++j) {
-          int index_dn = d * number_of_atoms + n;
-          int index_jk = j * number_of_beads + k;
-          temp_velocity += velocity[j][index_dn] * transformation_matrix[index_jk];
-        }
-        int index_kd = k * 3 + d;
-        velocity_normal[index_kd] = temp_velocity;
+        size_t index_kdn = (static_cast<size_t>(k) * 3 + d) * number_of_atoms + n;
+        temp_velocity[d] += velocity_normal[index_kdn] * transformation_matrix[index_jk];
       }
     }
-
-    gpurandState state = g_state[n];
-    for (int k = 0; k < number_of_beads; ++k) {
-      if (k == 0 && !thermostat_centroid) {
-        continue;
-      }
-      double c1;
-      if (k == 0) {
-        c1 = exp(-0.5 / temperature_coupling);
-      } else if (use_eco_pimd) {
-        c1 = exp(-0.5 * time_step * omega_n * eco_mode_factors[k]);
-      } else {
-        c1 = exp(-time_step * omega_n * sin(k * PI / number_of_beads));
-      }
-      double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
-      for (int d = 0; d < 3; ++d) {
-        int index_kd = k * 3 + d;
-        velocity_normal[index_kd] = c1 * velocity_normal[index_kd] + c2 * CURAND_NORMAL(&state);
-      }
-    }
-    g_state[n] = state;
-
-    for (int j = 0; j < number_of_beads; ++j) {
-      for (int d = 0; d < 3; ++d) {
-        double temp_velocity = 0.0;
-        for (int k = 0; k < number_of_beads; ++k) {
-          int index_jk = j * number_of_beads + k;
-          int index_kd = k * 3 + d;
-          temp_velocity += velocity_normal[index_kd] * transformation_matrix[index_jk];
-        }
-        int index_dn = d * number_of_atoms + n;
-        velocity[j][index_dn] = temp_velocity;
-      }
+    for (int d = 0; d < 3; ++d) {
+      velocity[j][d * number_of_atoms + n] = temp_velocity[d];
     }
   }
 }
@@ -637,13 +693,25 @@ static __global__ void gpu_correct_momentum_beads(
   const int number_of_atoms, const int number_of_beads, double** g_velocity)
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_atoms) {
+  int k = blockIdx.y;
+  if (i < number_of_atoms && k < number_of_beads) {
     double inverse_of_total_mass = 1.0 / device_momentum_beads[0][3];
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        g_velocity[k][i + d * number_of_atoms] -=
-          device_momentum_beads[k][d] * inverse_of_total_mass;
-      }
+    for (int d = 0; d < 3; ++d) {
+      g_velocity[k][i + d * number_of_atoms] -=
+        device_momentum_beads[k][d] * inverse_of_total_mass;
+    }
+  }
+}
+
+static __global__ void gpu_quantize_reference_position(
+  const int number_of_atoms, double** position)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    for (int d = 0; d < 3; ++d) {
+      int index_dn = d * number_of_atoms + n;
+      float reference = position[0][index_dn];
+      position[0][index_dn] = reference;
     }
   }
 }
@@ -652,28 +720,42 @@ static __global__ void gpu_apply_pbc(
   const Box box, const int number_of_atoms, const int number_of_beads, double** position)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    float pos_temp[3][MAX_NUM_BEADS] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        pos_temp[d][k] = position[k][d * number_of_atoms + n];
-      }
-      if (k > 0) {
-        double pos_diff[3] = {0.0};
-        for (int d = 0; d < 3; ++d) {
-          pos_diff[d] = pos_temp[d][k] - pos_temp[d][0];
-        }
-        apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-        for (int d = 0; d < 3; ++d) {
-          pos_temp[d][k] = pos_temp[d][0] + pos_diff[d];
-        }
-      }
-      for (int d = 0; d < 3; ++d) {
-        position[k][d * number_of_atoms + n] = pos_temp[d][k];
-      }
+  int k = blockIdx.y + 1;
+  if (n < number_of_atoms && k < number_of_beads) {
+    float reference[3];
+    float current[3];
+    for (int d = 0; d < 3; ++d) {
+      int index_dn = d * number_of_atoms + n;
+      reference[d] = position[0][index_dn];
+      current[d] = position[k][index_dn];
     }
+    float dx_float = current[0] - reference[0];
+    float dy_float = current[1] - reference[1];
+    float dz_float = current[2] - reference[2];
+    double dx = dx_float;
+    double dy = dy_float;
+    double dz = dz_float;
+    apply_mic(box, dx, dy, dz);
+    position[k][n] = static_cast<float>(reference[0] + dx);
+    position[k][number_of_atoms + n] = static_cast<float>(reference[1] + dy);
+    position[k][2 * number_of_atoms + n] = static_cast<float>(reference[2] + dz);
   }
 }
+
+static void apply_pbc(
+  const Box& box, const int number_of_atoms, const int number_of_beads, double** position)
+{
+  int grid_size = (number_of_atoms - 1) / 64 + 1;
+  gpu_quantize_reference_position<<<grid_size, 64>>>(number_of_atoms, position);
+  GPU_CHECK_KERNEL
+  if (number_of_beads > 1) {
+    const dim3 grid(grid_size, number_of_beads - 1);
+    gpu_apply_pbc<<<grid, 64>>>(box, number_of_atoms, number_of_beads, position);
+    GPU_CHECK_KERNEL
+  }
+}
+
+constexpr int PIMD_ATOM_TILE = 8;
 
 static __global__ void gpu_average(
   const int number_of_atoms,
@@ -689,38 +771,70 @@ static __global__ void gpu_average(
   double* force_averaged,
   double* virial_averaged)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    double pos_ave[3] = {0.0}, vel_ave[3] = {0.0}, pot_ave = 0.0, for_ave[3] = {0.0},
-           vir_ave[9] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      for (int d = 0; d < 3; ++d) {
-        int index_dn = d * number_of_atoms + n;
-        pos_ave[d] += position[k][index_dn];
-        vel_ave[d] += velocity[k][index_dn];
-        for_ave[d] += force[k][index_dn];
+  __shared__ double s_value[3][MAX_NUM_BEADS][PIMD_ATOM_TILE];
+  int local_atom = threadIdx.x;
+  int k = threadIdx.y;
+  int n = blockIdx.x * PIMD_ATOM_TILE + local_atom;
+  bool valid = n < number_of_atoms;
+  double number_of_beads_inverse = 1.0 / number_of_beads;
+
+  for (int d = 0; d < 3; ++d) {
+    int index_dn = d * number_of_atoms + n;
+    s_value[0][k][local_atom] = valid ? position[k][index_dn] : 0.0;
+    s_value[1][k][local_atom] = valid ? velocity[k][index_dn] : 0.0;
+    s_value[2][k][local_atom] = valid ? force[k][index_dn] : 0.0;
+    __syncthreads();
+    if (k == 0 && valid) {
+      double pos_ave = 0.0;
+      double vel_ave = 0.0;
+      double for_ave = 0.0;
+      for (int bead = 0; bead < number_of_beads; ++bead) {
+        pos_ave += s_value[0][bead][local_atom];
+        vel_ave += s_value[1][bead][local_atom];
+        for_ave += s_value[2][bead][local_atom];
       }
-      pot_ave += potential[k][n];
-      for (int d = 0; d < 9; ++d) {
-        vir_ave[d] += virial[k][d * number_of_atoms + n];
-      }
+      position_averaged[index_dn] = pos_ave * number_of_beads_inverse;
+      velocity_averaged[index_dn] = vel_ave * number_of_beads_inverse;
+      force_averaged[index_dn] = for_ave * number_of_beads_inverse;
     }
-    double number_of_beads_inverse = 1.0 / number_of_beads;
-    for (int d = 0; d < 3; ++d) {
-      int index_dn = d * number_of_atoms + n;
-      position_averaged[index_dn] = pos_ave[d] * number_of_beads_inverse;
-      velocity_averaged[index_dn] = vel_ave[d] * number_of_beads_inverse;
-      force_averaged[index_dn] = for_ave[d] * number_of_beads_inverse;
+    __syncthreads();
+  }
+
+  s_value[0][k][local_atom] = valid ? potential[k][n] : 0.0;
+  __syncthreads();
+  if (k == 0 && valid) {
+    double pot_ave = 0.0;
+    for (int bead = 0; bead < number_of_beads; ++bead) {
+      pot_ave += s_value[0][bead][local_atom];
     }
     potential_averaged[n] = pot_ave * number_of_beads_inverse;
-    for (int d = 0; d < 9; ++d) {
-      virial_averaged[d * number_of_atoms + n] = vir_ave[d] * number_of_beads_inverse;
+  }
+  __syncthreads();
+
+  for (int group = 0; group < 3; ++group) {
+    for (int lane = 0; lane < 3; ++lane) {
+      int d = group * 3 + lane;
+      int index_dn = d * number_of_atoms + n;
+      s_value[lane][k][local_atom] = valid ? virial[k][index_dn] : 0.0;
     }
+    __syncthreads();
+    if (k == 0 && valid) {
+      for (int lane = 0; lane < 3; ++lane) {
+        int d = group * 3 + lane;
+        double vir_ave = 0.0;
+        for (int bead = 0; bead < number_of_beads; ++bead) {
+          vir_ave += s_value[lane][bead][local_atom];
+        }
+        virial_averaged[d * number_of_atoms + n] = vir_ave * number_of_beads_inverse;
+      }
+    }
+    __syncthreads();
   }
 }
 
+constexpr int PIMD_VIRIAL_ATOM_TILE = 8;
+
 static __global__ void gpu_find_kinetic_energy_virial_part(
-  const Box box,
   const int number_of_atoms,
   const int number_of_beads,
   double** position,
@@ -729,33 +843,60 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
   double* kinetic_energy_virial_part,
   double* virial_averaged)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    double temp_sum[9] = {0.0};
-    for (int k = 0; k < number_of_beads; ++k) {
-      int index_x = 0 * number_of_atoms + n;
-      int index_y = 1 * number_of_atoms + n;
-      int index_z = 2 * number_of_atoms + n;
-      // the virial tensor:
-      // xx xy xz    0 3 4
-      // yx yy yz    6 1 5
-      // zx zy zz    7 8 2
-      temp_sum[0] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_x];
-      temp_sum[1] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_y];
-      temp_sum[2] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_z];
-      temp_sum[3] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_y];
-      temp_sum[4] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_z];
-      temp_sum[5] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_z];
-      temp_sum[6] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_x];
-      temp_sum[7] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_x];
-      temp_sum[8] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_y];
+  __shared__ double s_value[3][MAX_NUM_BEADS][PIMD_VIRIAL_ATOM_TILE];
+  int local_atom = threadIdx.x;
+  int k = threadIdx.y;
+  int n = blockIdx.x * PIMD_VIRIAL_ATOM_TILE + local_atom;
+  bool valid = n < number_of_atoms;
+  double number_of_beads_inverse = 1.0 / number_of_beads;
+  double diagonal_sum = 0.0;
+
+  double contribution[9] = {0.0};
+  if (valid) {
+    int index_x = n;
+    int index_y = number_of_atoms + n;
+    int index_z = 2 * number_of_atoms + n;
+    double dx = position[k][index_x] - position_averaged[index_x];
+    double dy = position[k][index_y] - position_averaged[index_y];
+    double dz = position[k][index_z] - position_averaged[index_z];
+    double fx = force[k][index_x];
+    double fy = force[k][index_y];
+    double fz = force[k][index_z];
+    contribution[0] = -dx * fx;
+    contribution[1] = -dy * fy;
+    contribution[2] = -dz * fz;
+    contribution[3] = -dx * fy;
+    contribution[4] = -dx * fz;
+    contribution[5] = -dy * fz;
+    contribution[6] = -dy * fx;
+    contribution[7] = -dz * fx;
+    contribution[8] = -dz * fy;
+  }
+
+  for (int group = 0; group < 3; ++group) {
+    for (int lane = 0; lane < 3; ++lane) {
+      s_value[lane][k][local_atom] = contribution[group * 3 + lane];
     }
-    double number_of_beads_inverse = 1.0 / number_of_beads;
-    for (int d = 0; d < 9; ++d) {
-      virial_averaged[d * number_of_atoms + n] += temp_sum[d] * number_of_beads_inverse;
+    __syncthreads();
+    if (k == 0 && valid) {
+      for (int lane = 0; lane < 3; ++lane) {
+        int d = group * 3 + lane;
+        double sum = 0.0;
+        for (int bead = 0; bead < number_of_beads; ++bead) {
+          sum += s_value[lane][bead][local_atom];
+        }
+        virial_averaged[d * number_of_atoms + n] += sum * number_of_beads_inverse;
+        if (group == 0) {
+          diagonal_sum += sum;
+        }
+      }
     }
+    __syncthreads();
+  }
+
+  if (k == 0 && valid) {
     kinetic_energy_virial_part[n] =
-      0.5f * (temp_sum[0] + temp_sum[1] + temp_sum[2]) * number_of_beads_inverse;
+      0.5f * diagonal_sum * number_of_beads_inverse;
   }
 }
 
@@ -1047,19 +1188,44 @@ static __global__ void gpu_pressure_triclinic(
 void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
 {
   if (thermostat_internal) {
-    gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    const dim3 grid((number_of_atoms - 1) / 64 + 1, number_of_beads);
+    gpu_langevin_forward<<<grid, 64>>>(
+      number_of_atoms,
+      number_of_beads,
+      transformation_matrix.data(),
+      velocity_beads.data(),
+      velocity_normal.data());
+    GPU_CHECK_KERNEL
+
+    // Reuse position_normal as random-number workspace.
+    gpu_langevin_generate_random<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
       thermostat_centroid,
       number_of_atoms,
       number_of_beads,
       curand_states.data(),
+      position_normal.data());
+    GPU_CHECK_KERNEL
+
+    gpu_langevin_thermostat<<<grid, 64>>>(
+      thermostat_centroid,
+      number_of_atoms,
+      number_of_beads,
       temperature,
       temperature_coupling,
       omega_n,
       use_eco_pimd,
       use_eco_pimd ? eco_mode_factors.data() : nullptr,
       time_step,
-      transformation_matrix.data(),
       atom.mass.data(),
+      position_normal.data(),
+      velocity_normal.data());
+    GPU_CHECK_KERNEL
+
+    gpu_langevin_inverse<<<grid, 64>>>(
+      number_of_atoms,
+      number_of_beads,
+      transformation_matrix.data(),
+      velocity_normal.data(),
       velocity_beads.data());
     GPU_CHECK_KERNEL
 
@@ -1067,7 +1233,8 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
       number_of_atoms, atom.mass.data(), velocity_beads.data());
     GPU_CHECK_KERNEL
 
-    gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    const dim3 momentum_grid((number_of_atoms - 1) / 64 + 1, number_of_beads);
+    gpu_correct_momentum_beads<<<momentum_grid, 64>>>(
       number_of_atoms, number_of_beads, velocity_beads.data());
     GPU_CHECK_KERNEL
   }
@@ -1087,11 +1254,19 @@ void Ensemble_PIMD::compute1(
 
   langevin(time_step, atom);
 
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box, number_of_atoms, number_of_beads, position_beads.data());
+  apply_pbc(box, number_of_atoms, number_of_beads, position_beads.data());
+
+  const dim3 grid((number_of_atoms - 1) / 64 + 1, number_of_beads);
+  gpu_half_kick<<<grid, 64>>>(
+    number_of_atoms,
+    number_of_beads,
+    time_step,
+    atom.mass.data(),
+    force_beads.data(),
+    velocity_beads.data());
   GPU_CHECK_KERNEL
 
-  gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+  gpu_nve_forward<<<grid, 64>>>(
     number_of_atoms,
     number_of_beads,
     omega_n,
@@ -1099,8 +1274,18 @@ void Ensemble_PIMD::compute1(
     use_eco_pimd ? eco_mode_factors.data() : nullptr,
     time_step,
     transformation_matrix.data(),
-    atom.mass.data(),
-    force_beads.data(),
+    position_beads.data(),
+    velocity_beads.data(),
+    position_normal.data(),
+    velocity_normal.data());
+  GPU_CHECK_KERNEL
+
+  gpu_nve_inverse<<<grid, 64>>>(
+    number_of_atoms,
+    number_of_beads,
+    transformation_matrix.data(),
+    position_normal.data(),
+    velocity_normal.data(),
     position_beads.data(),
     velocity_beads.data());
   GPU_CHECK_KERNEL
@@ -1118,7 +1303,8 @@ void Ensemble_PIMD::compute2(
 {
   omega_n = number_of_beads * K_B * temperature / HBAR;
 
-  gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+  const dim3 grid((number_of_atoms - 1) / 64 + 1, number_of_beads);
+  gpu_half_kick<<<grid, 64>>>(
     number_of_atoms,
     number_of_beads,
     time_step,
@@ -1129,11 +1315,11 @@ void Ensemble_PIMD::compute2(
 
   langevin(time_step, atom);
 
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box, number_of_atoms, number_of_beads, position_beads.data());
-  GPU_CHECK_KERNEL
+  apply_pbc(box, number_of_atoms, number_of_beads, position_beads.data());
 
-  gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+  const dim3 average_block(PIMD_ATOM_TILE, number_of_beads);
+  const dim3 average_grid((number_of_atoms - 1) / PIMD_ATOM_TILE + 1);
+  gpu_average<<<average_grid, average_block>>>(
     number_of_atoms,
     number_of_beads,
     position_beads.data(),
@@ -1148,8 +1334,9 @@ void Ensemble_PIMD::compute2(
     atom.virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box,
+  const dim3 virial_block(PIMD_VIRIAL_ATOM_TILE, number_of_beads);
+  const dim3 virial_grid((number_of_atoms - 1) / PIMD_VIRIAL_ATOM_TILE + 1);
+  gpu_find_kinetic_energy_virial_part<<<virial_grid, virial_block>>>(
     number_of_atoms,
     number_of_beads,
     position_beads.data(),

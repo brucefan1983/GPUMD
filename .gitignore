@@ -1,7 +1,7 @@
 \.cproject
 \.project
 \.idea
-core
+/core
 
 src/.vscode/*
 src/*/*.obj
