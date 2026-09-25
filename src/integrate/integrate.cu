@@ -34,6 +34,7 @@ The driver class for the various integrators.
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_liquid.cuh"
+#include "ensemble_ti_nep.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
 #include "ensemble_ttm.cuh"
@@ -419,6 +420,9 @@ void Integrate::parse_ensemble(
   } else if (tokens[1] == "ti_liquid") {
     type = EnsembleType::TI_LIQUID;
     ensemble_ = std::make_unique<Ensemble_TI_Liquid>(tokens);
+  } else if (tokens[1] == "ti_nep") {
+    type = EnsembleType::TI_NEP;
+    ensemble_ = std::make_unique<Ensemble_TI_Nep>(tokens);
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
