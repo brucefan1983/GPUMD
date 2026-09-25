@@ -18,6 +18,9 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
+#ifdef GPUMD_WPE_ENABLED
+#include "wpe_stage.cuh"
+#endif
 #include "utilities/common.cuh"
 #include <memory>
 #include <stdio.h>
@@ -58,6 +61,12 @@ public:
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
 
+#ifdef GPUMD_WPE_ENABLED
+  void wpe_process_command(
+    const std::vector<std::string>& tokens,
+    int current_number_of_atoms);
+#endif
+
   void finalize();
 
   int get_number_of_types(FILE* fid_potential);
@@ -69,6 +78,9 @@ public:
   Potential& get_potential(const int index);
 
 private:
+#ifdef GPUMD_WPE_ENABLED
+  WpeGpumdStageState wpe_stage_state_;
+#endif
   std::unique_ptr<Potential> create_potential(
     const std::vector<std::string>& tokens,
     FILE* fid_potential,

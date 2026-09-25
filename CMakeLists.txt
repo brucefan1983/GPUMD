@@ -27,9 +27,66 @@ file(GLOB GPUMD_SOURCES
     src/measure/*.cu
     src/model/*.cu
     src/utilities/*.cu)
+
+option(GPUMD_WPE "Enable Wisevolve Potential Engine (WPE) integration" OFF)
+set(WPE_ROOT "${CMAKE_SOURCE_DIR}/../wpe" CACHE PATH
+    "Wisevolve public integration root (sibling wpe directory by default)")
+set(WPE_SO_ROOT "${CMAKE_SOURCE_DIR}/../wpe.so" CACHE PATH
+    "Wisevolve binary package root (sibling wpe.so directory by default)")
+
+if(GPUMD_WPE)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR
+            "GPUMD_WPE currently supports Linux/CUDA builds with the WPE ELF shared library")
+    endif()
+
+    set(WPE_GPUMD_INTEGRATION "${WPE_ROOT}/integration/gpumd")
+    set(WPE_PUBLIC_INCLUDE "${WPE_ROOT}/include")
+    set(WPE_LIBRARY "${WPE_SO_ROOT}/lib/libwisevolve_potential.so" CACHE FILEPATH
+        "Prebuilt Wisevolve Potential Engine shared library")
+
+    if(NOT EXISTS "${WPE_GPUMD_INTEGRATION}/wpe_adapter.cu" OR
+       NOT EXISTS "${WPE_GPUMD_INTEGRATION}/wpe_stage.cu")
+        message(FATAL_ERROR
+            "GPUMD_WPE=ON requires the WPE public integration sources under ${WPE_GPUMD_INTEGRATION}")
+    endif()
+    if(NOT EXISTS "${WPE_LIBRARY}")
+        message(FATAL_ERROR
+            "GPUMD_WPE=ON requires a prebuilt ${WPE_LIBRARY}; build WPE first")
+    endif()
+
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E compare_files
+            "${CMAKE_SOURCE_DIR}/src/lib/wpe/wisevolve_potential_api.h"
+            "${WPE_PUBLIC_INCLUDE}/wisevolve_potential_api.h"
+        RESULT_VARIABLE WPE_API_COMPARE_RESULT)
+    if(NOT WPE_API_COMPARE_RESULT EQUAL 0)
+        message(FATAL_ERROR
+            "GPUMD and WPE copies of wisevolve_potential_api.h differ")
+    endif()
+
+    list(APPEND GPUMD_SOURCES
+        "${WPE_GPUMD_INTEGRATION}/wpe_adapter.cu"
+        "${WPE_GPUMD_INTEGRATION}/wpe_stage.cu")
+endif()
+
 add_executable(gpumd ${GPUMD_SOURCES})
 target_include_directories(gpumd PRIVATE src)
 target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
+
+if(GPUMD_WPE)
+    add_library(wisevolve_potential SHARED IMPORTED GLOBAL)
+    set_target_properties(wisevolve_potential PROPERTIES
+        IMPORTED_LOCATION "${WPE_LIBRARY}")
+
+    target_compile_definitions(gpumd PRIVATE GPUMD_WPE_ENABLED=1)
+    target_include_directories(gpumd PRIVATE
+        src/force
+        src/lib/wpe
+        "${WPE_GPUMD_INTEGRATION}")
+    target_link_libraries(gpumd PRIVATE wisevolve_potential)
+    set_target_properties(gpumd PROPERTIES BUILD_RPATH "${WPE_SO_ROOT}/lib")
+endif()
 
 # --- nep ---
 file(GLOB NEP_SOURCES
