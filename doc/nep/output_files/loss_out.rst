@@ -66,19 +66,3 @@ where
 
 * :attr:`rmse_polarizability_train` is the polarizability RMSE (per atom) for the training set.
 * :attr:`rmse_polarizability_test` is the polarizability RMSE (per atom) for the test set.
-
-GNEP
-----
-
-The ``gnep`` executable writes one row per epoch.
-Its header contains the lines ``# format_version 1`` and::
-
-  # columns epoch total rmse_energy_train rmse_force_train rmse_virial_train rmse_energy_test rmse_force_test rmse_virial_test learning_rate time
-
-where
-
-* :attr:`epoch` is the current epoch.
-* :attr:`total` is the total loss function.
-* :attr:`rmse_*` are the RMSE values defined for a potential model.
-* :attr:`learning_rate` is the current learning rate.
-* :attr:`time` is the accumulated wall time of the training epochs (in units of s).

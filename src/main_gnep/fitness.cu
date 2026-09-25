@@ -287,12 +287,6 @@ Fitness::Fitness(Parameters& para, Adam* adam)
     
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
-    fprintf(fid_loss_out, "# format_version 1\n");
-    fprintf(
-      fid_loss_out,
-      "# columns epoch total rmse_energy_train rmse_force_train rmse_virial_train"
-      " rmse_energy_test rmse_force_test rmse_virial_test learning_rate time\n");
-    fflush(fid_loss_out);
   }
 }
 
