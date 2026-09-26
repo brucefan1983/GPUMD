@@ -298,7 +298,7 @@ Coverage is recorded through generic `covers` tags rather than inferred from
 case names.
 
 This is a regression gate, not an exhaustive validation of every GPUMD build
-configuration or potential family. Optional NetCDF and MDI paths are not
+configuration or potential family. Optional NetCDF paths are not
 covered by executable-level cases. Other optional or normally disabled
 potential implementations require separate coverage before making claims
 about them.
