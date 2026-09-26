@@ -1,0 +1,221 @@
+###########################################################
+# Makefile for GPUMD with Wisevolve Potential Engine (WPE)
+#
+# Build from src/:
+#
+#   make -f makefile_wpe \
+#     WPE_ROOT=/path/to/wpe \
+#     WPE_SO_ROOT=/path/to/wpe.so
+#
+# Output:
+#
+#   gpumd-wpe
+###########################################################
+
+.DEFAULT_GOAL := all
+
+
+###########################################################
+# required WPE paths
+###########################################################
+
+ifneq ($(MAKECMDGOALS),clean)
+
+ifeq ($(strip $(WPE_ROOT)),)
+$(error WPE_ROOT is required. Set WPE_ROOT=/path/to/wpe)
+endif
+
+ifeq ($(strip $(WPE_SO_ROOT)),)
+$(error WPE_SO_ROOT is required. Set WPE_SO_ROOT=/path/to/wpe.so)
+endif
+
+endif
+
+WPE_INCLUDE = $(WPE_ROOT)/include
+WPE_INTEGRATION = $(WPE_ROOT)/integration/gpumd
+WPE_LIBDIR = $(WPE_SO_ROOT)/lib
+WPE_LIB = $(WPE_LIBDIR)/libwisevolve_potential.so
+
+WPE_GPUMD_API = lib/wpe/wisevolve_potential_api.h
+WPE_EXTERNAL_API = $(WPE_INCLUDE)/wisevolve_potential_api.h
+
+WPE_ADAPTER = $(WPE_INTEGRATION)/wpe_adapter.cu
+WPE_STAGE = $(WPE_INTEGRATION)/wpe_stage.cu
+
+ifneq ($(MAKECMDGOALS),clean)
+
+ifeq ($(wildcard $(WPE_ROOT)),)
+$(error WPE_ROOT does not exist: $(WPE_ROOT))
+endif
+
+ifeq ($(wildcard $(WPE_SO_ROOT)),)
+$(error WPE_SO_ROOT does not exist: $(WPE_SO_ROOT))
+endif
+
+ifeq ($(wildcard $(WPE_ADAPTER)),)
+$(error Missing WPE GPUMD adapter: $(WPE_ADAPTER))
+endif
+
+ifeq ($(wildcard $(WPE_STAGE)),)
+$(error Missing WPE GPUMD stage integration: $(WPE_STAGE))
+endif
+
+ifeq ($(wildcard $(WPE_EXTERNAL_API)),)
+$(error Missing WPE API header: $(WPE_EXTERNAL_API))
+endif
+
+ifeq ($(wildcard $(WPE_LIB)),)
+$(error Missing WPE shared library: $(WPE_LIB))
+endif
+
+endif
+
+
+###########################################################
+# runtime library path
+###########################################################
+
+# WPE_SO_ROOT determines both link-time and runtime lookup.
+ifeq ($(filter /%,$(WPE_LIBDIR)),)
+WPE_RPATH = $$ORIGIN/$(WPE_LIBDIR)
+else
+WPE_RPATH = $(WPE_LIBDIR)
+endif
+
+
+###########################################################
+# compiler flags
+###########################################################
+
+CC = nvcc
+CUDA_ARCH ?= -arch=sm_60
+
+WARN_FLAGS = -Wall -Wextra
+WARN_FLAGS += -Wno-sign-compare -Wno-unused-parameter
+WARN_FLAGS += -Wnull-dereference -Wstringop-overflow -Wstringop-truncation -Wrestrict
+WARN_FLAGS += -Wduplicated-cond -Wduplicated-branches -Wlogical-op
+WARN_FLAGS += -Wsequence-point -Wswitch-default
+WARN_FLAGS += -Wcast-align -Wcast-qual -Wvla
+WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
+
+WPE_NVCC_FLAGS ?= -Wno-deprecated-gpu-targets
+
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
+CFLAGS += -DGPUMD_WPE_ENABLED=1 $(WPE_NVCC_FLAGS)
+
+INC = -I./ -Iforce -Ilib/wpe -I"$(WPE_INTEGRATION)"
+
+LDFLAGS =
+LIBS = -lcublas -lcusolver -lcufft
+
+
+###########################################################
+# source files
+###########################################################
+
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.cu)   \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard phonon/*.cu)       \
+	$(wildcard integrate/*.cu)    \
+	$(wildcard mc/*.cu)           \
+	$(wildcard force/*.cu)        \
+	$(wildcard measure/*.cu)      \
+	$(wildcard model/*.cu)        \
+	$(wildcard utilities/*.cu)
+
+
+###########################################################
+# object files
+###########################################################
+
+OBJDIR = .wpe_obj
+
+OBJ_GPUMD = $(patsubst %.cu,$(OBJDIR)/%.o,$(SOURCES_GPUMD))
+
+WPE_ADAPTER_OBJ = $(OBJDIR)/wpe/wpe_adapter.o
+WPE_STAGE_OBJ = $(OBJDIR)/wpe/wpe_stage.o
+
+OBJECTS = $(OBJ_GPUMD) $(WPE_ADAPTER_OBJ) $(WPE_STAGE_OBJ)
+
+
+###########################################################
+# headers
+###########################################################
+
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard phonon/*.cuh)      \
+	$(wildcard $(WPE_INTEGRATION)/*.cuh) \
+	$(WPE_GPUMD_API)
+
+
+###########################################################
+# validation
+###########################################################
+
+.PHONY: all check-wpe clean
+
+check-wpe:
+	@cmp -s "$(WPE_GPUMD_API)" "$(WPE_EXTERNAL_API)" || { \
+		echo "ERROR: GPUMD and WPE copies of wisevolve_potential_api.h differ"; \
+		exit 2; \
+	}
+
+$(OBJECTS): | check-wpe
+
+
+###########################################################
+# executable
+###########################################################
+
+all: gpumd-wpe
+
+gpumd-wpe: $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) \
+		-L"$(WPE_LIBDIR)" \
+		-Xlinker --no-as-needed \
+		-lwisevolve_potential \
+		-Xlinker -rpath \
+		-Xlinker '$(WPE_RPATH)' \
+		-o $@ $(LIBS)
+	@echo =================================================
+	@echo The gpumd-wpe executable is successfully compiled!
+	@echo =================================================
+
+
+###########################################################
+# GPUMD object rules
+###########################################################
+
+$(OBJDIR)/%.o: %.cu $(HEADERS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+
+###########################################################
+# WPE integration object rules
+###########################################################
+
+$(WPE_ADAPTER_OBJ): $(WPE_ADAPTER) $(HEADERS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+$(WPE_STAGE_OBJ): $(WPE_STAGE) $(HEADERS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+
+###########################################################
+# clean up
+###########################################################
+
+clean:
+	rm -rf $(OBJDIR) gpumd-wpe

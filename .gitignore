@@ -31,7 +31,4 @@ __pycache__/
 README.gnep.md
 push-to-both.sh
 
-# Optional WPE host integration build artifacts
-src/.gpumd_mode_*
-src/wpe_gpumd_adapter.o
-src/wpe_gpumd_stage.o
+src/.wpe_obj/

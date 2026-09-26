@@ -44,54 +44,6 @@ NEP_LIBS += -ldl
 GNEP_LIBS += -lpthread
 endif
 
-# Wisevolve Potential Engine (WPE) host integration.
-#
-# Expected source layout for the WPE-enabled build:
-#   <workspace>/gpumd/   (this repository / upstream PR)
-#   <workspace>/wpe/     (Wisevolve public API + GPUMD integration source)
-#   <workspace>/wpe.so/  (prebuilt WPE shared-library package)
-#
-# Standard GPUMD remains the default.  The dedicated WPE build is enabled with
-# WPE=1 (or the gpumd-wpe convenience target).  The public integration and
-# binary package may be relocated independently with WPE_ROOT/WPE_SO_ROOT.
-WPE ?= 0
-WPE_ROOT ?= ../../wpe
-WPE_SO_ROOT ?= ../../wpe.so
-ifneq ($(filter $(WPE),0 1),$(WPE))
-$(error WPE must be 0 or 1)
-endif
-
-WPE_INCLUDE = $(WPE_ROOT)/include
-WPE_INTEGRATION = $(WPE_ROOT)/integration/gpumd
-WPE_LIBDIR = $(WPE_SO_ROOT)/lib
-WPELIB = $(WPE_LIBDIR)/libwisevolve_potential.so
-WPE_GPUMD_API = lib/wpe/wisevolve_potential_api.h
-WPE_EXTERNAL_API = $(WPE_INCLUDE)/wisevolve_potential_api.h
-# Use the same WPE library location for linking and runtime lookup by default.
-# Relative paths remain relocatable with respect to the gpumd executable,
-# while absolute paths are embedded directly.
-ifeq ($(filter /%,$(WPE_LIBDIR)),)
-WPE_RPATH_DEFAULT = $$ORIGIN/$(WPE_LIBDIR)
-else
-WPE_RPATH_DEFAULT = $(WPE_LIBDIR)
-endif
-
-WPE_RPATH ?= $(WPE_RPATH_DEFAULT)
-WPE_NVCC_FLAGS ?= -Wno-deprecated-gpu-targets
-
-ifeq ($(WPE),1)
-ifdef OS
-$(error WPE integration currently supports Linux/CUDA builds only)
-endif
-CFLAGS += -DGPUMD_WPE_ENABLED=1 $(WPE_NVCC_FLAGS)
-LDFLAGS += $(WPE_NVCC_FLAGS)
-INC += -Iforce -Ilib/wpe -I$(WPE_INTEGRATION)
-GPUMD_BUILD_MODE = wpe
-else
-GPUMD_BUILD_MODE = stock
-endif
-GPUMD_MODE_STAMP = .gpumd_mode_$(GPUMD_BUILD_MODE)
-
 
 ###########################################################
 # source files
@@ -113,8 +65,6 @@ SOURCES_GNEP =                     \
 	$(wildcard main_gnep/*.cu)     \
 	$(wildcard utilities/*.cu)
 
-# WPE integration sources are built directly from the sibling WPE repository.
-
 
 ###########################################################
 # object files
@@ -127,11 +77,6 @@ else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
-endif
-
-ifeq ($(WPE),1)
-WPE_HOST_OBJECTS = wpe_gpumd_adapter.o wpe_gpumd_stage.o
-OBJ_GPUMD += $(WPE_HOST_OBJECTS)
 endif
 
 
@@ -150,20 +95,6 @@ HEADERS =                         \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
 	$(wildcard main_gnep/*.cuh)
-ifeq ($(WPE),1)
-HEADERS += $(wildcard $(WPE_INTEGRATION)/*.cuh) $(WPE_GPUMD_API) $(WPE_EXTERNAL_API)
-endif
-
-
-###########################################################
-# GPUMD build mode stamp
-###########################################################
-# GNU Make does not track changes in CFLAGS.  Stock and WPE builds therefore
-# share a small mode stamp so switching `make gpumd` <-> `make WPE=1 gpumd`
-# always recompiles GPUMD objects with the correct preprocessor surface.
-$(GPUMD_MODE_STAMP):
-	rm -f .gpumd_mode_stock .gpumd_mode_wpe
-	touch $@
 
 
 ###########################################################
@@ -171,41 +102,17 @@ $(GPUMD_MODE_STAMP):
 ###########################################################
 all: gpumd nep gpumd_replica
 
-.PHONY: all gpumd_replica clean_replica clean gpumd-wpe wpe-api-check
+.PHONY: all gpumd_replica clean_replica clean
 
 # Keep replica objects separate and share the selected compiler and architecture.
 gpumd_replica:
 	$(MAKE) -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
 
-gpumd-wpe:
-	$(MAKE) -f makefile gpumd WPE=1 WPE_ROOT="$(WPE_ROOT)" WPE_SO_ROOT="$(WPE_SO_ROOT)" CUDA_ARCH="$(CUDA_ARCH)" WPE_NVCC_FLAGS="$(WPE_NVCC_FLAGS)"
-
-wpe-api-check:
-	@test -f "$(WPE_GPUMD_API)" || { echo "ERROR: missing GPUMD WPE API header: $(WPE_GPUMD_API)"; exit 2; }
-	@test -f "$(WPE_EXTERNAL_API)" || { echo "ERROR: missing WPE API header: $(WPE_EXTERNAL_API)"; exit 2; }
-	@cmp -s "$(WPE_GPUMD_API)" "$(WPE_EXTERNAL_API)" || { \
-		echo "ERROR: GPUMD and WPE copies of wisevolve_potential_api.h differ"; exit 2; }
-
-ifeq ($(WPE),1)
-gpumd: wpe-api-check $(OBJ_GPUMD) $(WPELIB)
-	$(CC) $(LDFLAGS) $(OBJ_GPUMD) -L"$(WPE_LIBDIR)" -Xlinker --no-as-needed -lwisevolve_potential \
-		-Xlinker -rpath -Xlinker '$(WPE_RPATH)' -o $@ $(LIBS)
-else
-
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-endif
 	@echo =================================================
 	@echo The gpumd executable is successfully compiled!
 	@echo =================================================
-
-ifeq ($(WPE),1)
-$(WPELIB):
-	@echo "ERROR: missing $(WPELIB)"
-	@echo "Build/install/download the WPE binary release under WPE_SO_ROOT=$(WPE_SO_ROOT)."
-	@exit 2
-endif
-
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(NEP_LIBS)
 	@echo =================================================
@@ -245,29 +152,23 @@ main_nep/%.obj: main_nep/%.cu $(HEADERS)
 main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
-integrate/%.o: integrate/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.o: mc/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+mc/%.o: mc/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.o: minimize/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+minimize/%.o: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.o: force/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+force/%.o: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-ifeq ($(WPE),1)
-wpe_gpumd_adapter.o: $(WPE_INTEGRATION)/wpe_adapter.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+measure/%.o: measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-wpe_gpumd_stage.o: $(WPE_INTEGRATION)/wpe_stage.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-endif
-measure/%.o: measure/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+utilities/%.o: utilities/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.o: main_gpumd/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+model/%.o: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.o: utilities/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.o: model/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.o: phonon/%.cu $(HEADERS) $(GPUMD_MODE_STAMP)
+phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
@@ -286,5 +187,5 @@ clean: clean_replica
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o wpe_gpumd_adapter.o wpe_gpumd_stage.o gpumd nep gnep .gpumd_mode_stock .gpumd_mode_wpe
+	rm -f */*.o gpumd nep gnep
 endif
