@@ -7,37 +7,62 @@
 
 This files contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
 
-If a potential model is trained, each row contains the following fields::
+File format
+-----------
 
-  gen L_t L_1 L_2 L_e_train L_f_train L_v_train L_e_test L_f_test L_v_test
+The file starts with a header of lines beginning with ``#``::
 
-where
+  # format_version 1
+  # output_interval 100
+  # columns generation total L1 L2 rmse_energy_train ...
 
-* :attr:`gen` is the current generation.
-* :attr:`L_t` is the total loss function.
-* :attr:`L_1` is the loss function related to the :math:`\mathcal{L}_1` regularization.
-* :attr:`L_2` is the loss function related to the :math:`\mathcal{L}_2` regularization.
-* :attr:`L_e_train` is the energy RMSE (in units of eV/atom) for the training set.
-* :attr:`L_f_train` is the force RMSE (in units of eV/Å) for the training set.
-* :attr:`L_v_train` is the virial RMSE (in units of eV/atom) for the training set.
-* :attr:`L_e_test` is the energy RMSE (in units of eV/atom) for the test set.
-* :attr:`L_f_test` is the force RMSE (in units of eV/Å) for the test set.
-* :attr:`L_v_test` is the virial RMSE (in units of eV/atom) for the test set.
+* :attr:`format_version` is the version of the file format.
+* :attr:`output_interval` is the number of generations between two rows.
+* :attr:`columns` lists the names of the columns in each row.
 
-If a dipole model is trained, each row contains the following fields::
+Each run writes this header before its rows.
+A file that a restarted run appends to thus contains several headers.
 
-  gen L_t L_1 L_2 L_mu_train L_mu_test
+If a potential model is trained, the columns are::
 
-where
-
-* :attr:`L_mu_train` is the dipole RMSE (per atom) for the training set.
-* :attr:`L_mu_test` is the dipole RMSE (per atom) for the test set.
-
-If a polarizability model is trained, each row contains the following fields::
-
-  gen L_t L_1 L_2 L_alpha_train L_alpha_test
+  generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_energy_test rmse_force_test rmse_virial_test
 
 where
 
-* :attr:`L_alpha_train` is the polarizability RMSE (per atom) for the training set.
-* :attr:`L_alpha_test` is the polarizability RMSE (per atom) for the test set.
+* :attr:`generation` is the current generation.
+* :attr:`total` is the total loss function.
+* :attr:`L1` is the loss function related to the :math:`\mathcal{L}_1` regularization.
+* :attr:`L2` is the loss function related to the :math:`\mathcal{L}_2` regularization.
+* :attr:`rmse_energy_train` is the energy RMSE (in units of eV/atom) for the training set.
+* :attr:`rmse_force_train` is the force RMSE (in units of eV/Å) for the training set.
+* :attr:`rmse_virial_train` is the virial RMSE (in units of eV/atom) for the training set.
+* :attr:`rmse_energy_test` is the energy RMSE (in units of eV/atom) for the test set.
+* :attr:`rmse_force_test` is the force RMSE (in units of eV/Å) for the test set.
+* :attr:`rmse_virial_test` is the virial RMSE (in units of eV/atom) for the test set.
+
+If a potential model with charges (:ref:`charge_mode <kw_charge_mode>` or ``charge_vdw``) is trained, the columns are::
+
+  generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test
+
+where
+
+* :attr:`rmse_charge_train` and :attr:`rmse_charge_test` are the RMSE of the total charge (in units of e/atom) for the training and test sets.
+* :attr:`rmse_bec_train` and :attr:`rmse_bec_test` are the :term:`BEC` RMSE (in units of e) for the training and test sets.
+
+If a dipole model is trained, the columns are::
+
+  generation total L1 L2 rmse_dipole_train rmse_dipole_test
+
+where
+
+* :attr:`rmse_dipole_train` is the dipole RMSE (per atom) for the training set.
+* :attr:`rmse_dipole_test` is the dipole RMSE (per atom) for the test set.
+
+If a polarizability model is trained, the columns are::
+
+  generation total L1 L2 rmse_polarizability_train rmse_polarizability_test
+
+where
+
+* :attr:`rmse_polarizability_train` is the polarizability RMSE (per atom) for the training set.
+* :attr:`rmse_polarizability_test` is the polarizability RMSE (per atom) for the test set.
