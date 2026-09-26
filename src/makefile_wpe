@@ -87,6 +87,10 @@ endif
 # compiler flags
 ###########################################################
 
+ifdef OS
+$(error WPE integration currently supports Linux/CUDA builds only)
+endif
+
 CC = nvcc
 CUDA_ARCH ?= -arch=sm_60
 
