@@ -26,6 +26,9 @@ The driver class calculating force and related quantities.
 #include "eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#ifdef GPUMD_WPE_ENABLED
+#include "wpe_adapter.cuh"
+#endif
 #include "ilp_nep.cuh"
 #include "ilp_tmd_sw.cuh"
 #include "ilp_tersoff.cuh"
@@ -193,6 +196,24 @@ void Force::parse_potential(
   const int number_of_atoms,
   const RunInput& run_input)
 {
+#ifdef GPUMD_WPE_ENABLED
+  if (tokens.size() != 2u) {
+    PRINT_INPUT_ERROR(
+      "Wisevolve Potential Engine integration supports exactly one potential file and no additional potential parameters.\n");
+  }
+  if (!potentials.empty()) {
+    PRINT_INPUT_ERROR(
+      "Wisevolve Potential Engine integration supports exactly one potential. Use standard GPUMD for multiple potentials.\n");
+  }
+  (void)box;
+  (void)run_input;
+  std::unique_ptr<Potential> wpe_potential(new WpePotential(
+    tokens[1].c_str(), number_of_atoms));
+  wpe_potential->N1 = 0;
+  wpe_potential->N2 = number_of_atoms;
+  potentials.push_back(std::move(wpe_potential));
+  return;
+#else
   const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
@@ -232,7 +253,19 @@ void Force::parse_potential(
   if (potentials.size() > 1 && has_non_nep) {
     PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
   }
+#endif
 }
+
+#ifdef GPUMD_WPE_ENABLED
+void Force::wpe_process_command(
+  const std::vector<std::string>& tokens,
+  const int current_number_of_atoms)
+{
+  WpeStageInfo stage{};
+  if (wpe_stage_state_.process_command(tokens, current_number_of_atoms, stage))
+    gpumd_wpe_activate_stage(potentials, stage);
+}
+#endif
 
 int Force::get_number_of_types(FILE* fid_potential)
 {

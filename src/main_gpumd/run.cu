@@ -318,6 +318,10 @@ void Run::parse_one_keyword(
   if (num_param > max_num_param)
     PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
 
+#ifdef GPUMD_WPE_ENABLED
+  force.wpe_process_command(tokens, atom.number_of_atoms);
+#endif
+
   if (tokens[0] == "potential") {
     force.parse_potential(tokens, box, atom.type.size(), run_input);
   } else if (tokens[0] == "minimize") {
