@@ -6,27 +6,95 @@
 :attr:`compute_hessian`
 =======================
 
-This keyword computes the analytic Cartesian Hessian matrix of the current
-configuration with a :term:`NEP` potential. It is an immediate, standalone
-command: it is executed as soon as it is read and does not require an
-:ref:`ensemble <kw_ensemble>` or a :ref:`run <kw_run>` command.
+The :attr:`compute_hessian` keyword computes the Cartesian Hessian matrix of
+the current configuration and can optionally solve phonons from it. It is an
+immediate, standalone command: it is executed when it is read and does not
+require an :ref:`ensemble <kw_ensemble>` or a :ref:`run <kw_run>` command.
 
-Unlike :ref:`compute_phonon <kw_compute_phonon>`, which uses the
-finite-displacement method, :attr:`compute_hessian` evaluates the second
-derivatives of the potential energy analytically. If the analytic provider does
-not support the model or the configuration, the command reports an error and
-terminates; it never silently falls back to a finite-displacement result.
+Two Hessian modes are available:
+
+* ``compute_hessian analytic`` computes the Hessian analytically. This mode is
+  currently available for supported :term:`NEP` models only.
+* ``compute_hessian fd`` computes the Hessian by central finite differences of
+  the forces. This mode supports every potential implemented by the
+  :ref:`potential <kw_potential>` command, including non-NEP potentials and
+  composite potentials such as those containing an interlayer potential
+  (:term:`ILP`).
+
+If the analytic mode is not supported for the selected potential, model, or
+configuration, it reports an error and terminates. It does not automatically
+fall back to the finite-difference mode; use ``compute_hessian fd`` instead.
 
 Syntax
 ------
 
 .. code::
 
-   compute_hessian method analytic [key value ...]
+   compute_hessian analytic [key value ...]
+   compute_hessian fd       [key value ...]
 
 The command must appear after the :ref:`potential <kw_potential>` definition.
-Only ``method analytic`` is accepted. All further arguments are optional
-key-value pairs; each key is followed by exactly one value.
+The first argument after the keyword selects the mode. All further arguments
+are optional key-value pairs; each key is followed by exactly one value.
+
+The following parameters are available in both modes:
+
+``output <path>``
+   Path of the symmetrized Hessian matrix. Default: ``hessian.out``.
+
+``structure_output <path>``
+   Write an extended XYZ snapshot of the exact configuration for which the
+   Hessian was evaluated, including cell, periodic boundary conditions, species,
+   positions, masses and forces. The file also records the conservative
+   interaction range used by the :math:`\boldsymbol{q}`-mesh postprocessing.
+   Use a fresh, distinct path that does not coincide with an input file or
+   another output.
+
+``metadata <path>``
+   Write a diagnostic JSON file describing the Hessian, the potential files and
+   their hashes, the device, and the matrix diagnostics. Disabled by default.
+
+``phonon none|gamma|dispersion``
+   Optionally solve phonons from the Hessian. The default is ``none``.
+   ``gamma`` computes the Gamma-point modes of the current structure.
+   ``dispersion`` computes modes along a path read from ``kpoints`` and uses
+   ``supercell`` to identify the reference cell. See
+   :ref:`hessian_phonons` below.
+
+``supercell nx,ny,nz``
+   Number of reference-cell repeats along the three lattice directions. The
+   default is ``1,1,1``. This parameter is accepted only together with
+   ``phonon gamma`` or ``phonon dispersion``.
+
+``kpoints <path>``
+   Path to the high-symmetry path file. Default: ``kpoints.in``. This parameter
+   is accepted only together with ``phonon dispersion``.
+
+``kpoint_intervals <integer>``
+   Number of interpolation intervals per path segment. Default: ``100``. This
+   parameter is accepted only together with ``phonon dispersion``.
+
+The following parameters are available only in analytic mode:
+
+``output_format dense|matrix_market``
+   Choose the dense text matrix (``dense``, the default) or a sparse Matrix
+   Market coordinate matrix (``matrix_market``). The sparse path assembles the
+   NEP Hessian contributions directly into a symmetric :math:`3\times3`
+   block-compressed row workspace and writes only the nonzero scalar elements in
+   the SoA row and column order. It currently supports a single ordinary NEP
+   model without DFT-D3 or interlayer-potential (:term:`ILP`) environments.
+   Sparse output is incompatible with ``raw_output`` and ``metadata``.
+
+``raw_output <path>``
+   Path of the un-symmetrized analytic matrix. Disabled by default. This
+   parameter is available only in analytic mode.
+
+The following parameter is available only in finite-difference mode:
+
+``displacement <value>``
+   Positive finite Cartesian displacement in Å used by the central-difference
+   formula. Default: ``0.001``. This parameter is available only in
+   ``compute_hessian fd`` mode.
 
 Input files
 -----------
@@ -43,14 +111,14 @@ The command uses the following files from the input directory:
    * - ``model.xyz``
      - Simulation model containing the configuration to be evaluated
    * - ``run.in``
-     - The NEP potential file references are read from this file
+     - The potential file references are read from this file
    * - ``kpoints.in``
      - Optional; required only for ``phonon dispersion`` (see :ref:`kpoints_in`)
 
 Output files
 ------------
 
-The analytic Hessian is written to ``hessian.out`` (or to the path given by
+The symmetrized Hessian is written to ``hessian.out`` (or to the path given by
 ``output``). Optional outputs are only created when explicitly requested:
 
 .. list-table::
@@ -61,11 +129,13 @@ The analytic Hessian is written to ``hessian.out`` (or to the path given by
    * - Output filename
      - Brief description
    * - ``hessian.out``
-     - Symmetrized analytic Hessian matrix (default; rename with ``output``)
+     - Symmetrized Hessian matrix (default; rename with ``output``)
    * - ``raw_output`` path
-     - Un-symmetrized analytic Hessian matrix (optional, see ``raw_output``)
-   * - ``element_errors.csv``
-     - Elementwise comparison with a finite-displacement reference (optional)
+     - Un-symmetrized analytic Hessian matrix (analytic mode only)
+   * - ``metadata`` path
+     - Diagnostic JSON metadata (disabled by default)
+   * - ``structure_output`` path
+     - Extended XYZ snapshot of the evaluated configuration
    * - ``D.out``
      - Dynamical matrices for the requested :math:`\boldsymbol{k}`-points
    * - ``omega2.out``
@@ -76,74 +146,6 @@ The analytic Hessian is written to ``hessian.out`` (or to the path given by
 The format of ``D.out`` and ``omega2.out`` produced by this command follows the
 corresponding :ref:`D.out <D_out>` and :ref:`omega2.out <omega2_out>` output
 files, with the differences noted in the section :ref:`hessian_phonons` below.
-
-Parameters
-----------
-
-``output <path>``
-   Path of the symmetrized analytic matrix. Default: ``hessian.out``.
-
-``output_format dense|matrix_market``
-   Choose the dense text matrix (``dense``, the default) or a sparse Matrix
-   Market coordinate matrix (``matrix_market``). The sparse path assembles the
-   NEP Hessian contributions directly into a symmetric :math:`3\times3`
-   block-compressed row workspace and writes only the nonzero scalar elements in
-   the SoA row and column order. It currently supports a single ordinary NEP
-   model without DFT-D3 or interlayer-potential (:term:`ILP`) environments.
-   Sparse output does not support ``raw_output``, finite-difference validation,
-   or Hessian metadata.
-
-``raw_output <path>``
-   Path of the un-symmetrized analytic matrix. Disabled by default.
-
-``structure_output <path>``
-   Write an extended XYZ snapshot of the exact configuration for which the
-   Hessian was evaluated, including cell, periodic boundary conditions, species,
-   positions, masses and forces. The file also records the conservative
-   interaction range used by the :math:`\boldsymbol{q}`-mesh postprocessing.
-   Use a fresh, distinct path that does not coincide with an input file or
-   another output.
-
-``metadata <path>``
-   Write a diagnostic JSON file describing the Hessian, the potential files and
-   their hashes, the device, and the matrix diagnostics. Disabled by default.
-
-``validate_fd yes|no``
-   Compare the analytic matrix with a central finite-difference reference that
-   is built from force evaluations with displacement ``displacement``. Default:
-   ``no``. This is a comparison, not a fallback mechanism.
-
-``displacement <value>``
-   Positive finite Cartesian displacement in Å used for the finite-difference
-   reference. Default: ``0.001``.
-
-``fd_output <path>``
-   Write the finite-difference reference matrix. Setting this option implies
-   ``validate_fd yes``.
-
-``element_errors <path>``
-   Path of the elementwise comparison between the analytic matrix and the
-   finite-difference reference. Default: ``element_errors.csv``. The comparison
-   requires a reference, so use it together with ``validate_fd`` or
-   ``fd_output``; setting this option alone does not enable finite differences.
-
-``phonon none|gamma|dispersion``
-   Optionally solve the phonon problem from the same analytic Hessian. The
-   default, ``none``, only writes the matrix.
-
-``supercell nx,ny,nz``
-   Repeat counts of the current structure relative to the reference cell, given
-   as three comma-separated positive integers. Default: ``1,1,1``. Requires a
-   phonon mode. The counts describe an already existing structure; this option
-   does not replicate atoms.
-
-``kpoints <path>``
-   Path to the high-symmetry path file. Default: ``kpoints.in``. Only accepted
-   together with ``phonon dispersion``.
-
-``kpoint_intervals <integer>``
-   Number of interpolation intervals per path segment. Default: ``100``. Only
-   accepted together with ``phonon dispersion``.
 
 Hessian matrix
 --------------
@@ -164,14 +166,23 @@ with respect to the Cartesian coordinates,
           = \frac{\partial^2 E}{\partial r_i \partial r_j},
 
 and is written in units of eV/Å\ :sup:`2`. This is a Cartesian Hessian, not a
-mass-weighted dynamical matrix. The symmetrized matrix is written to ``output``;
-the un-symmetrized matrix is written to ``raw_output`` when requested.
+mass-weighted dynamical matrix.
 
-Every output file starts with comment lines recording the coordinate order,
-matrix order, definition, units, number of atoms and the kind of matrix.
+The matrix written to ``output`` has been symmetrized as
+:math:`(H+H^\mathsf{T})/2`. In analytic mode the un-symmetrized matrix is
+written to ``raw_output`` when requested. In finite-difference mode the
+unavoidable small asymmetry caused by numerical force evaluations is removed by
+the same symmetrization before ``output`` is written; no un-symmetrized fd
+matrix is written.
 
-Analytic support and limitations
---------------------------------
+Every dense output file starts with comment lines recording the coordinate
+order, matrix order, definition, units, number of atoms and the kind of matrix.
+For finite-difference output, the result is identified as
+``finite_difference_symmetrized``; for analytic output it is identified as
+``analytic_symmetrized`` (or ``analytic_raw`` for ``raw_output``).
+
+Analytic mode
+-------------
 
 The generic keyword does not imply analytic support for every potential. The
 current analytic provider supports only a single NEP energy model: the ordinary
@@ -188,38 +199,52 @@ or temperature-dependent NEP4 variants, with an angular expansion of
 
 If the analytic provider rejects the model or configuration, or fails the
 built-in symmetry and translation-sum validation, the command reports an error
-and terminates. Finite-difference fallback is disabled: ``validate_fd`` is a
-comparison, not a substitute for an unsupported analytic Hessian.
+and terminates. Finite-difference fallback is not performed; use
+``compute_hessian fd`` when an analytic Hessian is unavailable.
 
-Existing output files from earlier runs are not removed when an error occurs.
-Use a clean output directory to avoid confusing old results with the results of
-a failed run.
+Finite-difference mode
+----------------------
 
-Before writing, all enabled output paths are checked against each other and
-against ``model.xyz``, ``run.in``, the active kpoints file, and the potential
-files referenced in ``run.in``. Absolute paths, parent-directory aliases,
-symbolic links (including dangling output links) and hard links are resolved for
-this check, and conflicts are rejected. This is a preflight check; it does not
-protect against another process changing a path after validation, and output
-publication is not transactional.
+For each Cartesian coordinate :math:`r_j`, the finite-difference mode evaluates
+the forces at :math:`r_j+\delta` and :math:`r_j-\delta`, where :math:`\delta` is
+the value of ``displacement``. It then forms every column of the Hessian using
+the central-difference formula
+
+.. math::
+
+   H_{ij} = -\frac{F_i(r_j+\delta)-F_i(r_j-\delta)}{2\delta}.
+
+This requires :math:`2\times3N` force evaluations in addition to the baseline
+evaluation at the unperturbed configuration. The resulting matrix is
+symmetrized before it is written to ``output``. A smaller ``displacement`` can
+reduce truncation error but may increase floating-point noise in the force
+differences; a larger value may introduce finite-displacement truncation error.
+The default is a compromise appropriate for many force fields, but the optimal
+value can depend on the potential and configuration.
+
+The finite-difference mode can be used with any force field supported by
+GPUMD. In particular, it is the recommended mode for non-NEP potentials,
+multiple potentials, and models containing an ILP or DFT-D3 component. The
+interaction range used by phonon postprocessing is taken as twice the largest
+potential cutoff, which is a conservative estimate for composite potentials.
 
 .. _hessian_phonons:
 
-Phonons from the analytic Hessian
----------------------------------
+Phonons from the Hessian
+------------------------
 
-``phonon gamma`` forms a mass-weighted real dynamical matrix and computes all
-eigenvalues and eigenvectors. By default the entire current structure is used as
-the basis, which works for both molecules and periodic supercell Gamma modes
-without :ref:`replicate <kw_replicate>` or ``kpoints.in``. Rigid modes are not
-projected out and negative eigenvalues are retained. Optimize the structure
-before interpreting the frequencies.
+Both Hessian modes can optionally produce phonons. ``phonon gamma`` forms a
+mass-weighted real dynamical matrix and computes all eigenvalues and
+eigenvectors. By default the entire current structure is used as the basis,
+which works for both molecules and periodic supercell Gamma modes without
+:ref:`replicate <kw_replicate>` or ``kpoints.in``. Rigid modes are not projected
+out and negative eigenvalues are retained. Optimize the structure before
+interpreting the frequencies.
 
-``phonon dispersion`` Fourier transforms the analytic force constants and
-solves the complex Hermitian eigenproblem at every requested wavevector.
-Fractional wavevectors refer to the reciprocal lattice of the reference cell
-defined by ``supercell``. Each non-comment line of the kpoints file has four
-fields::
+``phonon dispersion`` Fourier transforms the force constants and solves the
+complex Hermitian eigenproblem at every requested wavevector. Fractional
+wavevectors refer to the reciprocal lattice of the reference cell defined by
+``supercell``. Each non-comment line of the kpoints file has four fields::
 
    0.0 0.0 0.0 G
    0.5 0.0 0.0 X
@@ -245,12 +270,12 @@ periodic direction, do not require image separation. This condition is checked
 at every interpolated point, not only at the path endpoints. Use a larger
 supercell for a continuous dispersion.
 
-The interaction range estimate is conservative: for NEP a force-constant
-interaction range of twice the potential cutoff is used. This is an
-interpolation guard, not an additional truncation of the analytic Hessian.
+The interaction range estimate is conservative: a force-constant interaction
+range of twice the largest potential cutoff is used. This is an interpolation
+guard, not an additional truncation of the Hessian.
 
-The full :math:`3N\times3N` analytic Hessian is still computed and stored, so
-reduced phonon matrices do not remove this quadratic memory requirement.
+The full :math:`3N\times3N` Hessian is computed and stored, so reduced phonon
+matrices do not remove this quadratic memory requirement.
 :math:`\boldsymbol{k}`-points are processed one at a time to avoid storing all
 dynamical matrices simultaneously.
 
@@ -286,27 +311,36 @@ the process exit status before using any file from a failed run.
 Examples
 --------
 
-The default command writes the symmetrized analytic Hessian to ``hessian.out``::
+The default analytic command writes the symmetrized analytic Hessian to
+``hessian.out``::
 
    potential /absolute/path/nep.txt
-   compute_hessian method analytic
+   compute_hessian analytic
 
-Compare with a central finite-difference reference and write the raw matrix,
-the reference matrix and the elementwise errors::
-
-   potential /absolute/path/nep.txt
-   compute_hessian method analytic raw_output raw.txt validate_fd yes displacement 0.001 fd_output fd.txt element_errors errors.csv
-
-Gamma modes of the entire current system::
+Write both the raw and symmetrized analytic matrices::
 
    potential /absolute/path/nep.txt
-   compute_hessian method analytic phonon gamma
+   compute_hessian analytic raw_output raw.txt
 
-Dispersion of an explicitly replicated reference crystal::
+Compute a central finite-difference Hessian with the default displacement::
+
+   potential /absolute/path/lj.txt
+   compute_hessian fd
+
+Use a larger finite-difference displacement::
+
+   compute_hessian fd displacement 0.01
+
+Compute Gamma modes using either Hessian mode::
+
+   compute_hessian analytic phonon gamma
+   compute_hessian fd phonon gamma
+
+Compute a dispersion for an explicitly replicated reference crystal::
 
    replicate 6 6 6
    potential /absolute/path/nep.txt
-   compute_hessian method analytic phonon dispersion supercell 6,6,6 kpoints kpoints.in kpoint_intervals 100
+   compute_hessian analytic phonon dispersion supercell 6,6,6 kpoints kpoints.in kpoint_intervals 100
 
 The repeat counts above are an example, not a universally sufficient cell size.
 The original finite-displacement :ref:`compute_phonon <kw_compute_phonon>`
@@ -314,25 +348,25 @@ command is unchanged and remains available.
 
 To also produce a structure snapshot for external mode analysis, use::
 
-   compute_hessian method analytic structure_output hessian_structure.xyz
+   compute_hessian analytic structure_output hessian_structure.xyz
 
 Caveats
 -------
 
 This keyword must occur after the :ref:`potential <kw_potential>` definition.
 
-The command only supports the analytic NEP path described above. In particular,
-the standard finite-displacement :ref:`compute_phonon <kw_compute_phonon>`
-command should be used when an analytic Hessian is unavailable.
-
-The cost and memory of the analytic Hessian scale quadratically with the number
-of atoms :math:`N`, since the full :math:`3N\times3N` matrix is stored. This is
+The cost and memory of the Hessian scale quadratically with the number of atoms
+:math:`N`, since the full :math:`3N\times3N` matrix is stored. This is
 especially important for ``phonon dispersion``, where the requested supercell
-must be large enough to satisfy the interaction-range condition above.
+must be large enough to satisfy the interaction-range condition above. The
+analytic mode computes one Hessian; the finite-difference mode additionally
+requires :math:`2\times3N` force evaluations and can therefore be considerably
+more expensive for large systems.
 
 For a molecule, a valid Hessian should have exactly six zero modes (three
 translations and three rotations) if the structure is fully relaxed and the
 frequencies are computed for the isolated system. For a periodic crystal, the
 three acoustic modes should vanish at Gamma. Deviations from these limits
-indicate that the structure is not at a stationary point or that the supercell
-and cutoff parameters are insufficient.
+indicate that the structure is not at a stationary point, that the
+finite-difference displacement is not suitable, or that the supercell and cutoff
+parameters are insufficient.

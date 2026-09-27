@@ -8,7 +8,10 @@
 */
 
 /*----------------------------------------------------------------------------80
-Standalone one-shot analytic Cartesian Hessian diagnostic command.
+Standalone one-shot Cartesian Hessian diagnostic command. Two modes:
+  compute_hessian analytic  -> analytic NEP Hessian
+  compute_hessian fd        -> central finite-difference Hessian (any potential)
+Both can optionally solve phonons from the resulting Hessian.
 ------------------------------------------------------------------------------*/
 
 #include "nep_hessian_command.cuh"
@@ -17,6 +20,7 @@ Standalone one-shot analytic Cartesian Hessian diagnostic command.
 #include "force/nep.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
+#include "model/group.cuh"
 #include "nep_analytic_hessian.cuh"
 #include "analytic_phonon.cuh"
 #include "utilities/error.cuh"
@@ -92,54 +96,6 @@ bool same_file(const std::string& left, const std::string& right)
   return stat(left.c_str(), &a) == 0 && stat(right.c_str(), &b) == 0 &&
     a.st_dev == b.st_dev && a.st_ino == b.st_ino;
 }
-
-class ScopedEnvironment
-{
-public:
-  ~ScopedEnvironment()
-  {
-    for (auto item = saved_.rbegin(); item != saved_.rend(); ++item) {
-      if (item->second.empty())
-        unset_variable(item->first);
-      else
-        set_variable(item->first, item->second);
-    }
-  }
-
-  void set(const std::string& name, const std::string& value)
-  {
-    if (std::find_if(
-          saved_.begin(), saved_.end(),
-          [&name](const std::pair<std::string, std::string>& item) {
-            return item.first == name;
-          }) == saved_.end()) {
-      const char* old = std::getenv(name.c_str());
-      saved_.emplace_back(name, old ? std::string(old) : std::string());
-    }
-    set_variable(name, value);
-  }
-
-private:
-  static void set_variable(const std::string& name, const std::string& value)
-  {
-#ifdef _WIN32
-    _putenv_s(name.c_str(), value.c_str());
-#else
-    setenv(name.c_str(), value.c_str(), 1);
-#endif
-  }
-
-  static void unset_variable(const std::string& name)
-  {
-#ifdef _WIN32
-    _putenv_s(name.c_str(), "");
-#else
-    unsetenv(name.c_str());
-#endif
-  }
-
-  std::vector<std::pair<std::string, std::string>> saved_;
-};
 
 class SHA256
 {
@@ -592,101 +548,9 @@ void write_matrix_market(
     PRINT_INPUT_ERROR("Failed to write sparse Hessian output.");
 }
 
-struct ErrorRecord
-{
-  int row;
-  int column;
-  double analytic;
-  double reference;
-  double absolute_error;
-  double relative_error;
-};
-
-void write_element_errors(
-  const std::string& path, const std::vector<double>& analytic,
-  const std::vector<double>& reference, int N)
-{
-  const int N3 = 3 * N;
-  if (analytic.size() != reference.size())
-    return;
-  std::vector<ErrorRecord> records;
-  double absolute_sum = 0.0;
-  double difference_frobenius = 0.0;
-  for (int row = 0; row < N3; ++row) {
-    for (int column = 0; column < N3; ++column) {
-      const size_t index = static_cast<size_t>(row) * N3 + column;
-      ErrorRecord record;
-      record.row = row;
-      record.column = column;
-      record.analytic = analytic[index];
-      record.reference = reference[index];
-      record.absolute_error = std::abs(record.analytic - record.reference);
-      record.relative_error =
-        record.absolute_error / std::max(std::abs(record.reference), kTiny);
-      absolute_sum += record.absolute_error;
-      difference_frobenius += record.absolute_error * record.absolute_error;
-      records.push_back(record);
-    }
-  }
-  std::sort(records.begin(), records.end(), [](const ErrorRecord& a, const ErrorRecord& b) {
-    if (a.absolute_error != b.absolute_error)
-      return a.absolute_error > b.absolute_error;
-    if (a.row != b.row)
-      return a.row < b.row;
-    return a.column < b.column;
-  });
-  std::vector<double> absolute_values(records.size());
-  for (size_t i = 0; i < records.size(); ++i)
-    absolute_values[i] = records[i].absolute_error;
-  const size_t p99_index = records.empty()
-    ? 0
-    : std::min(records.size() - 1, static_cast<size_t>(0.99 * records.size()));
-  std::nth_element(
-    absolute_values.begin(), absolute_values.begin() + p99_index,
-    absolute_values.end());
-  std::ofstream output(path);
-  if (!output.is_open())
-    PRINT_INPUT_ERROR(("Cannot open element error output file: " + path).c_str());
-  output << std::scientific << std::setprecision(17);
-  output << "# count=" << records.size() << "\n";
-  output << "# max_abs=" << (records.empty() ? 0.0 : records.front().absolute_error) << "\n";
-  output << "# mean_abs="
-         << (records.empty() ? 0.0 : absolute_sum / records.size()) << "\n";
-  output << "# p99_abs=" << (records.empty() ? 0.0 : absolute_values[p99_index]) << "\n";
-  output << "# frobenius_abs=" << std::sqrt(difference_frobenius) << "\n";
-  output << "# relative_frobenius="
-         << std::sqrt(difference_frobenius) /
-              std::max(std::sqrt(std::accumulate(
-                         reference.begin(), reference.end(), 0.0,
-                         [](double sum, double value) { return sum + value * value; })),
-                       kTiny)
-       << "\n";
-  output << "row,column,atom_i,axis_i,atom_j,axis_j,"
-         << "analytic,reference,abs_error,relative_error\n";
-  for (size_t i = 0; i < records.size(); ++i) {
-    const ErrorRecord& record = records[i];
-    const int atom_i = record.row % N;
-    const int axis_i = record.row / N;
-    const int atom_j = record.column % N;
-    const int axis_j = record.column / N;
-    output << record.row << ',' << record.column << ',' << atom_i << ','
-           << axis_i << ',' << atom_j << ',' << axis_j << ',' << record.analytic
-           << ',' << record.reference << ',' << record.absolute_error << ','
-           << record.relative_error << '\n';
-  }
-}
-
 std::string nullable_string(const std::string& value)
 {
   return value.empty() ? std::string("null") : ("\"" + json_escape(value) + "\"");
-}
-
-std::string format_real(const double value)
-{
-  std::ostringstream output;
-  output << std::setprecision(std::numeric_limits<double>::max_digits10)
-         << value;
-  return output.str();
 }
 
 std::string nullable_sha256(const std::string& path)
@@ -717,22 +581,18 @@ struct OutputPaths
 {
   std::string matrix;
   std::string raw;
-  std::string reference;
-  std::string element_errors;
 };
 
 void write_metadata(
   const std::string& path, Force& force, Box& box, Atom& atom,
   const std::vector<double>& raw, const std::vector<double>& sym,
-  const std::vector<double>& reference, bool validate_fd, double displacement,
+  const std::string& method, double displacement,
   double potential_energy, const std::vector<double>& cartesian_force,
   const OutputPaths& outputs)
 {
   const int N = atom.number_of_atoms;
   const MatrixDiagnostics raw_diagnostics = inspect_matrix(raw, N, true);
   const MatrixDiagnostics sym_diagnostics = inspect_matrix(sym, N, true);
-  const MatrixDiagnostics reference_diagnostics =
-    inspect_matrix(reference, N, true);
   const std::vector<std::string> potential_paths = find_potential_paths();
   const std::string git_worktree = find_git_worktree(std::string());
   const std::string git_commit = read_git_commit(git_worktree);
@@ -748,7 +608,7 @@ void write_metadata(
   output << std::setprecision(17);
 
   output << "{\n";
-  output << "  \"schema_version\": 2,\n";
+  output << "  \"schema_version\": 3,\n";
   output << "  \"source\": {\n";
   output << "    \"git_commit\": " << nullable_string(git_commit) << ",\n";
   output << "    \"git_dirty\": "
@@ -816,22 +676,19 @@ void write_metadata(
   output << "    \"coordinate_order\": \"soa\",\n";
   output << "    \"matrix_order\": \"row_major\",\n";
   output << "    \"definition\": \"minus_force_jacobian\",\n";
-  output << "    \"unit\": \"eV/A^2\"\n";
+  output << "    \"unit\": \"eV/A^2\",\n";
+  output << "    \"method\": \"" << json_escape(method) << "\"\n";
   output << "  },\n";
 
   output << "  \"finite_difference\": {\n";
-  output << "    \"enabled\": " << (reference.empty() ? "false" : "true") << ",\n";
-  output << "    \"requested\": " << (validate_fd ? "true" : "false") << ",\n";
-  output << "    \"performed\": " << (reference.empty() ? "false" : "true") << ",\n";
   output << "    \"method\": \"central\",\n";
-  output << "    \"epsilon_A\": " << displacement << ",\n";
-  output << "    \"available\": "
-         << (reference.empty() ? "false" : "true") << "\n";
+  output << "    \"epsilon_A\": "
+         << (method == "fd" ? displacement : 0.0) << "\n";
   output << "  },\n";
 
   output << "  \"analytic\": {\n";
-  output << "    \"status\": \"success\",\n";
-  output << "    \"fallback_reason\": null,\n";
+  output << "    \"status\": "
+         << (method == "analytic" ? "\"success\"" : "null") << ",\n";
   output << "    \"potential_energy_eV\": " << potential_energy << ",\n";
   output << "    \"force_soa\": [";
   for (size_t i = 0; i < cartesian_force.size(); ++i) {
@@ -849,18 +706,11 @@ void write_metadata(
   output << ",\n    \"symmetrized\":";
   output << "\n";
   write_diagnostics(output, sym_diagnostics);
-  if (!reference.empty()) {
-    output << ",\n    \"reference\":\n";
-    write_diagnostics(output, reference_diagnostics);
-  }
   output << "\n  },\n";
 
   output << "  \"outputs\": {\n";
   output << "    \"matrix\": " << nullable_string(outputs.matrix) << ",\n";
-  output << "    \"raw\": " << nullable_string(outputs.raw) << ",\n";
-  output << "    \"reference\": " << nullable_string(outputs.reference) << ",\n";
-  output << "    \"element_errors\": "
-         << nullable_string(outputs.element_errors) << "\n";
+  output << "    \"raw\": " << nullable_string(outputs.raw) << "\n";
   output << "  }\n";
   output << "}\n";
 }
@@ -930,9 +780,12 @@ void solve_phonon_matrix(
 
 double phonon_interaction_range(Force& force)
 {
-  if (force.get_number_of_potentials() != 1)
-    throw std::runtime_error("compute_hessian supports exactly one potential");
-  const double range = force.get_potential(0).rc * 2.0;
+  if (force.get_number_of_potentials() <= 0)
+    throw std::runtime_error("compute_hessian requires at least one potential");
+  double cutoff = 0.0;
+  for (int i = 0; i < force.get_number_of_potentials(); ++i)
+    cutoff = std::max(cutoff, force.get_potential(i).rc);
+  const double range = cutoff * 2.0;
   if (!std::isfinite(range) || range <= 0)
     throw std::runtime_error("cannot determine the phonon interaction range");
   return range;
@@ -993,32 +846,197 @@ void write_phonons(
   }
   dfile.close(); wfile.close();
   if (!dfile || !wfile) throw std::runtime_error("failed to write phonon output");
-  printf("Analytic phonons: basis=%zu kpoints=%zu Gamma_eigenvectors=%s.\n",
+  printf("Hessian phonons: basis=%zu kpoints=%zu Gamma_eigenvectors=%s.\n",
     basis, path.points.size(), gamma ? "yes" : "no");
+}
+
+
+// Build the phonon Cell and KPath for a gamma or dispersion request. The
+// returned request carries valid data only when phonon_mode != "none".
+struct PhononRequest
+{
+  analytic_phonon::Cell cell{};
+  analytic_phonon::KPath path;
+};
+
+PhononRequest build_phonon_request(
+  const std::string& phonon_mode, const std::string& kpoints_file,
+  int kpoint_intervals, const std::array<int, 3>& supercell,
+  Force& force, Box& box, const std::vector<double>& position,
+  const std::vector<double>& mass, const std::vector<int>& types,
+  const std::vector<Group>& group)
+{
+  PhononRequest request;
+  if (phonon_mode == "none") return request;
+  std::copy(box.cpu_h, box.cpu_h + 9, request.cell.h.begin());
+  std::copy(box.cpu_h + 9, box.cpu_h + 18, request.cell.inverse.begin());
+  request.cell.periodic = {{box.pbc_x, box.pbc_y, box.pbc_z}};
+  const size_t basis = analytic_phonon::validate_mapping(
+    request.cell, supercell, position, mass, types);
+  for (const auto& grouping : group)
+    for (size_t i = basis; i < grouping.cpu_label.size(); ++i)
+      if (grouping.cpu_label[i] != grouping.cpu_label[i % basis])
+        throw std::runtime_error(
+          "supercell group labels do not repeat the reference cell");
+  if (phonon_mode == "gamma") {
+    request.path.points.push_back({{{0, 0, 0}}, 0});
+    request.path.ticks.push_back(0);
+    request.path.labels.push_back("G");
+  } else {
+    request.path = analytic_phonon::read_path(
+      kpoints_file, kpoint_intervals, request.cell, supercell);
+    analytic_phonon::validate_wavevectors(
+      request.path, request.cell, supercell, phonon_interaction_range(force));
+  }
+  return request;
+}
+
+void write_structure_snapshot(
+  const std::string& path, Force& force, Box& box, Atom& atom,
+  const std::vector<double>& position, const std::vector<double>& forces)
+{
+  double interaction_range = 0.0;
+  try { interaction_range = phonon_interaction_range(force); }
+  catch (const std::exception& error) { PRINT_INPUT_ERROR(error.what()); }
+  const int N = atom.number_of_atoms;
+  std::ofstream snapshot(path);
+  if (!snapshot) PRINT_INPUT_ERROR("Cannot open Hessian structure_output.");
+  snapshot << std::setprecision(17) << N << "\nLattice=\"";
+  for (int a = 0; a < 3; ++a)
+    for (int d = 0; d < 3; ++d)
+      snapshot << ((a || d) ? " " : "") << box.cpu_h[3 * d + a];
+  snapshot << "\" Properties=species:S:1:pos:R:3:mass:R:1:forces:R:3 pbc=\""
+           << (box.pbc_x ? "T" : "F") << " " << (box.pbc_y ? "T" : "F") << " "
+           << (box.pbc_z ? "T" : "F") << "\" hessian_interaction_range_A="
+           << interaction_range << "\n";
+  for (int i = 0; i < N; ++i) {
+    snapshot << atom.cpu_atom_symbol[i];
+    for (int d = 0; d < 3; ++d) snapshot << " " << position[i + d * N];
+    snapshot << " " << atom.cpu_mass[i];
+    for (int d = 0; d < 3; ++d) snapshot << " " << forces[i + d * N];
+    snapshot << "\n";
+  }
+  snapshot.close();
+  if (!snapshot) PRINT_INPUT_ERROR("Failed to write Hessian structure_output.");
+}
+
+// Restore the caller's complete force state on scope exit, including when a
+// displacement evaluation fails. GPU_Vector owns each saved device buffer.
+class ScopedAtomStateBackup
+{
+public:
+  ScopedAtomStateBackup(
+    Force& force, Box& box, Atom& atom, const std::vector<Group>& group)
+    : force_(force), box_(box), atom_(atom), group_(group),
+      position_(atom.position_per_atom.size()),
+      force_data_(atom.force_per_atom.size()),
+      potential_(atom.potential_per_atom.size()),
+      virial_(atom.virial_per_atom.size())
+  {
+    position_.copy_from_device(atom.position_per_atom.data());
+    force_data_.copy_from_device(atom.force_per_atom.data());
+    potential_.copy_from_device(atom.potential_per_atom.data());
+    virial_.copy_from_device(atom.virial_per_atom.data());
+  }
+
+  ~ScopedAtomStateBackup()
+  {
+    atom_.position_per_atom.copy_from_device(position_.data());
+    atom_.force_per_atom.copy_from_device(force_data_.data());
+    atom_.potential_per_atom.copy_from_device(potential_.data());
+    atom_.virial_per_atom.copy_from_device(virial_.data());
+    force_.compute(
+      box_, atom_.position_per_atom, atom_.type, group_,
+      atom_.potential_per_atom, atom_.force_per_atom, atom_.virial_per_atom);
+    CHECK(gpuDeviceSynchronize());
+    // Preserve the exact caller positions even if force.compute applies PBC.
+    atom_.position_per_atom.copy_from_device(position_.data());
+  }
+
+private:
+  Force& force_;
+  Box& box_;
+  Atom& atom_;
+  const std::vector<Group>& group_;
+  GPU_Vector<double> position_;
+  GPU_Vector<double> force_data_;
+  GPU_Vector<double> potential_;
+  GPU_Vector<double> virial_;
+};
+
+// Central finite-difference Hessian in the SoA 3N x 3N layout. This works for
+// any potential the force engine supports (unlike the analytic provider), and
+// uses the same H_ij = -dF_i/dr_j convention.
+std::vector<double> compute_finite_difference_hessian(
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group,
+  const std::vector<double>& position, int N, double displacement,
+  std::vector<double>& baseline_force, double& potential_energy)
+{
+  const int N3 = 3 * N;
+  std::vector<double> hessian(static_cast<size_t>(N3) * N3, 0.0);
+  ScopedAtomStateBackup atom_backup(force, box, atom, group);
+
+  // Baseline geometry: refresh forces and record energy/forces for snapshots.
+  atom.position_per_atom.copy_from_host(position.data());
+  force.compute(
+    box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
+    atom.force_per_atom, atom.virial_per_atom);
+  CHECK(gpuDeviceSynchronize());
+  baseline_force.resize(N3);
+  atom.force_per_atom.copy_to_host(baseline_force.data());
+  std::vector<double> potential(N);
+  atom.potential_per_atom.copy_to_host(potential.data());
+  potential_energy = std::accumulate(potential.begin(), potential.end(), 0.0);
+
+  std::vector<double> displacement_buffer(position);
+  for (int column = 0; column < N3; ++column) {
+    std::vector<double> force_plus(N3), force_minus(N3);
+    displacement_buffer[column] = position[column] + displacement;
+    atom.position_per_atom.copy_from_host(displacement_buffer.data());
+    force.compute(
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom);
+    CHECK(gpuDeviceSynchronize());
+    atom.force_per_atom.copy_to_host(force_plus.data());
+
+    displacement_buffer[column] = position[column] - displacement;
+    atom.position_per_atom.copy_from_host(displacement_buffer.data());
+    force.compute(
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom);
+    CHECK(gpuDeviceSynchronize());
+    atom.force_per_atom.copy_to_host(force_minus.data());
+
+    displacement_buffer[column] = position[column];
+    for (int row = 0; row < N3; ++row)
+      hessian[static_cast<size_t>(row) * N3 + column] =
+        -(force_plus[row] - force_minus[row]) / (2.0 * displacement);
+  }
+
+  return hessian;
 }
 
 } // namespace
 
 void NEP_Hessian_Command::parse(const char** param, int num_param)
 {
-  if (num_param < 3 || std::strcmp(param[1], "method") != 0 ||
-      std::strcmp(param[2], "analytic") != 0) {
+  if (num_param < 2 ||
+      (std::strcmp(param[1], "analytic") != 0 &&
+       std::strcmp(param[1], "fd") != 0)) {
     PRINT_INPUT_ERROR(
-      "compute_hessian currently requires 'method analytic'.");
+      "compute_hessian requires a method: 'analytic' or 'fd'.");
   }
+  mode_ = param[1];
+  const bool analytic_mode = (mode_ == "analytic");
 
   bool phonon_options = false, path_options = false;
-  for (int i = 3; i + 1 < num_param; i += 2) {
+  for (int i = 2; i + 1 < num_param; i += 2) {
     const std::string key = param[i];
     const std::string value = param[i + 1];
     if (key == "phonon") {
       if (value != "none" && value != "gamma" && value != "dispersion")
         PRINT_INPUT_ERROR("phonon must be none, gamma, or dispersion.");
       phonon_mode_ = value;
-    } else if (key == "output_format") {
-      if (value != "dense" && value != "matrix_market")
-        PRINT_INPUT_ERROR("output_format must be dense or matrix_market.");
-      output_format_ = value;
     } else if (key == "supercell") {
       phonon_options = true;
       try { supercell_ = analytic_phonon::parse_counts(value); }
@@ -1032,38 +1050,36 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
         PRINT_INPUT_ERROR("kpoint_intervals must be a positive integer.");
     } else if (key == "output") {
       output_ = value;
-    } else if (key == "raw_output") {
-      raw_output_ = value;
-    } else if (key == "validate_fd") {
-      if (value == "yes" || value == "true")
-        validate_fd_ = true;
-      else if (value == "no" || value == "false")
-        validate_fd_ = false;
-      else
-        PRINT_INPUT_ERROR("validate_fd must be yes or no.");
-    } else if (key == "displacement") {
-      if (!is_valid_real(value.c_str(), &displacement_) ||
-          !std::isfinite(displacement_) || displacement_ <= 0.0) {
-        PRINT_INPUT_ERROR("Hessian displacement must be finite and positive.");
-      }
-    } else if (key == "fd_output") {
-      fd_output_ = value;
-      validate_fd_ = true;
     } else if (key == "metadata") {
       metadata_output_ = value;
     } else if (key == "structure_output") {
       structure_output_ = value;
-    } else if (key == "element_errors") {
-      element_errors_output_ = value;
-      element_errors_requested_ = true;
+    } else if (key == "output_format") {
+      if (!analytic_mode)
+        PRINT_INPUT_ERROR("output_format is only available for 'compute_hessian analytic'.");
+      if (value != "dense" && value != "matrix_market")
+        PRINT_INPUT_ERROR("output_format must be dense or matrix_market.");
+      output_format_ = value;
+    } else if (key == "raw_output") {
+      if (!analytic_mode)
+        PRINT_INPUT_ERROR("raw_output is only available for 'compute_hessian analytic'.");
+      raw_output_ = value;
+    } else if (key == "displacement") {
+      if (analytic_mode)
+        PRINT_INPUT_ERROR("displacement is only available for 'compute_hessian fd'.");
+      if (!is_valid_real(value.c_str(), &displacement_) ||
+          !std::isfinite(displacement_) || displacement_ <= 0.0) {
+        PRINT_INPUT_ERROR("Hessian displacement must be finite and positive.");
+      }
     } else {
       PRINT_INPUT_ERROR(
         "Unknown compute_hessian parameter. Supported parameters are "
-        "output, raw_output, validate_fd, displacement, fd_output, metadata, "
-        "element_errors, structure_output, output_format, phonon, supercell, kpoints, and kpoint_intervals.");
+        "output, metadata, structure_output, phonon, supercell, kpoints, and "
+        "kpoint_intervals (both modes), plus output_format and raw_output "
+        "(analytic only) and displacement (fd only).");
     }
   }
-  if (num_param % 2 != 1) {
+  if (num_param % 2 != 0) {
     PRINT_INPUT_ERROR(
       "compute_hessian parameters must be given as key-value pairs.");
   }
@@ -1072,15 +1088,12 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
   if (path_options && phonon_mode_ != "dispersion")
     PRINT_INPUT_ERROR("kpoints and kpoint_intervals require phonon dispersion.");
   if (output_format_ == "matrix_market" &&
-      (validate_fd_ || !raw_output_.empty() || !metadata_output_.empty() ||
-       element_errors_requested_))
+      (!raw_output_.empty() || !metadata_output_.empty()))
     PRINT_INPUT_ERROR(
-      "matrix_market output currently supports the analytic matrix and optional structure snapshot; raw_output, FD validation, and metadata are unavailable.");
+      "matrix_market output currently supports the analytic matrix and optional structure snapshot; raw_output and metadata are unavailable.");
   try {
     std::vector<std::string> outputs;
-    for (const auto& path : {output_, raw_output_, metadata_output_, structure_output_,
-                            validate_fd_ ? fd_output_ : std::string(),
-                            validate_fd_ ? element_errors_output_ : std::string()})
+    for (const auto& path : {output_, raw_output_, metadata_output_, structure_output_})
       if (!path.empty()) outputs.push_back(path);
     if (phonon_mode_ != "none") {
       for (const std::string name : {"D.out", "omega2.out", "eigenvector.out"}) {
@@ -1120,7 +1133,16 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
 void NEP_Hessian_Command::compute(
   Force& force, Box& box, Atom& atom, std::vector<Group>& group)
 {
+  if (mode_ == "analytic") {
+    compute_analytic(force, box, atom, group);
+  } else {
+    compute_fd(force, box, atom, group);
+  }
+}
 
+void NEP_Hessian_Command::compute_analytic(
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group)
+{
   if (output_format_ == "matrix_market") {
     const int sparse_atom_count = atom.number_of_atoms;
     if (sparse_atom_count <= 0 ||
@@ -1142,7 +1164,6 @@ void NEP_Hessian_Command::compute(
       PRINT_INPUT_ERROR(
         "Sparse analytic Hessian is unsupported for this potential or configuration.");
     }
-    (void)potential_energy;
     try {
       pattern.symmetrize(sparse_values);
     } catch (const std::exception& error) {
@@ -1151,64 +1172,19 @@ void NEP_Hessian_Command::compute(
     if (phonon_mode_ != "none") {
       try {
         std::vector<double> dense = pattern.dense_soa(sparse_values);
-        std::vector<double> phonon_position(position);
-        analytic_phonon::Cell phonon_cell{};
-        std::copy(box.cpu_h, box.cpu_h + 9, phonon_cell.h.begin());
-        std::copy(box.cpu_h + 9, box.cpu_h + 18, phonon_cell.inverse.begin());
-        phonon_cell.periodic = {{box.pbc_x, box.pbc_y, box.pbc_z}};
-        const auto basis = analytic_phonon::validate_mapping(
-          phonon_cell, supercell_, phonon_position, atom.cpu_mass, atom.cpu_type);
-        for (const auto& grouping : group)
-          for (size_t i = basis; i < grouping.cpu_label.size(); ++i)
-            if (grouping.cpu_label[i] != grouping.cpu_label[i % basis])
-              throw std::runtime_error(
-                "supercell group labels do not repeat the reference cell");
-        if (phonon_mode_ == "gamma") {
-          analytic_phonon::KPath path;
-          path.points.push_back({{{0, 0, 0}}, 0});
-          path.ticks.push_back(0);
-          path.labels.push_back("G");
-          write_phonons(dense, position, atom.cpu_mass, phonon_cell,
-            supercell_, path);
-        } else {
-          const auto path = analytic_phonon::read_path(
-            kpoints_file_, kpoint_intervals_, phonon_cell, supercell_);
-          analytic_phonon::validate_wavevectors(
-            path, phonon_cell, supercell_, phonon_interaction_range(force));
-          write_phonons(dense, position, atom.cpu_mass, phonon_cell,
-            supercell_, path);
-        }
-        (void)basis;
+        const auto request = build_phonon_request(
+          phonon_mode_, kpoints_file_, kpoint_intervals_, supercell_, force,
+          box, position, atom.cpu_mass, atom.cpu_type, group);
+        write_phonons(
+          dense, position, atom.cpu_mass, request.cell, supercell_, request.path);
       } catch (const std::exception& error) {
-          PRINT_INPUT_ERROR(error.what());
+        PRINT_INPUT_ERROR(error.what());
       }
     }
     write_matrix_market(output_, pattern, sparse_values);
-    if (!structure_output_.empty()) {
-      double interaction_range = 0.0;
-      try { interaction_range = phonon_interaction_range(force); }
-      catch (const std::exception& error) { PRINT_INPUT_ERROR(error.what()); }
-      std::ofstream snapshot(structure_output_);
-      if (!snapshot) PRINT_INPUT_ERROR("Cannot open Hessian structure_output.");
-      const int N = atom.number_of_atoms;
-      snapshot << std::setprecision(17) << N << "\nLattice=\"";
-      for (int a = 0; a < 3; ++a)
-        for (int d = 0; d < 3; ++d)
-          snapshot << ((a || d) ? " " : "") << box.cpu_h[3*d+a];
-      snapshot << "\" Properties=species:S:1:pos:R:3:mass:R:1:forces:R:3 pbc=\""
-        << (box.pbc_x ? "T" : "F") << " " << (box.pbc_y ? "T" : "F") << " "
-        << (box.pbc_z ? "T" : "F") << "\" hessian_interaction_range_A="
-        << interaction_range << "\n";
-      for (int i = 0; i < N; ++i) {
-        snapshot << atom.cpu_atom_symbol[i];
-        for (int d = 0; d < 3; ++d) snapshot << " " << position[i+d*N];
-        snapshot << " " << atom.cpu_mass[i];
-        for (int d = 0; d < 3; ++d) snapshot << " " << analytic_force[i+d*N];
-        snapshot << "\n";
-      }
-      snapshot.close();
-      if (!snapshot) PRINT_INPUT_ERROR("Failed to write Hessian structure_output.");
-    }
+    if (!structure_output_.empty())
+      write_structure_snapshot(
+        structure_output_, force, box, atom, position, analytic_force);
     printf("Sparse analytic Hessian: N=%d blocks=%zu scalar_values=%zu\n",
       sparse_atom_count, pattern.block_count(), sparse_values.size());
     return;
@@ -1231,132 +1207,135 @@ void NEP_Hessian_Command::compute(
     }
   }
 
-  std::vector<double> analytic_raw;
-  std::vector<double> analytic_force;
-  std::vector<double> reference;
-  double potential_energy = 0.0;
-  bool analytic_success = false;
-  analytic_phonon::Cell phonon_cell{};
-  analytic_phonon::KPath phonon_path;
+  PhononRequest request;
   if (phonon_mode_ != "none") {
     try {
-      std::copy(box.cpu_h, box.cpu_h+9, phonon_cell.h.begin());
-      std::copy(box.cpu_h+9, box.cpu_h+18, phonon_cell.inverse.begin());
-      phonon_cell.periodic = {{box.pbc_x, box.pbc_y, box.pbc_z}};
-      const size_t basis = analytic_phonon::validate_mapping(
-        phonon_cell, supercell_, position, atom.cpu_mass, atom.cpu_type);
-      for (const auto& grouping : group)
-        for (size_t i = basis; i < grouping.cpu_label.size(); ++i)
-          if (grouping.cpu_label[i] != grouping.cpu_label[i % basis])
-            throw std::runtime_error("supercell group labels do not repeat the reference cell");
-      if (phonon_mode_ == "gamma") {
-        phonon_path.points.push_back({{{0, 0, 0}}, 0});
-        phonon_path.ticks.push_back(0);
-        phonon_path.labels.push_back("G");
-      } else {
-        phonon_path = analytic_phonon::read_path(
-          kpoints_file_, kpoint_intervals_, phonon_cell, supercell_);
-        analytic_phonon::validate_wavevectors(
-          phonon_path, phonon_cell, supercell_, phonon_interaction_range(force));
-      }
+      request = build_phonon_request(
+        phonon_mode_, kpoints_file_, kpoint_intervals_, supercell_, force, box,
+        position, atom.cpu_mass, atom.cpu_type, group);
     } catch (const std::exception& error) {
       PRINT_INPUT_ERROR(error.what());
     }
   }
 
-  {
-    ScopedEnvironment environment;
-    if (validate_fd_) {
-      environment.set("GPUMD_VALIDATE_ANALYTIC_HESSIAN", "1");
-      environment.set("GPUMD_VALIDATE_EPSILON", format_real(displacement_));
-      if (!fd_output_.empty())
-        environment.set("GPUMD_DUMP_FD_HESSIAN", fd_output_);
-    }
-    analytic_success = compute_nep_analytic_hessian(
-      force, box, atom, position, N, analytic_raw, analytic_force,
-      potential_energy, &reference, &group);
-  }
-
-  if (!analytic_success) {
-    if (!reference.empty()) {
-      PRINT_INPUT_ERROR(
-        "compute_hessian analytic validation failed. "
-        "Finite-difference fallback is disabled.");
-    }
+  std::vector<double> analytic_raw;
+  std::vector<double> analytic_force;
+  double potential_energy = 0.0;
+  if (!compute_nep_analytic_hessian(
+        force, box, atom, position, N, analytic_raw, analytic_force,
+        potential_energy, nullptr, &group)) {
     PRINT_INPUT_ERROR(
-      "compute_hessian: analytic Hessian is not supported for this "
-      "potential/model or configuration, or the analytic calculation failed. "
-      "Finite-difference fallback is disabled.");
-  }
-
-  if (!reference.empty()) {
-    const MatrixDiagnostics reference_check = inspect_matrix(reference, N, false);
-    if (!reference_check.finite) {
-      PRINT_INPUT_ERROR("compute_hessian produced a non-finite FD matrix.");
-    }
+      "compute_hessian analytic is not supported for this potential/model or "
+      "configuration. Use 'compute_hessian fd' for a finite-difference "
+      "Hessian.");
   }
 
   const std::vector<double> symmetrized = symmetrize(analytic_raw);
   if (phonon_mode_ != "none") {
     try {
-      write_phonons(symmetrized, position, atom.cpu_mass, phonon_cell, supercell_, phonon_path);
+      write_phonons(
+        symmetrized, position, atom.cpu_mass, request.cell, supercell_,
+        request.path);
     } catch (const std::exception& error) {
       PRINT_INPUT_ERROR(error.what());
     }
   }
   if (!raw_output_.empty())
     write_matrix(raw_output_, analytic_raw, N, "analytic_raw");
-
-  if (!fd_output_.empty() && !reference.empty())
-    write_matrix(fd_output_, reference, N, "central_finite_difference_raw");
-
   write_matrix(output_, symmetrized, N, "analytic_symmetrized");
-  if (!structure_output_.empty()) {
-    double interaction_range = 0;
-    try { interaction_range = phonon_interaction_range(force); }
-    catch (const std::exception& error) { PRINT_INPUT_ERROR(error.what()); }
-    std::ofstream snapshot(structure_output_);
-    if (!snapshot) PRINT_INPUT_ERROR("Cannot open Hessian structure_output.");
-    snapshot << std::setprecision(17) << N << "\nLattice=\"";
-    for (int a = 0; a < 3; ++a)
-      for (int d = 0; d < 3; ++d)
-        snapshot << ((a || d) ? " " : "") << box.cpu_h[3*d+a];
-    snapshot << "\" Properties=species:S:1:pos:R:3:mass:R:1:forces:R:3 pbc=\""
-      << (box.pbc_x ? "T" : "F") << " " << (box.pbc_y ? "T" : "F") << " "
-      << (box.pbc_z ? "T" : "F") << "\" hessian_interaction_range_A="
-      << interaction_range << "\n";
-    for (int i = 0; i < N; ++i) {
-      snapshot << atom.cpu_atom_symbol[i];
-      for (int d = 0; d < 3; ++d) snapshot << " " << position[i+d*N];
-      snapshot << " " << atom.cpu_mass[i];
-      for (int d = 0; d < 3; ++d) snapshot << " " << analytic_force[i+d*N];
-      snapshot << "\n";
-    }
-    snapshot.close();
-    if (!snapshot) PRINT_INPUT_ERROR("Failed to write Hessian structure_output.");
-  }
-  if (!element_errors_output_.empty() && !reference.empty()) {
-    write_element_errors(
-      element_errors_output_, analytic_raw, reference, N);
-  }
+  if (!structure_output_.empty())
+    write_structure_snapshot(
+      structure_output_, force, box, atom, position, analytic_force);
 
   OutputPaths paths;
   paths.matrix = output_;
   paths.raw = raw_output_;
-  paths.reference = reference.empty() ? "" : fd_output_;
-  paths.element_errors =
-    !reference.empty() ? element_errors_output_ : "";
   if (!metadata_output_.empty()) {
     write_metadata(
-      metadata_output_, force, box, atom, analytic_raw, symmetrized, reference,
-      validate_fd_, displacement_,
-      potential_energy, analytic_force, paths);
+      metadata_output_, force, box, atom, analytic_raw, symmetrized,
+      "analytic", displacement_, potential_energy, analytic_force, paths);
   }
 
   printf(
-    "Hessian command: status=analytic_success N=%d displacement=%.17g "
-    "raw_asymmetry_max=%.12g raw_translation_max=%.12g.\n",
-    N, displacement_,
-    inspect_matrix(analytic_raw, N, true).asymmetry_max,
+    "Hessian command: method=analytic N=%d raw_asymmetry_max=%.12g "
+    "raw_translation_max=%.12g.\n",
+    N, inspect_matrix(analytic_raw, N, true).asymmetry_max,
     inspect_matrix(analytic_raw, N, true).translation_max);
+}
+
+void NEP_Hessian_Command::compute_fd(
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group)
+{
+  const int N = atom.number_of_atoms;
+  if (N <= 0 || N > std::numeric_limits<int>::max() / 3) {
+    PRINT_INPUT_ERROR("compute_hessian requires a valid positive system.");
+  }
+  const int N3 = 3 * N;
+  if (atom.position_per_atom.size() != static_cast<size_t>(N3)) {
+    PRINT_INPUT_ERROR("compute_hessian has inconsistent Atom positions.");
+  }
+
+  std::vector<double> position(N3);
+  atom.position_per_atom.copy_to_host(position.data());
+  for (double value : position) {
+    if (!std::isfinite(value)) {
+      PRINT_INPUT_ERROR("compute_hessian found a non-finite coordinate.");
+    }
+  }
+
+  PhononRequest request;
+  if (phonon_mode_ != "none") {
+    try {
+      request = build_phonon_request(
+        phonon_mode_, kpoints_file_, kpoint_intervals_, supercell_, force, box,
+        position, atom.cpu_mass, atom.cpu_type, group);
+    } catch (const std::exception& error) {
+      PRINT_INPUT_ERROR(error.what());
+    }
+  }
+
+  std::vector<double> baseline_force;
+  double potential_energy = 0.0;
+  std::vector<double> fd_raw;
+  try {
+    fd_raw = compute_finite_difference_hessian(
+      force, box, atom, group, position, N, displacement_, baseline_force,
+      potential_energy);
+  } catch (const std::exception& error) {
+    PRINT_INPUT_ERROR(error.what());
+  }
+
+  const MatrixDiagnostics fd_check = inspect_matrix(fd_raw, N, false);
+  if (!fd_check.finite) {
+    PRINT_INPUT_ERROR("compute_hessian fd produced a non-finite Hessian.");
+  }
+
+  const std::vector<double> symmetrized = symmetrize(fd_raw);
+  if (phonon_mode_ != "none") {
+    try {
+      write_phonons(
+        symmetrized, position, atom.cpu_mass, request.cell, supercell_,
+        request.path);
+    } catch (const std::exception& error) {
+      PRINT_INPUT_ERROR(error.what());
+    }
+  }
+  write_matrix(output_, symmetrized, N, "finite_difference_symmetrized");
+  if (!structure_output_.empty())
+    write_structure_snapshot(
+      structure_output_, force, box, atom, position, baseline_force);
+
+  OutputPaths paths;
+  paths.matrix = output_;
+  if (!metadata_output_.empty()) {
+    write_metadata(
+      metadata_output_, force, box, atom, fd_raw, symmetrized, "fd",
+      displacement_, potential_energy, baseline_force, paths);
+  }
+
+  printf(
+    "Hessian command: method=fd N=%d displacement=%.17g "
+    "raw_asymmetry_max=%.12g raw_translation_max=%.12g.\n",
+    N, displacement_, inspect_matrix(fd_raw, N, true).asymmetry_max,
+    inspect_matrix(fd_raw, N, true).translation_max);
 }

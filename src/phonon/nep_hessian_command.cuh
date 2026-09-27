@@ -26,16 +26,18 @@ public:
     Force& force, Box& box, Atom& atom, std::vector<Group>& group);
 
 private:
+  void compute_analytic(
+    Force& force, Box& box, Atom& atom, std::vector<Group>& group);
+  void compute_fd(
+    Force& force, Box& box, Atom& atom, std::vector<Group>& group);
+
+  std::string mode_;                       // "analytic" or "fd"
   std::string output_ = "hessian.out";
-  std::string output_format_ = "dense";
-  std::string raw_output_;
-  std::string fd_output_;
+  std::string output_format_ = "dense";    // analytic only
+  std::string raw_output_;                 // analytic only
   std::string metadata_output_;
   std::string structure_output_;
-  std::string element_errors_output_ = "element_errors.csv";
-  bool element_errors_requested_ = false;
-  double displacement_ = 1.0e-3;
-  bool validate_fd_ = false;
+  double displacement_ = 1.0e-3;           // fd only
   std::string phonon_mode_ = "none";
   std::array<int, 3> supercell_{{1, 1, 1}};
   std::string kpoints_file_ = "kpoints.in";
