@@ -76,9 +76,9 @@ The following parameters are available in both modes:
 
 The following parameters are available only in analytic mode:
 
-``output_format dense|matrix_market``
+``output_format dense|sparse``
    Choose the dense text matrix (``dense``, the default) or a sparse Matrix
-   Market coordinate matrix (``matrix_market``). Sparse output is available
+   Market coordinate matrix (``sparse``). Sparse output is available
    only with ``compute_hessian analytic`` for a single supported NEP model and
    is described in :ref:`hessian_sparse`. It is incompatible with
    ``raw_output`` and ``metadata``.
@@ -184,7 +184,7 @@ For finite-difference output, the result is identified as
 Sparse Hessian output
 ---------------------
 
-``compute_hessian analytic output_format matrix_market`` avoids constructing
+``compute_hessian analytic output_format sparse`` avoids constructing
 the dense :math:`3N\times3N` matrix during the Hessian calculation. It builds
 the symmetric block sparsity pattern of the NEP Hessian from the radial and
 angular neighbor lists, accumulates each :math:`3\times3` Cartesian
@@ -226,7 +226,7 @@ by standard Matrix Market readers.
 Sparse output is supported only for the analytic Hessian of a single NEP4
 energy model without a DFT-D3 or interlayer-potential (:term:`ILP`) component;
 the other restrictions of analytic mode also apply. ``raw_output`` and
-``metadata`` cannot be combined with ``output_format matrix_market``.
+``metadata`` cannot be combined with ``output_format sparse``.
 ``structure_output`` remains available. If a ``phonon`` mode is requested, the
 sparse blocks are expanded to a dense matrix for the phonon solver, so the
 sparse representation reduces matrix storage only for Hessian-only
@@ -329,7 +329,7 @@ guard, not an additional truncation of the Hessian.
 
 For dense Hessian output, the full :math:`3N\times3N` matrix is stored, so
 reduced phonon matrices do not remove this quadratic memory requirement. With
-``output_format matrix_market``, requesting phonons expands the sparse blocks
+``output_format sparse``, requesting phonons expands the sparse blocks
 into a dense matrix before solving; the sparse representation reduces matrix
 storage only when no phonon mode is requested. :math:`\boldsymbol{k}`-points
 are processed one at a time to avoid storing all dynamical matrices
@@ -381,7 +381,7 @@ Write both the raw and symmetrized analytic matrices::
 Write the symmetrized analytic Hessian in sparse Matrix Market format::
 
    potential /absolute/path/nep.txt
-   compute_hessian analytic output_format matrix_market output hessian.mtx
+   compute_hessian analytic output_format sparse output hessian.mtx
 
 Compute a central finite-difference Hessian with the default displacement::
 
@@ -418,7 +418,7 @@ This keyword must occur after the :ref:`potential <kw_potential>` definition.
 
 The memory required for dense output and for phonon postprocessing scales
 quadratically with the number of atoms :math:`N`, since the full
-:math:`3N\times3N` matrix is stored. Sparse ``matrix_market`` output instead
+:math:`3N\times3N` matrix is stored. ``output_format sparse`` instead
 scales with the number of populated atom-pair blocks for Hessian-only
 calculations, but it is expanded to a dense matrix whenever phonons are
 requested. The quadratic memory requirement is especially important for

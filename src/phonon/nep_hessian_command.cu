@@ -1057,8 +1057,8 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
     } else if (key == "output_format") {
       if (!analytic_mode)
         PRINT_INPUT_ERROR("output_format is only available for 'compute_hessian analytic'.");
-      if (value != "dense" && value != "matrix_market")
-        PRINT_INPUT_ERROR("output_format must be dense or matrix_market.");
+      if (value != "dense" && value != "sparse")
+        PRINT_INPUT_ERROR("output_format must be dense or sparse.");
       output_format_ = value;
     } else if (key == "raw_output") {
       if (!analytic_mode)
@@ -1087,10 +1087,10 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("Phonon options require phonon gamma or dispersion.");
   if (path_options && phonon_mode_ != "dispersion")
     PRINT_INPUT_ERROR("kpoints and kpoint_intervals require phonon dispersion.");
-  if (output_format_ == "matrix_market" &&
+  if (output_format_ == "sparse" &&
       (!raw_output_.empty() || !metadata_output_.empty()))
     PRINT_INPUT_ERROR(
-      "matrix_market output currently supports the analytic matrix and optional structure snapshot; raw_output and metadata are unavailable.");
+      "sparse output currently supports the analytic matrix and optional structure snapshot; raw_output and metadata are unavailable.");
   try {
     std::vector<std::string> outputs;
     for (const auto& path : {output_, raw_output_, metadata_output_, structure_output_})
@@ -1143,7 +1143,7 @@ void NEP_Hessian_Command::compute(
 void NEP_Hessian_Command::compute_analytic(
   Force& force, Box& box, Atom& atom, std::vector<Group>& group)
 {
-  if (output_format_ == "matrix_market") {
+  if (output_format_ == "sparse") {
     const int sparse_atom_count = atom.number_of_atoms;
     if (sparse_atom_count <= 0 ||
         sparse_atom_count > std::numeric_limits<int>::max() / 3 ||
