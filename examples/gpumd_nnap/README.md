@@ -2,6 +2,10 @@
 
 This example performs a one-step GPUMD calculation for Cu using the NNAP model in `../../potentials/nnap/Cu.json`.
 
+This example requires an NNAP-enabled GPUMD build (`USE_NNAP` with Make or
+`PKG_NNAP` with CMake) together with the required jse/JNI environment. See the
+[installation guide](../../doc/installation.rst) for the build instructions.
+
 Run:
 
 ```bash

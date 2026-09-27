@@ -13,8 +13,11 @@ Compile GPUMD first in `src/`, then run the appropriate executable from an examp
 The Python analysis scripts require NumPy and Matplotlib:
 
 ```bash
-python -m pip install numpy matplotlib
+python3 -m pip install numpy matplotlib
 ```
+
+The Deep Potential and NNAP examples require GPUMD builds with the corresponding
+optional interfaces enabled. See their individual READMEs and the installation guide.
 
 ## Examples
 

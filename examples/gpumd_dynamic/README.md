@@ -6,7 +6,7 @@ Run:
 
 ```bash
 /path/to/gpumd
-python plot_thermo.py
+python3 plot_thermo.py
 ```
 
 `thermo.out` is written every 10 steps. `plot_thermo.py` reads it and writes `thermo.png`, showing the temperature as a function of simulation time.

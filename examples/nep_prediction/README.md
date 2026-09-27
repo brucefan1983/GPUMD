@@ -6,7 +6,7 @@ Run:
 
 ```bash
 /path/to/nep
-python plot_results.py
+python3 plot_results.py
 ```
 
 The prediction files contain NEP and reference values. `plot_results.py` writes `energy_parity.png` and `force_parity.png`.

@@ -6,7 +6,7 @@ Run:
 
 ```bash
 /path/to/gpumd
-python check_force.py
+python3 check_force.py
 ```
 
 `check_force.py` compares the GPUMD forces with the corresponding forces produced by the `nep` executable. The differences should be very small. The script also saves `force_difference.png`.
