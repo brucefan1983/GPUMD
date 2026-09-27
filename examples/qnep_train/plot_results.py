@@ -14,6 +14,8 @@ ax.set_xlabel("Reference energy (eV/atom)")
 ax.set_ylabel("qNEP energy (eV/atom)")
 ax.set_aspect("equal", adjustable="box")
 fig.tight_layout()
+fig.savefig("energy_parity.png", dpi=200)
+plt.close(fig)
 
 # Force parity
 fig, ax = plt.subplots()
@@ -27,6 +29,8 @@ ax.set_xlabel("Reference force (eV/A)")
 ax.set_ylabel("qNEP force (eV/A)")
 ax.set_aspect("equal", adjustable="box")
 fig.tight_layout()
+fig.savefig("force_parity.png", dpi=200)
+plt.close(fig)
 
 # Training history
 fig, ax = plt.subplots()
@@ -37,5 +41,5 @@ ax.set_xlabel("Generation")
 ax.set_ylabel("Loss / RMSE")
 ax.legend()
 fig.tight_layout()
-
-plt.show()
+fig.savefig("training_history.png", dpi=200)
+plt.close(fig)

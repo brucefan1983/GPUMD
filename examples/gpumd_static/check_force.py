@@ -14,4 +14,5 @@ ax.set_xlabel("Atom index")
 ax.set_ylabel("Force difference (eV/A)")
 fig.tight_layout()
 
-plt.show()
+fig.savefig("force_difference.png", dpi=200)
+plt.close(fig)

@@ -12,4 +12,5 @@ ax.set_xlabel("Time (ps)")
 ax.set_ylabel("Temperature (K)")
 fig.tight_layout()
 
-plt.show()
+fig.savefig("thermo.png", dpi=200)
+plt.close(fig)

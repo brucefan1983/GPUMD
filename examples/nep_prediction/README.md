@@ -9,4 +9,4 @@ Run:
 python plot_results.py
 ```
 
-The prediction files contain NEP and reference values. `plot_results.py` compares the predicted and reference energies and forces.
+The prediction files contain NEP and reference values. `plot_results.py` writes `energy_parity.png` and `force_parity.png`.

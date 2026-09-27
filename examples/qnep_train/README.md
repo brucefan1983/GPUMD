@@ -9,4 +9,4 @@ Run:
 python plot_results.py
 ```
 
-The main outputs are `nep.txt`, `nep.restart`, `loss.out`, and the training-set prediction files. `plot_results.py` shows energy and force parity plots and the training history.
+The main outputs are `nep.txt`, `nep.restart`, `loss.out`, and the training-set prediction files. `plot_results.py` writes `energy_parity.png`, `force_parity.png`, and `training_history.png`.
