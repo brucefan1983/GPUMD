@@ -78,12 +78,10 @@ The following parameters are available only in analytic mode:
 
 ``output_format dense|matrix_market``
    Choose the dense text matrix (``dense``, the default) or a sparse Matrix
-   Market coordinate matrix (``matrix_market``). The sparse path assembles the
-   NEP Hessian contributions directly into a symmetric :math:`3\times3`
-   block-compressed row workspace and writes only the nonzero scalar elements in
-   the SoA row and column order. It currently supports a single ordinary NEP
-   model without DFT-D3 or interlayer-potential (:term:`ILP`) environments.
-   Sparse output is incompatible with ``raw_output`` and ``metadata``.
+   Market coordinate matrix (``matrix_market``). Sparse output is available
+   only with ``compute_hessian analytic`` for a single supported NEP model and
+   is described in :ref:`hessian_sparse`. It is incompatible with
+   ``raw_output`` and ``metadata``.
 
 ``raw_output <path>``
    Path of the un-symmetrized analytic matrix. Disabled by default. This
@@ -181,6 +179,61 @@ For finite-difference output, the result is identified as
 ``finite_difference_symmetrized``; for analytic output it is identified as
 ``analytic_symmetrized`` (or ``analytic_raw`` for ``raw_output``).
 
+.. _hessian_sparse:
+
+Sparse Hessian output
+---------------------
+
+``compute_hessian analytic output_format matrix_market`` avoids constructing
+the dense :math:`3N\times3N` matrix during the Hessian calculation. It builds
+the symmetric block sparsity pattern of the NEP Hessian from the radial and
+angular neighbor lists, accumulates each :math:`3\times3` Cartesian
+atom-pair block directly in a compressed row workspace on the device, and then
+symmetrizes the blocks as :math:`(H+H^\mathsf{T})/2`. The stored workspace
+scales with the number of populated atom-pair blocks rather than with
+:math:`N^2`.
+
+The selected ``output`` path (by default, ``hessian.out``) is written as a
+Matrix Market coordinate file:
+
+.. code::
+
+   %%MatrixMarket matrix coordinate real general
+   % coordinate_order=soa
+   % definition=minus_force_jacobian
+   % unit=eV/A^2
+   % atom_block_size=3
+   % N=N
+   3N 3N nnz
+   row column value
+
+The dimensions are :math:`3N\times3N`, and ``nnz`` is the number of nonzero
+scalar entries actually written. Only nonzero entries inside the populated
+:math:`3\times3` blocks are stored. The Matrix Market indices are one-based
+and follow the same SoA ordering as the dense output,
+
+.. math::
+
+   \mathrm{row} = a_i N + i + 1, \qquad
+   \mathrm{column} = a_j N + j + 1,
+
+where :math:`a_i,a_j\in\{0,1,2\}` select the :math:`x,y,z` Cartesian
+component. Both symmetric entries :math:`(i,j)` and :math:`(j,i)` are written,
+and the values have units of eV/Å\ :sup:`2`. The file is therefore a general
+Matrix Market matrix rather than a symmetric-storage matrix, and it can be read
+by standard Matrix Market readers.
+
+Sparse output is supported only for the analytic Hessian of a single NEP4
+energy model without a DFT-D3 or interlayer-potential (:term:`ILP`) component;
+the other restrictions of analytic mode also apply. ``raw_output`` and
+``metadata`` cannot be combined with ``output_format matrix_market``.
+``structure_output`` remains available. If a ``phonon`` mode is requested, the
+sparse blocks are expanded to a dense matrix for the phonon solver, so the
+sparse representation reduces matrix storage only for Hessian-only
+calculations.
+
+.. _hessian_analytic:
+
 Analytic mode
 -------------
 
@@ -274,10 +327,13 @@ The interaction range estimate is conservative: a force-constant interaction
 range of twice the largest potential cutoff is used. This is an interpolation
 guard, not an additional truncation of the Hessian.
 
-The full :math:`3N\times3N` Hessian is computed and stored, so reduced phonon
-matrices do not remove this quadratic memory requirement.
-:math:`\boldsymbol{k}`-points are processed one at a time to avoid storing all
-dynamical matrices simultaneously.
+For dense Hessian output, the full :math:`3N\times3N` matrix is stored, so
+reduced phonon matrices do not remove this quadratic memory requirement. With
+``output_format matrix_market``, requesting phonons expands the sparse blocks
+into a dense matrix before solving; the sparse representation reduces matrix
+storage only when no phonon mode is requested. :math:`\boldsymbol{k}`-points
+are processed one at a time to avoid storing all dynamical matrices
+simultaneously.
 
 Phonon outputs
 --------------
@@ -322,6 +378,11 @@ Write both the raw and symmetrized analytic matrices::
    potential /absolute/path/nep.txt
    compute_hessian analytic raw_output raw.txt
 
+Write the symmetrized analytic Hessian in sparse Matrix Market format::
+
+   potential /absolute/path/nep.txt
+   compute_hessian analytic output_format matrix_market output hessian.mtx
+
 Compute a central finite-difference Hessian with the default displacement::
 
    potential /absolute/path/lj.txt
@@ -355,13 +416,17 @@ Caveats
 
 This keyword must occur after the :ref:`potential <kw_potential>` definition.
 
-The cost and memory of the Hessian scale quadratically with the number of atoms
-:math:`N`, since the full :math:`3N\times3N` matrix is stored. This is
-especially important for ``phonon dispersion``, where the requested supercell
-must be large enough to satisfy the interaction-range condition above. The
-analytic mode computes one Hessian; the finite-difference mode additionally
-requires :math:`2\times3N` force evaluations and can therefore be considerably
-more expensive for large systems.
+The memory required for dense output and for phonon postprocessing scales
+quadratically with the number of atoms :math:`N`, since the full
+:math:`3N\times3N` matrix is stored. Sparse ``matrix_market`` output instead
+scales with the number of populated atom-pair blocks for Hessian-only
+calculations, but it is expanded to a dense matrix whenever phonons are
+requested. The quadratic memory requirement is especially important for
+``phonon dispersion``, where the requested supercell must be large enough to
+satisfy the interaction-range condition above. The analytic mode computes one
+Hessian; the finite-difference mode additionally requires :math:`2\times3N`
+force evaluations and can therefore be considerably more expensive for large
+systems.
 
 For a molecule, a valid Hessian should have exactly six zero modes (three
 translations and three rotations) if the structure is fully relaxed and the
