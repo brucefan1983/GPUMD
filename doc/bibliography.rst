@@ -4,6 +4,12 @@
 Bibliography
 ************
 
+.. [Aristoff2014]
+   | David Aristoff, Tony Lelièvre, and Gideon Simpson
+   | *The parallel replica method for simulating long trajectories of Markov chains*
+   | Applied Mathematics Research eXpress **2014**, 332–352 (2014)
+   | DOI: `10.1093/amrx/abu005 <https://doi.org/10.1093/amrx/abu005>`_
+
 .. [Bernetti2020]
    | Mattia Bernetti and Giovanni Bussi
    | *Pressure control using stochastic cell rescaling*
@@ -252,6 +258,12 @@ Bibliography
    | Journal of Chemical Theory and Computation **20**, 2088-2097 (2024)
    | DOI: `10.1021/acs.jctc.3c01254 <https://doi.org/10.1021/acs.jctc.3c01254>`_
 
+.. [Sugita1999]
+   | Yuji Sugita and Yuko Okamoto
+   | *Replica-exchange molecular dynamics method for protein folding*
+   | Chemical Physics Letters **314**, 141–151 (1999)
+   | DOI: `10.1016/S0009-2614(99)01123-9 <https://doi.org/10.1016/S0009-2614(99)01123-9>`_
+
 .. [Tersoff1988]
    | Jerry Tersoff
    | *New empirical approach for the structure and energy of covalent systems*
@@ -268,6 +280,12 @@ Bibliography
    | Mark E. Tuckerman
    | *Statistical Mechanics: Theory and Molecular Simulation (Oxford Graduate Texts)*
    | 1st Edition, Oxford University Press (2010)
+
+.. [Voter1998]
+   | Arthur F. Voter
+   | *Parallel replica method for dynamics of infrequent events*
+   | Phys. Rev. B **57**, R13985 (1998)
+   | DOI: `10.1103/PhysRevB.57.R13985 <https://doi.org/10.1103/PhysRevB.57.R13985>`_
 
 .. [Zhou2004]
    | X. W. Zhou, R. A. Johnson, and H. N. G. Wadley
