@@ -25,7 +25,24 @@ Available potential models
 Syntax
 ------
 
-This keyword needs one parameter, :attr:`potential_filename`, which is the filename (including relative or absolute path) of the potential file to be used.
+The first parameter, :attr:`potential_filename`, is the filename (including
+relative or absolute path) of the potential file to be used. Some potential
+types require additional parameters, as described in their corresponding
+sections.
+
+For standard NEP and temperature-dependent NEP models, a multi-GPU run can
+optionally specify the spatial partition direction::
+
+  potential <potential_filename> [partition_direction]
+
+Here, :attr:`partition_direction` can be ``x``, ``y``, or ``z``. These
+correspond to the ``a``, ``b``, and ``c`` directions, respectively, for a
+triclinic box. If the direction is omitted, GPUMD selects it automatically,
+normally along the thickest direction of the box.
+
+The optional partition direction applies only to the multi-GPU implementation
+of standard NEP and temperature-dependent NEP models. Charge NEP models
+currently use the single-GPU implementation in ``gpumd``.
 
 Example
 -------
@@ -33,3 +50,8 @@ Example
 .. code::
 
    potential Si_NEP.txt
+
+For a multi-GPU NEP run, one can force the decomposition along a specific
+direction, for example::
+
+   potential Si_NEP.txt x
