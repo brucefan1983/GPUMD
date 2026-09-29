@@ -71,6 +71,8 @@ public:
     GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
+    GPU_Vector<unsigned long long> force_fixed; // forces in fixed point, allocated when seed is set
+    GPU_Vector<unsigned long long> bec_fixed;   // BEC in fixed point, allocated when seed is set
     GPU_Vector<float> kx;
     GPU_Vector<float> ky;
     GPU_Vector<float> kz;

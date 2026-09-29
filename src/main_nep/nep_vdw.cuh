@@ -39,6 +39,7 @@ struct NEP_VDW_Data {
   GPU_Vector<int> kpoint_offset;
   const Dataset* kpoint_dataset = nullptr;
   GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<unsigned long long> force_fixed; // forces in fixed point, allocated when seed is set
 };
 
 class NEP_VDW : public Potential

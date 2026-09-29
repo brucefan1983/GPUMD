@@ -21,6 +21,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
+#include "fixed_point_sum.cuh"
 #include "mic.cuh"
 #include "nep_charge_vdw.cuh"
 #include "nep_vdw_parameters.cuh"
@@ -238,6 +239,12 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     nep_data[device_id].sum_fxyz.resize(
       N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+    if (para.is_seed_set) {
+      nep_data[device_id].force_fixed.resize(N * 3, 0ULL);
+      if (para.has_bec) {
+        nep_data[device_id].bec_fixed.resize(N * 9, 0ULL);
+      }
+    }
     nep_data[device_id].D_real.resize(N);
     nep_data[device_id].kpoint_offset.resize(Nc + 1);
   }
@@ -430,6 +437,7 @@ static __global__ void find_force_radial(
   float* g_fx,
   float* g_fy,
   float* g_fz,
+  unsigned long long* g_force_fixed,
   float* g_virial)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -473,12 +481,8 @@ static __global__ void find_force_radial(
         }
       }
 
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
+      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
@@ -516,6 +520,7 @@ static __global__ void find_force_angular(
   float* g_fx,
   float* g_fy,
   float* g_fz,
+  unsigned long long* g_force_fixed,
   float* g_virial)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -578,12 +583,8 @@ static __global__ void find_force_angular(
           paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
+      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
@@ -613,7 +614,8 @@ static __global__ void find_bec_radial(
   const float* g_y12,
   const float* g_z12,
   const float* g_charge_derivative,
-  float* g_bec)
+  float* g_bec,
+  unsigned long long* g_bec_fixed)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -658,25 +660,25 @@ static __global__ void find_bec_radial(
       float bec_zy = 0.5f* (r12[2] * f12[1]);
       float bec_zz = 0.5f* (r12[2] * f12[2]);
 
-      atomicAdd(&g_bec[n1], bec_xx);
-      atomicAdd(&g_bec[n1 + N], bec_xy);
-      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
-      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
-      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
-      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
-      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
-      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
-      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1, bec_xx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N, bec_xy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 2, bec_xz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 3, bec_yx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 4, bec_yy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 5, bec_yz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 6, bec_zx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 7, bec_zy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 8, bec_zz);
 
-      atomicAdd(&g_bec[n2], -bec_xx);
-      atomicAdd(&g_bec[n2 + N], -bec_xy);
-      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
-      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
-      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
-      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
-      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
-      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
-      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2, -bec_xx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N, -bec_xy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 2, -bec_xz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 3, -bec_yx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 4, -bec_yy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 5, -bec_yz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 6, -bec_zx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 7, -bec_zy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 8, -bec_zz);
     }
   }
 }
@@ -694,7 +696,8 @@ static __global__ void find_bec_angular(
   const float* g_z12,
   const float* g_charge_derivative,
   const float* g_sum_fxyz,
-  float* g_bec)
+  float* g_bec,
+  unsigned long long* g_bec_fixed)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -755,25 +758,25 @@ static __global__ void find_bec_angular(
       float bec_zy = 0.5f* (r12[2] * f12[1]);
       float bec_zz = 0.5f* (r12[2] * f12[2]);
 
-      atomicAdd(&g_bec[n1], bec_xx);
-      atomicAdd(&g_bec[n1 + N], bec_xy);
-      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
-      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
-      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
-      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
-      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
-      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
-      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1, bec_xx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N, bec_xy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 2, bec_xz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 3, bec_yx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 4, bec_yy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 5, bec_yz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 6, bec_zx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 7, bec_zy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n1 + N * 8, bec_zz);
 
-      atomicAdd(&g_bec[n2], -bec_xx);
-      atomicAdd(&g_bec[n2 + N], -bec_xy);
-      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
-      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
-      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
-      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
-      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
-      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
-      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2, -bec_xx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N, -bec_xy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 2, -bec_xz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 3, -bec_yx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 4, -bec_yy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 5, -bec_yz);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 6, -bec_zx);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 7, -bec_zy);
+      atomic_add_float_or_fixed(g_bec, g_bec_fixed, n2 + N * 8, -bec_zz);
     }
   }
 }
@@ -792,6 +795,7 @@ static __global__ void find_force_ZBL(
   float* g_fx,
   float* g_fy,
   float* g_fz,
+  unsigned long long* g_force_fixed,
   float* g_virial,
   float* g_pe)
 {
@@ -849,12 +853,8 @@ static __global__ void find_force_ZBL(
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
+      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
       s_virial_zz -= r12[2] * f12[2];
@@ -1468,6 +1468,10 @@ void NEP_Charge_VDW::find_force(
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(gpuSetDevice(device_id));
     neighbor[device_id].prepare(para, dataset[device_id], device_id);
+    unsigned long long* force_fixed =
+      para.is_seed_set ? nep_data[device_id].force_fixed.data() : nullptr;
+    unsigned long long* bec_fixed =
+      para.is_seed_set && para.has_bec ? nep_data[device_id].bec_fixed.data() : nullptr;
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
@@ -1638,7 +1642,8 @@ void NEP_Charge_VDW::find_force(
           neighbor[device_id].z12_radial.data(),
           nep_data[device_id].parameters.data(),
           nep_data[device_id].charge_derivative.data(),
-          dataset[device_id].bec.data());
+          dataset[device_id].bec.data(),
+          bec_fixed);
       } else {
         find_bec_radial<<<grid_size, block_size>>>(
           dataset[device_id].N,
@@ -1652,7 +1657,8 @@ void NEP_Charge_VDW::find_force(
           neighbor[device_id].y12_radial.data(),
           neighbor[device_id].z12_radial.data(),
           nep_data[device_id].charge_derivative.data(),
-          dataset[device_id].bec.data());
+          dataset[device_id].bec.data(),
+          bec_fixed);
         GPU_CHECK_KERNEL
       }
 
@@ -1670,7 +1676,8 @@ void NEP_Charge_VDW::find_force(
           nep_data[device_id].parameters.data(),
           nep_data[device_id].charge_derivative.data(),
           nep_data[device_id].sum_fxyz.data(),
-          dataset[device_id].bec.data());
+          dataset[device_id].bec.data(),
+          bec_fixed);
       } else {
         find_bec_angular<<<grid_size, block_size>>>(
           dataset[device_id].N,
@@ -1685,7 +1692,15 @@ void NEP_Charge_VDW::find_force(
           neighbor[device_id].z12_angular.data(),
           nep_data[device_id].charge_derivative.data(),
           nep_data[device_id].sum_fxyz.data(),
-          dataset[device_id].bec.data());
+          dataset[device_id].bec.data(),
+          bec_fixed);
+        GPU_CHECK_KERNEL
+      }
+
+      if (bec_fixed) {
+        const int size = dataset[device_id].N * 9;
+        add_fixed_point_sums<<<(size - 1) / block_size + 1, block_size>>>(
+          size, bec_fixed, dataset[device_id].bec.data());
         GPU_CHECK_KERNEL
       }
 
@@ -1809,7 +1824,7 @@ void NEP_Charge_VDW::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
-        nullptr,
+        force_fixed,
         dataset[device_id].virial.data());
     } else {
       find_force_radial<<<grid_size, block_size>>>(
@@ -1831,6 +1846,7 @@ void NEP_Charge_VDW::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        force_fixed,
         dataset[device_id].virial.data());
       GPU_CHECK_KERNEL
     }
@@ -1855,7 +1871,7 @@ void NEP_Charge_VDW::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
-        nullptr,
+        force_fixed,
         dataset[device_id].virial.data());
     } else {
       find_force_angular<<<grid_size, block_size>>>(
@@ -1878,6 +1894,7 @@ void NEP_Charge_VDW::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        force_fixed,
         dataset[device_id].virial.data());
       GPU_CHECK_KERNEL
     }
@@ -1897,8 +1914,16 @@ void NEP_Charge_VDW::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        force_fixed,
         dataset[device_id].virial.data(),
         dataset[device_id].energy.data());
+      GPU_CHECK_KERNEL
+    }
+
+    if (para.is_seed_set) {
+      const int size = dataset[device_id].N * 3;
+      add_fixed_point_sums<<<(size - 1) / block_size + 1, block_size>>>(
+        size, force_fixed, dataset[device_id].force.data());
       GPU_CHECK_KERNEL
     }
   }

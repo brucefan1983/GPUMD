@@ -174,12 +174,13 @@ public:
   void launch_bec_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
-    const float* parameters, const float* charge_derivative, float* bec);
+    const float* parameters, const float* charge_derivative, float* bec,
+    unsigned long long* bec_fixed);
   void launch_bec_angular(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* charge_derivative,
-    const float* sum_fxyz, float* bec);
+    const float* sum_fxyz, float* bec, unsigned long long* bec_fixed);
 
   // Model-specific public interfaces keep the original training code readable.
   void launch_force_radial(
@@ -285,11 +286,11 @@ private:
   using BecRadialFunction = int (*)(
     int, const int*, const int*, const int*, const int*,
     const float*, const float*, const float*,
-    const float*, const float*, float*);
+    const float*, const float*, float*, unsigned long long*);
   using BecAngularFunction = int (*)(
     int, const int*, const int*, const int*, const int*,
     const float*, const float*, const float*,
-    const float*, const float*, const float*, float*);
+    const float*, const float*, const float*, float*, unsigned long long*);
 
   using ForceRadialFunction = int (*)(
     int, const int*, const int*, const int*, const int*,

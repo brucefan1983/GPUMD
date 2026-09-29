@@ -802,24 +802,25 @@ void NEP_Compile::launch_ann_tnep_pol(
 void NEP_Compile::launch_bec_radial(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* charge_derivative, float* bec)
+  const float* parameters, const float* charge_derivative, float* bec,
+  unsigned long long* bec_fixed)
 {
   check_launch(
     bec_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, charge_derivative, bec),
+      parameters, charge_derivative, bec, bec_fixed),
     "bec_radial_jit");
 }
 void NEP_Compile::launch_bec_angular(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* charge_derivative,
-  const float* sum_fxyz, float* bec)
+  const float* sum_fxyz, float* bec, unsigned long long* bec_fixed)
 {
   check_launch(
     bec_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, charge_derivative, sum_fxyz, bec),
+      parameters, charge_derivative, sum_fxyz, bec, bec_fixed),
     "bec_angular_jit");
 }
 

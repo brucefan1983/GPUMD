@@ -23,6 +23,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
+#include "fixed_point_sum.cuh"
 #include "mic.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
@@ -214,6 +215,9 @@ TNEP::TNEP(
     nep_data[device_id].sum_fxyz.resize(
       N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+    if (para.is_seed_set) {
+      nep_data[device_id].force_fixed.resize(N * 3, 0ULL);
+    }
   }
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
@@ -471,6 +475,7 @@ static __global__ void find_force_radial(
   float* g_fx,
   float* g_fy,
   float* g_fz,
+  unsigned long long* g_force_fixed,
   float* g_virial)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -512,12 +517,8 @@ static __global__ void find_force_radial(
         }
       }
 
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
+      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       if (is_dipole) {
         float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
@@ -559,6 +560,7 @@ static __global__ void find_force_angular(
   float* g_fx,
   float* g_fy,
   float* g_fz,
+  unsigned long long* g_force_fixed,
   float* g_virial)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -618,12 +620,8 @@ static __global__ void find_force_angular(
           paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
+      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       if (is_dipole) {
         float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
@@ -666,6 +664,8 @@ void TNEP::find_force(
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(gpuSetDevice(device_id));
     neighbor[device_id].prepare(para, dataset[device_id], device_id);
+    unsigned long long* force_fixed =
+      para.is_seed_set ? nep_data[device_id].force_fixed.data() : nullptr;
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
 
@@ -810,7 +810,7 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
-        nullptr,
+        force_fixed,
         dataset[device_id].virial.data());
     } else {
       find_force_radial<<<grid_size, block_size>>>(
@@ -829,6 +829,7 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        force_fixed,
         dataset[device_id].virial.data());
       GPU_CHECK_KERNEL
     }
@@ -850,7 +851,7 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
-        nullptr,
+        force_fixed,
         dataset[device_id].virial.data());
     } else {
       find_force_angular<<<grid_size, block_size>>>(
@@ -870,7 +871,15 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        force_fixed,
         dataset[device_id].virial.data());
+      GPU_CHECK_KERNEL
+    }
+
+    if (para.is_seed_set) {
+      const int size = dataset[device_id].N * 3;
+      add_fixed_point_sums<<<(size - 1) / block_size + 1, block_size>>>(
+        size, force_fixed, dataset[device_id].force.data());
       GPU_CHECK_KERNEL
     }
   }

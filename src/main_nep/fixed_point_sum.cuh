@@ -33,6 +33,17 @@ atomic_add_fixed_point(unsigned long long* address, float value)
   atomicAdd(address, static_cast<unsigned long long>(__float2ll_rn(value * FIXED_POINT_SCALE)));
 }
 
+// Adds value to g_float[index], or to g_fixed[index] in fixed point when g_fixed is set.
+static __device__ __forceinline__ void atomic_add_float_or_fixed(
+  float* g_float, unsigned long long* g_fixed, const int index, const float value)
+{
+  if (g_fixed) {
+    atomic_add_fixed_point(&g_fixed[index], value);
+  } else {
+    atomicAdd(&g_float[index], value);
+  }
+}
+
 // Adds (fx, fy, fz) to the force on atom n, in fixed point when g_force_fixed is set.
 // g_force_fixed holds the x, y and z components at n, n + N and n + 2 * N.
 static __device__ __forceinline__ void atomic_add_force(

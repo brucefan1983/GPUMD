@@ -27,6 +27,7 @@ struct TNEP_Data {
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<unsigned long long> force_fixed; // forces in fixed point, allocated when seed is set
 };
 
 class TNEP : public Potential

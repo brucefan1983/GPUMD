@@ -559,7 +559,8 @@ __global__ void bec_radial_jit(
   const float* z12_all,
   const float* parameters,
   const float* charge_derivative,
-  float* bec)
+  float* bec,
+  unsigned long long* bec_fixed)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 >= N) return;
@@ -625,25 +626,25 @@ __global__ void bec_radial_jit(
     const float bec_zy = 0.5f * r12[2] * f12[1];
     const float bec_zz = 0.5f * r12[2] * f12[2];
 
-    atomicAdd(&bec[n1], bec_xx);
-    atomicAdd(&bec[n1 + N], bec_xy);
-    atomicAdd(&bec[n1 + 2 * N], bec_xz);
-    atomicAdd(&bec[n1 + 3 * N], bec_yx);
-    atomicAdd(&bec[n1 + 4 * N], bec_yy);
-    atomicAdd(&bec[n1 + 5 * N], bec_yz);
-    atomicAdd(&bec[n1 + 6 * N], bec_zx);
-    atomicAdd(&bec[n1 + 7 * N], bec_zy);
-    atomicAdd(&bec[n1 + 8 * N], bec_zz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1, bec_xx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + N, bec_xy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 2 * N, bec_xz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 3 * N, bec_yx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 4 * N, bec_yy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 5 * N, bec_yz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 6 * N, bec_zx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 7 * N, bec_zy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 8 * N, bec_zz);
 
-    atomicAdd(&bec[n2], -bec_xx);
-    atomicAdd(&bec[n2 + N], -bec_xy);
-    atomicAdd(&bec[n2 + 2 * N], -bec_xz);
-    atomicAdd(&bec[n2 + 3 * N], -bec_yx);
-    atomicAdd(&bec[n2 + 4 * N], -bec_yy);
-    atomicAdd(&bec[n2 + 5 * N], -bec_yz);
-    atomicAdd(&bec[n2 + 6 * N], -bec_zx);
-    atomicAdd(&bec[n2 + 7 * N], -bec_zy);
-    atomicAdd(&bec[n2 + 8 * N], -bec_zz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2, -bec_xx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + N, -bec_xy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 2 * N, -bec_xz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 3 * N, -bec_yx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 4 * N, -bec_yy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 5 * N, -bec_yz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 6 * N, -bec_zx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 7 * N, -bec_zy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 8 * N, -bec_zz);
   }
 }
 
@@ -659,7 +660,8 @@ __global__ void bec_angular_jit(
   const float* parameters,
   const float* charge_derivative,
   const float* sum_fxyz_in,
-  float* bec)
+  float* bec,
+  unsigned long long* bec_fixed)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 >= N) return;
@@ -762,25 +764,25 @@ __global__ void bec_angular_jit(
     const float bec_zy = 0.5f * r12[2] * f12[1];
     const float bec_zz = 0.5f * r12[2] * f12[2];
 
-    atomicAdd(&bec[n1], bec_xx);
-    atomicAdd(&bec[n1 + N], bec_xy);
-    atomicAdd(&bec[n1 + 2 * N], bec_xz);
-    atomicAdd(&bec[n1 + 3 * N], bec_yx);
-    atomicAdd(&bec[n1 + 4 * N], bec_yy);
-    atomicAdd(&bec[n1 + 5 * N], bec_yz);
-    atomicAdd(&bec[n1 + 6 * N], bec_zx);
-    atomicAdd(&bec[n1 + 7 * N], bec_zy);
-    atomicAdd(&bec[n1 + 8 * N], bec_zz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1, bec_xx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + N, bec_xy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 2 * N, bec_xz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 3 * N, bec_yx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 4 * N, bec_yy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 5 * N, bec_yz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 6 * N, bec_zx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 7 * N, bec_zy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 8 * N, bec_zz);
 
-    atomicAdd(&bec[n2], -bec_xx);
-    atomicAdd(&bec[n2 + N], -bec_xy);
-    atomicAdd(&bec[n2 + 2 * N], -bec_xz);
-    atomicAdd(&bec[n2 + 3 * N], -bec_yx);
-    atomicAdd(&bec[n2 + 4 * N], -bec_yy);
-    atomicAdd(&bec[n2 + 5 * N], -bec_yz);
-    atomicAdd(&bec[n2 + 6 * N], -bec_zx);
-    atomicAdd(&bec[n2 + 7 * N], -bec_zy);
-    atomicAdd(&bec[n2 + 8 * N], -bec_zz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2, -bec_xx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + N, -bec_xy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 2 * N, -bec_xz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 3 * N, -bec_yx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 4 * N, -bec_yy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 5 * N, -bec_yz);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 6 * N, -bec_zx);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 7 * N, -bec_zy);
+    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 8 * N, -bec_zz);
   }
 }
 
@@ -1316,13 +1318,14 @@ extern "C" int nep_train_launch_bec_radial(
   const float* z12,
   const float* parameters,
   const float* charge_derivative,
-  float* bec)
+  float* bec,
+  unsigned long long* bec_fixed)
 {
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   bec_radial_jit<<<grid_size, block_size>>>(
     N, NN_sum, NN, NL, type, x12, y12, z12,
-    parameters, charge_derivative, bec);
+    parameters, charge_derivative, bec, bec_fixed);
   return static_cast<int>(cudaGetLastError());
 }
 
@@ -1338,13 +1341,14 @@ extern "C" int nep_train_launch_bec_angular(
   const float* parameters,
   const float* charge_derivative,
   const float* sum_fxyz,
-  float* bec)
+  float* bec,
+  unsigned long long* bec_fixed)
 {
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   bec_angular_jit<<<grid_size, block_size>>>(
     N, NN_sum, NN, NL, type, x12, y12, z12,
-    parameters, charge_derivative, sum_fxyz, bec);
+    parameters, charge_derivative, sum_fxyz, bec, bec_fixed);
   return static_cast<int>(cudaGetLastError());
 }
 

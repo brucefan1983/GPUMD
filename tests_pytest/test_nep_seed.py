@@ -59,36 +59,53 @@ def test_same_seed_gives_the_same_model(tmp_path, nep_command):
 
 def write_supercells(path):
     """Write 2x2x2 supercells of the first five training structures, 320 atoms each, so that
-    every atom has enough neighbors for the summation order of the forces to matter."""
+    every atom has enough neighbors for the summation order of the forces to matter. Each atom
+    carries a diagonal Born effective charge by species."""
+    born_charges = {'Ba': 2.7, 'Ti': 7.0, 'O': -3.2}
     supercells = []
     for structure in read(TRAINING_DIR / 'train.xyz', index=':5'):
         supercell = structure.repeat(2)
         forces = np.tile(structure.arrays['force'], (8, 1))
         energy = 8 * structure.get_potential_energy()
         supercell.calc = SinglePointCalculator(supercell, energy=energy, forces=forces)
+        diagonal = [born_charges[symbol] for symbol in supercell.get_chemical_symbols()]
+        supercell.arrays['bec'] = np.outer(diagonal, np.eye(3).ravel())
         supercells.append(supercell)
     write(path, supercells, format='extxyz')
 
 
-@pytest.mark.parametrize(
-    'prediction, output', [('0', 'force_test.out'), ('1', 'force_train.out')],
-    ids=['training', 'prediction'])
-def test_same_seed_gives_the_same_forces(tmp_path, nep_command, prediction, output):
+MODELS = {
+    'nep': {},
+    'vdw': {'vdw': '1'},
+    'charge_mode1': {'charge_mode': '1'},
+    'charge_mode2': {'charge_mode': '2'},
+    'charge_vdw': {'charge_vdw': '1'},
+}
+
+
+@pytest.mark.parametrize('model', list(MODELS))
+@pytest.mark.parametrize('prediction', ['0', '1'], ids=['training', 'prediction'])
+def test_same_seed_gives_the_same_forces(tmp_path, nep_command, model, prediction):
     """Training evaluates the forces with the kernels that nep_compile builds at run time, and
-    prediction with the generic ones."""
-    initial = train(tmp_path / 'initial', nep_command, seed=1)
+    prediction with the generic ones. The charge models also sum Born effective charges."""
+    keywords = {**KEYWORDS, 'zbl': '2', **MODELS[model]}
+    initial = train(tmp_path / 'initial', nep_command, seed=1, keywords=keywords)
+    suffix = 'test' if prediction == '0' else 'train'
+    names = [f'force_{suffix}.out'] + ([f'bec_{suffix}.out'] if model.startswith('charge') else [])
     outputs = []
-    for name in ['first', 'second', 'third']:
-        directory = tmp_path / name
+    for run in ['first', 'second', 'third']:
+        directory = tmp_path / run
         directory.mkdir()
         shutil.copy(initial / 'nep.txt', directory / 'nep.txt')
         write_supercells(directory / 'train.xyz')
         write_supercells(directory / 'test.xyz')
         result = run_nep(
-            directory, nep_command, {**KEYWORDS, 'prediction': prediction, 'seed': '1'})
+            directory, nep_command, {**keywords, 'prediction': prediction, 'seed': '1'})
         assert result.returncode == 0, result.stdout + result.stderr
-        outputs.append((directory / output).read_text())
-    assert outputs[0] == outputs[1] == outputs[2]
+        outputs.append({name: (directory / name).read_text() for name in names})
+    differing = [
+        name for name in names if not outputs[0][name] == outputs[1][name] == outputs[2][name]]
+    assert differing == []
 
 
 def read_parameters(directory):
