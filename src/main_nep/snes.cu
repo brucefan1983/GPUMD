@@ -412,7 +412,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "RMSE-E-Test",
           "RMSE-F-Test",
           "RMSE-V-Test");
-        if (para.has_ediff_pairs) {
+        if (para.has_ediff_combinations) {
           printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
         }
         printf("\n");
@@ -433,7 +433,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "V-Test",
           "Q-Test",
           "Z-Test");
-        if (para.has_ediff_pairs) {
+        if (para.has_ediff_combinations) {
           printf(" %-9s %-9s", "D-Train", "D-Test");
         }
         printf("\n");

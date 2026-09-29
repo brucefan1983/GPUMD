@@ -1,8 +1,9 @@
 """Checks of the energy-difference loss of nep, activated by lambda_d > 0 and ediff.in.
 
-The four structures of the training fixture share one composition, which the two structures of a
-pair need. The first two form train.xyz and the last two test.xyz. One generation per
-output_interval yields one row of loss.out per run.
+A line of ediff.in combines the total energies of named structures with coefficients, and the
+combination has to be balanced in the number of atoms of each type. The four structures of the
+training fixture share one composition. Unless a test says otherwise, the first two form train.xyz
+and the last two test.xyz. One generation per output_interval yields one row of loss.out per run.
 """
 import math
 import re
@@ -59,6 +60,19 @@ def total_reference_energy(frame):
     raise ValueError('no energy in comment line')
 
 
+def with_atoms(frame, atom_lines, energy):
+    """The frame with its atoms replaced and the given total reference energy."""
+    comment = re.sub(r'energy=\S+', f'energy={energy:.8f}', frame[1])
+    return [str(len(atom_lines)), comment] + atom_lines
+
+
+def write_nep_in(directory, overrides):
+    keywords = dict(KEYWORDS)
+    keywords.update(overrides or {})
+    text = ''.join(f'{key} {value}\n' for key, value in keywords.items() if value is not None)
+    (directory / 'nep.in').write_text(text)
+
+
 def setup_directory(directory, ediff_lines, overrides=None):
     """Write train.xyz with the structures S0 and S1, test.xyz with S2 and S3, nep.in, and ediff.in
     unless ediff_lines is None. Returns the frames."""
@@ -66,12 +80,9 @@ def setup_directory(directory, ediff_lines, overrides=None):
     assert len(frames) == 4
     write_frames(directory / 'train.xyz', frames[:2], ['S0', 'S1'])
     write_frames(directory / 'test.xyz', frames[2:], ['S2', 'S3'])
-    keywords = dict(KEYWORDS)
-    keywords.update(overrides or {})
-    text = ''.join(f'{key} {value}\n' for key, value in keywords.items() if value is not None)
-    (directory / 'nep.in').write_text(text)
+    write_nep_in(directory, overrides)
     if ediff_lines is not None:
-        (directory / 'ediff.in').write_text('# name_a name_b [ref_eV] [weight]\n' + ediff_lines)
+        (directory / 'ediff.in').write_text('# combination [weight]\n' + ediff_lines)
     return frames
 
 
@@ -93,10 +104,16 @@ def read_loss_out(directory):
     return columns, rows
 
 
+def read_total_energies(path, num_atoms):
+    """Total predicted energies from the per-atom energies in an energy_*.out file."""
+    energies_per_atom = [float(line.split()[0]) for line in path.read_text().splitlines()]
+    return [e * n for e, n in zip(energies_per_atom, num_atoms)]
+
+
 @pytest.mark.parametrize('overrides', [{}, {'charge_mode': '1', 'zbl': '1.5'}], ids=['nep', 'qnep'])
 def test_ediff_columns_are_appended(tmp_path, nep_command, overrides):
     """The two ediff columns follow all other columns, and every row has one value per column."""
-    setup_directory(tmp_path, 's0 s1\ns2 s3\n', {'lambda_d': '1', **overrides})
+    setup_directory(tmp_path, 's0 - s1\ns2 - s3\n', {'lambda_d': '1', **overrides})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -107,31 +124,63 @@ def test_ediff_columns_are_appended(tmp_path, nep_command, overrides):
 
 
 def test_ediff_rmse_matches_predicted_energies(tmp_path, nep_command):
-    """The test column equals the error of the predicted energy difference in energy_test.out,
-    which the report writes from the same evaluation. The report writes no energy_train.out, so
-    the train column is only checked to be finite."""
-    frames = setup_directory(tmp_path, 'S0 S1\nS2 S3\n', {'lambda_d': '1'})
+    """The test column equals the weighted error of the predicted energy difference in
+    energy_test.out, which the report writes from the same evaluation. The report writes no
+    energy_train.out, so the train column is only checked to be finite."""
+    frames = setup_directory(tmp_path, 'S0 - S1\nS2 - S3 4\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'ediff.in: 2 pairs, 1 in train.xyz, 1 in test.xyz (0 in both), 0 skipped.' in result.stdout
+    summary = 'ediff.in: 2 combinations, 1 in train.xyz, 1 in test.xyz (0 in both), 0 skipped.'
+    assert summary in result.stdout
 
     columns, rows = read_loss_out(tmp_path)
     values = dict(zip(columns, rows[-1]))
     assert math.isfinite(values['rmse_ediff_train'])
 
-    energies_per_atom = [
-        float(line.split()[0]) for line in (tmp_path / 'energy_test.out').read_text().splitlines()
-    ]
-    num_atoms = 40
-    predicted = num_atoms * (energies_per_atom[0] - energies_per_atom[1])
+    energies = read_total_energies(tmp_path / 'energy_test.out', [40, 40])
+    predicted = energies[0] - energies[1]
     reference = total_reference_energy(frames[2]) - total_reference_energy(frames[3])
-    # energy_test.out carries six significant digits, about 1e-4 eV per atom
-    assert values['rmse_ediff_test'] == pytest.approx(abs(predicted - reference), abs=5e-3)
+    # energy_test.out carries six significant digits, about 1e-4 eV per atom, and the weight of 4
+    # doubles the error; the residual measured with this setup is 2.5e-3 eV at weight 1
+    expected = 2 * abs(predicted - reference)
+    assert values['rmse_ediff_test'] == pytest.approx(expected, abs=1e-2)
+
+
+def test_formation_energy_of_unequal_sizes(tmp_path, nep_command):
+    """A vacancy against the perfect cell and half an O2 molecule is balanced in composition, so
+    any per-atom energy offset cancels. The train column, computed before nep removes that offset
+    from the model, then equals the test column on the same structures, computed after it."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    bulk = frames[0]
+    oxygen_lines = [line for line in bulk[2:] if line.split()[0] == 'O']
+    vacancy = with_atoms(bulk, bulk[2:-1], total_reference_energy(bulk) * 39 / 40)
+    oxygen_molecule = with_atoms(bulk, oxygen_lines[:2], -9.0)
+    assert bulk[-1].split()[0] == 'O'
+    structures = [bulk, vacancy, oxygen_molecule]
+    names = ['bulk', 'vac', 'O2']
+    write_frames(tmp_path / 'train.xyz', structures + [frames[1]], names + ['other'])
+    write_frames(tmp_path / 'test.xyz', structures, names)
+    write_nep_in(tmp_path, {'lambda_d': '1'})
+    (tmp_path / 'ediff.in').write_text('vac + 0.5*O2 - bulk\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    summary = 'ediff.in: 1 combinations, 1 in train.xyz, 1 in test.xyz (1 in both), 0 skipped.'
+    assert summary in result.stdout
+
+    columns, rows = read_loss_out(tmp_path)
+    values = dict(zip(columns, rows[-1]))
+    energies = read_total_energies(tmp_path / 'energy_test.out', [40, 39, 2])
+    predicted = energies[1] + 0.5 * energies[2] - energies[0]
+    reference = sum(
+        c * total_reference_energy(s) for c, s in zip([-1, 1, 0.5], structures)
+    )
+    assert values['rmse_ediff_test'] == pytest.approx(abs(predicted - reference), abs=1e-2)
+    assert values['rmse_ediff_train'] == pytest.approx(values['rmse_ediff_test'], abs=1e-2)
 
 
 def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
     """Without lambda_d an ediff.in is ignored, and loss.out has the columns of a run without it."""
-    setup_directory(tmp_path, 's0 s1\n')
+    setup_directory(tmp_path, 's0 - s1\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'ediff.in is ignored because lambda_d = 0.' in result.stdout
@@ -141,49 +190,62 @@ def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
     assert all(len(row) == len(MASTER_NEP_COLUMNS) for row in rows)
 
 
+INPUT_ERRORS = {
+    'missing ediff.in': (None, {}, 'lambda_d > 0 requires the file ediff.in.'),
+    'no train combination': (
+        's0 - unknown\ns2 - s3\n',
+        {},
+        'No combination in ediff.in has all its structures in train.xyz',
+    ),
+    'dipole model': ('s0 - s1\n', {'model_type': '1'}, 'lambda_d is only supported'),
+    'nan lambda_d': ('s0 - s1\n', {'lambda_d': 'nan'}, 'should be a finite number >= 0'),
+    'one structure': (
+        's0 - s1\ns0\n',
+        {},
+        'ediff.in line 3: a combination needs at least two structures',
+    ),
+    'pair syntax': ('s0 s1\n', {}, "ediff.in line 2: expected + or - before 's1'"),
+    'extra field': ('s0 - s1 1 2\n', {}, "ediff.in line 2: expected + or - before '1'"),
+    'missing term': ('s0 -\n', {}, 'ediff.in line 2: expected a structure after -'),
+    'invalid coefficient': ('s0 - x*s1\n', {}, "ediff.in line 2: invalid coefficient 'x'"),
+    'zero coefficient': ('s0 - 0*s1\n', {}, "ediff.in line 2: invalid coefficient '0'"),
+    'invalid weight': ('s0 - s1 0\n', {}, "ediff.in line 2: invalid weight '0'"),
+    'nan weight': ('s0 - s1 nan\n', {}, "ediff.in line 2: invalid weight 'nan'"),
+    'weight below float range': ('s0 - s1 1e-50\n', {}, "invalid weight '1e-50'"),
+    'repeated name': ('s0 - S0\n', {}, 'ediff.in line 2: s0 occurs more than once'),
+    'all combinations span batches': (
+        's0 - s1\n',
+        {'batch': '1'},
+        'No combination in ediff.in has all its structures in one mini-batch',
+    ),
+}
+
+
 @pytest.mark.parametrize(
-    'ediff_lines, overrides, expected_text',
-    [
-        (None, {'lambda_d': '1'}, 'lambda_d > 0 requires the file ediff.in.'),
-        ('s0 unknown\ns2 s3\n', {'lambda_d': '1'}, 'No pair in ediff.in has both structures'),
-        ('s0 s1\n', {'lambda_d': '1', 'model_type': '1'}, 'lambda_d is only supported'),
-        ('s0 s1\ns0\n', {'lambda_d': '1'}, 'ediff.in line 3: a pair needs two structure names'),
-        ('s0 s1 abc\n', {'lambda_d': '1'}, "ediff.in line 2: invalid ref_eV 'abc'"),
-        ('s0 s1 1.0 0\n', {'lambda_d': '1'}, "ediff.in line 2: invalid weight '0'"),
-        ('s0 s1 1.0 1.0 x\n', {'lambda_d': '1'}, 'ediff.in line 2: at most four fields'),
-    ],
-    ids=[
-        'missing ediff.in',
-        'no train pair',
-        'dipole model',
-        'one name',
-        'invalid reference',
-        'invalid weight',
-        'extra field',
-    ],
+    'ediff_lines, overrides, expected_text', list(INPUT_ERRORS.values()), ids=list(INPUT_ERRORS)
 )
 def test_input_errors(tmp_path, nep_command, ediff_lines, overrides, expected_text):
-    setup_directory(tmp_path, ediff_lines, overrides)
+    setup_directory(tmp_path, ediff_lines, {'lambda_d': '1', **overrides})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode != 0
     assert expected_text in result.stderr
 
 
-def test_test_pair_enters_only_the_test_column(tmp_path, nep_command):
-    """A reference of 1000 eV for the pair of test.xyz makes its error dominate any RMSE it enters,
-    so that it has to raise the test column and leave the train column at the scale of the pair of
-    train.xyz. A pair split across the two files is skipped, and stdout names only that pair."""
-    setup_directory(tmp_path, 's0 s1\ns2 s3 1000\ns0 s2\n', {'lambda_d': '1'})
+def test_test_combination_enters_only_the_test_column(tmp_path, nep_command):
+    """A weight of 1e8 for the combination of test.xyz makes its error dominate any RMSE it
+    enters, so that it has to raise the test column far above the train column. A combination
+    split across the two files is skipped, and stdout names only its line."""
+    setup_directory(tmp_path, 's0 - s1\ns2 - s3 1e8\ns0 - s2\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'ediff.in: 3 pairs, 1 in train.xyz, 1 in test.xyz (0 in both), 1 skipped.' in result.stdout
-    assert 'e.g. s0 s2 (line 4)' in result.stdout
-    assert re.search(r'\bs[13]\b', result.stdout) is None
+    summary = 'ediff.in: 3 combinations, 1 in train.xyz, 1 in test.xyz (0 in both), 1 skipped.'
+    assert summary in result.stdout
+    assert 'e.g. line 4.' in result.stdout
+    assert re.search(r'\bs[0-3]\b', result.stdout) is None
 
     columns, rows = read_loss_out(tmp_path)
     values = dict(zip(columns, rows[-1]))
-    assert values['rmse_ediff_test'] > 900
-    assert values['rmse_ediff_train'] < 100
+    assert values['rmse_ediff_test'] > 100 * values['rmse_ediff_train']
 
 
 def remove_last_atom(frame):
@@ -203,18 +265,18 @@ def swap_first_species(frame, species):
         (lambda frame: swap_first_species(frame, 'Ti'), 'train.xyz'),
         (remove_last_atom, 'test.xyz'),
     ],
-    ids=['fewer atoms', 'swapped species', 'test pair'],
+    ids=['fewer atoms', 'swapped species', 'test combination'],
 )
-def test_pair_of_unequal_composition_is_an_input_error(tmp_path, nep_command, modify, xyz_filename):
-    """The two structures of a pair need the same number of atoms of each type, also with an
-    explicit reference, since a uniform or per-type energy offset would otherwise enter the term."""
-    frames = setup_directory(tmp_path, 's0 s1\ns2 s3 1.0\n', {'lambda_d': '1'})
+def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify, xyz_filename):
+    """A combination needs the same number of atoms of each type on both sides, since a uniform or
+    per-type energy offset would otherwise enter the term."""
+    frames = setup_directory(tmp_path, 's0 - s1\ns2 - s3\n', {'lambda_d': '1'})
     if xyz_filename == 'train.xyz':
         write_frames(tmp_path / 'train.xyz', [frames[0], modify(frames[1])], ['S0', 'S1'])
-        expected_text = 'ediff.in line 2: s0 and s1 in train.xyz differ in composition'
+        expected_text = 'ediff.in line 2: the combination is not balanced in train.xyz'
     else:
         write_frames(tmp_path / 'test.xyz', [frames[2], modify(frames[3])], ['S2', 'S3'])
-        expected_text = 'ediff.in line 3: s2 and s3 in test.xyz differ in composition'
+        expected_text = 'ediff.in line 3: the combination is not balanced in test.xyz'
     result = run_nep(tmp_path, nep_command)
     assert result.returncode != 0
     assert expected_text in result.stderr

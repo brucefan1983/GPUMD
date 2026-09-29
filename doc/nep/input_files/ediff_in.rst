@@ -5,49 +5,52 @@
 ``ediff.in``
 ============
 
-This file lists pairs of structures whose **energy difference** enters the loss function through the keyword :ref:`lambda_d <kw_lambda_d>`.
+This file lists linear combinations of the total energies of structures, such as energy differences and formation energies, that enter the loss function through the keyword :ref:`lambda_d <kw_lambda_d>`.
 It is read only when :math:`\lambda_d > 0`.
 
 File format
 -----------
 
-Each line holds one pair::
+Each line holds one combination::
 
-  <name_a> <name_b> [<ref_eV>] [<weight>]
+  [+|-] <term> {+|- <term>} [<weight>]
 
-* :attr:`name_a` and :attr:`name_b` are the labels given by the :attr:`name=<label>` fields on the comment lines of the structures in :ref:`train.xyz and test.xyz <train_test_xyz>`.
-  Names are matched case-insensitively.
-* :attr:`ref_eV` is optional and gives the target energy difference :math:`E_a - E_b` as a difference of total energies in eV.
-  If it is omitted, the target is the difference of the target total energies of the two structures.
-* :attr:`weight` is optional, must be positive, and defaults to 1.
-  It scales the contribution of the pair to the loss.
+* A :attr:`term` is either :attr:`<name>` or :attr:`<coefficient>*<name>`, without spaces.
+  :attr:`name` is the label given by the :attr:`name=<label>` field on the comment line of a structure in :ref:`train.xyz and test.xyz <train_test_xyz>`.
+  Names are matched case-insensitively, and a name may occur only once per line.
+  :attr:`coefficient` is a nonzero real number and defaults to 1.
+* The operators ``+`` and ``-`` are fields of their own, separated from the terms by whitespace.
+* :attr:`weight` is optional, must be a positive number, and defaults to 1.
+  It scales the contribution of the combination to the loss.
 
-The two structures of a pair must have the same number of atoms of each type.
+A combination needs at least two structures and must be balanced in the number of atoms of each type: for every type, the sum of the coefficients times the numbers of atoms of that type vanishes.
+The target of a combination is the same combination of the target total energies, which are given by the :attr:`energy` fields of the structures.
 
-A ``#`` starts a comment that extends to the end of the line.
+A field beginning with ``#`` starts a comment that extends to the end of the line.
 
 Example
 -------
 
 ::
 
-  # two polymorphs of the same cell, target taken from train.xyz
-  rutile anatase
-  # a vacancy at two sites of one cell, with an explicit target and a higher weight
-  vacancy_site1 vacancy_site2 0.42 2.0
+  # two charge states of one structure
+  defect-chg0 - defect-chg-1
+  # an oxygen vacancy against the perfect cell and half an O2 molecule, with weight 2
+  vacancy + 0.5*O2 - bulk 2.0
+  # a vacancy in a 31-atom cell against a 32-atom perfect cell of one element
+  vac31 - 0.96875*bulk32
 
-Training and test pairs
------------------------
+Training and test combinations
+------------------------------
 
-A pair with both structures in :attr:`train.xyz` is a training pair, which enters the loss function and the column :attr:`rmse_ediff_train` of :ref:`loss.out <loss_out>`.
-A pair with both structures in :attr:`test.xyz` is a test pair, which enters the column :attr:`rmse_ediff_test`.
-A pair whose names occur in both files is both a training pair and a test pair.
-A pair with a name that occurs in neither file, or with its two structures in different files, is skipped.
-``nep`` prints the number of pairs of each kind and a warning with the number of skipped pairs.
+A combination with all its structures in :attr:`train.xyz` is a training combination, which enters the loss function and the column :attr:`rmse_ediff_train` of :ref:`loss.out <loss_out>`.
+A combination with all its structures in :attr:`test.xyz` is a test combination, which enters the column :attr:`rmse_ediff_test`.
+A combination whose names occur in both files is both a training and a test combination.
+A combination with a name that occurs in neither file, or with its structures in different files, is skipped.
+``nep`` prints the number of combinations of each kind and a warning with the number of skipped combinations.
 
 Caveats
 -------
 
-* A line with fewer than two names or more than four fields, an invalid :attr:`ref_eV`, or a weight that is not a positive number is an input error.
-* A pair of structures that differ in the number of atoms of some type is an input error.
-* If a name occurs on more than one structure of a file, the pair refers to the first of them and a warning is printed.
+* A line that does not follow the format, an invalid coefficient or weight, and a combination that is not balanced are input errors.
+* If a name occurs on more than one structure of a file, the combination refers to the first of them and a warning is printed.

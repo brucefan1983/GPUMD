@@ -1845,8 +1845,8 @@ void Parameters::parse_lambda_d(const char** param, int num_param)
   }
   lambda_d = lambda_d_tmp;
 
-  if (lambda_d < 0.0f) {
-    PRINT_INPUT_ERROR("Energy difference loss weight should >= 0.");
+  if (!std::isfinite(lambda_d) || lambda_d < 0.0f) {
+    PRINT_INPUT_ERROR("Energy difference loss weight should be a finite number >= 0.");
   }
 }
 

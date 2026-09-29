@@ -31,7 +31,9 @@ Get the fitness
 #include "utilities/nep_parameters.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
+#include <cfloat>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -51,13 +53,16 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
   return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
-// One line of ediff.in, with the names in lowercase.
+// One term of a line of ediff.in, with the name in lowercase.
+struct EnergyDiffTerm {
+  std::string name;
+  double coefficient;
+};
+
+// One line of ediff.in, a linear combination of the total energies of named structures.
 struct EnergyDiffEntry {
-  std::string name_a;
-  std::string name_b;
+  std::vector<EnergyDiffTerm> terms;
   int line_number;
-  bool has_ref = false;
-  float ref_total_eV = 0.0f;
   float weight = 1.0f;
 };
 
@@ -74,6 +79,81 @@ static std::string to_lowercase(std::string text)
   PRINT_INPUT_ERROR(message.c_str());
 }
 
+// Reads a finite real number that a float holds without overflow or underflow to zero.
+static bool is_valid_float(const std::string& token, double& value)
+{
+  if (!is_valid_real(token.c_str(), &value) || !std::isfinite(value)) {
+    return false;
+  }
+  const double magnitude = std::fabs(value);
+  return magnitude <= FLT_MAX && (magnitude == 0.0 || magnitude >= FLT_MIN);
+}
+
+// Parses "[+|-] term {(+|-) term} [weight]", where a term is "name" or "coefficient*name".
+static EnergyDiffEntry
+parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
+{
+  EnergyDiffEntry entry;
+  entry.line_number = line_number;
+  int k = 0;
+  double sign = 1.0;
+  if (tokens[0] == "+" || tokens[0] == "-") {
+    sign = (tokens[0] == "-") ? -1.0 : 1.0;
+    ++k;
+  }
+  while (true) {
+    if (k == (int)tokens.size()) {
+      print_ediff_in_error(line_number, "expected a structure after " + tokens[k - 1] + ".");
+    }
+    const std::string& term = tokens[k++];
+    EnergyDiffTerm energy_diff_term;
+    energy_diff_term.coefficient = sign;
+    const size_t star = term.find('*');
+    if (star == std::string::npos) {
+      energy_diff_term.name = to_lowercase(term);
+    } else {
+      const std::string coefficient = term.substr(0, star);
+      double value;
+      if (!is_valid_float(coefficient, value) || value == 0.0) {
+        print_ediff_in_error(line_number, "invalid coefficient '" + coefficient + "'.");
+      }
+      energy_diff_term.coefficient *= value;
+      energy_diff_term.name = to_lowercase(term.substr(star + 1));
+    }
+    if (energy_diff_term.name.empty()) {
+      print_ediff_in_error(line_number, "expected a structure name in '" + term + "'.");
+    }
+    for (const auto& previous_term : entry.terms) {
+      if (previous_term.name == energy_diff_term.name) {
+        print_ediff_in_error(line_number, energy_diff_term.name + " occurs more than once.");
+      }
+    }
+    entry.terms.push_back(energy_diff_term);
+    if (k == (int)tokens.size()) {
+      break;
+    }
+    if (tokens[k] == "+" || tokens[k] == "-") {
+      sign = (tokens[k] == "-") ? -1.0 : 1.0;
+      ++k;
+      continue;
+    }
+    double value;
+    if (k + 1 < (int)tokens.size() || !is_valid_real(tokens[k].c_str(), &value)) {
+      print_ediff_in_error(line_number, "expected + or - before '" + tokens[k] + "'.");
+    }
+    if (!is_valid_float(tokens[k], value) || value <= 0.0) {
+      print_ediff_in_error(
+        line_number, "invalid weight '" + tokens[k] + "', which should be positive.");
+    }
+    entry.weight = value;
+    break;
+  }
+  if (entry.terms.size() < 2) {
+    print_ediff_in_error(line_number, "a combination needs at least two structures.");
+  }
+  return entry;
+}
+
 static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
 {
   std::vector<EnergyDiffEntry> entries;
@@ -81,59 +161,22 @@ static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
     ++line_number;
-    if (tokens.empty()) {
-      continue;
+    if (!tokens.empty()) {
+      entries.push_back(parse_ediff_line(tokens, line_number));
     }
-    if (tokens.size() < 2) {
-      print_ediff_in_error(line_number, "a pair needs two structure names.");
-    }
-    if (tokens.size() > 4) {
-      print_ediff_in_error(line_number, "at most four fields, name_a name_b [ref_eV] [weight].");
-    }
-    EnergyDiffEntry entry;
-    entry.name_a = to_lowercase(tokens[0]);
-    entry.name_b = to_lowercase(tokens[1]);
-    entry.line_number = line_number;
-    if (tokens.size() >= 3) {
-      double value;
-      if (!is_valid_real(tokens[2].c_str(), &value)) {
-        print_ediff_in_error(line_number, "invalid ref_eV '" + tokens[2] + "'.");
-      }
-      entry.has_ref = true;
-      entry.ref_total_eV = value;
-    }
-    if (tokens.size() >= 4) {
-      double value;
-      if (!is_valid_real(tokens[3].c_str(), &value) || value <= 0.0) {
-        print_ediff_in_error(
-          line_number, "invalid weight '" + tokens[3] + "', which should be > 0.");
-      }
-      entry.weight = value;
-    }
-    entries.push_back(entry);
   }
   return entries;
 }
 
-static std::vector<int>
-get_number_of_atoms_per_type(const Structure& structure, const int num_types)
-{
-  std::vector<int> number_of_atoms_per_type(num_types, 0);
-  for (const int type : structure.type) {
-    ++number_of_atoms_per_type[type];
-  }
-  return number_of_atoms_per_type;
-}
-
-// Returns the pairs of the entries whose two names both label structures of one data set, split
-// into num_batches batches as in the Fitness constructor, and marks those entries in is_in_set.
-// The two structures of a pair need equal compositions, for which any uniform or per-type offset
-// of the predicted energies cancels in their difference.
-// The default reference is the difference of the reference total energies.
-static std::vector<EnergyDiffPair> resolve_ediff_pairs(
+// Returns the combinations of the entries whose names all label structures of one data set,
+// split into num_batches batches as in the Fitness constructor, and marks those entries in
+// is_in_set. A combination has to be balanced in the number of atoms of each type, for which any
+// uniform or per-type offset of the predicted energies cancels. Its reference is the same
+// combination of the reference total energies.
+static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
   const std::vector<EnergyDiffEntry>& entries,
   const std::vector<Structure>& structures,
-  const int num_types,
+  const std::vector<std::string>& elements,
   const int num_batches,
   const char* xyz_filename,
   std::vector<bool>& is_in_set)
@@ -174,38 +217,56 @@ static std::vector<EnergyDiffPair> resolve_ediff_pairs(
     count += batch_size;
   }
 
-  std::vector<EnergyDiffPair> pairs;
+  const int num_types = elements.size();
+  std::vector<EnergyDiffCombination> combinations;
   for (int k = 0; k < (int)entries.size(); ++k) {
     const EnergyDiffEntry& entry = entries[k];
-    if (name_to_index.count(entry.name_a) == 0 || name_to_index.count(entry.name_b) == 0) {
+    const bool is_resolved =
+      std::all_of(entry.terms.begin(), entry.terms.end(), [&](const EnergyDiffTerm& term) {
+        return name_to_index.count(term.name) > 0;
+      });
+    if (!is_resolved) {
       continue;
     }
-    const int index_a = name_to_index[entry.name_a];
-    const int index_b = name_to_index[entry.name_b];
-    const Structure& structure_a = structures[index_a];
-    const Structure& structure_b = structures[index_b];
-    if (
-      get_number_of_atoms_per_type(structure_a, num_types) !=
-      get_number_of_atoms_per_type(structure_b, num_types)) {
-      print_ediff_in_error(
-        entry.line_number,
-        entry.name_a + " and " + entry.name_b + " in " + xyz_filename +
-          " differ in composition, which should be equal.");
+    EnergyDiffCombination combination;
+    combination.batch = index_to_batch[name_to_index[entry.terms[0].name]];
+    combination.ref_total_eV = 0.0;
+    combination.weight = entry.weight;
+    std::vector<double> imbalance(num_types, 0.0);
+    std::vector<double> scale(num_types, 0.0);
+    for (const auto& term : entry.terms) {
+      const int index = name_to_index[term.name];
+      const Structure& structure = structures[index];
+      if (index_to_batch[index] != combination.batch) {
+        combination.batch = -1;
+      }
+      combination.local.push_back(index_to_local[index]);
+      combination.coefficient.push_back(term.coefficient);
+      // Structure::energy is the reference energy per atom
+      combination.ref_total_eV +=
+        term.coefficient * double(structure.energy) * double(structure.num_atom);
+      for (const int type : structure.type) {
+        imbalance[type] += term.coefficient;
+        scale[type] += std::fabs(term.coefficient);
+      }
     }
-    EnergyDiffPair pair;
-    pair.batch_a = index_to_batch[index_a];
-    pair.local_a = index_to_local[index_a];
-    pair.batch_b = index_to_batch[index_b];
-    pair.local_b = index_to_local[index_b];
-    // Structure::energy is the reference energy per atom
-    pair.ref_total_eV = entry.has_ref ? entry.ref_total_eV
-                                      : structure_a.energy * structure_a.num_atom -
-                                          structure_b.energy * structure_b.num_atom;
-    pair.weight = entry.weight;
-    pairs.push_back(pair);
+    for (int t = 0; t < num_types; ++t) {
+      if (std::fabs(imbalance[t]) > 1.0e-6 * scale[t]) {
+        char text[200];
+        snprintf(
+          text,
+          sizeof(text),
+          "the combination is not balanced in %s, with %g atoms of %s left over.",
+          xyz_filename,
+          imbalance[t],
+          elements[t].c_str());
+        print_ediff_in_error(entry.line_number, text);
+      }
+    }
+    combinations.push_back(combination);
     is_in_set[k] = true;
   }
-  return pairs;
+  return combinations;
 }
 
 Fitness::Fitness(Parameters& para)
@@ -224,8 +285,9 @@ Fitness::Fitness(Parameters& para)
     printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
   }
 
-  // The train pairs are resolved before the batches are constructed, which allocate the total
-  // energies under para.has_ediff_pairs, and the test pairs once test.xyz has been read.
+  // The train combinations are resolved before the batches are constructed, which allocate the
+  // total energies under para.has_ediff_combinations, and the test combinations once test.xyz
+  // has been read.
   std::vector<EnergyDiffEntry> ediff_entries;
   std::vector<bool> is_ediff_entry_in_train;
   std::vector<bool> is_ediff_entry_in_test;
@@ -238,17 +300,28 @@ Fitness::Fitness(Parameters& para)
       ediff_entries = read_ediff_in(ediff_file);
       is_ediff_entry_in_train.assign(ediff_entries.size(), false);
       is_ediff_entry_in_test.assign(ediff_entries.size(), false);
-      ediff_pairs_train = resolve_ediff_pairs(
+      ediff_combinations_train = resolve_ediff_combinations(
         ediff_entries,
         structures_train,
-        para.num_types,
+        para.elements,
         num_batches,
         "train.xyz",
         is_ediff_entry_in_train);
-      if (ediff_pairs_train.empty()) {
-        PRINT_INPUT_ERROR("No pair in ediff.in has both structures in train.xyz.");
+      if (ediff_combinations_train.empty()) {
+        PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
       }
-      para.has_ediff_pairs = true;
+      const bool is_any_in_one_batch = std::any_of(
+        ediff_combinations_train.begin(),
+        ediff_combinations_train.end(),
+        [](const EnergyDiffCombination& combination) { return combination.batch >= 0; });
+      if (!is_any_in_one_batch) {
+        const std::string message =
+          "No combination in ediff.in has all its structures in one mini-batch of train.xyz. Use "
+          "a batch size >= " +
+          std::to_string(structures_train.size()) + ".";
+        PRINT_INPUT_ERROR(message.c_str());
+      }
+      para.has_ediff_combinations = true;
     } else if (ediff_file.is_open()) {
       printf("ediff.in is ignored because lambda_d = 0.\n");
     }
@@ -276,10 +349,10 @@ Fitness::Fitness(Parameters& para)
 
   std::vector<Structure> structures_test;
   has_test_set = read_structures(false, para, structures_test);
-  if (para.has_ediff_pairs) {
+  if (para.has_ediff_combinations) {
     if (has_test_set) {
-      ediff_pairs_test = resolve_ediff_pairs(
-        ediff_entries, structures_test, para.num_types, 1, "test.xyz", is_ediff_entry_in_test);
+      ediff_combinations_test = resolve_ediff_combinations(
+        ediff_entries, structures_test, para.elements, 1, "test.xyz", is_ediff_entry_in_test);
     }
     int num_in_both = 0;
     int num_skipped = 0;
@@ -294,32 +367,28 @@ Fitness::Fitness(Parameters& para)
       }
     }
     printf(
-      "ediff.in: %d pairs, %d in train.xyz, %d in test.xyz (%d in both), %d skipped.\n",
+      "ediff.in: %d combinations, %d in train.xyz, %d in test.xyz (%d in both), %d skipped.\n",
       (int)ediff_entries.size(),
-      (int)ediff_pairs_train.size(),
-      (int)ediff_pairs_test.size(),
+      (int)ediff_combinations_train.size(),
+      (int)ediff_combinations_test.size(),
       num_in_both,
       num_skipped);
     if (num_skipped > 0) {
       printf(
-        "Warning: %d pair(s) of ediff.in skipped, whose structures are neither both in train.xyz "
-        "nor both in test.xyz, e.g. %s %s (line %d).\n",
+        "Warning: %d combination(s) of ediff.in skipped, whose structures are neither all in "
+        "train.xyz nor all in test.xyz, e.g. line %d.\n",
         num_skipped,
-        ediff_entries[first_skipped].name_a.c_str(),
-        ediff_entries[first_skipped].name_b.c_str(),
         ediff_entries[first_skipped].line_number);
     }
-    int num_cross_batch_pairs = 0;
-    for (const auto& pair : ediff_pairs_train) {
-      if (pair.batch_a != pair.batch_b) {
-        ++num_cross_batch_pairs;
-      }
-    }
-    if (num_cross_batch_pairs > 0) {
+    const int num_cross_batch_combinations = std::count_if(
+      ediff_combinations_train.begin(),
+      ediff_combinations_train.end(),
+      [](const EnergyDiffCombination& combination) { return combination.batch < 0; });
+    if (num_cross_batch_combinations > 0) {
       printf(
-        "Warning: %d train pair(s) span two mini-batches; a batch size >= %d evaluates every "
-        "pair.\n",
-        num_cross_batch_pairs,
+        "Warning: %d train combination(s) span several mini-batches; a batch size >= %d "
+        "evaluates every combination.\n",
+        num_cross_batch_combinations,
         (int)structures_train.size());
     }
   }
@@ -391,7 +460,7 @@ Fitness::Fitness(Parameters& para)
           " rmse_energy_train rmse_force_train rmse_virial_train"
           " rmse_energy_test rmse_force_test rmse_virial_test");
       }
-      if (para.has_ediff_pairs) {
+      if (para.has_ediff_combinations) {
         fprintf(fid_loss_out, " rmse_ediff_train rmse_ediff_test");
       }
       fprintf(fid_loss_out, "\n");
@@ -412,32 +481,36 @@ Fitness::~Fitness()
 }
 
 /*----------------------------------------------------------------------------80
-Weighted RMSE of the total-energy differences over the pairs whose two structures both lie in
-batch_id of the data set. The caller must have evaluated the dataset for the parameters of
-interest. num_pairs returns the number of contributing pairs, and the RMSE is 0 without any.
+Weighted RMSE of the energy combinations whose structures all lie in batch_id of the data set.
+The caller must have evaluated the dataset for the parameters of interest. num_combinations
+returns the number of contributing combinations, and the RMSE is 0 without any.
 ------------------------------------------------------------------------------*/
 float Fitness::get_rmse_ediff(
-  const std::vector<EnergyDiffPair>& pairs,
+  const std::vector<EnergyDiffCombination>& combinations,
   Dataset& dataset,
   const int batch_id,
   const int device_id,
-  int& num_pairs)
+  int& num_combinations)
 {
-  num_pairs = 0;
-  if (pairs.empty()) {
+  num_combinations = 0;
+  if (combinations.empty()) {
     return 0.0f;
   }
   dataset.compute_total_energies(device_id);
-  float sum_sq = 0.0f;
-  for (const auto& pair : pairs) {
-    if (pair.batch_a == batch_id && pair.batch_b == batch_id) {
-      const float difference = dataset.total_energy_pred_cpu[pair.local_a] -
-                               dataset.total_energy_pred_cpu[pair.local_b] - pair.ref_total_eV;
-      sum_sq += pair.weight * difference * difference;
-      ++num_pairs;
+  double sum_sq = 0.0;
+  for (const auto& combination : combinations) {
+    if (combination.batch != batch_id) {
+      continue;
     }
+    double difference = -combination.ref_total_eV;
+    for (int i = 0; i < (int)combination.local.size(); ++i) {
+      difference +=
+        combination.coefficient[i] * dataset.total_energy_pred_cpu[combination.local[i]];
+    }
+    sum_sq += combination.weight * difference * difference;
+    ++num_combinations;
   }
-  return (num_pairs > 0) ? sqrt(sum_sq / num_pairs) : 0.0f;
+  return (num_combinations > 0) ? sqrt(sum_sq / num_combinations) : 0.0f;
 }
 
 void Fitness::compute(
@@ -492,9 +565,9 @@ void Fitness::compute(
             para.lambda_z * rmse_bec_array[t];
         }
 
-        int num_pairs = 0;
-        const float rmse_ediff =
-          get_rmse_ediff(ediff_pairs_train, train_set[batch_id][m], batch_id, m, num_pairs);
+        int num_combinations = 0;
+        const float rmse_ediff = get_rmse_ediff(
+          ediff_combinations_train, train_set[batch_id][m], batch_id, m, num_combinations);
         fitness_ediff[deviceCount * n + m] = para.lambda_d * rmse_ediff;
       }
     }
@@ -729,22 +802,23 @@ void Fitness::report_error(
     float rmse_charge_train = rmse_charge_train_array.back();
     float rmse_bec_train = rmse_bec_train_array.back();
 
-    // Evaluate the elite on every training batch, since a batch holds only its own pairs.
+    // Evaluate the elite on every training batch, since a batch holds only its own
+    // combinations.
     float rmse_ediff_train = 0.0f;
-    if (para.has_ediff_pairs) {
+    if (para.has_ediff_combinations) {
       float sum_sq = 0.0f;
-      int total_pairs = 0;
+      int total_combinations = 0;
       for (int b = 0; b < num_batches; ++b) {
         if (b != batch_id) {
           potential->find_force(para, elite, train_set[b], false, 1);
         }
-        int num_pairs = 0;
+        int num_combinations = 0;
         const float rmse_batch =
-          get_rmse_ediff(ediff_pairs_train, train_set[b][0], b, 0, num_pairs);
-        sum_sq += rmse_batch * rmse_batch * num_pairs;
-        total_pairs += num_pairs;
+          get_rmse_ediff(ediff_combinations_train, train_set[b][0], b, 0, num_combinations);
+        sum_sq += rmse_batch * rmse_batch * num_combinations;
+        total_combinations += num_combinations;
       }
-      rmse_ediff_train = (total_pairs > 0) ? sqrt(sum_sq / total_pairs) : 0.0f;
+      rmse_ediff_train = (total_combinations > 0) ? sqrt(sum_sq / total_combinations) : 0.0f;
     }
 
     // correct the last bias parameter in the NN
@@ -772,8 +846,9 @@ void Fitness::report_error(
       rmse_virial_test = rmse_virial_test_array.back();
       rmse_charge_test = rmse_charge_test_array.back();
       rmse_bec_test = rmse_bec_test_array.back();
-      int num_pairs_not_used = 0;
-      rmse_ediff_test = get_rmse_ediff(ediff_pairs_test, test_set[0], 0, 0, num_pairs_not_used);
+      int num_combinations_not_used = 0;
+      rmse_ediff_test =
+        get_rmse_ediff(ediff_combinations_test, test_set[0], 0, 0, num_combinations_not_used);
     }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
@@ -792,7 +867,7 @@ void Fitness::report_error(
 
     // The ediff columns follow all others, so that the other columns keep their positions.
     auto finish_row = [&](FILE* fid, const char* ediff_format) {
-      if (para.has_ediff_pairs) {
+      if (para.has_ediff_combinations) {
         fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
       }
       fprintf(fid, "\n");

@@ -525,7 +525,7 @@ void Dataset::construct(
   find_has_type(para);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
-  if (para.has_ediff_pairs) {
+  if (para.has_ediff_combinations) {
     total_energy_pred_gpu.resize(Nc);
     total_energy_pred_cpu.resize(Nc);
   }

@@ -23,12 +23,13 @@
 
 class Parameters;
 
-// Two structures of one data set whose total-energy difference enters the loss. A training pair
-// is evaluated only in the generations whose batch holds both structures.
-struct EnergyDiffPair {
-  int batch_a, local_a;
-  int batch_b, local_b;
-  float ref_total_eV; // reference E_a - E_b
+// A linear combination of the total energies of structures of one data set that enters the loss.
+// A training combination is evaluated only in the generations whose batch holds all its structures.
+struct EnergyDiffCombination {
+  int batch;                       // batch of all structures, -1 if they span several batches
+  std::vector<int> local;          // index of each structure within the batch
+  std::vector<double> coefficient; // coefficient of each structure
+  double ref_total_eV;             // the same combination of the reference total energies
   float weight;
 };
 
@@ -63,14 +64,14 @@ protected:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
-  std::vector<EnergyDiffPair> ediff_pairs_train;
-  std::vector<EnergyDiffPair> ediff_pairs_test;
+  std::vector<EnergyDiffCombination> ediff_combinations_train;
+  std::vector<EnergyDiffCombination> ediff_combinations_test;
   float get_rmse_ediff(
-    const std::vector<EnergyDiffPair>& pairs,
+    const std::vector<EnergyDiffCombination>& combinations,
     Dataset& dataset,
     const int batch_id,
     const int device_id,
-    int& num_pairs);
+    int& num_combinations);
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
