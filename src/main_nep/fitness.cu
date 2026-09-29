@@ -109,7 +109,7 @@ static bool is_valid_coefficient(const std::string& token, double& value)
   return magnitude >= FLT_MIN && magnitude <= FLT_MAX;
 }
 
-// Parses "[+|-] term {(+|-) term} [weight]", where a term is "name" or "coefficient*name".
+// Parses "[+|-] term {(+|-) term} [w=weight]", where a term is "name" or "coefficient*name".
 // The coefficient is a real number or a fraction p/q.
 static EnergyDiffEntry
 parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
@@ -127,6 +127,9 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
       print_ediff_in_error(line_number, "expected a structure after " + tokens[k - 1] + ".");
     }
     const std::string& term = tokens[k++];
+    if (term.find('=') != std::string::npos) {
+      print_ediff_in_error(line_number, "expected a structure name instead of '" + term + "'.");
+    }
     EnergyDiffTerm energy_diff_term;
     energy_diff_term.coefficient = sign;
     const size_t star = term.find('*');
@@ -158,13 +161,21 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
       ++k;
       continue;
     }
-    double value;
-    if (k + 1 < (int)tokens.size() || !is_valid_real(tokens[k].c_str(), &value)) {
+    const std::string weight_string = "w=";
+    const bool is_last = k + 1 == (int)tokens.size();
+    double bare_weight;
+    if (is_last && is_valid_real(tokens[k].c_str(), &bare_weight)) {
+      print_ediff_in_error(
+        line_number, "a weight is written as w=" + tokens[k] + ", not as " + tokens[k] + ".");
+    }
+    if (!is_last || tokens[k].substr(0, weight_string.length()) != weight_string) {
       print_ediff_in_error(line_number, "expected + or - before '" + tokens[k] + "'.");
     }
-    if (!is_valid_float(tokens[k], value) || value <= 0.0) {
+    const std::string weight = tokens[k].substr(weight_string.length());
+    double value;
+    if (!is_valid_float(weight, value) || value <= 0.0) {
       print_ediff_in_error(
-        line_number, "invalid weight '" + tokens[k] + "', which should be positive.");
+        line_number, "invalid weight '" + weight + "', which should be positive.");
     }
     entry.weight = value;
     break;
@@ -395,7 +406,6 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
     combination.ref_total_eV = 0.0;
     combination.weight = entry.weight;
     std::vector<double> imbalance(num_types, 0.0);
-    std::vector<double> scale(num_types, 0.0);
     for (const auto& term : entry.terms) {
       const int index = name_to_index[term.name];
       const Structure& structure = structures[index];
@@ -404,7 +414,6 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
       combination.ref_total_eV += term.coefficient * structure.energy_total;
       for (const int type : structure.type) {
         imbalance[type] += term.coefficient;
-        scale[type] += std::fabs(term.coefficient);
       }
     }
     for (int i = 0; i < (int)entry.terms.size(); ++i) {
@@ -420,7 +429,8 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
       }
     }
     for (int t = 0; t < num_types; ++t) {
-      if (std::fabs(imbalance[t]) > 1.0e-9 * scale[t]) {
+      // the atoms left over carry the free energy offset per atom of the population
+      if (std::fabs(imbalance[t]) > 1.0e-6) {
         char text[300];
         snprintf(
           text,
@@ -552,6 +562,9 @@ Fitness::Fitness(Parameters& para)
         "train.xyz nor all in test.xyz, e.g. line %d.\n",
         num_skipped,
         ediff_entries[first_skipped].line_number);
+    }
+    if (has_test_set && ediff_combinations_test.empty()) {
+      printf("Warning: no combination of ediff.in lies in test.xyz, so rmse_ediff_test is 0.\n");
     }
   }
   if (has_test_set) {

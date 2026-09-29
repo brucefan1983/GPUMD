@@ -273,10 +273,10 @@ static void read_one_structure(
       }
       if (
         name.empty() || name == "+" || name == "-" || name.front() == '#' ||
-        name.find_first_of("*/\"'{}") != std::string::npos) {
+        name.find_first_of("*/=\"'{}") != std::string::npos) {
         const std::string message = location + ": the name " + name +
                                     " cannot be referred to in ediff.in. A name must not be empty, "
-                                    "+ or -, begin with #, or contain * / \" ' { or }.";
+                                    "+ or -, begin with #, or contain * / = \" ' { or }.";
         PRINT_INPUT_ERROR(message.c_str());
       }
       structure.name = name;

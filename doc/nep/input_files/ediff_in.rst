@@ -13,18 +13,19 @@ File format
 
 Each line holds one combination::
 
-  [+|-] <term> {+|- <term>} [<weight>]
+  [+|-] <term> {+|- <term>} [w=<weight>]
 
 * A :attr:`term` is either :attr:`<name>` or :attr:`<coefficient>*<name>`, without spaces.
   :attr:`name` is the label given by the :attr:`name=<label>` field on the comment line of a structure in :ref:`train.xyz and test.xyz <train_test_xyz>`.
   Names are matched case-insensitively, and a name may occur only once per line.
   :attr:`coefficient` is a nonzero real number or a fraction :attr:`p/q` of two real numbers, such as ``1/3``, and defaults to 1.
 * The operators ``+`` and ``-`` are fields of their own, separated from the terms by whitespace.
-* :attr:`weight` is optional, must be a positive number, and defaults to 1.
+* :attr:`w=<weight>` is optional and comes last.
+  :attr:`weight` must be a positive number and defaults to 1.
   It scales the contribution of the combination to the loss.
 
 A combination needs at least two structures and must be balanced in the number of atoms of each type: for every type, the sum of the coefficients times the numbers of atoms of that type vanishes.
-The check allows a relative deviation of :math:`10^{-9}`, so a coefficient such as one third has to be written as the fraction ``1/3``.
+The check allows :math:`10^{-6}` atoms of each type to be left over, so a coefficient such as one third is best written as the fraction ``1/3``.
 No two structures of a combination may have the same geometry, that is the same types and, to :math:`10^{-5}` Å, the same cell and positions, since the model predicts the same energy for both.
 The total charge given by :attr:`charge` does not enter this comparison.
 The target of a combination is the same combination of the target total energies, which are given by the :attr:`energy` fields of the structures.
@@ -38,8 +39,8 @@ Example
 
   # oxygen vacancy formation energy against the perfect cell and the O2 molecule
   vac_O + 1/2*O2 - ideal
-  # migration barrier of the oxygen vacancy, from the saddle point against the minimum
-  vac_O_saddle - vac_O
+  # migration barrier of the oxygen vacancy, from the saddle point against the minimum, with weight 2
+  vac_O_saddle - vac_O w=2
   # vacancy formation energy in a 31-atom cell against the 32-atom perfect cell of one element
   vac31 - 31/32*bulk32
 

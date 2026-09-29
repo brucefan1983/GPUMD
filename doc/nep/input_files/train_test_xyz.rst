@@ -45,7 +45,7 @@ Essentially any keyword is allowed, but we only read the following ones:
 * :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
 * :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
   Labels are matched case-insensitively and must be unique within a file.
-  A label must not be ``+`` or ``-``, begin with ``#``, or contain whitespace or any of ``* / " ' { }``, and a structure has at most one :attr:`name` field.
+  A label must not be ``+`` or ``-``, begin with ``#``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
   The field is read only when :ref:`lambda_d <kw_lambda_d>` is positive.
 * :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
   

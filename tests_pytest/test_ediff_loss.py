@@ -128,7 +128,7 @@ def test_ediff_rmse_matches_predicted_energies(tmp_path, nep_command):
     """The test column equals the weighted error of the predicted energy difference in
     energy_test.out, which the report writes from the same evaluation. The report writes no
     energy_train.out, so the train column is only checked to be finite."""
-    frames = setup_directory(tmp_path, 'S0 - S1\nS2 - S3 4\n', {'lambda_d': '1'})
+    frames = setup_directory(tmp_path, 'S0 - S1\nS2 - S3 w=4\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     summary = 'ediff.in: 2 combinations, 1 in train.xyz, 1 in test.xyz (0 in both), 0 skipped.'
@@ -216,9 +216,12 @@ INPUT_ERRORS = {
     'missing term': ('s0 -\n', {}, 'ediff.in line 2: expected a structure after -'),
     'invalid coefficient': ('s0 - x*s1\n', {}, "ediff.in line 2: invalid coefficient 'x'"),
     'zero coefficient': ('s0 - 0*s1\n', {}, "ediff.in line 2: invalid coefficient '0'"),
-    'invalid weight': ('s0 - s1 0\n', {}, "ediff.in line 2: invalid weight '0'"),
-    'nan weight': ('s0 - s1 nan\n', {}, "ediff.in line 2: invalid weight 'nan'"),
-    'weight below float range': ('s0 - s1 1e-50\n', {}, "invalid weight '1e-50'"),
+    'invalid weight': ('s0 - s1 w=0\n', {}, "ediff.in line 2: invalid weight '0'"),
+    'nan weight': ('s0 - s1 w=nan\n', {}, "ediff.in line 2: invalid weight 'nan'"),
+    'weight below float range': ('s0 - s1 w=1e-50\n', {}, "invalid weight '1e-50'"),
+    'bare weight': ('s0 - s1 2\n', {}, "ediff.in line 2: a weight is written as w=2, not as 2."),
+    'weight not last': ('s0 w=2 - s1\n', {}, "ediff.in line 2: expected + or - before 'w=2'"),
+    'weight in place of a term': ('s0 - w=2\n', {}, "ediff.in line 2: expected a structure name"),
     'repeated name': ('s0 - S0\n', {}, 'ediff.in line 2: s0 occurs more than once'),
 }
 
@@ -237,7 +240,7 @@ def test_test_combination_enters_only_the_test_column(tmp_path, nep_command):
     """A weight of 1e8 for the combination of test.xyz makes its error dominate any RMSE it
     enters, so that it has to raise the test column far above the train column. A combination
     split across the two files is skipped, and stdout names only its line."""
-    setup_directory(tmp_path, 's0 - s1\ns2 - s3 1e8\ns0 - s2\n', {'lambda_d': '1'})
+    setup_directory(tmp_path, 's0 - s1\ns2 - s3 w=1e8\ns0 - s2\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     summary = 'ediff.in: 3 combinations, 1 in train.xyz, 1 in test.xyz (0 in both), 1 skipped.'
@@ -411,11 +414,13 @@ def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
 
 
 @pytest.mark.parametrize(
-    'coefficient, is_accepted', [('1/3', True), ('0.3333333', False)], ids=['fraction', 'decimal']
+    'coefficient, is_accepted',
+    [('1/3', True), ('0.333333333', True), ('0.3333333', False)],
+    ids=['fraction', 'nine digits', 'seven digits'],
 )
 def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficient, is_accepted):
-    """A third written as a decimal leaves an offset of about 1e-7 per atom in the combination,
-    which the balance check rejects, while the fraction 1/3 balances."""
+    """The balance check allows 1e-6 atoms left over per type. A third written with seven digits
+    leaves 4e-6 of the 40 atoms of each structure, and with nine digits 4e-8."""
     frames = setup_directory(tmp_path, None, {'lambda_d': '1'})
     write_frames(tmp_path / 'train.xyz', frames, ['S0', 'S1', 'S2', 'S3'])
     (tmp_path / 'test.xyz').unlink()
@@ -438,7 +443,7 @@ def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     names = ['S0', 'S1', 'S2', 'S3']
     write_frames(tmp_path / 'train.xyz', frames, names)
     write_frames(tmp_path / 'test.xyz', frames, names)
-    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3 100\n')
+    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3 w=100\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'Number of batches = 2' in result.stdout
@@ -520,3 +525,22 @@ def test_groups_that_overfill_a_batch_give_a_warning(tmp_path, nep_command):
     assert result.returncode == 0, result.stdout + result.stderr
     warning = 'the structures that ediff.in links make a batch of 6 structures, which exceeds the'
     assert warning in result.stdout
+
+
+def test_large_coefficients_do_not_hide_an_unbalanced_structure(tmp_path, nep_command):
+    """The atoms of s4 are left over whatever the size of the other coefficients."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    structures = frames + [shift_first_atom(frames[0], 0.01)]
+    write_frames(tmp_path / 'train.xyz', structures, [f'S{k}' for k in range(5)])
+    write_nep_in(tmp_path, {'lambda_d': '1'})
+    (tmp_path / 'ediff.in').write_text('s0 - s1 + 1e9*s2 - 1e9*s3 + s4\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert 'ediff.in line 1: the combination is not balanced in train.xyz' in result.stderr
+
+
+def test_test_set_without_combinations_gives_a_warning(tmp_path, nep_command):
+    setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'Warning: no combination of ediff.in lies in test.xyz' in result.stdout
