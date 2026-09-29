@@ -246,9 +246,15 @@ static void read_one_structure(
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
     const std::string location = xyz_filename + " line " + std::to_string(line_number);
+    // a name= inside the double-quoted value of another field is part of that value
+    bool is_inside_quotes = false;
     for (int n = 0; n < tokens.size(); ++n) {
+      const bool is_token_inside_quotes = is_inside_quotes;
+      if (std::count(tokens[n].begin(), tokens[n].end(), '"') % 2 == 1) {
+        is_inside_quotes = !is_inside_quotes;
+      }
       const std::string name_string = "name=";
-      if (tokens[n].substr(0, name_string.length()) != name_string) {
+      if (is_token_inside_quotes || tokens[n].substr(0, name_string.length()) != name_string) {
         continue;
       }
       if (!structure.name.empty()) {
@@ -265,8 +271,12 @@ static void read_one_structure(
                ++m) {
             name += " " + tokens[m];
           }
-          const std::string message = location + ": the name " + name +
-                                      " contains whitespace, to which ediff.in cannot refer.";
+          const bool is_closed = name.size() >= 2 && name.back() == closing_quote;
+          const std::string message =
+            is_closed
+              ? location + ": the name " + name +
+                  " contains whitespace, to which ediff.in cannot refer."
+              : location + ": the value of name= opens a quote that the line does not close.";
           PRINT_INPUT_ERROR(message.c_str());
         }
         name = name.substr(1, name.size() - 2);

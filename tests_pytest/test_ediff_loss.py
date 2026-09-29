@@ -105,6 +105,12 @@ def read_loss_out(directory):
     return columns, rows
 
 
+def batch_sizes(stdout):
+    """The number of structures in each training batch, as nep prints them."""
+    pattern = r'Batch \d+:\nNumber of configurations = (\d+)\.'
+    return [int(n) for n in re.findall(pattern, stdout)]
+
+
 def read_total_energies(path, num_atoms):
     """Total predicted energies from the per-atom energies in an energy_*.out file."""
     energies_per_atom = [float(line.split()[0]) for line in path.read_text().splitlines()]
@@ -219,6 +225,12 @@ INPUT_ERRORS = {
     'invalid weight': ('s0 - s1 w=0\n', {}, "ediff.in line 2: invalid weight '0'"),
     'nan weight': ('s0 - s1 w=nan\n', {}, "ediff.in line 2: invalid weight 'nan'"),
     'weight below float range': ('s0 - s1 w=1e-50\n', {}, "invalid weight '1e-50'"),
+    'fraction below float range': (
+        's0 - 1e-30/1e10*s1\n',
+        {},
+        "ediff.in line 2: invalid coefficient '1e-30/1e10'",
+    ),
+    'lambda_d above float range': ('s0 - s1\n', {'lambda_d': '1e39'}, 'should be a finite number'),
     'bare weight': ('s0 - s1 2\n', {}, "ediff.in line 2: a weight is written as w=2, not as 2."),
     'weight not last': ('s0 w=2 - s1\n', {}, "ediff.in line 2: expected + or - before 'w=2'"),
     'weight in place of a term': ('s0 - w=2\n', {}, "ediff.in line 2: expected a structure name"),
@@ -300,6 +312,12 @@ def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify,
         (['#a', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name #a cannot be referred to'),
         (['-', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name - cannot be referred to'),
         (['S0 name=S9', 'S1'], ['S2', 'S3'], 'train.xyz line 2: more than one name= field'),
+        (['""', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name  cannot be referred to'),
+        (['+', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name + cannot be referred to'),
+        (['a/b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a/b cannot be referred to'),
+        (['a=b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a=b cannot be referred to'),
+        (['a"b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a"b cannot be referred to'),
+        (['"S0', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the value of name= opens a quote'),
     ],
     ids=[
         'whitespace in train.xyz',
@@ -312,6 +330,12 @@ def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify,
         'hash',
         'operator',
         'two name fields',
+        'empty',
+        'plus',
+        'slash',
+        'equals',
+        'quote',
+        'unclosed quote',
     ],
 )
 def test_invalid_names_are_input_errors(
@@ -355,8 +379,7 @@ def test_combined_structures_share_a_batch(tmp_path, nep_command):
     (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'Number of batches = 2' in result.stdout
-    assert 'span' not in result.stdout
+    assert batch_sizes(result.stdout) == [2, 2]
 
 
 def test_batches_left_empty_are_dropped(tmp_path, nep_command):
@@ -392,14 +415,14 @@ def make_supercell(frame, n):
 
 def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
     """A 5000-atom supercell against 125 copies of its 40-atom cell, at -158 eV per atom, the
-    scale of absolute plane-wave energies. The combination vanishes for the reference energies
-    and, up to the float precision of the per-atom energies, for the predicted ones. Summing in
-    single precision would leave 1.2e-2 and 3.8e-2 eV in two runs, while the sums in double leave
-    1.1e-3 to 1.9e-3 eV over three runs."""
+    scale of absolute plane-wave energies. The target of the combination is 0.5 eV, which keeps
+    the float rounding of the two per-atom reference energies from cancelling, and the prediction
+    vanishes up to the float precision of the per-atom energies. Three runs gave 0.4976, 0.4992
+    and 0.4973 eV."""
     frames = read_frames(TRAINING_DIR / 'train.xyz')
     energy_per_atom = -158.123457
     small = with_energy(frames[0], 40 * energy_per_atom)
-    big = with_energy(make_supercell(frames[0], 5), 5000 * energy_per_atom)
+    big = with_energy(make_supercell(frames[0], 5), 5000 * energy_per_atom + 0.5)
     other = with_energy(frames[1], 40 * energy_per_atom + 0.3)
     write_frames(tmp_path / 'train.xyz', [small, big, other], ['small', 'big', 'other'])
     write_frames(tmp_path / 'test.xyz', [small, big], ['small', 'big'])
@@ -410,7 +433,7 @@ def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
 
     columns, rows = read_loss_out(tmp_path)
     values = dict(zip(columns, rows[-1]))
-    assert values['rmse_ediff_test'] < 5e-3
+    assert values['rmse_ediff_test'] == pytest.approx(0.5, abs=5e-3)
 
 
 @pytest.mark.parametrize(
@@ -446,7 +469,7 @@ def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3 w=100\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'Number of batches = 2' in result.stdout
+    assert batch_sizes(result.stdout) == [2, 2]
 
     columns, rows = read_loss_out(tmp_path)
     v = dict(zip(columns, rows[-1]))
@@ -504,9 +527,7 @@ def test_groups_fill_batches_evenly(tmp_path, nep_command):
     (tmp_path / 'ediff.in').write_text(''.join(f's{k} - s{k + 1}\n' for k in range(9)))
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    pattern = r'Batch \d+:\nNumber of configurations = (\d+)\.'
-    sizes = [int(n) for n in re.findall(pattern, result.stdout)]
-    assert sizes == [10, 10, 10, 10]
+    assert batch_sizes(result.stdout) == [10, 10, 10, 10]
     assert 'exceeds the batch size' not in result.stdout
 
 
@@ -544,3 +565,47 @@ def test_test_set_without_combinations_gives_a_warning(tmp_path, nep_command):
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'Warning: no combination of ediff.in lies in test.xyz' in result.stdout
+
+
+def test_name_inside_another_quoted_value_is_not_read(tmp_path, nep_command):
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+    write_frames(tmp_path / 'train.xyz', frames[:2], ['S0 comment="run name=x"', 'S1'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
+
+
+def test_imbalance_of_whole_atoms_suggests_no_fraction(tmp_path, nep_command):
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+    write_frames(tmp_path / 'train.xyz', [frames[0], remove_last_atom(frames[1])], ['S0', 'S1'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert 'with 1 atoms of O left over.' in result.stderr
+    assert 'fraction' not in result.stderr
+
+
+def test_batches_follow_the_group_order(tmp_path, nep_command):
+    """nep writes energy_train.out in the order of the batches at generation 1000. The pair forms
+    the largest group and goes to the first batch, and the other structures follow one by one in
+    the order of their energy per atom, each to the batch with the fewest structures."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    energies_per_atom = [-5.0, -4.2, -4.9, -4.3, -4.6, -4.8, -4.4, -4.7]
+    structures = [
+        with_energy(shift_first_atom(frames[k % 4], 0.001 * k), 40 * e)
+        for k, e in enumerate(energies_per_atom)
+    ]
+    write_frames(tmp_path / 'train.xyz', structures, [f'S{k}' for k in range(8)])
+    write_nep_in(
+        tmp_path, {'lambda_d': '1', 'batch': '4', 'generation': '1000', 'output_interval': '1000'}
+    )
+    (tmp_path / 'ediff.in').write_text('s0 - s1\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    batches = [[0, 1], []]
+    for k in sorted(range(2, 8), key=lambda k: energies_per_atom[k]):
+        min(batches, key=len).append(k)
+    expected = [energies_per_atom[k] for batch in batches for k in batch]
+    rows = (tmp_path / 'energy_train.out').read_text().splitlines()
+    references = [float(row.split()[1]) for row in rows]
+    assert references == pytest.approx(expected, abs=1e-4)

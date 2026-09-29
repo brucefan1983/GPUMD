@@ -435,12 +435,15 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
         snprintf(
           text,
           sizeof(text),
-          "the combination is not balanced in %s, with %.3g atoms of %s left over. Write a "
-          "coefficient such as 1/3 as a fraction.",
+          "the combination is not balanced in %s, with %.3g atoms of %s left over.",
           xyz_filename,
           imbalance[t],
           elements[t].c_str());
-        print_ediff_in_error(entry.line_number, text);
+        std::string message = text;
+        if (std::fabs(imbalance[t] - std::round(imbalance[t])) > 1.0e-6) {
+          message += " Write a coefficient such as 1/3 as a fraction.";
+        }
+        print_ediff_in_error(entry.line_number, message);
       }
     }
     combinations.push_back(combination);
