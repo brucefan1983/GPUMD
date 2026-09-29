@@ -230,8 +230,9 @@ static std::vector<std::vector<int>> get_resolved_indices(
 /*----------------------------------------------------------------------------80
 Reorders the training structures into num_batches batches that keep the structures of each
 combination together, and returns the batch sizes. Structures linked through combinations form a
-group. The groups, sorted by their mean energy per atom, go one by one to the batch with the
-fewest structures, which for groups of one structure gives the batches of read_structures.
+group. The groups, the larger ones first and those of one size by their mean energy per atom, go
+one by one to the batch with the fewest structures, which for groups of one structure gives the
+batches of read_structures.
 Batches left empty are dropped, so num_batches can decrease.
 ------------------------------------------------------------------------------*/
 static std::vector<int> group_structures_by_combination(
@@ -268,25 +269,21 @@ static std::vector<int> group_structures_by_combination(
     groups[root_to_group[root]].push_back(n);
   }
   std::vector<double> group_energy(groups.size(), 0.0);
-  int largest_group = 0;
   for (int g = 0; g < (int)groups.size(); ++g) {
     for (const int n : groups[g]) {
       group_energy[g] += structures[n].energy;
     }
     group_energy[g] /= groups[g].size();
-    largest_group = std::max(largest_group, (int)groups[g].size());
-  }
-  if (largest_group > batch_size) {
-    printf(
-      "Warning: ediff.in links %d structures into one group, which exceeds the batch size %d.\n",
-      largest_group,
-      batch_size);
   }
   std::vector<int> group_order(groups.size());
   std::iota(group_order.begin(), group_order.end(), 0);
-  std::stable_sort(group_order.begin(), group_order.end(), [&group_energy](int g1, int g2) {
-    return group_energy[g1] < group_energy[g2];
-  });
+  std::stable_sort(
+    group_order.begin(), group_order.end(), [&groups, &group_energy](int g1, int g2) {
+      if (groups[g1].size() != groups[g2].size()) {
+        return groups[g1].size() > groups[g2].size();
+      }
+      return group_energy[g1] < group_energy[g2];
+    });
 
   std::vector<std::vector<int>> batches(num_batches);
   for (const int g : group_order) {
@@ -303,6 +300,19 @@ static std::vector<int> group_structures_by_combination(
   if ((int)batches.size() < num_batches) {
     num_batches = batches.size();
     printf("Number of batches reduced to %d, since ediff.in links structures.\n", num_batches);
+  }
+  const int largest_batch =
+    std::max_element(
+      batches.begin(),
+      batches.end(),
+      [](const std::vector<int>& b1, const std::vector<int>& b2) { return b1.size() < b2.size(); })
+      ->size();
+  if (largest_batch > batch_size) {
+    printf(
+      "Warning: the structures that ediff.in links make a batch of %d structures, which exceeds "
+      "the batch size %d.\n",
+      largest_batch,
+      batch_size);
   }
 
   std::vector<Structure> structures_grouped;

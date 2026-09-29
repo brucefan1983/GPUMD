@@ -45,6 +45,6 @@ Mini-batches
 
 With a :attr:`batch` size smaller than the number of training structures, ``nep`` keeps the structures of each training combination in one mini-batch.
 Structures linked through combinations form a group.
-The groups, sorted by their mean energy per atom, are dealt one by one into the mini-batch with the fewest structures.
-A group larger than the batch size makes that mini-batch larger, and ``nep`` prints a warning.
+The groups are dealt one by one into the mini-batch with the fewest structures, the larger groups first and groups of equal size in the order of their mean energy per atom.
+Large groups can make a mini-batch larger than the batch size, and ``nep`` then prints a warning with the size of the largest mini-batch.
 A mini-batch left empty is dropped, and ``nep`` prints the reduced number of mini-batches.

@@ -365,7 +365,8 @@ def test_batches_left_empty_are_dropped(tmp_path, nep_command):
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'Number of batches reduced to 1' in result.stdout
-    assert 'Warning: ediff.in links 3 structures into one group' in result.stdout
+    warning = 'the structures that ediff.in links make a batch of 3 structures, which exceeds the'
+    assert warning in result.stdout
 
 
 def with_energy(frame, energy):
@@ -473,3 +474,49 @@ def test_identical_geometries_are_an_input_error(tmp_path, nep_command, override
     assert result.returncode != 0
     expected_text = 'ediff.in line 2: s0 and s1 in train.xyz have the same geometry'
     assert expected_text in result.stderr
+
+
+def shift_first_atom(frame, dx):
+    """The frame with the x coordinate of its first atom moved by dx."""
+    tokens = frame[2].split()
+    tokens[1] = f'{float(tokens[1]) + dx:.8f}'
+    return frame[:2] + [' '.join(tokens)] + frame[3:]
+
+
+def test_groups_fill_batches_evenly(tmp_path, nep_command):
+    """A chain of 10 linked structures among 40 at batch 10 fits into one batch of 10 and leaves
+    three batches of 10 for the other structures. Placing the groups by energy alone would
+    deal the chain, the highest in energy, last into a batch that is already filled."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    structures, names = [], []
+    for k in range(40):
+        energy_per_atom = -4.0 - 0.001 * k if k < 10 else -5.0 - 0.001 * k
+        frame = shift_first_atom(frames[k % 4], 0.001 * k)
+        structures.append(with_energy(frame, 40 * energy_per_atom))
+        names.append(f'S{k}')
+    write_frames(tmp_path / 'train.xyz', structures, names)
+    write_nep_in(tmp_path, {'lambda_d': '1', 'batch': '10'})
+    (tmp_path / 'ediff.in').write_text(''.join(f's{k} - s{k + 1}\n' for k in range(9)))
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    pattern = r'Batch \d+:\nNumber of configurations = (\d+)\.'
+    sizes = [int(n) for n in re.findall(pattern, result.stdout)]
+    assert sizes == [10, 10, 10, 10]
+    assert 'exceeds the batch size' not in result.stdout
+
+
+def test_groups_that_overfill_a_batch_give_a_warning(tmp_path, nep_command):
+    """Three chains of three linked structures in two batches of five leave one batch of six."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    structures = [
+        with_energy(shift_first_atom(frames[k % 4], 0.001 * k), 40 * (-5.0 - 0.001 * k))
+        for k in range(9)
+    ]
+    write_frames(tmp_path / 'train.xyz', structures, [f'S{k}' for k in range(9)])
+    write_nep_in(tmp_path, {'lambda_d': '1', 'batch': '5'})
+    lines = [f's{3 * g + i} - s{3 * g + i + 1}\n' for g in range(3) for i in range(2)]
+    (tmp_path / 'ediff.in').write_text(''.join(lines))
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    warning = 'the structures that ediff.in links make a batch of 6 structures, which exceeds the'
+    assert warning in result.stdout
