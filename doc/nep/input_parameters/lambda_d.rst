@@ -35,6 +35,7 @@ Any uniform or per-type offset of the predicted energies then cancels in the com
 
 ``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its combinations has all its structures in :attr:`train.xyz`.
 With :math:`\lambda_d = 0`, an :attr:`ediff.in` file is ignored.
+In prediction mode, the keyword has no effect.
 The keyword is only available for potential models and is an input error together with :attr:`model_type 1` or :attr:`model_type 2`.
 
 When the term is active, :ref:`loss.out <loss_out>` has two additional columns, :attr:`rmse_ediff_train` and :attr:`rmse_ediff_test`.

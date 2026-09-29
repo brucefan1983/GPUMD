@@ -34,7 +34,7 @@ Example
 
 ::
 
-  # two charge states of one structure
+  # two charge states of one structure, which only a qNEP model can tell apart
   defect-chg0 - defect-chg-1
   # an oxygen vacancy against the perfect cell and half an O2 molecule, with weight 2
   vacancy + 0.5*O2 - bulk 2.0
@@ -54,4 +54,4 @@ Caveats
 -------
 
 * A line that does not follow the format, an invalid coefficient or weight, and a combination that is not balanced are input errors.
-* A name that occurs on more than one structure of a file, or that contains whitespace, is an input error.
+* A name that occurs on more than one structure of a file, or that violates the rules for labels in :ref:`train.xyz and test.xyz <train_test_xyz>`, is an input error.

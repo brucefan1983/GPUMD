@@ -20,6 +20,7 @@
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -1843,11 +1844,15 @@ void Parameters::parse_lambda_d(const char** param, int num_param)
   if (!is_valid_real(param[1], &lambda_d_tmp)) {
     PRINT_INPUT_ERROR("Energy difference loss weight should be a number.\n");
   }
-  lambda_d = lambda_d_tmp;
-
-  if (!std::isfinite(lambda_d) || lambda_d < 0.0f) {
-    PRINT_INPUT_ERROR("Energy difference loss weight should be a finite number >= 0.");
+  // the weight has to survive the conversion to float without overflow or underflow to zero
+  if (
+    !std::isfinite(lambda_d_tmp) || lambda_d_tmp < 0.0 || lambda_d_tmp > FLT_MAX ||
+    (lambda_d_tmp > 0.0 && lambda_d_tmp < FLT_MIN)) {
+    PRINT_INPUT_ERROR(
+      "Energy difference loss weight should be a finite number >= 0 within the "
+      "range of float.");
   }
+  lambda_d = lambda_d_tmp;
 }
 
 void Parameters::parse_atomic_v(const char** param, int num_param)

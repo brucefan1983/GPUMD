@@ -245,24 +245,39 @@ static void read_one_structure(
 
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
+    const std::string location = xyz_filename + " line " + std::to_string(line_number);
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string name_string = "name=";
       if (tokens[n].substr(0, name_string.length()) != name_string) {
         continue;
       }
+      if (!structure.name.empty()) {
+        PRINT_INPUT_ERROR((location + ": more than one name= field.").c_str());
+      }
       std::string name = tokens[n].substr(name_string.length());
-      if (!name.empty() && name.front() == '"') {
+      const std::string opening_quotes = "\"'{";
+      if (!name.empty() && opening_quotes.find(name.front()) != std::string::npos) {
+        const char closing_quote = (name.front() == '{') ? '}' : name.front();
         // the comment line is split at spaces, so a quoted value with spaces spans several tokens
-        if (name.size() < 2 || name.back() != '"') {
-          for (int m = n + 1; m < tokens.size() && (name.size() < 2 || name.back() != '"'); ++m) {
+        if (name.size() < 2 || name.back() != closing_quote) {
+          for (int m = n + 1;
+               m < tokens.size() && (name.size() < 2 || name.back() != closing_quote);
+               ++m) {
             name += " " + tokens[m];
           }
-          const std::string message = xyz_filename + " line " + std::to_string(line_number) +
-                                      ": the name " + name +
+          const std::string message = location + ": the name " + name +
                                       " contains whitespace, to which ediff.in cannot refer.";
           PRINT_INPUT_ERROR(message.c_str());
         }
         name = name.substr(1, name.size() - 2);
+      }
+      if (
+        name.empty() || name == "+" || name == "-" || name.front() == '#' ||
+        name.find_first_of("*/\"'{}") != std::string::npos) {
+        const std::string message = location + ": the name " + name +
+                                    " cannot be referred to in ediff.in. A name must not be empty, "
+                                    "+ or -, begin with #, or contain * / \" ' { or }.";
+        PRINT_INPUT_ERROR(message.c_str());
       }
       structure.name = name;
     }
