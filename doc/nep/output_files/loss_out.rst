@@ -49,6 +49,17 @@ where
 * :attr:`rmse_charge_train` and :attr:`rmse_charge_test` are the RMSE of the total charge (in units of e/atom) for the training and test sets.
 * :attr:`rmse_bec_train` and :attr:`rmse_bec_test` are the :term:`BEC` RMSE (in units of e) for the training and test sets.
 
+If the energy-difference loss is active (:ref:`lambda_d <kw_lambda_d>` > 0), the columns of a potential model are followed by::
+
+  rmse_ediff_train rmse_ediff_test
+
+where
+
+* :attr:`rmse_ediff_train` is the weighted RMSE of the total-energy differences (in units of eV) over the training pairs of :ref:`ediff.in <ediff_in>`.
+  Each training pair is evaluated on the mini-batch that holds both of its structures.
+* :attr:`rmse_ediff_test` is the weighted RMSE of the total-energy differences (in units of eV) over the test pairs.
+  It is 0 without a test set or without test pairs.
+
 If a dipole model is trained, the columns are::
 
   generation total L1 L2 rmse_dipole_train rmse_dipole_test

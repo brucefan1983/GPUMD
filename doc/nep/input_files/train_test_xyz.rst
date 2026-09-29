@@ -43,6 +43,8 @@ Essentially any keyword is allowed, but we only read the following ones:
   Positive and negative values represent stretched and compressed states, respectively.
   If both :attr:`virial` and :attr:`stress` are present the former is used.
 * :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
+* :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
+  Labels are matched case-insensitively and should be unique within a file.
 * :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
   
   * :attr:`species:S:1` chemical symbol in the periodic table (case-sensitive)
