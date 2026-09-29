@@ -243,16 +243,28 @@ static void read_one_structure(
     }
   }
 
-  // get name (optional)
-  for (const auto& token : tokens) {
-    const std::string name_string = "name=";
-    if (token.substr(0, name_string.length()) == name_string) {
-      structure.name = token.substr(name_string.length());
-      if (
-        structure.name.size() >= 2 && structure.name.front() == '"' &&
-        structure.name.back() == '"') {
-        structure.name = structure.name.substr(1, structure.name.size() - 2);
+  // get name (optional), which only ediff.in refers to
+  if (para.prediction == 0 && para.lambda_d > 0.0f) {
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string name_string = "name=";
+      if (tokens[n].substr(0, name_string.length()) != name_string) {
+        continue;
       }
+      std::string name = tokens[n].substr(name_string.length());
+      if (!name.empty() && name.front() == '"') {
+        // the comment line is split at spaces, so a quoted value with spaces spans several tokens
+        if (name.size() < 2 || name.back() != '"') {
+          for (int m = n + 1; m < tokens.size() && (name.size() < 2 || name.back() != '"'); ++m) {
+            name += " " + tokens[m];
+          }
+          const std::string message = xyz_filename + " line " + std::to_string(line_number) +
+                                      ": the name " + name +
+                                      " contains whitespace, to which ediff.in cannot refer.";
+          PRINT_INPUT_ERROR(message.c_str());
+        }
+        name = name.substr(1, name.size() - 2);
+      }
+      structure.name = name;
     }
   }
 

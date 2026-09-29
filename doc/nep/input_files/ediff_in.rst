@@ -53,4 +53,4 @@ Caveats
 -------
 
 * A line that does not follow the format, an invalid coefficient or weight, and a combination that is not balanced are input errors.
-* If a name occurs on more than one structure of a file, the combination refers to the first of them and a warning is printed.
+* A name that occurs on more than one structure of a file, or that contains whitespace, is an input error.

@@ -280,3 +280,42 @@ def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify,
     result = run_nep(tmp_path, nep_command)
     assert result.returncode != 0
     assert expected_text in result.stderr
+
+
+@pytest.mark.parametrize(
+    'train_names, test_names, expected_text',
+    [
+        (['"S 0"', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name "s 0" contains whitespace'),
+        (['S0', 'S1'], ['S2', '"S 3"'], 'test.xyz line 44: the name "s 3" contains whitespace'),
+        (['S0', 's0'], ['S2', 'S3'], 'the name s0 occurs on more than one structure of train.xyz'),
+        (['S0', 'S1'], ['S2', 'S2'], 'the name s2 occurs on more than one structure of test.xyz'),
+    ],
+    ids=['whitespace in train.xyz', 'whitespace in test.xyz', 'repeated in train', 'repeated in test'],
+)
+def test_invalid_names_are_input_errors(
+    tmp_path, nep_command, train_names, test_names, expected_text
+):
+    """ediff.in separates its fields by whitespace, so a name with whitespace cannot be referred to,
+    and a repeated name would make a reference ambiguous."""
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+    write_frames(tmp_path / 'train.xyz', frames[:2], train_names)
+    write_frames(tmp_path / 'test.xyz', frames[2:], test_names)
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert expected_text in result.stderr
+
+
+def test_names_are_not_read_without_lambda_d(tmp_path, nep_command):
+    """Without the energy-difference loss, names with whitespace and repeated names are ignored."""
+    frames = setup_directory(tmp_path, None)
+    write_frames(tmp_path / 'train.xyz', frames[:2], ['"S 0"', '"S 0"'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_quoted_name_without_whitespace(tmp_path, nep_command):
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+    write_frames(tmp_path / 'train.xyz', frames[:2], ['"S0"', 'S1'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout

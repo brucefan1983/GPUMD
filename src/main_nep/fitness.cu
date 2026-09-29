@@ -182,26 +182,17 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
   std::vector<bool>& is_in_set)
 {
   std::unordered_map<std::string, int> name_to_index;
-  int num_duplicates = 0;
-  std::string first_duplicate;
   for (int nc = 0; nc < (int)structures.size(); ++nc) {
     const std::string& name = structures[nc].name;
     if (name.empty()) {
       continue;
     }
-    if (name_to_index.count(name) == 0) {
-      name_to_index[name] = nc;
-    } else if (num_duplicates++ == 0) {
-      first_duplicate = name;
+    if (name_to_index.count(name) > 0) {
+      const std::string message =
+        "the name " + name + " occurs on more than one structure of " + xyz_filename + ".";
+      PRINT_INPUT_ERROR(message.c_str());
     }
-  }
-  if (num_duplicates > 0) {
-    printf(
-      "Warning: %d repeated name(s) in %s, e.g. %s; ediff.in refers to the first structure of "
-      "each name.\n",
-      num_duplicates,
-      xyz_filename,
-      first_duplicate.c_str());
+    name_to_index[name] = nc;
   }
 
   const int n_total = structures.size();
