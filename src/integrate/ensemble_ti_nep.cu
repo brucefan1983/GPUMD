@@ -193,7 +193,7 @@ Ensemble_TI_Nep::~Ensemble_TI_Nep(void) { close_output_file(false); }
 void Ensemble_TI_Nep::finalize_run(const Atom& atom, const Box& box)
 {
   FILE* yaml_file = my_fopen("ti_nep.yaml", "w");
-  fprintf(yaml_file, "F_diff: %f\n", F_diff);
+  fprintf(yaml_file, "F_diff: %.16e\n", F_diff);
   fprintf(yaml_file, "T: %f\n", temperature);
 
   close_output_file(true);
@@ -201,7 +201,7 @@ void Ensemble_TI_Nep::finalize_run(const Atom& atom, const Box& box)
 
   printf("\n");
   printf("-----------------------------------------------------------------------\n");
-  printf("Helmholtz free energy difference (NEP1 - NEP2): %f eV/atom.\n", F_diff);
+  printf("Helmholtz free energy difference (NEP1 - NEP2): %.16e eV/atom.\n", F_diff);
   printf("This value is stored in ti_nep.yaml.\n");
   printf("-----------------------------------------------------------------------\n");
 }
@@ -271,7 +271,7 @@ void Ensemble_TI_Nep::find_lambda(
   if (need_output) {
     fprintf(
       output_file,
-      "%e,%e,%e,%e\n",
+      "%.16e,%.16e,%.16e,%.16e\n",
       lambda,
       dlambda,
       pe / atom.number_of_atoms,
