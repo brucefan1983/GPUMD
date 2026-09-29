@@ -33,15 +33,17 @@ A positive :math:`\lambda_d` requires two inputs:
 Each combination must be balanced in the number of atoms of each type, that is :math:`\sum_i c_{ki} n_i(t) = 0` for every type :math:`t`, where :math:`n_i(t)` is the number of atoms of type :math:`t` in structure :math:`i`.
 Any uniform or per-type offset of the predicted energies then cancels in the combination.
 
-``nep`` stops with an input error if :attr:`ediff.in` is missing, if none of its combinations has all its structures in :attr:`train.xyz`, or if none of those lies within one mini-batch.
+``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its combinations has all its structures in :attr:`train.xyz`.
 With :math:`\lambda_d = 0`, an :attr:`ediff.in` file is ignored.
 The keyword is only available for potential models and is an input error together with :attr:`model_type 1` or :attr:`model_type 2`.
 
 When the term is active, :ref:`loss.out <loss_out>` has two additional columns, :attr:`rmse_ediff_train` and :attr:`rmse_ediff_test`.
 
-Caveats
--------
+Mini-batches
+------------
 
-* A training combination enters the loss only in the generations whose mini-batch holds all its structures.
-  With a batch size of at least the number of training structures, every combination enters the loss in every generation.
-  ``nep`` prints a warning with the number of combinations that span several mini-batches.
+With a :attr:`batch` size smaller than the number of training structures, ``nep`` keeps the structures of each training combination in one mini-batch.
+Structures linked through combinations form a group.
+The groups, sorted by their mean energy per atom, are dealt one by one into the mini-batch with the fewest structures.
+A group larger than the batch size makes that mini-batch larger, and ``nep`` prints a warning.
+A mini-batch left empty is dropped, and ``nep`` prints the reduced number of mini-batches.

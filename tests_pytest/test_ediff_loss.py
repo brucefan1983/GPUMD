@@ -214,11 +214,6 @@ INPUT_ERRORS = {
     'nan weight': ('s0 - s1 nan\n', {}, "ediff.in line 2: invalid weight 'nan'"),
     'weight below float range': ('s0 - s1 1e-50\n', {}, "invalid weight '1e-50'"),
     'repeated name': ('s0 - S0\n', {}, 'ediff.in line 2: s0 occurs more than once'),
-    'all combinations span batches': (
-        's0 - s1\n',
-        {'batch': '1'},
-        'No combination in ediff.in has all its structures in one mini-batch',
-    ),
 }
 
 
@@ -322,22 +317,32 @@ def test_quoted_name_without_whitespace(tmp_path, nep_command):
     assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
 
 
-def test_combinations_spanning_batches_are_counted(tmp_path, nep_command):
-    """With four structures in two batches of two, two of the six pairs lie within one batch,
-    whatever the order in which train.xyz is split."""
+def test_combined_structures_share_a_batch(tmp_path, nep_command):
+    """nep deals the structures, sorted by energy per atom, round-robin into the batches, which
+    would put the two structures of each pair, adjacent in energy, into different batches. The
+    structures of each combination are kept in one batch instead."""
     frames = setup_directory(tmp_path, None, {'lambda_d': '1', 'batch': '2'})
-    names = ['S0', 'S1', 'S2', 'S3']
-    write_frames(tmp_path / 'train.xyz', frames, names)
+    energies_per_atom = [-5.0, -4.999, -4.5, -4.499]
+    frames = [with_energy(frame, 40 * e) for frame, e in zip(frames, energies_per_atom)]
+    write_frames(tmp_path / 'train.xyz', frames, ['S0', 'S1', 'S2', 'S3'])
     (tmp_path / 'test.xyz').unlink()
-    lines = [f'{a} - {b}\n' for i, a in enumerate(names) for b in names[i + 1 :]]
-    (tmp_path / 'ediff.in').write_text(''.join(lines))
+    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    warning = (
-        'Warning: 4 train combination(s) span several mini-batches; a batch size >= 4 evaluates'
-        ' every combination.'
-    )
-    assert warning in result.stdout
+    assert 'Number of batches = 2' in result.stdout
+    assert 'span' not in result.stdout
+
+
+def test_batches_left_empty_are_dropped(tmp_path, nep_command):
+    """Three structures linked by combinations form one group, which fills one of three batches."""
+    frames = setup_directory(tmp_path, None, {'lambda_d': '1', 'batch': '1'})
+    write_frames(tmp_path / 'train.xyz', frames[:3], ['S0', 'S1', 'S2'])
+    (tmp_path / 'test.xyz').unlink()
+    (tmp_path / 'ediff.in').write_text('s0 - s1\ns1 - s2\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'Number of batches reduced to 1' in result.stdout
+    assert 'Warning: ediff.in links 3 structures into one group' in result.stdout
 
 
 def with_energy(frame, energy):

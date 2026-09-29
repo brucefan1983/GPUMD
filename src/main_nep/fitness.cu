@@ -38,6 +38,7 @@ Get the fitness
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <sstream>
 #include <string>
@@ -188,18 +189,8 @@ static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
   return entries;
 }
 
-// Returns the combinations of the entries whose names all label structures of one data set,
-// split into num_batches batches as in the Fitness constructor, and marks those entries in
-// is_in_set. A combination has to be balanced in the number of atoms of each type, for which any
-// uniform or per-type offset of the predicted energies cancels. Its reference is the same
-// combination of the reference total energies.
-static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
-  const std::vector<EnergyDiffEntry>& entries,
-  const std::vector<Structure>& structures,
-  const std::vector<std::string>& elements,
-  const int num_batches,
-  const char* xyz_filename,
-  std::vector<bool>& is_in_set)
+static std::unordered_map<std::string, int>
+get_name_to_index(const std::vector<Structure>& structures, const char* xyz_filename)
 {
   std::unordered_map<std::string, int> name_to_index;
   for (int nc = 0; nc < (int)structures.size(); ++nc) {
@@ -214,18 +205,144 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
     }
     name_to_index[name] = nc;
   }
+  return name_to_index;
+}
+
+// Returns the indices of the structures of each entry whose names all label structures.
+static std::vector<std::vector<int>> get_resolved_indices(
+  const std::vector<EnergyDiffEntry>& entries, std::unordered_map<std::string, int>& name_to_index)
+{
+  std::vector<std::vector<int>> resolved_indices;
+  for (const auto& entry : entries) {
+    std::vector<int> indices;
+    for (const auto& term : entry.terms) {
+      if (name_to_index.count(term.name) > 0) {
+        indices.push_back(name_to_index[term.name]);
+      }
+    }
+    if (indices.size() == entry.terms.size()) {
+      resolved_indices.push_back(indices);
+    }
+  }
+  return resolved_indices;
+}
+
+/*----------------------------------------------------------------------------80
+Reorders the training structures into num_batches batches that keep the structures of each
+combination together, and returns the batch sizes. Structures linked through combinations form a
+group. The groups, sorted by their mean energy per atom, go one by one to the batch with the
+fewest structures, which for groups of one structure gives the batches of read_structures.
+Batches left empty are dropped, so num_batches can decrease.
+------------------------------------------------------------------------------*/
+static std::vector<int> group_structures_by_combination(
+  const std::vector<EnergyDiffEntry>& entries,
+  std::vector<Structure>& structures,
+  const int batch_size,
+  int& num_batches)
+{
+  const int n_total = structures.size();
+  std::vector<int> parent(n_total);
+  std::iota(parent.begin(), parent.end(), 0);
+  auto find_root = [&parent](int n) {
+    while (parent[n] != n) {
+      parent[n] = parent[parent[n]];
+      n = parent[n];
+    }
+    return n;
+  };
+  auto name_to_index = get_name_to_index(structures, "train.xyz");
+  for (const auto& indices : get_resolved_indices(entries, name_to_index)) {
+    for (const int index : indices) {
+      parent[find_root(index)] = find_root(indices[0]);
+    }
+  }
+
+  std::vector<std::vector<int>> groups;
+  std::vector<int> root_to_group(n_total, -1);
+  for (int n = 0; n < n_total; ++n) {
+    const int root = find_root(n);
+    if (root_to_group[root] < 0) {
+      root_to_group[root] = groups.size();
+      groups.emplace_back();
+    }
+    groups[root_to_group[root]].push_back(n);
+  }
+  std::vector<double> group_energy(groups.size(), 0.0);
+  int largest_group = 0;
+  for (int g = 0; g < (int)groups.size(); ++g) {
+    for (const int n : groups[g]) {
+      group_energy[g] += structures[n].energy;
+    }
+    group_energy[g] /= groups[g].size();
+    largest_group = std::max(largest_group, (int)groups[g].size());
+  }
+  if (largest_group > batch_size) {
+    printf(
+      "Warning: ediff.in links %d structures into one group, which exceeds the batch size %d.\n",
+      largest_group,
+      batch_size);
+  }
+  std::vector<int> group_order(groups.size());
+  std::iota(group_order.begin(), group_order.end(), 0);
+  std::stable_sort(group_order.begin(), group_order.end(), [&group_energy](int g1, int g2) {
+    return group_energy[g1] < group_energy[g2];
+  });
+
+  std::vector<std::vector<int>> batches(num_batches);
+  for (const int g : group_order) {
+    auto smallest = std::min_element(
+      batches.begin(), batches.end(), [](const std::vector<int>& b1, const std::vector<int>& b2) {
+        return b1.size() < b2.size();
+      });
+    smallest->insert(smallest->end(), groups[g].begin(), groups[g].end());
+  }
+  batches.erase(
+    std::remove_if(
+      batches.begin(), batches.end(), [](const std::vector<int>& batch) { return batch.empty(); }),
+    batches.end());
+  if ((int)batches.size() < num_batches) {
+    num_batches = batches.size();
+    printf("Number of batches reduced to %d, since ediff.in links structures.\n", num_batches);
+  }
+
+  std::vector<Structure> structures_grouped;
+  structures_grouped.reserve(n_total);
+  std::vector<int> batch_sizes;
+  for (const auto& batch : batches) {
+    for (const int n : batch) {
+      structures_grouped.push_back(structures[n]);
+    }
+    batch_sizes.push_back(batch.size());
+  }
+  structures.swap(structures_grouped);
+  return batch_sizes;
+}
+
+// Returns the combinations of the entries whose names all label structures of one data set,
+// split into batches of the given sizes, and marks those entries in is_in_set. A combination has
+// to be balanced in the number of atoms of each type, for which any uniform or per-type offset
+// of the predicted energies cancels. Its reference is the same combination of the reference
+// total energies.
+static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
+  const std::vector<EnergyDiffEntry>& entries,
+  const std::vector<Structure>& structures,
+  const std::vector<std::string>& elements,
+  const std::vector<int>& batch_sizes,
+  const char* xyz_filename,
+  std::vector<bool>& is_in_set)
+{
+  auto name_to_index = get_name_to_index(structures, xyz_filename);
 
   const int n_total = structures.size();
   std::vector<int> index_to_batch(n_total);
   std::vector<int> index_to_local(n_total);
   int count = 0;
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    const int batch_size = get_batch_size(batch_id, n_total, num_batches);
-    for (int local = 0; local < batch_size; ++local) {
+  for (int batch_id = 0; batch_id < (int)batch_sizes.size(); ++batch_id) {
+    for (int local = 0; local < batch_sizes[batch_id]; ++local) {
       index_to_batch[count + local] = batch_id;
       index_to_local[count + local] = local;
     }
-    count += batch_size;
+    count += batch_sizes[batch_id];
   }
 
   const int num_types = elements.size();
@@ -248,9 +365,6 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
     for (const auto& term : entry.terms) {
       const int index = name_to_index[term.name];
       const Structure& structure = structures[index];
-      if (index_to_batch[index] != combination.batch) {
-        combination.batch = -1;
-      }
       combination.local.push_back(index_to_local[index]);
       combination.coefficient.push_back(term.coefficient);
       combination.ref_total_eV += term.coefficient * structure.energy_total;
@@ -294,6 +408,10 @@ Fitness::Fitness(Parameters& para)
   if (batch_size_old != para.batch_size) {
     printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
   }
+  std::vector<int> batch_sizes(num_batches);
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    batch_sizes[batch_id] = get_batch_size(batch_id, structures_train.size(), num_batches);
+  }
 
   // The train combinations are resolved before the batches are constructed, which allocate the
   // total energies under para.has_ediff_combinations, and the test combinations once test.xyz
@@ -310,26 +428,20 @@ Fitness::Fitness(Parameters& para)
       ediff_entries = read_ediff_in(ediff_file);
       is_ediff_entry_in_train.assign(ediff_entries.size(), false);
       is_ediff_entry_in_test.assign(ediff_entries.size(), false);
+      // read_structures leaves train.xyz in file order for this grouping
+      if (num_batches > 1) {
+        batch_sizes = group_structures_by_combination(
+          ediff_entries, structures_train, para.batch_size, num_batches);
+      }
       ediff_combinations_train = resolve_ediff_combinations(
         ediff_entries,
         structures_train,
         para.elements,
-        num_batches,
+        batch_sizes,
         "train.xyz",
         is_ediff_entry_in_train);
       if (ediff_combinations_train.empty()) {
         PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
-      }
-      const bool is_any_in_one_batch = std::any_of(
-        ediff_combinations_train.begin(),
-        ediff_combinations_train.end(),
-        [](const EnergyDiffCombination& combination) { return combination.batch >= 0; });
-      if (!is_any_in_one_batch) {
-        const std::string message =
-          "No combination in ediff.in has all its structures in one mini-batch of train.xyz. Use "
-          "a batch size >= " +
-          std::to_string(structures_train.size()) + ".";
-        PRINT_INPUT_ERROR(message.c_str());
       }
       para.has_ediff_combinations = true;
     } else if (ediff_file.is_open()) {
@@ -343,7 +455,7 @@ Fitness::Fitness(Parameters& para)
   }
   int count = 0;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    const int batch_size = get_batch_size(batch_id, structures_train.size(), num_batches);
+    const int batch_size = batch_sizes[batch_id];
     count += batch_size;
     printf("\nBatch %d:\n", batch_id);
     printf("Number of configurations = %d.\n", batch_size);
@@ -362,7 +474,12 @@ Fitness::Fitness(Parameters& para)
   if (para.has_ediff_combinations) {
     if (has_test_set) {
       ediff_combinations_test = resolve_ediff_combinations(
-        ediff_entries, structures_test, para.elements, 1, "test.xyz", is_ediff_entry_in_test);
+        ediff_entries,
+        structures_test,
+        para.elements,
+        {(int)structures_test.size()},
+        "test.xyz",
+        is_ediff_entry_in_test);
     }
     int num_in_both = 0;
     int num_skipped = 0;
@@ -389,17 +506,6 @@ Fitness::Fitness(Parameters& para)
         "train.xyz nor all in test.xyz, e.g. line %d.\n",
         num_skipped,
         ediff_entries[first_skipped].line_number);
-    }
-    const int num_cross_batch_combinations = std::count_if(
-      ediff_combinations_train.begin(),
-      ediff_combinations_train.end(),
-      [](const EnergyDiffCombination& combination) { return combination.batch < 0; });
-    if (num_cross_batch_combinations > 0) {
-      printf(
-        "Warning: %d train combination(s) span several mini-batches; a batch size >= %d "
-        "evaluates every combination.\n",
-        num_cross_batch_combinations,
-        (int)structures_train.size());
     }
   }
   if (has_test_set) {

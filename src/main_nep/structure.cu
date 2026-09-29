@@ -686,7 +686,11 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     input.close();
   }
 
-  if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
+  // With the energy-difference loss, Fitness forms the batches from train.xyz in file order.
+  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
+  if (
+    (para.prediction == 0) && is_train && (para.batch_size < structures.size()) &&
+    !is_ediff_active) {
     int num_batches = (structures.size() - 1) / para.batch_size + 1;
     reorder(num_batches, structures);
   }

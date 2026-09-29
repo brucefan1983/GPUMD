@@ -24,9 +24,9 @@
 class Parameters;
 
 // A linear combination of the total energies of structures of one data set that enters the loss.
-// A training combination is evaluated only in the generations whose batch holds all its structures.
+// All structures of a combination lie in one batch.
 struct EnergyDiffCombination {
-  int batch;                       // batch of all structures, -1 if they span several batches
+  int batch;                       // batch that holds all structures
   std::vector<int> local;          // index of each structure within the batch
   std::vector<double> coefficient; // coefficient of each structure
   double ref_total_eV;             // the same combination of the reference total energies
