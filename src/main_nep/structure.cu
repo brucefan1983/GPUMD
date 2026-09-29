@@ -243,6 +243,19 @@ static void read_one_structure(
     }
   }
 
+  // get name (optional)
+  for (const auto& token : tokens) {
+    const std::string name_string = "name=";
+    if (token.substr(0, name_string.length()) == name_string) {
+      structure.name = token.substr(name_string.length());
+      if (
+        structure.name.size() >= 2 && structure.name.front() == '"' &&
+        structure.name.back() == '"') {
+        structure.name = structure.name.substr(1, structure.name.size() - 2);
+      }
+    }
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";

@@ -60,6 +60,8 @@ public:
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
   std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
+  GPU_Vector<float> total_energy_pred_gpu; // calculated total energy of each configuration (eV)
+  std::vector<float> total_energy_pred_cpu;
 
   GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
   GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
@@ -101,6 +103,7 @@ public:
   std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_charge(Parameters& para, int device_id);
   std::vector<float> get_rmse_bec(Parameters& para, int device_id);
+  void compute_total_energies(int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);

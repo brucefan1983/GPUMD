@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include <string>
 #include <vector>
 
 class Parameters;
@@ -50,6 +51,7 @@ struct Structure {
   std::vector<float> avirialyz;
   std::vector<float> avirialzx;
   std::vector<float> bec;
+  std::string name; // lowercase label from the optional name= field
 };
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);

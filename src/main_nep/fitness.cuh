@@ -23,12 +23,30 @@
 
 class Parameters;
 
+// Two structures of one data set whose total-energy difference enters the loss. A training pair
+// is evaluated only in the generations whose batch holds both structures.
+struct EnergyDiffPair {
+  int batch_a, local_a;
+  int batch_b, local_b;
+  float ref_total_eV; // reference E_a - E_b
+  float weight;
+};
+
 class Fitness
 {
 public:
   Fitness(Parameters& para);
   ~Fitness();
-  void compute(const int generation, Parameters& para, const float*, float*, float*, float*, float*, float*);
+  void compute(
+    const int generation,
+    Parameters& para,
+    const float*,
+    float*,
+    float*,
+    float*,
+    float*,
+    float*,
+    float* fitness_ediff);
   void report_error(
     Parameters& para,
     const int generation,
@@ -45,6 +63,14 @@ protected:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
+  std::vector<EnergyDiffPair> ediff_pairs_train;
+  std::vector<EnergyDiffPair> ediff_pairs_test;
+  float get_rmse_ediff(
+    const std::vector<EnergyDiffPair>& pairs,
+    Dataset& dataset,
+    const int batch_id,
+    const int device_id,
+    int& num_pairs);
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;

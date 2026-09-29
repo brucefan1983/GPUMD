@@ -47,6 +47,7 @@ protected:
   std::vector<float> fitness_virial;
   std::vector<float> fitness_charge;
   std::vector<float> fitness_bec;
+  std::vector<float> fitness_ediff; // one value per member, the same for every type
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;

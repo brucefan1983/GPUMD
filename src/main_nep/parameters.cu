@@ -69,6 +69,7 @@ void Parameters::set_default_parameters()
   is_lambda_v_set = false;
   is_atomic_v_set = false;
   is_lambda_shear_set = false;
+  is_lambda_d_set = false;
   is_batch_set = false;
   is_population_set = false;
   is_seed_set = false;
@@ -106,6 +107,7 @@ void Parameters::set_default_parameters()
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   lambda_q = 0.1f;             // close to optimal
   lambda_z = 0.5f;             // close to optimal
+  lambda_d = 0.0f;             // no energy-difference loss by default
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   population_size = 50;        // almost optimal
@@ -202,6 +204,10 @@ void Parameters::calculate_parameters()
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
     }
+  }
+
+  if (is_lambda_d_set && (model_type == 1 || model_type == 2)) {
+    PRINT_INPUT_ERROR("lambda_d is only supported for potential models.");
   }
 
   if (model_type != 0 && model_type != 3) {
@@ -1167,6 +1173,10 @@ void Parameters::report_inputs()
     printf("    (default) lambda_shear = %g.\n", lambda_shear);
   }
 
+  if (is_lambda_d_set) {
+    printf("    (input)   lambda_d = %g.\n", lambda_d);
+  }
+
   if (is_force_delta_set) {
     printf("    (input)   force_delta = %g.\n", force_delta);
   } else {
@@ -1281,6 +1291,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_z") == 0) {
     parse_lambda_z(param, num_param);
+  } else if (strcmp(param[0], "lambda_d") == 0) {
+    parse_lambda_d(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -1816,6 +1828,25 @@ void Parameters::parse_lambda_z(const char** param, int num_param)
 
   if (lambda_z < 0.0f) {
     PRINT_INPUT_ERROR("BEC loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_d(const char** param, int num_param)
+{
+  is_lambda_d_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_d should have 1 parameter.\n");
+  }
+
+  double lambda_d_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_d_tmp)) {
+    PRINT_INPUT_ERROR("Energy difference loss weight should be a number.\n");
+  }
+  lambda_d = lambda_d_tmp;
+
+  if (lambda_d < 0.0f) {
+    PRINT_INPUT_ERROR("Energy difference loss weight should >= 0.");
   }
 }
 
