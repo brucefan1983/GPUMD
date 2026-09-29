@@ -626,25 +626,25 @@ __global__ void bec_radial_jit(
     const float bec_zy = 0.5f * r12[2] * f12[1];
     const float bec_zz = 0.5f * r12[2] * f12[2];
 
-    atomic_add_float_or_fixed(bec, bec_fixed, n1, bec_xx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + N, bec_xy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 2 * N, bec_xz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 3 * N, bec_yx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 4 * N, bec_yy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 5 * N, bec_yz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 6 * N, bec_zx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 7 * N, bec_zy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 8 * N, bec_zz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1, bec_xx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + N, bec_xy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 2 * N, bec_xz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 3 * N, bec_yx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 4 * N, bec_yy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 5 * N, bec_yz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 6 * N, bec_zx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 7 * N, bec_zy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 8 * N, bec_zz);
 
-    atomic_add_float_or_fixed(bec, bec_fixed, n2, -bec_xx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + N, -bec_xy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 2 * N, -bec_xz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 3 * N, -bec_yx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 4 * N, -bec_yy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 5 * N, -bec_yz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 6 * N, -bec_zx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 7 * N, -bec_zy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 8 * N, -bec_zz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2, -bec_xx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + N, -bec_xy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 2 * N, -bec_xz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 3 * N, -bec_yx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 4 * N, -bec_yy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 5 * N, -bec_yz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 6 * N, -bec_zx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 7 * N, -bec_zy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 8 * N, -bec_zz);
   }
 }
 
@@ -764,25 +764,25 @@ __global__ void bec_angular_jit(
     const float bec_zy = 0.5f * r12[2] * f12[1];
     const float bec_zz = 0.5f * r12[2] * f12[2];
 
-    atomic_add_float_or_fixed(bec, bec_fixed, n1, bec_xx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + N, bec_xy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 2 * N, bec_xz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 3 * N, bec_yx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 4 * N, bec_yy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 5 * N, bec_yz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 6 * N, bec_zx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 7 * N, bec_zy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n1 + 8 * N, bec_zz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1, bec_xx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + N, bec_xy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 2 * N, bec_xz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 3 * N, bec_yx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 4 * N, bec_yy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 5 * N, bec_yz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 6 * N, bec_zx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 7 * N, bec_zy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n1 + 8 * N, bec_zz);
 
-    atomic_add_float_or_fixed(bec, bec_fixed, n2, -bec_xx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + N, -bec_xy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 2 * N, -bec_xz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 3 * N, -bec_yx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 4 * N, -bec_yy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 5 * N, -bec_yz);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 6 * N, -bec_zx);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 7 * N, -bec_zy);
-    atomic_add_float_or_fixed(bec, bec_fixed, n2 + 8 * N, -bec_zz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2, -bec_xx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + N, -bec_xy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 2 * N, -bec_xz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 3 * N, -bec_yx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 4 * N, -bec_yy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 5 * N, -bec_yz);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 6 * N, -bec_zx);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 7 * N, -bec_zy);
+    atomic_add_float_or_fixed<FIXED_POINT_SUMS_JIT != 0>(bec, bec_fixed, n2 + 8 * N, -bec_zz);
   }
 }
 
@@ -907,8 +907,10 @@ __global__ void force_radial_jit(
       f12[2] += tmp12 * r12[2];
     }
 
-    atomic_add_force(N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
-    atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force<FIXED_POINT_SUMS_JIT != 0>(
+      N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force<FIXED_POINT_SUMS_JIT != 0>(
+      N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
 
 #if NEP_MODEL_MODE_JIT == NEP_MODEL_TNEP
     if (is_dipole) {
@@ -1081,8 +1083,10 @@ __global__ void force_angular_jit(
         f12);
     }
 
-    atomic_add_force(N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
-    atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force<FIXED_POINT_SUMS_JIT != 0>(
+      N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force<FIXED_POINT_SUMS_JIT != 0>(
+      N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
 
 #if NEP_MODEL_MODE_JIT == NEP_MODEL_TNEP
     if (is_dipole) {

@@ -62,6 +62,9 @@ struct NEP_Compile_Config {
   // qNEP/charge-vdW/TNEP remain pair-dependent, matching their generic paths.
   bool descriptor_use_cj = false;
 
+  // Forces and BEC are summed in fixed point when seed is set.
+  bool fixed_point_sums = false;
+
   std::vector<float> rc_radial;
   std::vector<float> rc_angular;
   std::vector<float> c6_ref_sqrt;

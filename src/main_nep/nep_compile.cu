@@ -226,6 +226,7 @@ std::string make_config_text(const NEP_Compile_Config& c)
   output << "#define NEP_MODEL_TNEP 4\n";
   output << "#define NEP_MODEL_MODE_JIT " << static_cast<int>(c.mode) << "\n";
   output << "#define MODEL_TYPE_JIT " << c.model_type << "\n";
+  output << "#define FIXED_POINT_SUMS_JIT " << (c.fixed_point_sums ? 1 : 0) << "\n";
   output << "#define NUM_TYPES_JIT " << c.num_types << "\n";
   output << "#define ANN_DIM_JIT " << c.ann_dim << "\n";
   output << "#define NUM_NEURONS1_JIT " << c.num_neurons1 << "\n";
@@ -306,6 +307,7 @@ NEP_Compile_Config make_nep_compile_config(
   NEP_Compile_Config c;
   c.mode = mode;
   c.model_type = para.model_type;
+  c.fixed_point_sums = para.is_seed_set;
   c.num_types = para.num_types;
   c.ann_dim = para.dim;
   c.num_neurons1 = para.num_neurons1;

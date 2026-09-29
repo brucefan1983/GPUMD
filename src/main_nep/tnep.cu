@@ -459,6 +459,7 @@ static __global__ void zero_force(
   }
 }
 
+template <bool use_fixed_point>
 static __global__ void find_force_radial(
   const bool is_dipole,
   const int N,
@@ -517,8 +518,10 @@ static __global__ void find_force_radial(
         }
       }
 
-      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
-      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       if (is_dipole) {
         float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
@@ -543,6 +546,7 @@ static __global__ void find_force_radial(
   }
 }
 
+template <bool use_fixed_point>
 static __global__ void find_force_angular(
   const bool is_dipole,
   const int N,
@@ -620,8 +624,10 @@ static __global__ void find_force_angular(
           paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
-      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
-      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       if (is_dipole) {
         float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
@@ -813,7 +819,7 @@ void TNEP::find_force(
         force_fixed,
         dataset[device_id].virial.data());
     } else {
-      find_force_radial<<<grid_size, block_size>>>(
+      (force_fixed ? find_force_radial<true> : find_force_radial<false>)<<<grid_size, block_size>>>(
         is_dipole,
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
@@ -854,7 +860,8 @@ void TNEP::find_force(
         force_fixed,
         dataset[device_id].virial.data());
     } else {
-      find_force_angular<<<grid_size, block_size>>>(
+      (force_fixed ? find_force_angular<true>
+                   : find_force_angular<false>)<<<grid_size, block_size>>>(
         is_dipole,
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),

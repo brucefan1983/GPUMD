@@ -50,19 +50,21 @@ atomic_add_in_range(float* float_address, unsigned long long* fixed_address, con
   }
 }
 
-// Adds value to g_float[index], or to g_fixed[index] in fixed point when g_fixed is set.
+// Adds value to g_float[index], or to g_fixed[index] in fixed point when use_fixed_point is set.
+template <bool use_fixed_point>
 static __device__ __forceinline__ void atomic_add_float_or_fixed(
   float* g_float, unsigned long long* g_fixed, const int index, const float value)
 {
-  if (g_fixed) {
+  if (use_fixed_point) {
     atomic_add_in_range(&g_float[index], &g_fixed[index], value);
   } else {
     atomicAdd(&g_float[index], value);
   }
 }
 
-// Adds (fx, fy, fz) to the force on atom n, in fixed point when g_force_fixed is set.
+// Adds (fx, fy, fz) to the force on atom n, in fixed point when use_fixed_point is set.
 // g_force_fixed holds the x, y and z components at n, n + N and n + 2 * N.
+template <bool use_fixed_point>
 static __device__ __forceinline__ void atomic_add_force(
   const int N,
   const int n,
@@ -74,7 +76,7 @@ static __device__ __forceinline__ void atomic_add_force(
   float* g_fz,
   unsigned long long* g_force_fixed)
 {
-  if (g_force_fixed) {
+  if (use_fixed_point) {
     atomic_add_in_range(&g_fx[n], &g_force_fixed[n], fx);
     atomic_add_in_range(&g_fy[n], &g_force_fixed[n + N], fy);
     atomic_add_in_range(&g_fz[n], &g_force_fixed[n + 2 * N], fz);

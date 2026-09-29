@@ -427,6 +427,7 @@ static __global__ void zero_force(
   }
 }
 
+template <bool use_fixed_point>
 static __global__ void find_force_radial(
   const int N,
   const int* g_NN_sum,
@@ -489,8 +490,10 @@ static __global__ void find_force_radial(
         }
       }
 
-      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
-      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
@@ -508,6 +511,7 @@ static __global__ void find_force_radial(
   }
 }
 
+template <bool use_fixed_point>
 static __global__ void find_force_angular(
   const int N,
   const int* g_NN_sum,
@@ -588,8 +592,10 @@ static __global__ void find_force_angular(
           paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
-      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
-      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
 
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
@@ -607,6 +613,7 @@ static __global__ void find_force_angular(
   }
 }
 
+template <bool use_fixed_point>
 static __global__ void find_force_ZBL(
   const int N,
   const NEP::ParaMB paramb,
@@ -679,8 +686,10 @@ static __global__ void find_force_ZBL(
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      atomic_add_force(N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
-      atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n1, f12[0], f12[1], f12[2], g_fx, g_fy, g_fz, g_force_fixed);
+      atomic_add_force<use_fixed_point>(
+        N, n2, -f12[0], -f12[1], -f12[2], g_fx, g_fy, g_fz, g_force_fixed);
       s_virial_xx -= r12[0] * f12[0];
       s_virial_yy -= r12[1] * f12[1];
       s_virial_zz -= r12[2] * f12[2];
@@ -895,7 +904,7 @@ void NEP::find_force(
         force_fixed,
         dataset[device_id].virial.data());
     } else {
-      find_force_radial<<<grid_size, block_size>>>(
+      (force_fixed ? find_force_radial<true> : find_force_radial<false>)<<<grid_size, block_size>>>(
         dataset[device_id].N,
         dataset[device_id].NN_radial_sum.data(),
         dataset[device_id].NN_radial.data(),
@@ -934,7 +943,8 @@ void NEP::find_force(
         force_fixed,
         dataset[device_id].virial.data());
     } else {
-      find_force_angular<<<grid_size, block_size>>>(
+      (force_fixed ? find_force_angular<true>
+                   : find_force_angular<false>)<<<grid_size, block_size>>>(
         dataset[device_id].N,
         dataset[device_id].NN_angular_sum.data(),
         dataset[device_id].NN_angular.data(),
@@ -956,7 +966,7 @@ void NEP::find_force(
     }
 
     if (zbl.enabled) {
-      find_force_ZBL<<<grid_size, block_size>>>(
+      (force_fixed ? find_force_ZBL<true> : find_force_ZBL<false>)<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
         zbl,
