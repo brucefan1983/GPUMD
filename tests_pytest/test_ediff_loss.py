@@ -459,3 +459,17 @@ def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     # energy_test.out leaves up to 4e-3 eV per pair, which the weight of 100 scales tenfold
     tolerances = [5e-3, 5e-2]
     assert any(abs(v['rmse_ediff_train'] - e) < t for e, t in zip(errors, tolerances))
+
+
+@pytest.mark.parametrize('overrides', [{}, {'charge_mode': '1', 'zbl': '1.5'}], ids=['nep', 'qnep'])
+def test_identical_geometries_are_an_input_error(tmp_path, nep_command, overrides):
+    """Two structures with the same geometry get the same predicted energy, also when their total
+    charges differ, so a combination of them cannot be fitted."""
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1', **overrides})
+    charged = [frames[0][0], frames[0][1] + ' charge=1'] + frames[0][2:]
+    charged = with_energy(charged, total_reference_energy(frames[0]) + 5.0)
+    write_frames(tmp_path / 'train.xyz', [frames[0], charged, frames[1]], ['S0', 'S1', 'other'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    expected_text = 'ediff.in line 2: s0 and s1 in train.xyz have the same geometry'
+    assert expected_text in result.stderr

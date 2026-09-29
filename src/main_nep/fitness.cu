@@ -318,6 +318,30 @@ static std::vector<int> group_structures_by_combination(
   return batch_sizes;
 }
 
+// Whether two structures have the same types, cell and positions to 1e-5 A, for which the model
+// predicts the same energy.
+static bool have_same_geometry(const Structure& structure_a, const Structure& structure_b)
+{
+  const float tolerance = 1.0e-5f;
+  if (structure_a.num_atom != structure_b.num_atom || structure_a.type != structure_b.type) {
+    return false;
+  }
+  for (int d = 0; d < 9; ++d) {
+    if (std::fabs(structure_a.box_original[d] - structure_b.box_original[d]) > tolerance) {
+      return false;
+    }
+  }
+  for (int n = 0; n < structure_a.num_atom; ++n) {
+    if (
+      std::fabs(structure_a.x[n] - structure_b.x[n]) > tolerance ||
+      std::fabs(structure_a.y[n] - structure_b.y[n]) > tolerance ||
+      std::fabs(structure_a.z[n] - structure_b.z[n]) > tolerance) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Returns the combinations of the entries whose names all label structures of one data set,
 // split into batches of the given sizes, and marks those entries in is_in_set. A combination has
 // to be balanced in the number of atoms of each type, for which any uniform or per-type offset
@@ -371,6 +395,18 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
       for (const int type : structure.type) {
         imbalance[type] += term.coefficient;
         scale[type] += std::fabs(term.coefficient);
+      }
+    }
+    for (int i = 0; i < (int)entry.terms.size(); ++i) {
+      for (int j = i + 1; j < (int)entry.terms.size(); ++j) {
+        const Structure& structure_i = structures[name_to_index[entry.terms[i].name]];
+        const Structure& structure_j = structures[name_to_index[entry.terms[j].name]];
+        if (have_same_geometry(structure_i, structure_j)) {
+          print_ediff_in_error(
+            entry.line_number,
+            entry.terms[i].name + " and " + entry.terms[j].name + " in " + xyz_filename +
+              " have the same geometry, for which the model predicts the same energy.");
+        }
       }
     }
     for (int t = 0; t < num_types; ++t) {
