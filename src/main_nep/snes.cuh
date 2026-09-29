@@ -66,7 +66,7 @@ protected:
   GPU_Vector<float> gpu_cost_L1reg;
   GPU_Vector<float> gpu_cost_L2reg;
 
-  void initialize_rng();
+  void initialize_rng(const int seed);
   void initialize_mu_and_sigma(Parameters& para);
   void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();

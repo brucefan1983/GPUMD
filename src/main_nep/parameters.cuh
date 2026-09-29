@@ -66,6 +66,7 @@ public:
   int batch_size;         // number of configurations in one batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
+  int seed;               // seed of the SNES random draws; negative keeps the built-in seeds
   int maximum_generation; // maximum number of generations for SNES;
   int save_potential;     // number of generations between writing a checkpoint nep.txt file.
   int save_potential_format;   // format of checkpoint nep.txt file name
@@ -137,6 +138,7 @@ public:
   bool is_lambda_shear_set;
   bool is_batch_set;
   bool is_population_set;
+  bool is_seed_set;
   bool is_generation_set;
   bool is_save_potential_set;
   bool is_output_interval_set;
@@ -210,6 +212,7 @@ private:
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);
+  void parse_seed(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);
   void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
