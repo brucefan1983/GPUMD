@@ -55,6 +55,7 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
 struct EnergyDiffEntry {
   std::string name_a;
   std::string name_b;
+  int line_number;
   bool has_ref = false;
   float ref_total_eV = 0.0f;
   float weight = 1.0f;
@@ -67,30 +68,36 @@ static std::string to_lowercase(std::string text)
   return text;
 }
 
+[[noreturn]] static void print_ediff_in_error(const int line_number, const std::string& text)
+{
+  const std::string message = "ediff.in line " + std::to_string(line_number) + ": " + text;
+  PRINT_INPUT_ERROR(message.c_str());
+}
+
 static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
 {
   std::vector<EnergyDiffEntry> entries;
+  int line_number = 0;
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
+    ++line_number;
     if (tokens.empty()) {
       continue;
     }
     if (tokens.size() < 2) {
-      printf("Warning: skipping a line of ediff.in with fewer than two structure names.\n");
-      continue;
+      print_ediff_in_error(line_number, "a pair needs two structure names.");
+    }
+    if (tokens.size() > 4) {
+      print_ediff_in_error(line_number, "at most four fields, name_a name_b [ref_eV] [weight].");
     }
     EnergyDiffEntry entry;
     entry.name_a = to_lowercase(tokens[0]);
     entry.name_b = to_lowercase(tokens[1]);
+    entry.line_number = line_number;
     if (tokens.size() >= 3) {
       double value;
       if (!is_valid_real(tokens[2].c_str(), &value)) {
-        printf(
-          "Warning: invalid reference '%s' in ediff.in; skipping pair %s %s.\n",
-          tokens[2].c_str(),
-          entry.name_a.c_str(),
-          entry.name_b.c_str());
-        continue;
+        print_ediff_in_error(line_number, "invalid ref_eV '" + tokens[2] + "'.");
       }
       entry.has_ref = true;
       entry.ref_total_eV = value;
@@ -98,14 +105,10 @@ static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
     if (tokens.size() >= 4) {
       double value;
       if (!is_valid_real(tokens[3].c_str(), &value) || value <= 0.0) {
-        printf(
-          "Warning: invalid weight '%s' in ediff.in; using 1 for pair %s %s.\n",
-          tokens[3].c_str(),
-          entry.name_a.c_str(),
-          entry.name_b.c_str());
-      } else {
-        entry.weight = value;
+        print_ediff_in_error(
+          line_number, "invalid weight '" + tokens[3] + "', which should be > 0.");
       }
+      entry.weight = value;
     }
     entries.push_back(entry);
   }
@@ -113,16 +116,18 @@ static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
 }
 
 // Returns the pairs of the entries whose two names both label structures of one data set, split
-// into num_batches batches as in the Fitness constructor, and marks those entries as resolved.
+// into num_batches batches as in the Fitness constructor, and marks those entries in is_in_set.
 // The default reference is the difference of the reference total energies.
 static std::vector<EnergyDiffPair> resolve_ediff_pairs(
   const std::vector<EnergyDiffEntry>& entries,
   const std::vector<Structure>& structures,
   const int num_batches,
   const char* xyz_filename,
-  std::vector<bool>& is_resolved)
+  std::vector<bool>& is_in_set)
 {
   std::unordered_map<std::string, int> name_to_index;
+  int num_duplicates = 0;
+  std::string first_duplicate;
   for (int nc = 0; nc < (int)structures.size(); ++nc) {
     const std::string& name = structures[nc].name;
     if (name.empty()) {
@@ -130,12 +135,17 @@ static std::vector<EnergyDiffPair> resolve_ediff_pairs(
     }
     if (name_to_index.count(name) == 0) {
       name_to_index[name] = nc;
-    } else {
-      printf(
-        "Warning: duplicate name '%s' in %s; ediff.in refers to the first one.\n",
-        name.c_str(),
-        xyz_filename);
+    } else if (num_duplicates++ == 0) {
+      first_duplicate = name;
     }
+  }
+  if (num_duplicates > 0) {
+    printf(
+      "Warning: %d repeated name(s) in %s, e.g. %s; ediff.in refers to the first structure of "
+      "each name.\n",
+      num_duplicates,
+      xyz_filename,
+      first_duplicate.c_str());
   }
 
   const int n_total = structures.size();
@@ -172,19 +182,7 @@ static std::vector<EnergyDiffPair> resolve_ediff_pairs(
                                           structure_b.energy * structure_b.num_atom;
     pair.weight = entry.weight;
     pairs.push_back(pair);
-    is_resolved[k] = true;
-    printf(
-      "    %s: pair %s (structure %d, batch %d) - %s (structure %d, batch %d), reference %g eV, "
-      "weight %g\n",
-      xyz_filename,
-      entry.name_a.c_str(),
-      index_a,
-      pair.batch_a,
-      entry.name_b.c_str(),
-      index_b,
-      pair.batch_b,
-      pair.ref_total_eV,
-      pair.weight);
+    is_in_set[k] = true;
   }
   return pairs;
 }
@@ -208,39 +206,23 @@ Fitness::Fitness(Parameters& para)
   // The train pairs are resolved before the batches are constructed, which allocate the total
   // energies under para.has_ediff_pairs, and the test pairs once test.xyz has been read.
   std::vector<EnergyDiffEntry> ediff_entries;
-  std::vector<bool> is_ediff_entry_resolved;
+  std::vector<bool> is_ediff_entry_in_train;
+  std::vector<bool> is_ediff_entry_in_test;
   if (para.prediction == 0) {
     std::ifstream ediff_file("ediff.in");
     if (para.lambda_d > 0.0f) {
       if (!ediff_file.is_open()) {
         PRINT_INPUT_ERROR("lambda_d > 0 requires the file ediff.in.");
       }
-      print_line_1();
-      printf("Started reading ediff.in.\n");
-      print_line_2();
       ediff_entries = read_ediff_in(ediff_file);
-      is_ediff_entry_resolved.assign(ediff_entries.size(), false);
+      is_ediff_entry_in_train.assign(ediff_entries.size(), false);
+      is_ediff_entry_in_test.assign(ediff_entries.size(), false);
       ediff_pairs_train = resolve_ediff_pairs(
-        ediff_entries, structures_train, num_batches, "train.xyz", is_ediff_entry_resolved);
+        ediff_entries, structures_train, num_batches, "train.xyz", is_ediff_entry_in_train);
       if (ediff_pairs_train.empty()) {
         PRINT_INPUT_ERROR("No pair in ediff.in has both structures in train.xyz.");
       }
       para.has_ediff_pairs = true;
-      int num_cross_batch_pairs = 0;
-      for (const auto& pair : ediff_pairs_train) {
-        if (pair.batch_a != pair.batch_b) {
-          ++num_cross_batch_pairs;
-        }
-      }
-      if (num_cross_batch_pairs > 0) {
-        printf(
-          "Warning: %d ediff pair(s) span different mini-batches and will be excluded from\n",
-          num_cross_batch_pairs);
-        printf(
-          "    the energy difference loss during those iterations. Use a batch size >= %d\n",
-          (int)structures_train.size());
-        printf("    (total training structures) to evaluate all pairs every step.\n");
-      }
     } else if (ediff_file.is_open()) {
       printf("ediff.in is ignored because lambda_d = 0.\n");
     }
@@ -271,21 +253,49 @@ Fitness::Fitness(Parameters& para)
   if (para.has_ediff_pairs) {
     if (has_test_set) {
       ediff_pairs_test =
-        resolve_ediff_pairs(ediff_entries, structures_test, 1, "test.xyz", is_ediff_entry_resolved);
+        resolve_ediff_pairs(ediff_entries, structures_test, 1, "test.xyz", is_ediff_entry_in_test);
     }
+    int num_in_both = 0;
+    int num_skipped = 0;
+    int first_skipped = -1;
     for (int k = 0; k < (int)ediff_entries.size(); ++k) {
-      if (!is_ediff_entry_resolved[k]) {
-        printf(
-          "Warning: skipping pair %s %s of ediff.in, whose structures are neither both in "
-          "train.xyz nor both in test.xyz.\n",
-          ediff_entries[k].name_a.c_str(),
-          ediff_entries[k].name_b.c_str());
+      if (is_ediff_entry_in_train[k] && is_ediff_entry_in_test[k]) {
+        ++num_in_both;
+      } else if (!is_ediff_entry_in_train[k] && !is_ediff_entry_in_test[k]) {
+        if (num_skipped++ == 0) {
+          first_skipped = k;
+        }
       }
     }
     printf(
-      "Number of energy difference pairs = %d in train.xyz and %d in test.xyz.\n",
+      "ediff.in: %d pairs, %d in train.xyz, %d in test.xyz (%d in both), %d skipped.\n",
+      (int)ediff_entries.size(),
       (int)ediff_pairs_train.size(),
-      (int)ediff_pairs_test.size());
+      (int)ediff_pairs_test.size(),
+      num_in_both,
+      num_skipped);
+    if (num_skipped > 0) {
+      printf(
+        "Warning: %d pair(s) of ediff.in skipped, whose structures are neither both in train.xyz "
+        "nor both in test.xyz, e.g. %s %s (line %d).\n",
+        num_skipped,
+        ediff_entries[first_skipped].name_a.c_str(),
+        ediff_entries[first_skipped].name_b.c_str(),
+        ediff_entries[first_skipped].line_number);
+    }
+    int num_cross_batch_pairs = 0;
+    for (const auto& pair : ediff_pairs_train) {
+      if (pair.batch_a != pair.batch_b) {
+        ++num_cross_batch_pairs;
+      }
+    }
+    if (num_cross_batch_pairs > 0) {
+      printf(
+        "Warning: %d train pair(s) span two mini-batches; a batch size >= %d evaluates every "
+        "pair.\n",
+        num_cross_batch_pairs,
+        (int)structures_train.size());
+    }
   }
   if (has_test_set) {
     test_set.resize(deviceCount);

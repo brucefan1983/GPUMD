@@ -6,6 +6,7 @@ applies to the elite cancels in each difference. One generation per output_inter
 row of loss.out per run.
 """
 import math
+import re
 import subprocess
 
 import pytest
@@ -113,7 +114,7 @@ def test_ediff_rmse_matches_predicted_energies(tmp_path, nep_command):
     frames = setup_directory(tmp_path, 'S0 S1\nS2 S3\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'Number of energy difference pairs = 1 in train.xyz and 1 in test.xyz.' in result.stdout
+    assert 'ediff.in: 2 pairs, 1 in train.xyz, 1 in test.xyz (0 in both), 0 skipped.' in result.stdout
 
     columns, rows = read_loss_out(tmp_path)
     values = dict(zip(columns, rows[-1]))
@@ -147,8 +148,20 @@ def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
         (None, {'lambda_d': '1'}, 'lambda_d > 0 requires the file ediff.in.'),
         ('s0 unknown\ns2 s3\n', {'lambda_d': '1'}, 'No pair in ediff.in has both structures'),
         ('s0 s1\n', {'lambda_d': '1', 'model_type': '1'}, 'lambda_d is only supported'),
+        ('s0 s1\ns0\n', {'lambda_d': '1'}, 'ediff.in line 3: a pair needs two structure names'),
+        ('s0 s1 abc\n', {'lambda_d': '1'}, "ediff.in line 2: invalid ref_eV 'abc'"),
+        ('s0 s1 1.0 0\n', {'lambda_d': '1'}, "ediff.in line 2: invalid weight '0'"),
+        ('s0 s1 1.0 1.0 x\n', {'lambda_d': '1'}, 'ediff.in line 2: at most four fields'),
     ],
-    ids=['missing ediff.in', 'no train pair', 'dipole model'],
+    ids=[
+        'missing ediff.in',
+        'no train pair',
+        'dipole model',
+        'one name',
+        'invalid reference',
+        'invalid weight',
+        'extra field',
+    ],
 )
 def test_input_errors(tmp_path, nep_command, ediff_lines, overrides, expected_text):
     setup_directory(tmp_path, ediff_lines, overrides)
@@ -160,11 +173,13 @@ def test_input_errors(tmp_path, nep_command, ediff_lines, overrides, expected_te
 def test_test_pair_enters_only_the_test_column(tmp_path, nep_command):
     """A reference of 1000 eV for the pair of test.xyz makes its error dominate any RMSE it enters,
     so that it has to raise the test column and leave the train column at the scale of the pair of
-    train.xyz. A pair split across the two files is skipped."""
+    train.xyz. A pair split across the two files is skipped, and stdout names only that pair."""
     setup_directory(tmp_path, 's0 s1\ns2 s3 1000\ns0 s2\n', {'lambda_d': '1'})
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'Warning: skipping pair s0 s2 of ediff.in' in result.stdout
+    assert 'ediff.in: 3 pairs, 1 in train.xyz, 1 in test.xyz (0 in both), 1 skipped.' in result.stdout
+    assert 'e.g. s0 s2 (line 4)' in result.stdout
+    assert re.search(r'\bs[13]\b', result.stdout) is None
 
     columns, rows = read_loss_out(tmp_path)
     values = dict(zip(columns, rows[-1]))

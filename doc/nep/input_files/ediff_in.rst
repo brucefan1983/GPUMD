@@ -40,11 +40,11 @@ Training and test pairs
 A pair with both structures in :attr:`train.xyz` is a training pair, which enters the loss function and the column :attr:`rmse_ediff_train` of :ref:`loss.out <loss_out>`.
 A pair with both structures in :attr:`test.xyz` is a test pair, which enters the column :attr:`rmse_ediff_test`.
 A pair whose names occur in both files is both a training pair and a test pair.
-A pair with a name that occurs in neither file, or with its two structures in different files, is skipped with a warning.
+A pair with a name that occurs in neither file, or with its two structures in different files, is skipped.
+``nep`` prints the number of pairs of each kind and a warning with the number of skipped pairs.
 
 Caveats
 -------
 
+* A line with fewer than two names or more than four fields, an invalid :attr:`ref_eV`, or a weight that is not a positive number is an input error.
 * If a name occurs on more than one structure of a file, the pair refers to the first of them and a warning is printed.
-* A line with fewer than two names or with an invalid :attr:`ref_eV` is skipped with a warning.
-  An invalid :attr:`weight` is replaced by 1 with a warning.
