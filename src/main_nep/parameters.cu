@@ -1188,7 +1188,7 @@ void Parameters::report_inputs()
   if (is_seed_set) {
     printf("    (input)   random seed = %d.\n", seed);
   } else {
-    printf("    (default) random seed taken from the clock.\n");
+    printf("    (default) random seed not set.\n");
   }
 
   if (is_generation_set) {
