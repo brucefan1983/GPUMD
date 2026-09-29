@@ -18,12 +18,13 @@ Each line holds one combination::
 * A :attr:`term` is either :attr:`<name>` or :attr:`<coefficient>*<name>`, without spaces.
   :attr:`name` is the label given by the :attr:`name=<label>` field on the comment line of a structure in :ref:`train.xyz and test.xyz <train_test_xyz>`.
   Names are matched case-insensitively, and a name may occur only once per line.
-  :attr:`coefficient` is a nonzero real number and defaults to 1.
+  :attr:`coefficient` is a nonzero real number or a fraction :attr:`p/q` of two real numbers, such as ``1/3``, and defaults to 1.
 * The operators ``+`` and ``-`` are fields of their own, separated from the terms by whitespace.
 * :attr:`weight` is optional, must be a positive number, and defaults to 1.
   It scales the contribution of the combination to the loss.
 
 A combination needs at least two structures and must be balanced in the number of atoms of each type: for every type, the sum of the coefficients times the numbers of atoms of that type vanishes.
+The check allows a relative deviation of :math:`10^{-9}`, so a coefficient such as one third has to be written as the fraction ``1/3``.
 The target of a combination is the same combination of the target total energies, which are given by the :attr:`energy` fields of the structures.
 
 A field beginning with ``#`` starts a comment that extends to the end of the line.

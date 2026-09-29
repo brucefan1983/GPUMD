@@ -79,7 +79,7 @@ static std::string to_lowercase(std::string text)
   PRINT_INPUT_ERROR(message.c_str());
 }
 
-// Reads a finite real number that a float holds without overflow or underflow to zero.
+// Reads a finite real number that a float holds as zero or as a normal number.
 static bool is_valid_float(const std::string& token, double& value)
 {
   if (!is_valid_real(token.c_str(), &value) || !std::isfinite(value)) {
@@ -89,7 +89,27 @@ static bool is_valid_float(const std::string& token, double& value)
   return magnitude <= FLT_MAX && (magnitude == 0.0 || magnitude >= FLT_MIN);
 }
 
+// Reads a nonzero coefficient, either a real number or a fraction p/q of two real numbers.
+static bool is_valid_coefficient(const std::string& token, double& value)
+{
+  const size_t slash = token.find('/');
+  if (slash == std::string::npos) {
+    return is_valid_float(token, value) && value != 0.0;
+  }
+  double numerator;
+  double denominator;
+  if (
+    !is_valid_float(token.substr(0, slash), numerator) ||
+    !is_valid_float(token.substr(slash + 1), denominator) || denominator == 0.0) {
+    return false;
+  }
+  value = numerator / denominator;
+  const double magnitude = std::fabs(value);
+  return magnitude >= FLT_MIN && magnitude <= FLT_MAX;
+}
+
 // Parses "[+|-] term {(+|-) term} [weight]", where a term is "name" or "coefficient*name".
+// The coefficient is a real number or a fraction p/q.
 static EnergyDiffEntry
 parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
 {
@@ -114,7 +134,7 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
     } else {
       const std::string coefficient = term.substr(0, star);
       double value;
-      if (!is_valid_float(coefficient, value) || value == 0.0) {
+      if (!is_valid_coefficient(coefficient, value)) {
         print_ediff_in_error(line_number, "invalid coefficient '" + coefficient + "'.");
       }
       energy_diff_term.coefficient *= value;
@@ -233,21 +253,20 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
       }
       combination.local.push_back(index_to_local[index]);
       combination.coefficient.push_back(term.coefficient);
-      // Structure::energy is the reference energy per atom
-      combination.ref_total_eV +=
-        term.coefficient * double(structure.energy) * double(structure.num_atom);
+      combination.ref_total_eV += term.coefficient * structure.energy_total;
       for (const int type : structure.type) {
         imbalance[type] += term.coefficient;
         scale[type] += std::fabs(term.coefficient);
       }
     }
     for (int t = 0; t < num_types; ++t) {
-      if (std::fabs(imbalance[t]) > 1.0e-6 * scale[t]) {
-        char text[200];
+      if (std::fabs(imbalance[t]) > 1.0e-9 * scale[t]) {
+        char text[300];
         snprintf(
           text,
           sizeof(text),
-          "the combination is not balanced in %s, with %g atoms of %s left over.",
+          "the combination is not balanced in %s, with %.3g atoms of %s left over. Write a "
+          "coefficient such as 1/3 as a fraction.",
           xyz_filename,
           imbalance[t],
           elements[t].c_str());

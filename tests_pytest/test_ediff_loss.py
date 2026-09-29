@@ -9,6 +9,7 @@ import math
 import re
 import subprocess
 
+import numpy as np
 import pytest
 
 from conftest import TRAINING_DIR
@@ -337,3 +338,63 @@ def test_combinations_spanning_batches_are_counted(tmp_path, nep_command):
         ' every combination.'
     )
     assert warning in result.stdout
+
+
+def with_energy(frame, energy):
+    return [frame[0], re.sub(r'energy=\S+', f'energy={energy:.10f}', frame[1])] + frame[2:]
+
+
+def make_supercell(frame, n):
+    """The frame repeated n times along each cell vector."""
+    match = re.search(r'Lattice="([^"]+)"', frame[1])
+    cell = np.array(match.group(1).split(), float).reshape(3, 3)
+    atom_lines = []
+    for shift in (i * cell[0] + j * cell[1] + k * cell[2] for i in range(n) for j in range(n) for k in range(n)):
+        for line in frame[2:]:
+            tokens = line.split()
+            position = np.array(tokens[1:4], float) + shift
+            atom_lines.append(' '.join([tokens[0]] + [f'{x:.8f}' for x in position] + tokens[4:]))
+    lattice = ' '.join(f'{x:.10f}' for x in (n * cell).ravel())
+    return [str(len(atom_lines)), frame[1].replace(match.group(1), lattice)] + atom_lines
+
+
+def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
+    """A 5000-atom supercell against 125 copies of its 40-atom cell, at -158 eV per atom, the
+    scale of absolute plane-wave energies. The combination vanishes for the reference energies
+    and, up to the float precision of the per-atom energies, for the predicted ones. Summing in
+    single precision would leave 1.2e-2 and 3.8e-2 eV in two runs, while the sums in double leave
+    1.1e-3 to 1.9e-3 eV over three runs."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    energy_per_atom = -158.123457
+    small = with_energy(frames[0], 40 * energy_per_atom)
+    big = with_energy(make_supercell(frames[0], 5), 5000 * energy_per_atom)
+    other = with_energy(frames[1], 40 * energy_per_atom + 0.3)
+    write_frames(tmp_path / 'train.xyz', [small, big, other], ['small', 'big', 'other'])
+    write_frames(tmp_path / 'test.xyz', [small, big], ['small', 'big'])
+    write_nep_in(tmp_path, {'lambda_d': '1'})
+    (tmp_path / 'ediff.in').write_text('big - 125*small\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    columns, rows = read_loss_out(tmp_path)
+    values = dict(zip(columns, rows[-1]))
+    assert values['rmse_ediff_test'] < 5e-3
+
+
+@pytest.mark.parametrize(
+    'coefficient, is_accepted', [('1/3', True), ('0.3333333', False)], ids=['fraction', 'decimal']
+)
+def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficient, is_accepted):
+    """A third written as a decimal leaves an offset of about 1e-7 per atom in the combination,
+    which the balance check rejects, while the fraction 1/3 balances."""
+    frames = setup_directory(tmp_path, None, {'lambda_d': '1'})
+    write_frames(tmp_path / 'train.xyz', frames, ['S0', 'S1', 'S2', 'S3'])
+    (tmp_path / 'test.xyz').unlink()
+    terms = ' - '.join(f'{coefficient}*s{i}' for i in (1, 2, 3))
+    (tmp_path / 'ediff.in').write_text(f's0 - {terms}\n')
+    result = run_nep(tmp_path, nep_command)
+    if is_accepted:
+        assert result.returncode == 0, result.stdout + result.stderr
+    else:
+        assert result.returncode != 0
+        assert 'the combination is not balanced in train.xyz' in result.stderr

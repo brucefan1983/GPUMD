@@ -273,8 +273,9 @@ static void read_one_structure(
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_double_from_token(
+      structure.energy_total = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
+      structure.energy = structure.energy_total;
       structure.energy /= structure.num_atom;
     }
   }

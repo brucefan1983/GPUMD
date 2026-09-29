@@ -60,8 +60,8 @@ public:
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
   std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
-  GPU_Vector<float> total_energy_pred_gpu; // calculated total energy of each configuration (eV)
-  std::vector<float> total_energy_pred_cpu;
+  GPU_Vector<double> total_energy_pred_gpu; // calculated total energy of each configuration (eV)
+  std::vector<double> total_energy_pred_cpu;
 
   GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
   GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
