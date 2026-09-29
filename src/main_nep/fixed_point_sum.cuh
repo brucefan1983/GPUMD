@@ -20,11 +20,16 @@ A float atomicAdd rounds after every addition, and the order of the additions va
 runs. A sum in fixed point with 32 fractional bits is a sum of integers, which is associative.
 Its resolution is 2^-32 = 2.3e-10 in the unit of the summed quantity, and its range is
 +-2^31 = +-2.1e9.
+
+A contribution that is not finite, or whose magnitude is at least 2^20 = 1.0e6, is added in
+floating point instead. NaN and inf, and the forces of overlapping atoms, then reach the result
+as they do without fixed point. Up to 2^11 contributions below that bound fit in the range.
 */
 
 #pragma once
 
 const float FIXED_POINT_SCALE = 4294967296.0f; // 2^32
+const float FIXED_POINT_LIMIT = 1048576.0f;    // 2^20
 
 static __device__ __forceinline__ void
 atomic_add_fixed_point(unsigned long long* address, float value)
@@ -33,12 +38,24 @@ atomic_add_fixed_point(unsigned long long* address, float value)
   atomicAdd(address, static_cast<unsigned long long>(__float2ll_rn(value * FIXED_POINT_SCALE)));
 }
 
+// Adds value to *fixed_address in fixed point, or to *float_address when it is out of range.
+static __device__ __forceinline__ void
+atomic_add_in_range(float* float_address, unsigned long long* fixed_address, const float value)
+{
+  // false for NaN
+  if (fabsf(value) < FIXED_POINT_LIMIT) {
+    atomic_add_fixed_point(fixed_address, value);
+  } else {
+    atomicAdd(float_address, value);
+  }
+}
+
 // Adds value to g_float[index], or to g_fixed[index] in fixed point when g_fixed is set.
 static __device__ __forceinline__ void atomic_add_float_or_fixed(
   float* g_float, unsigned long long* g_fixed, const int index, const float value)
 {
   if (g_fixed) {
-    atomic_add_fixed_point(&g_fixed[index], value);
+    atomic_add_in_range(&g_float[index], &g_fixed[index], value);
   } else {
     atomicAdd(&g_float[index], value);
   }
@@ -58,9 +75,9 @@ static __device__ __forceinline__ void atomic_add_force(
   unsigned long long* g_force_fixed)
 {
   if (g_force_fixed) {
-    atomic_add_fixed_point(&g_force_fixed[n], fx);
-    atomic_add_fixed_point(&g_force_fixed[n + N], fy);
-    atomic_add_fixed_point(&g_force_fixed[n + 2 * N], fz);
+    atomic_add_in_range(&g_fx[n], &g_force_fixed[n], fx);
+    atomic_add_in_range(&g_fy[n], &g_force_fixed[n + N], fy);
+    atomic_add_in_range(&g_fz[n], &g_force_fixed[n + 2 * N], fz);
   } else {
     atomicAdd(&g_fx[n], fx);
     atomicAdd(&g_fy[n], fy);

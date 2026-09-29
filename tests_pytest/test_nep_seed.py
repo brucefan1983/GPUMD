@@ -86,8 +86,9 @@ MODELS = {
 @pytest.mark.parametrize('model', list(MODELS))
 @pytest.mark.parametrize('prediction', ['0', '1'], ids=['training', 'prediction'])
 def test_same_seed_gives_the_same_forces(tmp_path, nep_command, model, prediction):
-    """Training evaluates the forces with the kernels that nep_compile builds at run time, and
-    prediction with the generic ones. The charge models also sum Born effective charges."""
+    """Training evaluates the radial and angular forces with the kernels that nep_compile builds at
+    run time, and prediction with the generic ones. The ZBL and charge real-space forces use the
+    generic kernels in both. The charge models also sum Born effective charges."""
     keywords = {**KEYWORDS, 'zbl': '2', **MODELS[model]}
     initial = train(tmp_path / 'initial', nep_command, seed=1, keywords=keywords)
     suffix = 'test' if prediction == '0' else 'train'
@@ -106,6 +107,31 @@ def test_same_seed_gives_the_same_forces(tmp_path, nep_command, model, predictio
     differing = [
         name for name in names if not outputs[0][name] == outputs[1][name] == outputs[2][name]]
     assert differing == []
+
+
+@pytest.mark.parametrize('separation', [0.0, 0.002], ids=['coincident', 'overlapping'])
+def test_seed_keeps_nan_and_huge_forces(tmp_path, nep_command, separation):
+    """Two coincident atoms give NaN forces, and two atoms 0.002 Å apart give a ZBL force of
+    about 4e9 eV/Å, beyond the range of the fixed-point sum. A seeded prediction writes the same
+    forces as an unseeded one."""
+    keywords = {**KEYWORDS, 'zbl': '2'}
+    initial = train(tmp_path / 'initial', nep_command, seed=1, keywords=keywords)
+    structure = read(TRAINING_DIR / 'train.xyz', index=0)
+    energy = structure.get_potential_energy()
+    structure.calc = None
+    structure.positions[1] = structure.positions[0] + [separation, 0, 0]
+    structure.calc = SinglePointCalculator(
+        structure, energy=energy, forces=structure.arrays['force'])
+    forces = {}
+    for label, extra in [('float', {}), ('fixed', {'seed': '1'})]:
+        directory = tmp_path / label
+        directory.mkdir()
+        shutil.copy(initial / 'nep.txt', directory / 'nep.txt')
+        write(directory / 'train.xyz', [structure], format='extxyz')
+        result = run_nep(directory, nep_command, {**keywords, 'prediction': '1', **extra})
+        assert result.returncode == 0, result.stdout + result.stderr
+        forces[label] = np.loadtxt(directory / 'force_train.out')[:, :3]
+    assert np.allclose(forces['fixed'], forces['float'], rtol=1e-5, atol=1e-4, equal_nan=True)
 
 
 def read_parameters(directory):

@@ -35,7 +35,7 @@
 
 namespace
 {
-const int NEP_SPECIALIZED_INTERFACE_VERSION = 3;
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 4;
 
 void warning_compile(const std::string& message)
 {
