@@ -186,20 +186,20 @@ public:
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_angular(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp, const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_charge_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp,
     const float* charge_derivative, const float* D_real,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_charge_angular(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
@@ -207,14 +207,14 @@ public:
     const float* parameters, const float* Fp,
     const float* charge_derivative, const float* D_real,
     const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_vdw_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp,
     const float* C6_derivative, const float* D_C6,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_vdw_angular(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
@@ -222,7 +222,7 @@ public:
     const float* parameters, const float* Fp,
     const float* C6_derivative, const float* D_C6,
     const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_charge_vdw_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
@@ -230,7 +230,7 @@ public:
     const float* parameters, const float* Fp,
     const float* charge_derivative, const float* D_real,
     const float* C6_derivative, const float* D_C6,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_charge_vdw_angular(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
@@ -239,21 +239,21 @@ public:
     const float* charge_derivative, const float* D_real,
     const float* C6_derivative, const float* D_C6,
     const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_tnep_radial(
     bool is_dipole,
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
   void launch_force_tnep_angular(
     bool is_dipole,
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
     const float* x12, const float* y12, const float* z12,
     const float* parameters, const float* Fp, const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial);
 
 private:
   bool valid_ = false;
@@ -296,14 +296,14 @@ private:
     const float*, const float*, const float*,
     const float*, const float*,
     const float*, const float*, const float*, const float*,
-    int, float*, float*, float*, float*);
+    int, float*, float*, float*, unsigned long long*, float*);
 
   using ForceAngularFunction = int (*)(
     int, const int*, const int*, const int*, const int*,
     const float*, const float*, const float*,
     const float*, const float*,
     const float*, const float*, const float*, const float*,
-    const float*, int, float*, float*, float*, float*);
+    const float*, int, float*, float*, float*, unsigned long long*, float*);
 
   void* library_ = nullptr;
   DescriptorRadialFunction descriptor_radial_ = nullptr;

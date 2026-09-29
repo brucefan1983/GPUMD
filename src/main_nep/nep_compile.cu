@@ -35,7 +35,7 @@
 
 namespace
 {
-const int NEP_SPECIALIZED_INTERFACE_VERSION = 2;
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 3;
 
 void warning_compile(const std::string& message)
 {
@@ -827,14 +827,14 @@ void NEP_Compile::launch_force_radial(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, nullptr, nullptr,
-      0, fx, fy, fz, virial),
+      0, fx, fy, fz, force_fixed, virial),
     "force_radial_jit");
 }
 
@@ -842,14 +842,14 @@ void NEP_Compile::launch_force_angular(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp, const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, nullptr, nullptr,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      sum_fxyz, 0, fx, fy, fz, force_fixed, virial),
     "force_angular_jit");
 }
 
@@ -858,14 +858,14 @@ void NEP_Compile::launch_force_charge_radial(
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp,
   const float* charge_derivative, const float* D_real,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       charge_derivative, D_real, nullptr, nullptr,
-      0, fx, fy, fz, virial),
+      0, fx, fy, fz, force_fixed, virial),
     "force_charge_radial_jit");
 }
 
@@ -875,14 +875,14 @@ void NEP_Compile::launch_force_charge_angular(
   const float* parameters, const float* Fp,
   const float* charge_derivative, const float* D_real,
   const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       charge_derivative, D_real, nullptr, nullptr,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      sum_fxyz, 0, fx, fy, fz, force_fixed, virial),
     "force_charge_angular_jit");
 }
 
@@ -891,14 +891,14 @@ void NEP_Compile::launch_force_vdw_radial(
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp,
   const float* C6_derivative, const float* D_C6,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, C6_derivative, D_C6,
-      0, fx, fy, fz, virial),
+      0, fx, fy, fz, force_fixed, virial),
     "force_vdw_radial_jit");
 }
 
@@ -908,14 +908,14 @@ void NEP_Compile::launch_force_vdw_angular(
   const float* parameters, const float* Fp,
   const float* C6_derivative, const float* D_C6,
   const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, C6_derivative, D_C6,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      sum_fxyz, 0, fx, fy, fz, force_fixed, virial),
     "force_vdw_angular_jit");
 }
 
@@ -925,14 +925,14 @@ void NEP_Compile::launch_force_charge_vdw_radial(
   const float* parameters, const float* Fp,
   const float* charge_derivative, const float* D_real,
   const float* C6_derivative, const float* D_C6,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       charge_derivative, D_real, C6_derivative, D_C6,
-      0, fx, fy, fz, virial),
+      0, fx, fy, fz, force_fixed, virial),
     "force_charge_vdw_radial_jit");
 }
 
@@ -943,14 +943,14 @@ void NEP_Compile::launch_force_charge_vdw_angular(
   const float* charge_derivative, const float* D_real,
   const float* C6_derivative, const float* D_C6,
   const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       charge_derivative, D_real, C6_derivative, D_C6,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      sum_fxyz, 0, fx, fy, fz, force_fixed, virial),
     "force_charge_vdw_angular_jit");
 }
 
@@ -959,14 +959,14 @@ void NEP_Compile::launch_force_tnep_radial(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_radial_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, nullptr, nullptr,
-      is_dipole ? 1 : 0, fx, fy, fz, virial),
+      is_dipole ? 1 : 0, fx, fy, fz, force_fixed, virial),
     "force_tnep_radial_jit");
 }
 
@@ -975,13 +975,13 @@ void NEP_Compile::launch_force_tnep_angular(
   int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
   const float* x12, const float* y12, const float* z12,
   const float* parameters, const float* Fp, const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx, float* fy, float* fz, unsigned long long* force_fixed, float* virial)
 {
   check_launch(
     force_angular_(
       N, NN_sum, NN, NL, type, x12, y12, z12,
       parameters, Fp,
       nullptr, nullptr, nullptr, nullptr,
-      sum_fxyz, is_dipole ? 1 : 0, fx, fy, fz, virial),
+      sum_fxyz, is_dipole ? 1 : 0, fx, fy, fz, force_fixed, virial),
     "force_tnep_angular_jit");
 }

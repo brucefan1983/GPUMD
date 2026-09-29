@@ -810,6 +810,7 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        nullptr,
         dataset[device_id].virial.data());
     } else {
       find_force_radial<<<grid_size, block_size>>>(
@@ -849,6 +850,7 @@ void TNEP::find_force(
         dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
+        nullptr,
         dataset[device_id].virial.data());
     } else {
       find_force_angular<<<grid_size, block_size>>>(

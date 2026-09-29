@@ -26,12 +26,13 @@
  */
 
 #include <nep_special_config.cuh>
-#define NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION 2
+#define NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION 3
 #if !defined(NEP_SPECIAL_CONFIG_INTERFACE_VERSION)
 #error "Missing NEP specialization interface version."
 #elif NEP_SPECIAL_CONFIG_INTERFACE_VERSION != NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION
 #error "Incompatible NEP specialization interface version."
 #endif
+#include "main_nep/fixed_point_sum.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cuda_runtime.h>
 #include <cmath>
@@ -832,6 +833,7 @@ __global__ void force_radial_jit(
   float* fx,
   float* fy,
   float* fz,
+  unsigned long long* force_fixed,
   float* virial)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -903,12 +905,8 @@ __global__ void force_radial_jit(
       f12[2] += tmp12 * r12[2];
     }
 
-    atomicAdd(&fx[n1], f12[0]);
-    atomicAdd(&fy[n1], f12[1]);
-    atomicAdd(&fz[n1], f12[2]);
-    atomicAdd(&fx[n2], -f12[0]);
-    atomicAdd(&fy[n2], -f12[1]);
-    atomicAdd(&fz[n2], -f12[2]);
+    atomic_add_force(N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
 
 #if NEP_MODEL_MODE_JIT == NEP_MODEL_TNEP
     if (is_dipole) {
@@ -972,6 +970,7 @@ __global__ void force_angular_jit(
   float* fx,
   float* fy,
   float* fz,
+  unsigned long long* force_fixed,
   float* virial)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -1080,12 +1079,8 @@ __global__ void force_angular_jit(
         f12);
     }
 
-    atomicAdd(&fx[n1], f12[0]);
-    atomicAdd(&fy[n1], f12[1]);
-    atomicAdd(&fz[n1], f12[2]);
-    atomicAdd(&fx[n2], -f12[0]);
-    atomicAdd(&fy[n2], -f12[1]);
-    atomicAdd(&fz[n2], -f12[2]);
+    atomic_add_force(N, n1, f12[0], f12[1], f12[2], fx, fy, fz, force_fixed);
+    atomic_add_force(N, n2, -f12[0], -f12[1], -f12[2], fx, fy, fz, force_fixed);
 
 #if NEP_MODEL_MODE_JIT == NEP_MODEL_TNEP
     if (is_dipole) {
@@ -1372,6 +1367,7 @@ extern "C" int nep_train_launch_force_radial(
   float* fx,
   float* fy,
   float* fz,
+  unsigned long long* force_fixed,
   float* virial)
 {
   const int block_size = 32;
@@ -1395,6 +1391,7 @@ extern "C" int nep_train_launch_force_radial(
     fx,
     fy,
     fz,
+    force_fixed,
     virial);
   return static_cast<int>(cudaGetLastError());
 }
@@ -1419,6 +1416,7 @@ extern "C" int nep_train_launch_force_angular(
   float* fx,
   float* fy,
   float* fz,
+  unsigned long long* force_fixed,
   float* virial)
 {
   const int block_size = 32;
@@ -1443,6 +1441,7 @@ extern "C" int nep_train_launch_force_angular(
     fx,
     fy,
     fz,
+    force_fixed,
     virial);
   return static_cast<int>(cudaGetLastError());
 }
