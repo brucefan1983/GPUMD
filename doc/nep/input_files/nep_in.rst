@@ -74,6 +74,8 @@ Keywords
      - weight of total-charge loss term for qNEP models
    * - :ref:`lambda_z <kw_lambda_z>`
      - weight of Born-effective-charge loss term for qNEP models
+   * - :ref:`lambda_d <kw_lambda_d>`
+     - weight of energy-difference loss term, with the combinations in ``ediff.in``
    * - :ref:`atomic_v <kw_atomic_v>`
      - fit atomic or global virial
    * - :ref:`lambda_shear <kw_lambda_shear>`

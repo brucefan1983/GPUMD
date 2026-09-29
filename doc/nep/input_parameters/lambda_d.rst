@@ -23,6 +23,7 @@ The contribution to the loss is
 
 where :math:`E_i` and :math:`E_i^\mathrm{tar}` are the predicted and target total energies of structure :math:`i` in eV, :math:`c_{ki}` is its coefficient in combination :math:`k`, and :math:`w_k` is the weight of the combination.
 The sum runs over the :math:`N_\mathrm{comb}` combinations whose structures all lie in the current mini-batch.
+The fields :attr:`weight` and :attr:`energy_weight` of the structures in :attr:`train.xyz` do not enter the term.
 
 A positive :math:`\lambda_d` requires two inputs:
 

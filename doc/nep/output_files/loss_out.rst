@@ -56,7 +56,7 @@ If the energy-difference loss is active (:ref:`lambda_d <kw_lambda_d>` > 0), the
 where
 
 * :attr:`rmse_ediff_train` is the weighted RMSE of the energy combinations (in units of eV) over the training combinations of :ref:`ediff.in <ediff_in>`.
-  Each training combination is evaluated on the mini-batch that holds all its structures.
+  Each training combination is evaluated on the mini-batch that holds all its structures, and a combination whose structures span several mini-batches is left out.
 * :attr:`rmse_ediff_test` is the weighted RMSE of the energy combinations (in units of eV) over the test combinations.
   It is 0 without a test set or without test combinations.
 

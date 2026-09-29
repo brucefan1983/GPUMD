@@ -319,3 +319,21 @@ def test_quoted_name_without_whitespace(tmp_path, nep_command):
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
+
+
+def test_combinations_spanning_batches_are_counted(tmp_path, nep_command):
+    """With four structures in two batches of two, two of the six pairs lie within one batch,
+    whatever the order in which train.xyz is split."""
+    frames = setup_directory(tmp_path, None, {'lambda_d': '1', 'batch': '2'})
+    names = ['S0', 'S1', 'S2', 'S3']
+    write_frames(tmp_path / 'train.xyz', frames, names)
+    (tmp_path / 'test.xyz').unlink()
+    lines = [f'{a} - {b}\n' for i, a in enumerate(names) for b in names[i + 1 :]]
+    (tmp_path / 'ediff.in').write_text(''.join(lines))
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    warning = (
+        'Warning: 4 train combination(s) span several mini-batches; a batch size >= 4 evaluates'
+        ' every combination.'
+    )
+    assert warning in result.stdout
