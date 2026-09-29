@@ -66,7 +66,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   cost_L2reg.resize(population_size);
   utility.resize(population_size);
   type_of_variable.resize(number_of_variables, para.num_types);
-  initialize_rng();
+  initialize_rng(para.seed);
 
   gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.resize(number_of_variables);
@@ -79,7 +79,8 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpu_s.resize(N);
   gpu_population.resize(N);
   curand_states.resize(N);
-  initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
+  initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(
+    curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
   if (para.fine_tune) {
@@ -96,8 +97,12 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   compute(para, fitness_function);
 }
 
-void SNES::initialize_rng()
+void SNES::initialize_rng(const int seed)
 {
+  if (seed >= 0) {
+    rng = std::mt19937(seed);
+    return;
+  }
 #ifdef DEBUG
   rng = std::mt19937(12345678);
 #else

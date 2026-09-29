@@ -71,6 +71,7 @@ void Parameters::set_default_parameters()
   is_lambda_shear_set = false;
   is_batch_set = false;
   is_population_set = false;
+  is_seed_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
@@ -108,6 +109,7 @@ void Parameters::set_default_parameters()
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   population_size = 50;        // almost optimal
+  seed = -1;                   // negative keeps the built-in seeds
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
@@ -1183,6 +1185,12 @@ void Parameters::report_inputs()
     printf("    (default) population size = %d.\n", population_size);
   }
 
+  if (is_seed_set) {
+    printf("    (input)   random seed = %d.\n", seed);
+  } else {
+    printf("    (default) random seed not set.\n");
+  }
+
   if (is_generation_set) {
     printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
   } else {
@@ -1253,6 +1261,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_batch(param, num_param);
   } else if (strcmp(param[0], "population") == 0) {
     parse_population(param, num_param);
+  } else if (strcmp(param[0], "seed") == 0) {
+    parse_seed(param, num_param);
   } else if (strcmp(param[0], "nep_compile") == 0) {
     parse_nep_compile(param, num_param);
   } else if (strcmp(param[0], "generation") == 0) {
@@ -1890,6 +1900,21 @@ void Parameters::parse_population(const char** param, int num_param)
     printf("The input population size is not divisible by the number of GPUs.\n");
     printf("This causes an inefficient use of resources.\n");
     printf("The population size has therefore been increased to %d.\n", population_size);
+  }
+}
+
+void Parameters::parse_seed(const char** param, int num_param)
+{
+  is_seed_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("The seed keyword must be followed by a parameter.\n");
+  }
+  if (!is_valid_int(param[1], &seed)) {
+    PRINT_INPUT_ERROR("seed should be an integer.\n");
+  }
+  if (seed < 0) {
+    PRINT_INPUT_ERROR("seed should be >= 0.\n");
   }
 }
 
