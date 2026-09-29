@@ -109,29 +109,51 @@ def test_same_seed_gives_the_same_forces(tmp_path, nep_command, model, predictio
     assert differing == []
 
 
-@pytest.mark.parametrize('separation', [0.0, 0.002], ids=['coincident', 'overlapping'])
-def test_seed_keeps_nan_and_huge_forces(tmp_path, nep_command, separation):
-    """Two coincident atoms give NaN forces, and two atoms 0.002 Å apart give a ZBL force of
-    about 4e9 eV/Å, beyond the range of the fixed-point sum. A seeded prediction writes the same
-    forces as an unseeded one."""
-    keywords = {**KEYWORDS, 'zbl': '2'}
-    initial = train(tmp_path / 'initial', nep_command, seed=1, keywords=keywords)
+def write_overlapping_structure(path, separation, with_bec=False):
+    """Write the first training structure with atom 1 moved to separation from atom 0."""
     structure = read(TRAINING_DIR / 'train.xyz', index=0)
     energy = structure.get_potential_energy()
     structure.calc = None
     structure.positions[1] = structure.positions[0] + [separation, 0, 0]
     structure.calc = SinglePointCalculator(
         structure, energy=energy, forces=structure.arrays['force'])
+    if with_bec:
+        structure.arrays['bec'] = np.tile(np.eye(3).ravel(), (len(structure), 1))
+    write(path, [structure], format='extxyz')
+
+
+@pytest.mark.parametrize('separation', [0.0, 0.002], ids=['coincident', 'overlapping'])
+def test_seed_keeps_nan_and_huge_forces(tmp_path, nep_command, separation):
+    """Two coincident atoms give NaN forces, and two atoms 0.002 Å apart give a ZBL force of
+    about 4e9 eV/Å, beyond the range of the fixed-point sum. A seeded prediction, which evaluates
+    the generic kernels, writes the same forces as an unseeded one."""
+    keywords = {**KEYWORDS, 'zbl': '2'}
+    initial = train(tmp_path / 'initial', nep_command, seed=1, keywords=keywords)
     forces = {}
     for label, extra in [('float', {}), ('fixed', {'seed': '1'})]:
         directory = tmp_path / label
         directory.mkdir()
         shutil.copy(initial / 'nep.txt', directory / 'nep.txt')
-        write(directory / 'train.xyz', [structure], format='extxyz')
+        write_overlapping_structure(directory / 'train.xyz', separation)
         result = run_nep(directory, nep_command, {**keywords, 'prediction': '1', **extra})
         assert result.returncode == 0, result.stdout + result.stderr
         forces[label] = np.loadtxt(directory / 'force_train.out')[:, :3]
     assert np.allclose(forces['fixed'], forces['float'], rtol=1e-5, atol=1e-4, equal_nan=True)
+
+
+def test_seed_keeps_nan_in_the_compiled_kernels(tmp_path, nep_command):
+    """In training, the kernels that nep_compile builds at run time sum the radial and angular
+    forces and the Born effective charges. Two coincident atoms in the test set give NaN in both,
+    as they do without seed."""
+    write_supercells(tmp_path / 'train.xyz')
+    write_overlapping_structure(tmp_path / 'test.xyz', 0.0, with_bec=True)
+    keywords = {**KEYWORDS, 'charge_mode': '1', 'generation': '1', 'seed': '1'}
+    result = run_nep(tmp_path, nep_command, keywords)
+    assert result.returncode == 0, result.stdout + result.stderr
+    forces = np.loadtxt(tmp_path / 'force_test.out')[:, :3]
+    bec = np.loadtxt(tmp_path / 'bec_test.out')[:, :9]
+    assert np.isnan(forces[:2]).all()
+    assert np.isnan(bec[:2]).all()
 
 
 def read_parameters(directory):
