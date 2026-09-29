@@ -28,6 +28,9 @@ A positive :math:`\lambda_d` requires two inputs:
 1. a :attr:`name=<label>` field on the comment line of each structure that takes part in a pair, see :ref:`train.xyz and test.xyz <train_test_xyz>`,
 2. the file :ref:`ediff.in <ediff_in>`, which lists the pairs.
 
+The two structures of a pair must have the same number of atoms of each type.
+Any uniform or per-type offset of the predicted energies then cancels in their difference.
+
 ``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its pairs has both structures in :attr:`train.xyz`.
 With :math:`\lambda_d = 0`, an :attr:`ediff.in` file is ignored.
 The keyword is only available for potential models and is an input error together with :attr:`model_type 1` or :attr:`model_type 2`.
@@ -40,7 +43,3 @@ Caveats
 * A training pair enters the loss only in the generations whose mini-batch holds both of its structures.
   With a batch size of at least the number of training structures, every pair enters the loss in every generation.
   ``nep`` prints a warning with the number of pairs that span two mini-batches.
-* The energy term of the loss function is insensitive to a uniform shift :math:`c` of the predicted energy per atom, which ``nep`` corrects when it writes the model.
-  The energy-difference term compares the predicted total energies as they are.
-  For a pair of structures with :math:`N_a` and :math:`N_b` atoms, the term therefore includes the offset :math:`c (N_a - N_b)`, for example for a vacancy compared with the perfect cell.
-  For a pair of structures with equal numbers of atoms, the offset cancels.

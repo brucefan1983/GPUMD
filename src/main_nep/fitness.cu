@@ -115,12 +115,25 @@ static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
   return entries;
 }
 
+static std::vector<int>
+get_number_of_atoms_per_type(const Structure& structure, const int num_types)
+{
+  std::vector<int> number_of_atoms_per_type(num_types, 0);
+  for (const int type : structure.type) {
+    ++number_of_atoms_per_type[type];
+  }
+  return number_of_atoms_per_type;
+}
+
 // Returns the pairs of the entries whose two names both label structures of one data set, split
 // into num_batches batches as in the Fitness constructor, and marks those entries in is_in_set.
+// The two structures of a pair need equal compositions, for which any uniform or per-type offset
+// of the predicted energies cancels in their difference.
 // The default reference is the difference of the reference total energies.
 static std::vector<EnergyDiffPair> resolve_ediff_pairs(
   const std::vector<EnergyDiffEntry>& entries,
   const std::vector<Structure>& structures,
+  const int num_types,
   const int num_batches,
   const char* xyz_filename,
   std::vector<bool>& is_in_set)
@@ -171,6 +184,14 @@ static std::vector<EnergyDiffPair> resolve_ediff_pairs(
     const int index_b = name_to_index[entry.name_b];
     const Structure& structure_a = structures[index_a];
     const Structure& structure_b = structures[index_b];
+    if (
+      get_number_of_atoms_per_type(structure_a, num_types) !=
+      get_number_of_atoms_per_type(structure_b, num_types)) {
+      print_ediff_in_error(
+        entry.line_number,
+        entry.name_a + " and " + entry.name_b + " in " + xyz_filename +
+          " differ in composition, which should be equal.");
+    }
     EnergyDiffPair pair;
     pair.batch_a = index_to_batch[index_a];
     pair.local_a = index_to_local[index_a];
@@ -218,7 +239,12 @@ Fitness::Fitness(Parameters& para)
       is_ediff_entry_in_train.assign(ediff_entries.size(), false);
       is_ediff_entry_in_test.assign(ediff_entries.size(), false);
       ediff_pairs_train = resolve_ediff_pairs(
-        ediff_entries, structures_train, num_batches, "train.xyz", is_ediff_entry_in_train);
+        ediff_entries,
+        structures_train,
+        para.num_types,
+        num_batches,
+        "train.xyz",
+        is_ediff_entry_in_train);
       if (ediff_pairs_train.empty()) {
         PRINT_INPUT_ERROR("No pair in ediff.in has both structures in train.xyz.");
       }
@@ -252,8 +278,8 @@ Fitness::Fitness(Parameters& para)
   has_test_set = read_structures(false, para, structures_test);
   if (para.has_ediff_pairs) {
     if (has_test_set) {
-      ediff_pairs_test =
-        resolve_ediff_pairs(ediff_entries, structures_test, 1, "test.xyz", is_ediff_entry_in_test);
+      ediff_pairs_test = resolve_ediff_pairs(
+        ediff_entries, structures_test, para.num_types, 1, "test.xyz", is_ediff_entry_in_test);
     }
     int num_in_both = 0;
     int num_skipped = 0;

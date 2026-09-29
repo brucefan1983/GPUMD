@@ -1,9 +1,8 @@
 """Checks of the energy-difference loss of nep, activated by lambda_d > 0 and ediff.in.
 
-The four structures of the training fixture have 40 atoms each. The first two form train.xyz and
-the last two test.xyz, so that every pair has equal sizes and the per-atom energy shift that nep
-applies to the elite cancels in each difference. One generation per output_interval yields one
-row of loss.out per run.
+The four structures of the training fixture share one composition, which the two structures of a
+pair need. The first two form train.xyz and the last two test.xyz. One generation per
+output_interval yields one row of loss.out per run.
 """
 import math
 import re
@@ -185,3 +184,37 @@ def test_test_pair_enters_only_the_test_column(tmp_path, nep_command):
     values = dict(zip(columns, rows[-1]))
     assert values['rmse_ediff_test'] > 900
     assert values['rmse_ediff_train'] < 100
+
+
+def remove_last_atom(frame):
+    return [str(int(frame[0]) - 1), frame[1]] + frame[2:-1]
+
+
+def swap_first_species(frame, species):
+    """The frame with the species of its first atom replaced."""
+    tokens = frame[2].split()
+    return frame[:2] + [' '.join([species] + tokens[1:])] + frame[3:]
+
+
+@pytest.mark.parametrize(
+    'modify, xyz_filename',
+    [
+        (remove_last_atom, 'train.xyz'),
+        (lambda frame: swap_first_species(frame, 'Ti'), 'train.xyz'),
+        (remove_last_atom, 'test.xyz'),
+    ],
+    ids=['fewer atoms', 'swapped species', 'test pair'],
+)
+def test_pair_of_unequal_composition_is_an_input_error(tmp_path, nep_command, modify, xyz_filename):
+    """The two structures of a pair need the same number of atoms of each type, also with an
+    explicit reference, since a uniform or per-type energy offset would otherwise enter the term."""
+    frames = setup_directory(tmp_path, 's0 s1\ns2 s3 1.0\n', {'lambda_d': '1'})
+    if xyz_filename == 'train.xyz':
+        write_frames(tmp_path / 'train.xyz', [frames[0], modify(frames[1])], ['S0', 'S1'])
+        expected_text = 'ediff.in line 2: s0 and s1 in train.xyz differ in composition'
+    else:
+        write_frames(tmp_path / 'test.xyz', [frames[2], modify(frames[3])], ['S2', 'S3'])
+        expected_text = 'ediff.in line 3: s2 and s3 in test.xyz differ in composition'
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert expected_text in result.stderr

@@ -22,6 +22,8 @@ Each line holds one pair::
 * :attr:`weight` is optional, must be positive, and defaults to 1.
   It scales the contribution of the pair to the loss.
 
+The two structures of a pair must have the same number of atoms of each type.
+
 A ``#`` starts a comment that extends to the end of the line.
 
 Example
@@ -29,10 +31,10 @@ Example
 
 ::
 
-  # vacancy formation, target taken from train.xyz
-  vacancy perfect
-  # an interstitial with an explicit target and a higher weight
-  interstitial perfect 3.42 2.0
+  # two polymorphs of the same cell, target taken from train.xyz
+  rutile anatase
+  # a vacancy at two sites of one cell, with an explicit target and a higher weight
+  vacancy_site1 vacancy_site2 0.42 2.0
 
 Training and test pairs
 -----------------------
@@ -47,4 +49,5 @@ Caveats
 -------
 
 * A line with fewer than two names or more than four fields, an invalid :attr:`ref_eV`, or a weight that is not a positive number is an input error.
+* A pair of structures that differ in the number of atoms of some type is an input error.
 * If a name occurs on more than one structure of a file, the pair refers to the first of them and a warning is printed.
