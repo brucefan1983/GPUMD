@@ -26,8 +26,9 @@ Each line holds one combination::
 
 A combination needs at least two structures and must be balanced in the number of atoms of each type: for every type, the sum of the coefficients times the numbers of atoms of that type vanishes.
 The check allows :math:`10^{-6}` atoms of each type to be left over, so a coefficient such as one third is best written as the fraction ``1/3``.
-No two structures of a combination may have the same geometry, that is the same types and, to :math:`10^{-5}` Å, the same cell and positions, since the model predicts the same energy for both.
-The total charge given by :attr:`charge` does not enter this comparison.
+No two structures of a combination may be the same structure for the model, that is have the same types, the same cell and positions to :math:`10^{-5}` Å, the same boundaries, and for :attr:`model_type 3` the same :attr:`temperature`.
+Two such structures can differ at most in :attr:`charge`, which a NEP model ignores and for which a qNEP model predicts no meaningful energy difference.
+Atoms are compared in order, so a copy with reordered atoms or with an atom shifted by a lattice vector is not detected.
 The target of a combination is the same combination of the target total energies, which are given by the :attr:`energy` fields of the structures.
 
 A field beginning with ``#`` starts a comment that extends to the end of the line.
@@ -56,5 +57,5 @@ A combination with a name that occurs in neither file, or with its structures in
 Caveats
 -------
 
-* A line that does not follow the format, an invalid coefficient or weight, a combination that is not balanced, and a combination of two structures with the same geometry are input errors.
+* A line that does not follow the format, an invalid coefficient or weight, a combination that is not balanced, and a combination of two structures that are the same for the model are input errors.
 * A name that occurs on more than one structure of a file, or that violates the rules for labels in :ref:`train.xyz and test.xyz <train_test_xyz>`, is an input error.

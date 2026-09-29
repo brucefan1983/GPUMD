@@ -490,18 +490,74 @@ def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     assert any(abs(v['rmse_ediff_train'] - e) < t for e, t in zip(errors, tolerances))
 
 
-@pytest.mark.parametrize('overrides', [{}, {'charge_mode': '1', 'zbl': '1.5'}], ids=['nep', 'qnep'])
-def test_identical_geometries_are_an_input_error(tmp_path, nep_command, overrides):
-    """Two structures with the same geometry get the same predicted energy, also when their total
-    charges differ, so a combination of them cannot be fitted."""
+def with_comment_fields(frame, fields):
+    """The frame with fields such as charge=1 appended to its comment line."""
+    return [frame[0], frame[1] + ' ' + fields] + frame[2:]
+
+
+@pytest.mark.parametrize(
+    'overrides, expected_text',
+    [
+        ({}, 'have the same geometry, for which the model predicts the same energy'),
+        (
+            {'charge_mode': '1', 'zbl': '1.5'},
+            'differ only in charge=, for which a qNEP model predicts no meaningful energy',
+        ),
+    ],
+    ids=['nep', 'qnep'],
+)
+def test_same_structure_in_two_charge_states_is_an_input_error(
+    tmp_path, nep_command, overrides, expected_text
+):
+    """A structure in two charge states is one structure for NEP, which ignores charge=, and for
+    qNEP, which predicts no meaningful difference between them."""
     frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1', **overrides})
-    charged = [frames[0][0], frames[0][1] + ' charge=1'] + frames[0][2:]
-    charged = with_energy(charged, total_reference_energy(frames[0]) + 5.0)
+    charged = with_energy(
+        with_comment_fields(frames[0], 'charge=1'), total_reference_energy(frames[0]) + 5.0
+    )
     write_frames(tmp_path / 'train.xyz', [frames[0], charged, frames[1]], ['S0', 'S1', 'other'])
     result = run_nep(tmp_path, nep_command)
     assert result.returncode != 0
-    expected_text = 'ediff.in line 2: s0 and s1 in train.xyz have the same geometry'
-    assert expected_text in result.stderr
+    assert f'ediff.in line 2: s0 and s1 in train.xyz {expected_text}' in result.stderr
+
+
+def test_same_structure_in_test_xyz_is_an_input_error(tmp_path, nep_command):
+    frames = setup_directory(tmp_path, 's0 - s1\ns2 - s3\n', {'lambda_d': '1'})
+    copy = with_energy(frames[2], total_reference_energy(frames[2]) + 1.0)
+    write_frames(tmp_path / 'test.xyz', [frames[2], copy], ['S2', 'S3'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert 'ediff.in line 3: s2 and s3 in test.xyz have the same geometry' in result.stderr
+
+
+def test_different_boundaries_make_different_structures(tmp_path, nep_command):
+    """A long-range model reads pbc=, so a periodic and an open copy of one cell differ."""
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1', 'vdw': '1'})
+    open_copy = with_energy(
+        [frames[0][0], frames[0][1].replace('pbc="T T T"', 'pbc="F F F"')] + frames[0][2:],
+        total_reference_energy(frames[0]) + 1.0,
+    )
+    assert 'pbc="F F F"' in open_copy[1]
+    write_frames(tmp_path / 'train.xyz', [frames[0], open_copy, frames[1]], ['S0', 'S1', 'other'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_different_temperatures_make_different_structures(tmp_path, nep_command):
+    """The cgNEP model of model_type 3 takes temperature= as an input."""
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1', 'model_type': '3'})
+    structures = [
+        with_comment_fields(frames[0], 'temperature=300'),
+        with_energy(
+            with_comment_fields(frames[0], 'temperature=1000'), total_reference_energy(frames[0]) + 1.0
+        ),
+        with_comment_fields(frames[1], 'temperature=300'),
+    ]
+    write_frames(tmp_path / 'train.xyz', structures, ['S0', 'S1', 'other'])
+    tests = [with_comment_fields(frame, 'temperature=300') for frame in frames[2:]]
+    write_frames(tmp_path / 'test.xyz', tests, ['S2', 'S3'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def shift_first_atom(frame, dx):

@@ -339,12 +339,19 @@ static std::vector<int> group_structures_by_combination(
   return batch_sizes;
 }
 
-// Whether two structures have the same types, cell and positions to 1e-5 A, for which the model
-// predicts the same energy.
-static bool have_same_geometry(const Structure& structure_a, const Structure& structure_b)
+// Whether two structures are the same structure for the model: the same types, cell and positions
+// to 1e-5 A, the same boundaries, and for model_type 3 the same temperature. Atoms are compared in
+// order. The total charge is compared by the caller.
+static bool are_the_same_structure(
+  const Structure& structure_a, const Structure& structure_b, const int model_type)
 {
   const float tolerance = 1.0e-5f;
-  if (structure_a.num_atom != structure_b.num_atom || structure_a.type != structure_b.type) {
+  if (
+    structure_a.num_atom != structure_b.num_atom || structure_a.type != structure_b.type ||
+    structure_a.pbc != structure_b.pbc) {
+    return false;
+  }
+  if (model_type == 3 && structure_a.temperature != structure_b.temperature) {
     return false;
   }
   for (int d = 0; d < 9; ++d) {
@@ -371,7 +378,7 @@ static bool have_same_geometry(const Structure& structure_a, const Structure& st
 static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
   const std::vector<EnergyDiffEntry>& entries,
   const std::vector<Structure>& structures,
-  const std::vector<std::string>& elements,
+  const Parameters& para,
   const std::vector<int>& batch_sizes,
   const char* xyz_filename,
   std::vector<bool>& is_in_set)
@@ -390,6 +397,7 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
     count += batch_sizes[batch_id];
   }
 
+  const std::vector<std::string>& elements = para.elements;
   const int num_types = elements.size();
   std::vector<EnergyDiffCombination> combinations;
   for (int k = 0; k < (int)entries.size(); ++k) {
@@ -420,12 +428,21 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
       for (int j = i + 1; j < (int)entry.terms.size(); ++j) {
         const Structure& structure_i = structures[name_to_index[entry.terms[i].name]];
         const Structure& structure_j = structures[name_to_index[entry.terms[j].name]];
-        if (have_same_geometry(structure_i, structure_j)) {
+        if (!are_the_same_structure(structure_i, structure_j, para.model_type)) {
+          continue;
+        }
+        const std::string names =
+          entry.terms[i].name + " and " + entry.terms[j].name + " in " + xyz_filename;
+        const bool is_charge_model = para.charge_mode || para.charge_vdw;
+        if (is_charge_model && structure_i.charge != structure_j.charge) {
           print_ediff_in_error(
             entry.line_number,
-            entry.terms[i].name + " and " + entry.terms[j].name + " in " + xyz_filename +
-              " have the same geometry, for which the model predicts the same energy.");
+            names + " differ only in charge=, for which a qNEP model predicts no meaningful energy "
+                    "difference.");
         }
+        print_ediff_in_error(
+          entry.line_number,
+          names + " have the same geometry, for which the model predicts the same energy.");
       }
     }
     for (int t = 0; t < num_types; ++t) {
@@ -493,12 +510,7 @@ Fitness::Fitness(Parameters& para)
           ediff_entries, structures_train, para.batch_size, num_batches);
       }
       ediff_combinations_train = resolve_ediff_combinations(
-        ediff_entries,
-        structures_train,
-        para.elements,
-        batch_sizes,
-        "train.xyz",
-        is_ediff_entry_in_train);
+        ediff_entries, structures_train, para, batch_sizes, "train.xyz", is_ediff_entry_in_train);
       if (ediff_combinations_train.empty()) {
         PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
       }
@@ -535,7 +547,7 @@ Fitness::Fitness(Parameters& para)
       ediff_combinations_test = resolve_ediff_combinations(
         ediff_entries,
         structures_test,
-        para.elements,
+        para,
         {(int)structures_test.size()},
         "test.xyz",
         is_ediff_entry_in_test);
