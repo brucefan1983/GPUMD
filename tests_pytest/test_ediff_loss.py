@@ -665,3 +665,35 @@ def test_batches_follow_the_group_order(tmp_path, nep_command):
     rows = (tmp_path / 'energy_train.out').read_text().splitlines()
     references = [float(row.split()[1]) for row in rows]
     assert references == pytest.approx(expected, abs=1e-4)
+
+
+@pytest.mark.parametrize(
+    'other_field',
+    ['comment="a \\" name=s0 y"', "comment='run name=s0'"],
+    ids=['escaped double quote', 'single quotes'],
+)
+def test_name_inside_other_quotes_is_not_read(tmp_path, nep_command, other_field):
+    frames = setup_directory(tmp_path, 'real - s1\n', {'lambda_d': '1'})
+    write_frames(
+        tmp_path / 'train.xyz', [with_comment_fields(frames[0], other_field), frames[1]], ['REAL', 'S1']
+    )
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
+
+
+def test_oversize_warning_uses_the_batch_size_of_nep_in(tmp_path, nep_command):
+    """nep changes batch 7 to 5 for ten structures. A chain of six fills one batch of six, which
+    does not exceed the batch size of nep.in."""
+    frames = read_frames(TRAINING_DIR / 'train.xyz')
+    structures = [
+        with_energy(shift_first_atom(frames[k % 4], 0.001 * k), 40 * (-5.0 - 0.001 * k))
+        for k in range(10)
+    ]
+    write_frames(tmp_path / 'train.xyz', structures, [f'S{k}' for k in range(10)])
+    write_nep_in(tmp_path, {'lambda_d': '1', 'batch': '7'})
+    (tmp_path / 'ediff.in').write_text(''.join(f's{k} - s{k + 1}\n' for k in range(5)))
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert batch_sizes(result.stdout) == [6, 4]
+    assert 'exceeds the batch size' not in result.stdout

@@ -246,15 +246,23 @@ static void read_one_structure(
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
     const std::string location = xyz_filename + " line " + std::to_string(line_number);
-    // a name= inside the double-quoted value of another field is part of that value
-    bool is_inside_quotes = false;
+    // a name= inside the quoted value of another field is part of that value; open_quote is the
+    // quote character of the value that is open at the start of a token, or 0
+    char open_quote = 0;
     for (int n = 0; n < tokens.size(); ++n) {
-      const bool is_token_inside_quotes = is_inside_quotes;
-      if (std::count(tokens[n].begin(), tokens[n].end(), '"') % 2 == 1) {
-        is_inside_quotes = !is_inside_quotes;
+      const char open_quote_at_start = open_quote;
+      for (int c = 0; c < tokens[n].size(); ++c) {
+        const char character = tokens[n][c];
+        if (character == '\\') {
+          ++c;
+        } else if (open_quote == 0 && (character == '"' || character == '\'')) {
+          open_quote = character;
+        } else if (character == open_quote) {
+          open_quote = 0;
+        }
       }
       const std::string name_string = "name=";
-      if (is_token_inside_quotes || tokens[n].substr(0, name_string.length()) != name_string) {
+      if (open_quote_at_start != 0 || tokens[n].substr(0, name_string.length()) != name_string) {
         continue;
       }
       if (!structure.name.empty()) {

@@ -507,7 +507,7 @@ Fitness::Fitness(Parameters& para)
       // read_structures leaves train.xyz in file order for this grouping
       if (num_batches > 1) {
         batch_sizes = group_structures_by_combination(
-          ediff_entries, structures_train, para.batch_size, num_batches);
+          ediff_entries, structures_train, batch_size_old, num_batches);
       }
       ediff_combinations_train = resolve_ediff_combinations(
         ediff_entries, structures_train, para, batch_sizes, "train.xyz", is_ediff_entry_in_train);
