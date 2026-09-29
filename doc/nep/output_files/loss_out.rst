@@ -55,9 +55,10 @@ If the energy-difference loss is active (:ref:`lambda_d <kw_lambda_d>` > 0), the
 
 where
 
-* :attr:`rmse_ediff_train` is the weighted RMSE of the energy combinations (in units of eV) over the training combinations of :ref:`ediff.in <ediff_in>`.
-  Each training combination is evaluated on the mini-batch that holds all its structures.
-* :attr:`rmse_ediff_test` is the weighted RMSE of the energy combinations (in units of eV) over the test combinations.
+* :attr:`rmse_ediff_train` is the weighted RMSE of the energy combinations (in units of eV) over the training combinations of :ref:`ediff.in <ediff_in>` in the mini-batch of the current generation, like the other training columns.
+  :attr:`total` contains it multiplied by :math:`\lambda_d`.
+  It is 0 for a mini-batch without training combinations.
+* :attr:`rmse_ediff_test` is the weighted RMSE of the energy combinations (in units of eV) over all test combinations, since the test set forms a single batch.
   It is 0 without a test set or without test combinations.
 
 If a dipole model is trained, the columns are::

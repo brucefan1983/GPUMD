@@ -609,7 +609,11 @@ float Fitness::get_rmse_ediff(
   int& num_combinations)
 {
   num_combinations = 0;
-  if (combinations.empty()) {
+  const bool is_any_in_batch = std::any_of(
+    combinations.begin(), combinations.end(), [batch_id](const EnergyDiffCombination& combination) {
+      return combination.batch == batch_id;
+    });
+  if (!is_any_in_batch) {
     return 0.0f;
   }
   dataset.compute_total_energies(device_id);
@@ -918,23 +922,11 @@ void Fitness::report_error(
     float rmse_charge_train = rmse_charge_train_array.back();
     float rmse_bec_train = rmse_bec_train_array.back();
 
-    // Evaluate the elite on every training batch, since a batch holds only its own
-    // combinations.
     float rmse_ediff_train = 0.0f;
     if (para.has_ediff_combinations) {
-      float sum_sq = 0.0f;
-      int total_combinations = 0;
-      for (int b = 0; b < num_batches; ++b) {
-        if (b != batch_id) {
-          potential->find_force(para, elite, train_set[b], false, 1);
-        }
-        int num_combinations = 0;
-        const float rmse_batch =
-          get_rmse_ediff(ediff_combinations_train, train_set[b][0], b, 0, num_combinations);
-        sum_sq += rmse_batch * rmse_batch * num_combinations;
-        total_combinations += num_combinations;
-      }
-      rmse_ediff_train = (total_combinations > 0) ? sqrt(sum_sq / total_combinations) : 0.0f;
+      int num_combinations_not_used = 0;
+      rmse_ediff_train = get_rmse_ediff(
+        ediff_combinations_train, train_set[batch_id][0], batch_id, 0, num_combinations_not_used);
     }
 
     // correct the last bias parameter in the NN

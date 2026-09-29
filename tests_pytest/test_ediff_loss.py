@@ -403,3 +403,36 @@ def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficien
     else:
         assert result.returncode != 0
         assert 'the combination is not balanced in train.xyz' in result.stderr
+
+
+def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
+    """Each train column of loss.out belongs to the batch of the reported generation, so the total
+    loss is their weighted sum. The two pairs lie in different batches and, through a weight of
+    100, differ by about a factor of ten, so a train column pooled over both batches would not
+    add up."""
+    frames = setup_directory(tmp_path, None, {'lambda_d': '3', 'batch': '2'})
+    names = ['S0', 'S1', 'S2', 'S3']
+    write_frames(tmp_path / 'train.xyz', frames, names)
+    write_frames(tmp_path / 'test.xyz', frames, names)
+    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3 100\n')
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'Number of batches = 2' in result.stdout
+
+    columns, rows = read_loss_out(tmp_path)
+    v = dict(zip(columns, rows[-1]))
+    parts = (
+        v['L1'] + v['L2'] + v['rmse_energy_train'] + v['rmse_force_train']
+        + 0.1 * v['rmse_virial_train'] + 3 * v['rmse_ediff_train']
+    )
+    assert v['total'] == pytest.approx(parts, rel=1e-3, abs=1e-4)
+
+    energies = read_total_energies(tmp_path / 'energy_test.out', [40] * 4)
+    targets = [total_reference_energy(frame) for frame in frames]
+    errors = [
+        abs(energies[0] - energies[1] - targets[0] + targets[1]),
+        10 * abs(energies[2] - energies[3] - targets[2] + targets[3]),
+    ]
+    # energy_test.out leaves up to 4e-3 eV per pair, which the weight of 100 scales tenfold
+    tolerances = [5e-3, 5e-2]
+    assert any(abs(v['rmse_ediff_train'] - e) < t for e, t in zip(errors, tolerances))
