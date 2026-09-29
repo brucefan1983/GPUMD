@@ -17,7 +17,7 @@ Each line holds one combination::
 
 * A :attr:`term` is either :attr:`<name>` or :attr:`<coefficient>*<name>`, without spaces.
   :attr:`name` is the label given by the :attr:`name=<label>` field on the comment line of a structure in :ref:`train.xyz and test.xyz <train_test_xyz>`.
-  Names are matched case-insensitively, and a name may occur only once per line.
+  Names are matched case-insensitively for the letters A to Z, and a name may occur only once per line.
   :attr:`coefficient` is a nonzero real number or a fraction :attr:`p/q` of two real numbers, such as ``1/3``, and defaults to 1.
 * The operators ``+`` and ``-`` are fields of their own, separated from the terms by whitespace.
 * :attr:`w=<weight>` is optional and comes last.

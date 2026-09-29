@@ -26,6 +26,7 @@ KEYWORDS = {
     'batch': '1000',
     'generation': '10',
     'output_interval': '10',
+    'seed': '1',
 }
 
 MASTER_NEP_COLUMNS = (
@@ -231,6 +232,19 @@ INPUT_ERRORS = {
         "ediff.in line 2: invalid coefficient '1e-30/1e10'",
     ),
     'lambda_d above float range': ('s0 - s1\n', {'lambda_d': '1e39'}, 'should be a finite number'),
+    'weight above float range': (
+        's0 - s1 w=1e39\n',
+        {},
+        "invalid weight '1e39', which should be a positive number within the range of float",
+    ),
+    'tiny bare weight': ('s0 - s1 1e-400\n', {}, 'a weight is written as w=1e-400'),
+    'fraction without star': (
+        's0 - 1/2s1\n',
+        {},
+        "ediff.in line 2: '1/2s1' is not a valid structure name",
+    ),
+    'two stars': ('s0 - 2*3*s1\n', {}, "ediff.in line 2: '3*s1' is not a valid structure name"),
+    'glued sign': ('-s0 + s1\n', {}, 'ediff.in line 2: write the sign of a term as a field of its own'),
     'bare weight': ('s0 - s1 2\n', {}, "ediff.in line 2: a weight is written as w=2, not as 2."),
     'weight not last': ('s0 w=2 - s1\n', {}, "ediff.in line 2: expected + or - before 'w=2'"),
     'weight in place of a term': ('s0 - w=2\n', {}, "ediff.in line 2: expected a structure name"),
@@ -311,6 +325,7 @@ def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify,
         (['a*b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a*b cannot be referred to'),
         (['#a', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name #a cannot be referred to'),
         (['-', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name - cannot be referred to'),
+        (['-a', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name -a cannot be referred to'),
         (['S0 name=S9', 'S1'], ['S2', 'S3'], 'train.xyz line 2: more than one name= field'),
         (['""', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name  cannot be referred to'),
         (['+', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name + cannot be referred to'),
@@ -329,6 +344,7 @@ def test_unbalanced_combination_is_an_input_error(tmp_path, nep_command, modify,
         'star',
         'hash',
         'operator',
+        'leading sign',
         'two name fields',
         'empty',
         'plus',
@@ -438,12 +454,12 @@ def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
 
 @pytest.mark.parametrize(
     'coefficient, is_accepted',
-    [('1/3', True), ('0.333333333', True), ('0.3333333', False)],
-    ids=['fraction', 'nine digits', 'seven digits'],
+    [('1/3', True), ('0.333333333', True), ('0.33333333', True), ('0.3333333', False)],
+    ids=['fraction', 'nine digits', 'eight digits', 'seven digits'],
 )
 def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficient, is_accepted):
     """The balance check allows 1e-6 atoms left over per type. A third written with seven digits
-    leaves 4e-6 of the 40 atoms of each structure, and with nine digits 4e-8."""
+    leaves 4e-6 of the 40 atoms of each structure, with eight digits 4e-7, and with nine 4e-8."""
     frames = setup_directory(tmp_path, None, {'lambda_d': '1'})
     write_frames(tmp_path / 'train.xyz', frames, ['S0', 'S1', 'S2', 'S3'])
     (tmp_path / 'test.xyz').unlink()
@@ -455,6 +471,7 @@ def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficien
     else:
         assert result.returncode != 0
         assert 'the combination is not balanced in train.xyz' in result.stderr
+        assert 'Write a coefficient such as 1/3 as a fraction.' in result.stderr
 
 
 def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
@@ -631,8 +648,9 @@ def test_name_inside_another_quoted_value_is_not_read(tmp_path, nep_command):
     assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
 
 
-def test_imbalance_of_whole_atoms_suggests_no_fraction(tmp_path, nep_command):
-    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1'})
+@pytest.mark.parametrize('ediff_line', ['s0 - s1\n', 's1 - s0\n'], ids=['surplus', 'deficit'])
+def test_imbalance_of_whole_atoms_suggests_no_fraction(tmp_path, nep_command, ediff_line):
+    frames = setup_directory(tmp_path, ediff_line, {'lambda_d': '1'})
     write_frames(tmp_path / 'train.xyz', [frames[0], remove_last_atom(frames[1])], ['S0', 'S1'])
     result = run_nep(tmp_path, nep_command)
     assert result.returncode != 0

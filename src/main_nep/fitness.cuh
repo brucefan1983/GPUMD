@@ -70,8 +70,7 @@ protected:
     const std::vector<EnergyDiffCombination>& combinations,
     Dataset& dataset,
     const int batch_id,
-    const int device_id,
-    int& num_combinations);
+    const int device_id);
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;

@@ -191,6 +191,12 @@ static void read_force(
   }
 }
 
+bool is_valid_structure_name(const std::string& name)
+{
+  return !name.empty() && name.front() != '#' && name.front() != '+' && name.front() != '-' &&
+         name.find_first_of("*/=\"'{} \t") == std::string::npos;
+}
+
 static void read_one_structure(
   Parameters& para,
   std::ifstream& input,
@@ -289,12 +295,10 @@ static void read_one_structure(
         }
         name = name.substr(1, name.size() - 2);
       }
-      if (
-        name.empty() || name == "+" || name == "-" || name.front() == '#' ||
-        name.find_first_of("*/=\"'{}") != std::string::npos) {
+      if (!is_valid_structure_name(name)) {
         const std::string message = location + ": the name " + name +
                                     " cannot be referred to in ediff.in. A name must not be empty, "
-                                    "+ or -, begin with #, or contain * / = \" ' { or }.";
+                                    "begin with #, + or -, or contain * / = \" ' { or }.";
         PRINT_INPUT_ERROR(message.c_str());
       }
       structure.name = name;

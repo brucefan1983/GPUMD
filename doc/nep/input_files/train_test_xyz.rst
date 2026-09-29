@@ -46,7 +46,7 @@ Essentially any keyword is allowed, but we only read the following ones:
 * :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
   Labels are matched case-insensitively for the letters A to Z and must be unique within a file.
   Spaces at the start and the end of a label in double quotes are dropped.
-  A label must not be ``+`` or ``-``, begin with ``#``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
+  A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
   The field is read only when :ref:`lambda_d <kw_lambda_d>` is positive.
 * :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
   

@@ -147,6 +147,15 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
     if (energy_diff_term.name.empty()) {
       print_ediff_in_error(line_number, "expected a structure name in '" + term + "'.");
     }
+    if (!is_valid_structure_name(energy_diff_term.name)) {
+      const char first = energy_diff_term.name.front();
+      if (first == '+' || first == '-') {
+        print_ediff_in_error(
+          line_number, "write the sign of a term as a field of its own, as in '- name'.");
+      }
+      print_ediff_in_error(
+        line_number, "'" + energy_diff_term.name + "' is not a valid structure name.");
+    }
     for (const auto& previous_term : entry.terms) {
       if (previous_term.name == energy_diff_term.name) {
         print_ediff_in_error(line_number, energy_diff_term.name + " occurs more than once.");
@@ -163,8 +172,10 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
     }
     const std::string weight_string = "w=";
     const bool is_last = k + 1 == (int)tokens.size();
-    double bare_weight;
-    if (is_last && is_valid_real(tokens[k].c_str(), &bare_weight)) {
+    char* end = nullptr;
+    std::strtod(tokens[k].c_str(), &end);
+    const bool is_number = end != tokens[k].c_str() && *end == '\0';
+    if (is_last && is_number) {
       print_ediff_in_error(
         line_number, "a weight is written as w=" + tokens[k] + ", not as " + tokens[k] + ".");
     }
@@ -175,7 +186,10 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
     double value;
     if (!is_valid_float(weight, value) || value <= 0.0) {
       print_ediff_in_error(
-        line_number, "invalid weight '" + weight + "', which should be positive.");
+        line_number,
+        "invalid weight '" + weight +
+          "', which should be a positive number within the range of "
+          "float.");
     }
     entry.weight = value;
     break;
@@ -454,7 +468,7 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
           sizeof(text),
           "the combination is not balanced in %s, with %.3g atoms of %s left over.",
           xyz_filename,
-          imbalance[t],
+          std::fabs(imbalance[t]),
           elements[t].c_str());
         std::string message = text;
         if (std::fabs(imbalance[t] - std::round(imbalance[t])) > 1.0e-6) {
@@ -679,10 +693,8 @@ float Fitness::get_rmse_ediff(
   const std::vector<EnergyDiffCombination>& combinations,
   Dataset& dataset,
   const int batch_id,
-  const int device_id,
-  int& num_combinations)
+  const int device_id)
 {
-  num_combinations = 0;
   const bool is_any_in_batch = std::any_of(
     combinations.begin(), combinations.end(), [batch_id](const EnergyDiffCombination& combination) {
       return combination.batch == batch_id;
@@ -692,6 +704,7 @@ float Fitness::get_rmse_ediff(
   }
   dataset.compute_total_energies(device_id);
   double sum_sq = 0.0;
+  int num_combinations = 0;
   for (const auto& combination : combinations) {
     if (combination.batch != batch_id) {
       continue;
@@ -704,7 +717,7 @@ float Fitness::get_rmse_ediff(
     sum_sq += combination.weight * difference * difference;
     ++num_combinations;
   }
-  return (num_combinations > 0) ? sqrt(sum_sq / num_combinations) : 0.0f;
+  return sqrt(sum_sq / num_combinations);
 }
 
 void Fitness::compute(
@@ -759,9 +772,8 @@ void Fitness::compute(
             para.lambda_z * rmse_bec_array[t];
         }
 
-        int num_combinations = 0;
-        const float rmse_ediff = get_rmse_ediff(
-          ediff_combinations_train, train_set[batch_id][m], batch_id, m, num_combinations);
+        const float rmse_ediff =
+          get_rmse_ediff(ediff_combinations_train, train_set[batch_id][m], batch_id, m);
         fitness_ediff[deviceCount * n + m] = para.lambda_d * rmse_ediff;
       }
     }
@@ -998,9 +1010,8 @@ void Fitness::report_error(
 
     float rmse_ediff_train = 0.0f;
     if (para.has_ediff_combinations) {
-      int num_combinations_not_used = 0;
-      rmse_ediff_train = get_rmse_ediff(
-        ediff_combinations_train, train_set[batch_id][0], batch_id, 0, num_combinations_not_used);
+      rmse_ediff_train =
+        get_rmse_ediff(ediff_combinations_train, train_set[batch_id][0], batch_id, 0);
     }
 
     // correct the last bias parameter in the NN
@@ -1028,9 +1039,7 @@ void Fitness::report_error(
       rmse_virial_test = rmse_virial_test_array.back();
       rmse_charge_test = rmse_charge_test_array.back();
       rmse_bec_test = rmse_bec_test_array.back();
-      int num_combinations_not_used = 0;
-      rmse_ediff_test =
-        get_rmse_ediff(ediff_combinations_test, test_set[0], 0, 0, num_combinations_not_used);
+      rmse_ediff_test = get_rmse_ediff(ediff_combinations_test, test_set[0], 0, 0);
     }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
