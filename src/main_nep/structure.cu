@@ -198,7 +198,9 @@ static void read_one_structure(
   std::string& xyz_filename,
   int& line_number)
 {
-  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
+  std::string comment_line;
+  std::getline(input, comment_line);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(comment_line);
   line_number++;
 
   for (auto& token : tokens) {
@@ -245,7 +247,7 @@ static void read_one_structure(
 
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
-    structure.name = EnergyDifference::read_structure_name(tokens, xyz_filename, line_number);
+    structure.name = EnergyDifference::read_structure_name(comment_line, xyz_filename, line_number);
   }
 
   bool has_energy_in_exyz = false;

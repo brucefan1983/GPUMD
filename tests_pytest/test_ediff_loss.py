@@ -589,6 +589,7 @@ def test_different_temperatures_make_different_structures(tmp_path, nep_command)
         (['a=b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a=b cannot be referred to'),
         (['a"b', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name a"b cannot be referred to'),
         (['"S0', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the value of name= opens a quote'),
+        (['"S0 "', 'S1'], ['S2', 'S3'], 'train.xyz line 2: the name "s0 " contains whitespace'),
     ],
     ids=[
         'whitespace in train.xyz',
@@ -608,6 +609,7 @@ def test_different_temperatures_make_different_structures(tmp_path, nep_command)
         'equals',
         'quote',
         'unclosed quote',
+        'trailing space',
     ],
 )
 def test_invalid_names_are_input_errors(
@@ -769,3 +771,15 @@ def test_batches_follow_the_group_order(tmp_path, nep_command):
     rows = (tmp_path / 'energy_train.out').read_text().splitlines()
     references = [float(row.split()[1]) for row in rows]
     assert references == pytest.approx(expected, abs=1e-4)
+
+
+def test_name_after_an_apostrophe_in_another_value_is_read(tmp_path, nep_command):
+    frames = setup_directory(tmp_path, 'real - s1\n', {'lambda_d': '1'})
+    write_frames(
+        tmp_path / 'train.xyz',
+        [with_comment_fields(frames[0], "config_type=it's"), frames[1]],
+        ['REAL', 'S1'],
+    )
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout

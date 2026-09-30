@@ -506,54 +506,80 @@ float EnergyDifference::get_rmse(
   return sqrt(sum_sq / num_combinations);
 }
 
+/*----------------------------------------------------------------------------80
+Scans the key=value fields of an extended XYZ comment line. A value that begins with a double
+quote, a single quote, a brace or a bracket extends to the matching closing character, and a
+backslash escapes the character after it.
+------------------------------------------------------------------------------*/
 std::string EnergyDifference::read_structure_name(
-  const std::vector<std::string>& tokens, const std::string& xyz_filename, const int line_number)
+  const std::string& comment_line, const std::string& xyz_filename, const int line_number)
 {
   const std::string location = xyz_filename + " line " + std::to_string(line_number);
-  std::string structure_name;
-  // a name= inside the quoted or bracketed value of another field is part of that value;
-  // closing is the character that ends the value open at the start of a token, or 0
   const std::string opening_delimiters = "\"'{[";
   const std::string closing_delimiters = "\"'}]";
-  char closing = 0;
-  for (int n = 0; n < tokens.size(); ++n) {
-    const char closing_at_start = closing;
-    for (int c = 0; c < tokens[n].size(); ++c) {
-      const char character = tokens[n][c];
-      const size_t kind = opening_delimiters.find(character);
-      if (character == '\\') {
-        ++c;
-      } else if (closing == 0 && kind != std::string::npos) {
-        closing = closing_delimiters[kind];
-      } else if (character == closing) {
-        closing = 0;
-      }
+  const size_t length = comment_line.size();
+  auto is_space = [&comment_line](size_t n) {
+    return std::isspace(static_cast<unsigned char>(comment_line[n])) != 0;
+  };
+  std::string structure_name;
+  bool has_name = false;
+  size_t n = 0;
+  while (true) {
+    while (n < length && is_space(n)) {
+      ++n;
     }
-    const std::string name_string = "name=";
-    if (closing_at_start != 0 || tokens[n].substr(0, name_string.length()) != name_string) {
+    if (n == length) {
+      break;
+    }
+    const size_t key_start = n;
+    while (n < length && comment_line[n] != '=' && !is_space(n)) {
+      ++n;
+    }
+    const std::string key = to_lowercase(comment_line.substr(key_start, n - key_start));
+    while (n < length && is_space(n)) {
+      ++n;
+    }
+    if (n == length || comment_line[n] != '=') {
       continue;
     }
-    if (!structure_name.empty()) {
+    ++n;
+    while (n < length && is_space(n)) {
+      ++n;
+    }
+    const size_t value_start = n;
+    const size_t kind = n < length ? opening_delimiters.find(comment_line[n]) : std::string::npos;
+    bool is_closed = true;
+    if (kind != std::string::npos) {
+      is_closed = false;
+      for (++n; n < length && !is_closed; ++n) {
+        if (comment_line[n] == '\\') {
+          ++n;
+        } else if (comment_line[n] == closing_delimiters[kind]) {
+          is_closed = true;
+        }
+      }
+    } else {
+      while (n < length && !is_space(n)) {
+        ++n;
+      }
+    }
+    if (key != "name") {
+      continue;
+    }
+    if (has_name) {
       PRINT_INPUT_ERROR((location + ": more than one name= field.").c_str());
     }
-    std::string name = tokens[n].substr(name_string.length());
-    const std::string opening_quotes = "\"'{";
-    if (!name.empty() && opening_quotes.find(name.front()) != std::string::npos) {
-      const char closing_quote = (name.front() == '{') ? '}' : name.front();
-      // the comment line is split at spaces, so a quoted value with spaces spans several tokens
-      if (name.size() < 2 || name.back() != closing_quote) {
-        for (int m = n + 1; m < tokens.size() && (name.size() < 2 || name.back() != closing_quote);
-             ++m) {
-          name += " " + tokens[m];
-        }
-        const bool is_closed = name.size() >= 2 && name.back() == closing_quote;
-        const std::string message =
-          is_closed ? location + ": the name " + name +
-                        " contains whitespace, to which ediff.in cannot refer."
-                    : location + ": the value of name= opens a quote that the line does not close.";
-        PRINT_INPUT_ERROR(message.c_str());
-      }
-      name = name.substr(1, name.size() - 2);
+    if (!is_closed) {
+      PRINT_INPUT_ERROR(
+        (location + ": the value of name= opens a quote that the line does not close.").c_str());
+    }
+    const std::string value = to_lowercase(comment_line.substr(value_start, n - value_start));
+    const std::string name =
+      (kind != std::string::npos) ? value.substr(1, value.size() - 2) : value;
+    if (name.find_first_of(" \t") != std::string::npos) {
+      const std::string message =
+        location + ": the name " + value + " contains whitespace, to which ediff.in cannot refer.";
+      PRINT_INPUT_ERROR(message.c_str());
     }
     if (!is_valid_structure_name(name)) {
       const std::string message = location + ": the name " + name +
@@ -562,6 +588,7 @@ std::string EnergyDifference::read_structure_name(
       PRINT_INPUT_ERROR(message.c_str());
     }
     structure_name = name;
+    has_name = true;
   }
   return structure_name;
 }

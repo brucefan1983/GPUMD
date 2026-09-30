@@ -27,10 +27,10 @@ struct Structure;
 class EnergyDifference
 {
 public:
-  // Reads the optional name= field of a comment line of train.xyz or test.xyz, split into tokens
-  // in lowercase, and returns the name, or an empty string without the field.
+  // Reads the optional name= field of a comment line of train.xyz or test.xyz and returns the
+  // name in lowercase, or an empty string without the field.
   static std::string read_structure_name(
-    const std::vector<std::string>& tokens, const std::string& xyz_filename, const int line_number);
+    const std::string& comment_line, const std::string& xyz_filename, const int line_number);
   // Reads ediff.in in training mode when lambda_d is set, keeps the structures of each training
   // combination in one batch, and resolves the training combinations. batch_size is the batch size
   // of nep.in, and num_batches and batch_sizes describe the batches, which the grouping revises.

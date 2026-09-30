@@ -83,5 +83,6 @@ std::vector<std::string> get_tokens(std::ifstream& input);
 std::vector<std::string> get_tokens_without_comments(const std::string& line);
 std::vector<std::string> get_tokens_without_comments(std::ifstream& input);
 std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input);
+std::vector<std::string> get_tokens_without_unwanted_spaces(const std::string& line);
 int get_int_from_token(const std::string& token, const char* filename, const int line);
 double get_double_from_token(const std::string& token, const char* filename, const int line);
