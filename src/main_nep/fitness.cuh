@@ -15,6 +15,7 @@
 
 #pragma once
 #include "dataset.cuh"
+#include "energy_difference.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -22,16 +23,6 @@
 #include <vector>
 
 class Parameters;
-
-// A linear combination of the total energies of structures of one data set that enters the loss.
-// All structures of a combination lie in one batch.
-struct EnergyDiffCombination {
-  int batch;                       // batch that holds all structures
-  std::vector<int> local;          // index of each structure within the batch
-  std::vector<double> coefficient; // coefficient of each structure
-  double ref_total_eV;             // the same combination of the reference total energies
-  float weight;
-};
 
 class Fitness
 {
@@ -64,13 +55,7 @@ protected:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
-  std::vector<EnergyDiffCombination> ediff_combinations_train;
-  std::vector<EnergyDiffCombination> ediff_combinations_test;
-  float get_rmse_ediff(
-    const std::vector<EnergyDiffCombination>& combinations,
-    Dataset& dataset,
-    const int batch_id,
-    const int device_id);
+  EnergyDifference energy_difference;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;

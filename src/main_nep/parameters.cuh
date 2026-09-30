@@ -112,8 +112,8 @@ public:
   int vdw;         // add environment-dependent vdW to ordinary NEP
   int charge_vdw;  // combined charge-vdW model
   bool has_bec = false; // check if there are target BEC values
-  bool has_ediff_combinations =
-    false;             // set by Fitness when ediff.in resolves a training combination
+  // set by EnergyDifference when ediff.in resolves a training combination
+  bool has_ediff_combinations = false;
   int flip_charge = 0; // 1 for flipping charges upon restarting
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes

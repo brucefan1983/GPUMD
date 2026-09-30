@@ -191,12 +191,6 @@ static void read_force(
   }
 }
 
-bool is_valid_structure_name(const std::string& name)
-{
-  return !name.empty() && name.front() != '#' && name.front() != '+' && name.front() != '-' &&
-         name.find_first_of("*/=\"'{} \t") == std::string::npos;
-}
-
 static void read_one_structure(
   Parameters& para,
   std::ifstream& input,
@@ -251,61 +245,7 @@ static void read_one_structure(
 
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
-    const std::string location = xyz_filename + " line " + std::to_string(line_number);
-    // a name= inside the quoted or bracketed value of another field is part of that value;
-    // closing is the character that ends the value open at the start of a token, or 0
-    const std::string opening_delimiters = "\"'{[";
-    const std::string closing_delimiters = "\"'}]";
-    char closing = 0;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const char closing_at_start = closing;
-      for (int c = 0; c < tokens[n].size(); ++c) {
-        const char character = tokens[n][c];
-        const size_t kind = opening_delimiters.find(character);
-        if (character == '\\') {
-          ++c;
-        } else if (closing == 0 && kind != std::string::npos) {
-          closing = closing_delimiters[kind];
-        } else if (character == closing) {
-          closing = 0;
-        }
-      }
-      const std::string name_string = "name=";
-      if (closing_at_start != 0 || tokens[n].substr(0, name_string.length()) != name_string) {
-        continue;
-      }
-      if (!structure.name.empty()) {
-        PRINT_INPUT_ERROR((location + ": more than one name= field.").c_str());
-      }
-      std::string name = tokens[n].substr(name_string.length());
-      const std::string opening_quotes = "\"'{";
-      if (!name.empty() && opening_quotes.find(name.front()) != std::string::npos) {
-        const char closing_quote = (name.front() == '{') ? '}' : name.front();
-        // the comment line is split at spaces, so a quoted value with spaces spans several tokens
-        if (name.size() < 2 || name.back() != closing_quote) {
-          for (int m = n + 1;
-               m < tokens.size() && (name.size() < 2 || name.back() != closing_quote);
-               ++m) {
-            name += " " + tokens[m];
-          }
-          const bool is_closed = name.size() >= 2 && name.back() == closing_quote;
-          const std::string message =
-            is_closed
-              ? location + ": the name " + name +
-                  " contains whitespace, to which ediff.in cannot refer."
-              : location + ": the value of name= opens a quote that the line does not close.";
-          PRINT_INPUT_ERROR(message.c_str());
-        }
-        name = name.substr(1, name.size() - 2);
-      }
-      if (!is_valid_structure_name(name)) {
-        const std::string message = location + ": the name " + name +
-                                    " cannot be referred to in ediff.in. A name must not be empty, "
-                                    "begin with #, + or -, or contain * / = \" ' { or }.";
-        PRINT_INPUT_ERROR(message.c_str());
-      }
-      structure.name = name;
-    }
+    structure.name = EnergyDifference::read_structure_name(tokens, xyz_filename, line_number);
   }
 
   bool has_energy_in_exyz = false;

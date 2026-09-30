@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "energy_difference.cuh"
 #include <string>
 #include <vector>
 
@@ -56,7 +57,3 @@ struct Structure {
 };
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);
-
-// Whether ediff.in can refer to a structure by this name, which is the case unless it is empty,
-// begins with #, + or -, or contains whitespace or any of * / = " ' { }.
-bool is_valid_structure_name(const std::string& name);
