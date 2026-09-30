@@ -20,17 +20,32 @@ The k-space part of the PPPM method.
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include <iostream>
 
 namespace{
 
+// Fast FFT size: only prime factors 2, 3, 5, 7. Must be even because find_k_and_G_opt is wrong for odd K.
+bool is_good_K(int n)
+{
+  if (n % 2 != 0) {
+    return false;
+  }
+  for (int p : {2, 3, 5, 7}) {
+    while (n % p == 0) {
+      n /= p;
+    }
+  }
+  return n == 1;
+}
+
 int get_best_K(const int m)
 {
-  int n = 16;
-  while (n < m) {
-    n *= 2;
+  int n = std::max(m, 16);
+  while (!is_good_K(n)) {
+    ++n;
   }
   return n;
 }
@@ -607,7 +622,13 @@ void PPPM::find_para(const int N, const Box& box)
     para.K[0] = K[0];
     para.K[1] = K[1];
     para.K[2] = K[2];
+    gpufftDestroy(plan);
+    if (need_peratom_virial) {
+      gpufftDestroy(plan_virial);
+    }
     allocate_memory();
+    std::cout << "PPPM mesh: " << K[0] << " x " << K[1] << " x " << K[2]
+              << " (target spacing " << mesh_spacing << " A)." << std::endl;
   }
   para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {

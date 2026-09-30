@@ -16,6 +16,7 @@ bulk_perovskite further (no new fixture file needed).
 """
 import numpy as np
 import pytest
+from ase.calculators.calculator import CalculationFailed
 from calorine.calculators import GPUNEP
 
 from conftest import MODELS_DIR, approx_tol, make_bulk_perovskite, make_bulk_water
@@ -37,10 +38,17 @@ def make_bulk_perovskite_large():
     return make_bulk_perovskite().repeat((2, 1, 1))
 
 
+def make_bulk_perovskite_xlarge():
+    """3x1x1 tiling of bulk_perovskite: 24.05 Angstrom along x, so the default 1.0 Angstrom
+    spacing needs a 24-point mesh there -- not a power of two."""
+    return make_bulk_perovskite().repeat((3, 1, 1))
+
+
 _STRUCTURE_BUILDERS = {
     'bulk_water': make_bulk_water,
     'bulk_perovskite': make_bulk_perovskite,
     'bulk_perovskite_large': make_bulk_perovskite_large,
+    'bulk_perovskite_xlarge': make_bulk_perovskite_xlarge,
 }
 
 # No qNEP model exists for carbon (bulk_C), same gap as elsewhere in this suite, so bulk_C is
@@ -52,6 +60,8 @@ _MODEL_FILES = {
     ('bulk_perovskite', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
     ('bulk_perovskite_large', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
     ('bulk_perovskite_large', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
+    ('bulk_perovskite_xlarge', 'qnep_mode1'): 'qnep_mode1_BaTiO3.txt',
+    ('bulk_perovskite_xlarge', 'qnep_mode2'): 'qnep_mode2_BaTiO3.txt',
 }
 
 
@@ -72,3 +82,16 @@ def test_pppm_agrees_with_ewald(structure_name, model_type, gpumd_command):
 
     assert energy_pppm == approx_tol(energy_ewald, PPPM_VS_EWALD_ENERGY_TOLERANCE)
     assert np.allclose(forces_pppm, forces_ewald, **PPPM_VS_EWALD_FORCE_TOLERANCE)
+
+
+@pytest.mark.parametrize('kspace, expected_mesh', [
+    ('pppm', '24 x 16 x 16'),  # the old power-of-two rounding gave 32 x 16 x 16
+])
+def test_pppm_mesh_size(kspace, expected_mesh, gpumd_command, tmp_path):
+    atoms = make_bulk_perovskite_xlarge()
+    calc = GPUNEP(str(MODELS_DIR / 'qnep_mode1_BaTiO3.txt'), command=gpumd_command,
+                  directory=str(tmp_path))
+    calc.single_point_parameters = calc.single_point_parameters + [('kspace', kspace)]
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    assert f'PPPM mesh: {expected_mesh}' in (tmp_path / 'stdout').read_text()
