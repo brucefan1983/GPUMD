@@ -86,10 +86,10 @@ static bool is_valid_coefficient(const std::string& token, double& value)
 
 // Parses "[+|-] term {(+|-) term} [w=weight]", where a term is "name" or "coefficient*name".
 // The coefficient is a real number or a fraction p/q.
-static EnergyDiffEntry
-parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
+EnergyDifference::Entry
+EnergyDifference::parse_line(const std::vector<std::string>& tokens, const int line_number)
 {
-  EnergyDiffEntry entry;
+  Entry entry;
   entry.line_number = line_number;
   int k = 0;
   double sign = 1.0;
@@ -105,7 +105,7 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
     if (term.find('=') != std::string::npos) {
       print_ediff_in_error(line_number, "expected a structure name instead of '" + term + "'.");
     }
-    EnergyDiffTerm energy_diff_term;
+    Term energy_diff_term;
     energy_diff_term.coefficient = sign;
     const size_t star = term.find('*');
     if (star == std::string::npos) {
@@ -179,15 +179,15 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
   return entry;
 }
 
-static std::vector<EnergyDiffEntry> read_ediff_in(std::ifstream& input)
+std::vector<EnergyDifference::Entry> EnergyDifference::read_entries(std::ifstream& input)
 {
-  std::vector<EnergyDiffEntry> entries;
+  std::vector<Entry> entries;
   int line_number = 0;
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
     ++line_number;
     if (!tokens.empty()) {
-      entries.push_back(parse_ediff_line(tokens, line_number));
+      entries.push_back(parse_line(tokens, line_number));
     }
   }
   return entries;
@@ -212,40 +212,11 @@ get_name_to_index(const std::vector<Structure>& structures, const char* xyz_file
   return name_to_index;
 }
 
-// Returns the indices of the structures of each entry whose names all label structures.
-static std::vector<std::vector<int>> get_resolved_indices(
-  const std::vector<EnergyDiffEntry>& entries, std::unordered_map<std::string, int>& name_to_index)
+// Returns the groups of structures that linked_indices, the structures of each combination, link
+// directly or through other combinations, each group in the order of the structures.
+static std::vector<std::vector<int>>
+find_groups(const std::vector<std::vector<int>>& linked_indices, const int n_total)
 {
-  std::vector<std::vector<int>> resolved_indices;
-  for (const auto& entry : entries) {
-    std::vector<int> indices;
-    for (const auto& term : entry.terms) {
-      if (name_to_index.count(term.name) > 0) {
-        indices.push_back(name_to_index[term.name]);
-      }
-    }
-    if (indices.size() == entry.terms.size()) {
-      resolved_indices.push_back(indices);
-    }
-  }
-  return resolved_indices;
-}
-
-/*----------------------------------------------------------------------------80
-Reorders the training structures into num_batches batches that keep the structures of each
-combination together, and returns the batch sizes. Structures linked through combinations form a
-group. The groups, the larger ones first and those of one size by their mean energy per atom, go
-one by one to the batch with the fewest structures, which for groups of one structure gives the
-batches of read_structures.
-Batches left empty are dropped, so num_batches can decrease.
-------------------------------------------------------------------------------*/
-static std::vector<int> group_structures_by_combination(
-  const std::vector<EnergyDiffEntry>& entries,
-  std::vector<Structure>& structures,
-  const int batch_size,
-  int& num_batches)
-{
-  const int n_total = structures.size();
   std::vector<int> parent(n_total);
   std::iota(parent.begin(), parent.end(), 0);
   auto find_root = [&parent](int n) {
@@ -255,13 +226,11 @@ static std::vector<int> group_structures_by_combination(
     }
     return n;
   };
-  auto name_to_index = get_name_to_index(structures, "train.xyz");
-  for (const auto& indices : get_resolved_indices(entries, name_to_index)) {
+  for (const auto& indices : linked_indices) {
     for (const int index : indices) {
       parent[find_root(index)] = find_root(indices[0]);
     }
   }
-
   std::vector<std::vector<int>> groups;
   std::vector<int> root_to_group(n_total, -1);
   for (int n = 0; n < n_total; ++n) {
@@ -272,6 +241,23 @@ static std::vector<int> group_structures_by_combination(
     }
     groups[root_to_group[root]].push_back(n);
   }
+  return groups;
+}
+
+/*----------------------------------------------------------------------------80
+Reorders the training structures into num_batches batches that keep each group together, and
+returns the batch sizes. The groups, the larger ones first and those of one size by their mean
+energy per atom, go one by one to the batch with the fewest structures, which for groups of one
+structure gives the batches of read_structures.
+Batches left empty are dropped, so num_batches can decrease.
+------------------------------------------------------------------------------*/
+static std::vector<int> place_groups_in_batches(
+  const std::vector<std::vector<int>>& groups,
+  std::vector<Structure>& structures,
+  const int batch_size,
+  int& num_batches)
+{
+  const int n_total = structures.size();
   std::vector<double> group_energy(groups.size(), 0.0);
   for (int g = 0; g < (int)groups.size(); ++g) {
     for (const int n : groups[g]) {
@@ -363,13 +349,75 @@ static bool are_the_same_structure(
   return true;
 }
 
+// Stops with an input error when two structures of a combination, given by their names and
+// structures, are the same structure for the model.
+static void check_distinct_structures(
+  const std::vector<std::string>& names,
+  const std::vector<const Structure*>& members,
+  const Parameters& para,
+  const int line_number,
+  const char* xyz_filename)
+{
+  for (int i = 0; i < (int)members.size(); ++i) {
+    for (int j = i + 1; j < (int)members.size(); ++j) {
+      if (!are_the_same_structure(*members[i], *members[j], para.model_type)) {
+        continue;
+      }
+      const std::string pair = names[i] + " and " + names[j] + " in " + xyz_filename;
+      const bool is_charge_model = para.charge_mode || para.charge_vdw;
+      if (is_charge_model && members[i]->charge != members[j]->charge) {
+        print_ediff_in_error(
+          line_number,
+          pair + " differ only in charge=, for which a qNEP model predicts no meaningful energy "
+                 "difference.");
+      }
+      print_ediff_in_error(
+        line_number,
+        pair + " have the same geometry, for which the model predicts the same energy.");
+    }
+  }
+}
+
+// Stops with an input error when a combination leaves more than 1e-6 atoms of a type over, since
+// the atoms left over carry the free energy offset per atom of the population.
+static void check_balance(
+  const std::vector<double>& coefficients,
+  const std::vector<const Structure*>& members,
+  const std::vector<std::string>& elements,
+  const int line_number,
+  const char* xyz_filename)
+{
+  std::vector<double> imbalance(elements.size(), 0.0);
+  for (int i = 0; i < (int)members.size(); ++i) {
+    for (const int type : members[i]->type) {
+      imbalance[type] += coefficients[i];
+    }
+  }
+  for (int t = 0; t < (int)elements.size(); ++t) {
+    if (std::fabs(imbalance[t]) <= 1.0e-6) {
+      continue;
+    }
+    char text[300];
+    snprintf(
+      text,
+      sizeof(text),
+      "the combination is not balanced in %s, with %.3g atoms of %s left over.",
+      xyz_filename,
+      std::fabs(imbalance[t]),
+      elements[t].c_str());
+    std::string message = text;
+    if (std::fabs(imbalance[t] - std::round(imbalance[t])) > 1.0e-6) {
+      message += " Write a coefficient such as 1/3 as a fraction.";
+    }
+    print_ediff_in_error(line_number, message);
+  }
+}
+
 // Returns the combinations of the entries whose names all label structures of one data set,
-// split into batches of the given sizes, and marks those entries in is_in_set. A combination has
-// to be balanced in the number of atoms of each type, for which any uniform or per-type offset
-// of the predicted energies cancels. Its reference is the same combination of the reference
-// total energies.
-static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
-  const std::vector<EnergyDiffEntry>& entries,
+// split into batches of the given sizes, and marks those entries in is_in_set. The reference of a
+// combination is the same combination of the reference total energies.
+std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
+  const std::vector<Entry>& entries,
   const std::vector<Structure>& structures,
   const Parameters& para,
   const std::vector<int>& batch_sizes,
@@ -390,72 +438,32 @@ static std::vector<EnergyDiffCombination> resolve_ediff_combinations(
     count += batch_sizes[batch_id];
   }
 
-  const std::vector<std::string>& elements = para.elements;
-  const int num_types = elements.size();
-  std::vector<EnergyDiffCombination> combinations;
+  std::vector<Combination> combinations;
   for (int k = 0; k < (int)entries.size(); ++k) {
-    const EnergyDiffEntry& entry = entries[k];
+    const Entry& entry = entries[k];
     const bool is_resolved =
-      std::all_of(entry.terms.begin(), entry.terms.end(), [&](const EnergyDiffTerm& term) {
+      std::all_of(entry.terms.begin(), entry.terms.end(), [&](const Term& term) {
         return name_to_index.count(term.name) > 0;
       });
     if (!is_resolved) {
       continue;
     }
-    EnergyDiffCombination combination;
+    std::vector<std::string> names;
+    std::vector<const Structure*> members;
+    Combination combination;
     combination.batch = index_to_batch[name_to_index[entry.terms[0].name]];
     combination.ref_total_eV = 0.0;
     combination.weight = entry.weight;
-    std::vector<double> imbalance(num_types, 0.0);
     for (const auto& term : entry.terms) {
       const int index = name_to_index[term.name];
-      const Structure& structure = structures[index];
+      names.push_back(term.name);
+      members.push_back(&structures[index]);
       combination.local.push_back(index_to_local[index]);
       combination.coefficient.push_back(term.coefficient);
-      combination.ref_total_eV += term.coefficient * structure.energy_total;
-      for (const int type : structure.type) {
-        imbalance[type] += term.coefficient;
-      }
+      combination.ref_total_eV += term.coefficient * structures[index].energy_total;
     }
-    for (int i = 0; i < (int)entry.terms.size(); ++i) {
-      for (int j = i + 1; j < (int)entry.terms.size(); ++j) {
-        const Structure& structure_i = structures[name_to_index[entry.terms[i].name]];
-        const Structure& structure_j = structures[name_to_index[entry.terms[j].name]];
-        if (!are_the_same_structure(structure_i, structure_j, para.model_type)) {
-          continue;
-        }
-        const std::string names =
-          entry.terms[i].name + " and " + entry.terms[j].name + " in " + xyz_filename;
-        const bool is_charge_model = para.charge_mode || para.charge_vdw;
-        if (is_charge_model && structure_i.charge != structure_j.charge) {
-          print_ediff_in_error(
-            entry.line_number,
-            names + " differ only in charge=, for which a qNEP model predicts no meaningful energy "
-                    "difference.");
-        }
-        print_ediff_in_error(
-          entry.line_number,
-          names + " have the same geometry, for which the model predicts the same energy.");
-      }
-    }
-    for (int t = 0; t < num_types; ++t) {
-      // the atoms left over carry the free energy offset per atom of the population
-      if (std::fabs(imbalance[t]) > 1.0e-6) {
-        char text[300];
-        snprintf(
-          text,
-          sizeof(text),
-          "the combination is not balanced in %s, with %.3g atoms of %s left over.",
-          xyz_filename,
-          std::fabs(imbalance[t]),
-          elements[t].c_str());
-        std::string message = text;
-        if (std::fabs(imbalance[t] - std::round(imbalance[t])) > 1.0e-6) {
-          message += " Write a coefficient such as 1/3 as a fraction.";
-        }
-        print_ediff_in_error(entry.line_number, message);
-      }
-    }
+    check_distinct_structures(names, members, para, entry.line_number, xyz_filename);
+    check_balance(combination.coefficient, members, para.elements, entry.line_number, xyz_filename);
     combinations.push_back(combination);
     is_in_set[k] = true;
   }
@@ -467,14 +475,14 @@ Weighted RMSE of the energy combinations whose structures all lie in batch_id of
 The caller must have evaluated the dataset for the parameters of interest. The RMSE is 0 without
 any such combination.
 ------------------------------------------------------------------------------*/
-static float get_rmse(
-  const std::vector<EnergyDiffCombination>& combinations,
+float EnergyDifference::get_rmse(
+  const std::vector<Combination>& combinations,
   Dataset& dataset,
   const int batch_id,
   const int device_id)
 {
   const bool is_any_in_batch = std::any_of(
-    combinations.begin(), combinations.end(), [batch_id](const EnergyDiffCombination& combination) {
+    combinations.begin(), combinations.end(), [batch_id](const Combination& combination) {
       return combination.batch == batch_id;
     });
   if (!is_any_in_batch) {
@@ -571,16 +579,29 @@ void EnergyDifference::read_train(
       if (!ediff_file.is_open()) {
         PRINT_INPUT_ERROR("lambda_d requires the file ediff.in.");
       }
-      entries = read_ediff_in(ediff_file);
+      entries = read_entries(ediff_file);
       is_entry_in_train.assign(entries.size(), false);
       is_entry_in_test.assign(entries.size(), false);
       // read_structures leaves train.xyz in file order for this grouping
       if (num_batches > 1) {
-        batch_sizes =
-          group_structures_by_combination(entries, structures_train, batch_size, num_batches);
+        auto name_to_index = get_name_to_index(structures_train, "train.xyz");
+        std::vector<std::vector<int>> linked_indices;
+        for (const auto& entry : entries) {
+          std::vector<int> indices;
+          for (const auto& term : entry.terms) {
+            if (name_to_index.count(term.name) > 0) {
+              indices.push_back(name_to_index[term.name]);
+            }
+          }
+          if (indices.size() == entry.terms.size()) {
+            linked_indices.push_back(indices);
+          }
+        }
+        const auto groups = find_groups(linked_indices, structures_train.size());
+        batch_sizes = place_groups_in_batches(groups, structures_train, batch_size, num_batches);
       }
-      combinations_train = resolve_ediff_combinations(
-        entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train);
+      combinations_train =
+        resolve(entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train);
       if (combinations_train.empty()) {
         PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
       }
@@ -598,7 +619,7 @@ void EnergyDifference::read_test(
     return;
   }
   if (has_test_set) {
-    combinations_test = resolve_ediff_combinations(
+    combinations_test = resolve(
       entries, structures_test, para, {(int)structures_test.size()}, "test.xyz", is_entry_in_test);
   }
   int num_in_both = 0;

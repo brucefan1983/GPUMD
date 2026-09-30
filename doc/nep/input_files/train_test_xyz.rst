@@ -47,7 +47,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   Labels are matched case-insensitively for the letters A to Z and must be unique within a file.
   Spaces at the start and the end of a label in double quotes are dropped.
   A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
-  The field is read only when the keyword :ref:`lambda_d <kw_lambda_d>` is set.
+  The field is read only when the keyword :ref:`lambda_d <kw_lambda_d>` is set, and a label that breaks these rules is then an input error.
 * :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
   
   * :attr:`species:S:1` chemical symbol in the periodic table (case-sensitive)

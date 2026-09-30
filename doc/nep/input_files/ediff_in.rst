@@ -32,6 +32,7 @@ Atoms are compared in order, so a copy with reordered atoms or with an atom shif
 The target of a combination is the same combination of the target total energies, which are given by the :attr:`energy` fields of the structures.
 
 A field beginning with ``#`` starts a comment that extends to the end of the line.
+A line that breaks any of these rules is an input error.
 
 Example
 -------
@@ -53,9 +54,3 @@ A combination with all its structures in :attr:`test.xyz` is a test combination,
 A combination whose names occur in both files is both a training and a test combination.
 A combination with a name that occurs in neither file, or with its structures in different files, is skipped.
 ``nep`` prints the number of combinations of each kind and a warning with the number of skipped combinations.
-
-Caveats
--------
-
-* A line that does not follow the format, an invalid coefficient or weight, a combination that is not balanced, and a combination of two structures that are the same for the model are input errors.
-* A name that occurs on more than one structure of a file, or that violates the rules for labels in :ref:`train.xyz and test.xyz <train_test_xyz>`, is an input error.

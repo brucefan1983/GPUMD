@@ -14,35 +14,13 @@
 */
 
 #pragma once
+#include <fstream>
 #include <string>
 #include <vector>
 
 class Dataset;
 class Parameters;
 struct Structure;
-
-// One term of a line of ediff.in, with the name in lowercase.
-struct EnergyDiffTerm {
-  std::string name;
-  double coefficient;
-};
-
-// One line of ediff.in, a linear combination of the total energies of named structures.
-struct EnergyDiffEntry {
-  std::vector<EnergyDiffTerm> terms;
-  int line_number;
-  float weight = 1.0f;
-};
-
-// A linear combination of the total energies of structures of one data set that enters the loss.
-// All structures of a combination lie in one batch.
-struct EnergyDiffCombination {
-  int batch;                       // batch that holds all structures
-  std::vector<int> local;          // index of each structure within the batch
-  std::vector<double> coefficient; // coefficient of each structure
-  double ref_total_eV;             // the same combination of the reference total energies
-  float weight;
-};
 
 // The loss term over the linear combinations of the total energies of named structures listed in
 // ediff.in, which the keyword lambda_d activates.
@@ -71,9 +49,46 @@ public:
   float get_rmse_test(Dataset& dataset, const int device_id) const;
 
 private:
-  std::vector<EnergyDiffEntry> entries;
+  // One term of a line of ediff.in, with the name in lowercase.
+  struct Term {
+    std::string name;
+    double coefficient;
+  };
+
+  // One line of ediff.in, a linear combination of the total energies of named structures.
+  struct Entry {
+    std::vector<Term> terms;
+    int line_number;
+    float weight = 1.0f;
+  };
+
+  // A combination of the structures of one data set, all of which lie in one batch.
+  struct Combination {
+    int batch;                       // batch that holds all structures
+    std::vector<int> local;          // index of each structure within the batch
+    std::vector<double> coefficient; // coefficient of each structure
+    double ref_total_eV;             // the same combination of the reference total energies
+    float weight;
+  };
+
+  std::vector<Entry> entries;
   std::vector<bool> is_entry_in_train;
   std::vector<bool> is_entry_in_test;
-  std::vector<EnergyDiffCombination> combinations_train;
-  std::vector<EnergyDiffCombination> combinations_test;
+  std::vector<Combination> combinations_train;
+  std::vector<Combination> combinations_test;
+
+  static Entry parse_line(const std::vector<std::string>& tokens, const int line_number);
+  static std::vector<Entry> read_entries(std::ifstream& input);
+  static std::vector<Combination> resolve(
+    const std::vector<Entry>& entries,
+    const std::vector<Structure>& structures,
+    const Parameters& para,
+    const std::vector<int>& batch_sizes,
+    const char* xyz_filename,
+    std::vector<bool>& is_in_set);
+  static float get_rmse(
+    const std::vector<Combination>& combinations,
+    Dataset& dataset,
+    const int batch_id,
+    const int device_id);
 };

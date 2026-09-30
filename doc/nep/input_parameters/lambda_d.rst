@@ -31,8 +31,7 @@ The keyword requires two inputs:
 1. a :attr:`name=<label>` field on the comment line of each structure that takes part in a combination, see :ref:`train.xyz and test.xyz <train_test_xyz>`,
 2. the file :ref:`ediff.in <ediff_in>`, which lists the combinations.
 
-Each combination must be balanced in the number of atoms of each type, that is :math:`\sum_i c_{ki} n_i(t) = 0` for every type :math:`t`, where :math:`n_i(t)` is the number of atoms of type :math:`t` in structure :math:`i`.
-Any uniform or per-type offset of the predicted energies then cancels in the combination.
+Each combination is balanced in the number of atoms of each type, so that any uniform or per-type offset of the predicted energies cancels in it.
 
 ``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its combinations has all its structures in :attr:`train.xyz`.
 Without the keyword, an :attr:`ediff.in` file is ignored.
