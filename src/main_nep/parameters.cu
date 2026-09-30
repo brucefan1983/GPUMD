@@ -1844,13 +1844,11 @@ void Parameters::parse_lambda_d(const char** param, int num_param)
   if (!is_valid_real(param[1], &lambda_d_tmp)) {
     PRINT_INPUT_ERROR("Energy difference loss weight should be a number.\n");
   }
-  // the weight has to survive the conversion to float without overflow or underflow to zero
-  if (
-    !std::isfinite(lambda_d_tmp) || lambda_d_tmp < 0.0 || lambda_d_tmp > FLT_MAX ||
-    (lambda_d_tmp > 0.0 && lambda_d_tmp < FLT_MIN)) {
+  // the weight has to be positive and survive the conversion to float
+  if (!std::isfinite(lambda_d_tmp) || lambda_d_tmp < FLT_MIN || lambda_d_tmp > FLT_MAX) {
     PRINT_INPUT_ERROR(
-      "Energy difference loss weight should be a finite number >= 0 within the "
-      "range of float.");
+      "Energy difference loss weight should be a finite positive number within the range of "
+      "float.");
   }
   lambda_d = lambda_d_tmp;
 }

@@ -6,7 +6,7 @@
 ============
 
 This file lists linear combinations of the total energies of structures, such as energy differences and formation energies, that enter the loss function through the keyword :ref:`lambda_d <kw_lambda_d>`.
-It is read only when :math:`\lambda_d > 0`.
+It is read only when the keyword :ref:`lambda_d <kw_lambda_d>` is set.
 
 File format
 -----------

@@ -518,7 +518,7 @@ Fitness::Fitness(Parameters& para)
     std::ifstream ediff_file("ediff.in");
     if (para.lambda_d > 0.0f) {
       if (!ediff_file.is_open()) {
-        PRINT_INPUT_ERROR("lambda_d > 0 requires the file ediff.in.");
+        PRINT_INPUT_ERROR("lambda_d requires the file ediff.in.");
       }
       ediff_entries = read_ediff_in(ediff_file);
       is_ediff_entry_in_train.assign(ediff_entries.size(), false);
@@ -535,7 +535,7 @@ Fitness::Fitness(Parameters& para)
       }
       para.has_ediff_combinations = true;
     } else if (ediff_file.is_open()) {
-      printf("ediff.in is ignored because lambda_d = 0.\n");
+      printf("ediff.in is ignored because lambda_d is not set.\n");
     }
   }
 

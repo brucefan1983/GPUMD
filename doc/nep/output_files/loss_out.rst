@@ -49,7 +49,7 @@ where
 * :attr:`rmse_charge_train` and :attr:`rmse_charge_test` are the RMSE of the total charge (in units of e/atom) for the training and test sets.
 * :attr:`rmse_bec_train` and :attr:`rmse_bec_test` are the :term:`BEC` RMSE (in units of e) for the training and test sets.
 
-If the energy-difference loss is active (:ref:`lambda_d <kw_lambda_d>` > 0), the columns of a potential model are followed by::
+If the energy-difference loss is active through the keyword :ref:`lambda_d <kw_lambda_d>`, the columns of a potential model are followed by::
 
   rmse_ediff_train rmse_ediff_test
 

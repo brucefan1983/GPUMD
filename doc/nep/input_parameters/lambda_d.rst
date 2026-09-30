@@ -10,8 +10,8 @@ The syntax is::
 
   lambda_d <weight>
 
-Here, :attr:`<weight>` represents :math:`\lambda_d`, which must satisfy :math:`\lambda_d \geq 0` and defaults to :math:`\lambda_d = 0`.
-The term is thus inactive unless the keyword sets a positive weight.
+Here, :attr:`<weight>` represents :math:`\lambda_d`, which must be a positive number.
+Without the keyword, the term is inactive.
 
 Each line of the file :ref:`ediff.in <ediff_in>` defines a linear combination :math:`k` of the total energies of named structures, such as the difference :math:`E_a - E_b` or the formation energy :math:`E_\mathrm{vac} + \frac{1}{2} E_\mathrm{O_2} - E_\mathrm{bulk}`.
 The contribution to the loss is
@@ -26,7 +26,7 @@ The term is thus in eV of total energy, while the energy term of the loss functi
 The sum runs over the :math:`N_\mathrm{comb}` combinations whose structures all lie in the current mini-batch.
 The fields :attr:`weight` and :attr:`energy_weight` of the structures in :attr:`train.xyz` do not enter the term.
 
-A positive :math:`\lambda_d` requires two inputs:
+The keyword requires two inputs:
 
 1. a :attr:`name=<label>` field on the comment line of each structure that takes part in a combination, see :ref:`train.xyz and test.xyz <train_test_xyz>`,
 2. the file :ref:`ediff.in <ediff_in>`, which lists the combinations.
@@ -35,7 +35,7 @@ Each combination must be balanced in the number of atoms of each type, that is :
 Any uniform or per-type offset of the predicted energies then cancels in the combination.
 
 ``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its combinations has all its structures in :attr:`train.xyz`.
-With :math:`\lambda_d = 0`, an :attr:`ediff.in` file is ignored.
+Without the keyword, an :attr:`ediff.in` file is ignored.
 The keyword is only available for potential models and is an input error together with :attr:`model_type 1` or :attr:`model_type 2`, also in prediction mode.
 In prediction mode of a potential model, the keyword has no effect.
 

@@ -164,7 +164,7 @@ Here, :math:`N_\mathrm{str}` is the number of structures in the training data se
 That is, the loss terms for energies, forces, and virials are defined as the respective :term:`RMSE` values between the :term:`NEP` predictions and the target values.
 The fourth term compares linear combinations of the predicted total energies :math:`E_i^\mathrm{NEP}(\boldsymbol{z})` of structures :math:`i`, such as energy differences and formation energies, with the same combinations of the target total energies :math:`E_i^\mathrm{tar}`.
 It runs over the :math:`N_\mathrm{comb}` combinations :math:`k` in :ref:`ediff.in <ediff_in>` that lie in the mini-batch, with coefficients :math:`c_{ki}` and weights :math:`w_k`, and each combination is balanced in the number of atoms of each type.
-The term vanishes for the default :math:`\lambda_\mathrm{d} = 0`.
+The term is active only when the keyword :ref:`lambda_d <kw_lambda_d>` is set.
 The last two terms represent :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` regularization terms of the parameter vector.
 The weights :math:`\lambda_\mathrm{e}`, :math:`\lambda_\mathrm{f}`, :math:`\lambda_\mathrm{v}`, :math:`\lambda_\mathrm{d}`, :math:`\lambda_1`, and :math:`\lambda_2` are tunable hyper-parameters (see the eponymous keywords in the :ref:`nep.in input file <nep_in>`).
 When calculating the loss function, we use eV/atom for energies and virials, eV/Å for force components, and eV for energy differences.

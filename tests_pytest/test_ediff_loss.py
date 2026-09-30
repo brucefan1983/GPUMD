@@ -1,4 +1,4 @@
-"""Checks of the energy-difference loss of nep, activated by lambda_d > 0 and ediff.in.
+"""Checks of the energy-difference loss of nep, activated by the keyword lambda_d and ediff.in.
 
 A line of ediff.in combines the total energies of named structures with coefficients, and the
 combination has to be balanced in the number of atoms of each type. The four structures of the
@@ -187,11 +187,12 @@ def test_formation_energy_of_unequal_sizes(tmp_path, nep_command):
 
 
 def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
-    """Without lambda_d an ediff.in is ignored, and loss.out has the columns of a run without it."""
+    """Without the keyword lambda_d an ediff.in is ignored, and loss.out has the columns of a run
+    without it."""
     setup_directory(tmp_path, 's0 - s1\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'ediff.in is ignored because lambda_d = 0.' in result.stdout
+    assert 'ediff.in is ignored because lambda_d is not set.' in result.stdout
 
     columns, rows = read_loss_out(tmp_path)
     assert columns == MASTER_NEP_COLUMNS
@@ -199,19 +200,27 @@ def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
 
 
 INPUT_ERRORS = {
-    'missing ediff.in': (None, {}, 'lambda_d > 0 requires the file ediff.in.'),
+    'missing ediff.in': (None, {}, 'lambda_d requires the file ediff.in.'),
     'no train combination': (
         's0 - unknown\ns2 - s3\n',
         {},
         'No combination in ediff.in has all its structures in train.xyz',
     ),
     'dipole model': ('s0 - s1\n', {'model_type': '1'}, 'lambda_d is only supported'),
-    'nan lambda_d': ('s0 - s1\n', {'lambda_d': 'nan'}, 'should be a finite number >= 0'),
-    'negative lambda_d': ('s0 - s1\n', {'lambda_d': '-1'}, 'should be a finite number >= 0'),
+    'nan lambda_d': (
+        's0 - s1\n',
+        {'lambda_d': 'nan'},
+        'should be a finite positive number within the range of float',
+    ),
+    'negative lambda_d': (
+        's0 - s1\n',
+        {'lambda_d': '-1'},
+        'should be a finite positive number within the range of float',
+    ),
     'lambda_d below float range': (
         's0 - s1\n',
         {'lambda_d': '1e-50'},
-        'should be a finite number >= 0',
+        'should be a finite positive number within the range of float',
     ),
     'one structure': (
         's0 - s1\ns0\n',
@@ -231,7 +240,16 @@ INPUT_ERRORS = {
         {},
         "ediff.in line 2: invalid coefficient '1e-30/1e10'",
     ),
-    'lambda_d above float range': ('s0 - s1\n', {'lambda_d': '1e39'}, 'should be a finite number'),
+    'lambda_d above float range': (
+        's0 - s1\n',
+        {'lambda_d': '1e39'},
+        'should be a finite positive number within the range of float',
+    ),
+    'zero lambda_d': (
+        's0 - s1\n',
+        {'lambda_d': '0'},
+        'should be a finite positive number within the range of float',
+    ),
     'weight above float range': (
         's0 - s1 w=1e39\n',
         {},
