@@ -252,23 +252,26 @@ static void read_one_structure(
   // get name (optional), which only ediff.in refers to
   if (para.prediction == 0 && para.lambda_d > 0.0f) {
     const std::string location = xyz_filename + " line " + std::to_string(line_number);
-    // a name= inside the quoted value of another field is part of that value; open_quote is the
-    // quote character of the value that is open at the start of a token, or 0
-    char open_quote = 0;
+    // a name= inside the quoted or bracketed value of another field is part of that value;
+    // closing is the character that ends the value open at the start of a token, or 0
+    const std::string opening_delimiters = "\"'{[";
+    const std::string closing_delimiters = "\"'}]";
+    char closing = 0;
     for (int n = 0; n < tokens.size(); ++n) {
-      const char open_quote_at_start = open_quote;
+      const char closing_at_start = closing;
       for (int c = 0; c < tokens[n].size(); ++c) {
         const char character = tokens[n][c];
+        const size_t kind = opening_delimiters.find(character);
         if (character == '\\') {
           ++c;
-        } else if (open_quote == 0 && (character == '"' || character == '\'')) {
-          open_quote = character;
-        } else if (character == open_quote) {
-          open_quote = 0;
+        } else if (closing == 0 && kind != std::string::npos) {
+          closing = closing_delimiters[kind];
+        } else if (character == closing) {
+          closing = 0;
         }
       }
       const std::string name_string = "name=";
-      if (open_quote_at_start != 0 || tokens[n].substr(0, name_string.length()) != name_string) {
+      if (closing_at_start != 0 || tokens[n].substr(0, name_string.length()) != name_string) {
         continue;
       }
       if (!structure.name.empty()) {

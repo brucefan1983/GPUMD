@@ -31,6 +31,7 @@ Get the fitness
 #include "utilities/nep_parameters.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
+#include <cctype>
 #include <cfloat>
 #include <chrono>
 #include <cmath>
@@ -180,6 +181,10 @@ parse_ediff_line(const std::vector<std::string>& tokens, const int line_number)
         line_number, "a weight is written as w=" + tokens[k] + ", not as " + tokens[k] + ".");
     }
     if (!is_last || tokens[k].substr(0, weight_string.length()) != weight_string) {
+      if (tokens[k].size() > 1 && (tokens[k].front() == '+' || tokens[k].front() == '-')) {
+        print_ediff_in_error(
+          line_number, "write the sign of a term as a field of its own, as in '- name'.");
+      }
       print_ediff_in_error(line_number, "expected + or - before '" + tokens[k] + "'.");
     }
     const std::string weight = tokens[k].substr(weight_string.length());
@@ -353,9 +358,9 @@ static std::vector<int> group_structures_by_combination(
   return batch_sizes;
 }
 
-// Whether two structures are the same structure for the model: the same types, cell and positions
-// to 1e-5 A, the same boundaries, and for model_type 3 the same temperature. Atoms are compared in
-// order. The total charge is compared by the caller.
+// Whether two structures are the same structure for the model: the same types, positions to
+// 1e-5 A, boundaries, cell for periodic boundaries, and for model_type 3 temperature. Atoms are
+// compared in order. The total charge is compared by the caller.
 static bool are_the_same_structure(
   const Structure& structure_a, const Structure& structure_b, const int model_type)
 {
@@ -368,7 +373,7 @@ static bool are_the_same_structure(
   if (model_type == 3 && structure_a.temperature != structure_b.temperature) {
     return false;
   }
-  for (int d = 0; d < 9; ++d) {
+  for (int d = 0; structure_a.pbc && d < 9; ++d) {
     if (std::fabs(structure_a.box_original[d] - structure_b.box_original[d]) > tolerance) {
       return false;
     }
@@ -686,8 +691,8 @@ Fitness::~Fitness()
 
 /*----------------------------------------------------------------------------80
 Weighted RMSE of the energy combinations whose structures all lie in batch_id of the data set.
-The caller must have evaluated the dataset for the parameters of interest. num_combinations
-returns the number of contributing combinations, and the RMSE is 0 without any.
+The caller must have evaluated the dataset for the parameters of interest. The RMSE is 0 without
+any such combination.
 ------------------------------------------------------------------------------*/
 float Fitness::get_rmse_ediff(
   const std::vector<EnergyDiffCombination>& combinations,

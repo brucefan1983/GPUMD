@@ -149,7 +149,7 @@ def test_ediff_rmse_matches_predicted_energies(tmp_path, nep_command):
     predicted = energies[0] - energies[1]
     reference = total_reference_energy(frames[2]) - total_reference_energy(frames[3])
     # energy_test.out carries six significant digits, about 1e-4 eV per atom, and the weight of 4
-    # doubles the error; the residual measured with this setup is 2.5e-3 eV at weight 1
+    # doubles the error; with seed 1 the residual is 1.6e-3 eV at weight 1
     expected = 2 * abs(predicted - reference)
     assert values['rmse_ediff_test'] == pytest.approx(expected, abs=1e-2)
 
@@ -183,7 +183,7 @@ def test_formation_energy_of_unequal_sizes(tmp_path, nep_command):
         c * total_reference_energy(s) for c, s in zip([-1, 1, 0.5], structures)
     )
     assert values['rmse_ediff_test'] == pytest.approx(abs(predicted - reference), abs=1e-2)
-    assert values['rmse_ediff_train'] == pytest.approx(values['rmse_ediff_test'], abs=1e-2)
+    assert values['rmse_ediff_train'] == pytest.approx(values['rmse_ediff_test'], abs=1e-3)
 
 
 def test_layout_without_lambda_d_is_unchanged(tmp_path, nep_command):
@@ -245,6 +245,11 @@ INPUT_ERRORS = {
     ),
     'two stars': ('s0 - 2*3*s1\n', {}, "ediff.in line 2: '3*s1' is not a valid structure name"),
     'glued sign': ('-s0 + s1\n', {}, 'ediff.in line 2: write the sign of a term as a field of its own'),
+    'glued sign after a term': (
+        's0 -s1\n',
+        {},
+        'ediff.in line 2: write the sign of a term as a field of its own',
+    ),
     'bare weight': ('s0 - s1 2\n', {}, "ediff.in line 2: a weight is written as w=2, not as 2."),
     'weight not last': ('s0 w=2 - s1\n', {}, "ediff.in line 2: expected + or - before 'w=2'"),
     'weight in place of a term': ('s0 - w=2\n', {}, "ediff.in line 2: expected a structure name"),
@@ -433,8 +438,8 @@ def test_combination_of_large_structures_is_precise(tmp_path, nep_command):
     """A 5000-atom supercell against 125 copies of its 40-atom cell, at -158 eV per atom, the
     scale of absolute plane-wave energies. The target of the combination is 0.5 eV, which keeps
     the float rounding of the two per-atom reference energies from cancelling, and the prediction
-    vanishes up to the float precision of the per-atom energies. Three runs gave 0.4976, 0.4992
-    and 0.4973 eV."""
+    vanishes up to the float precision of the per-atom energies. With seed 1 the column is 0.49979
+    eV, and seeds 1 to 40 give 0.4977 to 0.5046 eV."""
     frames = read_frames(TRAINING_DIR / 'train.xyz')
     energy_per_atom = -158.123457
     small = with_energy(frames[0], 40 * energy_per_atom)
@@ -476,14 +481,15 @@ def test_fraction_coefficients_balance_exactly(tmp_path, nep_command, coefficien
 
 def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     """Each train column of loss.out belongs to the batch of the reported generation, so the total
-    loss is their weighted sum. The two pairs lie in different batches and, through a weight of
-    100, differ by about a factor of ten, so a train column pooled over both batches would not
-    add up."""
+    loss is their weighted sum. The two pairs lie in different batches, and a target 2 eV away
+    from the reference energies of the fixture gives the second pair an error far from that of
+    the first, so a train column pooled over both batches or left at 0 would not match."""
     frames = setup_directory(tmp_path, None, {'lambda_d': '3', 'batch': '2'})
+    frames[3] = with_energy(frames[3], total_reference_energy(frames[3]) + 2.0)
     names = ['S0', 'S1', 'S2', 'S3']
     write_frames(tmp_path / 'train.xyz', frames, names)
     write_frames(tmp_path / 'test.xyz', frames, names)
-    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3 w=100\n')
+    (tmp_path / 'ediff.in').write_text('s0 - s1\ns2 - s3\n')
     result = run_nep(tmp_path, nep_command)
     assert result.returncode == 0, result.stdout + result.stderr
     assert batch_sizes(result.stdout) == [2, 2]
@@ -500,11 +506,11 @@ def test_total_loss_matches_columns_with_two_batches(tmp_path, nep_command):
     targets = [total_reference_energy(frame) for frame in frames]
     errors = [
         abs(energies[0] - energies[1] - targets[0] + targets[1]),
-        10 * abs(energies[2] - energies[3] - targets[2] + targets[3]),
+        abs(energies[2] - energies[3] - targets[2] + targets[3]),
     ]
-    # energy_test.out leaves up to 4e-3 eV per pair, which the weight of 100 scales tenfold
-    tolerances = [5e-3, 5e-2]
-    assert any(abs(v['rmse_ediff_train'] - e) < t for e, t in zip(errors, tolerances))
+    assert abs(errors[0] - errors[1]) > 0.1
+    # energy_test.out leaves up to 4e-3 eV per pair
+    assert min(abs(v['rmse_ediff_train'] - e) for e in errors) < 5e-3
 
 
 def with_comment_fields(frame, fields):
@@ -715,3 +721,30 @@ def test_oversize_warning_uses_the_batch_size_of_nep_in(tmp_path, nep_command):
     assert result.returncode == 0, result.stdout + result.stderr
     assert batch_sizes(result.stdout) == [6, 4]
     assert 'exceeds the batch size' not in result.stdout
+
+
+def test_open_copies_in_different_cells_are_an_input_error(tmp_path, nep_command):
+    """The cell of a structure with open boundaries does not enter its energy."""
+    frames = setup_directory(tmp_path, 's0 - s1\n', {'lambda_d': '1', 'vdw': '1'})
+    open_frame = [frames[0][0], frames[0][1].replace('pbc="T T T"', 'pbc="F F F"')] + frames[0][2:]
+    match = re.search(r'Lattice="([^"]+)"', open_frame[1])
+    large_cell = ' '.join(['30.0', '0.0', '0.0', '0.0', '30.0', '0.0', '0.0', '0.0', '30.0'])
+    copy = [open_frame[0], open_frame[1].replace(match.group(1), large_cell)] + open_frame[2:]
+    copy = with_energy(copy, total_reference_energy(open_frame) + 1.0)
+    write_frames(tmp_path / 'train.xyz', [open_frame, copy, frames[1]], ['S0', 'S1', 'other'])
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode != 0
+    assert 'ediff.in line 2: s0 and s1 in train.xyz have the same geometry' in result.stderr
+
+
+@pytest.mark.parametrize(
+    'other_field', ['a={b name=s0 c}', 'a=[1, name=s0]'], ids=['braces', 'brackets']
+)
+def test_name_inside_other_delimiters_is_not_read(tmp_path, nep_command, other_field):
+    frames = setup_directory(tmp_path, 'real - s1\n', {'lambda_d': '1'})
+    write_frames(
+        tmp_path / 'train.xyz', [with_comment_fields(frames[0], other_field), frames[1]], ['REAL', 'S1']
+    )
+    result = run_nep(tmp_path, nep_command)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'ediff.in: 1 combinations, 1 in train.xyz' in result.stdout
