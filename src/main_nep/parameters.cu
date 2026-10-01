@@ -976,7 +976,7 @@ void Parameters::check_existing_model()
   }
 
   // nep.restart is read only when resuming a training run, not when predicting
-  if (model_type == 0 && prediction == 0 && does_file_exist("nep.restart")) {
+  if (prediction == 0 && does_file_exist("nep.restart")) {
     check_nep_restart();
   }
 }

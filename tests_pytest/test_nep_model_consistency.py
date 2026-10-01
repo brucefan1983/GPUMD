@@ -275,3 +275,35 @@ def test_prediction_of_a_tensor_model_with_mismatched_nep_txt_is_fatal(tmp_path,
     assert result.returncode != 0
     assert 'basis_size_angular' in result.stdout
     assert 'nep.in is inconsistent with nep.txt.' in result.stderr
+
+
+def train_tensor_model(directory, nep_command, name):
+    """Train the tensor model briefly, remove the nep.txt the run writes so that only its
+    nep.restart remains, and return the nep.in keywords of the run."""
+    write_tensor_prediction_inputs(directory, name)
+    keywords = dict(TENSOR_MODELS[name][1], prediction='0', generation='2', output_interval='1')
+    result = run_nep(directory, nep_command, keywords)
+    assert result.returncode == 0, result.stdout + result.stderr
+    (directory / 'nep.txt').unlink()
+    return keywords
+
+
+@pytest.mark.parametrize('name', list(TENSOR_MODELS))
+def test_resume_of_a_tensor_model_with_matching_nep_restart_runs(tmp_path, nep_command, name):
+    keywords = train_tensor_model(tmp_path, nep_command, name)
+
+    result = run_nep(tmp_path, nep_command, keywords)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('name', list(TENSOR_MODELS))
+def test_resume_of_a_tensor_model_with_mismatched_nep_restart_is_fatal(
+    tmp_path, nep_command, name
+):
+    """The row count of nep.restart is checked for every model type, so a tensor model resumed
+    with another basis size stops instead of reading the leading rows of a larger model."""
+    keywords = train_tensor_model(tmp_path, nep_command, name)
+
+    result = run_nep(tmp_path, nep_command, dict(keywords, basis_size='10 8'))
+    assert result.returncode != 0
+    assert 'nep.restart does not match the model implied by nep.in.' in result.stderr
