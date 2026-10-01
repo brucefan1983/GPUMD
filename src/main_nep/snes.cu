@@ -58,6 +58,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   fitness_virial.resize(population_size * (para.num_types + 1));
   fitness_charge.resize(population_size * (para.num_types + 1));
   fitness_bec.resize(population_size * (para.num_types + 1));
+  fitness_ediff.resize(population_size, 0.0f);
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
   mu.resize(number_of_variables);
@@ -400,7 +401,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     if (para.model_type == 0 || para.model_type == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         printf(
-          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s\n",
+          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
           "Step",
           "Total-Loss",
           "L1Reg-Loss",
@@ -411,9 +412,13 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "RMSE-E-Test",
           "RMSE-F-Test",
           "RMSE-V-Test");
+        if (para.has_ediff_combinations) {
+          printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
+        }
+        printf("\n");
       } else {
         printf(
-          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s\n",
+          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
           "Step",
           "Total",
           "L1Reg",
@@ -428,6 +433,10 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "V-Test",
           "Q-Test",
           "Z-Test");
+        if (para.has_ediff_combinations) {
+          printf(" %-9s %-9s", "D-Train", "D-Test");
+        }
+        printf("\n");
       }
     } else {
       printf(
@@ -445,14 +454,15 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     for (int n = 0; n < maximum_generation; ++n) {
       create_population();
       fitness_function->compute(
-        n, 
-        para, 
-        population.data(), 
+        n,
+        para,
+        population.data(),
         fitness_energy.data(),
         fitness_force.data(),
         fitness_virial.data(),
         fitness_charge.data(),
-        fitness_bec.data());
+        fitness_bec.data(),
+        fitness_ediff.data());
 
       regularize_NEP4(para);
 
@@ -625,7 +635,8 @@ void SNES::regularize_NEP4(Parameters& para)
       fitness_total[p + t * population_size] =
         cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
         fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size];
+        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size] +
+        fitness_ediff[p];
       fitness_L1[p + t * population_size] = cost_L1;
       fitness_L2[p + t * population_size] = cost_L2;
     }

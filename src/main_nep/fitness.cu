@@ -38,6 +38,15 @@ Get the fitness
 #include <vector>
 #include <cstring>
 
+// Number of structures in one mini-batch. The first n_total % num_batches batches take one
+// structure more than the rest, so the batches differ in size by at most one.
+static int get_batch_size(const int batch_id, const int n_total, const int num_batches)
+{
+  const int batch_size_minimal = n_total / num_batches;
+  const bool is_larger_batch = batch_id + batch_size_minimal * num_batches < n_total;
+  return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+}
+
 Fitness::Fitness(Parameters& para)
 {
   int deviceCount;
@@ -53,6 +62,14 @@ Fitness::Fitness(Parameters& para)
   if (batch_size_old != para.batch_size) {
     printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
   }
+  std::vector<int> batch_sizes(num_batches);
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    batch_sizes[batch_id] = get_batch_size(batch_id, structures_train.size(), num_batches);
+  }
+
+  // The training combinations are resolved before the batches are constructed, which allocate
+  // the total energies under para.has_ediff_combinations.
+  energy_difference.read_train(para, structures_train, batch_size_old, num_batches, batch_sizes);
 
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
@@ -60,10 +77,7 @@ Fitness::Fitness(Parameters& para)
   }
   int count = 0;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    const int batch_size_minimal = structures_train.size() / num_batches;
-    const bool is_larger_batch =
-      batch_id + batch_size_minimal * num_batches < structures_train.size();
-    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+    const int batch_size = batch_sizes[batch_id];
     count += batch_size;
     printf("\nBatch %d:\n", batch_id);
     printf("Number of configurations = %d.\n", batch_size);
@@ -79,6 +93,7 @@ Fitness::Fitness(Parameters& para)
 
   std::vector<Structure> structures_test;
   has_test_set = read_structures(false, para, structures_test);
+  energy_difference.read_test(para, structures_test, has_test_set);
   if (has_test_set) {
     test_set.resize(deviceCount);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -140,13 +155,17 @@ Fitness::Fitness(Parameters& para)
         fprintf(
           fid_loss_out,
           " rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train"
-          " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test\n");
+          " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test");
       } else {
         fprintf(
           fid_loss_out,
           " rmse_energy_train rmse_force_train rmse_virial_train"
-          " rmse_energy_test rmse_force_test rmse_virial_test\n");
+          " rmse_energy_test rmse_force_test rmse_virial_test");
       }
+      if (para.has_ediff_combinations) {
+        fprintf(fid_loss_out, " rmse_ediff_train rmse_ediff_test");
+      }
+      fprintf(fid_loss_out, "\n");
     } else if (para.model_type == 1) {
       fprintf(fid_loss_out, " rmse_dipole_train rmse_dipole_test\n");
     } else {
@@ -164,14 +183,15 @@ Fitness::~Fitness()
 }
 
 void Fitness::compute(
-  const int generation, 
-  Parameters& para, 
-  const float* population, 
+  const int generation,
+  Parameters& para,
+  const float* population,
   float* fitness_energy,
   float* fitness_force,
   float* fitness_virial,
   float* fitness_charge,
-  float* fitness_bec)
+  float* fitness_bec,
+  float* fitness_ediff)
 {
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -213,6 +233,10 @@ void Fitness::compute(
           fitness_bec[deviceCount * n + m + t * para.population_size] =
             para.lambda_z * rmse_bec_array[t];
         }
+
+        const float rmse_ediff =
+          energy_difference.get_rmse_train(train_set[batch_id][m], batch_id, m);
+        fitness_ediff[deviceCount * n + m] = para.lambda_d * rmse_ediff;
       }
     }
   }
@@ -444,6 +468,11 @@ void Fitness::report_error(
     float rmse_charge_train = rmse_charge_train_array.back();
     float rmse_bec_train = rmse_bec_train_array.back();
 
+    float rmse_ediff_train = 0.0f;
+    if (para.has_ediff_combinations) {
+      rmse_ediff_train = energy_difference.get_rmse_train(train_set[batch_id][0], batch_id, 0);
+    }
+
     // correct the last bias parameter in the NN
     if (para.model_type == 0 || para.model_type == 3) {
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
@@ -454,6 +483,7 @@ void Fitness::report_error(
     float rmse_virial_test = 0.0f;
     float rmse_charge_test = 0.0f;
     float rmse_bec_test = 0.0f;
+    float rmse_ediff_test = 0.0f;
     if (has_test_set) {
       potential->find_force(para, elite, test_set, false, 1);
       float energy_shift_per_structure_not_used;
@@ -468,6 +498,7 @@ void Fitness::report_error(
       rmse_virial_test = rmse_virial_test_array.back();
       rmse_charge_test = rmse_charge_test_array.back();
       rmse_bec_test = rmse_bec_test_array.back();
+      rmse_ediff_test = energy_difference.get_rmse_test(test_set[0], 0);
     }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
@@ -484,11 +515,19 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
+    // The ediff columns follow all others, so that the other columns keep their positions.
+    auto finish_row = [&](FILE* fid, const char* ediff_format) {
+      if (para.has_ediff_combinations) {
+        fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
+      }
+      fprintf(fid, "\n");
+    };
+
     if (para.model_type == 0 || para.model_type == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         // NEP models
         printf(
-          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f\n",
+          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
           generation + 1,
           loss_total,
           loss_L1,
@@ -499,9 +538,10 @@ void Fitness::report_error(
           rmse_energy_test,
           rmse_force_test,
           rmse_virial_test);
+        finish_row(stdout, " %-13.5f %-13.5f");
         fprintf(
           fid_loss_out,
-          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f\n",
+          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
           generation + 1,
           loss_total,
           loss_L1,
@@ -512,10 +552,12 @@ void Fitness::report_error(
           rmse_energy_test,
           rmse_force_test,
           rmse_virial_test);
+        finish_row(fid_loss_out, " %-13.5f %-13.5f");
       } else {
         // qNEP models:
         printf(
-          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f\n",
+          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
+          "%-9.5f %-9.5f",
           generation + 1,
           loss_total,
           loss_L1,
@@ -530,9 +572,11 @@ void Fitness::report_error(
           rmse_virial_test,
           rmse_charge_test,
           rmse_bec_test);
+        finish_row(stdout, " %-9.5f %-9.5f");
         fprintf(
           fid_loss_out,
-          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f\n",
+          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
+          "%-9.5f %-9.5f",
           generation + 1,
           loss_total,
           loss_L1,
@@ -547,6 +591,7 @@ void Fitness::report_error(
           rmse_virial_test,
           rmse_charge_test,
           rmse_bec_test);
+        finish_row(fid_loss_out, " %-9.5f %-9.5f");
       }
     } else {
       // TNEP models:

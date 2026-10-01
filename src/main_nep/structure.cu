@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "energy_difference.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -198,7 +199,9 @@ static void read_one_structure(
   std::string& xyz_filename,
   int& line_number)
 {
-  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
+  std::string comment_line;
+  std::getline(input, comment_line);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(comment_line);
   line_number++;
 
   for (auto& token : tokens) {
@@ -243,13 +246,19 @@ static void read_one_structure(
     }
   }
 
+  // get name (optional), which only ediff.in refers to
+  if (para.prediction == 0 && para.lambda_d > 0.0f) {
+    structure.name = EnergyDifference::read_structure_name(comment_line, xyz_filename, line_number);
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_double_from_token(
+      structure.energy_total = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
+      structure.energy = structure.energy_total;
       structure.energy /= structure.num_atom;
     }
   }
@@ -661,7 +670,11 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     input.close();
   }
 
-  if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
+  // With the energy-difference loss, Fitness forms the batches from train.xyz in file order.
+  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
+  if (
+    (para.prediction == 0) && is_train && (para.batch_size < structures.size()) &&
+    !is_ediff_active) {
     int num_batches = (structures.size() - 1) / para.batch_size + 1;
     reorder(num_batches, structures);
   }

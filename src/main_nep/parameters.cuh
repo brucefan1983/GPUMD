@@ -94,6 +94,7 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float lambda_q;         // weight for global charge
   float lambda_z;         // weight for BEC
+  float lambda_d;         // weight for the energy-difference loss over the pairs in ediff.in
   float force_delta;      // a parameter used to modify the force loss
   bool enable_zbl;        // true for including the universal ZBL potential
   bool flexible_zbl;      // true for including the flexible ZBL potential
@@ -111,6 +112,8 @@ public:
   int vdw;         // add environment-dependent vdW to ordinary NEP
   int charge_vdw;  // combined charge-vdW model
   bool has_bec = false; // check if there are target BEC values
+  // set by EnergyDifference when ediff.in resolves a training combination
+  bool has_ediff_combinations = false;
   int flip_charge = 0; // 1 for flipping charges upon restarting
   int fine_tune = 0; // fine_tune option; 0=no, 1=yes
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
@@ -136,6 +139,7 @@ public:
   bool is_lambda_v_set;
   bool is_atomic_v_set;
   bool is_lambda_shear_set;
+  bool is_lambda_d_set;
   bool is_batch_set;
   bool is_population_set;
   bool is_seed_set;
@@ -208,6 +212,7 @@ private:
   void parse_lambda_v(const char** param, int num_param);
   void parse_lambda_q(const char** param, int num_param);
   void parse_lambda_z(const char** param, int num_param);
+  void parse_lambda_d(const char** param, int num_param);
   void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
