@@ -19,6 +19,8 @@
 #include "utilities/gpu_vector.cuh"
 #include <memory>
 #include <stdio.h>
+#include <string>
+#include <utility>
 #include <vector>
 
 class Parameters;
@@ -42,9 +44,6 @@ public:
 protected:
   bool has_test_set = false;
   int num_batches = 0;
-  // the position in train.xyz of every training structure in batch order, empty when that is the
-  // order of train.xyz
-  std::vector<int> train_file_index;
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
@@ -57,18 +56,31 @@ protected:
     FILE* fid,
     float* prediction,
     float* reference,
-    Dataset& dataset);
-    void output_atomic(
-      int num_components,
-      FILE* fid,
-      float* prediction,
-      float* reference,
-      Dataset& dataset);
+    Dataset& dataset,
+    const int nc);
+  void output_atomic(
+    int num_components,
+    FILE* fid,
+    float* prediction,
+    float* reference,
+    Dataset& dataset,
+    const int nc);
+  void copy_predictions_to_host(Parameters& para, Dataset& dataset);
   void update_energy_force_virial(
-    FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
-  void update_charge(FILE* fid_charge, Dataset& dataset);
-  void update_bec(FILE* fid_bec, Dataset& dataset);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic);
+    FILE* fid_energy,
+    FILE* fid_force,
+    FILE* fid_virial,
+    FILE* fid_stress,
+    Dataset& dataset,
+    const int nc);
+  void update_charge(FILE* fid_charge, Dataset& dataset, const int nc);
+  void update_bec(FILE* fid_bec, Dataset& dataset, const int nc);
+  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc);
+  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc);
+  // writes the predictions of the structures, in the order given, to <quantity>_<label>.out
+  void write_predictions(
+    Parameters& para,
+    const std::string& label,
+    const std::vector<std::pair<Dataset*, int>>& structures);
   void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
 };
