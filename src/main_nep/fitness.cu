@@ -730,8 +730,8 @@ void Fitness::write_predictions(
 
 void Fitness::predict(Parameters& para, float* elite)
 {
-  // read_structures reorders the training structures across the batches, so predict evaluates
-  // every batch first and then writes the structures in the order of train.xyz.
+  // The batches need not follow the order of train.xyz. predict evaluates every batch first and
+  // then writes the structures in the order of index_in_file.
   std::vector<std::pair<Dataset*, int>> structures;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     Dataset& dataset = train_set[batch_id][0];

@@ -29,7 +29,7 @@ KEYWORDS = {
 }
 
 
-@pytest.mark.parametrize('batch', ['2', '3'])
+@pytest.mark.parametrize('batch', ['1', '2'])
 def test_train_outputs_of_a_training_run_follow_train_xyz(tmp_path, nep_command, batch):
     shutil.copy(TRAINING_DIR / 'train.xyz', tmp_path / 'train.xyz')
     keywords = dict(KEYWORDS, batch=batch)
