@@ -42,6 +42,9 @@ public:
 protected:
   bool has_test_set = false;
   int num_batches = 0;
+  // the position in train.xyz of every training structure in batch order, empty when that is the
+  // order of train.xyz
+  std::vector<int> train_file_index;
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;

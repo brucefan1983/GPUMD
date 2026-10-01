@@ -45,6 +45,19 @@ Fitness::Fitness(Parameters& para)
 
   std::vector<Structure> structures_train;
   read_structures(true, para, structures_train);
+
+  // read_structures reorders the structures of a training run with several batches, so predict
+  // writes the rows of the *_train.out files back in the order of train.xyz through the position
+  // each structure had there.
+  bool in_file_order = true;
+  for (int n = 0; n < int(structures_train.size()); ++n) {
+    train_file_index.push_back(structures_train[n].index_in_file);
+    in_file_order = in_file_order && structures_train[n].index_in_file == n;
+  }
+  if (in_file_order) {
+    train_file_index.clear();
+  }
+
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
@@ -676,19 +689,87 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, 
   }
 }
 
+// predict writes the rows of a training output in batch order. Where that differs from the order
+// of train.xyz, the rows go to a temporary file and close_train_output copies them out in the order
+// of train.xyz, one block per structure: one row per structure, or one per atom.
+static FILE* open_train_output(const char* name, const bool in_batch_order)
+{
+  if (!in_batch_order) {
+    return my_fopen(name, "w");
+  }
+  FILE* fid = tmpfile();
+  if (fid == nullptr) {
+    PRINT_INPUT_ERROR("Cannot open a temporary file for the training outputs.");
+  }
+  return fid;
+}
+
+static void close_train_output(
+  FILE* fid,
+  const char* name,
+  const bool per_atom,
+  const std::vector<int>& atoms_in_batch_order,
+  const std::vector<int>& file_index)
+{
+  if (file_index.empty()) {
+    fclose(fid);
+    return;
+  }
+  rewind(fid);
+  std::vector<std::string> lines;
+  std::string line;
+  char buffer[4096];
+  while (fgets(buffer, sizeof(buffer), fid) != nullptr) {
+    line += buffer;
+    if (!line.empty() && line.back() == '\n') {
+      lines.push_back(line);
+      line.clear();
+    }
+  }
+  fclose(fid);
+  std::vector<std::vector<std::string>> blocks(file_index.size());
+  size_t next = 0;
+  for (size_t s = 0; s < file_index.size(); ++s) {
+    const int rows = per_atom ? atoms_in_batch_order[s] : 1;
+    for (int r = 0; r < rows && next < lines.size(); ++r) {
+      blocks[file_index[s]].push_back(lines[next++]);
+    }
+  }
+  if (next != lines.size() || !line.empty()) {
+    PRINT_INPUT_ERROR("The rows of a training output do not match its structures.");
+  }
+  FILE* out = my_fopen(name, "w");
+  for (const auto& block : blocks) {
+    for (const auto& row : block) {
+      fputs(row.c_str(), out);
+    }
+  }
+  fclose(out);
+}
+
 void Fitness::predict(Parameters& para, float* elite)
 {
+  const bool in_batch_order = !train_file_index.empty();
+  std::vector<int> atoms_in_batch_order;
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    const Dataset& dataset = train_set[batch_id][0];
+    atoms_in_batch_order.insert(
+      atoms_in_batch_order.end(), dataset.Na_cpu.begin(), dataset.Na_cpu.begin() + dataset.Nc);
+  }
+  auto close = [&](FILE* fid, const char* name, const bool per_atom) {
+    close_train_output(fid, name, per_atom, atoms_in_batch_order, train_file_index);
+  };
   if (para.model_type == 0 || para.model_type == 3) {
-    FILE* fid_force = my_fopen("force_train.out", "w");
-    FILE* fid_energy = my_fopen("energy_train.out", "w");
-    FILE* fid_virial = my_fopen("virial_train.out", "w");
-    FILE* fid_stress = my_fopen("stress_train.out", "w");
+    FILE* fid_force = open_train_output("force_train.out", in_batch_order);
+    FILE* fid_energy = open_train_output("energy_train.out", in_batch_order);
+    FILE* fid_virial = open_train_output("virial_train.out", in_batch_order);
+    FILE* fid_stress = open_train_output("stress_train.out", in_batch_order);
     FILE* fid_charge = nullptr;
     FILE* fid_bec = nullptr;
     if ((para.charge_mode || para.charge_vdw)) {
-      fid_charge = my_fopen("charge_train.out", "w");
+      fid_charge = open_train_output("charge_train.out", in_batch_order);
       if (para.has_bec) {
-        fid_bec = my_fopen("bec_train.out", "w");
+        fid_bec = open_train_output("bec_train.out", in_batch_order);
       }
     }
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
@@ -702,29 +783,29 @@ void Fitness::predict(Parameters& para, float* elite)
         }
       }
     }
-    fclose(fid_energy);
-    fclose(fid_force);
-    fclose(fid_virial);
-    fclose(fid_stress);
+    close(fid_energy, "energy_train.out", false);
+    close(fid_force, "force_train.out", true);
+    close(fid_virial, "virial_train.out", false);
+    close(fid_stress, "stress_train.out", false);
     if ((para.charge_mode || para.charge_vdw)) {
-      fclose(fid_charge);
+      close(fid_charge, "charge_train.out", true);
       if (para.has_bec) {
-        fclose(fid_bec);
+        close(fid_bec, "bec_train.out", true);
       }
     }
   } else if (para.model_type == 1) {
-    FILE* fid_dipole = my_fopen("dipole_train.out", "w");
+    FILE* fid_dipole = open_train_output("dipole_train.out", in_batch_order);
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, 1);
       update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
     }
-    fclose(fid_dipole);
+    close(fid_dipole, "dipole_train.out", para.atomic_v);
   } else if (para.model_type == 2) {
-    FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
+    FILE* fid_polarizability = open_train_output("polarizability_train.out", in_batch_order);
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
       potential->find_force(para, elite, train_set[batch_id], false, 1);
       update_polarizability(fid_polarizability, train_set[batch_id][0], para.atomic_v);
     }
-    fclose(fid_polarizability);
+    close(fid_polarizability, "polarizability_train.out", para.atomic_v);
   }
 }
