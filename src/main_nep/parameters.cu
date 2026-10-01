@@ -962,7 +962,7 @@ void Parameters::check_existing_model()
 
   if (import_q_scaler) {
     check_nep_txt("nep.txt", true, "Correct nep.in, or switch off import_q_scaler.");
-  } else if (model_type == 0 && does_file_exist("nep.txt")) {
+  } else if (does_file_exist("nep.txt")) {
     // nep.txt is an input when predicting or when there is a nep.restart to resume from,
     // and merely a stale output otherwise
     if (prediction == 1) {
