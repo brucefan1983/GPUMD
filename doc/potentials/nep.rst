@@ -135,7 +135,7 @@ The name of the :term:`NEP` model is owed to the use of the separable natural ev
 The interested reader is referred to [Schaul2011]_ and [Fan2021]_ for details.
 
 The key quantity in the optimization procedure is the loss (or objective) function, which is being minimized.
-It is defined as a weighted sum over the loss terms associated with energies, forces and virials as well as the :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` norms of the parameter vector.
+It is defined as a weighted sum over the loss terms associated with energies, forces, virials and energy differences as well as the :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` norms of the parameter vector.
 
 .. math::
    
@@ -151,6 +151,10 @@ It is defined as a weighted sum over the loss terms associated with energies, fo
    \frac{1}{6N_\mathrm{str}}
    \sum_{n=1}^{N_\mathrm{str}} \sum_{\mu\nu} \left( W_{\mu\nu}^\mathrm{NEP}(n,\boldsymbol{z}) - W_{\mu\nu}^\mathrm{tar}(n)\right)^2
    \right)^{1/2} \nonumber \\
+   &+  \lambda_\mathrm{d} \left(
+   \frac{1}{N_\mathrm{comb}}
+   \sum_k w_k \left[ \sum_i c_{ki} \left( E_i^\mathrm{NEP}(\boldsymbol{z}) - E_i^\mathrm{tar} \right) \right]^2
+   \right)^{1/2} \nonumber \\
    &+  \lambda_1 \frac{1}{N_\mathrm{par}} \sum_{n=1}^{N_\mathrm{par}} |z_n| \nonumber \\
    &+  \lambda_2 \left(\frac{1}{N_\mathrm{par}} \sum_{n=1}^{N_\mathrm{par}} z_n^2\right)^{1/2}.
 
@@ -158,6 +162,9 @@ Here, :math:`N_\mathrm{str}` is the number of structures in the training data se
 :math:`U^\mathrm{NEP}(n,\boldsymbol{z})` and :math:`W_{\mu\nu}^\mathrm{NEP}(n,\boldsymbol{z})` are the per-atom energy and virial tensor predicted by the :term:`NEP` model with parameters :math:`\boldsymbol{z}` for the :math:`n^\mathrm{th}` structure, and :math:`\boldsymbol{F}_i^\mathrm{NEP}(\boldsymbol{z})` is the predicted force for the :math:`i^\mathrm{th}` atom.
 :math:`U^\mathrm{tar}(n)`, :math:`W_{\mu\nu}^\mathrm{tar}(n)`, and :math:`\boldsymbol{F}_i^\mathrm{tar}` are the corresponding target values.
 That is, the loss terms for energies, forces, and virials are defined as the respective :term:`RMSE` values between the :term:`NEP` predictions and the target values.
+The fourth term compares linear combinations of the predicted total energies :math:`E_i^\mathrm{NEP}(\boldsymbol{z})` of structures :math:`i`, such as energy differences and formation energies, with the same combinations of the target total energies :math:`E_i^\mathrm{tar}`.
+It runs over the :math:`N_\mathrm{comb}` combinations :math:`k` in :ref:`ediff.in <ediff_in>` that lie in the mini-batch, with coefficients :math:`c_{ki}` and weights :math:`w_k`, and each combination is balanced in the number of atoms of each type.
+The term is active only when the keyword :ref:`lambda_d <kw_lambda_d>` is set.
 The last two terms represent :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` regularization terms of the parameter vector.
-The weights :math:`\lambda_\mathrm{e}`, :math:`\lambda_\mathrm{f}`, :math:`\lambda_\mathrm{v}`, :math:`\lambda_1`, and :math:`\lambda_2` are tunable hyper-parameters (see the eponymous keywords in the :ref:`nep.in input file <nep_in>`).
-When calculating the loss function, we use eV/atom for energies and virials and eV/Å for force components.
+The weights :math:`\lambda_\mathrm{e}`, :math:`\lambda_\mathrm{f}`, :math:`\lambda_\mathrm{v}`, :math:`\lambda_\mathrm{d}`, :math:`\lambda_1`, and :math:`\lambda_2` are tunable hyper-parameters (see the eponymous keywords in the :ref:`nep.in input file <nep_in>`).
+When calculating the loss function, we use eV/atom for energies and virials, eV/Å for force components, and eV for energy differences.

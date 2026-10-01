@@ -133,6 +133,11 @@ std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input
 {
   std::string line;
   std::getline(input, line);
+  return get_tokens_without_unwanted_spaces(line);
+}
+
+std::vector<std::string> get_tokens_without_unwanted_spaces(const std::string& line)
+{
   auto line_without_unwanted_spaces = remove_spaces(line);
   std::istringstream iss(line_without_unwanted_spaces);
   std::vector<std::string> tokens{

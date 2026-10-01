@@ -15,6 +15,7 @@
 
 #pragma once
 #include "dataset.cuh"
+#include "energy_difference.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -28,7 +29,16 @@ class Fitness
 public:
   Fitness(Parameters& para);
   ~Fitness();
-  void compute(const int generation, Parameters& para, const float*, float*, float*, float*, float*, float*);
+  void compute(
+    const int generation,
+    Parameters& para,
+    const float*,
+    float*,
+    float*,
+    float*,
+    float*,
+    float*,
+    float* fitness_ediff);
   void report_error(
     Parameters& para,
     const int generation,
@@ -45,6 +55,7 @@ protected:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
+  EnergyDifference energy_difference;
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;

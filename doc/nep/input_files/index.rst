@@ -12,3 +12,4 @@ To run a :term:`NEP` construction  using the ``nep`` executable, one has to prep
 
    nep_in
    train_test_xyz
+   ediff_in

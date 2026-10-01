@@ -525,10 +525,51 @@ void Dataset::construct(
   find_has_type(para);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
+  if (para.has_ediff_combinations) {
+    total_energy_pred_gpu.resize(Nc);
+    total_energy_pred_cpu.resize(Nc);
+  }
 
   find_Na(para);
   initialize_gpu_data(para);
   find_neighbor(para);
+}
+
+// Sums in double, since the total energy of a large structure exceeds the precision of a float
+// long before its per-atom energies do.
+static __global__ void
+gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const float* g_pe, double* g_total_pe)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ double s_total_pe[];
+  s_total_pe[tid] = 0.0;
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_total_pe[tid] += g_pe[n];
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_total_pe[tid] += s_total_pe[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    g_total_pe[bid] = s_total_pe[0];
+  }
+}
+
+void Dataset::compute_total_energies(int device_id)
+{
+  CHECK(gpuSetDevice(device_id));
+  const int block_size = 256;
+  gpu_sum_total_energy<<<Nc, block_size, sizeof(double) * block_size>>>(
+    Na.data(), Na_sum.data(), energy.data(), total_energy_pred_gpu.data());
+  GPU_CHECK_KERNEL
+  total_energy_pred_gpu.copy_to_host(total_energy_pred_cpu.data());
 }
 
 static __global__ void gpu_sum_force_error(

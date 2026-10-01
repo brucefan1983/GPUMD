@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include <string>
 #include <vector>
 
 class Parameters;
@@ -30,6 +31,7 @@ struct Structure {
   float weight;
   float charge = 0.0f;
   float energy = 0.0f;
+  double energy_total = 0.0; // the reference total energy, for the combinations of ediff.in
   float energy_weight = 1.0f;
   float virial[6];
   float box_original[9];
@@ -50,6 +52,7 @@ struct Structure {
   std::vector<float> avirialyz;
   std::vector<float> avirialzx;
   std::vector<float> bec;
+  std::string name; // lowercase label from the optional name= field
 };
 
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);
