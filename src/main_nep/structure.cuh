@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "energy_difference.cuh"
 #include <string>
 #include <vector>
 
