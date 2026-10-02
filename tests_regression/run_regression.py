@@ -27,6 +27,7 @@ import time
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
 import post_checks
+import pppm_checks
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -331,7 +332,7 @@ def validate_relation_reference(
 
 
 def relation_references(relation: Mapping[str, Any]) -> List[Mapping[str, str]]:
-    if relation["operation"] == "equal":
+    if relation["operation"] in ("equal", "numeric_equal"):
         return list(relation["members"])
     return list(relation["parts"]) + [relation["result"]]
 
@@ -368,8 +369,11 @@ def validate_relations(
                 f"Relation {relation_id} roles must be a unique non-empty role list"
             )
         operation = relation.get("operation")
-        if operation == "equal":
+        if operation in ("equal", "numeric_equal"):
             allowed = {"id", "description", "roles", "operation", "members"}
+            if operation == "numeric_equal":
+                allowed.add("comparison")
+                validate_comparisons({"relation": relation.get("comparison")}, {"relation"}, relation_id)
             if set(relation) != allowed:
                 raise ConfigurationError(
                     f"Relation {relation_id} equal relation must contain exactly "
@@ -403,7 +407,7 @@ def validate_relations(
             references = parts + [relation["result"]]
         else:
             raise ConfigurationError(
-                f"Relation {relation_id} operation must be equal or concat"
+                f"Relation {relation_id} operation must be equal, numeric_equal or concat"
             )
 
         normalized_references = [
@@ -527,6 +531,7 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         "candidate_only",
         "allow_empty_outputs",
         "post_checks",
+        "pppm",
     }
     ids: Set[str] = set()
     full_coverage: Set[str] = set()
@@ -757,8 +762,8 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         success_for_any_role = any(
             expectation["expect"] == "success" for expectation in effective_expectations
         )
-        if success_for_any_role and not outputs:
-            raise ConfigurationError(f"Successful case {case_id} must declare outputs")
+        if success_for_any_role and not outputs and not case.get("stdout_contains"):
+            raise ConfigurationError(f"Successful case {case_id} must declare outputs or a stdout diagnostic")
         if "comparisons" in case:
             validate_comparisons(case["comparisons"], set(outputs), case_id)
 
@@ -777,6 +782,14 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
                 f"Case {case_id} allow_empty_outputs names undeclared output(s): "
                 f"{sorted(unknown_empty_outputs)}"
             )
+
+        if "pppm" in case:
+            try:
+                pppm_checks.validate_spec(case["pppm"])
+            except ValueError as exc:
+                raise ConfigurationError(f"Case {case_id}: {exc}") from exc
+            if expectation_for_role(case, "candidate")["expect"] != "success":
+                raise ConfigurationError(f"Case {case_id} pppm checks require candidate success")
 
         post_check_specs = case.get("post_checks", [])
         if not isinstance(post_check_specs, list):
@@ -1535,6 +1548,8 @@ def compare_run_pair(
             candidate_stream = normalize(
                 read_stream(Path(candidate[f"{stream_name}_path"]))
             )
+            if stream_name == "stdout" and "pppm" in case:
+                candidate_stream = pppm_checks.strip_mesh_lines(candidate_stream)
             metrics[stream_name] = compare_exact_bytes(
                 baseline_stream,
                 candidate_stream,
@@ -1682,6 +1697,11 @@ def execute_case(
         runs[role] = result
         try:
             validate_run_result(result, case)
+            if role == "candidate" and "pppm" in case:
+                try:
+                    metrics["pppm"] = pppm_checks.check(case["pppm"], result)
+                except (ValueError, OSError, post_checks.PostCheckError) as exc:
+                    raise ComparisonError(f"{case['id']}:candidate: PPPM check failed: {exc}") from exc
             if case.get("post_checks"):
                 try:
                     post_check_metrics[role] = post_checks.run(
@@ -1695,7 +1715,7 @@ def execute_case(
     if not errors and cross_version_comparison_enabled(case):
         cross_version_compared = True
         try:
-            metrics = compare_run_pair(runs["baseline"], runs["candidate"], case, recorder)
+            metrics.update(compare_run_pair(runs["baseline"], runs["candidate"], case, recorder))
         except ComparisonError as exc:
             errors.append(str(exc))
 
@@ -1782,7 +1802,7 @@ def evaluate_relation(
 
     for role in relation["roles"]:
         try:
-            if relation["operation"] == "equal":
+            if relation["operation"] in ("equal", "numeric_equal"):
                 reference = relation["members"][0]
                 reference_data = relation_output_path(
                     reference, role, case_results
@@ -1792,14 +1812,23 @@ def evaluate_relation(
                     member_data = relation_output_path(
                         member, role, case_results
                     ).read_bytes()
-                    metric = compare_exact_bytes(
-                        reference_data,
-                        member_data,
-                        f"relation:{relation['id']}:{role}",
-                        recorder,
-                        relation_reference_name(reference, role),
-                        relation_reference_name(member, role),
-                    )
+                    if relation["operation"] == "numeric_equal":
+                        comparison = relation["comparison"]
+                        metric = compare_numeric_text(
+                            reference_data.decode("utf-8"), member_data.decode("utf-8"),
+                            f"relation:{relation['id']}:{role}",
+                            comparison["rtol"], comparison["atol"], recorder,
+                        )
+                        metric["reason"] = comparison["reason"]
+                    else:
+                        metric = compare_exact_bytes(
+                            reference_data,
+                            member_data,
+                            f"relation:{relation['id']}:{role}",
+                            recorder,
+                            relation_reference_name(reference, role),
+                            relation_reference_name(member, role),
+                        )
                     role_metrics.append(
                         {
                             "left": reference,
@@ -1833,7 +1862,7 @@ def evaluate_relation(
                     "result": result_reference,
                     "comparison": metric,
                 }
-        except (ComparisonError, OSError) as exc:
+        except (ComparisonError, OSError, UnicodeError) as exc:
             base_result["errors"].append(f"{relation['id']}:{role}: {exc}")
 
     base_result["status"] = "PASS" if not base_result["errors"] else "FAIL"

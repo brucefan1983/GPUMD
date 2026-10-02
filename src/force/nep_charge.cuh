@@ -183,6 +183,7 @@ private:
   bool need_bec = false;
   void check_need_bec(const RunInput& run_input);
   bool use_pppm = true; // use PPPM by default
+  double pppm_spacing = 1.0;
   void check_ewald_pppm(const RunInput& run_input);
   bool has_dftd3 = false;
   void initialize_dftd3(const RunInput& run_input);
