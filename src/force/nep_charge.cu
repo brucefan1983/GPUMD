@@ -64,8 +64,8 @@ void NEP_Charge::check_ewald_pppm(const RunInput& run_input)
         use_pppm = true;
         if (tokens.size() == 3 &&
             (!is_valid_real(tokens[2], &pppm_spacing) ||
-             !std::isfinite(pppm_spacing) || pppm_spacing <= 0.0)) {
-          PRINT_INPUT_ERROR("PPPM spacing must be a finite positive number.");
+             !(pppm_spacing >= 0.2 && pppm_spacing <= 2.0))) {
+          PRINT_INPUT_ERROR("PPPM spacing must be a finite number between 0.2 and 2.0 A.");
         }
       } else {
         std::cout << "kspace method can only be ewald or pppm\n";
