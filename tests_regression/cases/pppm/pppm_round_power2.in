@@ -1,0 +1,10 @@
+replicate 4 1 1
+potential nep.txt
+kspace pppm
+velocity 300 seed 20261002
+time_step 0.0001
+
+ensemble nve
+dump_thermo 1
+dump_xyz 1 state.xyz precision double force
+run 1

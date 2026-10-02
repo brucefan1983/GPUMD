@@ -19,18 +19,45 @@ The k-space part of the PPPM method.
 
 #include "pppm.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <climits>
 #include <cmath>
+#include <cstdio>
 #include <vector>
 #include <iostream>
 
 namespace{
 
-int get_best_K(const int m)
+bool is_good_K(int n)
 {
-  int n = 16;
-  while (n < m) {
-    n *= 2;
+  // Even sizes preserve the existing Nyquist-frequency indexing.
+  if (n % 2 != 0) {
+    return false;
+  }
+  const int primes[4] = {2, 3, 5, 7};
+  for (int p : primes) {
+    while (n % p == 0) {
+      n /= p;
+    }
+  }
+  return n == 1;
+}
+
+int get_best_K(const double required, const int limit)
+{
+  if (!std::isfinite(required) || required > limit) {
+    PRINT_INPUT_ERROR("PPPM mesh is too large; increase spacing or reduce the box size.");
+  }
+  int n = required > 16.0 ? static_cast<int>(std::ceil(required)) : 16;
+  if (n % 2 != 0) {
+    ++n;
+  }
+  while (n <= limit && !is_good_K(n)) {
+    n += 2;
+  }
+  if (n > limit) {
+    PRINT_INPUT_ERROR("PPPM mesh is too large; increase spacing or reduce the box size.");
   }
   return n;
 }
@@ -542,14 +569,24 @@ PPPM::PPPM()
 
 PPPM::~PPPM()
 {
-  gpufftDestroy(plan);
-  if (need_peratom_virial) {
+  destroy_plans();
+}
+
+void PPPM::destroy_plans()
+{
+  if (plan_initialized) {
+    gpufftDestroy(plan);
+    plan_initialized = false;
+  }
+  if (plan_virial_initialized) {
     gpufftDestroy(plan_virial);
+    plan_virial_initialized = false;
   }
 }
 
 void PPPM::allocate_memory()
 {
+  destroy_plans();
   kx.resize(para.K0K1K2);
   ky.resize(para.K0K1K2);
   kz.resize(para.K0K1K2);
@@ -564,6 +601,7 @@ void PPPM::allocate_memory()
     std::cout << "GPUFFT error: Plan creation failed" << std::endl;
     exit(1);
   }
+  plan_initialized = true;
 
   if (need_peratom_virial) {
     mesh_virial.resize(para.K0K1K2 * 6);
@@ -572,43 +610,74 @@ void PPPM::allocate_memory()
       std::cout << "GPUFFT error: plan_virial creation failed" << std::endl;
       exit(1);
     }
+    plan_virial_initialized = true;
   }
 }
 
-void PPPM::initialize(const float alpha_input, const bool need_peratom_virial_input)
+void PPPM::initialize(
+  const float alpha_input, const bool need_peratom_virial_input, const double mesh_spacing_input)
 {
+  destroy_plans();
+  para = {};
+  mesh_spacing = mesh_spacing_input;
   need_peratom_virial = need_peratom_virial_input;
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
-  para.K[0] = 16;
-  para.K[1] = 16;
-  para.K[2] = 16;
-  para.K0K1K2 = para.K[0] * para.K[1] * para.K[2];
-  allocate_memory();
+  // Allocate lazily, when the first force calculation supplies the actual box.
 }
 
 void PPPM::find_para(const int N, const Box& box)
 {
   const float two_pi = 6.2831853f;
-  const double mesh_spacing = 1.0; // Is this good enough?
   const double volume = box.get_volume();
+  if (!std::isfinite(volume) || volume <= 0.0) {
+    PRINT_INPUT_ERROR("PPPM requires a finite positive box volume.");
+  }
   para.two_pi_over_V = two_pi / volume;
   int K[3] = {0};
+  double thickness[3];
+  const int max_points = INT_MAX / (need_peratom_virial ? 6 : 1);
+  const bool first_mesh = !plan_initialized;
+  int number_of_points = 1;
   for (int d = 0; d < 3; ++d) {
-    const double box_thickness = volume / box.get_area(d);
-    K[d] = box_thickness / mesh_spacing;
-    K[d] = get_best_K(K[d]);
+    thickness[d] = volume / box.get_area(d);
+    if (!std::isfinite(thickness[d]) || thickness[d] <= 0.0) {
+      PRINT_INPUT_ERROR("PPPM requires finite positive box thicknesses.");
+    }
+    // Keep each direction's largest mesh, including across successive runs.
+    K[d] = para.K[d];
+    const double required = thickness[d] / mesh_spacing;
+    if (first_mesh || required > K[d]) {
+      K[d] = get_best_K(required, max_points / (16 * 16));
+    }
+    if (K[d] > max_points / number_of_points) {
+      PRINT_INPUT_ERROR("PPPM mesh is too large; increase spacing or reduce the box size.");
+    }
+    number_of_points *= K[d];
     para.K_half[d] = K[d] / 2;
     para.two_pi_over_K[d] = two_pi / K[d];
   }
   para.K0K1 = K[0] * K[1];
-  para.K0K1K2 = para.K0K1 * K[2];
-  if (K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2]) {
+  para.K0K1K2 = number_of_points;
+  const bool rebuild = K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2];
+  if (rebuild) {
     para.K[0] = K[0];
     para.K[1] = K[1];
     para.K[2] = K[2];
     allocate_memory();
   }
+  if (first_mesh) {
+    printf(
+      "PPPM mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
+      K[0], K[1], K[2], mesh_spacing,
+      thickness[0] / K[0], thickness[1] / K[1], thickness[2] / K[2]);
+  }
+#ifdef GPUMD_PPPM_DIAGNOSTICS
+  // Temporary V1 validation only; independent of DEBUG. Remove after GPU validation.
+  printf(
+    "PPPM diagnostic: %d %d %d; thickness %.17g %.17g %.17g; rebuild %d\n",
+    K[0], K[1], K[2], thickness[0], thickness[1], thickness[2], int(rebuild));
+#endif
   para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {
     para.b[0][d] = two_pi * (float)box.cpu_h[9 + d];

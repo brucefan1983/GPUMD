@@ -1,4 +1,6 @@
 import shutil
+import io
+from contextlib import redirect_stdout
 import tempfile
 import time
 import unittest
@@ -482,6 +484,44 @@ raise SystemExit(1)
         text_output.write_text("1e999\n", encoding="utf-8")
         with self.assertRaises(runner.ComparisonError):
             runner.validate_generated_output(text_output, "overflow.out", "text")
+
+    def test_numeric_relation_reports_tolerance_and_rejects_real_differences(self):
+        cases = {
+            "left": self.make_case("left", {"x.out": b"value 1.0000000\n"}),
+            "right": self.make_case("right", {"x.out": b"value 1.0000001\n"}),
+        }
+        relation = {
+            "id": "numeric_contract", "description": "explicit numerical relation",
+            "roles": ["candidate"], "operation": "numeric_equal",
+            "members": [{"case": "left", "output": "x.out"}, {"case": "right", "output": "x.out"}],
+            "comparison": {"mode": "numeric", "rtol": 0, "atol": 2e-7, "reason": "test bound"},
+        }
+        result = runner.evaluate_relation(relation, set(cases), cases, self.recorder)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["metrics"]["candidate"][0]["comparison"]["atol"], 2e-7)
+        (Path(cases["right"]["runs"]["candidate"]["workdir"]) / "x.out").write_text("value 1.1\n")
+        result = runner.evaluate_relation(relation, set(cases), cases, self.recorder)
+        self.assertEqual(result["status"], "FAIL")
+
+    def test_pppm_checks_apply_to_candidate_with_old_syntax_rejection(self):
+        executable, case, manifest = self.minimal_run_case(
+            "spacing_transition", "#!/usr/bin/env python3\nprint('old syntax rejected')\nraise SystemExit(1)\n"
+        )
+        candidate = executable.with_name("candidate.py")
+        candidate.write_text("#!/usr/bin/env python3\nprint('finished')\n")
+        candidate.chmod(0o755)
+        case.update(description="PPPM transition", expect="success", stdout_contains="finished", outputs=[],
+                    pppm={"spacing": 1.0, "initial_mesh": [16, 16, 16]},
+                    role_expectations={
+                        "baseline": {"expect": "failure", "expected_returncode": 1, "stdout_contains": "old syntax rejected"},
+                        "candidate": {"expect": "success", "stdout_contains": "finished"},
+                    }, compare_cross_version=False)
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(case, manifest, executable, candidate, self.invocation_root,
+                                         runner.PACKAGE_ROOT, {}, 1, self.recorder)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("expected one initial", result["errors"][0])
+        self.assertEqual(set(result["runs"]), {"baseline", "candidate"})
 
 
 if __name__ == "__main__":

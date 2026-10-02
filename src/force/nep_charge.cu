@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <chrono>
 #include <cmath>
@@ -49,18 +50,26 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 void NEP_Charge::check_ewald_pppm(const RunInput& run_input)
 {
   use_pppm = true;
+  pppm_spacing = 1.0;
   for (const auto& line : run_input.lines()) {
     const std::vector<std::string>& tokens = line.tokens;
     if (!tokens.empty() && tokens[0] == "kspace") {
-      if (tokens.size() != 2) {
-        std::cout << "kspace must have 1 parameter\n";
-        exit(1);
+      if (tokens.size() < 2 || tokens.size() > 3) {
+        PRINT_INPUT_ERROR("kspace requires ewald or pppm [spacing].");
       }
       std::string kspace_method = tokens[1];
       if (kspace_method == "ewald") {
+        if (tokens.size() != 2) {
+          PRINT_INPUT_ERROR("kspace ewald does not accept spacing.");
+        }
         use_pppm = false;
       } else if (kspace_method == "pppm") {
         use_pppm = true;
+        if (tokens.size() == 3 &&
+            (!is_valid_real(tokens[2], &pppm_spacing) ||
+             !std::isfinite(pppm_spacing) || pppm_spacing <= 0.0)) {
+          PRINT_INPUT_ERROR("PPPM spacing must be a finite positive number.");
+        }
       } else {
         std::cout << "kspace method can only be ewald or pppm\n";
         exit(1);
@@ -410,7 +419,7 @@ NEP_Charge::NEP_Charge(
   check_ewald_pppm(run_input);
   check_need_bec(run_input);
   if (use_pppm) {
-    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input));
+    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input), pppm_spacing);
   } else {
     ewald.initialize(charge_para.alpha);
   }
