@@ -162,7 +162,7 @@ Every selected case starts the matching program's baseline once and candidate on
 separate fresh working directories. The runner does not repeatedly execute a
 binary to establish self-repeatability. There are no candidate-only cases. PPPM transition cases explicitly declare
 role-specific expectations for the pinned old baseline and the new candidate;
-see [PPPM_V1.md](PPPM_V1.md). Other cases retain their shared contract.
+see [PPPM.md](PPPM.md). Other cases retain their shared contract.
 
 Cases default to `program: gpumd`. Training cases declare `program: nep`, which
 causes the runner to stage their input as `nep.in` and select the NEP executable

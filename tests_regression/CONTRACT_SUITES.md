@@ -35,7 +35,7 @@ relations when not all members are selected and therefore do not replace the
 | `first_step_init` | initialization consumed by the first integration step |
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
-| `pppm` | spacing input, mesh rounding, grow-only lifecycle, and related qNEP cases |
+| `pppm` | spacing input, mesh rounding, box changes, run reuse, and related qNEP cases |
 | `training` | NEP-family training with TTT, FFF, and mixed boundary conditions |
 
 ## Cross-case relation oracles
@@ -43,7 +43,7 @@ relations when not all members are selected and therefore do not replace the
 The original 23 relations are evaluated independently for baseline and candidate.
 The two PPPM default-equivalence relations apply to the candidate, because the
 old baseline rejects explicit spacing. They use narrowly declared numerical
-tolerances for same-mesh float atomics; see `PPPM_V1.md`. They
+tolerances for same-mesh float atomics; see `PPPM.md`. They
 express stronger behavior than baseline/candidate equality alone because they
 compare different inputs that should be physically or operationally
 equivalent.

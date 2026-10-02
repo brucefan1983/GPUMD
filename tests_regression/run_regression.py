@@ -958,8 +958,6 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
         help="CUDA/HIP visible device id; defaults to the first already-visible device",
     )
     parser.add_argument("--timeout-scale", type=float, default=1.0)
-    parser.add_argument("--pppm-diagnostics", action="store_true",
-                        help="Require temporary PPPM traces for mesh-lifecycle cases")
     parser.add_argument("--keep-all", action="store_true", help="Retain passing workdirs")
     parser.add_argument("--list", action="store_true", help="List selected cases without running")
     parser.add_argument(
@@ -1551,7 +1549,7 @@ def compare_run_pair(
                 read_stream(Path(candidate[f"{stream_name}_path"]))
             )
             if stream_name == "stdout" and "pppm" in case:
-                # Initial/diagnostic mesh lines were checked independently.
+                # The initial mesh line was checked independently.
                 candidate_stream = pppm_checks.strip_mesh_lines(candidate_stream)
             metrics[stream_name] = compare_exact_bytes(
                 baseline_stream,
@@ -1668,7 +1666,6 @@ def execute_case(
     device_environment: Mapping[str, str],
     timeout_scale: float,
     recorder: DifferenceRecorder,
-    require_pppm_diagnostics: bool = False,
 ) -> Dict[str, Any]:
     print(f"[{case['id']}] {case['description']}")
     runs: Dict[str, Dict[str, Any]] = {}
@@ -1703,7 +1700,7 @@ def execute_case(
             validate_run_result(result, case)
             if role == "candidate" and "pppm" in case:
                 try:
-                    metrics["pppm"] = pppm_checks.check(case["pppm"], result, require_pppm_diagnostics)
+                    metrics["pppm"] = pppm_checks.check(case["pppm"], result)
                 except (ValueError, OSError, post_checks.PostCheckError) as exc:
                     raise ComparisonError(f"{case['id']}:candidate: PPPM check failed: {exc}") from exc
             if case.get("post_checks"):
@@ -2058,7 +2055,6 @@ def main() -> int:
             "requested_device": args.device,
             "device_environment": device_environment,
             "keep_all": args.keep_all,
-            "pppm_diagnostics_required": args.pppm_diagnostics,
             "run_id": run_id,
             "work_root": str(invocation_root),
             "repo_root": str(repo_root),
@@ -2092,7 +2088,6 @@ def main() -> int:
                     device_environment,
                     args.timeout_scale,
                     recorder,
-                    args.pppm_diagnostics,
                 )
             )
         case_results_by_id = {

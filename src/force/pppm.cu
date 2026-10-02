@@ -672,12 +672,6 @@ void PPPM::find_para(const int N, const Box& box)
       K[0], K[1], K[2], mesh_spacing,
       thickness[0] / K[0], thickness[1] / K[1], thickness[2] / K[2]);
   }
-#ifdef GPUMD_PPPM_DIAGNOSTICS
-  // Temporary V1 validation only; independent of DEBUG. Remove after GPU validation.
-  printf(
-    "PPPM diagnostic: %d %d %d; thickness %.17g %.17g %.17g; rebuild %d\n",
-    K[0], K[1], K[2], thickness[0], thickness[1], thickness[2], int(rebuild));
-#endif
   para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {
     para.b[0][d] = two_pi * (float)box.cpu_h[9 + d];
