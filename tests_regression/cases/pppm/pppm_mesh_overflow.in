@@ -1,4 +1,4 @@
 potential nep.txt
-kspace pppm 1e-300
+kspace pppm 0.2
 ensemble nve
 run 1

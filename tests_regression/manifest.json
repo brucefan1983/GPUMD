@@ -555,6 +555,18 @@
           "target": "nep.txt"
         }
       ]
+    },
+    "pppm_mesh_limit": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_mesh_limit.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
     }
   },
   "known_manual_gaps": [
@@ -7274,7 +7286,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7286,7 +7298,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7308,7 +7320,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7320,7 +7332,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7342,7 +7354,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7354,7 +7366,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7376,7 +7388,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7388,7 +7400,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7410,7 +7422,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7422,7 +7434,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7444,7 +7456,7 @@
       ],
       "expect": "failure",
       "expected_returncode": 1,
-      "stderr_contains": "PPPM spacing must be a finite positive number.",
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
       "outputs": [],
       "role_expectations": {
         "baseline": {
@@ -7456,7 +7468,7 @@
         "candidate": {
           "expect": "failure",
           "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite positive number.",
+          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
           "outputs": []
         }
       },
@@ -7566,12 +7578,12 @@
     },
     {
       "id": "pppm_mesh_overflow",
-      "description": "Reject an unrepresentable PPPM mesh before FFT allocation",
+      "description": "Reject a PPPM mesh above 512 cubed points before allocation",
       "suites": [
         "pppm",
         "full"
       ],
-      "fixture": "pppm_exact_1",
+      "fixture": "pppm_mesh_limit",
       "input": "package:cases/pppm/pppm_mesh_overflow.in",
       "input_style": "intentional_invalid",
       "covers": [

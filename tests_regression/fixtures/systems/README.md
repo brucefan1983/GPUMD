@@ -50,7 +50,7 @@ NEP4 parameter layout before being added here.
 
 ## PPPM mesh fixtures
 
-The five `pppm_batio3_*.xyz` files derive from
+The original five `pppm_batio3_*.xyz` files derive from
 `tests_pytest/fixtures/structures/BaTiO3-nat40-rattled.xyz`. Fractional positions
 are preserved while changing the cell: exact 8 Angstrom edges, an x edge of
 8.0001 Angstrom, a 1 Angstrom xy tilt, and an 8 Angstrom xy tilt (45 degrees).
@@ -58,3 +58,7 @@ The 15.9 Angstrom x fixture first tiles twice along x (80 atoms), then sets
 the cell to 15.9 x 8 x 8 Angstrom. These controlled geometries exercise mesh
 boundaries; they are not equilibrium reference structures. Fixture SHA-256
 values are pinned in `test_manifest.py`.
+
+`pppm_batio3_mesh_limit.xyz` keeps the 40 atomic positions of the 8 Angstrom
+fixture in a 102.6 x 102 x 102 Angstrom cell. At spacing 0.2, its
+540 x 512 x 512 mesh exceeds the point limit and is rejected before allocation.

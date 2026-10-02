@@ -246,6 +246,7 @@ def test_package_fixture_hashes_are_pinned():
     expected["fixtures/systems/pppm_batio3_above8.xyz"] = "e25849411b53c9361eb440b4d73f0bdccfbb72c70be202fc4445ae70541aa7dc"
     expected["fixtures/systems/pppm_batio3_tilt.xyz"] = "c4d06e41bccf3b33c341be6a1640326f785eefcc49ea956c8d41ffd905054375"
     expected["fixtures/systems/pppm_batio3_shear45.xyz"] = "43170c26dcfac9f4268fd1f1ed8966ab0c95a71221da2e4858a2560f6168a488"
+    expected["fixtures/systems/pppm_batio3_mesh_limit.xyz"] = "b0218360043739fe7663b93954daa366f01c5eeea26aac8b241ebf11f69361b3"
     for relative_path, expected_digest in expected.items():
         digest = hashlib.sha256((PACKAGE_ROOT / relative_path).read_bytes()).hexdigest()
         assert digest == expected_digest, relative_path
