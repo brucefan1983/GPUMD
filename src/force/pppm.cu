@@ -23,7 +23,6 @@ The k-space part of the PPPM method.
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
 #include <cstdio>
-#include <vector>
 #include <iostream>
 
 namespace{
@@ -627,7 +626,7 @@ void PPPM::find_para(const int N, const Box& box)
   const bool first_mesh = !plan_initialized;
   for (int d = 0; d < 3; ++d) {
     const double required = volume / box.get_area(d) / mesh_spacing;
-    if (first_mesh || required > para.K[d]) {
+    if (required > para.K[d]) {
       para.K[d] = get_best_K(required);
     }
     para.K_half[d] = para.K[d] / 2;
