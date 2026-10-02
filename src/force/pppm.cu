@@ -624,36 +624,31 @@ void PPPM::find_para(const int N, const Box& box)
   const float two_pi = 6.2831853f;
   const double volume = box.get_volume();
   para.two_pi_over_V = two_pi / volume;
-  int K[3] = {0};
-  double thickness[3];
   const bool first_mesh = !plan_initialized;
   for (int d = 0; d < 3; ++d) {
-    thickness[d] = volume / box.get_area(d);
-    K[d] = para.K[d];
-    const double required = thickness[d] / mesh_spacing;
-    if (first_mesh || required > K[d]) {
-      K[d] = get_best_K(required);
+    const double required = volume / box.get_area(d) / mesh_spacing;
+    if (first_mesh || required > para.K[d]) {
+      para.K[d] = get_best_K(required);
     }
-    para.K_half[d] = K[d] / 2;
-    para.two_pi_over_K[d] = two_pi / K[d];
+    para.K_half[d] = para.K[d] / 2;
+    para.two_pi_over_K[d] = two_pi / para.K[d];
   }
-  const double number_of_points = double(K[0]) * K[1] * K[2];
+  const double number_of_points = double(para.K[0]) * para.K[1] * para.K[2];
   if (number_of_points > max_mesh_points) {
     PRINT_INPUT_ERROR("PPPM mesh is too large; increase spacing or reduce the box size.");
   }
-  para.K0K1 = K[0] * K[1];
-  para.K0K1K2 = static_cast<int>(number_of_points);
-  if (K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2]) {
-    para.K[0] = K[0];
-    para.K[1] = K[1];
-    para.K[2] = K[2];
+  if (number_of_points != para.K0K1K2) {
+    para.K0K1 = para.K[0] * para.K[1];
+    para.K0K1K2 = static_cast<int>(number_of_points);
     allocate_memory();
   }
   if (first_mesh) {
     printf(
       "PPPM mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
-      K[0], K[1], K[2], mesh_spacing,
-      thickness[0] / K[0], thickness[1] / K[1], thickness[2] / K[2]);
+      para.K[0], para.K[1], para.K[2], mesh_spacing,
+      volume / box.get_area(0) / para.K[0],
+      volume / box.get_area(1) / para.K[1],
+      volume / box.get_area(2) / para.K[2]);
   }
   para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {
