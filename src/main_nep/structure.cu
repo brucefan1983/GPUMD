@@ -581,6 +581,7 @@ static void read_exyz(
       PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
     }
     read_one_structure(para, input, structure, xyz_filename, line_number);
+    structure.index_in_file = Nc;
     structures.emplace_back(structure);
     ++Nc;
   }

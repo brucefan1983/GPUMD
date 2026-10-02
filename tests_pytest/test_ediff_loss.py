@@ -751,14 +751,19 @@ def test_oversize_warning_uses_the_batch_size_of_nep_in(tmp_path, nep_command):
 
 
 def test_batches_follow_the_group_order(tmp_path, nep_command):
-    """nep writes energy_train.out in the order of the batches at generation 1000. The pair forms
-    the largest group and goes to the first batch, and the other structures follow one by one in
-    the order of their energy per atom, each to the batch with the fewest structures."""
+    """The pair forms the largest group and goes to the first batch, and the other structures
+    follow one by one in the order of their energy per atom, each to the batch with the fewest
+    structures. The structures share one geometry up to a shift of one atom. The energy RMSE that
+    loss.out reports for a batch is then the spread of the reference energies per atom in it."""
     energies_per_atom = [-5.0, -4.2, -4.9, -4.3, -4.6, -4.8, -4.4, -4.7]
-    structures = distinct_structures(energies_per_atom)
+    frame = read_frames(TRAINING_DIR / 'train.xyz')[0]
+    structures = [
+        with_energy(shift_first_atom(frame, 0.001 * k), 40 * e)
+        for k, e in enumerate(energies_per_atom)
+    ]
     write_frames(tmp_path / 'train.xyz', structures, [f'S{k}' for k in range(8)])
     write_nep_in(
-        tmp_path, {'lambda_d': '1', 'batch': '4', 'generation': '1000', 'output_interval': '1000'}
+        tmp_path, {'lambda_d': '1', 'batch': '4', 'generation': '2', 'output_interval': '1'}
     )
     (tmp_path / 'ediff.in').write_text('s0 - s1\n')
     result = run_nep(tmp_path, nep_command)
@@ -767,10 +772,12 @@ def test_batches_follow_the_group_order(tmp_path, nep_command):
     batches = [[0, 1], []]
     for k in sorted(range(2, 8), key=lambda k: energies_per_atom[k]):
         min(batches, key=len).append(k)
-    expected = [energies_per_atom[k] for batch in batches for k in batch]
-    rows = (tmp_path / 'energy_train.out').read_text().splitlines()
-    references = [float(row.split()[1]) for row in rows]
-    assert references == pytest.approx(expected, abs=1e-4)
+    columns, rows = read_loss_out(tmp_path)
+    # generation g reports the batch (g - 1) % 2
+    rmse = [dict(zip(columns, row))['rmse_energy_train'] for row in rows]
+    expected = [np.std([energies_per_atom[k] for k in batch]) for batch in batches]
+    # loss.out rounds to 1e-5, and the RMSE differs from the spread by less than that
+    assert rmse == pytest.approx(expected, abs=1e-4)
 
 
 def test_name_after_an_apostrophe_in_another_value_is_read(tmp_path, nep_command):

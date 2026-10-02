@@ -20,6 +20,7 @@
 class Parameters;
 
 struct Structure {
+  int index_in_file = 0; // position of the structure in train.xyz or test.xyz
   int pbc = 1; // 1 for PPP and 0 for FFF in long-range training
   int num_cell[3];
   int num_atom;

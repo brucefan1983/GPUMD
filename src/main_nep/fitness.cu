@@ -248,33 +248,32 @@ void Fitness::output(
   FILE* fid,
   float* prediction,
   float* reference,
-  Dataset& dataset)
+  Dataset& dataset,
+  const int nc)
 {
-  for (int nc = 0; nc < dataset.Nc; ++nc) {
-    for (int n = 0; n < num_components; ++n) {
-      int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
-      float data_nc = 0.0f;
-      for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
-        data_nc += prediction[offset + m];
-      }
-      if (!is_stress) {
-        fprintf(fid, "%g ", data_nc / dataset.Na_cpu[nc]);
-      } else {
-        fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+  for (int n = 0; n < num_components; ++n) {
+    int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
+    float data_nc = 0.0f;
+    for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+      data_nc += prediction[offset + m];
+    }
+    if (!is_stress) {
+      fprintf(fid, "%g ", data_nc / dataset.Na_cpu[nc]);
+    } else {
+      fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
+    }
+  }
+  for (int n = 0; n < num_components; ++n) {
+    float ref_value = reference[n * dataset.Nc + nc];
+    if (is_stress) {
+      if (ref_value > -1e5) {
+        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
       }
     }
-    for (int n = 0; n < num_components; ++n) {
-      float ref_value = reference[n * dataset.Nc + nc];
-      if (is_stress) {
-        if (ref_value > -1e5) {
-          ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
-        }
-      }
-      if (n == num_components - 1) {
-        fprintf(fid, "%g\n", ref_value);
-      } else {
-        fprintf(fid, "%g ", ref_value);
-      }
+    if (n == num_components - 1) {
+      fprintf(fid, "%g\n", ref_value);
+    } else {
+      fprintf(fid, "%g ", ref_value);
     }
   }
 }
@@ -284,9 +283,9 @@ void Fitness::output_atomic(
   FILE* fid,
   float* prediction,
   float* reference,
-  Dataset& dataset)
+  Dataset& dataset,
+  const int nc)
 {
-for (int nc = 0; nc < dataset.Nc; ++nc) {
   int offset = dataset.Na_sum_cpu[nc];
   for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
     for (int n = 0; n < num_components; ++n) {
@@ -302,7 +301,6 @@ for (int nc = 0; nc < dataset.Nc; ++nc) {
       }
     }
   }
-}
 }
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
@@ -619,35 +617,12 @@ void Fitness::report_error(
     fflush(fid_loss_out);
 
     if (has_test_set) {
-      if (para.model_type == 0 || para.model_type == 3) {
-        FILE* fid_force = my_fopen("force_test.out", "w");
-        FILE* fid_energy = my_fopen("energy_test.out", "w");
-        FILE* fid_virial = my_fopen("virial_test.out", "w");
-        FILE* fid_stress = my_fopen("stress_test.out", "w");
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, fid_stress, test_set[0]);
-        fclose(fid_energy);
-        fclose(fid_force);
-        fclose(fid_virial);
-        fclose(fid_stress);
-        if ((para.charge_mode || para.charge_vdw)) {
-          FILE* fid_charge = my_fopen("charge_test.out", "w");
-          update_charge(fid_charge, test_set[0]);
-          fclose(fid_charge);
-          if (para.has_bec) {
-            FILE* fid_bec = my_fopen("bec_test.out", "w");
-            update_bec(fid_bec, test_set[0]);
-            fclose(fid_bec);
-          }
-        }
-      } else if (para.model_type == 1) {
-        FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-        update_dipole(fid_dipole, test_set[0], para.atomic_v);
-        fclose(fid_dipole);
-      } else if (para.model_type == 2) {
-        FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-        update_polarizability(fid_polarizability, test_set[0], para.atomic_v);
-        fclose(fid_polarizability);
+      copy_predictions_to_host(para, test_set[0]);
+      std::vector<std::pair<Dataset*, int>> structures;
+      for (int nc = 0; nc < test_set[0].Nc; ++nc) {
+        structures.emplace_back(&test_set[0], nc);
       }
+      write_predictions(para, "test", structures);
     }
   }
 
@@ -656,120 +631,167 @@ void Fitness::report_error(
   }
 }
 
-void Fitness::update_energy_force_virial(
-  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset)
+void Fitness::copy_predictions_to_host(Parameters& para, Dataset& dataset)
 {
   dataset.energy.copy_to_host(dataset.energy_cpu.data());
   dataset.virial.copy_to_host(dataset.virial_cpu.data());
   dataset.force.copy_to_host(dataset.force_cpu.data());
-
-  for (int nc = 0; nc < dataset.Nc; ++nc) {
-    int offset = dataset.Na_sum_cpu[nc];
-    for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-      int n = offset + m;
-      fprintf(
-        fid_force,
-        "%g %g %g %g %g %g\n",
-        dataset.force_cpu[n],
-        dataset.force_cpu[n + dataset.N],
-        dataset.force_cpu[n + dataset.N * 2],
-        dataset.force_ref_cpu[n],
-        dataset.force_ref_cpu[n + dataset.N],
-        dataset.force_ref_cpu[n + dataset.N * 2]);
-    }
-  }
-
-  output(false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
-
-  output(false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-  output(true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-}
-
-void Fitness::update_charge(FILE* fid_charge, Dataset& dataset)
-{
-  dataset.charge.copy_to_host(dataset.charge_cpu.data());
-  for (int nc = 0; nc < dataset.Nc; ++nc) {
-    for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
-      fprintf(fid_charge, "%g\n", dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
+  if (para.charge_mode || para.charge_vdw) {
+    dataset.charge.copy_to_host(dataset.charge_cpu.data());
+    if (para.has_bec) {
+      dataset.bec.copy_to_host(dataset.bec_cpu.data());
     }
   }
 }
 
-void Fitness::update_bec(FILE* fid_bec, Dataset& dataset)
+void Fitness::update_energy_force_virial(
+  FILE* fid_energy,
+  FILE* fid_force,
+  FILE* fid_virial,
+  FILE* fid_stress,
+  Dataset& dataset,
+  const int nc)
 {
-  dataset.bec.copy_to_host(dataset.bec_cpu.data());
-  output_atomic(9, fid_bec, dataset.bec_cpu.data(), dataset.bec_ref_cpu.data(), dataset);
+  int offset = dataset.Na_sum_cpu[nc];
+  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
+    int n = offset + m;
+    fprintf(
+      fid_force,
+      "%g %g %g %g %g %g\n",
+      dataset.force_cpu[n],
+      dataset.force_cpu[n + dataset.N],
+      dataset.force_cpu[n + dataset.N * 2],
+      dataset.force_ref_cpu[n],
+      dataset.force_ref_cpu[n + dataset.N],
+      dataset.force_ref_cpu[n + dataset.N * 2]);
+  }
+
+  output(
+    false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset, nc);
+
+  output(
+    false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
+  output(
+    true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
 }
 
-void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic)
+void Fitness::update_charge(FILE* fid_charge, Dataset& dataset, const int nc)
 {
-  dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  if (!atomic) {
-    output(false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
-  } else {
-    output_atomic(3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+  for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+    fprintf(fid_charge, "%g\n", dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
   }
 }
 
-void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic)
+void Fitness::update_bec(FILE* fid_bec, Dataset& dataset, const int nc)
 {
-  dataset.virial.copy_to_host(dataset.virial_cpu.data());
+  output_atomic(9, fid_bec, dataset.bec_cpu.data(), dataset.bec_ref_cpu.data(), dataset, nc);
+}
+
+void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc)
+{
   if (!atomic) {
-    output(false, 6, fid_polarizability, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
+    output(
+      false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
   } else {
-    output_atomic(6, fid_polarizability, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset);
+    output_atomic(
+      3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset, nc);
   }
 }
 
-void Fitness::predict(Parameters& para, float* elite)
+void Fitness::update_polarizability(
+  FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc)
 {
+  if (!atomic) {
+    output(
+      false,
+      6,
+      fid_polarizability,
+      dataset.virial_cpu.data(),
+      dataset.virial_ref_cpu.data(),
+      dataset,
+      nc);
+  } else {
+    output_atomic(
+      6,
+      fid_polarizability,
+      dataset.virial_cpu.data(),
+      dataset.avirial_ref_cpu.data(),
+      dataset,
+      nc);
+  }
+}
+
+void Fitness::write_predictions(
+  Parameters& para,
+  const std::string& label,
+  const std::vector<std::pair<Dataset*, int>>& structures)
+{
+  auto open = [&label](const char* quantity) {
+    return my_fopen((std::string(quantity) + "_" + label + ".out").c_str(), "w");
+  };
   if (para.model_type == 0 || para.model_type == 3) {
-    FILE* fid_force = my_fopen("force_train.out", "w");
-    FILE* fid_energy = my_fopen("energy_train.out", "w");
-    FILE* fid_virial = my_fopen("virial_train.out", "w");
-    FILE* fid_stress = my_fopen("stress_train.out", "w");
-    FILE* fid_charge = nullptr;
-    FILE* fid_bec = nullptr;
-    if ((para.charge_mode || para.charge_vdw)) {
-      fid_charge = my_fopen("charge_train.out", "w");
-      if (para.has_bec) {
-        fid_bec = my_fopen("bec_train.out", "w");
-      }
-    }
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
+    const bool has_charge = para.charge_mode || para.charge_vdw;
+    FILE* fid_force = open("force");
+    FILE* fid_energy = open("energy");
+    FILE* fid_virial = open("virial");
+    FILE* fid_stress = open("stress");
+    FILE* fid_charge = has_charge ? open("charge") : nullptr;
+    FILE* fid_bec = has_charge && para.has_bec ? open("bec") : nullptr;
+    for (const auto& structure : structures) {
+      Dataset& dataset = *structure.first;
       update_energy_force_virial(
-        fid_energy, fid_force, fid_virial, fid_stress, train_set[batch_id][0]);
-      if ((para.charge_mode || para.charge_vdw)) {
-        update_charge(fid_charge, train_set[batch_id][0]);
-        if (para.has_bec) {
-          update_bec(fid_bec, train_set[batch_id][0]);
-        }
+        fid_energy, fid_force, fid_virial, fid_stress, dataset, structure.second);
+      if (fid_charge) {
+        update_charge(fid_charge, dataset, structure.second);
+      }
+      if (fid_bec) {
+        update_bec(fid_bec, dataset, structure.second);
       }
     }
     fclose(fid_energy);
     fclose(fid_force);
     fclose(fid_virial);
     fclose(fid_stress);
-    if ((para.charge_mode || para.charge_vdw)) {
+    if (fid_charge) {
       fclose(fid_charge);
-      if (para.has_bec) {
-        fclose(fid_bec);
-      }
+    }
+    if (fid_bec) {
+      fclose(fid_bec);
     }
   } else if (para.model_type == 1) {
-    FILE* fid_dipole = my_fopen("dipole_train.out", "w");
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
-      update_dipole(fid_dipole, train_set[batch_id][0], para.atomic_v);
+    FILE* fid_dipole = open("dipole");
+    for (const auto& structure : structures) {
+      update_dipole(fid_dipole, *structure.first, para.atomic_v, structure.second);
     }
     fclose(fid_dipole);
   } else if (para.model_type == 2) {
-    FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
-    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
-      update_polarizability(fid_polarizability, train_set[batch_id][0], para.atomic_v);
+    FILE* fid_polarizability = open("polarizability");
+    for (const auto& structure : structures) {
+      update_polarizability(fid_polarizability, *structure.first, para.atomic_v, structure.second);
     }
     fclose(fid_polarizability);
   }
+}
+
+void Fitness::predict(Parameters& para, float* elite)
+{
+  // The batches need not follow the order of train.xyz. predict evaluates every batch first and
+  // then writes the structures in the order of index_in_file.
+  std::vector<std::pair<Dataset*, int>> structures;
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    Dataset& dataset = train_set[batch_id][0];
+    potential->find_force(para, elite, train_set[batch_id], false, 1);
+    copy_predictions_to_host(para, dataset);
+    for (int nc = 0; nc < dataset.Nc; ++nc) {
+      structures.emplace_back(&dataset, nc);
+    }
+  }
+  std::sort(
+    structures.begin(),
+    structures.end(),
+    [](const std::pair<Dataset*, int>& a, const std::pair<Dataset*, int>& b) {
+      return a.first->structures[a.second].index_in_file <
+             b.first->structures[b.second].index_in_file;
+    });
+  write_predictions(para, "train", structures);
 }
