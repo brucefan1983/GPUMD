@@ -164,6 +164,13 @@ void Dump_Observer::pre_run(
     if (has_force_) {
       cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
+    if (number_of_files > 1) {
+      observer_potential_per_atom_.resize(atom.number_of_atoms);
+      observer_force_per_atom_.resize(atom.number_of_atoms * 3);
+      observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
+      // Ensemble::find_thermo writes T, U and the six components of the stress.
+      observer_thermo_.resize(8);
+    }
   }
 }
 
@@ -197,37 +204,52 @@ void Dump_Observer::end_of_step(
       : group[integrate.get_move_grouping_method()].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
-    // If observing, calculate properties with all potentials.
+    // Potential 0 drives the run, and its observer holds the state of the step.
+    // The forces of the step include those added in post_force, such as by add_force.
     const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
-    // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
-    for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
-      // Set potential/force/virials to zero
+    write_exyz(
+      step,
+      global_time,
+      box,
+      atom.cpu_atom_symbol,
+      atom.cpu_type,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.velocity_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      thermo,
+      0);
+    write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, 0);
+    // The other potentials are evaluated into scratch arrays, which leaves the per-atom arrays and
+    // the thermo vector of the run unchanged for the next step and for the other actions.
+    for (int potential_index = 1; potential_index < number_of_potentials; potential_index++) {
       initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + number_of_atoms * 2,
-        atom.potential_per_atom.data(),
-        atom.virial_per_atom.data());
+        observer_force_per_atom_.data(),
+        observer_force_per_atom_.data() + number_of_atoms,
+        observer_force_per_atom_.data() + number_of_atoms * 2,
+        observer_potential_per_atom_.data(),
+        observer_virial_per_atom_.data());
       GPU_CHECK_KERNEL
-      // Compute new potential properties
-      force.get_potential(potential_index).compute(
-        box,
-        atom.type,
-        atom.position_per_atom,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
+      force.get_potential(potential_index)
+        .compute(
+          box,
+          atom.type,
+          atom.position_per_atom,
+          observer_potential_per_atom_,
+          observer_force_per_atom_,
+          observer_virial_per_atom_);
       integrate.find_thermo(
         box.get_volume(),
         group,
         atom.mass,
-        atom.potential_per_atom,
+        observer_potential_per_atom_,
         atom.velocity_per_atom,
-        atom.virial_per_atom,
-        thermo);
-      // Write properties
+        observer_virial_per_atom_,
+        observer_thermo_);
       write_exyz(
         step,
         global_time,
@@ -238,11 +260,12 @@ void Dump_Observer::end_of_step(
         atom.cpu_position_per_atom,
         atom.velocity_per_atom,
         atom.cpu_velocity_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        thermo,
+        observer_force_per_atom_,
+        observer_virial_per_atom_,
+        observer_thermo_,
         potential_index);
-      write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, potential_index);
+      write_thermo(
+        step, number_of_atoms, number_of_atoms_fixed, box, observer_thermo_, potential_index);
     }
   } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.
