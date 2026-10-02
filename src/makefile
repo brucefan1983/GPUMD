@@ -26,7 +26,7 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" -DDEBUG 
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
 ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
 CFLAGS += -DGNEP_TEST_DIAGNOSTICS
@@ -106,7 +106,7 @@ all: gpumd nep gpumd_replica
 
 # Keep replica objects separate and share the selected compiler and architecture.
 gpumd_replica:
-	@$(MAKE) -s --no-print-directory -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
+	$(MAKE) -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
 
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -181,7 +181,7 @@ endif
 # clean up
 ###########################################################
 clean_replica:
-	@$(MAKE) -s --no-print-directory -C main_replica clean
+	$(MAKE) -C main_replica clean
 
 clean: clean_replica
 ifdef OS
