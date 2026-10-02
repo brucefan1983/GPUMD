@@ -31,10 +31,6 @@ namespace{
 
 bool is_good_K(int n)
 {
-  // Even sizes preserve the existing Nyquist-frequency indexing.
-  if (n % 2 != 0) {
-    return false;
-  }
   const int primes[4] = {2, 3, 5, 7};
   for (int p : primes) {
     while (n % p == 0) {
@@ -623,7 +619,6 @@ void PPPM::initialize(
   need_peratom_virial = need_peratom_virial_input;
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
-  // Allocate lazily, when the first force calculation supplies the actual box.
 }
 
 void PPPM::find_para(const int N, const Box& box)
@@ -644,7 +639,6 @@ void PPPM::find_para(const int N, const Box& box)
     if (!std::isfinite(thickness[d]) || thickness[d] <= 0.0) {
       PRINT_INPUT_ERROR("PPPM requires finite positive box thicknesses.");
     }
-    // Keep each direction's largest mesh, including across successive runs.
     K[d] = para.K[d];
     const double required = thickness[d] / mesh_spacing;
     if (first_mesh || required > K[d]) {
@@ -659,8 +653,7 @@ void PPPM::find_para(const int N, const Box& box)
   }
   para.K0K1 = K[0] * K[1];
   para.K0K1K2 = number_of_points;
-  const bool rebuild = K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2];
-  if (rebuild) {
+  if (K[0] != para.K[0] || K[1] != para.K[1] || K[2] != para.K[2]) {
     para.K[0] = K[0];
     para.K[1] = K[1];
     para.K[2] = K[2];

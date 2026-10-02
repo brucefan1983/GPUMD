@@ -1,5 +1,3 @@
-"""PPPM initial mesh and trajectory checks, separate from numerical tolerances."""
-
 import math
 import re
 from pathlib import Path
@@ -23,10 +21,9 @@ def validate_spec(spec):
         raise ValueError("pppm requires spacing and initial_mesh; optional frames, last_cell")
     if not isinstance(spec["spacing"], (int, float)) or isinstance(spec["spacing"], bool) or not math.isfinite(spec["spacing"]) or spec["spacing"] <= 0:
         raise ValueError("pppm spacing must be finite and positive")
-    meshes = [] if spec["initial_mesh"] is None else [spec["initial_mesh"]]
-    for mesh in meshes:
-        if not isinstance(mesh, list) or len(mesh) != 3 or any(type(n) is not int or n < 16 for n in mesh):
-            raise ValueError("pppm meshes must contain three integers >= 16")
+    mesh = spec["initial_mesh"]
+    if mesh is not None and (not isinstance(mesh, list) or len(mesh) != 3 or any(type(n) is not int or n < 16 for n in mesh)):
+        raise ValueError("pppm meshes must contain three integers >= 16")
     if "frames" in spec and (type(spec["frames"]) is not int or spec["frames"] < 1):
         raise ValueError("pppm frames must be positive")
     if "last_cell" in spec:
@@ -45,7 +42,6 @@ def good_size(n):
 
 
 def strip_mesh_lines(data):
-    """Only used for a case whose candidate mesh contract has already passed."""
     kept = []
     for line in data.splitlines(keepends=True):
         text = line.decode("utf-8", errors="replace").rstrip("\r\n")

@@ -1549,7 +1549,6 @@ def compare_run_pair(
                 read_stream(Path(candidate[f"{stream_name}_path"]))
             )
             if stream_name == "stdout" and "pppm" in case:
-                # The initial mesh line was checked independently.
                 candidate_stream = pppm_checks.strip_mesh_lines(candidate_stream)
             metrics[stream_name] = compare_exact_bytes(
                 baseline_stream,
