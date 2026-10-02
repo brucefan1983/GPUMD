@@ -27,6 +27,7 @@ struct NEP_Data {
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
+  GPU_Vector<float> q_descriptors; // stored descriptors for analytic Hessian
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> descriptor_parameters_type_pair;
   GPU_Vector<int> NN_radial;    // radial neighbor list
@@ -130,9 +131,14 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
-private:
+  const ZBL& get_zbl() const { return zbl; }
+  bool uses_dftd3() const { return has_dftd3; }
+  bool requires_expanded_box(const Box& box) const;
+
   ParaMB paramb;
   ANN annmb;
+
+private:
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;

@@ -47,6 +47,10 @@
 #define gpuDeviceCanAccessPeer hipDeviceCanAccessPeer
 #define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
 #define gpuDeviceSynchronize hipDeviceSynchronize
+#define gpuDeviceGetLimit hipDeviceGetLimit
+#define gpuDeviceSetLimit hipDeviceSetLimit
+#define gpuLimitStackSize hipLimitStackSize
+#define gpuLimitPrintfFifoSize hipLimitPrintfFifoSize
 
 // stream
 #define gpuStream_t hipStream_t
@@ -90,6 +94,8 @@
 #define gpusolverDnZheevd hipsolverDnZheevd
 #define gpusolverDnDsyevj_bufferSize hipsolverDnDsyevj_bufferSize
 #define gpusolverDnDsyevj hipsolverDnDsyevj
+#define gpusolverDnDsyevd_bufferSize hipsolverDnDsyevd_bufferSize
+#define gpusolverDnDsyevd hipsolverDnDsyevd
 #define gpusolverDnZheevjBatched_bufferSize hipsolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched hipsolverDnZheevjBatched
 
@@ -135,6 +141,10 @@
 #define gpuDeviceCanAccessPeer cudaDeviceCanAccessPeer
 #define gpuDeviceEnablePeerAccess cudaDeviceEnablePeerAccess
 #define gpuDeviceSynchronize cudaDeviceSynchronize
+#define gpuDeviceGetLimit cudaDeviceGetLimit
+#define gpuDeviceSetLimit cudaDeviceSetLimit
+#define gpuLimitStackSize cudaLimitStackSize
+#define gpuLimitPrintfFifoSize cudaLimitPrintfFifoSize
 
 // stream
 #define gpuStream_t cudaStream_t
@@ -181,6 +191,8 @@
 #define gpusolverDnZheevd cusolverDnZheevd
 #define gpusolverDnDsyevj_bufferSize cusolverDnDsyevj_bufferSize
 #define gpusolverDnDsyevj cusolverDnDsyevj
+#define gpusolverDnDsyevd_bufferSize cusolverDnDsyevd_bufferSize
+#define gpusolverDnDsyevd cusolverDnDsyevd
 #define gpusolverDnZheevjBatched_bufferSize cusolverDnZheevjBatched_bufferSize
 #define gpusolverDnZheevjBatched cusolverDnZheevjBatched
 
