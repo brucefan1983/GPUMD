@@ -75,6 +75,10 @@ private:
   GPU_Vector<double> mean_force_;
   GPU_Vector<double> mean_force_sq_;
   GPU_Vector<double> gpu_uncertainty_;
+  GPU_Vector<double> active_potential_per_atom_;
+  GPU_Vector<double> active_force_per_atom_;
+  GPU_Vector<double> active_virial_per_atom_;
+  GPU_Vector<double> active_thermo_;
   void output_line2(
     const double time,
     const Box& box,

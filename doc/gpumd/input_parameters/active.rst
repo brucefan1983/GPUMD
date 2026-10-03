@@ -13,6 +13,9 @@ The uncertainty :math:`\sigma_f` is estimated as the maximum force sample standa
         \sigma_f = \textrm{max}_i \sqrt{ \sigma_{i,x}^2 + \sigma_{i, y}^2 + \sigma_{i, z}^2  },
 
 where :math:`\sigma_{i,k}^2`, :math:`k\in{x,y,z}`, are the sample variances in the :math:`k` Cartesian direction calculated over the :math:`M` models. If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
+The energy, virial, stress and forces in `active.xyz` are those of the main potential alone.
+The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
+Checking the uncertainty leaves the molecular dynamics run unchanged.
 
 `active` takes five arguments. The first four sets the interval for uncertainty estimation and what per atom quantities are outputted in `active.xyz`, the fifth keyword sets the threshold :math:`\delta` in units of eV/Å.
       

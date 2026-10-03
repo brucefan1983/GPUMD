@@ -18,6 +18,7 @@ Run active learning on-the-fly during MD
 
 #include "active.cuh"
 #include "force/force.cuh"
+#include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "parse_utilities.cuh"
@@ -49,27 +50,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
   if (threadIdx.x == 0) {
     g_data_sum[blockIdx.x] = s_data[0];
-  }
-}
-
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
   }
 }
 
@@ -195,6 +175,11 @@ void Active::pre_run(
     mean_force_sq_.resize(atom.number_of_atoms * 3);
     gpu_uncertainty_.resize(atom.number_of_atoms);
     cpu_uncertainty_.resize(atom.number_of_atoms);
+    active_potential_per_atom_.resize(atom.number_of_atoms);
+    active_force_per_atom_.resize(atom.number_of_atoms * 3);
+    active_virial_per_atom_.resize(atom.number_of_atoms * 9);
+    // Ensemble::find_thermo writes T, U and the six components of the stress.
+    active_thermo_.resize(8);
   }
 }
 
@@ -225,34 +210,27 @@ void Active::end_of_step(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data());
   GPU_CHECK_KERNEL
 
-  // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
+  // Every potential is evaluated into scratch arrays, which leaves the per-atom arrays and the
+  // thermo vector of the run unchanged for the next step and for the other actions. Potential 0 is
+  // evaluated last, so the scratch arrays hold its properties for active.xyz.
   for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
-    // Set potential/force/virials to zero
-    initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2,
-      atom.potential_per_atom.data(),
-      atom.virial_per_atom.data());
-    GPU_CHECK_KERNEL
-    // Compute new potential properties
-    force.get_potential(potential_index).compute(
+    force.compute_one_potential(
+      potential_index,
       box,
-      atom.type,
       atom.position_per_atom,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom);
-    // Write properties to GPU vector
+      atom.type,
+      group,
+      active_potential_per_atom_,
+      active_force_per_atom_,
+      active_virial_per_atom_);
     compute_mean<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       number_of_potentials,
       mean_force_.data(),
       mean_force_sq_.data(),
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2);
+      active_force_per_atom_.data(),
+      active_force_per_atom_.data() + number_of_atoms,
+      active_force_per_atom_.data() + number_of_atoms * 2);
     GPU_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
@@ -268,6 +246,14 @@ void Active::end_of_step(
   }
   write_uncertainty(step, global_time, uncertainty);
   if (uncertainty > threshold_) {
+    integrate.find_thermo(
+      box.get_volume(),
+      group,
+      atom.mass,
+      active_potential_per_atom_,
+      atom.velocity_per_atom,
+      active_virial_per_atom_,
+      active_thermo_);
     write_exyz(
       step,
       global_time,
@@ -278,9 +264,9 @@ void Active::end_of_step(
       atom.cpu_position_per_atom,
       atom.velocity_per_atom,
       atom.cpu_velocity_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      thermo,
+      active_force_per_atom_,
+      active_virial_per_atom_,
+      active_thermo_,
       uncertainty);
   }
 }
