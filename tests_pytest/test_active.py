@@ -1,13 +1,15 @@
 """Tests of the active keyword.
 
 Checking the uncertainty leaves the molecular dynamics run unchanged. The frames in active.xyz
-hold the energy and forces of the main potential alone.
+hold the energy, virial and forces of the main potential alone. The stress adds the kinetic tensor
+to the virial.
 """
 import shutil
 import subprocess
 
 import numpy as np
 import pytest
+from ase import units
 from ase.build import bulk
 from ase.io import read
 from calorine.calculators import GPUNEP
@@ -51,7 +53,7 @@ def _run_add_force(directory, gpumd_command, with_active):
         'add_force 0 1 -0.5 0 0',
     ]
     if with_active:
-        run_in.append('active 1 0 1 0 0')
+        run_in.append('active 1 1 1 0 0')
     # dump_thermo follows active and writes the thermo vector after the check has run.
     run_in += ['dump_thermo 1', 'run 20']
     (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
@@ -69,9 +71,19 @@ def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
     frame = frames[-1]
     energy = frame.get_potential_energy()
     forces = frame.get_forces()
+    stress = frame.get_stress(voigt=False)
+    virial = frame.info['virial']
+    velocities = frame.arrays['vel'] / units.fs  # from Å/fs to ASE units
+    # calorine would write the velocities to model.xyz and add the kinetic term to the stress.
+    del frame.arrays['vel']
     frame.calc = GPUNEP(str(MODEL_PATH), command=gpumd_command)
     assert energy == approx_tol(frame.get_potential_energy(), TOLERANCES['energy'])
     assert np.max(np.abs(forces - frame.get_forces())) < ACTIVE_FORCE_TOLERANCE
+    volume = frame.get_volume()
+    assert -virial / volume == approx_tol(frame.get_stress(voigt=False), TOLERANCES['virial'])
+    # The stress is the pressure tensor, which adds the kinetic tensor to the virial.
+    kinetic = np.einsum('i,ia,ib->ab', frame.get_masses(), velocities, velocities)
+    assert stress == approx_tol((virial + kinetic) / volume, TOLERANCES['virial'])
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):
