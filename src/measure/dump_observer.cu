@@ -24,9 +24,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <iostream>
 #include <vector>
-#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -60,7 +58,6 @@ Dump_Observer::Dump_Observer(const std::vector<std::string>& tokens)
 void Dump_Observer::parse(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
-  dump_ = true;
   printf("Dump observer.\n");
 
   if (num_param != 6) {
@@ -128,28 +125,26 @@ void Dump_Observer::pre_run(
   Force& force)
 {
   force.set_multiple_potentials_mode(mode_);
-  if (dump_) {
-    const int number_of_files =
-      (mode_.compare("observe") == 0) ? force.get_number_of_potentials() : 1;
-    for (int i = 0; i < number_of_files; i++) {
-      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
-      std::string exyz_filename = "observer" + file_number + ".xyz";
-      exyz_files_.push_back(my_fopen(exyz_filename.c_str(), "a"));
-      std::string thermo_filename = "observer" + file_number + ".out";
-      thermo_files_.push_back(my_fopen(thermo_filename.c_str(), "a"));
-    }
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    if (mode_.compare("observe") == 0) {
-      observer_potential_per_atom_.resize(atom.number_of_atoms);
-      observer_force_per_atom_.resize(atom.number_of_atoms * 3);
-      observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
-      // Ensemble::find_thermo writes T, U and the six components of the stress.
-      observer_thermo_.resize(8);
-    }
+  const int number_of_files =
+    (mode_.compare("observe") == 0) ? force.get_number_of_potentials() : 1;
+  for (int i = 0; i < number_of_files; i++) {
+    const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
+    std::string exyz_filename = "observer" + file_number + ".xyz";
+    exyz_files_.push_back(my_fopen(exyz_filename.c_str(), "a"));
+    std::string thermo_filename = "observer" + file_number + ".out";
+    thermo_files_.push_back(my_fopen(thermo_filename.c_str(), "a"));
+  }
+  gpu_total_virial_.resize(6);
+  cpu_total_virial_.resize(6);
+  if (has_force_) {
+    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  }
+  if (mode_.compare("observe") == 0) {
+    observer_potential_per_atom_.resize(atom.number_of_atoms);
+    observer_force_per_atom_.resize(atom.number_of_atoms * 3);
+    observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
+    // Ensemble::find_thermo writes T, U and the six components of the stress.
+    observer_thermo_.resize(8);
   }
 }
 
@@ -167,10 +162,8 @@ void Dump_Observer::end_of_step(
   Atom& atom,
   Force& force)
 {
-  // Only run if should dump, since forces have to be recomputed with each potential.
-  if (!dump_)
-    return;
-  if (((step + 1) % dump_interval_thermo_ != 0) & ((step + 1) % dump_interval_exyz_ != 0))
+  // Skip the steps on which neither file is written.
+  if (((step + 1) % dump_interval_thermo_ != 0) && ((step + 1) % dump_interval_exyz_ != 0))
     return;
 
   int number_of_atoms_fixed =
@@ -211,7 +204,6 @@ void Dump_Observer::end_of_step(
         global_time,
         box,
         atom.cpu_atom_symbol,
-        atom.cpu_type,
         atom.position_per_atom,
         atom.cpu_position_per_atom,
         atom.velocity_per_atom,
@@ -231,7 +223,6 @@ void Dump_Observer::end_of_step(
       global_time,
       box,
       atom.cpu_atom_symbol,
-      atom.cpu_type,
       atom.position_per_atom,
       atom.cpu_position_per_atom,
       atom.velocity_per_atom,
@@ -241,15 +232,12 @@ void Dump_Observer::end_of_step(
       thermo,
       0);
     write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, 0);
-  } else {
-    PRINT_INPUT_ERROR("Invalid observer mode.\n");
   }
 }
 
 void Dump_Observer::output_line2(
   const double time,
   const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo,
   FILE* fid_)
@@ -327,7 +315,6 @@ void Dump_Observer::write_exyz(
   const double global_time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
   GPU_Vector<double>& position_per_atom,
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& velocity_per_atom,
@@ -337,8 +324,6 @@ void Dump_Observer::write_exyz(
   GPU_Vector<double>& gpu_thermo,
   const int file_index)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_exyz_ != 0)
     return;
 
@@ -356,7 +341,7 @@ void Dump_Observer::write_exyz(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo, fid_);
+  output_line2(global_time, box, virial_per_atom, gpu_thermo, fid_);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
@@ -390,8 +375,6 @@ void Dump_Observer::write_thermo(
   GPU_Vector<double>& gpu_thermo,
   const int file_index)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_thermo_ != 0)
     return;
 
@@ -445,5 +428,4 @@ void Dump_Observer::post_run(
   for (int i = 0; i < thermo_files_.size(); i++) {
     fclose(thermo_files_[i]);
   }
-  dump_ = false;
 }
