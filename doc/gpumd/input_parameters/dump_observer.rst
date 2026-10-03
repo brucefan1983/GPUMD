@@ -13,10 +13,11 @@ If set to `observe`, the first of the supplied NEP potentials will be used to pr
 * **.xyz**: `observer0.xyz`, `observer1.xyz`, ..., `observer(N-1).xyz` for `N` supplied potentials.
 
 The index of these `observer(index)` files correspond to the index of each potential in the `run.in` file. Thus, `observer0` corresponds to the first potential, `observer1` to the second and so on. In this mode, `observer0` corresponds to the main potential.
-`observer0` holds the state of the step as :ref:`thermo.out <thermo_out>` does.
-Its forces include the forces that other keywords add to the atoms, such as `add_force` and `add_efield`.
-The forces in the remaining files are the forces of the respective potential alone.
-Evaluating the remaining potentials leaves the molecular dynamics run unchanged.
+With a single potential, the files are named `observer.out` and `observer.xyz`.
+Each potential, the main potential included, is evaluated at the positions written to the file.
+The energies, stresses and forces in each file are those of the respective potential alone.
+They exclude the forces that other keywords add to the atoms, such as `add_force` and `add_efield`.
+Evaluating the potentials leaves the molecular dynamics run unchanged.
 
 If set to `average`, all supplied NEP potentials will be evaluated at every timestep, with the average of all potentials used to propagate the molecular dynamics. 
 In this case, two files will be written: `observer.out` every `interval_thermo` timesteps, and `observer.xyz` every `interval_exyz` timesteps. These files contains the thermo and atomistic properties as calculated with the average potential. 

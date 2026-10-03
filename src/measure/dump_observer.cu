@@ -164,7 +164,7 @@ void Dump_Observer::pre_run(
     if (has_force_) {
       cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
-    if (number_of_files > 1) {
+    if (mode_.compare("observe") == 0) {
       observer_potential_per_atom_.resize(atom.number_of_atoms);
       observer_force_per_atom_.resize(atom.number_of_atoms * 3);
       observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
@@ -204,28 +204,14 @@ void Dump_Observer::end_of_step(
       : group[integrate.get_move_grouping_method()].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
-    // Potential 0 drives the run, and its observer holds the state of the step.
-    // The forces of the step include those added in post_force, such as by add_force.
+    // Every potential is evaluated into scratch arrays at the positions of the frame, which leaves
+    // the per-atom arrays and the thermo vector of the run unchanged for the next step and for the
+    // other actions.
     const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
-    write_exyz(
-      step,
-      global_time,
-      box,
-      atom.cpu_atom_symbol,
-      atom.cpu_type,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.velocity_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      thermo,
-      0);
-    write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, 0);
-    // The other potentials are evaluated into scratch arrays, which leaves the per-atom arrays and
-    // the thermo vector of the run unchanged for the next step and for the other actions.
-    for (int potential_index = 1; potential_index < number_of_potentials; potential_index++) {
+    // The potentials read the float box, which Force::compute fills and a barostat leaves behind.
+    box.set_is_orthogonal();
+    for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
       initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,
         observer_force_per_atom_.data(),
