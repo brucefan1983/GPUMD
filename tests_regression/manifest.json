@@ -1057,6 +1057,7 @@
       "id": "pppm_default_equivalence_thermo",
       "description": "Omitted, explicit, explicit-spacing and late-spacing defaults agree within same-mesh atomic noise",
       "roles": [
+        "baseline",
         "candidate"
       ],
       "operation": "numeric_equal",
@@ -1089,6 +1090,7 @@
       "id": "pppm_default_equivalence_state",
       "description": "Omitted, explicit, explicit-spacing and late-spacing defaults agree within same-mesh atomic noise",
       "roles": [
+        "baseline",
         "candidate"
       ],
       "operation": "numeric_equal",
@@ -3629,7 +3631,7 @@
     },
     {
       "id": "qnep_pppm_future_bec",
-      "description": "qNEP PPPM with BEC and virial consumers appearing only in a later run; intentional mesh change from 32^3 to 28^3",
+      "description": "qNEP PPPM with BEC and virial consumers appearing only in a later run",
       "suites": [
         "snapshot",
         "potential",
@@ -3662,15 +3664,26 @@
           28
         ]
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "bec.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-05,
+          "reason": "Restore the pre-transition same-mesh qNEP/PPPM BEC bound: repeated regression observed 6.07e-6 absolute atomicAdd drift. Both executables now use the same mesh."
         },
-        "candidate": {
-          "expect": "success"
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Restore the pre-transition same-mesh PPPM bound: float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
+        },
+        "dpdt.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-06,
+          "reason": "Restore the pre-transition DPDT bound: full regression observed 1.0e-6 absolute drift from the float BEC tensor. Both executables now use the same mesh."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "compact_mc_before_potential",
@@ -6484,18 +6497,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_spacing_late",
@@ -6527,18 +6542,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_spacing_fine",
@@ -6570,18 +6587,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_spacing_coarse",
@@ -6613,18 +6632,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_round_exact",
@@ -6656,15 +6677,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_round_above",
@@ -6696,15 +6722,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_round_power2",
@@ -6781,15 +6812,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_mode2",
@@ -6967,15 +7003,20 @@
           8
         ]
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_grow_shrink_peratom",
@@ -7018,15 +7059,20 @@
           8
         ]
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     },
     {
       "id": "pppm_deform_same_mesh",
@@ -7287,22 +7333,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_negative",
@@ -7321,22 +7352,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_nan",
@@ -7355,22 +7371,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_inf",
@@ -7389,22 +7390,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_tail",
@@ -7423,22 +7409,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_overflow",
@@ -7457,22 +7428,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_extra",
@@ -7491,22 +7447,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "kspace requires ewald or pppm [spacing].",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "kspace requires ewald or pppm [spacing].",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_bare",
@@ -7525,22 +7466,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "kspace requires ewald or pppm [spacing].",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "kspace requires ewald or pppm [spacing].",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_invalid_ewald_spacing",
@@ -7559,22 +7485,7 @@
       "expect": "failure",
       "expected_returncode": 1,
       "stderr_contains": "kspace ewald does not accept spacing.",
-      "outputs": [],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "kspace ewald does not accept spacing.",
-          "outputs": []
-        }
-      },
-      "compare_cross_version": false
+      "outputs": []
     },
     {
       "id": "pppm_mesh_overflow",
@@ -7595,24 +7506,7 @@
       "stderr_contains": "PPPM mesh is too large",
       "outputs": [
         "neighbor.out"
-      ],
-      "role_expectations": {
-        "baseline": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stdout_contains": "kspace must have 1 parameter",
-          "outputs": []
-        },
-        "candidate": {
-          "expect": "failure",
-          "expected_returncode": 1,
-          "stderr_contains": "PPPM mesh is too large",
-          "outputs": [
-            "neighbor.out"
-          ]
-        }
-      },
-      "compare_cross_version": false
+      ]
     },
     {
       "id": "pppm_triclinic_mesh",
@@ -7644,15 +7538,20 @@
         ],
         "frames": 1
       },
-      "role_expectations": {
-        "baseline": {
-          "expect": "success"
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         },
-        "candidate": {
-          "expect": "success"
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
         }
-      },
-      "compare_cross_version": false
+      }
     }
   ]
 }
