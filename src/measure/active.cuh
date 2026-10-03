@@ -82,17 +82,14 @@ private:
   void output_line2(
     const double time,
     const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
     double uncertainty,
     FILE* fid_);
   void write_exyz(
-    const int step,
     const double global_time,
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
-    const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& velocity_per_atom,
@@ -101,5 +98,5 @@ private:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
     double uncertainty);
-  void write_uncertainty(const int step, const double global_time, double uncertainty);
+  void write_uncertainty(const double global_time, double uncertainty);
 };

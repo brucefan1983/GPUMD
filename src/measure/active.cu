@@ -26,9 +26,10 @@ Run active learning on-the-fly during MD
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -240,13 +241,8 @@ void Active::end_of_step(
     gpu_uncertainty_.data());
   GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
-  double uncertainty = -1.0;
-  for (int i = 0; i < number_of_atoms; i++) {
-    if (uncertainty < cpu_uncertainty_[i]) {
-      uncertainty = cpu_uncertainty_[i];
-    }
-  }
-  write_uncertainty(step, global_time, uncertainty);
+  const double uncertainty = *std::max_element(cpu_uncertainty_.begin(), cpu_uncertainty_.end());
+  write_uncertainty(global_time, uncertainty);
   if (uncertainty > threshold_) {
     integrate.find_thermo(
       box.get_volume(),
@@ -257,11 +253,9 @@ void Active::end_of_step(
       active_virial_per_atom_,
       active_thermo_);
     write_exyz(
-      step,
       global_time,
       box,
       atom.cpu_atom_symbol,
-      atom.cpu_type,
       atom.position_per_atom,
       atom.cpu_position_per_atom,
       atom.velocity_per_atom,
@@ -273,13 +267,8 @@ void Active::end_of_step(
   }
 }
 
-void Active::write_uncertainty(const int step, const double time, double uncertainty)
+void Active::write_uncertainty(const double time, double uncertainty)
 {
-  if (!check_)
-    return;
-  if ((step + 1) % check_interval_ != 0)
-    return;
-
   FILE* fid_ = out_file_;
 
   // Write time, uncertainty to file
@@ -290,7 +279,6 @@ void Active::write_uncertainty(const int step, const double time, double uncerta
 void Active::output_line2(
   const double time,
   const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo,
   double uncertainty,
@@ -371,11 +359,9 @@ void Active::output_line2(
 }
 
 void Active::write_exyz(
-  const int step,
   const double global_time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
   GPU_Vector<double>& position_per_atom,
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& velocity_per_atom,
@@ -385,11 +371,6 @@ void Active::write_exyz(
   GPU_Vector<double>& gpu_thermo,
   double uncertainty)
 {
-  if (!check_)
-    return;
-  if ((step + 1) % check_interval_ != 0)
-    return;
-
   const int num_atoms_total = position_per_atom.size() / 3;
   FILE* fid_ = exyz_file_;
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
@@ -404,7 +385,7 @@ void Active::write_exyz(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo, uncertainty, fid_);
+  output_line2(global_time, box, virial_per_atom, gpu_thermo, uncertainty, fid_);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
