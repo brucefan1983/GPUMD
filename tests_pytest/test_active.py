@@ -35,15 +35,20 @@ def _write_scaled_model(model_path, path, factor=1.05):
     path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
 
 
-def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.txt'):
-    """Runs 20 steps of nve on a rattled diamond cell with nep_C.txt as the main potential and by
-    default a scaled copy as the second, and returns thermo.out. The atoms alternate between
-    groups 0 and 1 of grouping method 0."""
-    directory.mkdir()
+def _write_carbon_cell(directory):
+    """Writes a rattled diamond cell to model.xyz, with the atoms alternating between groups 0 and
+    1 of grouping method 0."""
     atoms = bulk('C', 'diamond', a=3.567, cubic=True).repeat(2)
     atoms.rattle(0.05, seed=1)
     groups = [list(range(0, len(atoms), 2)), list(range(1, len(atoms), 2))]
     write_xyz(str(directory / 'model.xyz'), atoms, groupings=[groups])
+
+
+def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.txt'):
+    """Runs 20 steps of nve on a rattled diamond cell with nep_C.txt as the main potential and by
+    default a scaled copy as the second, and returns thermo.out."""
+    directory.mkdir()
+    _write_carbon_cell(directory)
     shutil.copy(MODEL_PATH, directory)
     _write_scaled_model(MODEL_PATH, directory / 'nep_C_scaled.txt')
     # The parameters overflow single precision, and the forces of this model are not finite.
@@ -143,6 +148,18 @@ def test_nan_uncertainty_writes_frame(tmp_path, gpumd_command):
         directory, gpumd_command, ['active 1 0 0 1 1000'], second_model='nep_C_overflow.txt')
     assert np.all(np.isnan(np.loadtxt(directory / 'active.out')[:, 1]))
     assert len(read(directory / 'active.xyz', index=':')) == 20
+
+
+def test_active_rejects_non_nep_potential(tmp_path, gpumd_command):
+    _write_carbon_cell(tmp_path)
+    (tmp_path / 'lj_C.txt').write_text('lj 1 C\n0.002 3.4 8.0\n')
+    run_in = ['potential lj_C.txt', 'velocity 300 seed 1', 'ensemble nve', 'time_step 1',
+              'active 1 0 0 0 0', 'run 1']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    result = subprocess.run(
+        [gpumd_command], cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert result.returncode != 0
+    assert 'active requires NEP potentials' in result.stdout + result.stderr
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):

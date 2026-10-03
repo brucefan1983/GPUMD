@@ -5,7 +5,7 @@
 :attr:`active`
 =====================
 
-Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials. Note that this mode is only supported with NEP potentials. Furthermore, the molecular dynamics simulation is propagated using the first NEP potential specified in :ref:`run.in <run_in>`, or using the average of the potentials when `dump_observer` is given in `average` mode.
+Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials. Every potential must be a NEP potential, and GPUMD stops with an input error otherwise. Furthermore, the molecular dynamics simulation is propagated using the first NEP potential specified in :ref:`run.in <run_in>`, or using the average of the potentials when `dump_observer` is given in `average` mode.
 
 The uncertainty :math:`\sigma_f` is estimated as the maximum over the atoms :math:`i` of the standard deviation of the force over the :math:`M` models,
 

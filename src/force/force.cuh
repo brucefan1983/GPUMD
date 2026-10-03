@@ -87,6 +87,7 @@ public:
     const double temperature1, const double temperature2, const int number_of_steps);
   void advance_temperature();
   int get_number_of_potentials() const;
+  bool has_non_nep_potential() const;
   Potential& get_potential(const int index);
 
 private:

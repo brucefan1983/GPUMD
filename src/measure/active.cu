@@ -167,6 +167,9 @@ void Active::pre_run(
   Force& force)
 {
   if (check_) {
+    if (force.has_non_nep_potential()) {
+      PRINT_INPUT_ERROR("active requires NEP potentials.\n");
+    }
     std::string exyz_filename = "active.xyz";
     std::string out_filename = "active.out";
     exyz_file_ = my_fopen(exyz_filename.c_str(), "a");

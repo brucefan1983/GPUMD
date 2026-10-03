@@ -385,6 +385,8 @@ void Force::advance_temperature() { temperature += delta_T; }
 
 int Force::get_number_of_potentials() const { return potentials.size(); }
 
+bool Force::has_non_nep_potential() const { return has_non_nep; }
+
 Potential& Force::get_potential(const int index) { return *potentials[index]; }
 
 void Force::prepare_compute(
