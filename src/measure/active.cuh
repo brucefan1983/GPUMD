@@ -60,7 +60,6 @@ public:
     const double temperature);
 
 private:
-  bool check_ = false;
   int check_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
@@ -79,13 +78,7 @@ private:
   GPU_Vector<double> active_force_per_atom_;
   GPU_Vector<double> active_virial_per_atom_;
   GPU_Vector<double> active_thermo_;
-  void output_line2(
-    const double time,
-    const Box& box,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
-    double uncertainty,
-    FILE* fid_);
+  void output_line2(const double time, const Box& box, double uncertainty);
   void write_exyz(
     const double global_time,
     const Box& box,
@@ -94,9 +87,6 @@ private:
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& velocity_per_atom,
     std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
     double uncertainty);
   void write_uncertainty(const double global_time, double uncertainty);
 };

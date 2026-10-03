@@ -28,8 +28,6 @@ Run active learning on-the-fly during MD
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
-#include <cstring>
-#include <iostream>
 #include <vector>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
@@ -52,16 +50,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
   if (threadIdx.x == 0) {
     g_data_sum[blockIdx.x] = s_data[0];
-  }
-}
-
-static __global__ void
-initialize_force_statistics(const int size, double* g_mean, double* g_squared_deviation_sum)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < size) {
-    g_mean[n] = 0.0;
-    g_squared_deviation_sum[n] = 0.0;
   }
 }
 
@@ -107,7 +95,6 @@ Active::Active(const std::vector<std::string>& tokens)
 void Active::parse(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
-  check_ = true;
   printf("Active learning.\n");
 
   if (num_param != 6) {
@@ -167,29 +154,27 @@ void Active::pre_run(
   Box& box,
   Force& force)
 {
-  if (check_) {
-    if (force.has_non_nep_potential()) {
-      PRINT_INPUT_ERROR("active requires NEP potentials.\n");
-    }
-    std::string exyz_filename = "active.xyz";
-    std::string out_filename = "active.out";
-    exyz_file_ = my_fopen(exyz_filename.c_str(), "a");
-    out_file_ = my_fopen(out_filename.c_str(), "a");
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    mean_force_.resize(atom.number_of_atoms * 3);
-    squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
-    gpu_uncertainty_.resize(atom.number_of_atoms);
-    cpu_uncertainty_.resize(atom.number_of_atoms);
-    active_potential_per_atom_.resize(atom.number_of_atoms);
-    active_force_per_atom_.resize(atom.number_of_atoms * 3);
-    active_virial_per_atom_.resize(atom.number_of_atoms * 9);
-    // Ensemble::find_thermo writes T, U and the six components of the stress.
-    active_thermo_.resize(8);
+  if (force.has_non_nep_potential()) {
+    PRINT_INPUT_ERROR("active requires NEP potentials.\n");
   }
+  std::string exyz_filename = "active.xyz";
+  std::string out_filename = "active.out";
+  exyz_file_ = my_fopen(exyz_filename.c_str(), "a");
+  out_file_ = my_fopen(out_filename.c_str(), "a");
+  gpu_total_virial_.resize(6);
+  cpu_total_virial_.resize(6);
+  if (has_force_) {
+    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+  }
+  mean_force_.resize(atom.number_of_atoms * 3);
+  squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
+  gpu_uncertainty_.resize(atom.number_of_atoms);
+  cpu_uncertainty_.resize(atom.number_of_atoms);
+  active_potential_per_atom_.resize(atom.number_of_atoms);
+  active_force_per_atom_.resize(atom.number_of_atoms * 3);
+  active_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  // Ensemble::find_thermo writes T, U and the six components of the stress.
+  active_thermo_.resize(8);
 }
 
 void Active::end_of_step(
@@ -206,17 +191,13 @@ void Active::end_of_step(
   Atom& atom,
   Force& force)
 {
-  // Only run if should check, since forces have to be recomputed with each potential.
-  if (!check_)
-    return;
   if ((step + 1) % check_interval_ != 0)
     return;
 
   const int number_of_potentials = force.get_number_of_potentials();
   const int number_of_atoms = atom.type.size();
-  initialize_force_statistics<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
-    3 * number_of_atoms, mean_force_.data(), squared_force_deviation_sum_.data());
-  GPU_CHECK_KERNEL
+  mean_force_.fill(0.0);
+  squared_force_deviation_sum_.fill(0.0);
 
   // Every potential is evaluated into scratch arrays, which leaves the per-atom arrays and the
   // thermo vector of the run unchanged.
@@ -271,9 +252,6 @@ void Active::end_of_step(
       atom.cpu_position_per_atom,
       atom.velocity_per_atom,
       atom.cpu_velocity_per_atom,
-      active_force_per_atom_,
-      active_virial_per_atom_,
-      active_thermo_,
       uncertainty);
   }
 }
@@ -287,14 +265,9 @@ void Active::write_uncertainty(const double time, double uncertainty)
   fflush(fid_);
 }
 
-void Active::output_line2(
-  const double time,
-  const Box& box,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo,
-  double uncertainty,
-  FILE* fid_)
+void Active::output_line2(const double time, const Box& box, double uncertainty)
 {
+  FILE* fid_ = exyz_file_;
   // time
   fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
 
@@ -321,9 +294,9 @@ void Active::output_line2(
 
   // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];
-  gpu_thermo.copy_to_host(cpu_thermo, 8);
-  const int N = virial_per_atom.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
+  active_thermo_.copy_to_host(cpu_thermo, 8);
+  const int N = active_virial_per_atom_.size() / 9;
+  gpu_sum<<<6, 1024>>>(N, active_virial_per_atom_.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
   fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
@@ -377,9 +350,6 @@ void Active::write_exyz(
   std::vector<double>& cpu_position_per_atom,
   GPU_Vector<double>& velocity_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo,
   double uncertainty)
 {
   const int num_atoms_total = position_per_atom.size() / 3;
@@ -389,14 +359,14 @@ void Active::write_exyz(
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
   }
   if (has_force_) {
-    force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+    active_force_per_atom_.copy_to_host(cpu_force_per_atom_.data());
   }
 
   // line 1
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, virial_per_atom, gpu_thermo, uncertainty, fid_);
+  output_line2(global_time, box, uncertainty);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
@@ -433,9 +403,6 @@ void Active::post_run(
   const double time_step,
   const double temperature)
 {
-  if (check_) {
-    fclose(exyz_file_);
-    fclose(out_file_);
-    check_ = false;
-  }
+  fclose(exyz_file_);
+  fclose(out_file_);
 }
