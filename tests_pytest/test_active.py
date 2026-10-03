@@ -97,17 +97,21 @@ def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
 
 def test_active_keeps_average_mode(tmp_path, gpumd_command):
     """The average of the potentials propagates the run under dump_observer average, whichever of
-    the two keywords comes first."""
+    the two keywords comes first, and active.xyz holds the main potential alone."""
     observer = 'dump_observer average 1 1 0 0'
-    active = 'active 1 0 0 0 0'
+    active = 'active 1 0 1 0 0'
     reference = _run_carbon(tmp_path / 'reference', gpumd_command, [observer])
     active_first = _run_carbon(tmp_path / 'active_first', gpumd_command, [active, observer])
     active_last = _run_carbon(tmp_path / 'active_last', gpumd_command, [observer, active])
     assert np.array_equal(active_first, reference)
     assert np.array_equal(active_last, reference)
-    uncertainty_first = np.loadtxt(tmp_path / 'active_first' / 'active.out')
-    uncertainty_last = np.loadtxt(tmp_path / 'active_last' / 'active.out')
-    assert uncertainty_last == approx_tol(uncertainty_first, TOLERANCES['force'])
+    for name in ('active_first', 'active_last'):
+        frame = read(tmp_path / name / 'active.xyz', index=-1)
+        energy = frame.get_potential_energy()
+        forces = frame.get_forces()
+        frame.calc = GPUNEP(str(MODEL_PATH), command=gpumd_command)
+        assert energy == approx_tol(frame.get_potential_energy(), TOLERANCES['energy'])
+        assert np.max(np.abs(forces - frame.get_forces())) < ACTIVE_FORCE_TOLERANCE
 
 
 def test_uncertainty_is_population_standard_deviation(tmp_path, gpumd_command):
@@ -173,7 +177,7 @@ def _run_temperature_nep(directory, gpumd_command, with_active):
         f'potential {model_path.name}',
         'potential temperature_F_nep_scaled.txt',
         'velocity 300 seed 1',
-        'ensemble nvt_ber 300 300 100',
+        'ensemble nvt_ber 300 600 100',
         'time_step 1',
     ]
     if with_active:
@@ -185,7 +189,8 @@ def _run_temperature_nep(directory, gpumd_command, with_active):
 
 
 def test_active_with_temperature_nep(tmp_path, gpumd_command):
-    """active evaluates a temperature-dependent NEP at the temperature of the run."""
+    """active evaluates a temperature-dependent NEP at the temperature of the step, which rises by
+    100 K per step."""
     reference = _run_temperature_nep(tmp_path / 'reference', gpumd_command, with_active=False)
     checked = _run_temperature_nep(tmp_path / 'checked', gpumd_command, with_active=True)
     assert np.array_equal(checked, reference)
