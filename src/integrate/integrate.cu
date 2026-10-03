@@ -260,6 +260,9 @@ void Integrate::compute2(
   }
 
   ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
+  // A barostat can change the box in compute2. Force::compute refreshes the float copy of the box
+  // only at the next step, and the measurements at the end of this step read it.
+  box.set_is_orthogonal();
 }
 
 void Integrate::parse_ensemble(

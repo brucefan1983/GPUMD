@@ -209,8 +209,6 @@ void Dump_Observer::end_of_step(
     // other actions.
     const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
-    // The potentials read the float box, which Force::compute fills and a barostat leaves behind.
-    box.set_is_orthogonal();
     for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
       initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
         number_of_atoms,

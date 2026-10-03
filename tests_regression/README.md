@@ -38,12 +38,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 221 cases and evaluates
-all 23 cross-case relations after the cases pass. Every case and relation runs
-for both the baseline and candidate. A successful run ends with:
+`full` is the only acceptance suite. It contains all 253 cases and evaluates
+all 25 cross-case relations after the cases pass. Every case runs for both the baseline and candidate. The two new PPPM default-equivalence
+relations run for the candidate; the other 23 relations run for both executables. A successful run ends with:
 
 ```text
-Summary: 221 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
+Summary: 253 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -112,7 +112,7 @@ python3 tests_regression/run_regression.py \
 
 ## Suites
 
-The manifest defines 22 suites. `full` is the acceptance gate; the other
+The manifest defines 23 suites. `full` is the acceptance gate; the other
 suites exist only to isolate a failure:
 
 | Suite | Diagnostic scope |
@@ -138,7 +138,8 @@ suites exist only to isolate a failure:
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
 | `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
-| `full` | all 221 cases and all 23 relations |
+| `pppm` | spacing, mesh sizing, resource lifecycle, and related existing qNEP cases |
+| `full` | all 253 cases and all 25 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 
@@ -159,8 +160,9 @@ skipped relations. See `CONTRACT_SUITES.md` for the durable relation oracles.
 
 Every selected case starts the matching program's baseline once and candidate once in
 separate fresh working directories. The runner does not repeatedly execute a
-binary to establish self-repeatability. There are no candidate-only or
-role-specific cases: both executables must meet the same declared contract.
+binary to establish self-repeatability. There are no candidate-only cases. PPPM transition cases explicitly declare
+role-specific expectations for the pinned old baseline and the new candidate;
+see [PPPM.md](PPPM.md). Other cases retain their shared contract.
 
 Cases default to `program: gpumd`. Training cases declare `program: nep`, which
 causes the runner to stage their input as `nep.in` and select the NEP executable
@@ -174,7 +176,9 @@ Comparison is deliberately strict:
 
 - the generated-file inventory must exactly match the manifest;
 - ordinary generated files are compared byte for byte;
-- `stdout` is compared after removing only declared timing and speed noise;
+- `stdout` is compared after removing declared timing and speed noise; for a
+  case with an explicit `pppm` contract, validated candidate mesh lines are
+  checked separately and then removed from the stream comparison;
 - `stderr` is compared after removing only internal source-file and source-line
   locations;
 - missing, unexpected, empty, or unauthorized modified files fail the case.
@@ -189,9 +193,9 @@ including under exact-byte mode.
 The manifest contains narrowly scoped zero-relative-tolerance numerical
 comparisons for qNEP outputs affected by unordered single-precision GPU
 accumulation. The comparator still requires identical token counts, token
-order, and nonnumeric text, and rejects non-finite or overflowing values. All
-other outputs remain byte-exact unless their manifest entry explicitly says
-otherwise.
+order, and nonnumeric text, and rejects non-finite or overflowing values. The new same-mesh PPPM cases have provisional, explicitly scoped absolute
+tolerances that still need confirmation on the target GPU. Other outputs remain
+byte-exact unless their manifest entry explicitly says otherwise.
 
 Selected cases also declare NumPy-based semantic post-checks. These checks are
 additional oracles applied independently to the baseline and candidate after
@@ -207,15 +211,16 @@ also compared byte for byte between baseline and candidate after execution.
 
 ### Cross-case relations
 
-The top-level `relations` list provides exact oracles involving multiple
-cases:
+The top-level `relations` list provides oracles involving multiple cases:
 
 - `equal` requires all referenced case/output members to be byte-identical;
 - `concat` requires a result output to equal the ordered bytewise
-  concatenation of its parts.
+  concatenation of its parts;
+- `numeric_equal` requires identical text structure and numerical agreement
+  within explicitly declared tolerances and a reason (PPPM float atomics only).
 
 A relation runs only after all referenced cases pass. `full` includes every
-relation member, so all 23 relations run for both executables. Passing work
+relation member, so all 25 relations run for their declared roles. Passing work
 directories are retained until applicable relations complete. A relation
 failure retains all implicated case directories and exits unsuccessfully.
 

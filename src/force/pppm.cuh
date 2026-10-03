@@ -27,7 +27,8 @@ class PPPM
 public:
   PPPM();
   ~PPPM();
-  void initialize(const float alpha_input, const bool need_peratom_virial_input);
+  void initialize(
+    const float alpha_input, const bool need_peratom_virial_input, const double mesh_spacing_input);
   void find_force(
     const int N,
     const int N1,
@@ -52,7 +53,8 @@ public:
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
 private:
-  Para para;
+  Para para = {};
+  double mesh_spacing = 1.0;
   GPU_Vector<float> kx;
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
@@ -63,9 +65,11 @@ private:
   GPU_Vector<gpufftComplex> mesh_y;
   GPU_Vector<gpufftComplex> mesh_z;
   gpufftHandle plan;
+  bool plan_initialized = false;
+  bool plan_virial_initialized = false;
+  void destroy_plans();
   void allocate_memory();
   void find_para(const int N, const Box& box);
-  void find_k_and_G(const double* box);
 
   bool need_peratom_virial = false;
   GPU_Vector<gpufftComplex> mesh_virial;
