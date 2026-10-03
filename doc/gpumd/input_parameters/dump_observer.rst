@@ -7,16 +7,17 @@
 
 Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. In addition to the output interval and the quantity flags described under Syntax below, it takes a `mode` keyword, which can be set to either `observe` or `average`.
 
-If set to `observe`, the first of the supplied NEP potentials will be used to propagate the molecular dynamics run, and the remaining potentials will be evaluated every `interval_thermo` and `interval_exyz` time steps. Every `interval_thermo` timesteps files in the style of :ref:`thermo.out <thermo_out>` will be written, and every `interval_exyz` timesteps extended XYZ-files will be written. The files are named according to the following convention:
+If set to `observe`, the first of the supplied NEP potentials, the main potential, propagates the molecular dynamics run.
+Every potential, the main potential included, is evaluated every `interval_thermo` and `interval_exyz` time steps at the positions written to the files.
+Every `interval_thermo` timesteps files in the style of :ref:`thermo.out <thermo_out>` will be written, and every `interval_exyz` timesteps extended XYZ-files will be written. The files are named according to the following convention:
 
 * **.out**: `observer0.out`, `observer1.out`, ..., `observer(N-1).out` for `N` supplied potentials.
 * **.xyz**: `observer0.xyz`, `observer1.xyz`, ..., `observer(N-1).xyz` for `N` supplied potentials.
+* With a single potential, the files are named `observer.out` and `observer.xyz`.
 
 The index of these `observer(index)` files correspond to the index of each potential in the `run.in` file. Thus, `observer0` corresponds to the first potential, `observer1` to the second and so on. In this mode, `observer0` corresponds to the main potential.
-With a single potential, the files are named `observer.out` and `observer.xyz`.
-Each potential, the main potential included, is evaluated at the positions written to the file.
-The energies, stresses and forces in each file are those of the respective potential alone.
-They exclude the forces that other keywords add to the atoms, such as `add_force` and `add_efield`.
+The energy, virial, stress and forces in each file are those of the respective potential alone.
+The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
 Evaluating the potentials leaves the molecular dynamics run unchanged.
 
 If set to `average`, all supplied NEP potentials will be evaluated at every timestep, with the average of all potentials used to propagate the molecular dynamics. 
