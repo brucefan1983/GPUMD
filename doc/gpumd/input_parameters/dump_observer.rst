@@ -16,7 +16,8 @@ Every `interval_thermo` timesteps files in the style of :ref:`thermo.out <thermo
 * With a single potential, the files are named `observer.out` and `observer.xyz`.
 
 The index of these `observer(index)` files correspond to the index of each potential in the `run.in` file. Thus, `observer0` corresponds to the first potential, `observer1` to the second and so on. In this mode, `observer0` corresponds to the main potential.
-The energy, virial, stress and forces in each file are those of the respective potential alone.
+The energy, virial and forces in each file are those of the respective potential alone.
+The `stress` field in the extended XYZ files holds the pressure tensor in eV/Å³, which adds the kinetic contribution of the velocities to the virial of the respective potential.
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
 Evaluating the potentials leaves the molecular dynamics run unchanged.
 

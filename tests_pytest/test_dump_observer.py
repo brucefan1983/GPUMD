@@ -1,14 +1,15 @@
 """Tests of dump_observer in observe mode.
 
-Each observer file holds the energy, stress and forces of its potential alone, evaluated at the
-written positions in the box of the step. Writing the observers leaves the molecular dynamics run
-unchanged.
+Each observer file holds the energy, virial and forces of its potential alone, evaluated at the
+written positions in the box of the step. The stress adds the kinetic tensor to the virial.
+Writing the observers leaves the molecular dynamics run unchanged.
 """
 import shutil
 import subprocess
 
 import numpy as np
 import pytest
+from ase import units
 from ase.build import bulk
 from ase.io import read
 from calorine.calculators import GPUNEP
@@ -110,7 +111,7 @@ def _run(directory, gpumd_command, case, number_of_potentials, with_observer):
     model_paths = model_paths[:number_of_potentials]
     run_in = [f'potential {path.name}' for path in model_paths] + CASES[case]
     if with_observer:
-        run_in.append('dump_observer observe 1 1 0 1')
+        run_in.append('dump_observer observe 1 1 1 1')
     # dump_thermo follows dump_observer and writes the thermo vector after the observers have run.
     run_in += ['dump_thermo 1', 'run 20']
     (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
@@ -132,6 +133,11 @@ def test_observers_leave_run_unchanged(tmp_path, gpumd_command, case, number_of_
         frame = read(tmp_path / 'observed' / f'{name}.xyz', index=-1)
         energy = frame.get_potential_energy()
         forces = frame.get_forces()
+        stress = frame.get_stress(voigt=False)
+        virial = frame.info['virial']
+        velocities = frame.arrays['vel'] / units.fs  # from Å/fs to ASE units
+        # calorine would write the velocities to model.xyz and add the kinetic term to the stress.
+        del frame.arrays['vel']
         observer_thermo = np.loadtxt(tmp_path / 'observed' / f'{name}.out')
 
         frame.calc = GPUNEP(str(model_path), command=gpumd_command)
@@ -139,6 +145,12 @@ def test_observers_leave_run_unchanged(tmp_path, gpumd_command, case, number_of_
         # column 2 of observer.out is the potential energy
         assert observer_thermo[-1, 2] == approx_tol(energy, TOLERANCES['energy'])
         assert np.max(np.abs(forces - frame.get_forces())) < OBSERVER_FORCE_TOLERANCE
+        volume = frame.get_volume()
+        assert -virial / volume == approx_tol(
+            frame.get_stress(voigt=False), TOLERANCES['virial'])
+        # The stress is the pressure tensor, which adds the kinetic tensor to the virial.
+        kinetic = np.einsum('i,ia,ib->ab', frame.get_masses(), velocities, velocities)
+        assert stress == approx_tol((virial + kinetic) / volume, TOLERANCES['virial'])
 
 
 def test_observer_of_temperature_nep(tmp_path, gpumd_command):
