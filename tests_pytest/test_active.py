@@ -26,12 +26,12 @@ MODEL_PATH = MODELS_DIR / 'nep_C.txt'
 ACTIVE_FORCE_TOLERANCE = 2e-4
 
 
-def _write_scaled_model(model_path, path):
-    """Writes to path a copy of a NEP4 model with every parameter scaled by 1.05, a second model
+def _write_scaled_model(model_path, path, factor=1.05):
+    """Writes to path a copy of a NEP4 model with every parameter scaled by factor, a second model
     for the same species."""
     lines = model_path.read_text().splitlines()
     header_length = 6  # the lines from nep4 to ANN
-    parameters = [f'{float(line) * 1.05:.7e}' for line in lines[header_length:]]
+    parameters = [f'{float(line) * factor:.7e}' for line in lines[header_length:]]
     path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
 
 
@@ -46,6 +46,8 @@ def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.t
     write_xyz(str(directory / 'model.xyz'), atoms, groupings=[groups])
     shutil.copy(MODEL_PATH, directory)
     _write_scaled_model(MODEL_PATH, directory / 'nep_C_scaled.txt')
+    # The parameters overflow single precision, and the forces of this model are not finite.
+    _write_scaled_model(MODEL_PATH, directory / 'nep_C_overflow.txt', factor=1e40)
     run_in = [
         f'potential {MODEL_PATH.name}',
         f'potential {second_model}',
@@ -131,6 +133,16 @@ def test_uncertainty_of_identical_models(tmp_path, gpumd_command):
     assert len(uncertainty) == 20
     # A NaN fails both comparisons.
     assert np.all(uncertainty >= 0) and np.all(uncertainty < 1e-10)
+
+
+def test_nan_uncertainty_writes_frame(tmp_path, gpumd_command):
+    """A NaN uncertainty, from a model with forces that are not finite, is the maximum and writes
+    the frame whatever the threshold."""
+    directory = tmp_path / 'run'
+    _run_carbon(
+        directory, gpumd_command, ['active 1 0 0 1 1000'], second_model='nep_C_overflow.txt')
+    assert np.all(np.isnan(np.loadtxt(directory / 'active.out')[:, 1]))
+    assert len(read(directory / 'active.xyz', index=':')) == 20
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):

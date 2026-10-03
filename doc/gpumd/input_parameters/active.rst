@@ -18,6 +18,7 @@ where
         \sigma_{i,k}^2 = \frac{1}{M} \sum_{m=1}^{M} \left( F_{i,k}^{(m)} - \bar{F}_{i,k} \right)^2
 
 is the variance of the :math:`k` Cartesian component of the force on atom :math:`i`, :math:`F_{i,k}^{(m)}` is that component for model :math:`m`, and :math:`\bar{F}_{i,k}` is its mean over the models. If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
+If the uncertainty of any atom is NaN, which a model with forces that are not finite produces, :math:`\sigma_f` is NaN and the structure is appended to `active.xyz`.
 The energy, virial and forces in `active.xyz` are those of the main potential alone.
 The `stress` field holds the pressure tensor in eV/Å³, which adds the kinetic contribution of the velocities to the virial of the main potential.
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
