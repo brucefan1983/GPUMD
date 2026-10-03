@@ -20,7 +20,7 @@ from ase.io import read
 from calorine.calculators import GPUNEP
 from calorine.gpumd import write_xyz
 
-from conftest import MODELS_DIR, TOLERANCES, approx_tol
+from conftest import MODELS_DIR, REPO_ROOT, TOLERANCES, approx_tol
 
 pytestmark = pytest.mark.fast
 
@@ -134,3 +134,23 @@ def test_dump_observer(tmp_path, gpumd_command, case, number_of_potentials):
         assert energy == approx_tol(frame.get_potential_energy(), TOLERANCES['energy'])
         assert observer_thermo[-1, 2] == approx_tol(energy, TOLERANCES['energy'])
         assert np.allclose(forces, frame.get_forces(), **OBSERVER_FORCE_TOLERANCE)
+
+
+def test_observer_of_temperature_nep(tmp_path, gpumd_command):
+    """The observer evaluates a temperature-dependent NEP at the temperature of the run."""
+    fixtures = REPO_ROOT / 'tests_regression' / 'fixtures'
+    shutil.copy(fixtures / 'potentials' / 'temperature_F_nep.txt', tmp_path)
+    shutil.copy(fixtures / 'systems' / 'temperature_F_512.xyz', tmp_path / 'model.xyz')
+    (tmp_path / 'run.in').write_text(
+        'potential temperature_F_nep.txt\n'
+        'velocity 300 seed 1\n'
+        'ensemble nvt_ber 300 300 100\n'
+        'time_step 1\n'
+        'dump_observer observe 1 1 0 0\n'
+        'dump_thermo 1\n'
+        'run 3\n'
+    )
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    potential_energy = np.loadtxt(tmp_path / 'thermo.out')[:, 2]
+    observer_potential_energy = np.loadtxt(tmp_path / 'observer.out')[:, 2]
+    assert observer_potential_energy == approx_tol(potential_energy, TOLERANCES['energy'])

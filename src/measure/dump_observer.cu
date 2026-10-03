@@ -51,27 +51,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
-  }
-}
-
 Dump_Observer::Dump_Observer(const std::vector<std::string>& tokens)
 {
   parse(tokens);
@@ -210,22 +189,15 @@ void Dump_Observer::end_of_step(
     const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
     for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
-      initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        observer_force_per_atom_.data(),
-        observer_force_per_atom_.data() + number_of_atoms,
-        observer_force_per_atom_.data() + number_of_atoms * 2,
-        observer_potential_per_atom_.data(),
-        observer_virial_per_atom_.data());
-      GPU_CHECK_KERNEL
-      force.get_potential(potential_index)
-        .compute(
-          box,
-          atom.type,
-          atom.position_per_atom,
-          observer_potential_per_atom_,
-          observer_force_per_atom_,
-          observer_virial_per_atom_);
+      force.compute_one_potential(
+        potential_index,
+        box,
+        atom.position_per_atom,
+        atom.type,
+        group,
+        observer_potential_per_atom_,
+        observer_force_per_atom_,
+        observer_virial_per_atom_);
       integrate.find_thermo(
         box.get_volume(),
         group,
