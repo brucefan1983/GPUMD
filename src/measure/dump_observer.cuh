@@ -74,6 +74,10 @@ private:
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+  GPU_Vector<double> observer_potential_per_atom_;
+  GPU_Vector<double> observer_force_per_atom_;
+  GPU_Vector<double> observer_virial_per_atom_;
+  GPU_Vector<double> observer_thermo_;
   std::string mode_ = "observe"; // observe or average
   void output_line2(
     const double time,

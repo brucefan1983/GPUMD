@@ -61,6 +61,18 @@ public:
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
 
+  // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
+  // float box are read as they are.
+  void compute_one_potential(
+    const int potential_index,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+
 #ifdef GPUMD_WPE_ENABLED
   void wpe_process_command(
     const std::vector<std::string>& tokens,
