@@ -404,57 +404,21 @@ raise SystemExit(1)
         with self.assertRaises(runner.ComparisonError):
             runner.validate_run_result(result, case)
 
-    def test_candidate_only_contract_does_not_start_baseline(self):
-        baseline, case, manifest = self.minimal_run_case(
-            "candidate_only_case",
-            """#!/usr/bin/env python3
-from pathlib import Path
-Path("baseline_was_run").write_text("unexpected\\n")
-raise SystemExit(99)
-""",
+    def test_identical_invalid_input_is_checked_on_both_sides(self):
+        executable, case, manifest = self.minimal_run_case(
+            "invalid_on_both_sides",
+            "#!/usr/bin/env python3\nimport sys\nsys.stderr.write('invalid spacing\\n')\nraise SystemExit(1)\n",
         )
-        candidate = baseline.with_name("candidate_gpumd.py")
-        candidate.write_text(
-            """#!/usr/bin/env python3
-import sys
-sys.stderr.write("expected candidate diagnostic\\n")
-raise SystemExit(1)
-""",
-            encoding="utf-8",
-        )
-        candidate.chmod(0o755)
-        case.update(
-            {
-                "description": "candidate-only execution contract",
-                "candidate_only": True,
-                "expected_returncode": 1,
-                "stderr_contains": "expected candidate diagnostic",
-            }
-        )
-
-        result = runner.execute_case(
-            case,
-            manifest,
-            baseline,
-            candidate,
-            self.invocation_root,
-            runner.PACKAGE_ROOT,
-            {},
-            1.0,
-            self.recorder,
-        )
-
-        self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["execution_contract"], "candidate_only")
-        self.assertEqual(set(result["runs"]), {"candidate"})
-        self.assertEqual(
-            result["not_run"],
-            {"baseline": "not run by candidate_only validation contract"},
-        )
-        self.assertFalse(result["cross_version_compared"])
-        self.assertFalse(
-            (self.invocation_root / "cases" / case["id"] / "baseline").exists()
-        )
+        case.update(description="Shared invalid-input contract", expected_returncode=1,
+                    stderr_contains="invalid spacing")
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(
+                case, manifest, executable, executable, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(set(result["runs"]), {"baseline", "candidate"})
+        self.assertTrue(result["cross_version_compared"])
 
     def test_generated_symlinks_are_rejected(self):
         workdir = self.invocation_root / "unsafe"
@@ -503,25 +467,73 @@ raise SystemExit(1)
         result = runner.evaluate_relation(relation, set(cases), cases, self.recorder)
         self.assertEqual(result["status"], "FAIL")
 
-    def test_pppm_checks_apply_to_candidate_with_old_syntax_rejection(self):
+    def make_pppm_case(self, case_id):
         executable, case, manifest = self.minimal_run_case(
-            "spacing_transition", "#!/usr/bin/env python3\nprint('old syntax rejected')\nraise SystemExit(1)\n"
+            case_id,
+            "#!/usr/bin/env python3\n"
+            "from pathlib import Path\n"
+            "print('PPPM mesh: 16 x 16 x 16 (target spacing 1 A; actual spacing 0.5 0.5 0.5 A).')\n"
+            "print('finished')\n"
+            "Path('data.out').write_text('value 1.0000000\\n')\n",
         )
-        candidate = executable.with_name("candidate.py")
-        candidate.write_text("#!/usr/bin/env python3\nprint('finished')\n")
-        candidate.chmod(0o755)
-        case.update(description="PPPM transition", expect="success", stdout_contains="finished", outputs=[],
-                    pppm={"spacing": 1.0, "initial_mesh": [16, 16, 16]},
-                    role_expectations={
-                        "baseline": {"expect": "failure", "expected_returncode": 1, "stdout_contains": "old syntax rejected"},
-                        "candidate": {"expect": "success", "stdout_contains": "finished"},
-                    }, compare_cross_version=False)
+        case.update(description="Shared PPPM contract", expect="success",
+                    stdout_contains="finished", outputs=["data.out"],
+                    pppm={"spacing": 1.0, "initial_mesh": [16, 16, 16]})
+        return executable, case, manifest
+
+    def test_same_executable_pppm_self_comparison(self):
+        executable, case, manifest = self.make_pppm_case("pppm_self_comparison")
         with redirect_stdout(io.StringIO()):
-            result = runner.execute_case(case, manifest, executable, candidate, self.invocation_root,
-                                         runner.PACKAGE_ROOT, {}, 1, self.recorder)
+            result = runner.execute_case(
+                case, manifest, executable, executable, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertTrue(result["cross_version_compared"])
+        self.assertEqual(set(result["metrics"]["pppm"]), {"baseline", "candidate"})
+        self.assertEqual(result["metrics"]["stdout"]["mode"], "exact")
+
+    def test_pppm_mesh_errors_are_rejected_on_either_side(self):
+        for bad_role in ("baseline", "candidate"):
+            with self.subTest(role=bad_role):
+                executable, case, manifest = self.make_pppm_case("bad_mesh_" + bad_role)
+                bad = executable.with_name("bad_mesh.py")
+                bad.write_text(executable.read_text().replace("16 x 16 x 16", "18 x 16 x 16"))
+                bad.chmod(0o755)
+                baseline, candidate = (bad, executable) if bad_role == "baseline" else (executable, bad)
+                with redirect_stdout(io.StringIO()):
+                    result = runner.execute_case(
+                        case, manifest, baseline, candidate, self.invocation_root,
+                        runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+                    )
+                self.assertEqual(result["status"], "FAIL")
+                self.assertTrue(any(f":{bad_role}: PPPM check failed:" in e for e in result["errors"]))
+
+    def test_pppm_result_regression_still_fails(self):
+        executable, case, manifest = self.make_pppm_case("pppm_result_regression")
+        candidate = executable.with_name("changed_result.py")
+        candidate.write_text(executable.read_text().replace("value 1.0000000", "value 1.0100000"))
+        candidate.chmod(0o755)
+        case["comparisons"] = {
+            "data.out": {"mode": "numeric", "rtol": 0, "atol": 1e-7, "reason": "test bound"}
+        }
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(
+                case, manifest, executable, candidate, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
         self.assertEqual(result["status"], "FAIL")
-        self.assertIn("expected one initial", result["errors"][0])
-        self.assertEqual(set(result["runs"]), {"baseline", "candidate"})
+        self.assertTrue(result["cross_version_compared"])
+        self.assertTrue(any("data.out" in e for e in result["errors"]))
+
+    def test_version_banner_normalization_preserves_other_text(self):
+        old = b"*                     version 5.8                             *\nfinished\n"
+        new = b"*                     version 5.9                             *\nfinished\n"
+        self.assertEqual(runner.normalize_stdout(old), runner.normalize_stdout(new))
+        changed = new.replace(b"finished", b"failed")
+        self.assertNotEqual(runner.normalize_stdout(old), runner.normalize_stdout(changed))
+        diagnostic = b"Error: version 5.9 is unsupported\n"
+        self.assertEqual(runner.normalize_stdout(diagnostic), diagnostic)
 
 
 if __name__ == "__main__":

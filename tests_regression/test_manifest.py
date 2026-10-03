@@ -3,6 +3,8 @@ import json
 import os
 import re
 import subprocess
+
+import run_regression as runner
 import sys
 from pathlib import Path
 
@@ -92,13 +94,24 @@ def test_manifest_suite_and_input_style_contract():
         assert case["expected_returncode"] == 1
         assert "full" in case["suites"]
 
-    candidate_only_cases = [case for case in cases if case.get("candidate_only")]
-    assert candidate_only_cases == []
+    for case in cases:
+        assert not {"role_expectations", "compare_cross_version", "candidate_only"}.intersection(case)
 
-    role_cases = [case for case in cases if "role_expectations" in case]
-    assert role_cases
-    assert all("pppm" in case["suites"] for case in role_cases)
-    assert all(case.get("compare_cross_version") is False for case in role_cases)
+
+def test_manifest_rejects_asymmetric_contracts():
+    for key, value in (
+        ("role_expectations", {"baseline": {"expect": "failure"}, "candidate": {"expect": "success"}}),
+        ("compare_cross_version", False),
+        ("candidate_only", True),
+    ):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        manifest["cases"][0][key] = value
+        try:
+            runner.validate_manifest(manifest, find_repo_root())
+        except runner.ConfigurationError as exc:
+            assert "unknown key(s)" in str(exc) and key in str(exc), str(exc)
+        else:
+            raise AssertionError(f"Asymmetric contract {key} was accepted")
 
 
 def test_manifest_uses_single_run_byte_exact_defaults():
@@ -125,11 +138,9 @@ def test_manifest_cross_case_relations_are_declarative():
     assert {relation["operation"] for relation in relations} <= {"equal", "concat", "numeric_equal"}
 
     for relation in relations:
+        assert relation["roles"] == ["baseline", "candidate"]
         if relation["id"].startswith("pppm_default_equivalence_"):
-            assert relation["roles"] == ["candidate"]
             assert relation["operation"] == "numeric_equal"
-        else:
-            assert relation["roles"] == ["baseline", "candidate"]
         if relation["operation"] in ("equal", "numeric_equal"):
             references = relation["members"]
             assert len(references) >= 2
@@ -267,16 +278,10 @@ def test_successful_nep_cases_declare_neighbor_output():
             continue
         if not nep_tags.intersection(case.get("covers", [])):
             continue
-        default_expectation = case.get("expect", "success")
-        role_expectations = case.get("role_expectations", {}).values()
-        success_capable = default_expectation == "success" or any(
-            role.get("expect", default_expectation) == "success"
-            for role in role_expectations
-        )
         if case["id"] in {"pppm_no_force", "ewald_no_force"}:
             assert case["outputs"] == []
             assert case["stdout_contains"]
-        elif success_capable:
+        elif case["expect"] == "success":
             assert "neighbor.out" in case["outputs"], case["id"]
 
 
@@ -501,6 +506,11 @@ def test_numeric_exceptions_are_explicit_per_output():
         "dftd3_single_late": {
             "restart.xyz": (0.0, 1e-17),
         },
+        "qnep_pppm_future_bec": {
+            "bec.xyz": (0, 1e-5),
+            "thermo.out": (0, 1e-7),
+            "dpdt.out": (0, 2e-6),
+        },
     }
 
     pppm_same_mesh_ids = {
@@ -514,6 +524,16 @@ def test_numeric_exceptions_are_explicit_per_output():
         "pppm_shear_same_mesh",
         "pppm_npt",
         "pppm_two_runs",
+        "pppm_spacing_one",
+        "pppm_spacing_late",
+        "pppm_spacing_fine",
+        "pppm_spacing_coarse",
+        "pppm_round_exact",
+        "pppm_round_above",
+        "pppm_round_5_7",
+        "pppm_grow_shrink",
+        "pppm_grow_shrink_peratom",
+        "pppm_triclinic_mesh",
     }
     for case_id in pppm_same_mesh_ids:
         expected[case_id] = {"thermo.out": (0, 1e-7), "state.xyz": (0, 2e-5)}
@@ -524,6 +544,7 @@ if __name__ == "__main__":
     tests = (
         test_manifest_validation_cli,
         test_manifest_suite_and_input_style_contract,
+        test_manifest_rejects_asymmetric_contracts,
         test_manifest_uses_single_run_byte_exact_defaults,
         test_manifest_cross_case_relations_are_declarative,
         test_runner_exposes_explicit_external_paths,
