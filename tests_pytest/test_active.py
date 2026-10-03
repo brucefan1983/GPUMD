@@ -1,8 +1,8 @@
 """Tests of the active keyword.
 
-Checking the uncertainty leaves the molecular dynamics run unchanged. The frames in active.xyz
-hold the energy, virial and forces of the main potential alone. The stress adds the kinetic tensor
-to the virial.
+Checking the uncertainty leaves the molecular dynamics run unchanged.
+The frames in active.xyz hold the energy, virial and forces of the main potential alone.
+The stress adds the kinetic tensor to the virial.
 """
 import shutil
 import subprocess
@@ -22,7 +22,8 @@ pytestmark = pytest.mark.fast
 MODEL_PATH = MODELS_DIR / 'nep_C.txt'
 
 # Largest difference between the forces in active.xyz and a single-point evaluation of the frame,
-# in eV/Angstrom. The forces in active.xyz are written with eight decimals.
+# in eV/Angstrom.
+# The forces in active.xyz are written with eight decimals.
 ACTIVE_FORCE_TOLERANCE = 2e-4
 
 

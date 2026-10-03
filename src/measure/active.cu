@@ -65,9 +65,10 @@ initialize_force_statistics(const int size, double* g_mean, double* g_squared_de
   }
 }
 
-// Welford's update with the forces of the k-th potential. Each term added to the sum of squared
-// deviations is the product of two numbers that cannot have opposite signs, so the sum stays
-// non-negative in floating point.
+// Welford's update with the forces of the k-th potential.
+// Each term added to the sum of squared deviations is the product of two numbers that cannot
+// have opposite signs.
+// The sum therefore stays non-negative in floating point.
 static __global__ void accumulate_force_statistics(
   const int size,
   const int k,
@@ -218,8 +219,8 @@ void Active::end_of_step(
   GPU_CHECK_KERNEL
 
   // Every potential is evaluated into scratch arrays, which leaves the per-atom arrays and the
-  // thermo vector of the run unchanged for the next step and for the other actions. Potential 0 is
-  // evaluated last, so the scratch arrays hold its properties for active.xyz.
+  // thermo vector of the run unchanged.
+  // Potential 0 is evaluated last and leaves its properties in the scratch arrays for active.xyz.
   for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
     force.compute_one_potential(
       potential_index,
