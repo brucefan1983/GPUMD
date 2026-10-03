@@ -7,12 +7,17 @@
 
 Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials. Note that this mode is only supported with NEP potentials. Furthermore, the molecular dynamics simulation is propagated using the first NEP potential specified in :ref:`run.in <run_in>`, or using the average of the potentials when `dump_observer` is given in `average` mode.
 
-The uncertainty :math:`\sigma_f` is estimated as the maximum force sample standard deviation on any atom :math:`i`,
+The uncertainty :math:`\sigma_f` is estimated as the maximum over the atoms :math:`i` of the standard deviation of the force over the :math:`M` models,
 
 .. math::
         \sigma_f = \textrm{max}_i \sqrt{ \sigma_{i,x}^2 + \sigma_{i, y}^2 + \sigma_{i, z}^2  },
 
-where :math:`\sigma_{i,k}^2`, :math:`k\in{x,y,z}`, are the sample variances in the :math:`k` Cartesian direction calculated over the :math:`M` models. If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
+where
+
+.. math::
+        \sigma_{i,k}^2 = \frac{1}{M} \sum_{m=1}^{M} \left( F_{i,k}^{(m)} - \bar{F}_{i,k} \right)^2
+
+is the variance of the :math:`k` Cartesian component of the force on atom :math:`i`, :math:`F_{i,k}^{(m)}` is that component for model :math:`m`, and :math:`\bar{F}_{i,k}` is its mean over the models. If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
 The energy, virial and forces in `active.xyz` are those of the main potential alone.
 The `stress` field holds the pressure tensor in eV/Å³, which adds the kinetic contribution of the velocities to the virial of the main potential.
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.

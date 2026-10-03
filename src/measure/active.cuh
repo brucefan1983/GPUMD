@@ -73,7 +73,7 @@ private:
   std::vector<double> cpu_uncertainty_;
   GPU_Vector<double> gpu_total_virial_;
   GPU_Vector<double> mean_force_;
-  GPU_Vector<double> mean_force_sq_;
+  GPU_Vector<double> squared_force_deviation_sum_;
   GPU_Vector<double> gpu_uncertainty_;
   GPU_Vector<double> active_potential_per_atom_;
   GPU_Vector<double> active_force_per_atom_;

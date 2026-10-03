@@ -35,10 +35,10 @@ def _write_scaled_model(model_path, path):
     path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
 
 
-def _run_carbon(directory, gpumd_command, keywords):
-    """Runs 20 steps of nve on a rattled diamond cell with nep_C.txt as the main potential and a
-    scaled copy as the second, and returns thermo.out. The atoms alternate between groups 0 and 1
-    of grouping method 0."""
+def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.txt'):
+    """Runs 20 steps of nve on a rattled diamond cell with nep_C.txt as the main potential and by
+    default a scaled copy as the second, and returns thermo.out. The atoms alternate between
+    groups 0 and 1 of grouping method 0."""
     directory.mkdir()
     atoms = bulk('C', 'diamond', a=3.567, cubic=True).repeat(2)
     atoms.rattle(0.05, seed=1)
@@ -48,7 +48,7 @@ def _run_carbon(directory, gpumd_command, keywords):
     _write_scaled_model(MODEL_PATH, directory / 'nep_C_scaled.txt')
     run_in = [
         f'potential {MODEL_PATH.name}',
-        'potential nep_C_scaled.txt',
+        f'potential {second_model}',
         'velocity 300 seed 1',
         'ensemble nve',
         'time_step 1',
@@ -101,6 +101,36 @@ def test_active_keeps_average_mode(tmp_path, gpumd_command):
     uncertainty_first = np.loadtxt(tmp_path / 'active_first' / 'active.out')
     uncertainty_last = np.loadtxt(tmp_path / 'active_last' / 'active.out')
     assert uncertainty_last == approx_tol(uncertainty_first, TOLERANCES['force'])
+
+
+def test_uncertainty_is_population_standard_deviation(tmp_path, gpumd_command):
+    """The uncertainty of an atom is the norm of the standard deviations of its force components
+    over the M models, with the factor 1/M."""
+    directory = tmp_path / 'run'
+    _run_carbon(directory, gpumd_command, ['active 20 0 0 1 0'])
+    frame = read(directory / 'active.xyz', index=-1)
+    uncertainty_per_atom = frame.arrays['uncertainty']
+    forces = []
+    for model in ('nep_C.txt', 'nep_C_scaled.txt'):
+        atoms = frame.copy()
+        atoms.calc = GPUNEP(
+            str(directory / model), command=gpumd_command, directory=str(tmp_path / model[:-4]))
+        forces.append(atoms.get_forces())
+    expected = np.sqrt(np.var(forces, axis=0, ddof=0).sum(axis=1))
+    assert uncertainty_per_atom == approx_tol(expected, TOLERANCES['force'])
+    assert frame.info['uncertainty'] == approx_tol(expected.max(), TOLERANCES['force'])
+    assert np.loadtxt(directory / 'active.out')[1] == approx_tol(
+        expected.max(), TOLERANCES['force'])
+
+
+def test_uncertainty_of_identical_models(tmp_path, gpumd_command):
+    """Two identical models give an uncertainty of zero up to rounding."""
+    directory = tmp_path / 'run'
+    _run_carbon(directory, gpumd_command, ['active 1 0 0 1 0'], second_model=MODEL_PATH.name)
+    uncertainty = np.loadtxt(directory / 'active.out')[:, 1]
+    assert len(uncertainty) == 20
+    # A NaN fails both comparisons.
+    assert np.all(uncertainty >= 0) and np.all(uncertainty < 1e-10)
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):

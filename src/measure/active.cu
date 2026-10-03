@@ -53,39 +53,45 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-static __global__ void initialize_mean_vectors(int N, double* g_m, double* g_m_sq)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  // 3*N since 3 cartesian directions
-  if (n1 < 3 * N) {
-    g_m[n1] = 0.0;
-    g_m_sq[n1] = 0.0;
-  }
-}
-
 static __global__ void
-compute_mean(int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
+initialize_force_statistics(const int size, double* g_mean, double* g_squared_deviation_sum)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    // Average over number of potentials, M
-    g_m[n1 + 0 * N] += g_fx[n1] / M;
-    g_m[n1 + 1 * N] += g_fy[n1] / M;
-    g_m[n1 + 2 * N] += g_fz[n1] / M;
-    g_m_sq[n1 + 0 * N] += g_fx[n1] * g_fx[n1] / M;
-    g_m_sq[n1 + 1 * N] += g_fy[n1] * g_fy[n1] / M;
-    g_m_sq[n1 + 2 * N] += g_fz[n1] * g_fz[n1] / M;
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < size) {
+    g_mean[n] = 0.0;
+    g_squared_deviation_sum[n] = 0.0;
   }
 }
 
-static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, double* g_u)
+// Welford's update with the forces of the k-th potential. Each term added to the sum of squared
+// deviations is the product of two numbers that cannot have opposite signs, so the sum stays
+// non-negative in floating point.
+static __global__ void accumulate_force_statistics(
+  const int size,
+  const int k,
+  const double* g_force,
+  double* g_mean,
+  double* g_squared_deviation_sum)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    double var_x = g_m_sq[n1 + 0 * N] - g_m[n1 + 0 * N] * g_m[n1 + 0 * N];
-    double var_y = g_m_sq[n1 + 1 * N] - g_m[n1 + 1 * N] * g_m[n1 + 1 * N];
-    double var_z = g_m_sq[n1 + 2 * N] - g_m[n1 + 2 * N] * g_m[n1 + 2 * N];
-    g_u[n1] = sqrt(var_x + var_y + var_z);
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < size) {
+    const double deviation = g_force[n] - g_mean[n];
+    g_mean[n] += deviation / k;
+    g_squared_deviation_sum[n] += deviation * (g_force[n] - g_mean[n]);
+  }
+}
+
+// The uncertainty of an atom is the norm of the standard deviations of its three force components
+// over the M potentials, with the factor 1/M.
+static __global__ void
+compute_uncertainty(const int N, const int M, const double* g_squared_deviation_sum, double* g_u)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    g_u[n] = sqrt(
+      (g_squared_deviation_sum[n] + g_squared_deviation_sum[n + N] +
+       g_squared_deviation_sum[n + 2 * N]) /
+      M);
   }
 }
 
@@ -169,7 +175,7 @@ void Active::pre_run(
       cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
     mean_force_.resize(atom.number_of_atoms * 3);
-    mean_force_sq_.resize(atom.number_of_atoms * 3);
+    squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
     gpu_uncertainty_.resize(atom.number_of_atoms);
     cpu_uncertainty_.resize(atom.number_of_atoms);
     active_potential_per_atom_.resize(atom.number_of_atoms);
@@ -202,9 +208,8 @@ void Active::end_of_step(
 
   const int number_of_potentials = force.get_number_of_potentials();
   const int number_of_atoms = atom.type.size();
-  // Reset mean vectors to zero
-  initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_.data(), mean_force_sq_.data());
+  initialize_force_statistics<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
+    3 * number_of_atoms, mean_force_.data(), squared_force_deviation_sum_.data());
   GPU_CHECK_KERNEL
 
   // Every potential is evaluated into scratch arrays, which leaves the per-atom arrays and the
@@ -220,19 +225,19 @@ void Active::end_of_step(
       active_potential_per_atom_,
       active_force_per_atom_,
       active_virial_per_atom_);
-    compute_mean<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      number_of_potentials,
-      mean_force_.data(),
-      mean_force_sq_.data(),
+    accumulate_force_statistics<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
+      3 * number_of_atoms,
+      number_of_potentials - potential_index,
       active_force_per_atom_.data(),
-      active_force_per_atom_.data() + number_of_atoms,
-      active_force_per_atom_.data() + number_of_atoms * 2);
+      mean_force_.data(),
+      squared_force_deviation_sum_.data());
     GPU_CHECK_KERNEL
   }
-  // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
+    number_of_atoms,
+    number_of_potentials,
+    squared_force_deviation_sum_.data(),
+    gpu_uncertainty_.data());
   GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
   double uncertainty = -1.0;
