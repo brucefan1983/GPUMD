@@ -158,10 +158,7 @@ void Active::pre_run(
   Box& box,
   Force& force)
 {
-  // Always use mode "observe" with all other potentials for active learning.
-  // Only propagate MD with the main potential.
   if (check_) {
-    force.set_multiple_potentials_mode("observe");
     std::string exyz_filename = "active.xyz";
     std::string out_filename = "active.out";
     exyz_file_ = my_fopen(exyz_filename.c_str(), "a");

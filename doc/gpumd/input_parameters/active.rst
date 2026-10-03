@@ -5,7 +5,7 @@
 :attr:`active`
 =====================
 
-Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials. Note that this mode is only supported with NEP potentials. Furthermore, the molecular dynamics simulation is propagated using the first NEP potential specified in :ref:`run.in <run_in>`.
+Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials. Note that this mode is only supported with NEP potentials. Furthermore, the molecular dynamics simulation is propagated using the first NEP potential specified in :ref:`run.in <run_in>`, or using the average of the potentials when `dump_observer` is given in `average` mode.
 
 The uncertainty :math:`\sigma_f` is estimated as the maximum force sample standard deviation on any atom :math:`i`,
 
@@ -17,7 +17,6 @@ The energy, virial and forces in `active.xyz` are those of the main potential al
 The `stress` field holds the pressure tensor in eV/Å³, which adds the kinetic contribution of the velocities to the virial of the main potential.
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
 Checking the uncertainty leaves the molecular dynamics run unchanged.
-Combined with `dump_observer` in `average` mode, the keyword that comes later in `run.in` determines whether the main potential or the average of the potentials propagates the run.
 
 `active` takes five arguments. The first four sets the interval for uncertainty estimation and what per atom quantities are outputted in `active.xyz`, the fifth keyword sets the threshold :math:`\delta` in units of eV/Å.
       
@@ -56,6 +55,6 @@ Caveats
 -------
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
-* Molecular dynamics will be run with the first potential specified.
+* Molecular dynamics will be run with the first potential specified, or with the average of the potentials under `dump_observer` in `average` mode.
 * If the system has exploded, unphysical structures may be saved since no upper bound is set on the uncertainty :math:`\sigma_f`.
   Ensure that the resulting structures in `active.xyz` are physical. 

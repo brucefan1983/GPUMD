@@ -35,7 +35,10 @@ def _write_scaled_model(model_path, path):
     path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
 
 
-def _run_add_force(directory, gpumd_command, with_active):
+def _run_carbon(directory, gpumd_command, keywords):
+    """Runs 20 steps of nve on a rattled diamond cell with nep_C.txt as the main potential and a
+    scaled copy as the second, and returns thermo.out. The atoms alternate between groups 0 and 1
+    of grouping method 0."""
     directory.mkdir()
     atoms = bulk('C', 'diamond', a=3.567, cubic=True).repeat(2)
     atoms.rattle(0.05, seed=1)
@@ -49,21 +52,20 @@ def _run_add_force(directory, gpumd_command, with_active):
         'velocity 300 seed 1',
         'ensemble nve',
         'time_step 1',
-        'add_force 0 0 0.5 0 0',
-        'add_force 0 1 -0.5 0 0',
     ]
-    if with_active:
-        run_in.append('active 1 1 1 0 0')
-    # dump_thermo follows active and writes the thermo vector after the check has run.
-    run_in += ['dump_thermo 1', 'run 20']
+    # dump_thermo follows the keywords and writes the thermo vector after they have run.
+    run_in += keywords + ['dump_thermo 1', 'run 20']
     (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
     subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
     return np.loadtxt(directory / 'thermo.out')
 
 
+ADD_FORCE = ['add_force 0 0 0.5 0 0', 'add_force 0 1 -0.5 0 0']
+
+
 def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
-    reference = _run_add_force(tmp_path / 'reference', gpumd_command, with_active=False)
-    checked = _run_add_force(tmp_path / 'checked', gpumd_command, with_active=True)
+    reference = _run_carbon(tmp_path / 'reference', gpumd_command, ADD_FORCE)
+    checked = _run_carbon(tmp_path / 'checked', gpumd_command, ADD_FORCE + ['active 1 1 1 0 0'])
     assert np.array_equal(checked, reference)
 
     frames = read(tmp_path / 'checked' / 'active.xyz', index=':')
@@ -84,6 +86,21 @@ def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
     # The stress is the pressure tensor, which adds the kinetic tensor to the virial.
     kinetic = np.einsum('i,ia,ib->ab', frame.get_masses(), velocities, velocities)
     assert stress == approx_tol((virial + kinetic) / volume, TOLERANCES['virial'])
+
+
+def test_active_keeps_average_mode(tmp_path, gpumd_command):
+    """The average of the potentials propagates the run under dump_observer average, whichever of
+    the two keywords comes first."""
+    observer = 'dump_observer average 1 1 0 0'
+    active = 'active 1 0 0 0 0'
+    reference = _run_carbon(tmp_path / 'reference', gpumd_command, [observer])
+    active_first = _run_carbon(tmp_path / 'active_first', gpumd_command, [active, observer])
+    active_last = _run_carbon(tmp_path / 'active_last', gpumd_command, [observer, active])
+    assert np.array_equal(active_first, reference)
+    assert np.array_equal(active_last, reference)
+    uncertainty_first = np.loadtxt(tmp_path / 'active_first' / 'active.out')
+    uncertainty_last = np.loadtxt(tmp_path / 'active_last' / 'active.out')
+    assert uncertainty_last == approx_tol(uncertainty_first, TOLERANCES['force'])
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):
