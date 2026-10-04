@@ -227,13 +227,11 @@ void Active::end_of_step(
     gpu_uncertainty_.data());
   GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
-  // A NaN, from a model with forces that are not finite, takes precedence over every number.
-  const auto nan_uncertainty = std::find_if(
-    cpu_uncertainty_.begin(), cpu_uncertainty_.end(), [](const double u) { return std::isnan(u); });
-  const double uncertainty =
-    nan_uncertainty != cpu_uncertainty_.end()
-      ? *nan_uncertainty
-      : *std::max_element(cpu_uncertainty_.begin(), cpu_uncertainty_.end());
+  // A NaN, from a model with forces that are not finite, ranks above every number.
+  const double uncertainty = *std::max_element(
+    cpu_uncertainty_.begin(), cpu_uncertainty_.end(), [](const double a, const double b) {
+      return std::isnan(b) ? !std::isnan(a) : a < b;
+    });
   write_uncertainty(global_time, uncertainty);
   if (std::isnan(uncertainty) || uncertainty > threshold_) {
     integrate.find_thermo(

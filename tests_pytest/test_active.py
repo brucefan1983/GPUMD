@@ -10,6 +10,7 @@ import subprocess
 import numpy as np
 import pytest
 from ase import units
+from ase import Atoms
 from ase.build import bulk
 from ase.io import read
 from calorine.calculators import GPUNEP
@@ -52,8 +53,6 @@ def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.t
     _write_carbon_cell(directory)
     shutil.copy(MODEL_PATH, directory)
     _write_scaled_model(MODEL_PATH, directory / 'nep_C_scaled.txt')
-    # The parameters overflow single precision, and the forces of this model are not finite.
-    _write_scaled_model(MODEL_PATH, directory / 'nep_C_overflow.txt', factor=1e40)
     run_in = [
         f'potential {MODEL_PATH.name}',
         f'potential {second_model}',
@@ -146,13 +145,27 @@ def test_uncertainty_of_identical_models(tmp_path, gpumd_command):
 
 
 def test_nan_uncertainty_writes_frame(tmp_path, gpumd_command):
-    """A NaN uncertainty, from a model with forces that are not finite, is the maximum and writes
-    the frame whatever the threshold."""
-    directory = tmp_path / 'run'
-    _run_carbon(
-        directory, gpumd_command, ['active 1 0 0 1 1000'], second_model='nep_C_overflow.txt')
-    assert np.all(np.isnan(np.loadtxt(directory / 'active.out')[:, 1]))
-    assert len(read(directory / 'active.xyz', index=':')) == 20
+    """A NaN uncertainty on any atom, from a model with forces that are not finite, is the maximum
+    and writes the frame whatever the threshold."""
+    # An isolated atom, placed first, has no neighbors and an uncertainty of zero.
+    # The diamond cluster sits in a box of 30 Angstrom, beyond the cutoff of 7 Angstrom from it.
+    cluster = bulk('C', 'diamond', a=3.567, cubic=True).repeat(2)
+    cluster.rattle(0.05, seed=1)
+    atoms = Atoms('C', positions=[[18, 18, 18]], cell=[30, 30, 30], pbc=True) + cluster
+    write_xyz(str(tmp_path / 'model.xyz'), atoms)
+    shutil.copy(MODEL_PATH, tmp_path)
+    # The second model gives forces that are not finite for every atom with neighbors.
+    _write_scaled_model(MODEL_PATH, tmp_path / 'nep_C_overflow.txt', factor=1e30)
+    run_in = [f'potential {MODEL_PATH.name}', 'potential nep_C_overflow.txt', 'velocity 300 seed 1',
+              'ensemble nve', 'time_step 1', 'active 1 0 0 1 1000', 'run 5']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    frames = read(tmp_path / 'active.xyz', index=':')
+    assert len(frames) == 5
+    for frame in frames:
+        assert frame.arrays['uncertainty'][0] == 0
+        assert np.all(np.isnan(frame.arrays['uncertainty'][1:]))
+    assert np.all(np.isnan(np.loadtxt(tmp_path / 'active.out')[:, 1]))
 
 
 def test_active_rejects_non_nep_potential(tmp_path, gpumd_command):
