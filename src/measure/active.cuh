@@ -67,6 +67,8 @@ private:
   double threshold_ = 0.0;
   FILE* exyz_file_;
   FILE* out_file_;
+  std::vector<double> cpu_position_per_atom_;
+  std::vector<double> cpu_velocity_per_atom_;
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_total_virial_;
   std::vector<double> cpu_uncertainty_;
@@ -79,14 +81,6 @@ private:
   GPU_Vector<double> active_virial_per_atom_;
   GPU_Vector<double> active_thermo_;
   void output_line2(const double time, const Box& box, double uncertainty);
-  void write_exyz(
-    const double global_time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    double uncertainty);
+  void write_exyz(const double global_time, const Box& box, Atom& atom, double uncertainty);
   void write_uncertainty(const double global_time, double uncertainty);
 };

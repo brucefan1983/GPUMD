@@ -167,6 +167,11 @@ void Active::pre_run(
   if (has_force_) {
     cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   }
+  // The velocity keyword of a later run reads the host copies in Atom, which active leaves alone.
+  cpu_position_per_atom_.resize(atom.number_of_atoms * 3);
+  if (has_velocity_) {
+    cpu_velocity_per_atom_.resize(atom.number_of_atoms * 3);
+  }
   mean_force_.resize(atom.number_of_atoms * 3);
   squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
   gpu_uncertainty_.resize(atom.number_of_atoms);
@@ -243,15 +248,7 @@ void Active::end_of_step(
       atom.velocity_per_atom,
       active_virial_per_atom_,
       active_thermo_);
-    write_exyz(
-      global_time,
-      box,
-      atom.cpu_atom_symbol,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.velocity_per_atom,
-      atom.cpu_velocity_per_atom,
-      uncertainty);
+    write_exyz(global_time, box, atom, uncertainty);
   }
 }
 
@@ -341,21 +338,13 @@ void Active::output_line2(const double time, const Box& box, double uncertainty)
   fprintf(fid_, "\n");
 }
 
-void Active::write_exyz(
-  const double global_time,
-  const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
-  double uncertainty)
+void Active::write_exyz(const double global_time, const Box& box, Atom& atom, double uncertainty)
 {
-  const int num_atoms_total = position_per_atom.size() / 3;
+  const int num_atoms_total = atom.number_of_atoms;
   FILE* fid_ = exyz_file_;
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
+  atom.position_per_atom.copy_to_host(cpu_position_per_atom_.data());
   if (has_velocity_) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+    atom.velocity_per_atom.copy_to_host(cpu_velocity_per_atom_.data());
   }
   if (has_force_) {
     active_force_per_atom_.copy_to_host(cpu_force_per_atom_.data());
@@ -369,15 +358,15 @@ void Active::write_exyz(
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", cpu_atom_symbol[n].c_str());
+    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_position_per_atom[n + num_atoms_total * d]);
+      fprintf(fid_, " %.8f", cpu_position_per_atom_[n + num_atoms_total * d]);
     }
     if (has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
         fprintf(
-          fid_, " %.8f", cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
+          fid_, " %.8f", cpu_velocity_per_atom_[n + num_atoms_total * d] * natural_to_A_per_fs);
       }
     }
     if (has_force_) {

@@ -95,6 +95,35 @@ def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
     assert stress == approx_tol((virial + kinetic) / volume, TOLERANCES['virial'])
 
 
+def _run_cluster(directory, gpumd_command, with_active):
+    """Runs a non-periodic diamond cluster for 20 steps, then initializes the velocities again and
+    returns thermo.out of a second run of 5 steps."""
+    directory.mkdir()
+    atoms = bulk('C', 'diamond', a=3.567, cubic=True).repeat(2)
+    atoms.rattle(0.05, seed=1)
+    atoms.set_cell([30, 30, 30])
+    atoms.set_pbc(False)
+    write_xyz(str(directory / 'model.xyz'), atoms)
+    shutil.copy(MODEL_PATH, directory)
+    _write_scaled_model(MODEL_PATH, directory / 'nep_C_scaled.txt')
+    run_in = [f'potential {MODEL_PATH.name}', 'potential nep_C_scaled.txt', 'velocity 300 seed 1',
+              'ensemble nve', 'time_step 1']
+    if with_active:
+        run_in.append('active 1 1 0 0 0')
+    run_in += ['run 20', 'velocity 300 seed 2', 'ensemble nve', 'dump_thermo 1', 'run 5']
+    (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
+    return np.loadtxt(directory / 'thermo.out')
+
+
+def test_active_leaves_later_run_unchanged(tmp_path, gpumd_command):
+    """The velocity keyword of a later run reads the host copies of the positions and velocities,
+    which active leaves unchanged."""
+    reference = _run_cluster(tmp_path / 'reference', gpumd_command, with_active=False)
+    checked = _run_cluster(tmp_path / 'checked', gpumd_command, with_active=True)
+    assert np.array_equal(checked, reference)
+
+
 def test_active_keeps_average_mode(tmp_path, gpumd_command):
     """The average of the potentials propagates the run under dump_observer average, whichever of
     the two keywords comes first, and active.xyz holds the main potential alone."""
