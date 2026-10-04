@@ -515,10 +515,9 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
-    // The ediff columns follow all others, so that the other columns keep their positions.
     auto write_row = [&](FILE* fid) {
-      const char* ediff_format = " %-13.5f %-13.5f";
       if (para.model_type == 0 || para.model_type == 3) {
+        const char* ediff_format = " %-13.5f %-13.5f";
         if (!(para.charge_mode || para.charge_vdw)) {
           // NEP models
           fprintf(
@@ -556,6 +555,10 @@ void Fitness::report_error(
             rmse_bec_test);
           ediff_format = " %-9.5f %-9.5f";
         }
+        // The ediff columns follow all others, so that the other columns keep their positions.
+        if (para.has_ediff_combinations) {
+          fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
+        }
       } else {
         // TNEP models:
         fprintf(
@@ -567,9 +570,6 @@ void Fitness::report_error(
           loss_L2,
           rmse_virial_train,
           rmse_virial_test);
-      }
-      if (para.has_ediff_combinations) {
-        fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
       }
       fprintf(fid, "\n");
     };
