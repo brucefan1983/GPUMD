@@ -21,7 +21,6 @@ Run active learning on-the-fly during MD
 #include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -64,25 +63,29 @@ static __global__ void accumulate_force_statistics(
   double* g_mean,
   double* g_squared_deviation_sum)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < size) {
-    const double deviation = g_force[n] - g_mean[n];
+    const double force = g_force[n];
+    const double deviation = force - g_mean[n];
     g_mean[n] += deviation / k;
-    g_squared_deviation_sum[n] += deviation * (g_force[n] - g_mean[n]);
+    g_squared_deviation_sum[n] += deviation * (force - g_mean[n]);
   }
 }
 
 // The uncertainty of an atom is the norm of the standard deviations of its three force components
-// over the M potentials, with the factor 1/M.
-static __global__ void
-compute_uncertainty(const int N, const int M, const double* g_squared_deviation_sum, double* g_u)
+// over the potentials, with the factor 1/number_of_potentials.
+static __global__ void compute_uncertainty(
+  const int number_of_atoms,
+  const int number_of_potentials,
+  const double* g_squared_deviation_sum,
+  double* g_uncertainty)
 {
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    g_u[n] = sqrt(
-      (g_squared_deviation_sum[n] + g_squared_deviation_sum[n + N] +
-       g_squared_deviation_sum[n + 2 * N]) /
-      M);
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    g_uncertainty[n] = sqrt(
+      (g_squared_deviation_sum[n] + g_squared_deviation_sum[n + number_of_atoms] +
+       g_squared_deviation_sum[n + 2 * number_of_atoms]) /
+      number_of_potentials);
   }
 }
 
@@ -158,20 +161,9 @@ void Active::pre_run(
   if (force.get_number_of_potentials() < 2) {
     PRINT_INPUT_ERROR("active requires at least two potentials.\n");
   }
-  std::string exyz_filename = "active.xyz";
-  std::string out_filename = "active.out";
-  exyz_file_ = my_fopen(exyz_filename.c_str(), "a");
-  out_file_ = my_fopen(out_filename.c_str(), "a");
+  exyz_file_ = my_fopen("active.xyz", "a");
+  out_file_ = my_fopen("active.out", "a");
   gpu_total_virial_.resize(6);
-  cpu_total_virial_.resize(6);
-  if (has_force_) {
-    cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-  }
-  // The velocity keyword of a later run reads the host copies in Atom, which active leaves alone.
-  cpu_position_per_atom_.resize(atom.number_of_atoms * 3);
-  if (has_velocity_) {
-    cpu_velocity_per_atom_.resize(atom.number_of_atoms * 3);
-  }
   mean_force_.resize(atom.number_of_atoms * 3);
   squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
   gpu_uncertainty_.resize(atom.number_of_atoms);
@@ -201,7 +193,7 @@ void Active::end_of_step(
     return;
 
   const int number_of_potentials = force.get_number_of_potentials();
-  const int number_of_atoms = atom.type.size();
+  const int number_of_atoms = atom.number_of_atoms;
   mean_force_.fill(0.0);
   squared_force_deviation_sum_.fill(0.0);
 
@@ -238,7 +230,8 @@ void Active::end_of_step(
     cpu_uncertainty_.begin(), cpu_uncertainty_.end(), [](const double a, const double b) {
       return std::isnan(b) ? !std::isnan(a) : a < b;
     });
-  write_uncertainty(global_time, uncertainty);
+  fprintf(out_file_, "%20.10e%20.10e\n", global_time * TIME_UNIT_CONVERSION, uncertainty);
+  fflush(out_file_);
   if (std::isnan(uncertainty) || uncertainty > threshold_) {
     integrate.find_thermo(
       box.get_volume(),
@@ -248,35 +241,44 @@ void Active::end_of_step(
       atom.velocity_per_atom,
       active_virial_per_atom_,
       active_thermo_);
-    write_exyz(global_time, box, atom, uncertainty);
+    write_frame(global_time, box, atom, uncertainty);
   }
 }
 
-void Active::write_uncertainty(const double time, double uncertainty)
+void Active::write_frame(
+  const double global_time, const Box& box, Atom& atom, const double uncertainty)
 {
-  FILE* fid_ = out_file_;
+  const int number_of_atoms = atom.number_of_atoms;
+  // The velocity keyword of a later run reads the host copies in Atom, which active leaves alone.
+  std::vector<double> cpu_position(number_of_atoms * 3);
+  atom.position_per_atom.copy_to_host(cpu_position.data());
+  std::vector<double> cpu_velocity(has_velocity_ ? number_of_atoms * 3 : 0);
+  if (has_velocity_) {
+    atom.velocity_per_atom.copy_to_host(cpu_velocity.data());
+  }
+  std::vector<double> cpu_force(has_force_ ? number_of_atoms * 3 : 0);
+  if (has_force_) {
+    active_force_per_atom_.copy_to_host(cpu_force.data());
+  }
+  double cpu_thermo[8];
+  active_thermo_.copy_to_host(cpu_thermo);
+  gpu_sum<<<6, 1024>>>(number_of_atoms, active_virial_per_atom_.data(), gpu_total_virial_.data());
+  GPU_CHECK_KERNEL
+  double cpu_total_virial[6];
+  gpu_total_virial_.copy_to_host(cpu_total_virial);
 
-  // Write time, uncertainty to file
-  fprintf(fid_, "%20.10e%20.10e\n", time * TIME_UNIT_CONVERSION, uncertainty);
-  fflush(fid_);
-}
-
-void Active::output_line2(const double time, const Box& box, double uncertainty)
-{
-  FILE* fid_ = exyz_file_;
-  // time
-  fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
-
-  // PBC
+  // The time is in fs, the energy and the virial in eV, and the stress in eV/A^3.
+  fprintf(exyz_file_, "%d\n", number_of_atoms);
+  fprintf(exyz_file_, "Time=%.8f", global_time * TIME_UNIT_CONVERSION);
   fprintf(
-    fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
-
-  // Uncertainty
-  fprintf(fid_, " uncertainty=%.8f", uncertainty);
-
-  // box
+    exyz_file_,
+    " pbc=\"%c %c %c\"",
+    box.pbc_x ? 'T' : 'F',
+    box.pbc_y ? 'T' : 'F',
+    box.pbc_z ? 'T' : 'F');
+  fprintf(exyz_file_, " uncertainty=%.8f", uncertainty);
   fprintf(
-    fid_,
+    exyz_file_,
     " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
     box.cpu_h[0],
     box.cpu_h[3],
@@ -287,29 +289,21 @@ void Active::output_line2(const double time, const Box& box, double uncertainty)
     box.cpu_h[2],
     box.cpu_h[5],
     box.cpu_h[8]);
-
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
-  double cpu_thermo[8];
-  active_thermo_.copy_to_host(cpu_thermo, 8);
-  const int N = active_virial_per_atom_.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, active_virial_per_atom_.data(), gpu_total_virial_.data());
-  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
-
-  fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
+  fprintf(exyz_file_, " energy=%.8f", cpu_thermo[1]);
   fprintf(
-    fid_,
+    exyz_file_,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0],
-    cpu_total_virial_[3],
-    cpu_total_virial_[4],
-    cpu_total_virial_[3],
-    cpu_total_virial_[1],
-    cpu_total_virial_[5],
-    cpu_total_virial_[4],
-    cpu_total_virial_[5],
-    cpu_total_virial_[2]);
+    cpu_total_virial[0],
+    cpu_total_virial[3],
+    cpu_total_virial[4],
+    cpu_total_virial[3],
+    cpu_total_virial[1],
+    cpu_total_virial[5],
+    cpu_total_virial[4],
+    cpu_total_virial[5],
+    cpu_total_virial[2]);
   fprintf(
-    fid_,
+    exyz_file_,
     " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
     cpu_thermo[2],
     cpu_thermo[5],
@@ -320,67 +314,40 @@ void Active::output_line2(const double time, const Box& box, double uncertainty)
     cpu_thermo[6],
     cpu_thermo[7],
     cpu_thermo[4]);
-
-  // Properties
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
-
+  fprintf(exyz_file_, " Properties=species:S:1:pos:R:3");
   if (has_velocity_) {
-    fprintf(fid_, ":vel:R:3");
+    fprintf(exyz_file_, ":vel:R:3");
   }
   if (has_force_) {
-    fprintf(fid_, ":forces:R:3");
+    fprintf(exyz_file_, ":forces:R:3");
   }
   if (has_uncertainty_) {
-    fprintf(fid_, ":uncertainty:R:1");
+    fprintf(exyz_file_, ":uncertainty:R:1");
   }
+  fprintf(exyz_file_, "\n");
 
-  // Over
-  fprintf(fid_, "\n");
-}
-
-void Active::write_exyz(const double global_time, const Box& box, Atom& atom, double uncertainty)
-{
-  const int num_atoms_total = atom.number_of_atoms;
-  FILE* fid_ = exyz_file_;
-  atom.position_per_atom.copy_to_host(cpu_position_per_atom_.data());
-  if (has_velocity_) {
-    atom.velocity_per_atom.copy_to_host(cpu_velocity_per_atom_.data());
-  }
-  if (has_force_) {
-    active_force_per_atom_.copy_to_host(cpu_force_per_atom_.data());
-  }
-
-  // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
-
-  // line 2
-  output_line2(global_time, box, uncertainty);
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
+  const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+  for (int n = 0; n < number_of_atoms; n++) {
+    fprintf(exyz_file_, "%s", atom.cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_position_per_atom_[n + num_atoms_total * d]);
+      fprintf(exyz_file_, " %.8f", cpu_position[n + number_of_atoms * d]);
     }
     if (has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", cpu_velocity_per_atom_[n + num_atoms_total * d] * natural_to_A_per_fs);
+        fprintf(exyz_file_, " %.8f", cpu_velocity[n + number_of_atoms * d] * natural_to_A_per_fs);
       }
     }
     if (has_force_) {
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
+        fprintf(exyz_file_, " %.8f", cpu_force[n + number_of_atoms * d]);
       }
     }
     if (has_uncertainty_) {
-      fprintf(fid_, " %.8f", cpu_uncertainty_[n]);
+      fprintf(exyz_file_, " %.8f", cpu_uncertainty_[n]);
     }
-    fprintf(fid_, "\n");
+    fprintf(exyz_file_, "\n");
   }
-
-  fflush(fid_);
+  fflush(exyz_file_);
 }
 
 void Active::post_run(

@@ -27,7 +27,6 @@ class Active : public Action
 {
 public:
   Active(const std::vector<std::string>& tokens);
-  void parse(const std::vector<std::string>& tokens);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,
@@ -38,18 +37,18 @@ public:
     Force& force);
 
   virtual void end_of_step(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void post_run(
     Atom& atom,
@@ -65,12 +64,8 @@ private:
   int has_force_ = 0;
   int has_uncertainty_ = 0;
   double threshold_ = 0.0;
-  FILE* exyz_file_;
-  FILE* out_file_;
-  std::vector<double> cpu_position_per_atom_;
-  std::vector<double> cpu_velocity_per_atom_;
-  std::vector<double> cpu_force_per_atom_;
-  std::vector<double> cpu_total_virial_;
+  FILE* exyz_file_ = nullptr;
+  FILE* out_file_ = nullptr;
   std::vector<double> cpu_uncertainty_;
   GPU_Vector<double> gpu_total_virial_;
   GPU_Vector<double> mean_force_;
@@ -80,7 +75,6 @@ private:
   GPU_Vector<double> active_force_per_atom_;
   GPU_Vector<double> active_virial_per_atom_;
   GPU_Vector<double> active_thermo_;
-  void output_line2(const double time, const Box& box, double uncertainty);
-  void write_exyz(const double global_time, const Box& box, Atom& atom, double uncertainty);
-  void write_uncertainty(const double global_time, double uncertainty);
+  void parse(const std::vector<std::string>& tokens);
+  void write_frame(const double global_time, const Box& box, Atom& atom, const double uncertainty);
 };
