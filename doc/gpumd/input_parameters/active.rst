@@ -31,9 +31,11 @@ If the uncertainty of any atom is NaN, :math:`\sigma_f` is NaN and the structure
 The energy, virial and forces in `active.xyz` are those of the main potential alone.
 The `stress` field holds the pressure tensor in eV/Å³, which adds the kinetic contribution of the velocities to the virial of the main potential.
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
-Checking the uncertainty leaves the molecular dynamics run unchanged.
+Checking the uncertainty leaves the trajectory of the molecular dynamics run unchanged.
 
-`active` takes five arguments. The first four sets the interval for uncertainty estimation and what per atom quantities are outputted in `active.xyz`, the fifth keyword sets the threshold :math:`\delta` in units of eV/Å.
+`active` takes five arguments.
+The first four set the interval for uncertainty estimation and the per-atom quantities written to `active.xyz`.
+The fifth sets the threshold :math:`\delta` in units of eV/Å.
       
 
 Syntax

@@ -70,14 +70,9 @@ def _run_carbon(directory, gpumd_command, keywords, second_model='nep_C_scaled.t
 ADD_FORCE = ['add_force 0 0 0.5 0 0', 'add_force 0 1 -0.5 0 0']
 
 
-def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
-    reference = _run_carbon(tmp_path / 'reference', gpumd_command, ADD_FORCE)
-    checked = _run_carbon(tmp_path / 'checked', gpumd_command, ADD_FORCE + ['active 1 1 1 0 0'])
-    assert np.array_equal(checked, reference)
-
-    frames = read(tmp_path / 'checked' / 'active.xyz', index=':')
-    assert len(frames) == len(reference)
-    frame = frames[-1]
+def _assert_main_potential(frame, gpumd_command):
+    """Checks the energy, forces, virial and stress of a frame of active.xyz, written with
+    velocities, against a single point of the main potential."""
     energy = frame.get_potential_energy()
     forces = frame.get_forces()
     stress = frame.get_stress(voigt=False)
@@ -93,6 +88,15 @@ def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
     # The stress is the pressure tensor, which adds the kinetic tensor to the virial.
     kinetic = np.einsum('i,ia,ib->ab', frame.get_masses(), velocities, velocities)
     assert stress == approx_tol((virial + kinetic) / volume, TOLERANCES['virial'])
+
+
+def test_active_leaves_run_unchanged(tmp_path, gpumd_command):
+    reference = _run_carbon(tmp_path / 'reference', gpumd_command, ADD_FORCE)
+    checked = _run_carbon(tmp_path / 'checked', gpumd_command, ADD_FORCE + ['active 1 1 1 0 0'])
+    assert np.array_equal(checked, reference)
+    frames = read(tmp_path / 'checked' / 'active.xyz', index=':')
+    assert len(frames) == len(reference)
+    _assert_main_potential(frames[-1], gpumd_command)
 
 
 def _run_cluster(directory, gpumd_command, with_active):
@@ -128,39 +132,34 @@ def test_active_keeps_average_mode(tmp_path, gpumd_command):
     """The average of the potentials propagates the run under dump_observer average, whichever of
     the two keywords comes first, and active.xyz holds the main potential alone."""
     observer = 'dump_observer average 1 1 0 0'
-    active = 'active 1 0 1 0 0'
+    active = 'active 1 1 1 0 0'
     reference = _run_carbon(tmp_path / 'reference', gpumd_command, [observer])
     active_first = _run_carbon(tmp_path / 'active_first', gpumd_command, [active, observer])
     active_last = _run_carbon(tmp_path / 'active_last', gpumd_command, [observer, active])
     assert np.array_equal(active_first, reference)
     assert np.array_equal(active_last, reference)
     for name in ('active_first', 'active_last'):
-        frame = read(tmp_path / name / 'active.xyz', index=-1)
-        energy = frame.get_potential_energy()
-        forces = frame.get_forces()
-        frame.calc = GPUNEP(str(MODEL_PATH), command=gpumd_command)
-        assert energy == approx_tol(frame.get_potential_energy(), TOLERANCES['energy'])
-        assert np.max(np.abs(forces - frame.get_forces())) < ACTIVE_FORCE_TOLERANCE
+        _assert_main_potential(read(tmp_path / name / 'active.xyz', index=-1), gpumd_command)
 
 
 def test_uncertainty_is_population_standard_deviation(tmp_path, gpumd_command):
     """The uncertainty of an atom is the norm of the standard deviations of its force components
-    over the M models, with the factor 1/M."""
+    over the M models, with the factor 1/M, at every check."""
     directory = tmp_path / 'run'
-    _run_carbon(directory, gpumd_command, ['active 20 0 0 1 0'])
-    frame = read(directory / 'active.xyz', index=-1)
-    uncertainty_per_atom = frame.arrays['uncertainty']
-    forces = []
-    for model in ('nep_C.txt', 'nep_C_scaled.txt'):
-        atoms = frame.copy()
-        atoms.calc = GPUNEP(
-            str(directory / model), command=gpumd_command, directory=str(tmp_path / model[:-4]))
-        forces.append(atoms.get_forces())
-    expected = np.sqrt(np.var(forces, axis=0, ddof=0).sum(axis=1))
-    assert uncertainty_per_atom == approx_tol(expected, TOLERANCES['force'])
-    assert frame.info['uncertainty'] == approx_tol(expected.max(), TOLERANCES['force'])
-    assert np.loadtxt(directory / 'active.out')[1] == approx_tol(
-        expected.max(), TOLERANCES['force'])
+    _run_carbon(directory, gpumd_command, ['active 4 0 0 1 0'])
+    frames = read(directory / 'active.xyz', index=':')
+    uncertainty = np.loadtxt(directory / 'active.out')[:, 1]
+    assert len(frames) == len(uncertainty) == 5
+    for frame, maximum in zip(frames, uncertainty):
+        forces = []
+        for model in ('nep_C.txt', 'nep_C_scaled.txt'):
+            atoms = frame.copy()
+            atoms.calc = GPUNEP(str(directory / model), command=gpumd_command)
+            forces.append(atoms.get_forces())
+        expected = np.sqrt(np.var(forces, axis=0, ddof=0).sum(axis=1))
+        assert frame.arrays['uncertainty'] == approx_tol(expected, TOLERANCES['force'])
+        assert frame.info['uncertainty'] == approx_tol(expected.max(), TOLERANCES['force'])
+        assert maximum == approx_tol(expected.max(), TOLERANCES['force'])
 
 
 def test_uncertainty_of_identical_models(tmp_path, gpumd_command):
