@@ -168,16 +168,19 @@ def test_nan_uncertainty_writes_frame(tmp_path, gpumd_command):
     assert np.all(np.isnan(np.loadtxt(tmp_path / 'active.out')[:, 1]))
 
 
-def test_active_rejects_non_nep_potential(tmp_path, gpumd_command):
+@pytest.mark.parametrize('potential', ['lj_C.txt', MODEL_PATH.name])
+def test_active_requires_two_potentials(tmp_path, gpumd_command, potential):
+    """A committee of one potential, NEP or not, stops with an input error."""
     _write_carbon_cell(tmp_path)
     (tmp_path / 'lj_C.txt').write_text('lj 1 C\n0.002 3.4 8.0\n')
-    run_in = ['potential lj_C.txt', 'velocity 300 seed 1', 'ensemble nve', 'time_step 1',
+    shutil.copy(MODEL_PATH, tmp_path)
+    run_in = [f'potential {potential}', 'velocity 300 seed 1', 'ensemble nve', 'time_step 1',
               'active 1 0 0 0 0', 'run 1']
     (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
     result = subprocess.run(
         [gpumd_command], cwd=tmp_path, capture_output=True, text=True, check=False)
     assert result.returncode != 0
-    assert 'active requires NEP potentials' in result.stdout + result.stderr
+    assert 'active requires at least two potentials' in result.stdout + result.stderr
 
 
 def _run_temperature_nep(directory, gpumd_command, with_active):

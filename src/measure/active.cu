@@ -154,8 +154,9 @@ void Active::pre_run(
   Box& box,
   Force& force)
 {
-  if (force.has_non_nep_potential()) {
-    PRINT_INPUT_ERROR("active requires NEP potentials.\n");
+  // Force accepts several potentials only when every one of them is a NEP potential.
+  if (force.get_number_of_potentials() < 2) {
+    PRINT_INPUT_ERROR("active requires at least two potentials.\n");
   }
   std::string exyz_filename = "active.xyz";
   std::string out_filename = "active.out";

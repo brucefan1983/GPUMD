@@ -6,7 +6,8 @@
 =====================
 
 Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials.
-Every potential must be a NEP potential, and GPUMD stops with an input error otherwise.
+It requires at least two potentials, and every potential must be a NEP potential.
+GPUMD stops with an input error otherwise.
 The first potential specified in :ref:`run.in <run_in>` is the main potential.
 The main potential propagates the molecular dynamics simulation.
 With `dump_observer` in `average` mode, the average of the potentials propagates it instead.
