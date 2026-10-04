@@ -516,103 +516,65 @@ void Fitness::report_error(
     }
 
     // The ediff columns follow all others, so that the other columns keep their positions.
-    auto finish_row = [&](FILE* fid, const char* ediff_format) {
+    auto write_row = [&](FILE* fid) {
+      const char* ediff_format = " %-13.5f %-13.5f";
+      if (para.model_type == 0 || para.model_type == 3) {
+        if (!(para.charge_mode || para.charge_vdw)) {
+          // NEP models
+          fprintf(
+            fid,
+            "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
+            generation + 1,
+            loss_total,
+            loss_L1,
+            loss_L2,
+            rmse_energy_train,
+            rmse_force_train,
+            rmse_virial_train,
+            rmse_energy_test,
+            rmse_force_test,
+            rmse_virial_test);
+        } else {
+          // qNEP models:
+          fprintf(
+            fid,
+            "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
+            "%-9.5f %-9.5f",
+            generation + 1,
+            loss_total,
+            loss_L1,
+            loss_L2,
+            rmse_energy_train,
+            rmse_force_train,
+            rmse_virial_train,
+            rmse_charge_train,
+            rmse_bec_train,
+            rmse_energy_test,
+            rmse_force_test,
+            rmse_virial_test,
+            rmse_charge_test,
+            rmse_bec_test);
+          ediff_format = " %-9.5f %-9.5f";
+        }
+      } else {
+        // TNEP models:
+        fprintf(
+          fid,
+          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f",
+          generation + 1,
+          loss_total,
+          loss_L1,
+          loss_L2,
+          rmse_virial_train,
+          rmse_virial_test);
+      }
       if (para.has_ediff_combinations) {
         fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
       }
       fprintf(fid, "\n");
     };
-
-    if (para.model_type == 0 || para.model_type == 3) {
-      if (!(para.charge_mode || para.charge_vdw)) {
-        // NEP models
-        printf(
-          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
-          generation + 1,
-          loss_total,
-          loss_L1,
-          loss_L2,
-          rmse_energy_train,
-          rmse_force_train,
-          rmse_virial_train,
-          rmse_energy_test,
-          rmse_force_test,
-          rmse_virial_test);
-        finish_row(stdout, " %-13.5f %-13.5f");
-        fprintf(
-          fid_loss_out,
-          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
-          generation + 1,
-          loss_total,
-          loss_L1,
-          loss_L2,
-          rmse_energy_train,
-          rmse_force_train,
-          rmse_virial_train,
-          rmse_energy_test,
-          rmse_force_test,
-          rmse_virial_test);
-        finish_row(fid_loss_out, " %-13.5f %-13.5f");
-      } else {
-        // qNEP models:
-        printf(
-          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
-          "%-9.5f %-9.5f",
-          generation + 1,
-          loss_total,
-          loss_L1,
-          loss_L2,
-          rmse_energy_train,
-          rmse_force_train,
-          rmse_virial_train,
-          rmse_charge_train,
-          rmse_bec_train,
-          rmse_energy_test,
-          rmse_force_test,
-          rmse_virial_test,
-          rmse_charge_test,
-          rmse_bec_test);
-        finish_row(stdout, " %-9.5f %-9.5f");
-        fprintf(
-          fid_loss_out,
-          "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
-          "%-9.5f %-9.5f",
-          generation + 1,
-          loss_total,
-          loss_L1,
-          loss_L2,
-          rmse_energy_train,
-          rmse_force_train,
-          rmse_virial_train,
-          rmse_charge_train,
-          rmse_bec_train,
-          rmse_energy_test,
-          rmse_force_test,
-          rmse_virial_test,
-          rmse_charge_test,
-          rmse_bec_test);
-        finish_row(fid_loss_out, " %-9.5f %-9.5f");
-      }
-    } else {
-      // TNEP models:
-      printf(
-        "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_virial_train,
-        rmse_virial_test);
-      fprintf(
-        fid_loss_out,
-        "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
-        generation + 1,
-        loss_total,
-        loss_L1,
-        loss_L2,
-        rmse_virial_train,
-        rmse_virial_test);
-    }
+    write_row(stdout);
+    write_row(fid_loss_out);
     fflush(stdout);
     fflush(fid_loss_out);
 
