@@ -24,8 +24,8 @@ where
 
 is the variance of the :math:`k` Cartesian component of the force on atom :math:`i`.
 Here, :math:`F_{i,k}^{(m)}` is that component for model :math:`m`, and :math:`\bar{F}_{i,k}` is its mean over the models.
-If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
-Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
+If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of a molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
+Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` whether or not :math:`\sigma_f>\delta`.
 A model with forces that are not finite gives a NaN uncertainty.
 If the uncertainty of any atom is NaN, :math:`\sigma_f` is NaN and the structure is appended to `active.xyz`.
 The energy, virial and forces in `active.xyz` are those of the main potential alone.
