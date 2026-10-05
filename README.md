@@ -212,4 +212,8 @@ For work using GPUMD, please cite **[Xu2025](https://doi.org/10.1002/mgea.70028)
 
 ## License
 
-Copyright (2017) Zheyong Fan. GPUMD is distributed under the GNU General Public License (GPL), version 3. See [LICENCE](LICENCE) for the full license text.
+Copyright 2017 Zheyong Fan and GPUMD development team.
+
+The source code and header files under `src/`, including subdirectories, are licensed under the GNU Lesser General Public License, version 3 or any later version (LGPL-3.0-or-later), except for files with their own third-party license notices. See the [LGPL v3](LICENSES/LGPL-3.0.txt) and [GPL v3](LICENSES/GPL-3.0.txt) license texts.
+
+Existing third-party licenses and notices are preserved. Contributor consent records are archived in [doc/relicensing/issue-1808/](doc/relicensing/issue-1808/).
